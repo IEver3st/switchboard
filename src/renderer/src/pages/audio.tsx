@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Play } from 'lucide-react';
 import type { SystemSnapshot } from '../../../shared/contracts';
-import { AudioTabs, audioWorkspaceTabs, type AudioWorkspaceTab } from '@/components/audio/AudioTabs';
+import { AudioTabs, type AudioWorkspaceTab } from '@/components/audio/AudioTabs';
 import { ChannelProcessingPage } from '@/components/audio/ChannelProcessingPage';
 import { clearAudioMeters, publishAudioMeterFrame } from '@/components/audio/meter-bus';
 import { MicrophonePage } from '@/components/audio/MicrophonePage';
@@ -12,23 +12,12 @@ import { Switch } from '@/components/ui/switch';
 import { switchboardApi } from '@/lib/demo-api';
 import { useSystemStore } from '@/stores/use-system-store';
 
-function tabFromHash(): AudioWorkspaceTab {
-  const candidate = window.location.hash.replace(/^#audio\/?/, '');
-  return audioWorkspaceTabs.includes(candidate as AudioWorkspaceTab) ? candidate as AudioWorkspaceTab : 'mixer';
-}
-
 export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const setAudioEnabled = useSystemStore((state) => state.setAudioEnabled);
   const actionPending = useSystemStore((state) => state.actionPending);
-  const [tab, setTab] = useState<AudioWorkspaceTab>(tabFromHash);
+  const [tab, setTab] = useState<AudioWorkspaceTab>('mixer');
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
-
-  useEffect(() => {
-    const onHashChange = () => setTab(tabFromHash());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
 
   useEffect(() => {
     if (!engineRunning) {
@@ -44,7 +33,6 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   const navigate = (next: AudioWorkspaceTab) => {
     setTab(next);
-    if (window.location.hash !== `#audio/${next}`) window.location.hash = `audio/${next}`;
   };
 
   return (
@@ -86,7 +74,13 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
         </div>
       ) : null}
 
-      <div id={`audio-panel-${tab}`} role="tabpanel" aria-labelledby={`audio-tab-${tab}`} tabIndex={0} className="outline-none">
+      <div
+        id={`audio-panel-${tab}`}
+        role="tabpanel"
+        aria-labelledby={`audio-tab-${tab}`}
+        tabIndex={0}
+        className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+      >
         {tab === 'mixer' ? <MixerPage snapshot={snapshot} onNavigate={navigate} /> : null}
         {tab === 'game' ? <ChannelProcessingPage snapshot={snapshot} busId="game" /> : null}
         {tab === 'chat' ? <ChannelProcessingPage snapshot={snapshot} busId="chat" /> : null}

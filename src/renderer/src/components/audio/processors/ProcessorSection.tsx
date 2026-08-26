@@ -28,9 +28,6 @@ export function ProcessorSection({
       <header className="mb-3 flex min-w-0 items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 id={`${id}-heading`} className="m-0 text-[12px] font-semibold text-foreground">{title}</h2>
-          {support === 'simulation' ? (
-            <p className="m-0 mt-0.5 text-[8px] text-muted-foreground">Saved to the canonical graph; live audio remains simulation-backed.</p>
-          ) : null}
           {unavailable ? (
             <p className="m-0 mt-0.5 text-[8px] text-muted-foreground">Unavailable until the native audio path is connected.</p>
           ) : null}

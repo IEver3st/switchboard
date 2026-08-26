@@ -231,6 +231,7 @@ export async function writeG502Control(
     await setLogitechAgent(`/onboard_profiles/${agentDeviceId}/onboard_mode`, {
       mode: change.enabled ? 'ONBOARD' : 'HOST',
     });
+    await waitForOnboardMode(agentDeviceId, change.enabled ? 'ONBOARD' : 'HOST');
     return;
   }
 
@@ -418,6 +419,28 @@ async function assertSoftwareMode(agentDeviceId: string): Promise<void> {
   if (mode.mode === 'ONBOARD') throw new Error('Turn off onboard memory before editing the software profile.');
 }
 
+async function waitForOnboardMode(agentDeviceId: string, expected: 'HOST' | 'ONBOARD'): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (attempt > 0) await delay(250);
+    try {
+      const result = onboardModeSchema.parse(
+        await getLogitechAgent(`/onboard_profiles/${agentDeviceId}/onboard_mode`),
+      );
+      const actual = result.mode === 'ONBOARD' ? 'ONBOARD' : 'HOST';
+      if (actual === expected) {
+        // The mode response leads the mouse and lighting endpoints slightly.
+        // Give the agent one beat to re-register them before discovery resumes.
+        await delay(250);
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(`Logitech did not enter ${expected.toLowerCase()} profile mode.`, { cause: lastError });
+}
+
 async function startSolidViewer(agentDeviceId: string, color: string): Promise<void> {
   await stopViewer(agentDeviceId);
   const rgba = hexToColor(color);
@@ -476,4 +499,8 @@ function colorToHex(value: { red: number; green: number; blue: number } | undefi
   if (!value) return undefined;
   const channel = (part: number) => Math.round(part * 255).toString(16).padStart(2, '0');
   return `#${channel(value.red)}${channel(value.green)}${channel(value.blue)}`;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }

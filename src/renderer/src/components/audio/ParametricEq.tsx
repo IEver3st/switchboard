@@ -172,7 +172,7 @@ export function ParametricEq({
               }}
               onDoubleClick={() => updateBand(band.id, { gainDb: 0 }, true)}
               onKeyDown={(event) => handleNodeKeyDown(band, event)}
-              className="cursor-crosshair outline-none focus-visible:stroke-[3]"
+              className="cursor-crosshair outline-none focus-visible:stroke-ring focus-visible:stroke-[3]"
             />
           ))}
         </svg>

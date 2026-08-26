@@ -34,8 +34,7 @@ function coefficients(band: EqBand): Biquad {
     };
   }
 
-  const slope = clamp(band.q, 0.2, 1);
-  const alpha = (sine / 2) * Math.sqrt((amplitude + 1 / amplitude) * (1 / slope - 1) + 2);
+  const alpha = alphaQ;
   const beta = 2 * Math.sqrt(amplitude) * alpha;
 
   if (band.type === 'low-shelf') {

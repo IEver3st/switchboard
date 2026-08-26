@@ -142,14 +142,21 @@ export class LogitechDeviceModule implements DeviceModule {
   private async readCapabilities(agentDeviceId: string, previous: Device | undefined): Promise<DeviceCapabilities> {
     const cached = this.capabilityCache.get(agentDeviceId);
     if (cached && Date.now() - cached.updatedAt < capabilityCacheDurationMs) return structuredClone(cached.value);
-    try {
-      const value = await readG502Capabilities(agentDeviceId, previous);
-      this.capabilityCache.set(agentDeviceId, { value, updatedAt: Date.now() });
-      return structuredClone(value);
-    } catch (error) {
-      console.warn('Logitech controls are temporarily unavailable.', error);
-      return disableControls(previous?.capabilities);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const value = await readG502Capabilities(agentDeviceId, previous);
+        this.capabilityCache.set(agentDeviceId, { value, updatedAt: Date.now() });
+        return structuredClone(value);
+      } catch (error) {
+        if (attempt < 2 && isTransientAgentError(error)) {
+          await delay(250 * (attempt + 1));
+          continue;
+        }
+        console.warn('Logitech controls are temporarily unavailable.', error);
+        return disableControls(previous?.capabilities);
+      }
     }
+    return disableControls(previous?.capabilities);
   }
 
   private async readBattery(
@@ -202,4 +209,16 @@ function findTransportProductId(path: string | undefined, hidDevices: HidDevice[
 function findPreviousDevice(previous: Device[], id: string, model: string): Device | undefined {
   return previous.find((device) => device.id === id)
     ?? previous.find((device) => device.moduleId === 'device.logitech-hidpp' && device.identity.model === model);
+}
+
+function isTransientAgentError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return message.includes('message path')
+    || message.includes('invalid device')
+    || message.includes('timed out')
+    || message.includes('socket closed');
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }

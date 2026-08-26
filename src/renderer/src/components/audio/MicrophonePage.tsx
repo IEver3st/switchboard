@@ -58,7 +58,8 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   const scrollToProcessor = (id: MicProcessorId) => {
     setSelectedProcessorId(id);
-    document.getElementById(`microphone-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById(`microphone-${id}`)?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   };
 
   return (

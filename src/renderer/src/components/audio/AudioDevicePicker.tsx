@@ -25,7 +25,7 @@ export function AudioDevicePicker({
     <Select value={value} onValueChange={onChange} disabled={disabled || options.length === 0}>
       <SelectTrigger
         aria-label={label}
-        className={cn('h-7 w-full min-w-0 border-0 bg-transparent px-0 text-[10px] font-medium shadow-none hover:text-foreground focus:ring-0', className)}
+        className={cn('h-7 w-full min-w-0 border-0 bg-transparent px-0 text-[10px] font-medium shadow-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/45', className)}
       >
         <SelectValue placeholder="No available device" />
       </SelectTrigger>
