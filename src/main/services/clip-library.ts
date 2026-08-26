@@ -28,8 +28,20 @@ export class ClipLibraryService {
     for (const clip of indexed) {
       try {
         await access(clip.path);
-        existing.push(clip);
-      } catch { /* Users can remove files outside Switchboard. */ }
+        if (clip.thumbnailPath) {
+          try {
+            await access(clip.thumbnailPath);
+            existing.push(clip);
+          } catch {
+            existing.push({ ...clip, thumbnailPath: undefined });
+          }
+        } else {
+          existing.push(clip);
+        }
+      } catch {
+        // Users can remove files outside Switchboard; remove the cache-only preview too.
+        if (clip.thumbnailPath) await rm(clip.thumbnailPath, { force: true });
+      }
     }
 
     const byPath = new Map(existing.map((clip) => [resolve(clip.path).toLocaleLowerCase(), clip]));
@@ -70,6 +82,9 @@ export class ClipLibraryService {
     const safeName = sanitizeClipBaseName(requestedName);
     const extension = extname(clip.path);
     let nextPath = join(dirname(clip.path), `${safeName}${extension}`);
+    if (resolve(nextPath).toLocaleLowerCase() === resolve(clip.path).toLocaleLowerCase()) {
+      return { ...clip, name: parse(clip.path).name };
+    }
     for (let suffix = 2; ; suffix += 1) {
       try {
         await access(nextPath);
@@ -149,6 +164,8 @@ function findExecutable(environmentName: string, baseName: string): string {
   const configured = process.env[environmentName];
   if (configured) return configured;
   const executable = process.platform === 'win32' ? `${baseName}.exe` : baseName;
+  const packagedCandidate = join(process.resourcesPath, 'capture-host', 'ffmpeg', executable);
+  if (existsSync(packagedCandidate)) return packagedCandidate;
   for (const segment of (process.env.PATH ?? '').split(delimiter)) {
     const candidate = join(segment, executable);
     try { if (existsSync(candidate)) return candidate; } catch { }

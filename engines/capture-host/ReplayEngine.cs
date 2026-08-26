@@ -24,6 +24,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private string ffprobePath = string.Empty;
     private string encoderName = "Not selected";
     private string backendName = "Unavailable";
+    private HashSet<string>? captureFilters;
+    private IReadOnlyList<string>? workingEncoders;
     private string operationalState = "stopped";
     private string? warning;
     private string? error;
@@ -65,6 +67,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
             PrepareStorage(next);
             await ProbeCapabilitiesAsync(next, cancellationToken);
+            ValidateRequestedCapabilities(next);
             EnsureStorageHeadroom(next, preventStart: true);
 
             if (next.Source == "automatic-game")
@@ -114,6 +117,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 await StopFfmpegInternalAsync(cancellationToken, preserveRing: false);
                 PrepareStorage(next);
                 await ProbeCapabilitiesAsync(next, cancellationToken);
+                ValidateRequestedCapabilities(next);
                 EnsureStorageHeadroom(next, preventStart: true);
                 if (next.Source == "automatic-game")
                 {
@@ -319,29 +323,31 @@ internal sealed class ReplayEngine : IAsyncDisposable
     {
         ffmpegPath = FfmpegLocator.FindFfmpeg();
         ffprobePath = FfmpegLocator.FindFfprobe(ffmpegPath);
-        var filters = await FfmpegLocator.ReadCaptureFiltersAsync(ffmpegPath, cancellationToken);
-        if (!filters.Contains("gfxcapture") && !filters.Contains("ddagrab"))
+        captureFilters ??= await FfmpegLocator.ReadCaptureFiltersAsync(ffmpegPath, cancellationToken);
+        if (!captureFilters.Contains("gfxcapture") && !captureFilters.Contains("ddagrab"))
             throw new InvalidOperationException("This FFmpeg build has no Windows Graphics Capture or Desktop Duplication filter.");
-        backendName = filters.Contains("gfxcapture") ? "Windows Graphics Capture" : "Desktop Duplication";
+        backendName = captureFilters.Contains("gfxcapture") ? "Windows Graphics Capture" : "Desktop Duplication";
 
-        var compiled = await FfmpegLocator.ReadEncodersAsync(ffmpegPath, cancellationToken);
-        var candidates = EncoderCandidates(capture.Codec).Where(compiled.Contains).ToArray();
-        var working = new List<string>();
-        foreach (var candidate in candidates)
+        if (workingEncoders is null)
         {
-            if (await FfmpegLocator.ProbeEncoderAsync(ffmpegPath, candidate, cancellationToken)) working.Add(candidate);
+            var compiled = await FfmpegLocator.ReadEncodersAsync(ffmpegPath, cancellationToken);
+            var detected = new List<string>();
+            foreach (var candidate in AllEncoderCandidates().Where(compiled.Contains))
+            {
+                if (await FfmpegLocator.ProbeEncoderAsync(ffmpegPath, candidate, cancellationToken)) detected.Add(candidate);
+            }
+            workingEncoders = detected;
         }
 
-        encoderName = SelectEncoder(capture, working);
+        encoderName = SelectEncoder(capture, workingEncoders);
         var codecs = new List<string>();
-        if (working.Any(name => name.StartsWith("h264", StringComparison.OrdinalIgnoreCase) || name == "libx264")) codecs.Add("h264");
-        if (working.Any(name => name.StartsWith("hevc", StringComparison.OrdinalIgnoreCase) || name == "libx265")) codecs.Add("hevc");
-        if (working.Any(name => name.StartsWith("av1", StringComparison.OrdinalIgnoreCase) || name == "libsvtav1")) codecs.Add("av1");
-        if (!codecs.Contains(capture.Codec)) codecs.Add(capture.Codec);
-        var hardwareAvailable = working.Any(name => !name.StartsWith("lib", StringComparison.OrdinalIgnoreCase));
+        if (workingEncoders.Any(name => name.StartsWith("h264", StringComparison.OrdinalIgnoreCase) || name == "libx264")) codecs.Add("h264");
+        if (workingEncoders.Any(name => name.StartsWith("hevc", StringComparison.OrdinalIgnoreCase) || name == "libx265")) codecs.Add("hevc");
+        if (workingEncoders.Any(name => name.StartsWith("av1", StringComparison.OrdinalIgnoreCase) || name == "libsvtav1")) codecs.Add("av1");
+        var hardwareAvailable = workingEncoders.Any(name => !name.StartsWith("lib", StringComparison.OrdinalIgnoreCase));
         capabilities = new CaptureCapabilities(
-            filters.Contains("gfxcapture") ? "windows-graphics-capture" : "desktop-duplication",
-            working,
+            captureFilters.Contains("gfxcapture") ? "windows-graphics-capture" : "desktop-duplication",
+            workingEncoders,
             codecs,
             hardwareAvailable ? 120 : 60,
             SystemAudio: true,
@@ -466,6 +472,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
             yield return "-vf";
             yield return "hwdownload,format=bgra,format=yuv420p";
         }
+        yield return "-fps_mode";
+        yield return "cfr";
+        yield return "-r";
+        yield return capture.Fps.ToString(CultureInfo.InvariantCulture);
         yield return "-c:v";
         yield return encoderName;
         foreach (var argument in EncoderArguments(capture, encoderName)) yield return argument;
@@ -698,8 +708,13 @@ internal sealed class ReplayEngine : IAsyncDisposable
         long available = 0;
         try
         {
-            var root = Path.GetPathRoot(Path.GetFullPath(capture.CacheDirectory));
-            if (!string.IsNullOrWhiteSpace(root)) available = new DriveInfo(root).AvailableFreeSpace;
+            var cacheRoot = Path.GetPathRoot(Path.GetFullPath(capture.CacheDirectory));
+            var clipsRoot = Path.GetPathRoot(Path.GetFullPath(capture.ClipsDirectory));
+            var cacheAvailable = !string.IsNullOrWhiteSpace(cacheRoot) ? new DriveInfo(cacheRoot).AvailableFreeSpace : 0;
+            var clipsAvailable = !string.IsNullOrWhiteSpace(clipsRoot) ? new DriveInfo(clipsRoot).AvailableFreeSpace : 0;
+            available = cacheAvailable > 0 && clipsAvailable > 0
+                ? Math.Min(cacheAvailable, clipsAvailable)
+                : Math.Max(cacheAvailable, clipsAvailable);
         }
         catch { }
         var lowThreshold = Math.Max(5L * 1024 * 1024 * 1024, capture.EstimatedReplayBytes * 4);
@@ -840,6 +855,17 @@ internal sealed class ReplayEngine : IAsyncDisposable
         "hevc" => ["hevc_nvenc", "hevc_amf", "hevc_qsv", "libx265"],
         _ => ["h264_nvenc", "h264_amf", "h264_qsv", "libx264"],
     };
+
+    private static IEnumerable<string> AllEncoderCandidates() =>
+        new[] { "h264", "hevc", "av1" }.SelectMany(EncoderCandidates).Distinct(StringComparer.OrdinalIgnoreCase);
+
+    private void ValidateRequestedCapabilities(CaptureSettings capture)
+    {
+        if (capture.Fps > capabilities.MaximumFps)
+            throw new InvalidOperationException($"{capture.Fps} FPS requires a working hardware encoder.");
+        if (!capabilities.Codecs.Contains(capture.Codec, StringComparer.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"No working {capture.Codec.ToUpperInvariant()} encoder is available.");
+    }
 
     private static string SelectEncoder(CaptureSettings capture, IReadOnlyList<string> working)
     {

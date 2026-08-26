@@ -29,7 +29,6 @@ const requiredFiles = [
   'src/shared/contracts.ts',
   'src/renderer/src/App.tsx',
   'resources/engine-workers/audio-worker.cjs',
-  'resources/engine-workers/capture-worker.cjs',
   'engines/audio-host/Audio.Host.csproj',
   'engines/capture-host/Capture.Host.csproj',
   'preview/index.html',
@@ -79,7 +78,8 @@ assert(ipcSource.includes('event.sender.id'), 'IPC must be pinned to the current
 assert(!ipcSource.includes('Boolean(input)') && !ipcSource.includes('Number(input)'), 'IPC must not use lossy Boolean/Number coercion.');
 
 const engineSupervisor = read('src/main/services/engine-supervisor.ts');
-assert(engineSupervisor.includes('utilityProcess.fork'), 'Optional engines must run in Electron utility processes.');
+assert(engineSupervisor.includes('utilityProcess.fork'), 'The audio fallback must run in an Electron utility process.');
+assert(engineSupervisor.includes("spawn(executable"), 'Capture must run in the isolated native Capture.Host process.');
 assert(engineSupervisor.includes('workerMessageSchema.safeParse'), 'Engine worker messages must be schema validated.');
 assert(engineSupervisor.includes('failPending'), 'Engine exits must reject pending requests.');
 
@@ -89,7 +89,6 @@ assert(stateStore.includes('setRendererActive'), 'Performance telemetry must acc
 
 for (const relativePath of [
   'resources/engine-workers/audio-worker.cjs',
-  'resources/engine-workers/capture-worker.cjs',
   'preview/app.js',
   'scripts/build-standalone-preview.mjs',
   'scripts/worker-smoke.cjs',
@@ -109,9 +108,12 @@ for (const relativePath of ['engines/audio-host/Audio.Host.csproj', 'engines/cap
 }
 
 const captureSource = read('engines/capture-host/ReplayEngine.cs');
-assert(captureSource.includes('ddagrab='), 'Capture host must contain the FFmpeg D3D11 capture path.');
-assert(captureSource.includes('-segment_wrap'), 'Capture host must use a bounded rotating segment ring.');
-assert(captureSource.includes('SWITCHBOARD_REAL_CAPTURE'), 'Real capture must remain explicit opt-in in the prototype.');
+const replayRing = read('engines/capture-host/ReplaySegmentRing.cs');
+assert(captureSource.includes('gfxcapture='), 'Capture host must contain the Windows Graphics Capture path.');
+assert(captureSource.includes('AudioPipeCapture.CreateSystemLoopback'), 'Capture host must own real system-audio capture.');
+assert(captureSource.includes('RunRemuxAsync'), 'Capture host must stream-copy replay segments into saved clips.');
+assert(replayRing.includes('MaximumCacheBytes') || captureSource.includes('MaximumCacheBytes'), 'Replay cache must enforce a hard byte bound.');
+assert(replayRing.includes('CreateHardLinkW'), 'Replay saves must snapshot immutable segments without copying when NTFS permits.');
 
 const audioGraph = read('engines/audio-host/AudioGraph.cs');
 assert(audioGraph.includes('ProcessMicrophone(Span<float>'), 'Audio graph must process caller-owned Span<float> buffers.');
@@ -188,4 +190,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('Prototype structure, security boundaries, imports, workers, and static preview passed validation.');
+console.log('Switchboard structure, security boundaries, imports, hosts, and static preview passed validation.');

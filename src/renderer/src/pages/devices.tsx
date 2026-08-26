@@ -78,6 +78,7 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
                         <><span aria-hidden>·</span><span className="uppercase">USB</span></>
                       ) : null}
                     </span>
+                    <span className="device-gallery__secondary">{secondaryDeviceSummary(device)}</span>
                   </span>
                 </button>
               </li>
@@ -174,6 +175,18 @@ function RuntimeStatus({ snapshot }: { snapshot: SystemSnapshot }) {
       <span className="tabular-nums">{formatMb(snapshot.performance.totalMemoryMb)} · {snapshot.performance.totalCpuPercent.toFixed(1)}% CPU</span>
     </footer>
   );
+}
+
+function secondaryDeviceSummary(device: Device): string {
+  if (device.kind === 'mouse') {
+    const activeDpi = asNumber(device.settings.activeDpi, 1600);
+    const connection = device.identity.connection === 'wireless'
+      ? 'Wireless'
+      : device.identity.connection?.toUpperCase();
+    return `${activeDpi.toLocaleString()} DPI${connection ? ` · ${connection}` : ''}`;
+  }
+  if (device.kind === 'microphone') return `Gain ${asNumber(device.settings.gain, 58)}%`;
+  return device.identity.connection?.toUpperCase() ?? 'Open device controls';
 }
 
 function MouseCallout({ binding }: { binding: DeviceControlBinding }) {

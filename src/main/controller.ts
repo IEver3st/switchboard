@@ -60,6 +60,9 @@ export class AppController {
   private readonly clipLibrary: ClipLibraryService;
   private capturePaths: CapturePaths;
   private registeredShortcut: string | null = null;
+  private captureRestartTimer: NodeJS.Timeout | null = null;
+  private captureRestartAttempts = 0;
+  private disposed = false;
 
   public constructor() {
     this.store = new StateStore(join(app.getPath('userData'), 'switchboard-state.json'));
@@ -308,17 +311,23 @@ export class AppController {
   public async setCaptureConfig(input: Partial<CaptureConfig>): Promise<SystemSnapshot> {
     const before = this.store.get();
     const nextConfig = captureConfigSchema.parse({ ...before.capture.config, ...input });
+    const hotkeyChanged = Boolean(input.hotkey && input.hotkey !== before.capture.config.hotkey);
 
-    if (input.hotkey && input.hotkey !== before.capture.config.hotkey) {
+    if (hotkeyChanged) {
       this.registerCaptureShortcut(input.hotkey, true);
     }
-    if (!before.capture.config.enabled && nextConfig.enabled) await this.startCaptureEngine(nextConfig);
-    if (before.capture.config.enabled && !nextConfig.enabled) await this.engines.stop('capture');
-    if (before.capture.config.enabled && nextConfig.enabled) {
-      const hostSnapshot = captureHostSnapshotSchema.parse(
-        await this.engines.request('capture', 'configure', this.toHostSettings(nextConfig), 45_000),
-      );
-      this.applyCaptureSnapshot(hostSnapshot);
+    try {
+      if (!before.capture.config.enabled && nextConfig.enabled) await this.startCaptureEngine(nextConfig);
+      if (before.capture.config.enabled && !nextConfig.enabled) await this.engines.stop('capture');
+      if (before.capture.config.enabled && nextConfig.enabled) {
+        const hostSnapshot = captureHostSnapshotSchema.parse(
+          await this.engines.request('capture', 'configure', this.toHostSettings(nextConfig), 45_000),
+        );
+        this.applyCaptureSnapshot(hostSnapshot);
+      }
+    } catch (operationError) {
+      if (hotkeyChanged) this.registerCaptureShortcut(before.capture.config.hotkey, false);
+      throw operationError;
     }
 
     const snapshot = this.store.update((draft) => {
@@ -515,6 +524,9 @@ export class AppController {
   }
 
   public async dispose(): Promise<void> {
+    this.disposed = true;
+    if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
+    this.captureRestartTimer = null;
     if (this.registeredShortcut) globalShortcut.unregister(this.registeredShortcut);
     this.devices.dispose();
     await this.engines.dispose();
@@ -572,6 +584,9 @@ export class AppController {
       },
       { persist: false },
     );
+    if (status.kind === 'capture' && status.state === 'error') {
+      this.scheduleCaptureHostRecovery(status.message);
+    }
   }
 
   private async initializeCaptureStorage(): Promise<void> {
@@ -658,6 +673,9 @@ export class AppController {
   }
 
   private applyCaptureSnapshot(snapshot: CaptureHostSnapshot): void {
+    if (snapshot.runtime.state === 'buffering' || snapshot.runtime.state === 'waiting') {
+      this.captureRestartAttempts = 0;
+    }
     this.store.update((draft) => {
       const shortcutRegistered = draft.capture.runtime.shortcutRegistered;
       draft.capture.runtime = { ...snapshot.runtime, shortcutRegistered };
@@ -665,6 +683,36 @@ export class AppController {
       draft.capture.capabilities = snapshot.capabilities;
       draft.capture.sources = snapshot.sources;
     }, { persist: false });
+  }
+
+  private scheduleCaptureHostRecovery(reason?: string): void {
+    if (this.disposed || this.captureRestartTimer || !this.store.get().capture.config.enabled) return;
+    if (this.captureRestartAttempts >= 3) {
+      this.store.update((draft) => {
+        draft.capture.runtime.state = 'error';
+        draft.capture.runtime.error = 'Capture.Host failed repeatedly. Instant Replay was left enabled but automatic recovery stopped.';
+      }, { persist: false });
+      return;
+    }
+
+    this.captureRestartAttempts += 1;
+    const delayMs = this.captureRestartAttempts * 1_000;
+    this.store.update((draft) => {
+      draft.capture.runtime.state = 'recovering';
+      draft.capture.runtime.warning = `Capture.Host stopped unexpectedly${reason ? `: ${reason}` : ''}. Recovery attempt ${this.captureRestartAttempts} of 3.`;
+      draft.capture.runtime.error = undefined;
+    }, { persist: false });
+    this.captureRestartTimer = setTimeout(() => {
+      this.captureRestartTimer = null;
+      if (this.disposed || !this.store.get().capture.config.enabled) return;
+      void this.startCaptureEngine(this.store.get().capture.config).catch((restartError) => {
+        this.store.update((draft) => {
+          draft.capture.runtime.state = 'recovering';
+          draft.capture.runtime.warning = restartError instanceof Error ? restartError.message : String(restartError);
+        }, { persist: false });
+        this.scheduleCaptureHostRecovery();
+      });
+    }, delayMs);
   }
 
   private registerCaptureShortcut(accelerator: string, throwOnFailure: boolean): void {

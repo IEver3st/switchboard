@@ -123,7 +123,10 @@ function ProductCanvas({
         return;
       }
 
-      const processingScale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
+      // The gallery displays at at most ~330 CSS px. Processing a 520 px working
+      // copy preserves native-window sharpness without blocking the renderer on
+      // multi-megapixel background/lighting masks during startup.
+      const processingScale = Math.min(1, 520 / Math.max(image.naturalWidth, image.naturalHeight));
       canvas.width = Math.round(image.naturalWidth * processingScale);
       canvas.height = Math.round(image.naturalHeight * processingScale);
       context.imageSmoothingEnabled = true;

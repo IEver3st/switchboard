@@ -43,8 +43,14 @@ export class CaptureStorageService {
     let availableBytes = 0;
     let warning: string | undefined;
     try {
-      const stats = await statfs(paths.cacheDirectory, { bigint: true });
-      availableBytes = Number(stats.bavail * stats.bsize);
+      const [cacheStats, clipsStats] = await Promise.all([
+        statfs(paths.cacheDirectory, { bigint: true }),
+        statfs(paths.clipsDirectory, { bigint: true }),
+      ]);
+      availableBytes = Math.min(
+        Number(cacheStats.bavail * cacheStats.bsize),
+        Number(clipsStats.bavail * clipsStats.bsize),
+      );
     } catch (error) {
       warning = `Storage is unavailable: ${error instanceof Error ? error.message : String(error)}`;
     }

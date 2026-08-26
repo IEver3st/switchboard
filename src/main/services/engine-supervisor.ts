@@ -105,8 +105,9 @@ export class EngineSupervisor {
 
     this.expectedStops.add(kind);
     try {
+      const exit = this.waitForExit(worker, kind === 'capture' ? 5_000 : 900);
       this.sendEnvelope(worker, { command: 'shutdown' });
-      const exited = await this.waitForExit(worker, kind === 'capture' ? 5_000 : 900);
+      const exited = await exit;
       if (!exited) {
         worker.kill();
         await this.waitForExit(worker, 500);

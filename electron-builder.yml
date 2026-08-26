@@ -9,6 +9,8 @@ extraResources:
     to: engine-workers
   - from: resources/branding
     to: branding
+  - from: .switchboard/build/capture-host
+    to: capture-host
 asar: true
 asarUnpack:
   - resources/**
