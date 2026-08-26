@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, LoaderCircle, X } from 'lucide-react';
+import { domAnimation, LazyMotion, useReducedMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
 import { Sidebar } from '@/components/layout/sidebar';
+import { StartupScreen } from '@/components/layout/startup-screen';
 import { TitleStrip } from '@/components/layout/title-strip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AudioPage } from '@/pages/audio';
@@ -18,6 +20,8 @@ const pageTitles: Record<PageId, string> = {
   settings: 'Settings',
 };
 
+const minimumStartupDurationMs = 800;
+
 export function App() {
   const snapshot = useSystemStore((state) => state.snapshot);
   const page = useSystemStore((state) => state.page);
@@ -28,6 +32,9 @@ export function App() {
   const setPage = useSystemStore((state) => state.setPage);
   const clearError = useSystemStore((state) => state.clearError);
   const previousWorkspaceRef = useRef<Exclude<PageId, 'settings' | 'modules'>>('devices');
+  const startupStartedAt = useRef(performance.now());
+  const reduceMotion = useReducedMotion();
+  const [startupPhase, setStartupPhase] = useState<'visible' | 'exiting' | 'complete'>('visible');
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -41,15 +48,26 @@ export function App() {
     if (page !== 'settings' && page !== 'modules') previousWorkspaceRef.current = page;
   }, [page]);
 
-  if (loading || !snapshot) {
+  useEffect(() => {
+    if (loading || !snapshot || startupPhase !== 'visible') return;
+
+    const elapsed = performance.now() - startupStartedAt.current;
+    const remaining = reduceMotion ? 0 : Math.max(0, minimumStartupDurationMs - elapsed);
+    const timeout = window.setTimeout(() => {
+      setStartupPhase(reduceMotion ? 'complete' : 'exiting');
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [loading, reduceMotion, snapshot, startupPhase]);
+
+  if (startupPhase !== 'complete' || !snapshot) {
     return (
-      <div className="grid h-full place-items-center bg-background">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground" role="status">
-          <img src="./switchboard-icon.png" alt="" className="size-8 object-contain" draggable={false} />
-          <LoaderCircle className="size-4 animate-spin" />
-          Starting Switchboard control plane…
-        </div>
-      </div>
+      <LazyMotion features={domAnimation} strict>
+        <StartupScreen
+          error={!loading && !snapshot ? error : null}
+          exiting={startupPhase === 'exiting'}
+          onExitComplete={() => setStartupPhase('complete')}
+        />
+      </LazyMotion>
     );
   }
 

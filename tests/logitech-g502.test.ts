@@ -6,6 +6,7 @@ import {
   g502XPlusActions,
   g502XPlusBindings,
 } from '../src/main/modules/logitech/devices/g502-x-plus/definition';
+import { defaultDevices } from '../src/shared/defaults';
 
 describe('G502 X Plus normalized controls', () => {
   test('maps every selectable action to a real G HUB standard card', () => {
@@ -28,6 +29,24 @@ describe('G502 X Plus normalized controls', () => {
       expect(binding.hotspot.position.y).toBeGreaterThanOrEqual(0);
       expect(binding.hotspot.position.y).toBeLessThanOrEqual(100);
     }
+  });
+
+  test('anchors every callout to the visible G502 render instead of transparent image padding', () => {
+    const positions = Object.fromEntries(
+      g502XPlusBindings.map((binding) => [binding.buttonId, binding.hotspot.position]),
+    );
+
+    expect(positions).toMatchObject({
+      primary: { x: 44, y: 23 },
+      back: { x: 34, y: 55 },
+      'dpi-shift': { x: 36, y: 43 },
+      secondary: { x: 60, y: 23 },
+      wheel: { x: 53, y: 35 },
+      forward: { x: 35, y: 49 },
+    });
+    expect(defaultDevices.find((device) => device.displayName === 'G502 X Plus')
+      ?.capabilities.buttonAssignments?.bindings.map((binding) => binding.hotspot.position))
+      .toEqual(g502XPlusBindings.map((binding) => binding.hotspot.position));
   });
 
   test('derives the installed G HUB action-library prefix without hardcoding it', () => {

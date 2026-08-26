@@ -6,7 +6,7 @@ export type VoiceStyle = 'natural' | 'balanced' | 'broadcast';
 
 export const noiseRemovalAmounts: Record<SemanticStrength, number> = {
   light: 25,
-  balanced: 50,
+  balanced: 55,
   strong: 80,
 };
 

@@ -5,8 +5,6 @@ files:
   - out/**
   - package.json
 extraResources:
-  - from: resources/engine-workers
-    to: engine-workers
   - from: resources/branding
     to: branding
   - from: .switchboard/build/capture-host

@@ -193,9 +193,10 @@ export class LogitechDeviceModule implements DeviceModule {
         ?? (previous ? context.appearanceOverrides[previous.id] : undefined)
         ?? previousOverride,
     );
-    let capabilities = disableControls(previous?.capabilities);
-    delete capabilities.battery;
-    delete capabilities.reportRate;
+    // G HUB capabilities describe a different control backend. Reusing them
+    // here leaves convincing but unusable controls behind after that service
+    // exits, so direct fallback starts from only what HID++ proves available.
+    let capabilities: DeviceCapabilities = {};
     if (directEndpoint?.path) {
       try {
         const session = await this.ensureDirectDpiSession(directEndpoint, previous);

@@ -297,6 +297,7 @@ export const audioDeviceSchema = z.object({
   available: z.boolean(),
   formFactor: audioEndpointFormFactorSchema.nullable().optional(),
   isVirtual: z.boolean().default(false),
+  isSwitchboard: z.boolean().default(false),
 });
 export type AudioDevice = z.infer<typeof audioDeviceSchema>;
 
@@ -345,12 +346,51 @@ export const audioCapabilitiesSchema = z.object({
   applicationRouting: audioSupportLevelSchema,
   channelDsp: audioSupportLevelSchema,
   microphoneDsp: audioSupportLevelSchema,
+  noiseSuppression: audioSupportLevelSchema.default('unavailable'),
   realtimeMetering: audioSupportLevelSchema,
   microphoneTest: audioSupportLevelSchema,
   monitoring: audioSupportLevelSchema,
   spatialAudio: audioSupportLevelSchema,
+  reason: z.string().nullable().optional(),
 });
 export type AudioCapabilities = z.infer<typeof audioCapabilitiesSchema>;
+
+export const noiseSuppressionDiagnosticsSchema = z.object({
+  backend: z.string(),
+  available: z.boolean(),
+  modelIdentifier: z.string().nullable().default(null),
+  modelHash: z.string().nullable().default(null),
+  nativeLibraryHash: z.string().nullable().default(null),
+  state: z.enum(['not-loaded', 'ready', 'bypassed']),
+  modelInitializationMs: z.number().nonnegative(),
+  inputSampleRate: z.number().int().nonnegative(),
+  processingSampleRate: z.literal(48000),
+  frameLength: z.number().int().nonnegative(),
+  algorithmicLatencyMs: z.number().nonnegative(),
+  attenuationLimitDb: z.number().nonnegative(),
+  localSnrDb: z.number().nullable().default(null),
+  p50Ms: z.number().nonnegative(),
+  p95Ms: z.number().nonnegative(),
+  p99Ms: z.number().nonnegative(),
+  maximumMs: z.number().nonnegative(),
+  captureCallbackP99Ms: z.number().nonnegative(),
+  captureOverruns: z.number().int().nonnegative(),
+  monitorOverruns: z.number().int().nonnegative().default(0),
+  monitorUnderruns: z.number().int().nonnegative(),
+  droppedOrBypassedFrames: z.number().int().nonnegative(),
+  recoveryCount: z.number().int().nonnegative(),
+  lastError: z.string().nullable().default(null),
+});
+export type NoiseSuppressionDiagnostics = z.infer<typeof noiseSuppressionDiagnosticsSchema>;
+
+export const virtualDriverStateSchema = z.object({
+  state: z.enum(['ready', 'not-installed', 'incomplete']),
+  interfaceName: z.string(),
+  missingEndpoints: z.array(z.string()),
+  endpoints: z.array(z.object({ id: z.string(), name: z.string(), flow: z.enum(['render', 'capture']) })),
+  message: z.string(),
+});
+export type VirtualDriverState = z.infer<typeof virtualDriverStateSchema>;
 
 export const audioApplicationSchema = z.object({
   id: z.string().min(1),
@@ -361,6 +401,25 @@ export const audioApplicationSchema = z.object({
   active: z.boolean(),
 });
 export type AudioApplication = z.infer<typeof audioApplicationSchema>;
+
+export const audioHostSnapshotSchema = z.object({
+  capabilities: audioCapabilitiesSchema,
+  noiseSuppression: noiseSuppressionDiagnosticsSchema,
+  inputDeviceId: z.string().nullable().default(null),
+  inputFormat: z.string().nullable().default(null),
+  monitoringDeviceId: z.string().nullable().default(null),
+  running: z.boolean(),
+  error: z.string().nullable().default(null),
+  driver: virtualDriverStateSchema,
+  applications: z.array(audioApplicationSchema),
+  buses: z.array(z.object({
+    id: audioBusIdSchema,
+    gain: z.number().min(0).max(1.5),
+    muted: z.boolean(),
+    applicationCount: z.number().int().nonnegative(),
+  })),
+});
+export type AudioHostSnapshot = z.infer<typeof audioHostSnapshotSchema>;
 
 export const micProcessorIdSchema = z.enum([
   'gain',
@@ -535,11 +594,13 @@ export const audioStateSchema = z.object({
     applicationRouting: 'unavailable',
     channelDsp: 'unavailable',
     microphoneDsp: 'unavailable',
+    noiseSuppression: 'unavailable',
     realtimeMetering: 'unavailable',
     microphoneTest: 'unavailable',
     monitoring: 'unavailable',
     spatialAudio: 'unavailable',
   }),
+  host: audioHostSnapshotSchema.nullable().default(null),
   pathPresets: z.array(audioPathPresetSchema).default([]),
   activePresetIds: z.object({
     game: z.string().nullable(),
@@ -607,6 +668,8 @@ export const captureStorageSchema = z.object({
   clipsDirectory: z.string(),
   cacheDirectory: z.string(),
   availableBytes: z.number().nonnegative(),
+  volumeTotalBytes: z.number().nonnegative(),
+  volumeAvailableBytes: z.number().nonnegative(),
   clipsBytes: z.number().nonnegative(),
   replayCacheBytes: z.number().nonnegative(),
   lowSpace: z.boolean(),
@@ -689,6 +752,30 @@ export const performanceSnapshotSchema = z.object({
 });
 export type PerformanceSnapshot = z.infer<typeof performanceSnapshotSchema>;
 
+export const detectedGameSourceSchema = z.enum(['steam', 'epic', 'manual']);
+export type DetectedGameSource = z.infer<typeof detectedGameSourceSchema>;
+
+export const detectedGameSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(1).max(160),
+  source: detectedGameSourceSchema,
+  installDirectory: z.string().min(1),
+  executablePath: z.string().min(1).nullable(),
+  launchUri: z.string().min(1).nullable(),
+  addedAt: z.string(),
+});
+export type DetectedGame = z.infer<typeof detectedGameSchema>;
+
+export const gameDetectionStateSchema = z.object({
+  capability: z.enum(['available', 'simulation']),
+  scanState: z.enum(['idle', 'scanning', 'error']),
+  games: z.array(detectedGameSchema),
+  lastScanAt: z.string().nullable(),
+  warning: z.string().optional(),
+  error: z.string().optional(),
+});
+export type GameDetectionState = z.infer<typeof gameDetectionStateSchema>;
+
 export const appSettingsSchema = z.object({
   launchAtStartup: z.boolean(),
   closeToTray: z.boolean(),
@@ -697,6 +784,7 @@ export const appSettingsSchema = z.object({
   performanceGuard: z.boolean(),
   diagnosticsRetentionDays: z.number().int().min(1).max(30),
   telemetry: z.literal(false),
+  scanGamesAutomatically: z.boolean(),
   deviceAppearanceOverrides: z.record(z.string(), deviceAppearanceOverrideSchema).default({}),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -716,6 +804,7 @@ export const systemSnapshotSchema = z.object({
     sources: z.array(captureSourceSchema),
   }),
   clips: z.array(clipSchema),
+  gameDetection: gameDetectionStateSchema,
   performance: performanceSnapshotSchema,
   settings: appSettingsSchema,
 });
@@ -914,6 +1003,7 @@ export const settingsResetScopeSchema = z.enum([
   'devices',
   'audio',
   'capture',
+  'games',
   'modules',
   'diagnostics',
 ]);
@@ -940,6 +1030,7 @@ export const ipcChannels = {
   exportAudioPreset: 'audio:export-preset',
   setAudioChannelProcessor: 'audio:set-channel-processor',
   setAudioMonitoring: 'audio:set-monitoring',
+  testMicrophone: 'audio:test-microphone',
   setChatMix: 'audio:set-chat-mix',
   setMicProcessor: 'audio:set-mic-processor',
   audioMeterUpdated: 'audio:meter-updated',
@@ -948,6 +1039,8 @@ export const ipcChannels = {
   chooseClipDirectory: 'capture:choose-clip-directory',
   openClipsDirectory: 'capture:open-clips-directory',
   refreshCaptureSources: 'capture:refresh-sources',
+  scanGames: 'games:scan',
+  addGame: 'games:add',
   updateSettings: 'settings:update',
   resetSettings: 'settings:reset',
   revealClip: 'clips:reveal',
@@ -980,6 +1073,7 @@ export interface SwitchboardApi {
   exportAudioPreset(input: AudioPresetIdInput): Promise<void>;
   setAudioChannelProcessor(input: SetAudioChannelProcessorInput): Promise<SystemSnapshot>;
   setAudioMonitoring(input: SetAudioMonitoringInput): Promise<SystemSnapshot>;
+  testMicrophone(): Promise<void>;
   setChatMix(value: number): Promise<SystemSnapshot>;
   setMicProcessor(input: SetMicProcessorInput): Promise<SystemSnapshot>;
   subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void;
@@ -988,6 +1082,8 @@ export interface SwitchboardApi {
   chooseClipDirectory(): Promise<SystemSnapshot>;
   openClipsDirectory(): Promise<void>;
   refreshCaptureSources(): Promise<SystemSnapshot>;
+  scanGames(): Promise<SystemSnapshot>;
+  addGame(): Promise<SystemSnapshot>;
   updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot>;
   resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot>;
   revealClip(id: string): Promise<void>;

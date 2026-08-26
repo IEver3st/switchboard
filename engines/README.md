@@ -1,8 +1,8 @@
 # Realtime engine prototypes
 
-The Electron app runs small JavaScript utility workers so the control plane can be exercised on any development machine. These `.NET 10` projects are the production migration path:
+Electron launches these isolated `.NET 10` hosts directly; realtime media never crosses Electron IPC:
 
 - `capture-host`: FFmpeg-backed rolling replay buffer and no-reencode clip save.
 - `audio-host`: Windows endpoint/session discovery and the user-mode DSP/mixer graph.
 
-They intentionally share a boring JSON-lines command vocabulary with the utility workers. Replace the transport with named pipes when the hosts are wired into packaged Windows builds.
+They use a narrow JSON-lines control vocabulary. Audio and video sample buffers remain inside the native hosts.

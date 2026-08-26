@@ -9,6 +9,7 @@ import type {
   ButtonAssignmentBinding,
   Device,
   EngineStatus,
+  GameDetectionState,
   ModuleManifest,
   PerformanceSnapshot,
   SystemSnapshot,
@@ -205,11 +206,11 @@ export const defaultDevices: Device[] = [
         ],
         bindings: [
           previewBinding('primary', 'Primary click', 'g1', 'mouse.primary-click', 'left', 0, 44, 23),
-          previewBinding('back', 'Back', 'g4', 'mouse.back', 'left', 1, 29, 55),
-          previewBinding('dpi-shift', 'DPI shift', 'g5', 'mouse.dpi-shift', 'left', 2, 25, 43),
-          previewBinding('secondary', 'Secondary click', 'g2', 'mouse.secondary-click', 'right', 0, 56, 23),
-          previewBinding('wheel', 'Wheel press', 'g3', 'mouse.middle-click', 'right', 1, 50, 35),
-          previewBinding('forward', 'Forward', 'g6', 'mouse.forward', 'right', 2, 32, 49),
+          previewBinding('back', 'Back', 'g4', 'mouse.back', 'left', 1, 34, 55),
+          previewBinding('dpi-shift', 'DPI shift', 'g5', 'mouse.dpi-shift', 'left', 2, 36, 43),
+          previewBinding('secondary', 'Secondary click', 'g2', 'mouse.secondary-click', 'right', 0, 60, 23),
+          previewBinding('wheel', 'Wheel press', 'g3', 'mouse.middle-click', 'right', 1, 53, 35),
+          previewBinding('forward', 'Forward', 'g6', 'mouse.forward', 'right', 2, 35, 49),
         ],
       },
       lighting: {
@@ -331,10 +332,11 @@ export const defaultAudio: AudioState = {
   monitoringEnabled: false,
   monitoringDeviceId: '',
   buses: [
-    { id: 'game', label: 'Game', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard Game', deviceId: '' },
-    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard Chat', deviceId: '' },
-    { id: 'media', label: 'Media', enabled: true, appCount: 0, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard Media', deviceId: '' },
-    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, gain: 0.92, muted: false, meter: 0.56, endpoint: 'Switchboard Microphone', deviceId: '' },
+    { id: 'game', label: 'Game', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard - Game', deviceId: '' },
+    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard - Chat', deviceId: '' },
+    { id: 'media', label: 'Media', enabled: true, appCount: 0, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard - Media', deviceId: '' },
+    { id: 'aux', label: 'Aux', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0, endpoint: 'Switchboard - Aux', deviceId: '' },
+    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, gain: 0.92, muted: false, meter: 0.56, endpoint: 'Switchboard - Microphone', deviceId: '' },
   ],
   micProcessors: createNaturalMicrophoneProcessors(),
   channelProcessing: [
@@ -345,15 +347,17 @@ export const defaultAudio: AudioState = {
   devices: [],
   applications: [],
   capabilities: {
-    virtualChannels: 'simulation',
+    virtualChannels: 'unavailable',
     applicationRouting: 'unavailable',
-    channelDsp: 'simulation',
-    microphoneDsp: 'simulation',
-    realtimeMetering: 'simulation',
+    channelDsp: 'unavailable',
+    microphoneDsp: 'unavailable',
+    noiseSuppression: 'unavailable',
+    realtimeMetering: 'unavailable',
     microphoneTest: 'unavailable',
     monitoring: 'unavailable',
     spatialAudio: 'unavailable',
   },
+  host: null,
   pathPresets: structuredClone(defaultAudioPathPresets),
   activePresetIds: {
     game: 'game-flat',
@@ -401,6 +405,8 @@ export const defaultCaptureStorage: CaptureStorage = {
   clipsDirectory: '',
   cacheDirectory: '',
   availableBytes: 0,
+  volumeTotalBytes: 0,
+  volumeAvailableBytes: 0,
   clipsBytes: 0,
   replayCacheBytes: 0,
   lowSpace: false,
@@ -417,6 +423,13 @@ export const defaultCaptureCapabilities: CaptureCapabilities = {
   exclusiveFullscreen: false,
 };
 
+export const defaultGameDetection: GameDetectionState = {
+  capability: 'available',
+  scanState: 'idle',
+  games: [],
+  lastScanAt: null,
+};
+
 export const defaultSettings: AppSettings = {
   launchAtStartup: false,
   closeToTray: true,
@@ -425,6 +438,7 @@ export const defaultSettings: AppSettings = {
   performanceGuard: true,
   diagnosticsRetentionDays: 7,
   telemetry: false,
+  scanGamesAutomatically: true,
   deviceAppearanceOverrides: {},
 };
 
@@ -475,6 +489,7 @@ export function createDefaultSnapshot(): SystemSnapshot {
       sources: [],
     },
     clips: structuredClone(seedClips),
+    gameDetection: structuredClone(defaultGameDetection),
     performance: structuredClone(defaultPerformance),
     settings: structuredClone(defaultSettings),
   };

@@ -1,0 +1,54 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "metrics": {
+      "viewport": {
+        "width": 1080,
+        "height": 722
+      },
+      "startup": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 722,
+        "top": 0,
+        "right": 1080,
+        "bottom": 722,
+        "left": 0
+      },
+      "sequence": {
+        "x": 400,
+        "y": 272,
+        "width": 280,
+        "height": 178,
+        "top": 272,
+        "right": 680,
+        "bottom": 450,
+        "left": 400
+      },
+      "route": {
+        "x": 430,
+        "y": 346,
+        "width": 220,
+        "height": 52,
+        "top": 346,
+        "right": 650,
+        "bottom": 398,
+        "left": 430
+      },
+      "status": "SwitchboardStarting control plane",
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "controlPlaneVisible": true
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-startup.png"
+  }
+]

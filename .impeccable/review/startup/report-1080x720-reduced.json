@@ -1,0 +1,12 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "reducedMotion": true,
+    "readyAfterMs": 100,
+    "startupVisible": false
+  }
+]

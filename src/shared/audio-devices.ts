@@ -3,7 +3,7 @@ import type { AudioDevice, AudioDeviceDirection, AudioState } from './contracts'
 const personalOutputFormFactors = new Set(['headphones', 'headset']);
 
 function availableDevices(devices: AudioDevice[], direction: AudioDeviceDirection): AudioDevice[] {
-  return devices.filter((device) => device.available && device.direction === direction);
+  return devices.filter((device) => device.available && device.direction === direction && !device.isSwitchboard);
 }
 
 function preferredFallback(devices: AudioDevice[], direction: AudioDeviceDirection): AudioDevice | undefined {

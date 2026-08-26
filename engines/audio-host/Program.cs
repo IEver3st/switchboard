@@ -1,10 +1,13 @@
+using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Switchboard.AudioHost;
 
-var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+{
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+};
 using var endpoints = new EndpointService();
-var graph = new AudioGraph();
-var running = false;
 
 if (args.Contains("--list-endpoints", StringComparer.OrdinalIgnoreCase))
 {
@@ -12,10 +15,46 @@ if (args.Contains("--list-endpoints", StringComparer.OrdinalIgnoreCase))
     return;
 }
 
-await foreach (var line in ReadLinesAsync(Console.In))
+if (args.Contains("--benchmark", StringComparer.OrdinalIgnoreCase))
 {
-    if (string.IsNullOrWhiteSpace(line)) continue;
+    Environment.ExitCode = await OfflineNoiseBenchmark.RunAsync(args, jsonOptions);
+    return;
+}
 
+using var engine = new AudioEngine(endpoints);
+using var shutdown = new CancellationTokenSource();
+using var outputGate = new SemaphoreSlim(1, 1);
+var process = Process.GetCurrentProcess();
+var previousCpuTime = process.TotalProcessorTime;
+var previousCpuSampleAt = Stopwatch.GetTimestamp();
+
+engine.SnapshotChanged += snapshot =>
+{
+    _ = WriteAsync(new { type = "event", @event = "audioSnapshot", payload = snapshot });
+};
+
+await WriteStatusAsync();
+var telemetry = PublishTelemetryAsync(shutdown.Token);
+
+try
+{
+    while (!shutdown.IsCancellationRequested && await Console.In.ReadLineAsync(shutdown.Token) is { } line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) continue;
+        var shouldStop = await HandleLineAsync(line);
+        if (shouldStop) break;
+    }
+}
+catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
+finally
+{
+    shutdown.Cancel();
+    engine.Stop();
+    try { await telemetry; } catch (OperationCanceledException) { }
+}
+
+async Task<bool> HandleLineAsync(string line)
+{
     string? requestId = null;
     try
     {
@@ -24,87 +63,117 @@ await foreach (var line in ReadLinesAsync(Console.In))
         requestId = root.TryGetProperty("requestId", out var id) ? id.GetString() : null;
         var command = root.GetProperty("command").GetString() ?? throw new InvalidOperationException("Missing command.");
         var payload = root.TryGetProperty("payload", out var body) ? body : default;
-
-        object result = command switch
+        object? result;
+        if (command == "testMicrophone")
         {
-            "start" => SetRunning(true),
-            "stop" => SetRunning(false),
-            "status" => Status(),
+            await engine.RunMicrophoneTestAsync(shutdown.Token);
+            result = new { completed = true };
+        }
+        else result = command switch
+        {
+            "start" => engine.Start(ParseSettings(payload)),
+            "configure" => engine.Configure(ParseSettings(payload)),
+            "stop" => engine.Stop(),
+            "status" => engine.GetSnapshot(),
             "listEndpoints" => endpoints.List(),
-            "listSessions" => endpoints.ListSessions(),
-            "setBusGain" => SetBusGain(payload),
-            "setBusEnabled" => SetBusEnabled(payload),
-            "setMasterGain" => SetMasterGain(payload),
-            "setMasterEnabled" => SetMasterEnabled(payload),
-            "setChatMix" => SetChatMix(payload),
-            "setProcessor" => SetProcessor(payload),
+            "listSessions" => ListSessions(),
+            "shutdown" => engine.Stop(),
             _ => throw new InvalidOperationException($"Unknown command: {command}"),
         };
-
-        Console.WriteLine(JsonSerializer.Serialize(new { requestId, ok = true, result }, jsonOptions));
+        if (requestId is not null) await WriteAsync(new { type = "response", requestId, result });
+        if (command is "start" or "stop") await WriteStatusAsync();
+        if (command == "shutdown")
+        {
+            shutdown.Cancel();
+            return true;
+        }
     }
-    catch (Exception error)
+    catch (Exception commandError)
     {
-        Console.WriteLine(JsonSerializer.Serialize(new { requestId, ok = false, error = error.Message }, jsonOptions));
+        if (requestId is not null)
+            await WriteAsync(new { type = "response", requestId, error = commandError.Message });
+        else
+            await WriteAsync(new { type = "event", @event = "audioError", payload = new { message = commandError.Message } });
+    }
+    return false;
+}
+
+object ListSessions()
+{
+    var virtualEndpoints = EndpointCatalog.Inspect(endpoints.List());
+    return virtualEndpoints.Ready ? endpoints.ListApplications(virtualEndpoints) : Array.Empty<AudioApplicationState>();
+}
+
+AudioHostSettings ParseSettings(JsonElement payload)
+{
+    if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        throw new InvalidOperationException("Audio settings are required.");
+    return payload.Deserialize<AudioHostSettings>(jsonOptions)?.Validate()
+           ?? throw new InvalidOperationException("Audio settings could not be parsed.");
+}
+
+async Task PublishTelemetryAsync(CancellationToken cancellationToken)
+{
+    using var meterTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
+    var statusCounter = 0;
+    while (await meterTimer.WaitForNextTickAsync(cancellationToken))
+    {
+        if (engine.Running) await WriteAsync(new { type = "meters", frame = engine.GetMeterFrame() });
+        statusCounter++;
+        if (statusCounter < 100) continue;
+        statusCounter = 0;
+        engine.RecoverIfNeeded();
+        await WriteAsync(new { type = "event", @event = "audioSnapshot", payload = engine.GetSnapshot() });
+        await WriteStatusAsync();
     }
 }
 
-object SetRunning(bool value)
+async Task WriteStatusAsync()
 {
-    running = value;
-    return Status();
+    process.Refresh();
+    var sampledAt = Stopwatch.GetTimestamp();
+    var cpuTime = process.TotalProcessorTime;
+    var elapsedSeconds = (sampledAt - previousCpuSampleAt) / (double)Stopwatch.Frequency;
+    var cpuSeconds = (cpuTime - previousCpuTime).TotalSeconds;
+    var cpuPercent = elapsedSeconds <= 0
+        ? 0
+        : Math.Clamp(cpuSeconds / elapsedSeconds / Environment.ProcessorCount * 100, 0, 100);
+    previousCpuTime = cpuTime;
+    previousCpuSampleAt = sampledAt;
+    var snapshot = engine.GetSnapshot();
+    var message = snapshot.Error
+                  ?? snapshot.NoiseSuppression.LastError
+                  ?? (engine.Running
+                      ? $"{snapshot.NoiseSuppression.Backend} microphone processing active"
+                      : null);
+    await WriteAsync(new
+    {
+        type = "status",
+        status = new
+        {
+            kind = "audio",
+            state = engine.Running ? "running" : "stopped",
+            pid = engine.Running ? Environment.ProcessId : (int?)null,
+            cpuPercent = Math.Round(cpuPercent, 2),
+            memoryMb = Math.Round(process.PrivateMemorySize64 / 1024d / 1024d, 1),
+            uptimeSeconds = Math.Max(0, engine.Uptime.TotalSeconds),
+            message,
+            updatedAt = DateTimeOffset.UtcNow,
+        },
+    });
 }
 
-object SetBusGain(JsonElement payload)
+async Task WriteAsync(object message)
 {
-    graph.SetBusGain(payload.GetProperty("busId").GetString()!, payload.GetProperty("gain").GetSingle());
-    return Status();
-}
-
-object SetBusEnabled(JsonElement payload)
-{
-    graph.SetBusEnabled(payload.GetProperty("busId").GetString()!, payload.GetProperty("enabled").GetBoolean());
-    return Status();
-}
-
-object SetMasterGain(JsonElement payload)
-{
-    graph.SetMasterGain(payload.GetProperty("gain").GetSingle());
-    return Status();
-}
-
-object SetMasterEnabled(JsonElement payload)
-{
-    graph.SetMasterEnabled(payload.GetProperty("enabled").GetBoolean());
-    return Status();
-}
-
-object SetChatMix(JsonElement payload)
-{
-    graph.SetChatMix(payload.GetProperty("value").GetSingle());
-    return Status();
-}
-
-object SetProcessor(JsonElement payload)
-{
-    graph.SetProcessor(payload.GetProperty("processorId").GetString()!, payload.GetProperty("enabled").GetBoolean());
-    return Status();
-}
-
-AudioHostStatus Status() => new(
-    running ? "running" : "stopped",
-    48_000,
-    "float32 stereo",
-    Math.Round(Environment.WorkingSet / 1024d / 1024d, 1),
-    graph.GetBuses(),
-    graph.GetProcessors(),
-    graph.ChatMix,
-    graph.MasterGain,
-    graph.MasterEnabled,
-    VirtualDriverPresent: false,
-    Message: "Control graph and Core Audio discovery are implemented. Signed virtual endpoints are the next hard dependency.");
-
-static async IAsyncEnumerable<string> ReadLinesAsync(TextReader reader)
-{
-    while (await reader.ReadLineAsync() is { } line) yield return line;
+    var json = JsonSerializer.Serialize(message, jsonOptions);
+    await outputGate.WaitAsync();
+    try
+    {
+        await Console.Out.WriteLineAsync(json);
+        await Console.Out.FlushAsync();
+    }
+    finally
+    {
+        outputGate.Release();
+    }
 }

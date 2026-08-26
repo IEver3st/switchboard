@@ -1,0 +1,16 @@
+{
+  "initialPid": 59496,
+  "backend": "RNNoise",
+  "canonicalStrength": 25,
+  "attenuationLimitDb": 9,
+  "persistedStrength": 25,
+  "refreshedStrength": 25,
+  "orderlyRestartPid": 60880,
+  "microphoneTest": "completed",
+  "killedPid": 60880,
+  "recoveredPid": 12416,
+  "recoveryMs": 2781,
+  "recoveredState": "ready",
+  "recoveredCaptureOverruns": 0,
+  "recoveredDroppedOrBypassedFrames": 0
+}

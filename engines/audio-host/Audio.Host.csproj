@@ -7,8 +7,14 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoiseNativeDir Condition="'$(NoiseNativeDir)' == ''">$(MSBuildProjectDirectory)\..\..\native\noise-bridge\target\release</NoiseNativeDir>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('$(NoiseNativeDir)')">
+    <Content Include="$(NoiseNativeDir)\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(NoiseNativeDir)\noise-native-manifest.json" Link="noise-native-manifest.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(NoiseNativeDir)\noise-native-manifest.json')" />
   </ItemGroup>
 </Project>

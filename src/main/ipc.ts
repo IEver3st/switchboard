@@ -176,6 +176,10 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => setAudioMonitoringInputSchema.parse(input),
     (input) => controller.setAudioMonitoring(input),
   );
+  ipcMain.handle(ipcChannels.testMicrophone, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.testMicrophone();
+  });
   handle(
     ipcChannels.setChatMix,
     getMainWindow,
@@ -209,6 +213,14 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   ipcMain.handle(ipcChannels.refreshCaptureSources, (event) => {
     assertTrustedSender(event, getMainWindow);
     return controller.refreshCaptureSources();
+  });
+  ipcMain.handle(ipcChannels.scanGames, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.scanGames();
+  });
+  ipcMain.handle(ipcChannels.addGame, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.addGame();
   });
   handle(
     ipcChannels.updateSettings,

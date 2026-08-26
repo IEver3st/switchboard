@@ -8,12 +8,14 @@ import {
   captureConfigSchema,
   captureHostSnapshotSchema,
   captureSourceSchema,
+  audioHostSnapshotSchema,
   audioPresetFileSchema,
   channelProcessingSchema,
   micProcessorSchema,
   type AudioPathId,
   type AudioPresetIdInput,
   type AudioMeterFrame,
+  type AudioHostSnapshot,
   type ApplyAudioPresetInput,
   type CaptureConfig,
   type CaptureHostSnapshot,
@@ -42,7 +44,7 @@ import {
   type SystemSnapshot,
   type UpdateSettingsInput,
 } from '../shared/contracts';
-import { defaultAudio, defaultCaptureConfig, defaultSettings } from '../shared/defaults';
+import { defaultAudio, defaultCaptureConfig, defaultGameDetection, defaultSettings } from '../shared/defaults';
 import {
   applyAudioPathPreset,
   findMatchingAudioPresetId,
@@ -58,6 +60,7 @@ import { ClipLibraryService } from './services/clip-library';
 import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
 import { DeviceRegistry } from './services/device-registry';
 import { EngineSupervisor } from './services/engine-supervisor';
+import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery';
 import { StateStore } from './services/state-store';
 
 const workerSavedClipSchema = z.object({
@@ -86,15 +89,19 @@ export class AppController {
   private readonly captureStorage: CaptureStorageService;
   private readonly clipLibrary: ClipLibraryService;
   private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
+  private readonly gameDiscovery: GameDiscoveryService;
   private capturePaths: CapturePaths;
   private registeredShortcut: string | null = null;
   private captureRestartTimer: NodeJS.Timeout | null = null;
   private captureRestartAttempts = 0;
+  private audioRestartTimer: NodeJS.Timeout | null = null;
+  private audioRestartAttempts = 0;
   private audioDeviceRefresh: Promise<SystemSnapshot> | null = null;
   private audioDevicesRefreshedAt = 0;
   private readonly captureSourceThumbnails = new Map<string, Buffer>();
   private captureSourceThumbnailRefresh: Promise<void> | null = null;
   private captureSourceThumbnailsRefreshedAt = 0;
+  private gameScan: Promise<SystemSnapshot> | null = null;
   private disposed = false;
 
   public constructor() {
@@ -107,6 +114,7 @@ export class AppController {
       isPackaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
     });
+    this.gameDiscovery = new GameDiscoveryService();
     this.engines = new EngineSupervisor(
       (status) => this.applyEngineStatus(status),
       (frame) => this.emitAudioMeters(frame),
@@ -143,6 +151,9 @@ export class AppController {
     const results = await Promise.allSettled(starts);
     for (const result of results) {
       if (result.status === 'rejected') console.error('Failed to restore an enabled engine.', result.reason);
+    }
+    if (snapshot.settings.scanGamesAutomatically) {
+      void this.scanGames().catch((error) => console.warn('Automatic game scan failed.', error));
     }
   }
 
@@ -244,8 +255,14 @@ export class AppController {
     const current = this.store.get().audio.enabled;
     if (current === enabled) return this.store.get();
 
-    if (enabled) await this.startAudioEngine();
-    else await this.engines.stop('audio');
+    if (enabled) {
+      await this.startAudioEngine();
+    } else {
+      if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
+      this.audioRestartTimer = null;
+      this.audioRestartAttempts = 0;
+      await this.engines.stop('audio');
+    }
 
     return this.store.update((draft) => {
       draft.audio.enabled = enabled;
@@ -263,7 +280,7 @@ export class AppController {
       if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
       bus.gain = input.gain;
     });
-    this.engines.send('audio', 'setBusGain', input);
+    this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
   }
 
@@ -271,7 +288,7 @@ export class AppController {
     const snapshot = this.store.update((draft) => {
       draft.audio.master.gain = input.gain;
     });
-    this.engines.send('audio', 'setMasterGain', input);
+    this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
   }
 
@@ -279,7 +296,7 @@ export class AppController {
     const snapshot = this.store.update((draft) => {
       draft.audio.master.enabled = input.enabled;
     });
-    this.engines.send('audio', 'setMasterEnabled', input);
+    this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
   }
 
@@ -289,7 +306,7 @@ export class AppController {
       if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
       bus.enabled = input.enabled;
     });
-    this.engines.send('audio', 'setBusEnabled', input);
+    this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
   }
 
@@ -314,19 +331,18 @@ export class AppController {
       if (target.id === 'mic') draft.audio.microphoneDevice = device.name;
       if (target.id === 'game') draft.audio.outputDevice = device.name;
     });
-    this.engines.send('audio', 'setBusDevice', input);
+    this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
   }
 
-  public applyAudioPreset(input: ApplyAudioPresetInput): SystemSnapshot {
+  public async applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot> {
     const before = this.store.get();
     const preset = before.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
     if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
     const snapshot = this.store.update((draft) => {
       applyAudioPathPreset(draft.audio, preset);
     });
-    this.engines.send('audio', 'configure', snapshot.audio);
-    return snapshot;
+    return this.configureAudioEngine(snapshot);
   }
 
   public createAudioPreset(input: CreateAudioPresetInput): SystemSnapshot {
@@ -440,11 +456,11 @@ export class AppController {
       draft.audio.channelProcessing[index] = channelProcessingSchema.parse(processing);
       draft.audio.activePresetIds[input.busId] = findMatchingAudioPresetId(draft.audio, input.busId);
     });
-    this.engines.send('audio', 'setChannelProcessor', input);
+    this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
   }
 
-  public setAudioMonitoring(input: SetAudioMonitoringInput): SystemSnapshot {
+  public async setAudioMonitoring(input: SetAudioMonitoringInput): Promise<SystemSnapshot> {
     const before = this.store.get();
     if (before.audio.capabilities.monitoring === 'unavailable') {
       throw new Error('Low-latency microphone monitoring is unavailable until Audio.Host owns the microphone stream.');
@@ -459,8 +475,15 @@ export class AppController {
       }
       draft.audio.activePresetIds.microphone = findMatchingAudioPresetId(draft.audio, 'microphone');
     });
-    this.engines.send('audio', 'setMonitoring', input);
-    return snapshot;
+    return this.configureAudioEngine(snapshot);
+  }
+
+  public async testMicrophone(): Promise<void> {
+    const snapshot = this.store.get();
+    if (snapshot.audio.capabilities.microphoneTest !== 'available') {
+      throw new Error(snapshot.audio.host?.capabilities.reason ?? 'Microphone testing is unavailable with the current audio setup.');
+    }
+    await this.engines.request('audio', 'testMicrophone', undefined, 10_000);
   }
 
   public setChatMix(value: number): SystemSnapshot {
@@ -474,11 +497,11 @@ export class AppController {
         chat.gain = Math.max(0.2, Math.min(1.2, 0.85 + normalized * 0.35));
       }
     });
-    this.engines.send('audio', 'setChatMix', { value: normalized });
+    this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
   }
 
-  public setMicProcessor(input: SetMicProcessorInput): SystemSnapshot {
+  public async setMicProcessor(input: SetMicProcessorInput): Promise<SystemSnapshot> {
     const snapshot = this.store.update((draft) => {
       const processor = draft.audio.micProcessors.find((candidate) => candidate.id === input.processorId);
       if (!processor) throw new Error(`Unknown microphone processor: ${input.processorId}`);
@@ -490,8 +513,7 @@ export class AppController {
       });
       draft.audio.activePresetIds.microphone = findMatchingAudioPresetId(draft.audio, 'microphone');
     });
-    this.engines.send('audio', 'setMicProcessor', input);
-    return snapshot;
+    return this.configureAudioEngine(snapshot);
   }
 
   public async setCaptureConfig(input: Partial<CaptureConfig>): Promise<SystemSnapshot> {
@@ -655,13 +677,43 @@ export class AppController {
     }
   }
 
-  public updateSettings(input: UpdateSettingsInput): SystemSnapshot {
+  public scanGames(): Promise<SystemSnapshot> {
+    if (this.gameScan) return this.gameScan;
+    this.gameScan = this.performGameScan();
+    return this.gameScan;
+  }
+
+  public async addGame(): Promise<SystemSnapshot> {
+    const selection = await dialog.showOpenDialog({
+      title: 'Add a game executable',
+      buttonLabel: 'Add game',
+      properties: ['openFile'],
+      filters: [{ name: 'Windows games', extensions: ['exe'] }],
+    });
+    if (selection.canceled || selection.filePaths.length === 0) return this.store.get();
+
+    const game = await this.gameDiscovery.fromExecutable(selection.filePaths[0]!);
+    const key = gameIdentityKey(game);
+    const current = this.store.get();
+    if (current.gameDetection.games.some((candidate) => gameIdentityKey(candidate) === key)) return current;
+    return this.store.update((draft) => {
+      draft.gameDetection.games.push(game);
+      draft.gameDetection.games.sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }));
+      draft.gameDetection.error = undefined;
+    });
+  }
+
+  public async updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot> {
+    const automaticScanWasEnabled = this.store.get().settings.scanGamesAutomatically;
     const snapshot = this.store.update((draft) => {
       draft.settings = { ...draft.settings, ...input };
     });
 
     if (typeof input.launchAtStartup === 'boolean') {
       this.applyLoginItemSetting(input.launchAtStartup);
+    }
+    if (input.scanGamesAutomatically === true && !automaticScanWasEnabled) {
+      return this.scanGames();
     }
     return snapshot;
   }
@@ -675,6 +727,7 @@ export class AppController {
         draft.settings = structuredClone(defaultSettings);
         draft.audio = createResetAudioState(draft.audio);
         draft.capture.config = structuredClone(defaultCaptureConfig);
+        draft.gameDetection = structuredClone(defaultGameDetection);
         const audioModule = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
         if (audioModule) audioModule.enabled = false;
         const captureModule = draft.modules.find((candidate) => candidate.id === 'capability.replay');
@@ -698,6 +751,10 @@ export class AppController {
         draft.capture.config = structuredClone(defaultCaptureConfig);
         const module = draft.modules.find((candidate) => candidate.id === 'capability.replay');
         if (module) module.enabled = false;
+      }
+      if (scope === 'games') {
+        draft.settings.scanGamesAutomatically = defaultSettings.scanGamesAutomatically;
+        draft.gameDetection = structuredClone(defaultGameDetection);
       }
       if (scope === 'modules') {
         draft.settings.automaticModuleUpdates = defaultSettings.automaticModuleUpdates;
@@ -830,18 +887,77 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
+    this.audioRestartTimer = null;
     if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
     this.captureRestartTimer = null;
     if (this.registeredShortcut) globalShortcut.unregister(this.registeredShortcut);
     this.captureSourceThumbnails.clear();
+    if (this.gameScan) await this.gameScan.catch(() => undefined);
     await this.devices.dispose();
     await this.engines.dispose();
     await this.store.flush();
   }
 
+  private async performGameScan(): Promise<SystemSnapshot> {
+    this.store.update((draft) => {
+      draft.gameDetection.scanState = 'scanning';
+      draft.gameDetection.warning = undefined;
+      draft.gameDetection.error = undefined;
+    }, { persist: false });
+
+    try {
+      const result = await this.gameDiscovery.scan();
+      const previousGames = this.store.get().gameDetection.games;
+      const preservedGames = result.warnings.length > 0
+        ? previousGames
+        : previousGames.filter((game) => game.source === 'manual');
+      const byIdentity = new Map(result.games.map((game) => [gameIdentityKey(game), game]));
+      for (const game of preservedGames) {
+        if (!byIdentity.has(gameIdentityKey(game))) byIdentity.set(gameIdentityKey(game), game);
+      }
+      return this.store.update((draft) => {
+        draft.gameDetection.games = [...byIdentity.values()]
+          .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }));
+        draft.gameDetection.scanState = 'idle';
+        draft.gameDetection.lastScanAt = new Date().toISOString();
+        draft.gameDetection.warning = result.warnings.length > 0
+          ? `${result.warnings.length} launcher ${result.warnings.length === 1 ? 'entry' : 'entries'} could not be read.`
+          : undefined;
+        draft.gameDetection.error = undefined;
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.store.update((draft) => {
+        draft.gameDetection.scanState = 'error';
+        draft.gameDetection.error = `Game scan failed: ${message}`;
+      }, { persist: false });
+      throw error;
+    } finally {
+      this.gameScan = null;
+    }
+  }
+
   private async startAudioEngine(): Promise<void> {
     await this.engines.start('audio');
-    this.engines.send('audio', 'configure', this.store.get().audio);
+    try {
+      const snapshot = audioHostSnapshotSchema.parse(
+        await this.engines.request('audio', 'start', this.store.get().audio, 30_000),
+      );
+      this.applyAudioHostSnapshot(snapshot);
+    } catch (error) {
+      await this.engines.stop('audio');
+      throw error;
+    }
+  }
+
+  private async configureAudioEngine(snapshot: SystemSnapshot): Promise<SystemSnapshot> {
+    if (!snapshot.audio.enabled) return snapshot;
+    const hostSnapshot = audioHostSnapshotSchema.parse(
+      await this.engines.request('audio', 'configure', snapshot.audio, 30_000),
+    );
+    this.applyAudioHostSnapshot(hostSnapshot);
+    return this.store.get();
   }
 
   private async startCaptureEngine(config: CaptureConfig): Promise<void> {
@@ -930,12 +1046,29 @@ export class AppController {
             saveQueueDepth: 0,
           };
           draft.capture.storage.replayCacheBytes = 0;
+        } else if (status.kind === 'audio' && status.state !== 'running') {
+          draft.audio.capabilities = {
+            virtualChannels: 'unavailable',
+            applicationRouting: 'unavailable',
+            channelDsp: 'unavailable',
+            microphoneDsp: 'unavailable',
+            noiseSuppression: 'unavailable',
+            realtimeMetering: 'unavailable',
+            microphoneTest: 'unavailable',
+            monitoring: 'unavailable',
+            spatialAudio: 'unavailable',
+          };
+          draft.audio.host = null;
+          draft.audio.applications = [];
+          for (const bus of draft.audio.buses) bus.appCount = 0;
         }
       },
       { persist: false },
     );
     if (status.kind === 'capture' && status.state === 'error') {
       this.scheduleCaptureHostRecovery(status.message);
+    } else if (status.kind === 'audio' && status.state === 'error') {
+      this.scheduleAudioHostRecovery(status.message);
     }
   }
 
@@ -960,6 +1093,8 @@ export class AppController {
           clipsDirectory: paths.clipsDirectory,
           cacheDirectory: paths.cacheDirectory,
           availableBytes: 0,
+          volumeTotalBytes: 0,
+          volumeAvailableBytes: 0,
           clipsBytes: draft.clips.reduce((sum, clip) => sum + clip.fileSize, 0),
           replayCacheBytes: 0,
           lowSpace: false,
@@ -1004,6 +1139,14 @@ export class AppController {
   }
 
   private applyEngineEvent(kind: 'audio' | 'capture', event: string, payload: unknown): void {
+    if (kind === 'audio') {
+      if (event === 'audioSnapshot') {
+        const parsed = audioHostSnapshotSchema.safeParse(payload);
+        if (parsed.success) this.applyAudioHostSnapshot(parsed.data);
+        else console.warn('Audio.Host sent an invalid snapshot.', parsed.error);
+      }
+      return;
+    }
     if (kind !== 'capture') return;
     if (event === 'captureSnapshot') {
       const parsed = captureHostSnapshotSchema.safeParse(payload);
@@ -1020,6 +1163,44 @@ export class AppController {
         }, { persist: false });
       }
     }
+  }
+
+  private applyAudioHostSnapshot(snapshot: AudioHostSnapshot): void {
+    if (snapshot.running) this.audioRestartAttempts = 0;
+    this.store.update((draft) => {
+      draft.audio.host = snapshot;
+      draft.audio.capabilities = { ...snapshot.capabilities };
+      draft.audio.applications = snapshot.applications;
+      const applicationCounts = new Map(snapshot.buses.map((bus) => [bus.id, bus.applicationCount]));
+      for (const bus of draft.audio.buses) bus.appCount = applicationCounts.get(bus.id) ?? 0;
+    }, { persist: false });
+  }
+
+  private scheduleAudioHostRecovery(reason?: string): void {
+    if (this.disposed || this.audioRestartTimer || !this.store.get().audio.enabled) return;
+    if (this.audioRestartAttempts >= 3) {
+      this.store.update((draft) => {
+        draft.audio.capabilities.reason = 'Audio.Host failed repeatedly. Automatic recovery stopped; disable and re-enable Audio to retry.';
+      }, { persist: false });
+      return;
+    }
+
+    this.audioRestartAttempts += 1;
+    const attempt = this.audioRestartAttempts;
+    const delayMs = attempt * 1_000;
+    this.store.update((draft) => {
+      draft.audio.capabilities.reason = `Audio.Host stopped unexpectedly${reason ? `: ${reason}` : ''}. Recovery attempt ${attempt} of 3.`;
+    }, { persist: false });
+    this.audioRestartTimer = setTimeout(() => {
+      this.audioRestartTimer = null;
+      if (this.disposed || !this.store.get().audio.enabled) return;
+      void this.startAudioEngine().catch((restartError) => {
+        this.store.update((draft) => {
+          draft.audio.capabilities.reason = restartError instanceof Error ? restartError.message : String(restartError);
+        }, { persist: false });
+        this.scheduleAudioHostRecovery();
+      });
+    }, delayMs);
   }
 
   private applyCaptureSnapshot(snapshot: CaptureHostSnapshot): void {

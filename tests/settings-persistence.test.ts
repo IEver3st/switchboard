@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StateStore } from '../src/main/services/state-store';
+import { createDefaultSnapshot } from '../src/shared/defaults';
 
 const temporaryDirectories: string[] = [];
 
@@ -21,6 +22,7 @@ describe('settings persistence', () => {
     first.update((draft) => {
       draft.settings.closeToTray = false;
       draft.settings.diagnosticsRetentionDays = 14;
+      draft.settings.scanGamesAutomatically = false;
       draft.capture.config.replaySeconds = 90;
       draft.capture.config.hotkey = 'Ctrl+Alt+F9';
       draft.capture.config.clipsDirectory = 'C:\\Switchboard Test Clips';
@@ -33,8 +35,30 @@ describe('settings persistence', () => {
 
     expect(snapshot.settings.closeToTray).toBeFalse();
     expect(snapshot.settings.diagnosticsRetentionDays).toBe(14);
+    expect(snapshot.settings.scanGamesAutomatically).toBeFalse();
     expect(snapshot.capture.config.replaySeconds).toBe(90);
     expect(snapshot.capture.config.hotkey).toBe('Ctrl+Alt+F9');
     expect(snapshot.capture.config.clipsDirectory).toBe('C:\\Switchboard Test Clips');
+  });
+
+  it('migrates existing state that predates game detection without discarding preferences', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-settings-legacy-games-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const legacy = createDefaultSnapshot() as unknown as Record<string, unknown>;
+    const settings = legacy.settings as Record<string, unknown>;
+    settings.closeToTray = false;
+    delete settings.scanGamesAutomatically;
+    delete legacy.gameDetection;
+    await writeFile(filePath, JSON.stringify(legacy));
+
+    const store = new StateStore(filePath);
+    await store.load();
+    const snapshot = store.get();
+
+    expect(snapshot.settings.closeToTray).toBeFalse();
+    expect(snapshot.settings.scanGamesAutomatically).toBeTrue();
+    expect(snapshot.gameDetection.games).toEqual([]);
+    expect(snapshot.gameDetection.scanState).toBe('idle');
   });
 });

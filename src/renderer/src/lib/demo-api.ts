@@ -4,6 +4,7 @@ import type {
   AudioMeterFrame,
   CaptureConfig,
   CreateAudioPresetInput,
+  DetectedGame,
   RenameAudioPresetInput,
   SetAudioChannelProcessorInput,
   SetAudioBusDeviceInput,
@@ -33,6 +34,18 @@ import { resolveProductAsset } from '../../../shared/product-assets';
 import { createDefaultSnapshot } from '../../../shared/defaults';
 
 let snapshot = createDefaultSnapshot();
+snapshot.gameDetection.capability = 'simulation';
+snapshot.audio.capabilities = {
+  virtualChannels: 'simulation',
+  applicationRouting: 'unavailable',
+  channelDsp: 'simulation',
+  microphoneDsp: 'simulation',
+  noiseSuppression: 'unavailable',
+  realtimeMetering: 'simulation',
+  microphoneTest: 'unavailable',
+  monitoring: 'unavailable',
+  spatialAudio: 'unavailable',
+};
 const listeners = new Set<(value: SystemSnapshot) => void>();
 const audioMeterListeners = new Set<(frame: AudioMeterFrame) => void>();
 let engineTimer: number | undefined;
@@ -92,6 +105,49 @@ function setEngine(kind: 'audio' | 'capture', enabled: boolean): void {
   recalculate();
   ensureTimer();
   if (kind === 'audio') syncAudioMeterTimer();
+}
+
+async function simulateGameScan(): Promise<SystemSnapshot> {
+  snapshot.gameDetection.scanState = 'scanning';
+  snapshot.gameDetection.error = undefined;
+  emit();
+  await new Promise<void>((resolveScan) => window.setTimeout(resolveScan, 420));
+  const addedAt = new Date().toISOString();
+  const games: DetectedGame[] = [
+    {
+      id: 'game-preview-baldurs-gate-3',
+      name: "Baldur's Gate 3",
+      source: 'steam',
+      installDirectory: 'C:\\Games\\Steam\\Baldurs Gate 3',
+      executablePath: null,
+      launchUri: 'steam://rungameid/1086940',
+      addedAt,
+    },
+    {
+      id: 'game-preview-cyberpunk-2077',
+      name: 'Cyberpunk 2077',
+      source: 'epic',
+      installDirectory: 'C:\\Games\\Epic\\Cyberpunk 2077',
+      executablePath: 'C:\\Games\\Epic\\Cyberpunk 2077\\bin\\x64\\Cyberpunk2077.exe',
+      launchUri: null,
+      addedAt,
+    },
+    {
+      id: 'game-preview-hades-2',
+      name: 'Hades II',
+      source: 'steam',
+      installDirectory: 'C:\\Games\\Steam\\Hades II',
+      executablePath: null,
+      launchUri: 'steam://rungameid/1145350',
+      addedAt,
+    },
+  ];
+  const manualGames = snapshot.gameDetection.games.filter((game) => game.source === 'manual');
+  snapshot.gameDetection.games = [...games, ...manualGames]
+    .sort((left, right) => left.name.localeCompare(right.name));
+  snapshot.gameDetection.scanState = 'idle';
+  snapshot.gameDetection.lastScanAt = new Date().toISOString();
+  return emit();
 }
 
 function syncAudioMeterTimer(): void {
@@ -332,6 +388,9 @@ const demoApi: SwitchboardApi = {
     snapshot.audio.activePresetIds.microphone = findMatchingAudioPresetId(snapshot.audio, 'microphone');
     return emit();
   },
+  async testMicrophone() {
+    throw new Error('Microphone testing requires the native Audio.Host.');
+  },
   async setChatMix(value: number) {
     snapshot.audio.chatMix = value;
     const game = snapshot.audio.buses.find((bus) => bus.id === 'game');
@@ -382,9 +441,12 @@ const demoApi: SwitchboardApi = {
   async chooseClipDirectory() { throw new Error('Folder selection requires the Switchboard desktop application.'); },
   async openClipsDirectory() { throw new Error('Opening the Clips folder requires the Switchboard desktop application.'); },
   async refreshCaptureSources() { return emit(); },
+  async scanGames() { return simulateGameScan(); },
+  async addGame() { throw new Error('Selecting a game executable requires the Switchboard desktop application.'); },
   async updateSettings(input: UpdateSettingsInput) {
+    const enableAutomaticScan = input.scanGamesAutomatically === true && !snapshot.settings.scanGamesAutomatically;
     snapshot.settings = { ...snapshot.settings, ...input };
-    return emit();
+    return enableAutomaticScan ? simulateGameScan() : emit();
   },
   async resetSettings(scope: SettingsResetScope) {
     const defaults = createDefaultSnapshot();
@@ -392,6 +454,7 @@ const demoApi: SwitchboardApi = {
       snapshot.settings = defaults.settings;
       snapshot.audio = createResetAudioState(snapshot.audio, defaults.audio);
       snapshot.capture.config = defaults.capture.config;
+      snapshot.gameDetection = { ...defaults.gameDetection, capability: 'simulation' };
       const audioModule = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');
       if (audioModule) audioModule.enabled = false;
       const captureModule = snapshot.modules.find((candidate) => candidate.id === 'capability.replay');
@@ -416,6 +479,10 @@ const demoApi: SwitchboardApi = {
       const module = snapshot.modules.find((candidate) => candidate.id === 'capability.replay');
       if (module) module.enabled = false;
       setEngine('capture', false);
+    }
+    if (scope === 'games') {
+      snapshot.settings.scanGamesAutomatically = defaults.settings.scanGamesAutomatically;
+      snapshot.gameDetection = { ...defaults.gameDetection, capability: 'simulation' };
     }
     if (scope === 'modules') snapshot.settings.automaticModuleUpdates = defaults.settings.automaticModuleUpdates;
     if (scope === 'diagnostics') {

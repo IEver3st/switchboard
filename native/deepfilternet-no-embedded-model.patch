@@ -1,0 +1,13 @@
+diff --git a/libDF/Cargo.toml b/libDF/Cargo.toml
+index 58529df..094bb65 100644
+--- a/libDF/Cargo.toml
++++ b/libDF/Cargo.toml
+@@ -80,7 +80,7 @@ tract = [
+ default-model = []  # Include default DFN3 model
+ default-model-ll = []  # Include default DFN3 low latency model
+ nightly-features = []
+-capi = ["tract", "default-model", "dep:ndarray"]
++capi = ["tract", "dep:ndarray"]
+ hdf5-static = ["hdf5?/static"]
+
+ [dependencies]

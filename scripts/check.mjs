@@ -87,7 +87,10 @@ assert(ipcSource.includes('event.sender.id'), 'IPC must be pinned to the current
 assert(!ipcSource.includes('Boolean(input)') && !ipcSource.includes('Number(input)'), 'IPC must not use lossy Boolean/Number coercion.');
 
 const engineSupervisor = read('src/main/services/engine-supervisor.ts');
-assert(engineSupervisor.includes('utilityProcess.fork'), 'The audio fallback must run in an Electron utility process.');
+assert(
+  engineSupervisor.includes('resolveAudioHost()') && engineSupervisor.includes('spawnAudioHost()'),
+  'Audio must run in the isolated native Audio.Host process.',
+);
 assert(
   engineSupervisor.includes('resolveCaptureHost()') && engineSupervisor.includes('spawn(resolved.command'),
   'Capture must run in the isolated native Capture.Host process.',

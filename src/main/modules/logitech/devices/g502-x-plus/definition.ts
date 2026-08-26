@@ -36,11 +36,11 @@ export const g502ActionCardSuffixes: Record<string, string> = {
 
 export const g502XPlusBindings: ButtonAssignmentBinding[] = [
   createBinding('primary', 'Primary click', 'g1', 'mouse.primary-click', 'left', 0, 44, 23),
-  createBinding('back', 'Back', 'g4', 'mouse.back', 'left', 1, 29, 55),
-  createBinding('dpi-shift', 'DPI shift', 'g5', 'mouse.dpi-shift', 'left', 2, 25, 43),
-  createBinding('secondary', 'Secondary click', 'g2', 'mouse.secondary-click', 'right', 0, 56, 23),
-  createBinding('wheel', 'Wheel press', 'g3', 'mouse.middle-click', 'right', 1, 50, 35),
-  createBinding('forward', 'Forward', 'g6', 'mouse.forward', 'right', 2, 32, 49),
+  createBinding('back', 'Back', 'g4', 'mouse.back', 'left', 1, 34, 55),
+  createBinding('dpi-shift', 'DPI shift', 'g5', 'mouse.dpi-shift', 'left', 2, 36, 43),
+  createBinding('secondary', 'Secondary click', 'g2', 'mouse.secondary-click', 'right', 0, 60, 23),
+  createBinding('wheel', 'Wheel press', 'g3', 'mouse.middle-click', 'right', 1, 53, 35),
+  createBinding('forward', 'Forward', 'g6', 'mouse.forward', 'right', 2, 35, 49),
 ];
 
 function createBinding(

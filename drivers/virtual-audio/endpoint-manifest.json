@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "deviceInterfaceName": "Switchboard Virtual Audio Device",
+  "sampleRate": 48000,
+  "sampleFormat": "stereo-float32",
+  "endpoints": [
+    { "name": "Switchboard - Game", "flow": "render", "role": "application-bus" },
+    { "name": "Switchboard - Chat", "flow": "render", "role": "application-bus" },
+    { "name": "Switchboard - Media", "flow": "render", "role": "application-bus" },
+    { "name": "Switchboard - Aux", "flow": "render", "role": "application-bus" },
+    { "name": "Switchboard - Microphone", "flow": "render", "role": "duplex-transport-input" },
+    { "name": "Switchboard - Stream", "flow": "render", "role": "duplex-transport-input" },
+    { "name": "Switchboard - Microphone", "flow": "capture", "role": "processed-microphone" },
+    { "name": "Switchboard - Stream", "flow": "capture", "role": "broadcast-mix" }
+  ]
+}

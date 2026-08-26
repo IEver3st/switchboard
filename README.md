@@ -13,11 +13,12 @@ The Electron prototype includes:
 - capability-driven Logitech mouse and HyperX microphone workbenches.
 - event-driven QuadCast 2 physical mute state plus maintained fixed-red lighting, brightness, breathing/pulse timing, and hardware-backed lighting profiles.
 - G502 X Plus hold-to-lower-DPI behavior through event-driven HID++ MouseButtonSpy and live sensor DPI control.
-- optional audio and capture utility processes that exist only while enabled.
+- optional native audio and capture hosts that exist only while enabled.
 - audio buses, ChatMix, microphone processing, replay buffer, and clip library surfaces.
+- persisted game detection with one-shot Steam/Epic manifest scans and manual executable entries.
 - tray lifecycle with optional renderer destruction.
 - explicit memory, CPU, and process budgets.
-- .NET 10 capture and audio host scaffolds for the Windows production path.
+- .NET 10 capture and audio hosts, including WASAPI routing, processed microphone transport, session discovery, and real meters.
 - dependency-free interactive browser preview.
 
 The prototype does not claim to provide:
@@ -71,12 +72,14 @@ bun run build
 
 The structural check validates local imports, Electron security flags, IPC validation, process isolation, worker syntax, C# project targets, capture ring construction, and allocation rules in the audio realtime path.
 
-## Native host prototypes
+## Native hosts
 
 ```powershell
 dotnet run --project .\engines\capture-host\Capture.Host.csproj
 dotnet run --project .\engines\audio-host\Audio.Host.csproj
 ```
+
+`Audio.Host` owns physical microphone capture, 48 kHz mono normalization, CPU noise suppression, microphone DSP, monitoring, and bounded diagnostics. Build its packaged RNNoise dependency with `bun run build:noise-native`; `bun run build:audio-host` performs that step automatically. The optional DeepFilterNet integration and its unresolved model-license gate are documented in `docs/noise-suppression-supply-chain.md`.
 
 The capture host defaults to simulation. Read `engines/capture-host/README.md` before opting into its Windows FFmpeg path.
 
@@ -88,18 +91,13 @@ Electron renderer
 Electron main process
       │
       ├── module and device state
-      ├── audio utility process    prototype
-      └── capture utility process  prototype
-                 │
-         production replacement
-                 │
-      ├── Audio.Host    .NET 10 + NAudio
+      ├── Audio.Host    .NET 10 + NAudio + native CPU DSP
       └── Capture.Host  .NET 10 + FFmpeg
                  │
-      Virtual audio driver  C++/WDK, later phase
+      Signed virtual audio driver  C++/WDK, release dependency
 ```
 
-The virtual driver is intentionally not fabricated. That subsystem should begin from Microsoft SysVAD, remain small, and contain no DSP or product logic.
+The virtual driver is intentionally not fabricated. Its eight-endpoint contract is in `drivers/virtual-audio`; it must remain a transport-only, signed WDM driver with no DSP or product policy.
 
 ## Important files
 
@@ -107,8 +105,8 @@ The virtual driver is intentionally not fabricated. That subsystem should begin 
 - `src/main/controller.ts`: application orchestration and persisted state transitions.
 - `src/main/services/engine-supervisor.ts`: optional process lifecycle and request routing.
 - `src/renderer/src/pages`: product surfaces.
-- `resources/engine-workers`: runnable simulation hosts.
-- `engines`: production C# host scaffolds.
+- `resources/engine-workers`: retained prototype fixtures; the live audio path does not launch them.
+- `engines`: isolated native audio and capture hosts.
 - `docs/MODULES.md`: signed module package model.
 - `AGENTS.md`: project-local instructions for autonomous coding agents.
 - `PERFORMANCE.md`: resource budgets and release gates.

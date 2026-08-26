@@ -93,6 +93,20 @@ describe('QuadCast 2 hardware state', () => {
       activeProfileId: 'breathe',
       config: { effectId: 'breathing', brightness: 55, speed: 42 },
     });
+    await session.applySpeed(60);
+    expect(session.getState()).toMatchObject({
+      activeProfileId: 'custom',
+      config: { effectId: 'breathing', brightness: 55, speed: 60 },
+      profiles: expect.arrayContaining([
+        expect.objectContaining({ id: 'custom', effectId: 'breathing', brightness: 55, speed: 60 }),
+      ]),
+    });
+    await session.applyProfile('broadcast');
+    await session.applyProfile('custom');
+    expect(session.getState()).toMatchObject({
+      activeProfileId: 'custom',
+      config: { effectId: 'breathing', brightness: 55, speed: 60 },
+    });
     expect(lightingReports.some((report) => report[1] === 0x81 && report[2] === 0)).toBe(true);
     await session.close();
   });

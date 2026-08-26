@@ -73,6 +73,8 @@ internal sealed record CaptureStorageStatus(
     string ClipsDirectory,
     string CacheDirectory,
     long AvailableBytes,
+    long VolumeTotalBytes,
+    long VolumeAvailableBytes,
     long ClipsBytes,
     long ReplayCacheBytes,
     bool LowSpace,

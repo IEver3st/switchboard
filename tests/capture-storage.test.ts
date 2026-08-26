@@ -45,4 +45,14 @@ describe('capture storage configuration', () => {
     const missing = join(root, 'removed', 'Clips');
     expect((await service.validate(missing)).clipsDirectory).toBe(missing);
   });
+
+  test('reports real capacity for the selected Clips volume', async () => {
+    const { service } = await fixture();
+    const paths = await service.validate(null);
+    const status = await service.getStorageStatus(paths, 12_345, 6_789);
+    expect(status.volumeTotalBytes).toBeGreaterThan(0);
+    expect(status.volumeAvailableBytes).toBeGreaterThan(0);
+    expect(status.volumeAvailableBytes).toBeLessThanOrEqual(status.volumeTotalBytes);
+    expect(status.clipsBytes).toBe(12_345);
+  });
 });

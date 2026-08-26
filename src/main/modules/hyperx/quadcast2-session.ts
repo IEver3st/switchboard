@@ -60,7 +60,7 @@ export class QuadCast2Session {
   private settings: SessionSettings;
   private physicalMuted: boolean | null = null;
   private muteStateUpdatedAt: string | undefined;
-  private muteStateUnavailableReason: string | undefined;
+  private muteStateUnavailableReason: string | undefined = 'Waiting for the microphone\'s next absolute mute event.';
   private lightingStatus: 'maintained' | 'unknown' = 'unknown';
   private lightingStateReason = 'Waiting for the maintained lighting stream.';
   private muteHandle: QuadCast2HidHandle | null = null;
@@ -250,7 +250,9 @@ export class QuadCast2Session {
         return;
       }
       this.muteHandle = handle;
-      this.muteStateUnavailableReason = undefined;
+      this.muteStateUnavailableReason = this.physicalMuted === null
+        ? 'Waiting for the microphone\'s next absolute mute event.'
+        : undefined;
       while (!this.closed && this.muteHandle === handle) {
         const report = await handle.read(1_000);
         if (!report) continue;
@@ -258,6 +260,7 @@ export class QuadCast2Session {
         if (muted === null || muted === this.physicalMuted) continue;
         this.physicalMuted = muted;
         this.muteStateUpdatedAt = new Date().toISOString();
+        this.muteStateUnavailableReason = undefined;
         this.onUpdate(false);
         if (this.settings.muteLed && this.lightingHandle) {
           void this.enqueueLighting(async () => {

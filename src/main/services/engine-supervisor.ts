@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { app, utilityProcess, type UtilityProcess } from 'electron';
+import { app } from 'electron';
 import { z } from 'zod';
 import {
   audioMeterFrameSchema,
@@ -18,7 +18,7 @@ import {
 type StatusListener = (status: EngineStatus) => void;
 type AudioMeterListener = (frame: AudioMeterFrame) => void;
 type EventListener = (kind: EngineKind, event: string, payload: unknown) => void;
-type EngineProcess = UtilityProcess | ChildProcessWithoutNullStreams;
+type EngineProcess = ChildProcessWithoutNullStreams;
 
 type PendingRequest = {
   kind: EngineKind;
@@ -105,7 +105,7 @@ export class EngineSupervisor {
 
     this.expectedStops.add(kind);
     try {
-      const exit = this.waitForExit(worker, kind === 'capture' ? 12_000 : 900);
+      const exit = this.waitForExit(worker, kind === 'capture' ? 12_000 : 5_000);
       this.sendEnvelope(worker, { command: 'shutdown' });
       const exited = await exit;
       if (!exited) {
@@ -173,7 +173,7 @@ export class EngineSupervisor {
 
     let worker: EngineProcess;
     try {
-      worker = kind === 'capture' ? this.spawnCaptureHost() : this.spawnUtilityWorker(kind);
+      worker = kind === 'capture' ? this.spawnCaptureHost() : this.spawnAudioHost();
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
       this.updateStatus({
@@ -189,18 +189,6 @@ export class EngineSupervisor {
 
     try {
       await this.waitForSpawn(worker, 8_000);
-      if (kind === 'audio') {
-        this.updateStatus({
-          kind,
-          state: 'running',
-          pid: worker.pid,
-          cpuPercent: 0,
-          memoryMb: 0,
-          uptimeSeconds: 0,
-          updatedAt: new Date().toISOString(),
-        });
-        this.sendEnvelope(worker, { command: 'start' });
-      }
       return this.getStatus(kind);
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
@@ -216,13 +204,6 @@ export class EngineSupervisor {
     }
   }
 
-  private spawnUtilityWorker(kind: EngineKind): UtilityProcess {
-    return utilityProcess.fork(this.resolveWorkerPath(kind), [], {
-      serviceName: `Switchboard ${kind} engine`,
-      stdio: 'pipe',
-    });
-  }
-
   private spawnCaptureHost(): ChildProcessWithoutNullStreams {
     const resolved = this.resolveCaptureHost();
     const environment = { ...process.env };
@@ -235,27 +216,29 @@ export class EngineSupervisor {
     });
   }
 
+  private spawnAudioHost(): ChildProcessWithoutNullStreams {
+    const resolved = this.resolveAudioHost();
+    const environment = { ...process.env };
+    delete environment.ELECTRON_RUN_AS_NODE;
+    return spawn(resolved.command, resolved.arguments, {
+      cwd: app.isPackaged ? join(process.resourcesPath, 'audio-host') : app.getAppPath(),
+      env: environment,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  }
+
   private attachWorkerListeners(kind: EngineKind, worker: EngineProcess): void {
-    if (this.isUtilityProcess(worker)) {
-      worker.on('message', (raw: unknown) => this.handleWorkerMessage(kind, raw));
-      worker.on('error', (type, location, report) => {
-        const normalized = new Error(`${type} in ${location}${report ? `\n${report}` : ''}`);
-        this.handleProcessError(kind, normalized);
-      });
-      worker.stdout?.on('data', (chunk) => console.debug(`[${kind}] ${String(chunk).trim()}`));
-      worker.stderr?.on('data', (chunk) => console.warn(`[${kind}] ${String(chunk).trim()}`));
-    } else {
-      const lines = createInterface({ input: worker.stdout });
-      lines.on('line', (line) => {
-        try { this.handleWorkerMessage(kind, JSON.parse(line)); }
-        catch (error) { console.warn(`[${kind}] ignored malformed host output`, error); }
-      });
-      worker.stderr.on('data', (chunk) => {
-        const message = String(chunk).trim();
-        if (message) console.warn(`[${kind}] ${message}`);
-      });
-      worker.on('error', (processError) => this.handleProcessError(kind, processError));
-    }
+    const lines = createInterface({ input: worker.stdout });
+    lines.on('line', (line) => {
+      try { this.handleWorkerMessage(kind, JSON.parse(line)); }
+      catch (error) { console.warn(`[${kind}] ignored malformed host output`, error); }
+    });
+    worker.stderr.on('data', (chunk) => {
+      const message = String(chunk).trim();
+      if (message) console.warn(`[${kind}] ${message}`);
+    });
+    worker.on('error', (processError) => this.handleProcessError(kind, processError));
 
     (worker as unknown as EventEmitter).on('exit', (code: number | null) => {
       if (this.processes.get(kind) === worker) this.processes.delete(kind);
@@ -320,16 +303,7 @@ export class EngineSupervisor {
   }
 
   private sendEnvelope(worker: EngineProcess, message: Record<string, unknown>): void {
-    if (this.isUtilityProcess(worker)) {
-      const type = typeof message.requestId === 'string' ? 'request' : 'command';
-      worker.postMessage({ type, ...message });
-    } else {
-      worker.stdin.write(`${JSON.stringify(message)}\n`, 'utf8');
-    }
-  }
-
-  private isUtilityProcess(worker: EngineProcess): worker is UtilityProcess {
-    return 'postMessage' in worker;
+    worker.stdin.write(`${JSON.stringify(message)}\n`, 'utf8');
   }
 
   private waitForSpawn(worker: EngineProcess, timeoutMs: number): Promise<void> {
@@ -381,13 +355,6 @@ export class EngineSupervisor {
     });
   }
 
-  private resolveWorkerPath(kind: EngineKind): string {
-    const workerDirectory = app.isPackaged
-      ? join(process.resourcesPath, 'engine-workers')
-      : join(app.getAppPath(), 'resources', 'engine-workers');
-    return join(workerDirectory, `${kind}-worker.cjs`);
-  }
-
   private resolveCaptureHost(): { command: string; arguments: string[] } {
     if (app.isPackaged) {
       const executable = join(process.resourcesPath, 'capture-host', 'Capture.Host.exe');
@@ -397,6 +364,18 @@ export class EngineSupervisor {
     const executable = join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
     if (existsSync(executable)) return { command: executable, arguments: [] };
     const project = join(app.getAppPath(), 'engines', 'capture-host', 'Capture.Host.csproj');
+    return { command: 'dotnet', arguments: ['run', '--project', project, '--no-launch-profile'] };
+  }
+
+  private resolveAudioHost(): { command: string; arguments: string[] } {
+    if (app.isPackaged) {
+      const executable = join(process.resourcesPath, 'audio-host', 'Audio.Host.exe');
+      if (!existsSync(executable)) throw new Error('The Audio.Host executable is missing from this installation.');
+      return { command: executable, arguments: [] };
+    }
+    const executable = join(app.getAppPath(), 'engines', 'audio-host', 'bin', 'Debug', 'net10.0-windows', 'Audio.Host.exe');
+    if (existsSync(executable)) return { command: executable, arguments: [] };
+    const project = join(app.getAppPath(), 'engines', 'audio-host', 'Audio.Host.csproj');
     return { command: 'dotnet', arguments: ['run', '--project', project, '--no-launch-profile'] };
   }
 

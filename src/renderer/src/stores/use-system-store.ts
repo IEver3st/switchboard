@@ -81,6 +81,7 @@ interface SystemStore {
   exportAudioPreset(input: AudioPresetIdInput): Promise<void>;
   setAudioChannelProcessor(input: SetAudioChannelProcessorInput): Promise<void>;
   setAudioMonitoring(input: SetAudioMonitoringInput): Promise<void>;
+  testMicrophone(): Promise<void>;
   setChatMix(value: number): Promise<void>;
   setMicProcessor(input: SetMicProcessorInput): Promise<void>;
   setCaptureConfig(input: Partial<CaptureConfig>): Promise<void>;
@@ -88,6 +89,8 @@ interface SystemStore {
   chooseClipDirectory(): Promise<void>;
   openClipsDirectory(): Promise<void>;
   refreshCaptureSources(): Promise<void>;
+  scanGames(): Promise<void>;
+  addGame(): Promise<void>;
   deleteClip(id: string): Promise<void>;
   renameClip(input: RenameClipInput): Promise<void>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<void>;
@@ -180,6 +183,12 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       () => switchboardApi.setAudioChannelProcessor(input),
     ),
     setAudioMonitoring: (input) => run('audio:monitoring', () => switchboardApi.setAudioMonitoring(input)),
+    testMicrophone: async () => {
+      set({ actionPending: 'audio:microphone-test', error: null });
+      try { await switchboardApi.testMicrophone(); }
+      catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
+      finally { set({ actionPending: null }); }
+    },
     setChatMix: (value) => run('audio:chatmix', () => switchboardApi.setChatMix(value)),
     setMicProcessor: (input) => run(`audio:processor:${input.processorId}`, () => switchboardApi.setMicProcessor(input)),
     setCaptureConfig: (input) => run('capture:config', () => switchboardApi.setCaptureConfig(input)),
@@ -192,6 +201,8 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       finally { set({ actionPending: null }); }
     },
     refreshCaptureSources: () => run('capture:sources', () => switchboardApi.refreshCaptureSources()),
+    scanGames: () => run('games:scan', () => switchboardApi.scanGames()),
+    addGame: () => run('games:add', () => switchboardApi.addGame()),
     deleteClip: async (id) => {
       set({ actionPending: `clip:${id}:delete`, error: null });
       try { set({ snapshot: await switchboardApi.deleteClip(id) }); }

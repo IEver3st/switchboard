@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, RotateCcw, X } from 'lucide-react';
 import type {
   CaptureConfig,
   CaptureEncoderPreference,
@@ -8,6 +8,7 @@ import type {
   SystemSnapshot,
 } from '../../../shared/contracts';
 import { estimateClipSize, getEncodingPreset } from '../../../shared/capture-presets';
+import { GameDetectionSettings } from '@/components/settings/game-detection';
 import { ModuleManagement } from '@/components/settings/module-management';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import {
@@ -23,19 +24,19 @@ import {
   SettingSection,
   SettingSelect,
   SettingShortcut,
-  SettingSlider,
   SettingSwitch,
   SettingValue,
   SettingsCategoryHeader,
 } from '@/components/settings/settings-primitives';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
 import { formatBytes, percent } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
 const categoryStorageKey = 'switchboard.settings.category';
 
-export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
+export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; onClose: () => void }) {
   const [category, setCategory] = useState<SettingsCategoryId>(readInitialCategory);
   const [query, setQuery] = useState('');
   const [confirmation, setConfirmation] = useState<SettingsResetScope | null>(null);
@@ -44,6 +45,7 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const resetSettings = useSystemStore((state) => state.resetSettings);
   const actionPending = useSystemStore((state) => state.actionPending);
   const categoryDefinition = settingsCategories.find((candidate) => candidate.id === category);
+  const resetScope = categoryResetScope(category);
 
   const changeCategory = useCallback((nextCategory: SettingsCategoryId) => {
     setCategory(nextCategory);
@@ -76,11 +78,14 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
       }
-      if (event.key === 'Escape' && confirmation) setConfirmation(null);
+      if (event.key === 'Escape') {
+        if (confirmation) setConfirmation(null);
+        else onClose();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmation]);
+  }, [confirmation, onClose]);
 
   const confirmReset = () => {
     if (!confirmation) return;
@@ -89,16 +94,22 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <div className="settings-page">
-      <header className="settings-header">
+      <header className="settings-header app-drag">
         <div className="settings-breadcrumb" aria-label="Breadcrumb">
+          <img src="./switchboard-icon.png" alt="" draggable={false} />
           <span>Settings</span>
           <span aria-hidden>/</span>
           <strong>{categoryDefinition?.label ?? category}</strong>
         </div>
-        <button type="button" className="settings-restore" onClick={() => setConfirmation('all')}>
-          <RotateCcw className="size-3" aria-hidden />
-          Restore defaults
-        </button>
+        <div className="settings-header__actions no-drag">
+          <button type="button" className="settings-restore" onClick={() => setConfirmation('all')}>
+            <RotateCcw className="size-4" aria-hidden />
+            Restore defaults
+          </button>
+          <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings" title="Close settings (Esc)">
+            <X aria-hidden />
+          </button>
+        </div>
         {confirmation ? (
           <ResetConfirmation
             scope={confirmation}
@@ -123,7 +134,7 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
             <SettingsCategory
               category={category}
               snapshot={snapshot}
-              onReset={categoryDefinition?.resettable ? () => setConfirmation(category as SettingsResetScope) : undefined}
+              onReset={categoryDefinition?.resettable && resetScope ? () => setConfirmation(resetScope) : undefined}
             />
           </div>
         </div>
@@ -145,6 +156,8 @@ function SettingsCategory({
   if (category === 'devices') return <DevicesSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'audio') return <AudioSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'clips') return <ClipsSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'games') return <GameDetectionSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'modules') return <ModulesSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'diagnostics') return <DiagnosticsSettings snapshot={snapshot} onReset={onReset} />;
   return <AboutSettings snapshot={snapshot} />;
@@ -156,7 +169,7 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <>
-      <SettingsCategoryHeader title="General" onReset={onReset} />
+      <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and releases the interface." onReset={onReset} />
       <SettingSection title="Startup and window">
         <SettingSwitch
           settingId="general.startup"
@@ -194,7 +207,7 @@ function DevicesSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <>
-      <SettingsCategoryHeader title="Devices" onReset={onReset} />
+      <SettingsCategoryHeader title="Devices" description="Review connected hardware identity and appearance fallbacks." onReset={onReset} />
       <SettingSection title="Hardware identity">
         {snapshot.devices.map((device, index) => {
           const hardwareResolved = device.variantResolution.confidence === 'hardware';
@@ -260,7 +273,7 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <>
-      <SettingsCategoryHeader title="Audio" onReset={onReset} />
+      <SettingsCategoryHeader title="Audio" description="Set the Audio host lifecycle and default Windows endpoints." onReset={onReset} />
       <SettingSection title="Engine">
         <SettingSwitch
           settingId="audio.engine"
@@ -316,19 +329,11 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
 
 function CaptureSettings({ snapshot, onReset }: CategoryProps) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
-  const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
-  const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
   const setPage = useSystemStore((state) => state.setPage);
   const actionPending = useSystemStore((state) => state.actionPending);
   const config = snapshot.capture.config;
   const capabilities = snapshot.capture.capabilities;
   const configPending = actionPending === 'capture:config';
-  const folderPending = actionPending === 'capture:directory';
-  const clipDirectory = config.clipsDirectory || snapshot.capture.storage.clipsDirectory || 'Windows Videos\\Switchboard Clips';
-  const sizeEstimate = estimateClipSize(config, snapshot.capture.runtime.observedBitrateBps);
-  const fpsOptions = ([30, 60, 120] as const)
-    .filter((fps) => fps <= capabilities.maximumFps || fps === config.fps)
-    .map((fps) => ({ value: String(fps), label: `${fps} FPS` }));
   const codecLabels = { h264: 'H.264', hevc: 'HEVC', av1: 'AV1' } as const;
   const codecOptions = [...new Set([...capabilities.codecs, config.codec])]
     .map((codec) => ({ value: codec, label: codecLabels[codec] }));
@@ -337,8 +342,8 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <>
-      <SettingsCategoryHeader title="Capture" onReset={onReset} />
-      <SettingSection title="Engine">
+      <SettingsCategoryHeader title="Capture" description="Control the isolated capture host, source, encoder, and recorded inputs." onReset={onReset} />
+      <SettingSection title="Engine and shortcut">
         <SettingSwitch
           settingId="capture.engine"
           title="Capture engine"
@@ -346,25 +351,6 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           checked={config.enabled}
           disabled={configPending || engine?.state === 'starting'}
           onCheckedChange={(enabled) => void setCaptureConfig({ enabled })}
-        />
-      </SettingSection>
-      <SettingSection title="Clips">
-        <SettingFolder
-          settingId="capture.storage"
-          title="Clip storage location"
-          path={clipDirectory}
-          disabled={folderPending}
-          onChange={() => void chooseClipDirectory()}
-          onOpen={() => void openClipsDirectory()}
-        />
-        <SettingSelect
-          settingId="capture.duration"
-          title="Default replay length"
-          description="Set how much recent footage is retained for the next saved clip. The host keeps a bounded rotating segment ring."
-          value={String(config.replaySeconds)}
-          options={[15, 30, 45, 60, 90, 120, 180, 300].map((seconds) => ({ value: String(seconds), label: `${seconds} sec` }))}
-          disabled={configPending}
-          onValueChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })}
         />
         <SettingShortcut
           settingId="capture.shortcut"
@@ -388,42 +374,6 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           ]}
           disabled={configPending}
           onValueChange={(source) => void setCaptureConfig({ source: source as CaptureConfig['source'], sourceId: null })}
-        />
-        <SettingSelect
-          settingId="capture.resolution"
-          title="Resolution"
-          description="Set the output size for new replay segments. Native follows the selected source."
-          value={config.resolution}
-          options={[
-            { value: '720p', label: '720p' },
-            { value: '1080p', label: '1080p' },
-            { value: '1440p', label: '1440p' },
-            { value: '2160p', label: '2160p' },
-            { value: 'native', label: 'Native' },
-          ]}
-          disabled={configPending}
-          onValueChange={(resolution) => void setCaptureConfig({ resolution: resolution as CaptureConfig['resolution'] })}
-        />
-        <SettingSelect
-          settingId="capture.frameRate"
-          title="Frame rate"
-          description={`The active host reports a maximum of ${capabilities.maximumFps} FPS.`}
-          value={String(config.fps)}
-          options={fpsOptions}
-          disabled={configPending}
-          onValueChange={(fps) => void setCaptureConfig({ fps: Number(fps) as CaptureConfig['fps'] })}
-        />
-        <SettingSlider
-          settingId="capture.quality"
-          title="Capture quality"
-          description={`Balance bitrate against clip size. Current estimate: ${formatBytes(sizeEstimate.estimatedBytes)} for ${config.replaySeconds} seconds.`}
-          value={config.quality}
-          min={1}
-          max={5}
-          step={1}
-          disabled={configPending}
-          formatValue={(quality) => `${quality} / 5`}
-          onValueCommit={(quality) => void setCaptureConfig({ quality })}
         />
         <SettingSelect
           settingId="capture.encoder"
@@ -492,13 +442,176 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
   );
 }
 
+function ClipsSettings({ snapshot, onReset }: CategoryProps) {
+  const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
+  const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
+  const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
+  const actionPending = useSystemStore((state) => state.actionPending);
+  const config = snapshot.capture.config;
+  const capabilities = snapshot.capture.capabilities;
+  const storage = snapshot.capture.storage;
+  const configPending = actionPending === 'capture:config';
+  const folderPending = actionPending === 'capture:directory';
+  const clipDirectory = config.clipsDirectory || storage.clipsDirectory || 'Windows Videos\\Switchboard Clips';
+  const estimate = estimateClipSize(config, snapshot.capture.runtime.observedBitrateBps);
+  const totalBytes = storage.volumeTotalBytes;
+  const freeBytes = storage.volumeAvailableBytes;
+  const usedBytes = Math.max(0, totalBytes - freeBytes);
+  const otherBytes = Math.max(0, usedBytes - storage.clipsBytes);
+  const usedPercent = totalBytes > 0 ? Math.min(100, Math.round((usedBytes / totalBytes) * 100)) : 0;
+  const clipsPercent = totalBytes > 0 ? Math.min(100, (storage.clipsBytes / totalBytes) * 100) : 0;
+  const otherPercent = totalBytes > 0 ? Math.min(100 - clipsPercent, (otherBytes / totalBytes) * 100) : 0;
+  const possibleClips = estimate.estimatedBytes > 0 && freeBytes > 0 ? Math.floor(freeBytes / estimate.estimatedBytes) : null;
+  const fpsOptions = ([30, 60, 120] as const)
+    .filter((fps) => fps <= capabilities.maximumFps || fps === config.fps)
+    .map((fps) => ({ value: String(fps), label: `${fps} FPS` }));
+
+  return (
+    <div className="clip-settings">
+      <SettingsCategoryHeader
+        title="Clips"
+        description="Adjust defaults for new clips, review the size estimate, and manage storage."
+        onReset={onReset}
+      />
+
+      <section className="clip-settings__section" aria-labelledby="clip-settings-quality-heading">
+        <div className="clip-settings__section-heading">
+          <h3 id="clip-settings-quality-heading">Clip quality and memory</h3>
+          <p>Higher settings improve image quality while increasing encoder load and file size.</p>
+        </div>
+        <div className="clip-settings__fields">
+          <ClipSelectField
+            settingId="capture.duration"
+            label="Duration"
+            value={String(config.replaySeconds)}
+            options={[15, 30, 45, 60, 90, 120, 180, 300].map((seconds) => ({ value: String(seconds), label: formatClipDuration(seconds) }))}
+            disabled={configPending}
+            onValueChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })}
+          />
+          <ClipSelectField
+            settingId="capture.quality"
+            label="Video quality"
+            value={String(config.quality)}
+            options={[
+              { value: '1', label: 'Economy' },
+              { value: '2', label: 'Balanced' },
+              { value: '3', label: 'Good' },
+              { value: '4', label: 'High (Default)' },
+              { value: '5', label: 'Maximum' },
+            ]}
+            disabled={configPending}
+            onValueChange={(value) => void setCaptureConfig({ quality: Number(value) })}
+          />
+          <ClipSelectField
+            settingId="capture.resolution"
+            label="Resolution"
+            value={config.resolution}
+            options={[
+              { value: '720p', label: '720p' },
+              { value: '1080p', label: '1080p' },
+              { value: '1440p', label: '1440p (Default)' },
+              { value: '2160p', label: '2160p' },
+              { value: 'native', label: 'Native source' },
+            ]}
+            disabled={configPending}
+            onValueChange={(resolution) => void setCaptureConfig({ resolution: resolution as CaptureConfig['resolution'] })}
+          />
+          <ClipSelectField
+            settingId="capture.frameRate"
+            label="Frame rate"
+            value={String(config.fps)}
+            options={fpsOptions}
+            disabled={configPending}
+            onValueChange={(fps) => void setCaptureConfig({ fps: Number(fps) as CaptureConfig['fps'] })}
+          />
+        </div>
+        <div className="clip-settings__estimate" aria-live="polite">
+          <span>Estimated clip size: <strong>{formatBytes(estimate.estimatedBytes)}</strong> per clip</span>
+          <span>RAM usage: <strong className="clip-settings__memory">Low</strong> <small>Disk-backed replay ring</small></span>
+        </div>
+      </section>
+
+      <section className="clip-settings__section clip-storage" aria-labelledby="clip-storage-heading">
+        <div className="clip-settings__section-heading clip-storage__heading">
+          <div>
+            <h3 id="clip-storage-heading">Drive space</h3>
+            {totalBytes > 0 ? (
+              <p><strong>{formatBytes(freeBytes)}</strong> free of {formatBytes(totalBytes)}</p>
+            ) : (
+              <p>Drive capacity is unavailable until the Clips folder can be inspected.</p>
+            )}
+          </div>
+          {totalBytes > 0 ? <span>{usedPercent}% used</span> : null}
+        </div>
+        <div
+          className="clip-storage__meter"
+          role="img"
+          aria-label={totalBytes > 0 ? `${usedPercent}% of the Clips drive is used` : 'Clips drive capacity unavailable'}
+        >
+          <span className="clip-storage__meter-clips" style={{ width: `${clipsPercent}%` }} />
+          <span className="clip-storage__meter-other" style={{ width: `${otherPercent}%` }} />
+        </div>
+        <div className="clip-storage__legend">
+          <span><i data-tone="clips" />Switchboard clips: <strong>{formatBytes(storage.clipsBytes)}</strong> ({snapshot.clips.length})</span>
+          {totalBytes > 0 ? <span><i data-tone="other" />Other files: <strong>{formatBytes(otherBytes)}</strong></span> : null}
+          <span className="clip-storage__capacity">Possible clips: <strong>{possibleClips?.toLocaleString() ?? '—'}</strong></span>
+        </div>
+        {storage.warning ? <p className="clip-storage__warning"><AlertTriangle aria-hidden />{storage.warning}</p> : null}
+      </section>
+
+      <SettingSection title="Storage location">
+        <SettingFolder
+          settingId="capture.storage"
+          title="Clip folder"
+          path={clipDirectory}
+          disabled={folderPending}
+          onChange={() => void chooseClipDirectory()}
+          onOpen={() => void openClipsDirectory()}
+          className="clip-storage-location"
+        />
+      </SettingSection>
+    </div>
+  );
+}
+
+function ClipSelectField({
+  settingId,
+  label,
+  value,
+  options,
+  disabled,
+  onValueChange,
+}: {
+  settingId: string;
+  label: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  disabled?: boolean;
+  onValueChange: (value: string) => void;
+}) {
+  const labelId = `clip-field-${settingId.replace(/[^a-z0-9]+/gi, '-')}`;
+  return (
+    <div id={`setting-${settingId}`} data-setting-id={settingId} tabIndex={-1} className="clip-settings__field">
+      <span id={labelId}>{label}</span>
+      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger aria-labelledby={labelId} className="clip-settings__select">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function ModulesSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const pending = useSystemStore((state) => state.actionPending) === 'settings:update';
 
   return (
     <div className="settings-category--modules">
-      <SettingsCategoryHeader title="Modules" onReset={onReset} />
+      <SettingsCategoryHeader title="Modules" description="Manage signed capability modules and their update behavior." onReset={onReset} />
       <SettingSection title="Maintenance">
         <SettingSwitch
           settingId="modules.automaticUpdates"
@@ -521,10 +634,11 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
   const capturePreset = getEncodingPreset(snapshot.capture.config);
   const captureRuntime = snapshot.capture.runtime;
+  const noise = snapshot.audio.host?.noiseSuppression;
 
   return (
     <>
-      <SettingsCategoryHeader title="Diagnostics" onReset={onReset} />
+      <SettingsCategoryHeader title="Diagnostics" description="Inspect local health, retention, and the active resource budget." onReset={onReset} />
       <SettingSection title="Collection">
         <SettingValue
           settingId="diagnostics.telemetry"
@@ -576,6 +690,28 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
           description={`${captureRuntime.backendLabel} · ${captureRuntime.encoderLabel} · ${snapshot.capture.config.codec.toUpperCase()} · ${snapshot.capture.config.resolution} at ${snapshot.capture.config.fps} FPS`}
         >
           <span className="settings-row__value">{formatBytes(capturePreset.targetVideoBitrateBps / 8)}/s target</span>
+        </SettingRow>
+        <SettingRow
+          settingId="diagnostics.noise-suppression"
+          title="Microphone noise removal"
+          description={noise
+            ? `${noise.backend} · ${noise.modelIdentifier ?? 'no model'} · ${noise.frameLength} samples at ${noise.processingSampleRate.toLocaleString()} Hz · ${noise.attenuationLimitDb.toFixed(1)} dB limit`
+            : 'Start the audio engine to inspect the microphone noise-removal backend.'}
+        >
+          <span className="settings-row__value">
+            {noise ? `${noise.state} · p99 ${noise.p99Ms.toFixed(2)} ms` : 'Not loaded'}
+          </span>
+        </SettingRow>
+        <SettingRow
+          settingId="diagnostics.microphone-realtime"
+          title="Microphone realtime health"
+          description={noise
+            ? `${noise.captureOverruns.toLocaleString()} capture overruns · ${noise.monitorOverruns.toLocaleString()}/${noise.monitorUnderruns.toLocaleString()} monitor over/underruns · ${noise.droppedOrBypassedFrames.toLocaleString()} dropped or bypassed frames · callback p99 ${noise.captureCallbackP99Ms.toFixed(2)} ms`
+            : 'Frame timing, callback timing, and overload counters are reported by Audio.Host.'}
+        >
+          <span className="settings-row__value">
+            {noise?.lastError ?? (noise ? `${noise.algorithmicLatencyMs.toFixed(1)} ms algorithmic` : 'No data')}
+          </span>
         </SettingRow>
         <SettingRow
           settingId="diagnostics.capture-health"
@@ -651,7 +787,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <>
-      <SettingsCategoryHeader title="About" />
+      <SettingsCategoryHeader title="About" description="Version, runtime, and process-isolation information." />
       <div className="settings-about-intro">
         <img src="./switchboard-icon.png" alt="" draggable={false} />
         <div>
@@ -732,6 +868,18 @@ function readInitialCategory(): SettingsCategoryId {
 
 function reducedMotionEnabled(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function categoryResetScope(category: SettingsCategoryId): SettingsResetScope | null {
+  if (category === 'about') return null;
+  if (category === 'clips') return 'capture';
+  return category;
+}
+
+function formatClipDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds} seconds`;
+  const minutes = seconds / 60;
+  return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
 }
 
 function engineStateLabel(state: 'stopped' | 'starting' | 'running' | 'error' | undefined): string {

@@ -8,5 +8,6 @@ release/
 .idea/
 engines/**/bin/
 engines/**/obj/
+native/**/target/
 .switchboard/
 *.tsbuildinfo

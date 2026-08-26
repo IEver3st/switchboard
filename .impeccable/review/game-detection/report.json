@@ -1,0 +1,232 @@
+{
+  "report": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "state": "populated",
+      "metrics": {
+        "viewport": {
+          "width": 1080,
+          "height": 722
+        },
+        "document": {
+          "scrollWidth": 1080,
+          "clientWidth": 1080
+        },
+        "content": {
+          "clientWidth": 840,
+          "scrollWidth": 840,
+          "clientHeight": 662,
+          "scrollHeight": 662
+        },
+        "toolbar": {
+          "left": 270,
+          "top": 326.625732421875,
+          "right": 1030,
+          "bottom": 366.625732421875,
+          "width": 760,
+          "height": 40
+        },
+        "list": {
+          "left": 270,
+          "top": 374.625732421875,
+          "right": 1030,
+          "bottom": 634.625732421875,
+          "width": 760,
+          "height": 260,
+          "clientHeight": 259,
+          "scrollHeight": 522
+        },
+        "rows": 9,
+        "empty": false,
+        "switchLabel": "Automatically scan for games",
+        "switchChecked": "true",
+        "actions": [
+          {
+            "label": "Scan now",
+            "disabled": false
+          },
+          {
+            "label": "Add game",
+            "disabled": false
+          }
+        ]
+      },
+      "screenshot": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\game-detection\\1080x720-games.png"
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "state": "populated",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "document": {
+          "scrollWidth": 1420,
+          "clientWidth": 1420
+        },
+        "content": {
+          "clientWidth": 1150,
+          "scrollWidth": 1150,
+          "clientHeight": 840,
+          "scrollHeight": 840
+        },
+        "toolbar": {
+          "left": 331,
+          "top": 350.15625,
+          "right": 1339,
+          "bottom": 390.15625,
+          "width": 1008,
+          "height": 40
+        },
+        "list": {
+          "left": 331,
+          "top": 398.15625,
+          "right": 1339,
+          "bottom": 836.15625,
+          "width": 1008,
+          "height": 438,
+          "clientHeight": 437,
+          "scrollHeight": 522
+        },
+        "rows": 9,
+        "empty": false,
+        "switchLabel": "Automatically scan for games",
+        "switchChecked": "true",
+        "actions": [
+          {
+            "label": "Scan now",
+            "disabled": false
+          },
+          {
+            "label": "Add game",
+            "disabled": false
+          }
+        ]
+      },
+      "screenshot": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\game-detection\\1420x900-games.png"
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "state": "populated",
+      "metrics": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "document": {
+          "scrollWidth": 1920,
+          "clientWidth": 1920
+        },
+        "content": {
+          "clientWidth": 1650,
+          "scrollWidth": 1650,
+          "clientHeight": 1020,
+          "scrollHeight": 1020
+        },
+        "toolbar": {
+          "left": 531,
+          "top": 350.15625,
+          "right": 1639,
+          "bottom": 390.15625,
+          "width": 1108,
+          "height": 40
+        },
+        "list": {
+          "left": 531,
+          "top": 398.15625,
+          "right": 1639,
+          "bottom": 918.15625,
+          "width": 1108,
+          "height": 520,
+          "clientHeight": 519,
+          "scrollHeight": 522
+        },
+        "rows": 9,
+        "empty": false,
+        "switchLabel": "Automatically scan for games",
+        "switchChecked": "true",
+        "actions": [
+          {
+            "label": "Scan now",
+            "disabled": false
+          },
+          {
+            "label": "Add game",
+            "disabled": false
+          }
+        ]
+      },
+      "screenshot": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\game-detection\\1920x1080-games.png"
+    },
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "state": "empty",
+      "metrics": {
+        "viewport": {
+          "width": 1080,
+          "height": 722
+        },
+        "document": {
+          "scrollWidth": 1080,
+          "clientWidth": 1080
+        },
+        "content": {
+          "clientWidth": 840,
+          "scrollWidth": 840,
+          "clientHeight": 662,
+          "scrollHeight": 662
+        },
+        "toolbar": {
+          "left": 270,
+          "top": 326.15625,
+          "right": 1030,
+          "bottom": 366.15625,
+          "width": 760,
+          "height": 40
+        },
+        "list": {
+          "left": 270,
+          "top": 374.15625,
+          "right": 1030,
+          "bottom": 634.15625,
+          "width": 760,
+          "height": 260,
+          "clientHeight": 259,
+          "scrollHeight": 259
+        },
+        "rows": 0,
+        "empty": true,
+        "switchLabel": "Automatically scan for games",
+        "switchChecked": "true",
+        "actions": [
+          {
+            "label": "Scan now",
+            "disabled": false
+          },
+          {
+            "label": "Add game",
+            "disabled": false
+          }
+        ]
+      },
+      "screenshot": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\game-detection\\1080x720-games-empty.png"
+    }
+  ],
+  "reducedMotion": {
+    "preference": true,
+    "categoryAnimation": "none"
+  }
+}

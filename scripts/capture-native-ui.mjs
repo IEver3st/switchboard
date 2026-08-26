@@ -7,10 +7,10 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = join(projectRoot, '.impeccable', 'review', 'native');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-native-review-'));
+const reviewStatePath = join(isolatedUserData, 'switchboard-state.json');
 const currentStatePath = process.env.APPDATA ? join(process.env.APPDATA, 'switchboard-prototype', 'switchboard-state.json') : null;
 if (currentStatePath) {
   try {
-    const reviewStatePath = join(isolatedUserData, 'switchboard-state.json');
     await copyFile(currentStatePath, reviewStatePath);
     const reviewState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
     if (reviewState.clips?.[0]) {
@@ -25,6 +25,8 @@ app.setName('switchboard-native-review');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
+const verifyAudioNoise = process.argv.includes('--verify-audio-noise');
+if (verifyAudioNoise) process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
 const viewports = [
   { name: '1080x720', width: 1080, height: 720 },
@@ -45,8 +47,13 @@ const screens = [
   { name: 'capture', prepare: () => openPage('Capture', '.capture-config-grid') },
   { name: 'clip-editor', prepare: () => openClipEditor() },
   { name: 'modules', prepare: () => openSettingsCategory('Modules') },
-  { name: 'settings', prepare: () => openSettings() },
+  { name: 'settings', prepare: () => openSettingsCategory('General') },
+  { name: 'settings-diagnostics', prepare: () => openSettingsCategory('Diagnostics') },
+  { name: 'settings-noise-diagnostics', prepare: () => openNoiseDiagnostics() },
+  { name: 'settings-clips', prepare: () => openSettingsCategory('Clips') },
 ];
+const requestedScreens = new Set((process.env.SWITCHBOARD_REVIEW_SCREENS ?? '').split(',').filter(Boolean));
+const reviewScreens = requestedScreens.size > 0 ? screens.filter((screen) => requestedScreens.has(screen.name)) : screens;
 
 await mkdir(outputDirectory, { recursive: true });
 console.log('Native review: starting Switchboard main process.');
@@ -64,11 +71,27 @@ async function runReview() {
   console.log('Native review: waiting for the renderer.');
   await waitForLoad(window);
   console.log('Native review: renderer ready.');
+  await waitForCondition(`!document.querySelector('.startup-screen')`, 'startup sequence');
+  if (verifyAudioNoise) {
+    const workflow = await verifyAudioNoiseWorkflow();
+    await writeFile(join(outputDirectory, 'audio-noise-workflow-report.json'), `${JSON.stringify(workflow, null, 2)}\n`);
+    console.log(JSON.stringify({ audioNoiseWorkflow: workflow }, null, 2));
+    app.quit();
+    return;
+  }
   await installReviewStyles(window);
+
+  if (process.env.SWITCHBOARD_VERIFY_CLIP_SETTINGS === '1') {
+    window.setContentSize(1420, 900, false);
+    await waitForViewport({ name: '1420x900', width: 1420, height: 900 });
+    const interaction = await verifyClipSettingsControls();
+    await writeFile(join(outputDirectory, 'settings-workflow-report.json'), `${JSON.stringify(interaction, null, 2)}\n`);
+    console.log(JSON.stringify({ settingsWorkflow: interaction }, null, 2));
+  }
 
   const report = [];
   for (const viewport of viewports) {
-    for (const screen of screens) {
+    for (const screen of reviewScreens) {
       if (window.isMaximized()) window.unmaximize();
       window.setContentSize(viewport.width, viewport.height, false);
       await waitForViewport(viewport);
@@ -90,7 +113,10 @@ async function runReview() {
     }
   }
 
-  await writeFile(join(outputDirectory, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
+  const reportName = requestedScreens.size > 0
+    ? `report-${[...requestedScreens].sort().join('-')}.json`
+    : 'report.json';
+  await writeFile(join(outputDirectory, reportName), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify({ outputDirectory, captures: report.length, report }, null, 2));
   app.quit();
 }
@@ -211,8 +237,13 @@ async function openClipEditor() {
 }
 
 async function openSettings() {
+  await waitForCondition(
+    `Boolean(document.querySelector('.settings-page') || document.querySelector('button[aria-label="Settings"]'))`,
+    'Settings entry point',
+  );
   const clicked = await window.webContents.executeJavaScript(`
     (() => {
+      if (document.querySelector('.settings-page')) return true;
       const button = document.querySelector('button[aria-label="Settings"]');
       if (!button) return false;
       button.click();
@@ -241,7 +272,194 @@ async function openSettingsCategory(label) {
   await scrollMainToTop();
 }
 
+async function openNoiseDiagnostics() {
+  await openSettingsCategory('Diagnostics');
+  await waitForSelector('[data-setting-id="diagnostics.noise-suppression"]');
+  await window.webContents.executeJavaScript(`
+    (() => {
+      document.querySelector('[data-setting-id="diagnostics.noise-suppression"]')?.scrollIntoView({ block: 'center' });
+      return true;
+    })()
+  `);
+}
+
+async function verifyAudioNoiseWorkflow() {
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((snapshot) => snapshot.audio.enabled && snapshot.audio.host?.noiseSuppression.state === 'ready')`,
+    'native microphone noise suppression',
+  );
+  const initial = await getNativeAudioSnapshot();
+  const initialEngine = initial.engines.find((engine) => engine.kind === 'audio');
+  assertReview(initialEngine?.state === 'running' && initialEngine.pid, 'Audio.Host did not report a running native process.');
+  assertReview(initial.audio.host?.noiseSuppression.backend === 'RNNoise' || initial.audio.host?.noiseSuppression.backend === 'DeepFilterNet3', 'No production noise backend was active.');
+
+  const light = await window.webContents.executeJavaScript(`window.switchboard.setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 25 } })`);
+  const lightProcessor = light.audio.micProcessors.find((processor) => processor.id === 'noise-suppression');
+  assertReview(lightProcessor?.enabled && lightProcessor.parameters.amount === 25, 'Canonical microphone strength did not mutate to Light.');
+  assertReview(Math.abs((light.audio.host?.noiseSuppression.attenuationLimitDb ?? -1) - 9) < 0.01, 'Audio.Host did not apply the 9 dB Light target.');
+  await delay(300);
+  const persisted = JSON.parse(await readFile(reviewStatePath, 'utf8'));
+  const persistedProcessor = persisted.audio?.micProcessors?.find((processor) => processor.id === 'noise-suppression');
+  assertReview(persistedProcessor?.enabled && persistedProcessor.parameters?.amount === 25, 'Noise strength was not persisted by Electron main.');
+
+  const reloaded = new Promise((resolveReload) => window.webContents.once('did-finish-load', resolveReload));
+  window.webContents.reload();
+  await reloaded;
+  await waitForCondition(`!document.querySelector('.startup-screen')`, 'renderer refresh');
+  const refreshed = await getNativeAudioSnapshot();
+  const refreshedProcessor = refreshed.audio.micProcessors.find((processor) => processor.id === 'noise-suppression');
+  assertReview(refreshedProcessor?.enabled && refreshedProcessor.parameters.amount === 25, 'Renderer refresh lost the canonical noise strength.');
+
+  await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(false)`);
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((snapshot) => snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'stopped' && snapshot.audio.host === null)`,
+    'orderly Audio.Host stop',
+  );
+  await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(true)`);
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((snapshot) => snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'running' && snapshot.audio.host?.noiseSuppression.attenuationLimitDb === 9)`,
+    'orderly Audio.Host restart',
+  );
+  const orderlyRestart = await getNativeAudioSnapshot();
+  const orderlyPid = orderlyRestart.engines.find((engine) => engine.kind === 'audio')?.pid;
+  assertReview(orderlyPid && orderlyPid !== initialEngine.pid, 'Orderly restart did not create a fresh Audio.Host process.');
+
+  await window.webContents.executeJavaScript(`window.switchboard.testMicrophone()`);
+
+  const killedAt = Date.now();
+  process.kill(orderlyPid);
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((snapshot) => {
+      const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
+      return engine?.state === 'running' && engine.pid && engine.pid !== ${JSON.stringify(orderlyPid)} && snapshot.audio.host?.noiseSuppression.state === 'ready';
+    })`,
+    'automatic Audio.Host recovery',
+  );
+  const recovered = await getNativeAudioSnapshot();
+  const recoveredEngine = recovered.engines.find((engine) => engine.kind === 'audio');
+  const recoveredNoise = recovered.audio.host?.noiseSuppression;
+  assertReview(recoveredNoise?.captureOverruns === 0, 'Recovered Audio.Host reported capture overruns.');
+
+  return {
+    initialPid: initialEngine.pid,
+    backend: initial.audio.host.noiseSuppression.backend,
+    canonicalStrength: lightProcessor.parameters.amount,
+    attenuationLimitDb: light.audio.host.noiseSuppression.attenuationLimitDb,
+    persistedStrength: persistedProcessor.parameters.amount,
+    refreshedStrength: refreshedProcessor.parameters.amount,
+    orderlyRestartPid: orderlyPid,
+    microphoneTest: 'completed',
+    killedPid: orderlyPid,
+    recoveredPid: recoveredEngine?.pid ?? null,
+    recoveryMs: Date.now() - killedAt,
+    recoveredState: recoveredNoise?.state ?? null,
+    recoveredCaptureOverruns: recoveredNoise?.captureOverruns ?? null,
+    recoveredDroppedOrBypassedFrames: recoveredNoise?.droppedOrBypassedFrames ?? null,
+  };
+}
+
+function getNativeAudioSnapshot() {
+  return window.webContents.executeJavaScript(`window.switchboard.getSnapshot()`);
+}
+
+function assertReview(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+async function verifyClipSettingsControls() {
+  await openSettingsCategory('Clips');
+  const original = await window.webContents.executeJavaScript(`window.switchboard.getSnapshot().then((value) => value.capture.config)`);
+  if (original.enabled) {
+    await window.webContents.executeJavaScript(`window.switchboard.setCaptureConfig({ enabled: false })`);
+    await waitForCondition(`window.switchboard.getSnapshot().then((value) => !value.capture.config.enabled)`, 'Capture engine to stop');
+  }
+
+  const expected = {
+    replaySeconds: original.replaySeconds === 30 ? 45 : 30,
+    quality: original.quality === 3 ? 4 : 3,
+    resolution: original.resolution === '1080p' ? '1440p' : '1080p',
+    fps: original.fps === 30 ? 60 : 30,
+  };
+  await chooseSettingsOption('capture.duration', expected.replaySeconds === 45 ? '45 seconds' : '30 seconds');
+  await waitForCaptureConfig('replaySeconds', expected.replaySeconds);
+  await chooseSettingsOption('capture.quality', expected.quality === 4 ? 'High (Default)' : 'Good');
+  await waitForCaptureConfig('quality', expected.quality);
+  await chooseSettingsOption('capture.resolution', expected.resolution === '1440p' ? '1440p (Default)' : '1080p');
+  await waitForCaptureConfig('resolution', expected.resolution);
+  await chooseSettingsOption('capture.frameRate', `${expected.fps} FPS`);
+  await waitForCaptureConfig('fps', expected.fps);
+
+  const controls = await window.webContents.executeJavaScript(`
+    (() => ({
+      storageButtons: [...(document.getElementById('setting-capture.storage')?.querySelectorAll('button') ?? [])].map((button) => ({ text: button.textContent?.trim(), disabled: button.disabled })),
+      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      settingsOverflow: document.querySelector('[data-settings-content-scroll]')?.scrollWidth > document.querySelector('[data-settings-content-scroll]')?.clientWidth,
+    }))()
+  `);
+  if (controls.storageButtons.length !== 2 || controls.storageButtons.some((button) => button.disabled)) {
+    throw new Error(`Clip storage actions were not available: ${JSON.stringify(controls.storageButtons)}`);
+  }
+  if (controls.horizontalOverflow || controls.settingsOverflow) throw new Error('Clip Settings introduced horizontal overflow.');
+
+  const reload = new Promise((resolveLoad, rejectLoad) => {
+    const timeout = setTimeout(() => rejectLoad(new Error('Settings reload timed out.')), 20_000);
+    window.webContents.once('did-finish-load', () => {
+      clearTimeout(timeout);
+      resolveLoad();
+    });
+  });
+  window.webContents.reload();
+  await reload;
+  await waitForSelector('.clip-settings');
+  const persisted = await window.webContents.executeJavaScript(`window.switchboard.getSnapshot().then((value) => value.capture.config)`);
+  for (const [key, value] of Object.entries(expected)) {
+    if (persisted[key] !== value) throw new Error(`Clip setting ${key} did not persist through reload.`);
+  }
+
+  await window.webContents.executeJavaScript(`document.querySelector('button[aria-label="Close settings"]')?.click()`);
+  await waitForCondition(`!document.querySelector('.settings-page')`, 'Settings takeover to close');
+  const closedHash = await window.webContents.executeJavaScript('location.hash');
+  if (closedHash !== '#devices') throw new Error(`Settings returned to ${closedHash} instead of the previous workspace.`);
+
+  return { expected, persisted: true, storageButtons: controls.storageButtons, closedHash };
+}
+
+async function chooseSettingsOption(settingId, label) {
+  const elementId = `setting-${settingId}`;
+  const opened = await window.webContents.executeJavaScript(`
+    (() => {
+      const trigger = document.getElementById(${JSON.stringify(elementId)})?.querySelector('[role="combobox"]');
+      if (!(trigger instanceof HTMLElement) || trigger.matches(':disabled')) return false;
+      trigger.click();
+      return true;
+    })()
+  `);
+  if (!opened) throw new Error(`Could not open ${settingId}.`);
+  await waitForSelector('[role="option"]');
+  const selected = await window.webContents.executeJavaScript(`
+    (() => {
+      const option = [...document.querySelectorAll('[role="option"]')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(label)});
+      if (!(option instanceof HTMLElement)) return false;
+      option.click();
+      return true;
+    })()
+  `);
+  if (!selected) throw new Error(`Could not choose ${label} for ${settingId}.`);
+}
+
+async function waitForCaptureConfig(key, value) {
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((snapshot) => snapshot.capture.config[${JSON.stringify(key)}] === ${JSON.stringify(value)})`,
+    `Clip setting ${key}`,
+  );
+}
+
 async function clickButton(label) {
+  const settingsOpen = await window.webContents.executeJavaScript(`Boolean(document.querySelector('.settings-page'))`);
+  if (settingsOpen && label !== 'Settings') {
+    await window.webContents.executeJavaScript(`document.querySelector('button[aria-label="Close settings"]')?.click()`);
+    await waitForCondition(`!document.querySelector('.settings-page')`, 'Settings to close');
+  }
   const clicked = await window.webContents.executeJavaScript(`
     (() => {
       const label = ${JSON.stringify(label)};
@@ -271,7 +489,9 @@ async function waitForCondition(expression, label) {
 async function scrollMainToTop() {
   await window.webContents.executeJavaScript(`
     (() => {
+      document.scrollingElement?.scrollTo(0, 0);
       document.querySelectorAll('[data-radix-scroll-area-viewport]').forEach((element) => element.scrollTo(0, 0));
+      document.querySelectorAll('[data-settings-content-scroll], .settings-sidebar').forEach((element) => element.scrollTo(0, 0));
       return true;
     })()
   `);
@@ -290,6 +510,10 @@ async function getLayoutMetrics(target) {
         viewportScrollWidth: viewport?.scrollWidth ?? null,
         viewportHeight: viewport?.clientHeight ?? null,
         viewportScrollHeight: viewport?.scrollHeight ?? null,
+        documentScrollTop: document.scrollingElement?.scrollTop ?? null,
+        settingsScrollTop: document.querySelector('[data-settings-content-scroll]')?.scrollTop ?? null,
+        settingsSidebarScrollTop: document.querySelector('.settings-sidebar')?.scrollTop ?? null,
+        settingsTop: document.querySelector('.settings-page')?.getBoundingClientRect().top ?? null,
         page: location.hash,
       };
     })()

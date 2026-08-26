@@ -41,6 +41,8 @@ export class CaptureStorageService {
 
   public async getStorageStatus(paths: CapturePaths, clipsBytes: number, replayCacheBytes: number): Promise<CaptureStorage> {
     let availableBytes = 0;
+    let volumeTotalBytes = 0;
+    let volumeAvailableBytes = 0;
     let warning: string | undefined;
     try {
       const [cacheStats, clipsStats] = await Promise.all([
@@ -51,6 +53,8 @@ export class CaptureStorageService {
         Number(cacheStats.bavail * cacheStats.bsize),
         Number(clipsStats.bavail * clipsStats.bsize),
       );
+      volumeTotalBytes = Number(clipsStats.blocks * clipsStats.bsize);
+      volumeAvailableBytes = Number(clipsStats.bavail * clipsStats.bsize);
     } catch (error) {
       warning = `Storage is unavailable: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -62,6 +66,8 @@ export class CaptureStorageService {
       clipsDirectory: paths.clipsDirectory,
       cacheDirectory: paths.cacheDirectory,
       availableBytes,
+      volumeTotalBytes,
+      volumeAvailableBytes,
       clipsBytes,
       replayCacheBytes,
       lowSpace,

@@ -23,7 +23,9 @@ export class StateStore {
   public async load(): Promise<void> {
     try {
       const raw = await readFile(this.filePath, 'utf8');
-      const parsed = systemSnapshotSchema.safeParse(migrateLegacyCaptureState(migrateLegacyDeviceState(JSON.parse(raw))));
+      const parsed = systemSnapshotSchema.safeParse(
+        migrateGameDetectionState(migrateLegacyCaptureState(migrateLegacyDeviceState(JSON.parse(raw)))),
+      );
       if (parsed.success) {
         this.snapshot = this.resetRuntimeState(parsed.data);
         return;
@@ -119,6 +121,7 @@ export class StateStore {
       if (activeId && !knownPresets.has(activeId)) next.audio.activePresetIds[kind] = null;
     }
     next.audio.capabilities = structuredClone(defaults.audio.capabilities);
+    next.audio.host = null;
     if (next.audio.capabilities.applicationRouting === 'unavailable') {
       next.audio.applications = [];
       for (const bus of next.audio.buses) bus.appCount = 0;
@@ -147,6 +150,8 @@ export class StateStore {
     };
     next.capture.storage.replayCacheBytes = 0;
     next.capture.sources = [];
+    next.gameDetection.scanState = 'idle';
+    next.gameDetection.error = undefined;
     next.performance = this.calculatePerformance(next);
     return systemSnapshotSchema.parse(next);
   }
@@ -269,6 +274,24 @@ function migrateLegacyCaptureState(value: unknown): unknown {
         ? { ...defaults.capture.capabilities, ...capture.capabilities }
         : defaults.capture.capabilities,
       sources: Array.isArray(capture.sources) ? capture.sources : [],
+    },
+  };
+}
+
+function migrateGameDetectionState(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const defaults = createDefaultSnapshot();
+  const settings = isRecord(value.settings) ? value.settings : {};
+  const gameDetection = isRecord(value.gameDetection) ? value.gameDetection : {};
+  return {
+    ...value,
+    settings: { ...defaults.settings, ...settings },
+    gameDetection: {
+      ...defaults.gameDetection,
+      ...gameDetection,
+      games: Array.isArray(gameDetection.games) ? gameDetection.games : [],
+      scanState: 'idle',
+      error: undefined,
     },
   };
 }

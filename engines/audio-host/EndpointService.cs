@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi.Interfaces;
 
 namespace Switchboard.AudioHost;
 
@@ -29,53 +31,67 @@ internal sealed class EndpointService : IDisposable
                 muted = false;
             }
 
+            var interfaceName = TryGetInterfaceName(device);
             endpoints.Add(new AudioEndpoint(
                 device.ID,
                 device.FriendlyName,
                 device.DataFlow.ToString().ToLowerInvariant(),
                 isDefault,
                 TryGetFormFactor(device),
-                TryGetInterfaceName(device),
+                interfaceName,
                 volume,
-                muted));
+                muted,
+                EndpointCatalog.IsSwitchboard(device.FriendlyName, interfaceName)));
         }
 
         return endpoints.OrderByDescending(endpoint => endpoint.IsDefault).ThenBy(endpoint => endpoint.Name).ToArray();
     }
 
-    public IReadOnlyList<object> ListSessions()
+    public MMDevice Open(string endpointId) => enumerator.GetDevice(endpointId);
+
+    public IReadOnlyList<AudioApplicationState> ListApplications(VirtualEndpointSet virtualEndpoints)
     {
-        var output = TryGetDefault(DataFlow.Render);
-        if (output is null) return [];
-
-        var sessions = output.AudioSessionManager.Sessions;
-        var result = new List<object>(sessions.Count);
-        for (var index = 0; index < sessions.Count; index++)
+        var result = new List<AudioApplicationState>();
+        foreach (var (busId, endpoint) in new[]
         {
-            var session = sessions[index];
-            result.Add(new
+            ("game", virtualEndpoints.Game),
+            ("chat", virtualEndpoints.Chat),
+            ("media", virtualEndpoints.Media),
+        })
+        {
+            using var output = Open(endpoint.Id);
+            var sessions = output.AudioSessionManager.Sessions;
+            for (var index = 0; index < sessions.Count; index++)
             {
-                ProcessID = session.GetProcessID,
-                session.DisplayName,
-                Volume = session.SimpleAudioVolume.Volume,
-                session.SimpleAudioVolume.Mute,
-                State = session.State.ToString(),
-            });
+                using var session = sessions[index];
+                var processId = checked((int)session.GetProcessID);
+                if (processId <= 0) continue;
+                result.Add(new AudioApplicationState(
+                    session.GetSessionInstanceIdentifier,
+                    ResolveProcessName(processId, session.DisplayName),
+                    processId,
+                    busId,
+                    session.State == AudioSessionState.AudioSessionStateActive));
+            }
         }
-
         return result;
     }
 
     private MMDevice? TryGetDefault(DataFlow flow)
     {
+        try { return enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia); }
+        catch { return null; }
+    }
+
+    private static string ResolveProcessName(int processId, string displayName)
+    {
+        if (!string.IsNullOrWhiteSpace(displayName)) return displayName;
         try
         {
-            return enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia);
+            using var process = Process.GetProcessById(processId);
+            return process.ProcessName;
         }
-        catch
-        {
-            return null;
-        }
+        catch { return $"Process {processId}"; }
     }
 
     private static string? TryGetFormFactor(MMDevice device)
@@ -96,22 +112,13 @@ internal sealed class EndpointService : IDisposable
                 _ => "unknown",
             };
         }
-        catch
-        {
-            return null;
-        }
+        catch { return null; }
     }
 
     private static string? TryGetInterfaceName(MMDevice device)
     {
-        try
-        {
-            return device.DeviceFriendlyName;
-        }
-        catch
-        {
-            return null;
-        }
+        try { return device.DeviceFriendlyName; }
+        catch { return null; }
     }
 
     public void Dispose() => enumerator.Dispose();

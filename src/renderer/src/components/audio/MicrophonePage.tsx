@@ -44,6 +44,7 @@ const voiceOptions = [
 export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const setMicProcessor = useSystemStore((state) => state.setMicProcessor);
   const setAudioMonitoring = useSystemStore((state) => state.setAudioMonitoring);
+  const testMicrophone = useSystemStore((state) => state.testMicrophone);
   const applyAudioPreset = useSystemStore((state) => state.applyAudioPreset);
   const createAudioPreset = useSystemStore((state) => state.createAudioPreset);
   const renameAudioPreset = useSystemStore((state) => state.renameAudioPreset);
@@ -60,8 +61,12 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const compressor = getProcessor(snapshot.audio.micProcessors, 'compressor');
   const limiter = getProcessor(snapshot.audio.micProcessors, 'limiter');
   const support = snapshot.audio.capabilities.microphoneDsp;
+  const suppressionSupport = snapshot.audio.capabilities.noiseSuppression;
   const processingPending = actionPending?.startsWith('audio:processor:') ?? false;
   const unavailable = support === 'unavailable';
+  const suppressionUnavailable = suppressionSupport === 'unavailable';
+  const suppressionError = snapshot.audio.host?.noiseSuppression.lastError
+    ?? snapshot.audio.host?.capabilities.reason;
   const monitoringUnavailable = snapshot.audio.capabilities.monitoring === 'unavailable';
 
   if (!micBus || !gain || !gate || !suppression || !equalizer || !compressor || !limiter) {
@@ -87,7 +92,11 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
             onImport={() => void importAudioPreset()}
             onExport={(presetId) => void exportAudioPreset({ presetId })}
           />
-          <MicrophoneTest support={snapshot.audio.capabilities.microphoneTest} />
+          <MicrophoneTest
+            support={snapshot.audio.capabilities.microphoneTest}
+            pending={actionPending === 'audio:microphone-test'}
+            onRecord={() => void testMicrophone()}
+          />
         </div>
       </header>
 
@@ -120,9 +129,11 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         <div className="audio-simple-section">
           <SettingToggle
             title="Noise removal"
-            description="Reduces fans, keyboard noise, and background sound."
-            checked={suppression.enabled}
-            disabled={unavailable}
+            description={suppressionUnavailable
+              ? suppressionError ?? 'Noise removal is unavailable with the current audio setup.'
+              : 'Reduces fans, keyboard noise, and background sound.'}
+            checked={suppression.enabled && !suppressionUnavailable}
+            disabled={suppressionUnavailable}
             pending={processingPending}
             technicalName="Noise suppression"
             onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}
@@ -131,7 +142,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
             label="Noise removal strength"
             value={matchNoiseRemoval(suppression.parameters.amount)}
             options={noiseOptions}
-            disabled={unavailable || !suppression.enabled || processingPending}
+            disabled={suppressionUnavailable || !suppression.enabled || processingPending}
             onChange={(strength) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: noiseRemovalAmounts[strength] } })}
           />
         </div>
@@ -236,8 +247,8 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
       <AdvancedDisclosure>
         <div className="advanced-processor-grid advanced-processor-grid--microphone">
-          <ProcessorSection id="microphone-noise-suppression" title="Noise suppression" enabled={suppression.enabled} pending={processingPending} support={support} onEnabledChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}>
-            <ParameterControl label="Strength" value={suppression.parameters.amount} min={0} max={100} step={1} unit="%" disabled={unavailable || !suppression.enabled || processingPending} onCommit={(amount) => void setMicProcessor({ processorId: 'noise-suppression', parameters: { amount } })} />
+          <ProcessorSection id="microphone-noise-suppression" title="Noise suppression" enabled={suppression.enabled && !suppressionUnavailable} pending={processingPending} support={suppressionSupport} onEnabledChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}>
+            <ParameterControl label="Strength" value={suppression.parameters.amount} min={0} max={100} step={1} unit="%" disabled={suppressionUnavailable || !suppression.enabled || processingPending} onCommit={(amount) => void setMicProcessor({ processorId: 'noise-suppression', parameters: { amount } })} />
           </ProcessorSection>
 
           <ProcessorSection id="microphone-noise-gate" title="Noise gate" enabled={gate.enabled} pending={processingPending} support={support} onEnabledChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}>

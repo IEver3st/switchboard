@@ -11,7 +11,7 @@
       "percentage": 79,
       "charging": false,
       "fullyCharged": false,
-      "updatedAt": 1787732768131
+      "updatedAt": 1787733097699
     },
     "dpi": 3000,
     "reportRate": 500
@@ -40,50 +40,7 @@
         "renderState": "ready",
         "batteryLabel": "Battery, 79 percent battery",
         "charging": null,
-        "callouts": [
-          {
-            "id": "primary",
-            "side": "left",
-            "lineJoinGap": 0.000030517578125,
-            "hotspotJoinGap": 0.0000152587890625,
-            "verticalGap": 0
-          },
-          {
-            "id": "back",
-            "side": "left",
-            "lineJoinGap": 0.000030517578125,
-            "hotspotJoinGap": 0.0000152587890625,
-            "verticalGap": 0
-          },
-          {
-            "id": "dpi-shift",
-            "side": "left",
-            "lineJoinGap": 0.000030517578125,
-            "hotspotJoinGap": 0,
-            "verticalGap": 0
-          },
-          {
-            "id": "secondary",
-            "side": "right",
-            "lineJoinGap": 0.0000457763671875,
-            "hotspotJoinGap": 0.01043701171875,
-            "verticalGap": 0
-          },
-          {
-            "id": "wheel",
-            "side": "right",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0,
-            "verticalGap": 0
-          },
-          {
-            "id": "forward",
-            "side": "right",
-            "lineJoinGap": 0.000030517578125,
-            "hotspotJoinGap": 0.01043701171875,
-            "verticalGap": 0
-          }
-        ]
+        "callouts": []
       }
     },
     {
@@ -108,50 +65,7 @@
         "renderState": "ready",
         "batteryLabel": "Battery, 79 percent battery",
         "charging": null,
-        "callouts": [
-          {
-            "id": "primary",
-            "side": "left",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0.0000152587890625,
-            "verticalGap": 0
-          },
-          {
-            "id": "back",
-            "side": "left",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0.0000152587890625,
-            "verticalGap": 0
-          },
-          {
-            "id": "dpi-shift",
-            "side": "left",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0,
-            "verticalGap": 0
-          },
-          {
-            "id": "secondary",
-            "side": "right",
-            "lineJoinGap": 0.0000457763671875,
-            "hotspotJoinGap": 0.01043701171875,
-            "verticalGap": 0
-          },
-          {
-            "id": "wheel",
-            "side": "right",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0,
-            "verticalGap": 0
-          },
-          {
-            "id": "forward",
-            "side": "right",
-            "lineJoinGap": 0.000030517578125,
-            "hotspotJoinGap": 0.01043701171875,
-            "verticalGap": 0
-          }
-        ]
+        "callouts": []
       }
     },
     {
@@ -176,50 +90,7 @@
         "renderState": "ready",
         "batteryLabel": "Battery, 79 percent battery",
         "charging": null,
-        "callouts": [
-          {
-            "id": "primary",
-            "side": "left",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0.0000152587890625,
-            "verticalGap": 0
-          },
-          {
-            "id": "back",
-            "side": "left",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0.0000152587890625,
-            "verticalGap": 0
-          },
-          {
-            "id": "dpi-shift",
-            "side": "left",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0,
-            "verticalGap": 0
-          },
-          {
-            "id": "secondary",
-            "side": "right",
-            "lineJoinGap": 0.0000457763671875,
-            "hotspotJoinGap": 0.01043701171875,
-            "verticalGap": 0
-          },
-          {
-            "id": "wheel",
-            "side": "right",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0,
-            "verticalGap": 0
-          },
-          {
-            "id": "forward",
-            "side": "right",
-            "lineJoinGap": 0,
-            "hotspotJoinGap": 0.0103759765625,
-            "verticalGap": 0
-          }
-        ]
+        "callouts": []
       }
     }
   ]

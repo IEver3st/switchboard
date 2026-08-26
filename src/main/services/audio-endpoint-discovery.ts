@@ -15,6 +15,7 @@ const discoveredEndpointSchema = z.object({
   interfaceName: z.string().nullable(),
   volume: z.number(),
   muted: z.boolean(),
+  isSwitchboard: z.boolean().default(false),
 });
 
 const discoveredEndpointsSchema = z.array(discoveredEndpointSchema);
@@ -49,6 +50,7 @@ export class AudioEndpointDiscovery {
       available: true,
       formFactor: endpoint.formFactor,
       isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name),
+      isSwitchboard: endpoint.isSwitchboard,
     }));
   }
 

@@ -83,6 +83,7 @@
       "brightness": "55"
     },
     "custom": {
+      "profile": "Custom",
       "pattern": "Pulse",
       "speedDisabled": null
     },

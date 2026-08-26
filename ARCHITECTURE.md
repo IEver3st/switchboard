@@ -21,13 +21,14 @@ Electron main
 
 ## Host migration status
 
-Capture has crossed the native-host boundary. Audio still retains its utility-worker fallback while its packaged host and virtual endpoint work are completed:
+Capture and audio have crossed the native-host boundary. The remaining audio release dependency is the signed transport driver:
 
 ```text
 Capture utility worker  → replaced by packaged .NET Capture.Host
 metadata clip           → replaced by encoded segment ring and atomic remux
-Audio utility worker    → pending packaged Audio.Host cutover
-software bus state      → pending WASAPI + signed virtual endpoints
+Audio utility worker    → replaced by packaged .NET Audio.Host
+software bus state      → replaced by WASAPI loopback, physical routing, and real meters
+virtual endpoints       → blocked until the transport-only WDM package is signed and installed
 ```
 
 The shared command vocabulary is intentionally small so transport replacement does not force a renderer rewrite.

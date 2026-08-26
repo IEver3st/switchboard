@@ -29,6 +29,10 @@ if (command === 'capture') {
   await runElectron('scripts/verify-native-ui.mjs', '--phase=verify');
 } else if (command === 'g502') {
   await runElectron('scripts/verify-g502-fix-native.mjs');
+} else if (command === 'games') {
+  await runElectron('scripts/verify-game-detection-ui.mjs');
+} else if (command === 'audio-noise') {
+  await runElectron('scripts/capture-native-ui.mjs', '--verify-audio-noise');
 } else {
   throw new Error(`Unknown native review command: ${command ?? '(missing)'}`);
 }

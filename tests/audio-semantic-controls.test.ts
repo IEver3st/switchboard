@@ -11,7 +11,7 @@ import { createDefaultSnapshot } from '../src/shared/defaults';
 
 describe('human-facing audio controls', () => {
   test('recognizes the named microphone strengths and reports exact edits as custom', () => {
-    expect(matchNoiseRemoval(50)).toBe('balanced');
+    expect(matchNoiseRemoval(55)).toBe('balanced');
     expect(matchNoiseRemoval(63)).toBe('custom');
     expect(matchGate(-48)).toBe('balanced');
     expect(matchGate(-46)).toBe('custom');

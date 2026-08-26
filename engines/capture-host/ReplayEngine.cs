@@ -917,18 +917,24 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private CaptureStorageStatus GetStorageStatus(CaptureSettings? capture, long cacheBytes)
     {
         if (capture is null)
-            return new CaptureStorageStatus(string.Empty, string.Empty, 0, 0, cacheBytes, false, false);
+            return new CaptureStorageStatus(string.Empty, string.Empty, 0, 0, 0, 0, cacheBytes, false, false);
         long available = 0;
+        long volumeTotal = 0;
+        long volumeAvailable = 0;
         string? storageProbeError = null;
         try
         {
             var cacheRoot = Path.GetPathRoot(Path.GetFullPath(capture.CacheDirectory));
             var clipsRoot = Path.GetPathRoot(Path.GetFullPath(capture.ClipsDirectory));
-            var cacheAvailable = !string.IsNullOrWhiteSpace(cacheRoot) ? new DriveInfo(cacheRoot).AvailableFreeSpace : 0;
-            var clipsAvailable = !string.IsNullOrWhiteSpace(clipsRoot) ? new DriveInfo(clipsRoot).AvailableFreeSpace : 0;
+            var cacheDrive = !string.IsNullOrWhiteSpace(cacheRoot) ? new DriveInfo(cacheRoot) : null;
+            var clipsDrive = !string.IsNullOrWhiteSpace(clipsRoot) ? new DriveInfo(clipsRoot) : null;
+            var cacheAvailable = cacheDrive?.AvailableFreeSpace ?? 0;
+            var clipsAvailable = clipsDrive?.AvailableFreeSpace ?? 0;
             available = cacheAvailable > 0 && clipsAvailable > 0
                 ? Math.Min(cacheAvailable, clipsAvailable)
                 : Math.Max(cacheAvailable, clipsAvailable);
+            volumeTotal = clipsDrive?.TotalSize ?? 0;
+            volumeAvailable = clipsAvailable;
         }
         catch (Exception probeError)
         {
@@ -948,6 +954,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             capture.ClipsDirectory,
             capture.CacheDirectory,
             available,
+            volumeTotal,
+            volumeAvailable,
             clipsBytes,
             cacheBytes,
             low,

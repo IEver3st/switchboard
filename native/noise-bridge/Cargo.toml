@@ -1,0 +1,19 @@
+[package]
+name = "switchboard-noise"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "switchboard_noise"
+crate-type = ["cdylib"]
+
+[dependencies]
+nnnoiseless = { git = "https://github.com/jneem/nnnoiseless.git", rev = "924a2dd143ccad7bce9e5bda061b60ca32911a67", default-features = false }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = 3
+panic = "abort"
+strip = "symbols"

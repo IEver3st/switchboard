@@ -7,6 +7,7 @@ describe('settings search metadata', () => {
     const clipResults = searchSettings('clips').map((entry) => entry.id);
     expect(clipResults).toContain('capture.storage');
     expect(clipResults).toContain('capture.duration');
+    expect(searchSettings('clip quality')[0]?.category).toBe('clips');
     expect(searchSettings('renderer memory').map((entry) => entry.id)).toContain('diagnostics.memory');
     expect(searchSettings('white variant').map((entry) => entry.id)).toContain('devices.appearanceFallback');
   });
@@ -25,6 +26,7 @@ describe('settings search metadata', () => {
       'capture.engine', 'capture.storage', 'capture.duration', 'capture.shortcut', 'capture.source',
       'capture.resolution', 'capture.frameRate', 'capture.quality', 'capture.encoder',
       'capture.codec', 'capture.microphone', 'capture.systemAudio', 'capture.cursor', 'capture.workspace',
+      'games.automaticScan', 'games.library',
       'modules.automaticUpdates', 'modules.installed', 'modules.available',
       'diagnostics.telemetry', 'diagnostics.retention', 'diagnostics.guard',
       'diagnostics.memory', 'diagnostics.engines', 'diagnostics.capture-path',
