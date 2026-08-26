@@ -38,8 +38,8 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const [category, setCategory] = useState<SettingsCategoryId>(readInitialCategory);
   const [query, setQuery] = useState('');
   const [confirmation, setConfirmation] = useState<SettingsResetScope | null>(null);
+  const [targetSetting, setTargetSetting] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const targetSettingRef = useRef<string | null>(null);
   const resetSettings = useSystemStore((state) => state.resetSettings);
   const actionPending = useSystemStore((state) => state.actionPending);
   const categoryDefinition = settingsCategories.find((candidate) => candidate.id === category);
@@ -50,24 +50,23 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
   }, []);
 
   const selectSearchResult = useCallback((result: SettingsSearchEntry) => {
-    targetSettingRef.current = result.id;
+    setTargetSetting(result.id);
     changeCategory(result.category);
   }, [changeCategory]);
 
   useEffect(() => {
-    const targetSetting = targetSettingRef.current;
     if (!targetSetting) return;
-    targetSettingRef.current = null;
     const frame = window.requestAnimationFrame(() => {
       const element = document.getElementById(`setting-${targetSetting}`);
       if (!element) return;
-      element.scrollIntoView({ block: 'center', behavior: reducedMotionEnabled() ? 'auto' : 'smooth' });
       element.focus({ preventScroll: true });
       element.classList.add('settings-row--highlighted');
+      element.scrollIntoView({ block: 'center', behavior: reducedMotionEnabled() ? 'auto' : 'smooth' });
       window.setTimeout(() => element.classList.remove('settings-row--highlighted'), 1400);
+      setTargetSetting(null);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [category]);
+  }, [category, targetSetting]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

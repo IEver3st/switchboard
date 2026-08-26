@@ -47,7 +47,10 @@ internal static class FfmpegLocator
         var arguments = new[]
         {
             "-hide_banner", "-loglevel", "error",
-            "-f", "lavfi", "-i", "color=size=128x72:rate=1",
+            // Current NVIDIA encoders reject dimensions below their hardware minimum.
+            // Probe at a small, universally useful encode size instead of producing a
+            // false negative that silently selects the software fallback.
+            "-f", "lavfi", "-i", "color=size=640x360:rate=1",
             "-frames:v", "1", "-c:v", encoder, "-f", "null", "-",
         };
         using var process = CreateProcess(ffmpegPath, arguments);

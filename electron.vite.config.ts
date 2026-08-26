@@ -13,7 +13,14 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        external: ['electron'],
+        output: {
+          format: 'cjs',
+        },
+      },
+    },
     resolve: {
       alias: {
         '@shared': resolve('src/shared'),

@@ -71,11 +71,11 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
                     <span className="device-gallery__status">
                       <span className={cn('device-gallery__status-dot', device.connected && 'is-connected')} aria-hidden />
                       <span>{device.connected ? 'Connected' : 'Disconnected'}</span>
-                      {device.kind === 'mouse' && typeof device.batteryPercent === 'number' ? (
+                      {typeof device.batteryPercent === 'number' ? (
                         <><span aria-hidden>·</span><span className="tabular-nums">{Math.round(device.batteryPercent)}%</span></>
                       ) : null}
-                      {device.kind === 'microphone' && device.identity.connection ? (
-                        <><span aria-hidden>·</span><span className="uppercase">{device.identity.connection}</span></>
+                      {typeof device.batteryPercent !== 'number' && device.identity.connection === 'usb' ? (
+                        <><span aria-hidden>·</span><span className="uppercase">USB</span></>
                       ) : null}
                     </span>
                   </span>

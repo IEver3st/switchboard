@@ -53,7 +53,7 @@ function createWindow(): BrowserWindow {
       height: 38,
     },
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,

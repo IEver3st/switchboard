@@ -35,7 +35,10 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
         {
             SingleReader = true,
             SingleWriter = false,
-            FullMode = BoundedChannelFullMode.DropWrite,
+            // TryWrite must report backpressure so the realtime callback can return
+            // its ArrayPool buffer. DropWrite reports success even when it drops the
+            // new item, which would leak one rented buffer per overrun.
+            FullMode = BoundedChannelFullMode.Wait,
         });
         capture.DataAvailable += OnDataAvailable;
         capture.RecordingStopped += OnRecordingStopped;

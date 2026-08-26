@@ -8,6 +8,8 @@ var outputGate = new SemaphoreSlim(1, 1);
 var shutdown = new CancellationTokenSource();
 var requests = new ConcurrentDictionary<Guid, Task>();
 await using var engine = new ReplayEngine();
+var previousCpuTime = Process.GetCurrentProcess().TotalProcessorTime;
+var previousCpuSampleAt = Stopwatch.GetTimestamp();
 
 engine.SnapshotChanged += snapshot =>
 {
@@ -22,6 +24,11 @@ try
     while (!shutdown.IsCancellationRequested && await Console.In.ReadLineAsync(shutdown.Token) is { } line)
     {
         if (string.IsNullOrWhiteSpace(line)) continue;
+        if (IsShutdownCommand(line))
+        {
+            await HandleLineAsync(line);
+            break;
+        }
         var operationId = Guid.NewGuid();
         var operation = HandleLineAsync(line).ContinueWith(
             completedTask => requests.TryRemove(operationId, out var _),
@@ -83,6 +90,20 @@ async Task<object> ShutdownAsync()
     return new { stopped = true };
 }
 
+bool IsShutdownCommand(string line)
+{
+    try
+    {
+        using var document = JsonDocument.Parse(line);
+        return document.RootElement.TryGetProperty("command", out var command)
+               && command.ValueEquals("shutdown");
+    }
+    catch (JsonException)
+    {
+        return false;
+    }
+}
+
 async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
 {
     var replayState = snapshot.Runtime.State;
@@ -94,6 +115,15 @@ async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
         _ => "running",
     };
     var process = Process.GetCurrentProcess();
+    var sampledAt = Stopwatch.GetTimestamp();
+    var cpuTime = process.TotalProcessorTime;
+    var elapsedSeconds = (sampledAt - previousCpuSampleAt) / (double)Stopwatch.Frequency;
+    var cpuSeconds = (cpuTime - previousCpuTime).TotalSeconds;
+    var cpuPercent = elapsedSeconds <= 0
+        ? 0
+        : Math.Clamp(cpuSeconds / elapsedSeconds / Environment.ProcessorCount * 100, 0, 100);
+    previousCpuTime = cpuTime;
+    previousCpuSampleAt = sampledAt;
     await WriteAsync(new
     {
         type = "status",
@@ -102,7 +132,7 @@ async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
             kind = "capture",
             state,
             pid = state == "stopped" ? (int?)null : Environment.ProcessId,
-            cpuPercent = 0d,
+            cpuPercent = Math.Round(cpuPercent, 1),
             memoryMb = Math.Round(process.WorkingSet64 / 1024d / 1024d, 1),
             uptimeSeconds = Math.Max(0, engine.Uptime.TotalSeconds),
             message = snapshot.Runtime.Error ?? snapshot.Runtime.Warning,

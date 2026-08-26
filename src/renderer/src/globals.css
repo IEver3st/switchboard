@@ -207,14 +207,11 @@ select {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  line-height: 1.3;
-  text-align: center;
-}
-
-.device-gallery__status {
   margin-top: 6px;
   color: var(--muted-foreground);
   font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .device-gallery__status-dot {
