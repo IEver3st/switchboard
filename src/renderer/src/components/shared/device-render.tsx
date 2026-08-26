@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Device } from '../../../../shared/contracts';
 import g502XPlusBlackUrl from '@/assets/device-renders/g502-x-plus.png';
 import g502XPlusWhiteUrl from '@/assets/device-renders/g502-x-plus-white.png';
@@ -70,7 +70,7 @@ function ProductCanvas({
   artwork: DeviceArtwork;
   label: string;
   lighting: { enabled: boolean; color: string };
-  fallback: React.ReactNode;
+  fallback: ReactNode;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
@@ -90,10 +90,11 @@ function ProductCanvas({
         return;
       }
 
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
+      const processingScale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
+      canvas.width = Math.round(image.naturalWidth * processingScale);
+      canvas.height = Math.round(image.naturalHeight * processingScale);
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);

@@ -197,6 +197,14 @@ select {
   user-select: none;
 }
 
+.device-render canvas[data-render-state="loading"] {
+  opacity: 0;
+}
+
+.device-render canvas[data-render-state="ready"] {
+  opacity: 1;
+}
+
 .device-render--gallery img,
 .device-render--gallery canvas {
   transition: transform 220ms cubic-bezier(0.2, 0.75, 0.2, 1), opacity 140ms ease-out;

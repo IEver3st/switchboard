@@ -95,6 +95,7 @@ function MouseControls({ device }: { device: Device }) {
   const pollingRate = asNumber(device.settings.pollingRate, 1000);
   const onboardMemory = asBoolean(device.settings.onboardMemory, true);
   const lightingEnabled = asBoolean(device.settings.lightingEnabled, false);
+  const lightingColor = asString(device.settings.lightingColor, '#ff658a');
 
   return (
     <section className="device-controls">
@@ -165,6 +166,17 @@ function MouseControls({ device }: { device: Device }) {
         <div className="device-controls__secondary col-span-3 divide-y divide-border border-l border-border pl-8">
           <SettingSwitch icon={Crosshair} label="Onboard memory" checked={onboardMemory} onChange={(checked) => void setDeviceSetting({ deviceId: device.id, key: 'onboardMemory', value: checked })} />
           <SettingSwitch icon={Lightbulb} label="Lighting" checked={lightingEnabled} onChange={(checked) => void setDeviceSetting({ deviceId: device.id, key: 'lightingEnabled', value: checked })} />
+          <div className="flex items-center gap-3 py-2.5">
+            <span className="flex-1 text-xs font-medium text-foreground">Lighting color</span>
+            <input
+              type="color"
+              value={lightingColor}
+              aria-label="Mouse lighting color"
+              disabled={!lightingEnabled}
+              onChange={(event) => void setDeviceSetting({ deviceId: device.id, key: 'lightingColor', value: event.target.value })}
+              className="size-7 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-40"
+            />
+          </div>
         </div>
       </div>
 

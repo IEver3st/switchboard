@@ -84,6 +84,15 @@ export class StateStore {
 
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
+    const visualDefaults = new Map(createDefaultSnapshot().devices.map((device) => [device.imageKey, device]));
+    for (const device of next.devices) {
+      const fallback = visualDefaults.get(device.imageKey);
+      if (!fallback) continue;
+      device.appearance ??= fallback.appearance ? structuredClone(fallback.appearance) : undefined;
+      if (!Object.hasOwn(device.settings, 'lightingColor') && Object.hasOwn(fallback.settings, 'lightingColor')) {
+        device.settings.lightingColor = fallback.settings.lightingColor;
+      }
+    }
     next.prototypeMode = true;
     next.engines = runtimeEngineKinds.map((kind) => ({
       kind,
