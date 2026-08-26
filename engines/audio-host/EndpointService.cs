@@ -53,7 +53,7 @@ internal sealed class EndpointService : IDisposable
             var session = sessions[index];
             result.Add(new
             {
-                session.ProcessID,
+                ProcessID = session.GetProcessID,
                 session.DisplayName,
                 Volume = session.SimpleAudioVolume.Volume,
                 session.SimpleAudioVolume.Mute,
