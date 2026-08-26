@@ -1,4 +1,4 @@
-import type { DeviceControlBinding } from '../../../../../shared/contracts';
+import type { ButtonAssignmentBinding, MouseAction } from '../../../../../shared/contracts';
 import type { DeviceVariantCandidate } from '../../../../../shared/device-variant';
 
 export const g502XPlusDefinition = {
@@ -8,17 +8,78 @@ export const g502XPlusDefinition = {
   wirelessProductId: 0x4099,
   wiredProductId: 0xc095,
   receiverProductIds: [0xc547],
-  capabilities: ['dpi', 'polling-rate', 'buttons', 'battery', 'profiles', 'lighting'],
+  deviceBaseModel: 'g502x_plus',
+  slotPrefix: 'g502x-plus',
 } as const;
 
-export const g502XPlusControlBindings: DeviceControlBinding[] = [
-  { id: 'primary', label: 'Primary click', assignment: 'Left click', side: 'left', order: 0 },
-  { id: 'back', label: 'Back button', assignment: 'Back', side: 'left', order: 1 },
-  { id: 'dpi-shift', label: 'DPI shift', assignment: '800 DPI', side: 'left', order: 2 },
-  { id: 'secondary', label: 'Secondary click', assignment: 'Right click', side: 'right', order: 0 },
-  { id: 'wheel', label: 'Wheel press', assignment: 'Middle click', side: 'right', order: 1 },
-  { id: 'forward', label: 'Forward button', assignment: 'Forward', side: 'right', order: 2 },
+export const g502XPlusActions: MouseAction[] = [
+  { id: 'mouse.primary-click', label: 'Primary click', category: 'mouse', searchTerms: ['left click', 'mb1'], selectable: true },
+  { id: 'mouse.secondary-click', label: 'Secondary click', category: 'mouse', searchTerms: ['right click', 'mb2'], selectable: true },
+  { id: 'mouse.middle-click', label: 'Middle click', category: 'mouse', searchTerms: ['wheel press', 'mb3'], selectable: true },
+  { id: 'mouse.back', label: 'Back', category: 'mouse', searchTerms: ['browser back', 'mb4'], selectable: true },
+  { id: 'mouse.forward', label: 'Forward', category: 'mouse', searchTerms: ['browser forward', 'mb5'], selectable: true },
+  { id: 'mouse.dpi-up', label: 'DPI up', category: 'mouse', searchTerms: ['sensitivity increase'], selectable: true },
+  { id: 'mouse.dpi-down', label: 'DPI down', category: 'mouse', searchTerms: ['sensitivity decrease'], selectable: true },
+  { id: 'mouse.dpi-shift', label: 'DPI shift', category: 'mouse', searchTerms: ['sniper', 'temporary dpi'], selectable: true },
 ];
+
+export const g502ActionCardSuffixes: Record<string, string> = {
+  'mouse.primary-click': '020100000000',
+  'mouse.secondary-click': '020200000000',
+  'mouse.middle-click': '020300000000',
+  'mouse.back': '020400000000',
+  'mouse.forward': '020500000000',
+  'mouse.dpi-up': '040100000000',
+  'mouse.dpi-down': '040200000000',
+  'mouse.dpi-shift': '040300000000',
+};
+
+export const g502XPlusBindings: ButtonAssignmentBinding[] = [
+  createBinding('primary', 'Primary click', 'g1', 'mouse.primary-click', 'left', 0, 44, 23),
+  createBinding('back', 'Back button', 'g4', 'mouse.back', 'left', 1, 29, 55),
+  createBinding('dpi-shift', 'DPI shift', 'g5', 'mouse.dpi-shift', 'left', 2, 25, 43),
+  createBinding('secondary', 'Secondary click', 'g2', 'mouse.secondary-click', 'right', 0, 56, 23),
+  createBinding('wheel', 'Wheel press', 'g3', 'mouse.middle-click', 'right', 1, 50, 35),
+  createBinding('forward', 'Forward button', 'g6', 'mouse.forward', 'right', 2, 32, 49),
+];
+
+function createBinding(
+  buttonId: string,
+  label: string,
+  slot: string,
+  currentActionId: string,
+  calloutSide: 'left' | 'right',
+  order: number,
+  x: number,
+  y: number,
+): ButtonAssignmentBinding {
+  return {
+    buttonId,
+    slotId: `${g502XPlusDefinition.slotPrefix}_${slot}_m1`,
+    currentActionId,
+    hotspot: {
+      id: buttonId,
+      label,
+      position: { x, y },
+      calloutSide,
+      order,
+      capability: 'button-assignment',
+    },
+  };
+}
+
+export function actionIdFromCardId(cardId: string | undefined): string | undefined {
+  if (!cardId) return undefined;
+  return Object.entries(g502ActionCardSuffixes).find(([, suffix]) => cardId.endsWith(suffix))?.[0];
+}
+
+export function cardLibraryPrefix(assignments: Array<{ cardId?: string }>): string | undefined {
+  const knownSuffixes = new Set(Object.values(g502ActionCardSuffixes));
+  const cardId = assignments
+    .map((assignment) => assignment.cardId)
+    .find((candidate) => candidate && knownSuffixes.has(candidate.slice(-12)));
+  return cardId?.slice(0, -12);
+}
 
 export function resolveG502XPlusVariant(extendedModel: number | undefined): DeviceVariantCandidate[] {
   if (extendedModel === 1) {

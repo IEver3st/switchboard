@@ -1,5 +1,5 @@
 import { devicesAsync } from 'node-hid';
-import type { Device, SystemSnapshot } from '../../shared/contracts';
+import type { Device, DeviceControlChange, SystemSnapshot } from '../../shared/contracts';
 import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
@@ -37,6 +37,19 @@ export class DeviceRegistry {
     return this.refreshPromise;
   }
 
+  public async setControl(deviceId: string, change: DeviceControlChange): Promise<void> {
+    const device = this.getSnapshot().devices.find((candidate) => candidate.id === deviceId);
+    if (!device) throw new Error('Device not found.');
+    const module = this.modules.find((candidate) => candidate.id === device.moduleId);
+    if (!module?.setControl) throw new Error(`${device.displayName} does not expose writable device controls.`);
+    await module.setControl(device, change);
+    // A scheduled discovery may still be publishing the state from before the
+    // write. Let it finish, then perform a fresh read so the renderer observes
+    // device-confirmed state instead of optimistic React state.
+    if (this.refreshPromise) await this.refreshPromise;
+    await this.refresh();
+  }
+
   public dispose(): void {
     this.disposed = true;
     if (this.timer) clearInterval(this.timer);
@@ -62,8 +75,12 @@ export class DeviceRegistry {
         moduleIds.has(device.moduleId)
         && !legacyFixtureIds.has(device.id)
         && !connectedIds.has(device.id)
+        && !connected.some((candidate) => (
+          candidate.moduleId === device.moduleId
+          && candidate.identity.model === device.identity.model
+        ))
       ))
-      .map((device) => ({ ...device, connected: false, batteryPercent: undefined }));
+      .map((device) => ({ ...device, connected: false }));
     const unmanaged = snapshot.devices.filter((device) => !moduleIds.has(device.moduleId));
     const next = [...connected, ...disconnected, ...unmanaged].sort((left, right) => {
       if (left.connected !== right.connected) return left.connected ? -1 : 1;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import type {
   CaptureConfig,
@@ -7,7 +7,7 @@ import type {
   SettingsResetScope,
   SystemSnapshot,
 } from '../../../shared/contracts';
-import { estimateClipSize } from '../../../shared/capture-presets';
+import { estimateClipSize, getEncodingPreset } from '../../../shared/capture-presets';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import {
   isSettingsCategory,
@@ -56,7 +56,7 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   useEffect(() => {
     if (!targetSetting) return;
-    const frame = window.requestAnimationFrame(() => {
+    const timer = window.setTimeout(() => {
       const element = document.getElementById(`setting-${targetSetting}`);
       if (!element) return;
       element.focus({ preventScroll: true });
@@ -64,8 +64,8 @@ export function SettingsPage({ snapshot }: { snapshot: SystemSnapshot }) {
       element.scrollIntoView({ block: 'center', behavior: reducedMotionEnabled() ? 'auto' : 'smooth' });
       window.setTimeout(() => element.classList.remove('settings-row--highlighted'), 1400);
       setTargetSetting(null);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [category, targetSetting]);
 
   useEffect(() => {
@@ -141,6 +141,7 @@ function SettingsCategory({
   onReset?: () => void;
 }) {
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'devices') return <DevicesSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'audio') return <AudioSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'modules') return <ModulesSettings snapshot={snapshot} onReset={onReset} />;
@@ -179,6 +180,62 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           checked={snapshot.settings.destroyRendererInTray}
           disabled={pending || !snapshot.settings.closeToTray}
           onCheckedChange={(checked) => void updateSettings({ destroyRendererInTray: checked })}
+        />
+      </SettingSection>
+    </>
+  );
+}
+
+function DevicesSettings({ snapshot, onReset }: CategoryProps) {
+  const setPage = useSystemStore((state) => state.setPage);
+  const setDeviceAppearanceOverride = useSystemStore((state) => state.setDeviceAppearanceOverride);
+  const actionPending = useSystemStore((state) => state.actionPending);
+
+  return (
+    <>
+      <SettingsCategoryHeader title="Devices" onReset={onReset} />
+      <SettingSection title="Hardware identity">
+        {snapshot.devices.map((device, index) => {
+          const hardwareResolved = device.variantResolution.confidence === 'hardware';
+          const appearanceOverride = snapshot.settings.deviceAppearanceOverrides[device.id];
+          return (
+            <div key={device.id} className="settings-device-identity">
+              <SettingRow
+                settingId={index === 0 ? 'devices.connected' : `devices.${device.id}.identity`}
+                title={device.displayName}
+                description={deviceSummary(device)}
+              >
+                <span className="settings-row__value">{device.connected ? 'Connected' : 'Disconnected'}</span>
+              </SettingRow>
+              <SettingSelect
+                settingId={index === 0 ? 'devices.appearanceFallback' : `devices.${device.id}.appearanceFallback`}
+                title={`Appearance fallback · ${device.displayName}`}
+                description={hardwareResolved
+                  ? `Disabled because ${device.variantResolution.source} identified an exact hardware variant.`
+                  : 'Used only when automatic hardware and module evidence cannot identify the cosmetic SKU. Stored against this stable device identity.'}
+                value={hardwareResolved ? 'automatic' : (appearanceOverride?.variant ?? 'automatic')}
+                options={[
+                  { value: 'automatic', label: 'Automatic' },
+                  { value: 'white', label: 'White' },
+                  { value: 'black', label: 'Black' },
+                ]}
+                disabled={hardwareResolved || actionPending === `device:${device.id}:appearance`}
+                onValueChange={(value) => void setDeviceAppearanceOverride({
+                  deviceId: device.id,
+                  override: value === 'automatic'
+                    ? null
+                    : { variant: value, colorway: value === 'white' ? 'White' : 'Black' },
+                })}
+              />
+            </div>
+          );
+        })}
+        <SettingAction
+          settingId="devices.workspace"
+          title="Per-device controls"
+          description="Hardware gain, DPI, polling rate, lighting, and button assignments remain on each device workbench."
+          label="Open Devices"
+          onClick={() => setPage('devices')}
         />
       </SettingSection>
     </>
@@ -456,11 +513,11 @@ function ModulesSettings({ snapshot, onReset }: CategoryProps) {
 
 function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
-  const setDeviceAppearanceOverride = useSystemStore((state) => state.setDeviceAppearanceOverride);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const pending = useSystemStore((state) => state.actionPending) === 'settings:update';
   const audioEngine = snapshot.engines.find((engine) => engine.kind === 'audio');
   const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
+  const capturePreset = getEncodingPreset(snapshot.capture.config);
+  const captureRuntime = snapshot.capture.runtime;
 
   return (
     <>
@@ -510,46 +567,45 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
             <span><i className={cn('settings-status-dot', statusDotClass(captureEngine?.state))} />Capture {engineStateLabel(captureEngine?.state)}</span>
           </span>
         </SettingRow>
+        <SettingRow
+          settingId="diagnostics.capture-path"
+          title="Capture pipeline"
+          description={`${captureRuntime.backendLabel} · ${captureRuntime.encoderLabel} · ${snapshot.capture.config.codec.toUpperCase()} · ${snapshot.capture.config.resolution} at ${snapshot.capture.config.fps} FPS`}
+        >
+          <span className="settings-row__value">{formatBytes(capturePreset.targetVideoBitrateBps / 8)}/s target</span>
+        </SettingRow>
+        <SettingRow
+          settingId="diagnostics.capture-health"
+          title="Replay health"
+          description={`${captureRuntime.encodedFrames.toLocaleString()} encoded · ${captureRuntime.droppedFrames.toLocaleString()} dropped · ${captureRuntime.audioSyncCorrections.toLocaleString()} audio corrections`}
+        >
+          <span className="settings-row__value">
+            {formatBytes(captureRuntime.replayCacheBytes)} cache
+            {captureRuntime.observedBitrateBps > 0 ? ` · ${formatBytes(captureRuntime.observedBitrateBps / 8)}/s observed` : ''}
+          </span>
+        </SettingRow>
       </SettingSection>
       <SettingSection title="Device identity">
-        {snapshot.devices.map((device) => {
-          const hardwareResolved = device.variantResolution.confidence === 'hardware';
-          const appearanceOverride = snapshot.settings.deviceAppearanceOverrides[device.id];
-          return (
-            <div key={device.id} className="settings-device-identity">
-              <SettingRow
-                settingId={`diagnostics.device.${device.id}.identity`}
-                title={device.displayName}
-                description={<DeviceIdentityDetails device={device} />}
-              >
-                <span className="settings-row__value">{device.connected ? 'Connected' : 'Disconnected'}</span>
-              </SettingRow>
-              <SettingSelect
-                settingId={`diagnostics.device.${device.id}.appearance`}
-                title="Appearance fallback"
-                description={hardwareResolved
-                  ? `Disabled because ${device.variantResolution.source} identified an exact hardware variant.`
-                  : 'Used only when automatic hardware and module evidence cannot identify the cosmetic SKU. Stored against this stable device identity.'}
-                value={hardwareResolved ? 'automatic' : (appearanceOverride?.variant ?? 'automatic')}
-                options={[
-                  { value: 'automatic', label: 'Automatic' },
-                  { value: 'white', label: 'White' },
-                  { value: 'black', label: 'Black' },
-                ]}
-                disabled={hardwareResolved || actionPending === `device:${device.id}:appearance`}
-                onValueChange={(value) => void setDeviceAppearanceOverride({
-                  deviceId: device.id,
-                  override: value === 'automatic'
-                    ? null
-                    : { variant: value, colorway: value === 'white' ? 'White' : 'Black' },
-                })}
-              />
-            </div>
-          );
-        })}
+        {snapshot.devices.map((device, index) => (
+          <SettingRow
+            key={device.id}
+            settingId={index === 0 ? 'diagnostics.deviceIdentity' : `diagnostics.${device.id}.identity`}
+            title={device.displayName}
+            description={<DeviceIdentityDetails device={device} />}
+          >
+            <span className="settings-row__value">{device.variantResolution.confidence}</span>
+          </SettingRow>
+        ))}
       </SettingSection>
     </>
   );
+}
+
+function deviceSummary(device: Device): string {
+  const product = [device.identity.manufacturer, device.identity.model].filter(Boolean).join(' ');
+  const appearance = [device.identity.variant, device.identity.colorway].filter(Boolean).join(' · ');
+  const connection = device.identity.connectionLabel ?? device.identity.connection;
+  return [product, appearance, connection].filter(Boolean).join(' · ') || 'Identity details are available in Diagnostics.';
 }
 
 function DeviceIdentityDetails({ device }: { device: Device }) {
@@ -621,14 +677,31 @@ function ResetConfirmation({
   onConfirm: () => void;
 }) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const label = scope === 'all'
     ? 'all Settings preferences plus Audio and Capture configuration'
     : `${scope[0]?.toLocaleUpperCase()}${scope.slice(1)} settings`;
 
-  useEffect(() => confirmRef.current?.focus(), []);
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    confirmRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, []);
+
+  const keepFocusInside = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const controls = [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled)') ?? [])];
+    if (controls.length === 0) return;
+    const current = controls.indexOf(document.activeElement as HTMLElement);
+    const next = event.shiftKey
+      ? (current <= 0 ? controls.length - 1 : current - 1)
+      : (current === controls.length - 1 ? 0 : current + 1);
+    event.preventDefault();
+    controls[next]?.focus();
+  };
 
   return (
-    <div className="settings-reset-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="reset-settings-title" aria-describedby="reset-settings-description">
+    <div ref={dialogRef} className="settings-reset-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="reset-settings-title" aria-describedby="reset-settings-description" onKeyDown={keepFocusInside}>
       <AlertTriangle className="settings-reset-confirmation__icon" aria-hidden />
       <div>
         <h2 id="reset-settings-title">Restore defaults?</h2>

@@ -68,7 +68,7 @@ internal sealed class WindowsCaptureSources
             : settings.SourceId;
         if (!long.TryParse(handleText, out var rawHandle)) return null;
         var handle = (nint)rawHandle;
-            var window = GetWindowInfo(handle, includeGameSignals: false);
+        var window = GetWindowInfo(handle, includeGameSignals: false);
         return window is null
             ? new CaptureSource(settings.SourceId, "window", "Window unavailable", null, handleText, null, false)
             : new CaptureSource(settings.SourceId, "window", window.Title, window.ProcessId, handleText, null, true);

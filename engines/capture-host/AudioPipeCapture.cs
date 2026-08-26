@@ -17,6 +17,10 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
     private Task? writerTask;
     private bool started;
     private long droppedPackets;
+    private long capturedPackets;
+    private long writtenPackets;
+    private long capturedBytes;
+    private long writtenBytes;
 
     private AudioPipeCapture(IWaveIn capture, string label)
     {
@@ -28,13 +32,13 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
             PipeDirection.Out,
             1,
             PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous | PipeOptions.WriteThrough,
-            64 * 1024,
-            64 * 1024);
-        packets = Channel.CreateBounded<AudioPacket>(new BoundedChannelOptions(192)
+            PipeOptions.Asynchronous,
+            512 * 1024,
+            512 * 1024);
+        packets = Channel.CreateBounded<AudioPacket>(new BoundedChannelOptions(256)
         {
             SingleReader = true,
-            SingleWriter = false,
+            SingleWriter = true,
             // TryWrite must report backpressure so the realtime callback can return
             // its ArrayPool buffer. DropWrite reports success even when it drops the
             // new item, which would leak one rented buffer per overrun.
@@ -51,6 +55,11 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
     public int Channels => capture.WaveFormat.Channels;
     public string FfmpegSampleFormat => GetFfmpegSampleFormat(capture.WaveFormat);
     public long DroppedPackets => Interlocked.Read(ref droppedPackets);
+    public long CapturedPackets => Interlocked.Read(ref capturedPackets);
+    public long WrittenPackets => Interlocked.Read(ref writtenPackets);
+    public long CapturedBytes => Interlocked.Read(ref capturedBytes);
+    public long WrittenBytes => Interlocked.Read(ref writtenBytes);
+    public int BytesPerSecond => capture.WaveFormat.AverageBytesPerSecond;
     public string? Error { get; private set; }
 
     public static AudioPipeCapture CreateSystemLoopback()
@@ -99,6 +108,8 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
     private void OnDataAvailable(object? sender, WaveInEventArgs eventArgs)
     {
         if (eventArgs.BytesRecorded <= 0) return;
+        Interlocked.Increment(ref capturedPackets);
+        Interlocked.Add(ref capturedBytes, eventArgs.BytesRecorded);
         var rented = ArrayPool<byte>.Shared.Rent(eventArgs.BytesRecorded);
         Buffer.BlockCopy(eventArgs.Buffer, 0, rented, 0, eventArgs.BytesRecorded);
         var packet = new AudioPacket(rented, eventArgs.BytesRecorded);
@@ -117,17 +128,47 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
 
     private async Task WritePacketsAsync(CancellationToken cancellationToken)
     {
+        var batch = ArrayPool<byte>.Shared.Rent(512 * 1024);
         try
         {
-            await foreach (var packet in packets.Reader.ReadAllAsync(cancellationToken))
+            while (await packets.Reader.WaitToReadAsync(cancellationToken))
             {
-                try
+                var length = 0;
+                while (packets.Reader.TryRead(out var packet))
                 {
-                    await pipe.WriteAsync(packet.Buffer.AsMemory(0, packet.Length), cancellationToken);
+                    try
+                    {
+                        if (packet.Length > batch.Length)
+                        {
+                            if (length > 0)
+                            {
+                                await pipe.WriteAsync(batch.AsMemory(0, length), cancellationToken);
+                                Interlocked.Add(ref writtenBytes, length);
+                                length = 0;
+                            }
+                            await pipe.WriteAsync(packet.Buffer.AsMemory(0, packet.Length), cancellationToken);
+                            Interlocked.Add(ref writtenBytes, packet.Length);
+                            continue;
+                        }
+                        if (length + packet.Length > batch.Length)
+                        {
+                            await pipe.WriteAsync(batch.AsMemory(0, length), cancellationToken);
+                            Interlocked.Add(ref writtenBytes, length);
+                            length = 0;
+                        }
+                        Buffer.BlockCopy(packet.Buffer, 0, batch, length, packet.Length);
+                        length += packet.Length;
+                    }
+                    finally
+                    {
+                        packet.Return();
+                        Interlocked.Increment(ref writtenPackets);
+                    }
                 }
-                finally
+                if (length > 0)
                 {
-                    packet.Return();
+                    await pipe.WriteAsync(batch.AsMemory(0, length), cancellationToken);
+                    Interlocked.Add(ref writtenBytes, length);
                 }
             }
             await pipe.FlushAsync(cancellationToken);
@@ -136,6 +177,10 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
         catch (IOException error)
         {
             Error = error.Message;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(batch);
         }
     }
 

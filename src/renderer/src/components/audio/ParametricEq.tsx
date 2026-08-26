@@ -4,14 +4,15 @@ import type { EqBand, EqFilterType } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
+import { equalizerResponseDb } from '@/lib/eq-response';
 import { RotaryKnob } from './RotaryKnob';
 
-const WIDTH = 640;
-const HEIGHT = 172;
-const PLOT_LEFT = 34;
-const PLOT_RIGHT = 12;
-const PLOT_TOP = 10;
-const PLOT_BOTTOM = 20;
+const WIDTH = 960;
+const HEIGHT = 286;
+const PLOT_LEFT = 42;
+const PLOT_RIGHT = 16;
+const PLOT_TOP = 14;
+const PLOT_BOTTOM = 28;
 const PLOT_WIDTH = WIDTH - PLOT_LEFT - PLOT_RIGHT;
 const PLOT_HEIGHT = HEIGHT - PLOT_TOP - PLOT_BOTTOM;
 const FREQUENCY_TICKS = [20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000];
@@ -21,6 +22,7 @@ const FILTER_LABELS: Record<EqFilterType, string> = {
   bell: 'Bell',
   'high-shelf': 'High shelf',
 };
+const NODE_COLORS = ['#ff658a', '#e6b85c', '#58c49a', '#78a8d8', '#a892d8', '#d889a1', '#8e96a3', '#d5a56f'];
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -42,22 +44,10 @@ function yToGain(y: number): number {
   return clamp(12 - ((y - PLOT_TOP) / PLOT_HEIGHT) * 24, -12, 12);
 }
 
-function responseAt(frequency: number, band: EqBand): number {
-  if (!band.enabled || Math.abs(band.gainDb) < 0.001) return 0;
-  const octaveDistance = Math.log2(frequency / band.frequency);
-  if (band.type === 'bell') {
-    const width = 1.15 / band.q;
-    return band.gainDb * Math.exp(-0.5 * (octaveDistance / width) ** 2);
-  }
-  const steepness = 3.2 * Math.max(0.35, band.q);
-  if (band.type === 'low-shelf') return band.gainDb / (1 + Math.exp(octaveDistance * steepness));
-  return band.gainDb / (1 + Math.exp(-octaveDistance * steepness));
-}
-
 function curvePath(bands: EqBand[]): string {
-  const points = Array.from({ length: 160 }, (_, index) => {
-    const frequency = 20 * 10 ** ((index / 159) * 3);
-    const gain = clamp(bands.reduce((sum, band) => sum + responseAt(frequency, band), 0), -12, 12);
+  const points = Array.from({ length: 240 }, (_, index) => {
+    const frequency = 20 * 10 ** ((index / 239) * 3);
+    const gain = equalizerResponseDb(frequency, bands);
     return `${index === 0 ? 'M' : 'L'} ${frequencyToX(frequency).toFixed(2)} ${gainToY(gain).toFixed(2)}`;
   });
   return points.join(' ');
@@ -122,11 +112,11 @@ export function ParametricEq({
   if (!selected) return null;
 
   return (
-    <div className={cn('grid min-w-0 grid-cols-[minmax(0,1fr)_188px] gap-3 max-[900px]:grid-cols-1', disabled && 'opacity-55')}>
+    <div className={cn('grid min-w-0 grid-cols-[minmax(0,1fr)_220px] gap-4 max-[980px]:grid-cols-1', disabled && 'opacity-55')}>
       <div className="min-w-0">
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="block h-[172px] w-full border border-border bg-[#0d1014]"
+          className="block h-[286px] w-full touch-none border border-border bg-[#0d1014]"
           aria-label="Parametric equalizer response"
         >
           {FREQUENCY_TICKS.map((frequency) => {
@@ -154,12 +144,15 @@ export function ParametricEq({
               cx={frequencyToX(band.frequency)}
               cy={gainToY(band.gainDb)}
               r={band.id === selected.id ? 6 : 5}
-              fill={band.enabled ? 'var(--primary)' : 'var(--input)'}
+              fill={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--input)'}
               stroke={band.id === selected.id ? 'var(--foreground)' : 'var(--background)'}
               strokeWidth="1.5"
               role="slider"
               tabIndex={disabled ? -1 : 0}
               aria-label={`EQ band ${index + 1}`}
+              aria-valuemin={-12}
+              aria-valuemax={12}
+              aria-valuenow={band.gainDb}
               aria-valuetext={`${Math.round(band.frequency)} hertz, ${band.gainDb > 0 ? '+' : ''}${band.gainDb} decibels, Q ${band.q}`}
               onFocus={() => setSelectedId(band.id)}
               onPointerDown={(event) => {
@@ -177,6 +170,7 @@ export function ParametricEq({
                 updateBandFromPointer(band.id, event, true);
                 event.currentTarget.releasePointerCapture(event.pointerId);
               }}
+              onDoubleClick={() => updateBand(band.id, { gainDb: 0 }, true)}
               onKeyDown={(event) => handleNodeKeyDown(band, event)}
               className="cursor-crosshair outline-none focus-visible:stroke-[3]"
             />
@@ -195,7 +189,11 @@ export function ParametricEq({
                 band.id === selected.id && 'bg-accent text-foreground',
               )}
             >
-              <span className={cn('size-1.5 rounded-full bg-[#4e5560]', band.enabled && 'bg-primary')} aria-hidden="true" />
+              <span
+                className="size-1.5 rounded-full bg-[#4e5560]"
+                style={band.enabled ? { backgroundColor: NODE_COLORS[index % NODE_COLORS.length] } : undefined}
+                aria-hidden="true"
+              />
               {index + 1}
             </button>
           ))}

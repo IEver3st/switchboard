@@ -79,7 +79,10 @@ assert(!ipcSource.includes('Boolean(input)') && !ipcSource.includes('Number(inpu
 
 const engineSupervisor = read('src/main/services/engine-supervisor.ts');
 assert(engineSupervisor.includes('utilityProcess.fork'), 'The audio fallback must run in an Electron utility process.');
-assert(engineSupervisor.includes("spawn(executable"), 'Capture must run in the isolated native Capture.Host process.');
+assert(
+  engineSupervisor.includes('resolveCaptureHost()') && engineSupervisor.includes('spawn(resolved.command'),
+  'Capture must run in the isolated native Capture.Host process.',
+);
 assert(engineSupervisor.includes('workerMessageSchema.safeParse'), 'Engine worker messages must be schema validated.');
 assert(engineSupervisor.includes('failPending'), 'Engine exits must reject pending requests.');
 

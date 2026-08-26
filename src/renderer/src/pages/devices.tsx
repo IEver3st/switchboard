@@ -1,12 +1,12 @@
-import { ArrowLeft, BatteryCharging, Cable, Check, Crosshair, Lightbulb, Usb } from 'lucide-react';
+import { ArrowLeft, Cable, Check, Lightbulb, Usb } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import type { Device, DeviceControlBinding, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
+import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
+import { BatteryStatus } from '@/components/device-controls/BatteryStatus';
+import { MouseDeviceEditor } from '@/components/device-controls/MouseDeviceEditor';
+import { DeviceRender } from '@/components/shared/device-render';
+import { SectionHeading, StatusDot } from '@/components/shared/surface';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { DeviceRender } from '@/components/shared/device-render';
-import { SelectField } from '@/components/shared/controls';
-import { SectionHeading, StatusDot } from '@/components/shared/surface';
-import { cn } from '@/lib/cn';
 import { formatMb } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
@@ -68,16 +68,15 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
                   <DeviceRender device={device} density="gallery" />
                   <span className="device-gallery__copy">
                     <span className="device-gallery__name">{device.displayName}</span>
-                    <span className="device-gallery__status">
-                      <span className={cn('device-gallery__status-dot', device.connected && 'is-connected')} aria-hidden />
-                      <span>{device.connected ? 'Connected' : 'Disconnected'}</span>
-                      {typeof device.batteryPercent === 'number' ? (
-                        <><span aria-hidden>·</span><span className="tabular-nums">{Math.round(device.batteryPercent)}%</span></>
-                      ) : null}
-                      {typeof device.batteryPercent !== 'number' && device.identity.connection === 'usb' ? (
-                        <><span aria-hidden>·</span><span className="uppercase">USB</span></>
-                      ) : null}
-                    </span>
+                    {device.capabilities.battery ? (
+                      <BatteryStatus
+                        battery={device.capabilities.battery}
+                        connectionLabel={connectionLabel(device)}
+                        connected={device.connected}
+                      />
+                    ) : (
+                      <span className="device-gallery__status">{device.connected ? connectionLabel(device) : 'Disconnected'}</span>
+                    )}
                     <span className="device-gallery__secondary">{secondaryDeviceSummary(device)}</span>
                   </span>
                 </button>
@@ -109,54 +108,37 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
           <h2>{selected.displayName}</h2>
           <div className="device-workbench__meta">
             <StatusDot active={selected.connected} />
-            <span>{selected.identity.manufacturer ?? 'Unknown manufacturer'}</span>
+            <span>{selected.connected ? 'Connected' : 'Disconnected'}</span>
             <span aria-hidden>·</span>
-            <span className="capitalize">{selected.identity.connection ?? 'unknown'}</span>
-            {typeof selected.batteryPercent === 'number' ? (
-              <>
-                <span aria-hidden>·</span>
-                <BatteryCharging aria-hidden className="size-3" />
-                <span className="tabular-nums">{selected.batteryPercent}%</span>
-              </>
-            ) : null}
+            <span>{connectionLabel(selected)}</span>
           </div>
         </div>
+        {selected.capabilities.battery ? (
+          <BatteryStatus
+            battery={selected.capabilities.battery}
+            connected={selected.connected}
+            connectionLabel="Battery"
+            variant="header"
+            className="device-workbench__battery"
+          />
+        ) : null}
       </div>
 
       {selected.kind === 'mouse' ? (
-        <MouseStage device={selected} />
+        <MouseDeviceEditor device={selected} />
       ) : (
-        <div className="device-workbench__hero">
-          <DeviceRender device={selected} density="hero" />
-        </div>
+        <>
+          <div className="device-workbench__hero">
+            <DeviceRender device={selected} density="hero" />
+          </div>
+          <div className="device-workbench__controls">
+            {selected.kind === 'microphone' ? <MicrophoneControls device={selected} /> : (
+              <p className="py-8 text-center text-xs text-muted-foreground">This device does not expose a control surface yet.</p>
+            )}
+          </div>
+        </>
       )}
-
-      <div className="device-workbench__controls">
-        {selected.kind === 'mouse' ? <MouseControls device={selected} /> : null}
-        {selected.kind === 'microphone' ? <MicrophoneControls device={selected} /> : null}
-        {selected.kind !== 'mouse' && selected.kind !== 'microphone' ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">This device does not expose a control surface yet.</p>
-        ) : null}
-      </div>
     </div>
-  );
-}
-
-function MouseStage({ device }: { device: Device }) {
-  const bindings = device.capabilities.includes('buttons') ? (device.controlBindings ?? []) : [];
-  const leftBindings = bindings.filter((binding) => binding.side === 'left').sort(compareBindingOrder);
-  const rightBindings = bindings.filter((binding) => binding.side === 'right').sort(compareBindingOrder);
-
-  return (
-    <section className="mouse-stage" aria-label={`${device.displayName} button assignments`}>
-      <div className="mouse-stage__callouts mouse-stage__callouts--left">
-        {leftBindings.map((binding) => <MouseCallout key={binding.id} binding={binding} />)}
-      </div>
-      <DeviceRender device={device} density="hero" className="mouse-stage__render" />
-      <div className="mouse-stage__callouts mouse-stage__callouts--right">
-        {rightBindings.map((binding) => <MouseCallout key={binding.id} binding={binding} />)}
-      </div>
-    </section>
   );
 }
 
@@ -179,117 +161,21 @@ function RuntimeStatus({ snapshot }: { snapshot: SystemSnapshot }) {
 
 function secondaryDeviceSummary(device: Device): string {
   if (device.kind === 'mouse') {
-    const activeDpi = asNumber(device.settings.activeDpi, 1600);
-    const connection = device.identity.connection === 'wireless'
-      ? 'Wireless'
-      : device.identity.connection?.toUpperCase();
-    return `${activeDpi.toLocaleString()} DPI${connection ? ` · ${connection}` : ''}`;
+    const activeDpi = device.capabilities.dpi?.activeDpi;
+    const reportRate = device.capabilities.reportRate?.value;
+    return [
+      activeDpi ? `${activeDpi.toLocaleString()} DPI` : undefined,
+      reportRate ? `${reportRate.toLocaleString()} Hz` : undefined,
+    ].filter(Boolean).join(' · ') || 'Open mouse controls';
   }
   if (device.kind === 'microphone') return `Gain ${asNumber(device.settings.gain, 58)}%`;
-  return device.identity.connection?.toUpperCase() ?? 'Open device controls';
+  return connectionLabel(device);
 }
 
-function MouseCallout({ binding }: { binding: DeviceControlBinding }) {
-  return (
-    <div className="mouse-callout">
-      <span className="mouse-callout__copy">
-        <span className="mouse-callout__label">{binding.label}</span>
-        <span className="mouse-callout__assignment">{binding.assignment}</span>
-      </span>
-      <span className="mouse-callout__line" aria-hidden />
-    </div>
-  );
-}
-
-function compareBindingOrder(left: DeviceControlBinding, right: DeviceControlBinding): number {
-  return left.order - right.order;
-}
-
-function MouseControls({ device }: { device: Device }) {
-  const setDeviceSetting = useSystemStore((state) => state.setDeviceSetting);
-  const activeDpi = asNumber(device.settings.activeDpi, 1600);
-  const stages = asNumberArray(device.settings.dpiStages, [800, 1600, 3200]);
-  const pollingRate = asNumber(device.settings.pollingRate, 1000);
-  const onboardMemory = asBoolean(device.settings.onboardMemory, true);
-  const lightingEnabled = asBoolean(device.settings.lightingEnabled, false);
-  const lightingColor = asString(device.settings.lightingColor, '#ff658a');
-
-  return (
-    <section className="device-controls">
-      <SectionHeading title="Sensitivity and behavior" />
-      <div className="device-controls__grid mt-6 grid grid-cols-12 gap-x-8 gap-y-6">
-        <div className="device-controls__primary col-span-6">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Active DPI</span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-semibold tabular-nums tracking-[-0.04em] text-foreground">{activeDpi}</span>
-              <span className="text-[10px] text-muted-foreground">DPI</span>
-            </div>
-          </div>
-          <Slider
-            className="mt-4"
-            min={100}
-            max={25600}
-            step={50}
-            value={[activeDpi]}
-            aria-label="Active DPI"
-            onValueCommit={([value]) => value && void setDeviceSetting({ deviceId: device.id, key: 'activeDpi', value })}
-            onValueChange={([value]) => value && void setDeviceSetting({ deviceId: device.id, key: 'activeDpi', value })}
-          />
-          <div className="mt-2 flex justify-between text-[9px] tabular-nums text-muted-foreground/60">
-            <span>100</span>
-            <span>25,600</span>
-          </div>
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            {stages.map((stage) => (
-              <button
-                key={stage}
-                type="button"
-                onClick={() => void setDeviceSetting({ deviceId: device.id, key: 'activeDpi', value: stage })}
-                aria-pressed={stage === activeDpi}
-                className={cn(
-                  'h-9 rounded-md border text-xs font-semibold tabular-nums transition-colors',
-                  stage === activeDpi ? 'border-primary/45 bg-primary/10 text-primary' : 'border-border bg-muted text-muted-foreground hover:border-input',
-                )}
-              >
-                {stage}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="device-controls__secondary col-span-3 border-l border-border pl-8">
-          <div className="text-xs font-medium text-muted-foreground">Report rate</div>
-          <div className="mt-3">
-            <SelectField
-              value={String(pollingRate)}
-              onChange={(value) => void setDeviceSetting({ deviceId: device.id, key: 'pollingRate', value: Number(value) })}
-              ariaLabel="Polling rate"
-              options={[125, 250, 500, 1000, 2000, 4000].map((rate) => ({ value: String(rate), label: `${rate} Hz` }))}
-            />
-          </div>
-          <p className="mt-3 text-[10px] leading-4 text-muted-foreground/70">The module advertises supported rates. Unsupported options never appear.</p>
-        </div>
-
-        <div className="device-controls__secondary col-span-3 divide-y divide-border border-l border-border pl-8">
-          <SettingSwitch icon={Crosshair} label="Onboard memory" checked={onboardMemory} onChange={(checked) => void setDeviceSetting({ deviceId: device.id, key: 'onboardMemory', value: checked })} />
-          <SettingSwitch icon={Lightbulb} label="Lighting" checked={lightingEnabled} onChange={(checked) => void setDeviceSetting({ deviceId: device.id, key: 'lightingEnabled', value: checked })} />
-          <div className="flex items-center gap-3 py-2.5">
-            <span className="flex-1 text-xs font-medium text-foreground">Lighting color</span>
-            <input
-              type="color"
-              value={lightingColor}
-              aria-label="Mouse lighting color"
-              disabled={!lightingEnabled}
-              onChange={(event) => void setDeviceSetting({ deviceId: device.id, key: 'lightingColor', value: event.target.value })}
-              className="size-7 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-40"
-            />
-          </div>
-        </div>
-      </div>
-
-    </section>
-  );
+function connectionLabel(device: Device): string {
+  return device.identity.connectionLabel
+    ?? (device.identity.connection === 'wireless' ? 'Wireless' : device.identity.connection?.toUpperCase())
+    ?? 'Unknown connection';
 }
 
 function MicrophoneControls({ device }: { device: Device }) {
@@ -374,7 +260,4 @@ function asBoolean(value: DeviceSettingValue | undefined, fallback: boolean): bo
 }
 function asString(value: DeviceSettingValue | undefined, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
-}
-function asNumberArray(value: DeviceSettingValue | undefined, fallback: number[]): number[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'number') ? value : fallback;
 }

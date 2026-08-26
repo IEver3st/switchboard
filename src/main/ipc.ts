@@ -2,14 +2,20 @@ import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { z } from 'zod';
 import {
   applyAudioPresetInputSchema,
+  audioPresetIdInputSchema,
   appSettingsSchema,
   captureConfigSchema,
+  createAudioPresetInputSchema,
   ipcChannels,
   renameClipInputSchema,
+  renameAudioPresetInputSchema,
+  setAudioChannelProcessorInputSchema,
+  setAudioMonitoringInputSchema,
   setAudioBusDeviceInputSchema,
   setAudioBusEnabledInputSchema,
   setAudioBusGainInputSchema,
   setDeviceAppearanceOverrideInputSchema,
+  setDeviceControlInputSchema,
   setDeviceSettingInputSchema,
   setMicProcessorInputSchema,
   setModuleStateInputSchema,
@@ -60,6 +66,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => controller.setModuleState(input),
   );
   handle(
+    ipcChannels.setDeviceControl,
+    getMainWindow,
+    (input) => setDeviceControlInputSchema.parse(input),
+    (input) => controller.setDeviceControl(input),
+  );
+  handle(
     ipcChannels.setDeviceSetting,
     getMainWindow,
     (input) => setDeviceSettingInputSchema.parse(input),
@@ -100,6 +112,52 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => applyAudioPresetInputSchema.parse(input),
     (input) => controller.applyAudioPreset(input),
+  );
+  handle(
+    ipcChannels.createAudioPreset,
+    getMainWindow,
+    (input) => createAudioPresetInputSchema.parse(input),
+    (input) => controller.createAudioPreset(input),
+  );
+  handle(
+    ipcChannels.renameAudioPreset,
+    getMainWindow,
+    (input) => renameAudioPresetInputSchema.parse(input),
+    (input) => controller.renameAudioPreset(input),
+  );
+  handle(
+    ipcChannels.duplicateAudioPreset,
+    getMainWindow,
+    (input) => audioPresetIdInputSchema.parse(input),
+    (input) => controller.duplicateAudioPreset(input),
+  );
+  handle(
+    ipcChannels.deleteAudioPreset,
+    getMainWindow,
+    (input) => audioPresetIdInputSchema.parse(input),
+    (input) => controller.deleteAudioPreset(input),
+  );
+  ipcMain.handle(ipcChannels.importAudioPreset, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.importAudioPreset();
+  });
+  handle(
+    ipcChannels.exportAudioPreset,
+    getMainWindow,
+    (input) => audioPresetIdInputSchema.parse(input),
+    (input) => controller.exportAudioPreset(input),
+  );
+  handle(
+    ipcChannels.setAudioChannelProcessor,
+    getMainWindow,
+    (input) => setAudioChannelProcessorInputSchema.parse(input),
+    (input) => controller.setAudioChannelProcessor(input),
+  );
+  handle(
+    ipcChannels.setAudioMonitoring,
+    getMainWindow,
+    (input) => setAudioMonitoringInputSchema.parse(input),
+    (input) => controller.setAudioMonitoring(input),
   );
   handle(
     ipcChannels.setChatMix,

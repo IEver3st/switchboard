@@ -1,5 +1,9 @@
 import type { Device as HidDevice } from 'node-hid';
-import type { Device, DeviceAppearanceOverride } from '../../shared/contracts';
+import type {
+  Device,
+  DeviceAppearanceOverride,
+  DeviceControlChange,
+} from '../../shared/contracts';
 
 export interface DeviceDiscoveryContext {
   hidDevices: HidDevice[];
@@ -10,4 +14,5 @@ export interface DeviceDiscoveryContext {
 export interface DeviceModule {
   id: string;
   discover(context: DeviceDiscoveryContext): Promise<Device[]>;
+  setControl?(device: Device, change: DeviceControlChange): Promise<void>;
 }

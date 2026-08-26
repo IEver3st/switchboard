@@ -32,6 +32,8 @@ const processorParameters = {
   compressor: { thresholdDb: -18, ratio: 4, attackMs: 12, releaseMs: 180, makeupDb: 2 },
   limiter: { thresholdDb: -1, releaseMs: 90 },
 };
+const channelProcessing = { game: {}, chat: {}, media: {} };
+let monitoring = { enabled: false, level: 0.18, deviceId: 'output-nova-pro' };
 
 function isRecord(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -72,6 +74,18 @@ function applyConfiguration(payload) {
       }
     }
   }
+
+  if (Array.isArray(payload.channelProcessing)) {
+    for (const processing of payload.channelProcessing) {
+      if (!isRecord(processing) || !Object.hasOwn(channelProcessing, processing.busId)) continue;
+      channelProcessing[processing.busId] = structuredClone(processing);
+    }
+  }
+  monitoring = {
+    enabled: typeof payload.monitoringEnabled === 'boolean' ? payload.monitoringEnabled : monitoring.enabled,
+    level: clampNumber(payload.monitoring, 0, 1, monitoring.level),
+    deviceId: typeof payload.monitoringDeviceId === 'string' ? payload.monitoringDeviceId : monitoring.deviceId,
+  };
 }
 
 function meters() {
@@ -147,6 +161,26 @@ parentPort.on('message', (event) => {
         ...message.payload.parameters,
       };
     }
+  }
+
+  if (message.command === 'setChannelProcessor' && isRecord(message.payload) && Object.hasOwn(channelProcessing, message.payload.busId)) {
+    const current = channelProcessing[message.payload.busId];
+    const processorId = message.payload.processorId;
+    if (isRecord(current) && typeof processorId === 'string' && Object.hasOwn(current, processorId)) {
+      current[processorId] = {
+        ...current[processorId],
+        ...(typeof message.payload.enabled === 'boolean' ? { enabled: message.payload.enabled } : {}),
+        ...(isRecord(message.payload.parameters) ? message.payload.parameters : {}),
+      };
+    }
+  }
+
+  if (message.command === 'setMonitoring' && isRecord(message.payload)) {
+    monitoring = {
+      enabled: typeof message.payload.enabled === 'boolean' ? message.payload.enabled : monitoring.enabled,
+      level: clampNumber(message.payload.level, 0, 1, monitoring.level),
+      deviceId: typeof message.payload.deviceId === 'string' ? message.payload.deviceId : monitoring.deviceId,
+    };
   }
 
   if (message.command === 'shutdown') {

@@ -1,5 +1,6 @@
 export const settingsCategoryIds = [
   'general',
+  'devices',
   'audio',
   'capture',
   'modules',
@@ -23,6 +24,7 @@ export const settingsCategories: ReadonlyArray<{
   resettable: boolean;
 }> = [
   { id: 'general', label: 'General', resettable: true },
+  { id: 'devices', label: 'Devices', resettable: true },
   { id: 'audio', label: 'Audio', resettable: true },
   { id: 'capture', label: 'Capture', resettable: true },
   { id: 'modules', label: 'Modules', resettable: true },
@@ -53,6 +55,27 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['renderer', 'memory', 'ram', 'chromium', 'tray', 'resource'],
   },
   {
+    id: 'devices.connected',
+    category: 'devices',
+    title: 'Connected hardware',
+    description: 'Review hardware identity and open per-device controls.',
+    keywords: ['device', 'hardware', 'connected', 'identity', 'manufacturer', 'model'],
+  },
+  {
+    id: 'devices.appearanceFallback',
+    category: 'devices',
+    title: 'Appearance fallback',
+    description: 'Override the cosmetic variant only when hardware evidence cannot identify it.',
+    keywords: ['device', 'variant', 'colorway', 'white', 'black', 'override', 'asset', 'render'],
+  },
+  {
+    id: 'devices.workspace',
+    category: 'devices',
+    title: 'Per-device controls',
+    description: 'Open the Devices workspace for hardware-specific configuration.',
+    keywords: ['gain', 'dpi', 'polling rate', 'lighting', 'buttons', 'device page'],
+  },
+  {
     id: 'audio.engine',
     category: 'audio',
     title: 'Audio engine',
@@ -79,6 +102,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Processing format',
     description: 'The Audio host currently runs a fixed 48 kHz float32 graph.',
     keywords: ['sample rate', '48 khz', 'format', 'quality', 'float32'],
+  },
+  {
+    id: 'audio.mixer',
+    category: 'audio',
+    title: 'Mixer and processing',
+    description: 'Open the Audio workspace for buses, ChatMix, monitoring, and processing.',
+    keywords: ['mixer', 'dsp', 'chatmix', 'monitoring', 'bus', 'equalizer'],
   },
   {
     id: 'capture.storage',
@@ -165,6 +195,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['h264', 'h.264', 'hevc', 'h265', 'av1', 'compression'],
   },
   {
+    id: 'capture.workspace',
+    category: 'capture',
+    title: 'Replay controls and library',
+    description: 'Open Capture to start the engine, save replays, and manage clips.',
+    keywords: ['save replay', 'clip library', 'instant replay', 'start capture'],
+  },
+  {
     id: 'modules.automaticUpdates',
     category: 'modules',
     title: 'Automatic module updates',
@@ -214,6 +251,27 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['audio host', 'capture host', 'stopped', 'running', 'pid'],
   },
   {
+    id: 'diagnostics.deviceIdentity',
+    category: 'diagnostics',
+    title: 'Device identity',
+    description: 'Inspect low-level hardware identifiers and asset-resolution evidence.',
+    keywords: ['vid', 'pid', 'serial', 'hardware revision', 'device id', 'variant source', 'asset result'],
+  },
+  {
+    id: 'diagnostics.capture-path',
+    category: 'diagnostics',
+    title: 'Capture pipeline',
+    description: 'Inspect the selected backend, encoder, codec, resolution, frame rate, and target data rate.',
+    keywords: ['wgc', 'nvenc', 'amf', 'quick sync', 'bitrate', 'codec', 'fps'],
+  },
+  {
+    id: 'diagnostics.capture-health',
+    category: 'diagnostics',
+    title: 'Replay health',
+    description: 'Inspect encoded and dropped frames, replay cache size, observed bitrate, and audio recovery.',
+    keywords: ['dropped frames', 'audio sync', 'cache', 'observed bitrate', 'replay'],
+  },
+  {
     id: 'about.version',
     category: 'about',
     title: 'Version',
@@ -226,6 +284,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Runtime',
     description: 'View the desktop runtime and platform reported to the renderer.',
     keywords: ['electron', 'windows', 'platform', 'architecture'],
+  },
+  {
+    id: 'about.isolation',
+    category: 'about',
+    title: 'Renderer isolation',
+    description: 'View the renderer sandbox and preload isolation state.',
+    keywords: ['sandbox', 'preload', 'security', 'context isolation', 'node access'],
   },
 ];
 

@@ -156,7 +156,8 @@ if (hasSingleInstanceLock) {
       const id = decodeURIComponent(url.pathname.replace(/^\//, ''));
       const path = controller?.getClipPath(id, url.hostname === 'thumbnail');
       if (!path) return new Response('Not found', { status: 404 });
-      return net.fetch(pathToFileURL(path).toString());
+      const range = request.headers.get('range');
+      return net.fetch(pathToFileURL(path).toString(), range ? { headers: { Range: range } } : undefined);
     });
     cleanupIpc = registerIpc(controller, () => mainWindow);
     tray = createTray();

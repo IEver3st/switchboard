@@ -85,17 +85,6 @@ export class StateStore {
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
     const defaults = createDefaultSnapshot();
-    const visualDefaults = new Map(defaults.devices.map((device) => [device.moduleId, device]));
-    for (const device of next.devices) {
-      const fallback = visualDefaults.get(device.moduleId);
-      if (!fallback) continue;
-      device.controlBindings ??= fallback.controlBindings ? structuredClone(fallback.controlBindings) : undefined;
-      const fallbackLightingColor = fallback.settings.lightingColor;
-      if (!Object.hasOwn(device.settings, 'lightingColor') && fallbackLightingColor !== undefined) {
-        device.settings.lightingColor = structuredClone(fallbackLightingColor);
-      }
-    }
-
     const knownAudioDevices = new Map(next.audio.devices.map((device) => [device.id, device]));
     for (const device of defaults.audio.devices) {
       if (!knownAudioDevices.has(device.id)) knownAudioDevices.set(device.id, structuredClone(device));
@@ -117,14 +106,22 @@ export class StateStore {
       };
     });
 
-    const knownPresets = new Map(next.audio.presets.map((preset) => [preset.id, preset]));
-    for (const preset of defaults.audio.presets) {
+    const processingByBus = new Map(next.audio.channelProcessing.map((processing) => [processing.busId, processing]));
+    next.audio.channelProcessing = defaults.audio.channelProcessing.map((fallback) => (
+      structuredClone(processingByBus.get(fallback.busId) ?? fallback)
+    ));
+
+    const knownPresets = new Map(next.audio.pathPresets.map((preset) => [preset.id, preset]));
+    for (const preset of defaults.audio.pathPresets) {
       if (!knownPresets.has(preset.id)) knownPresets.set(preset.id, structuredClone(preset));
     }
-    next.audio.presets = [...knownPresets.values()];
-    if (next.audio.activePresetId && !knownPresets.has(next.audio.activePresetId)) {
-      next.audio.activePresetId = null;
+    next.audio.pathPresets = [...knownPresets.values()];
+    for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
+      const activeId = next.audio.activePresetIds[kind];
+      if (activeId && !knownPresets.has(activeId)) next.audio.activePresetIds[kind] = null;
+      if (!next.audio.activePresetIds[kind]) next.audio.activePresetIds[kind] = defaults.audio.activePresetIds[kind];
     }
+    next.audio.capabilities = structuredClone(defaults.audio.capabilities);
 
     next.prototypeMode = true;
     next.engines = runtimeEngineKinds.map((kind) => ({
@@ -196,21 +193,31 @@ function migrateLegacyDeviceState(value: unknown): unknown {
   const defaults = createDefaultSnapshot();
   const byModule = new Map(defaults.devices.map((device) => [device.moduleId, device]));
   const migratedDevices = value.devices.map((candidate) => {
-    if (!isRecord(candidate) || isRecord(candidate.identity)) return candidate;
+    if (!isRecord(candidate)) return candidate;
     const moduleId = typeof candidate.moduleId === 'string' ? candidate.moduleId : '';
     const fallback = byModule.get(moduleId);
     if (!fallback) return candidate;
+    const capabilities = isRecord(candidate.capabilities)
+      ? candidate.capabilities
+      : structuredClone(fallback.capabilities);
+    if (
+      typeof candidate.batteryPercent === 'number'
+      && isRecord(capabilities)
+      && isRecord(capabilities.battery)
+    ) {
+      capabilities.battery.percentage = candidate.batteryPercent;
+      capabilities.battery.updatedAt = Date.now();
+    }
     return {
       ...structuredClone(fallback),
+      ...candidate,
       id: typeof candidate.id === 'string' ? candidate.id : fallback.id,
       connected: typeof candidate.connected === 'boolean' ? candidate.connected : fallback.connected,
-      batteryPercent: typeof candidate.batteryPercent === 'number' ? candidate.batteryPercent : fallback.batteryPercent,
+      identity: isRecord(candidate.identity) ? candidate.identity : structuredClone(fallback.identity),
+      capabilities,
       settings: isRecord(candidate.settings)
         ? { ...structuredClone(fallback.settings), ...candidate.settings }
         : structuredClone(fallback.settings),
-      controlBindings: Array.isArray(candidate.controlBindings)
-        ? candidate.controlBindings
-        : structuredClone(fallback.controlBindings),
     };
   });
 

@@ -29,21 +29,28 @@ internal sealed class ReplaySegmentRing
         return directory;
     }
 
-    public IReadOnlyList<ReplaySegmentInfo> List(string sessionDirectory, bool captureRunning)
+    public IReadOnlyList<ReplaySegmentInfo> List(
+        string sessionDirectory,
+        bool captureRunning,
+        string searchPattern = "segment-*.mkv")
     {
         if (!Directory.Exists(sessionDirectory)) return [];
         var files = new DirectoryInfo(sessionDirectory)
-            .EnumerateFiles("segment-*.mkv", SearchOption.TopDirectoryOnly)
+            .EnumerateFiles(searchPattern, SearchOption.TopDirectoryOnly)
             .Where(file => file.Length > 0)
-            .OrderBy(file => file.LastWriteTimeUtc)
+            .OrderBy(file => file.Name, StringComparer.Ordinal)
             .ToArray();
         if (files.Length == 0) return [];
 
         var completedCount = captureRunning ? Math.Max(0, files.Length - 1) : files.Length;
+        var latestEnd = new DateTimeOffset(files.Max(file => file.LastWriteTimeUtc), TimeSpan.Zero);
         var output = new ReplaySegmentInfo[files.Length];
         for (var index = 0; index < files.Length; index++)
         {
-            var endedAt = new DateTimeOffset(files[index].LastWriteTimeUtc, TimeSpan.Zero);
+            // Segment muxers may close several files in a burst, so filesystem mtimes
+            // are not a usable media timeline. Filenames are monotonic and the encoder
+            // forces a keyframe at every fixed segment boundary.
+            var endedAt = latestEnd - TimeSpan.FromSeconds((files.Length - 1 - index) * segmentSeconds);
             output[index] = new ReplaySegmentInfo(
                 files[index].FullName,
                 endedAt - TimeSpan.FromSeconds(segmentSeconds),
@@ -86,9 +93,10 @@ internal sealed class ReplaySegmentRing
         string sessionDirectory,
         TimeSpan maximumDuration,
         long maximumBytes,
-        bool captureRunning)
+        bool captureRunning,
+        string searchPattern = "segment-*.mkv")
     {
-        var segments = List(sessionDirectory, captureRunning);
+        var segments = List(sessionDirectory, captureRunning, searchPattern);
         var candidates = SelectEvictionCandidates(segments, maximumDuration, maximumBytes);
         foreach (var segment in candidates)
         {
@@ -128,7 +136,7 @@ internal sealed class ReplaySegmentRing
         {
             for (var index = 0; index < segments.Count; index++)
             {
-                var destination = Path.Combine(snapshotDirectory, $"{index:D4}.mkv");
+                var destination = Path.Combine(snapshotDirectory, $"{index:D4}{Path.GetExtension(segments[index].Path)}");
                 try
                 {
                     CreateHardLink(destination, segments[index].Path);

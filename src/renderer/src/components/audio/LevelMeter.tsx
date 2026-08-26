@@ -27,8 +27,12 @@ export const LevelMeter = memo(function LevelMeter({
   useEffect(() => {
     let heldPeak = 0;
     let heldAt = 0;
+    let animationFrame: number | null = null;
+    let latest: AudioMeterValue = { busId, level: 0, peak: 0, clipping: false };
 
-    const render = (value: AudioMeterValue) => {
+    const render = () => {
+      animationFrame = null;
+      const value = latest;
       const normalized = active ? value.level : 0;
       const incomingPeak = active ? value.peak : 0;
       const now = performance.now();
@@ -53,8 +57,17 @@ export const LevelMeter = memo(function LevelMeter({
       meterRef.current?.setAttribute('aria-valuetext', `${text} decibels`);
     };
 
-    render({ busId, level: 0, peak: 0, clipping: false });
-    return subscribeToAudioMeter(busId, render);
+    const onMeter = (value: AudioMeterValue) => {
+      latest = value;
+      if (animationFrame === null) animationFrame = requestAnimationFrame(render);
+    };
+
+    render();
+    const unsubscribe = subscribeToAudioMeter(busId, onMeter);
+    return () => {
+      unsubscribe();
+      if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+    };
   }, [active, busId]);
 
   return (

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { app, dialog, globalShortcut, shell } from 'electron';
 import { z } from 'zod';
@@ -7,25 +8,39 @@ import {
   captureConfigSchema,
   captureHostSnapshotSchema,
   captureSourceSchema,
+  audioPresetFileSchema,
+  channelProcessingSchema,
   micProcessorSchema,
+  type AudioPathId,
+  type AudioPresetIdInput,
   type AudioMeterFrame,
   type ApplyAudioPresetInput,
   type CaptureConfig,
   type CaptureHostSnapshot,
   type EngineStatus,
+  type CreateAudioPresetInput,
+  type RenameAudioPresetInput,
   type RenameClipInput,
+  type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
   type SetAudioBusEnabledInput,
   type SetAudioBusGainInput,
   type SetDeviceSettingInput,
+  type SetDeviceControlInput,
   type SetDeviceAppearanceOverrideInput,
   type SetMicProcessorInput,
+  type SetAudioMonitoringInput,
   type SetModuleStateInput,
   type SettingsResetScope,
   type SystemSnapshot,
   type UpdateSettingsInput,
 } from '../shared/contracts';
-import { defaultAudio, defaultCaptureConfig, defaultModules, defaultSettings } from '../shared/defaults';
+import { defaultAudio, defaultCaptureConfig, defaultSettings } from '../shared/defaults';
+import {
+  applyAudioPathPreset,
+  findMatchingAudioPresetId,
+  snapshotAudioPathPreset,
+} from '../shared/audio-presets';
 import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
 import { getEncodingPreset } from '../shared/capture-presets';
@@ -150,6 +165,11 @@ export class AppController {
     });
   }
 
+  public async setDeviceControl(input: SetDeviceControlInput): Promise<SystemSnapshot> {
+    await this.devices.setControl(input.deviceId, input.change);
+    return this.store.get();
+  }
+
   public setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): SystemSnapshot {
     return this.store.update((draft) => {
       const device = draft.devices.find((candidate) => candidate.id === input.deviceId);
@@ -188,7 +208,6 @@ export class AppController {
       const bus = draft.audio.buses.find((candidate) => candidate.id === input.busId);
       if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
       bus.gain = input.gain;
-      draft.audio.activePresetId = null;
     });
     this.engines.send('audio', 'setBusGain', input);
     return snapshot;
@@ -199,7 +218,6 @@ export class AppController {
       const bus = draft.audio.buses.find((candidate) => candidate.id === input.busId);
       if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
       bus.enabled = input.enabled;
-      draft.audio.activePresetId = null;
     });
     this.engines.send('audio', 'setBusEnabled', input);
     return snapshot;
@@ -223,7 +241,6 @@ export class AppController {
       const target = draft.audio.buses.find((candidate) => candidate.id === input.busId);
       if (!target) throw new Error(`Unknown audio bus: ${input.busId}`);
       target.deviceId = input.deviceId;
-      draft.audio.activePresetId = null;
       if (target.id === 'mic') draft.audio.microphoneDevice = device.name;
       if (target.id === 'game') draft.audio.outputDevice = device.name;
     });
@@ -233,46 +250,146 @@ export class AppController {
 
   public applyAudioPreset(input: ApplyAudioPresetInput): SystemSnapshot {
     const before = this.store.get();
-    const preset = before.audio.presets.find((candidate) => candidate.id === input.presetId);
+    const preset = before.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
     if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
-    for (const presetBus of preset.buses) {
-      const bus = before.audio.buses.find((candidate) => candidate.id === presetBus.busId);
-      const device = before.audio.devices.find((candidate) => candidate.id === presetBus.deviceId);
-      if (!bus || !device?.available) {
-        throw new Error(`${preset.label} needs an audio device that is not currently available.`);
-      }
-      const requiredDirection = bus.id === 'mic' ? 'input' : 'output';
-      if (device.direction !== requiredDirection) {
-        throw new Error(`${preset.label} contains an invalid route for ${bus.label}.`);
-      }
-    }
-
     const snapshot = this.store.update((draft) => {
-      for (const presetBus of preset.buses) {
-        const bus = draft.audio.buses.find((candidate) => candidate.id === presetBus.busId);
-        if (!bus) continue;
-        const device = draft.audio.devices.find((candidate) => candidate.id === presetBus.deviceId);
-        if (!device) continue;
-        bus.enabled = presetBus.enabled;
-        bus.gain = presetBus.gain;
-        bus.deviceId = presetBus.deviceId;
-      }
-
-      for (const presetProcessor of preset.micProcessors) {
-        const processor = draft.audio.micProcessors.find((candidate) => candidate.id === presetProcessor.processorId);
-        if (processor) processor.enabled = presetProcessor.enabled;
-      }
-
-      draft.audio.chatMix = preset.chatMix;
-      draft.audio.activePresetId = preset.id;
-      const gameBus = draft.audio.buses.find((candidate) => candidate.id === 'game');
-      const micBus = draft.audio.buses.find((candidate) => candidate.id === 'mic');
-      const output = gameBus ? draft.audio.devices.find((candidate) => candidate.id === gameBus.deviceId) : undefined;
-      const microphone = micBus ? draft.audio.devices.find((candidate) => candidate.id === micBus.deviceId) : undefined;
-      if (output) draft.audio.outputDevice = output.name;
-      if (microphone) draft.audio.microphoneDevice = microphone.name;
+      applyAudioPathPreset(draft.audio, preset);
     });
     this.engines.send('audio', 'configure', snapshot.audio);
+    return snapshot;
+  }
+
+  public createAudioPreset(input: CreateAudioPresetInput): SystemSnapshot {
+    const id = `user-${input.kind}-${randomUUID()}`;
+    return this.store.update((draft) => {
+      const preset = snapshotAudioPathPreset(draft.audio, input.kind, id, input.name);
+      draft.audio.pathPresets.push(preset);
+      draft.audio.activePresetIds[input.kind] = id;
+    });
+  }
+
+  public renameAudioPreset(input: RenameAudioPresetInput): SystemSnapshot {
+    return this.store.update((draft) => {
+      const preset = draft.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
+      if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
+      if (preset.builtIn) throw new Error('Built-in presets cannot be renamed. Duplicate it first.');
+      preset.name = input.name;
+    });
+  }
+
+  public duplicateAudioPreset(input: AudioPresetIdInput): SystemSnapshot {
+    return this.store.update((draft) => {
+      const source = draft.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
+      if (!source) throw new Error(`Unknown audio preset: ${input.presetId}`);
+      const copy = snapshotAudioPathPreset(
+        draft.audio,
+        source.kind,
+        `user-${source.kind}-${randomUUID()}`,
+        `${source.name} copy`,
+      );
+      draft.audio.pathPresets.push(copy);
+      draft.audio.activePresetIds[source.kind] = copy.id;
+    });
+  }
+
+  public deleteAudioPreset(input: AudioPresetIdInput): SystemSnapshot {
+    return this.store.update((draft) => {
+      const index = draft.audio.pathPresets.findIndex((candidate) => candidate.id === input.presetId);
+      if (index < 0) throw new Error(`Unknown audio preset: ${input.presetId}`);
+      const preset = draft.audio.pathPresets[index]!;
+      if (preset.builtIn) throw new Error('Built-in presets cannot be deleted.');
+      draft.audio.pathPresets.splice(index, 1);
+      if (draft.audio.activePresetIds[preset.kind] === preset.id) {
+        draft.audio.activePresetIds[preset.kind] = findMatchingAudioPresetId(draft.audio, preset.kind);
+      }
+    });
+  }
+
+  public async importAudioPreset(): Promise<SystemSnapshot> {
+    const selection = await dialog.showOpenDialog({
+      title: 'Import audio preset',
+      properties: ['openFile'],
+      filters: [{ name: 'Switchboard audio preset', extensions: ['json'] }],
+    });
+    if (selection.canceled || !selection.filePaths[0]) return this.store.get();
+    const source = await readFile(selection.filePaths[0], 'utf8');
+    if (Buffer.byteLength(source, 'utf8') > 1_000_000) throw new Error('Audio preset files must be smaller than 1 MB.');
+    const imported = audioPresetFileSchema.parse(JSON.parse(source));
+    return this.store.update((draft) => {
+      const id = `user-${imported.preset.kind}-${randomUUID()}`;
+      const preset = { ...structuredClone(imported.preset), id, builtIn: false };
+      draft.audio.pathPresets.push(preset);
+      applyAudioPathPreset(draft.audio, preset);
+    });
+  }
+
+  public async exportAudioPreset(input: AudioPresetIdInput): Promise<void> {
+    const preset = this.store.get().audio.pathPresets.find((candidate) => candidate.id === input.presetId);
+    if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
+    const safeName = preset.name.replace(/[^a-z0-9 _-]/gi, '').trim() || 'audio-preset';
+    const selection = await dialog.showSaveDialog({
+      title: 'Export audio preset',
+      defaultPath: `${safeName}.json`,
+      filters: [{ name: 'Switchboard audio preset', extensions: ['json'] }],
+    });
+    if (selection.canceled || !selection.filePath) return;
+    const payload = audioPresetFileSchema.parse({ schemaVersion: 1, preset });
+    await writeFile(selection.filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  }
+
+  public setAudioChannelProcessor(input: SetAudioChannelProcessorInput): SystemSnapshot {
+    const snapshot = this.store.update((draft) => {
+      const processing = draft.audio.channelProcessing.find((candidate) => candidate.busId === input.busId);
+      if (!processing) throw new Error(`Unknown audio processing path: ${input.busId}`);
+      if (input.processorId === 'equalizer') {
+        processing.equalizer = {
+          ...processing.equalizer,
+          enabled: input.enabled ?? processing.equalizer.enabled,
+          ...input.parameters,
+        };
+      } else if (input.processorId === 'normalization') {
+        processing.normalization = {
+          ...processing.normalization,
+          enabled: input.enabled ?? processing.normalization.enabled,
+          ...input.parameters,
+        };
+      } else if (input.processorId === 'compressor') {
+        processing.compressor = {
+          ...processing.compressor,
+          enabled: input.enabled ?? processing.compressor.enabled,
+          ...input.parameters,
+        };
+      } else {
+        processing.limiter = {
+          ...processing.limiter,
+          enabled: input.enabled ?? processing.limiter.enabled,
+          ...input.parameters,
+        };
+      }
+      const index = draft.audio.channelProcessing.indexOf(processing);
+      draft.audio.channelProcessing[index] = channelProcessingSchema.parse(processing);
+      draft.audio.activePresetIds[input.busId] = findMatchingAudioPresetId(draft.audio, input.busId);
+    });
+    this.engines.send('audio', 'setChannelProcessor', input);
+    return snapshot;
+  }
+
+  public setAudioMonitoring(input: SetAudioMonitoringInput): SystemSnapshot {
+    const before = this.store.get();
+    if (before.audio.capabilities.monitoring === 'unavailable') {
+      throw new Error('Low-latency microphone monitoring is unavailable until Audio.Host owns the microphone stream.');
+    }
+    const snapshot = this.store.update((draft) => {
+      if (typeof input.enabled === 'boolean') draft.audio.monitoringEnabled = input.enabled;
+      if (typeof input.level === 'number') draft.audio.monitoring = input.level;
+      if (input.deviceId) {
+        const device = draft.audio.devices.find((candidate) => candidate.id === input.deviceId);
+        if (!device?.available || device.direction !== 'output') throw new Error('Select an available output device for monitoring.');
+        draft.audio.monitoringDeviceId = input.deviceId;
+      }
+      draft.audio.activePresetIds.microphone = findMatchingAudioPresetId(draft.audio, 'microphone');
+    });
+    this.engines.send('audio', 'setMonitoring', input);
     return snapshot;
   }
 
@@ -280,7 +397,6 @@ export class AppController {
     const normalized = Math.max(-1, Math.min(1, value));
     const snapshot = this.store.update((draft) => {
       draft.audio.chatMix = normalized;
-      draft.audio.activePresetId = null;
       const game = draft.audio.buses.find((bus) => bus.id === 'game');
       const chat = draft.audio.buses.find((bus) => bus.id === 'chat');
       if (game && chat) {
@@ -302,7 +418,7 @@ export class AppController {
         enabled: input.enabled ?? processor.enabled,
         parameters: { ...processor.parameters, ...input.parameters },
       });
-      draft.audio.activePresetId = null;
+      draft.audio.activePresetIds.microphone = findMatchingAudioPresetId(draft.audio, 'microphone');
     });
     this.engines.send('audio', 'setMicProcessor', input);
     return snapshot;
@@ -311,10 +427,11 @@ export class AppController {
   public async setCaptureConfig(input: Partial<CaptureConfig>): Promise<SystemSnapshot> {
     const before = this.store.get();
     const nextConfig = captureConfigSchema.parse({ ...before.capture.config, ...input });
-    const hotkeyChanged = Boolean(input.hotkey && input.hotkey !== before.capture.config.hotkey);
+    const requestedHotkey = input.hotkey;
+    const hotkeyChanged = typeof requestedHotkey === 'string' && requestedHotkey !== before.capture.config.hotkey;
 
     if (hotkeyChanged) {
-      this.registerCaptureShortcut(input.hotkey, true);
+      this.registerCaptureShortcut(requestedHotkey, true);
     }
     try {
       if (!before.capture.config.enabled && nextConfig.enabled) await this.startCaptureEngine(nextConfig);
@@ -452,12 +569,15 @@ export class AppController {
     if (scope === 'all' || scope === 'audio') await this.engines.stop('audio');
     if (scope === 'all' || scope === 'capture') await this.engines.stop('capture');
 
-    const snapshot = this.store.update((draft) => {
+    let snapshot = this.store.update((draft) => {
       if (scope === 'all') {
         draft.settings = structuredClone(defaultSettings);
-        draft.audio = structuredClone(defaultAudio);
+        draft.audio = createResetAudioState(draft.audio);
         draft.capture.config = structuredClone(defaultCaptureConfig);
-        draft.modules = structuredClone(defaultModules);
+        const audioModule = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
+        if (audioModule) audioModule.enabled = false;
+        const captureModule = draft.modules.find((candidate) => candidate.id === 'capability.replay');
+        if (captureModule) captureModule.enabled = false;
         return;
       }
       if (scope === 'general') {
@@ -465,8 +585,11 @@ export class AppController {
         draft.settings.closeToTray = defaultSettings.closeToTray;
         draft.settings.destroyRendererInTray = defaultSettings.destroyRendererInTray;
       }
+      if (scope === 'devices') {
+        draft.settings.deviceAppearanceOverrides = {};
+      }
       if (scope === 'audio') {
-        draft.audio = structuredClone(defaultAudio);
+        draft.audio = createResetAudioState(draft.audio);
         const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
         if (module) module.enabled = false;
       }
@@ -481,9 +604,19 @@ export class AppController {
       if (scope === 'diagnostics') {
         draft.settings.performanceGuard = defaultSettings.performanceGuard;
         draft.settings.diagnosticsRetentionDays = defaultSettings.diagnosticsRetentionDays;
-        draft.settings.deviceAppearanceOverrides = {};
       }
     });
+    if (scope === 'all' || scope === 'capture') {
+      this.capturePaths = await this.captureStorage.validate(defaultCaptureConfig.clipsDirectory);
+      const storage = await this.captureStorage.getStorageStatus(
+        this.capturePaths,
+        snapshot.clips.reduce((sum, clip) => sum + clip.fileSize, 0),
+        0,
+      );
+      this.registerCaptureShortcut(defaultCaptureConfig.hotkey, false);
+      snapshot = this.store.update((draft) => { draft.capture.storage = storage; });
+      void this.reconcileClipLibrary();
+    }
     this.applyLoginItemSetting(snapshot.settings.launchAtStartup);
     return snapshot;
   }
@@ -520,7 +653,8 @@ export class AppController {
   public getClipPath(id: string, thumbnail: boolean): string | null {
     const clip = this.store.get().clips.find((candidate) => candidate.id === id);
     if (!clip) return null;
-    return thumbnail ? clip.thumbnailPath ?? null : clip.path;
+    const path = thumbnail ? clip.thumbnailPath ?? null : clip.path;
+    return path && existsSync(path) ? path : null;
   }
 
   public async dispose(): Promise<void> {
@@ -717,19 +851,27 @@ export class AppController {
 
   private registerCaptureShortcut(accelerator: string, throwOnFailure: boolean): void {
     if (this.registeredShortcut === accelerator) return;
-    const registered = globalShortcut.register(accelerator, () => {
-      void this.saveReplay().catch((shortcutError) => {
-        this.store.update((draft) => {
-          draft.capture.runtime.warning = shortcutError instanceof Error ? shortcutError.message : String(shortcutError);
-        }, { persist: false });
+    let registered = false;
+    let registrationError: unknown;
+    try {
+      registered = globalShortcut.register(accelerator, () => {
+        void this.saveReplay().catch((shortcutError) => {
+          this.store.update((draft) => {
+            draft.capture.runtime.warning = shortcutError instanceof Error ? shortcutError.message : String(shortcutError);
+          }, { persist: false });
+        });
       });
-    });
+    } catch (error) {
+      registrationError = error;
+    }
     if (!registered) {
+      const detail = registrationError instanceof Error ? ` ${registrationError.message}` : '';
+      const message = `${accelerator} could not be registered.${detail || ' Another application may already use it.'}`;
       this.store.update((draft) => {
         draft.capture.runtime.shortcutRegistered = this.registeredShortcut !== null;
-        draft.capture.runtime.warning = `${accelerator} could not be registered. Another application may already use it.`;
+        draft.capture.runtime.warning = message;
       }, { persist: false });
-      if (throwOnFailure) throw new Error(`${accelerator} could not be registered. Another application may already use it.`);
+      if (throwOnFailure) throw new Error(message);
       return;
     }
     if (this.registeredShortcut) globalShortcut.unregister(this.registeredShortcut);
@@ -743,4 +885,32 @@ export class AppController {
   private emitAudioMeters(frame: AudioMeterFrame): void {
     for (const listener of this.audioMeterListeners) listener(frame);
   }
+}
+
+function createResetAudioState(current: SystemSnapshot['audio']): SystemSnapshot['audio'] {
+  const reset = structuredClone(defaultAudio);
+  reset.devices = structuredClone(current.devices);
+  reset.pathPresets = [
+    ...structuredClone(defaultAudio.pathPresets),
+    ...structuredClone(current.pathPresets.filter((preset) => !preset.builtIn)),
+  ];
+
+  const availableDeviceIds = new Set(reset.devices.map((device) => device.id));
+  for (const bus of reset.buses) {
+    if (availableDeviceIds.has(bus.deviceId)) continue;
+    const currentBus = current.buses.find((candidate) => candidate.id === bus.id);
+    if (currentBus && availableDeviceIds.has(currentBus.deviceId)) bus.deviceId = currentBus.deviceId;
+  }
+
+  const defaultOutput = reset.devices.find((device) => device.direction === 'output' && device.available && device.isDefault);
+  const defaultInput = reset.devices.find((device) => device.direction === 'input' && device.available && device.isDefault);
+  reset.outputDevice = defaultOutput?.name ?? current.outputDevice;
+  reset.microphoneDevice = defaultInput?.name ?? current.microphoneDevice;
+  for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
+    const defaultId = defaultAudio.activePresetIds[kind];
+    reset.activePresetIds[kind] = defaultId && reset.pathPresets.some((preset) => preset.id === defaultId)
+      ? defaultId
+      : null;
+  }
+  return reset;
 }

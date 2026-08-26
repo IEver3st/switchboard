@@ -1,9 +1,13 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Switchboard.CaptureHost;
 
-var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+{
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+};
 var outputGate = new SemaphoreSlim(1, 1);
 var shutdown = new CancellationTokenSource();
 var requests = new ConcurrentDictionary<Guid, Task>();

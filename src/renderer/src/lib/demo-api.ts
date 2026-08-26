@@ -1,20 +1,31 @@
 import type {
   ApplyAudioPresetInput,
+  AudioPresetIdInput,
   AudioMeterFrame,
   CaptureConfig,
+  CreateAudioPresetInput,
+  RenameAudioPresetInput,
+  SetAudioChannelProcessorInput,
   SetAudioBusDeviceInput,
   SetAudioBusEnabledInput,
   SetAudioBusGainInput,
   SetDeviceAppearanceOverrideInput,
+  SetDeviceControlInput,
   SetDeviceSettingInput,
   SetMicProcessorInput,
+  SetAudioMonitoringInput,
   SetModuleStateInput,
   SettingsResetScope,
   SwitchboardApi,
   SystemSnapshot,
   UpdateSettingsInput,
 } from '../../../shared/contracts';
-import { micProcessorSchema } from '../../../shared/contracts';
+import { channelProcessingSchema, micProcessorSchema } from '../../../shared/contracts';
+import {
+  applyAudioPathPreset,
+  findMatchingAudioPresetId,
+  snapshotAudioPathPreset,
+} from '../../../shared/audio-presets';
 import { resolveDeviceVariant } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
 import { createDefaultSnapshot } from '../../../shared/defaults';
@@ -129,6 +140,42 @@ const demoApi: SwitchboardApi = {
     }
     return emit();
   },
+  async setDeviceControl(input: SetDeviceControlInput) {
+    const device = snapshot.devices.find((candidate) => candidate.id === input.deviceId);
+    if (!device) return emit();
+    const { change } = input;
+    if (change.type === 'dpi' && device.capabilities.dpi) device.capabilities.dpi.activeDpi = change.value;
+    if (change.type === 'dpi-stages' && device.capabilities.dpi) device.capabilities.dpi.stages = change.stages;
+    if (change.type === 'dpi-shift' && device.capabilities.dpi) device.capabilities.dpi.shiftDpi = change.value;
+    if (change.type === 'report-rate' && device.capabilities.reportRate) device.capabilities.reportRate.value = change.value;
+    if (change.type === 'button-assignment' && device.capabilities.buttonAssignments) {
+      const binding = device.capabilities.buttonAssignments.bindings.find((candidate) => candidate.buttonId === change.buttonId);
+      if (binding) binding.currentActionId = change.actionId;
+    }
+    if (change.type === 'onboard-memory' && device.capabilities.onboardMemory) {
+      device.capabilities.onboardMemory.enabled = change.enabled;
+      const mode = change.enabled ? 'onboard' : 'software';
+      const reason = change.enabled ? 'Stored onboard profiles are active. Turn off onboard memory to edit the software profile.' : undefined;
+      if (device.capabilities.dpi) Object.assign(device.capabilities.dpi, { profileMode: mode, writable: !change.enabled, unavailableReason: reason });
+      if (device.capabilities.reportRate) Object.assign(device.capabilities.reportRate, { profileMode: mode, writable: !change.enabled, unavailableReason: reason });
+      if (device.capabilities.buttonAssignments) Object.assign(device.capabilities.buttonAssignments, { profileMode: mode, writable: !change.enabled, unavailableReason: reason });
+      if (device.capabilities.lighting) Object.assign(device.capabilities.lighting, {
+        profileMode: mode,
+        writable: !change.enabled,
+        colorWritable: !change.enabled,
+        brightnessWritable: !change.enabled,
+        unavailableReason: reason,
+      });
+    }
+    if (change.type === 'lighting-enabled' && device.capabilities.lighting) device.capabilities.lighting.enabled = change.enabled;
+    if (change.type === 'lighting-color' && device.capabilities.lighting) {
+      device.capabilities.lighting.color = change.color;
+      device.capabilities.lighting.enabled = true;
+    }
+    if (change.type === 'lighting-brightness' && device.capabilities.lighting) device.capabilities.lighting.brightness = change.brightness;
+    if (change.type === 'lighting-effect' && device.capabilities.lighting) device.capabilities.lighting.activeEffectId = change.effectId;
+    return emit();
+  },
   async setDeviceSetting(input: SetDeviceSettingInput) {
     const device = snapshot.devices.find((candidate) => candidate.id === input.deviceId);
     if (device) device.settings[input.key] = input.value;
@@ -147,7 +194,6 @@ const demoApi: SwitchboardApi = {
   async setAudioBusGain(input: SetAudioBusGainInput) {
     const bus = snapshot.audio.buses.find((candidate) => candidate.id === input.busId);
     if (bus) bus.gain = input.gain;
-    snapshot.audio.activePresetId = null;
     return emit();
   },
   async setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput) {
@@ -170,7 +216,6 @@ const demoApi: SwitchboardApi = {
   async setAudioBusEnabled(input: SetAudioBusEnabledInput) {
     const bus = snapshot.audio.buses.find((candidate) => candidate.id === input.busId);
     if (bus) bus.enabled = input.enabled;
-    snapshot.audio.activePresetId = null;
     return emit();
   },
   async setAudioBusDevice(input: SetAudioBusDeviceInput) {
@@ -181,36 +226,90 @@ const demoApi: SwitchboardApi = {
       if (bus.id === 'mic') snapshot.audio.microphoneDevice = device.name;
       if (bus.id === 'game') snapshot.audio.outputDevice = device.name;
     }
-    snapshot.audio.activePresetId = null;
     return emit();
   },
   async applyAudioPreset(input: ApplyAudioPresetInput) {
-    const preset = snapshot.audio.presets.find((candidate) => candidate.id === input.presetId);
+    const preset = snapshot.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
     if (!preset) return emit();
-    for (const presetBus of preset.buses) {
-      const bus = snapshot.audio.buses.find((candidate) => candidate.id === presetBus.busId);
-      if (!bus) continue;
-      bus.enabled = presetBus.enabled;
-      bus.gain = presetBus.gain;
-      bus.deviceId = presetBus.deviceId;
+    applyAudioPathPreset(snapshot.audio, preset);
+    return emit();
+  },
+  async createAudioPreset(input: CreateAudioPresetInput) {
+    const id = `user-${input.kind}-${crypto.randomUUID()}`;
+    snapshot.audio.pathPresets.push(snapshotAudioPathPreset(snapshot.audio, input.kind, id, input.name));
+    snapshot.audio.activePresetIds[input.kind] = id;
+    return emit();
+  },
+  async renameAudioPreset(input: RenameAudioPresetInput) {
+    const preset = snapshot.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
+    if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
+    if (preset.builtIn) throw new Error('Built-in presets cannot be renamed. Duplicate it first.');
+    preset.name = input.name;
+    return emit();
+  },
+  async duplicateAudioPreset(input: AudioPresetIdInput) {
+    const source = snapshot.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
+    if (!source) throw new Error(`Unknown audio preset: ${input.presetId}`);
+    const id = `user-${source.kind}-${crypto.randomUUID()}`;
+    snapshot.audio.pathPresets.push(snapshotAudioPathPreset(snapshot.audio, source.kind, id, `${source.name} copy`));
+    snapshot.audio.activePresetIds[source.kind] = id;
+    return emit();
+  },
+  async deleteAudioPreset(input: AudioPresetIdInput) {
+    const index = snapshot.audio.pathPresets.findIndex((candidate) => candidate.id === input.presetId);
+    if (index < 0) throw new Error(`Unknown audio preset: ${input.presetId}`);
+    const preset = snapshot.audio.pathPresets[index]!;
+    if (preset.builtIn) throw new Error('Built-in presets cannot be deleted.');
+    snapshot.audio.pathPresets.splice(index, 1);
+    snapshot.audio.activePresetIds[preset.kind] = findMatchingAudioPresetId(snapshot.audio, preset.kind);
+    return emit();
+  },
+  async importAudioPreset() {
+    throw new Error('Preset import requires the Switchboard desktop application.');
+  },
+  async exportAudioPreset() {
+    throw new Error('Preset export requires the Switchboard desktop application.');
+  },
+  async setAudioChannelProcessor(input: SetAudioChannelProcessorInput) {
+    const processing = snapshot.audio.channelProcessing.find((candidate) => candidate.busId === input.busId);
+    if (!processing) throw new Error(`Unknown audio processing path: ${input.busId}`);
+    if (input.processorId === 'equalizer') {
+      processing.equalizer = { ...processing.equalizer, enabled: input.enabled ?? processing.equalizer.enabled, ...input.parameters };
+    } else if (input.processorId === 'normalization') {
+      processing.normalization = {
+        ...processing.normalization,
+        enabled: input.enabled ?? processing.normalization.enabled,
+        ...input.parameters,
+      };
+    } else if (input.processorId === 'compressor') {
+      processing.compressor = {
+        ...processing.compressor,
+        enabled: input.enabled ?? processing.compressor.enabled,
+        ...input.parameters,
+      };
+    } else {
+      processing.limiter = {
+        ...processing.limiter,
+        enabled: input.enabled ?? processing.limiter.enabled,
+        ...input.parameters,
+      };
     }
-    for (const presetProcessor of preset.micProcessors) {
-      const processor = snapshot.audio.micProcessors.find((candidate) => candidate.id === presetProcessor.processorId);
-      if (processor) processor.enabled = presetProcessor.enabled;
+    snapshot.audio.channelProcessing[snapshot.audio.channelProcessing.indexOf(processing)] = channelProcessingSchema.parse(processing);
+    snapshot.audio.activePresetIds[input.busId] = findMatchingAudioPresetId(snapshot.audio, input.busId);
+    return emit();
+  },
+  async setAudioMonitoring(input: SetAudioMonitoringInput) {
+    if (snapshot.audio.capabilities.monitoring === 'unavailable') {
+      throw new Error('Low-latency microphone monitoring is unavailable in the browser preview.');
     }
-    snapshot.audio.chatMix = preset.chatMix;
-    snapshot.audio.activePresetId = preset.id;
-    const gameBus = snapshot.audio.buses.find((candidate) => candidate.id === 'game');
-    const micBus = snapshot.audio.buses.find((candidate) => candidate.id === 'mic');
-    const output = gameBus ? snapshot.audio.devices.find((candidate) => candidate.id === gameBus.deviceId) : undefined;
-    const microphone = micBus ? snapshot.audio.devices.find((candidate) => candidate.id === micBus.deviceId) : undefined;
-    if (output) snapshot.audio.outputDevice = output.name;
-    if (microphone) snapshot.audio.microphoneDevice = microphone.name;
+    if (typeof input.enabled === 'boolean') snapshot.audio.monitoringEnabled = input.enabled;
+    if (typeof input.level === 'number') snapshot.audio.monitoring = input.level;
+    if (input.deviceId) snapshot.audio.monitoringDeviceId = input.deviceId;
+    snapshot.audio.activePresetIds.microphone = findMatchingAudioPresetId(snapshot.audio, 'microphone');
     return emit();
   },
   async setChatMix(value: number) {
     snapshot.audio.chatMix = value;
-    snapshot.audio.activePresetId = null;
     const game = snapshot.audio.buses.find((bus) => bus.id === 'game');
     const chat = snapshot.audio.buses.find((bus) => bus.id === 'chat');
     if (game && chat) {
@@ -229,7 +328,7 @@ const demoApi: SwitchboardApi = {
         parameters: { ...processor.parameters, ...input.parameters },
       });
     }
-    snapshot.audio.activePresetId = null;
+    snapshot.audio.activePresetIds.microphone = findMatchingAudioPresetId(snapshot.audio, 'microphone');
     return emit();
   },
   subscribeAudioMeters(listener) {
@@ -265,19 +364,39 @@ const demoApi: SwitchboardApi = {
   },
   async resetSettings(scope: SettingsResetScope) {
     const defaults = createDefaultSnapshot();
-    if (scope === 'all') snapshot = defaults;
+    if (scope === 'all') {
+      snapshot.settings = defaults.settings;
+      snapshot.audio = createResetAudioState(snapshot.audio, defaults.audio);
+      snapshot.capture.config = defaults.capture.config;
+      const audioModule = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');
+      if (audioModule) audioModule.enabled = false;
+      const captureModule = snapshot.modules.find((candidate) => candidate.id === 'capability.replay');
+      if (captureModule) captureModule.enabled = false;
+      setEngine('audio', false);
+      setEngine('capture', false);
+    }
     if (scope === 'general') {
       snapshot.settings.launchAtStartup = defaults.settings.launchAtStartup;
       snapshot.settings.closeToTray = defaults.settings.closeToTray;
       snapshot.settings.destroyRendererInTray = defaults.settings.destroyRendererInTray;
     }
-    if (scope === 'audio') snapshot.audio = defaults.audio;
-    if (scope === 'capture') snapshot.capture.config = defaults.capture.config;
+    if (scope === 'devices') snapshot.settings.deviceAppearanceOverrides = {};
+    if (scope === 'audio') {
+      snapshot.audio = createResetAudioState(snapshot.audio, defaults.audio);
+      const module = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');
+      if (module) module.enabled = false;
+      setEngine('audio', false);
+    }
+    if (scope === 'capture') {
+      snapshot.capture.config = defaults.capture.config;
+      const module = snapshot.modules.find((candidate) => candidate.id === 'capability.replay');
+      if (module) module.enabled = false;
+      setEngine('capture', false);
+    }
     if (scope === 'modules') snapshot.settings.automaticModuleUpdates = defaults.settings.automaticModuleUpdates;
     if (scope === 'diagnostics') {
       snapshot.settings.performanceGuard = defaults.settings.performanceGuard;
       snapshot.settings.diagnosticsRetentionDays = defaults.settings.diagnosticsRetentionDays;
-      snapshot.settings.deviceAppearanceOverrides = {};
     }
     return emit();
   },
@@ -291,3 +410,34 @@ const demoApi: SwitchboardApi = {
 };
 
 export const switchboardApi: SwitchboardApi = window.switchboard ?? demoApi;
+
+function createResetAudioState(
+  current: SystemSnapshot['audio'],
+  defaults: SystemSnapshot['audio'],
+): SystemSnapshot['audio'] {
+  const reset = structuredClone(defaults);
+  reset.devices = structuredClone(current.devices);
+  reset.pathPresets = [
+    ...structuredClone(defaults.pathPresets),
+    ...structuredClone(current.pathPresets.filter((preset) => !preset.builtIn)),
+  ];
+
+  const availableDeviceIds = new Set(reset.devices.map((device) => device.id));
+  for (const bus of reset.buses) {
+    if (availableDeviceIds.has(bus.deviceId)) continue;
+    const currentBus = current.buses.find((candidate) => candidate.id === bus.id);
+    if (currentBus && availableDeviceIds.has(currentBus.deviceId)) bus.deviceId = currentBus.deviceId;
+  }
+
+  const defaultOutput = reset.devices.find((device) => device.direction === 'output' && device.available && device.isDefault);
+  const defaultInput = reset.devices.find((device) => device.direction === 'input' && device.available && device.isDefault);
+  reset.outputDevice = defaultOutput?.name ?? current.outputDevice;
+  reset.microphoneDevice = defaultInput?.name ?? current.microphoneDevice;
+  for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
+    const defaultId = defaults.activePresetIds[kind];
+    reset.activePresetIds[kind] = defaultId && reset.pathPresets.some((preset) => preset.id === defaultId)
+      ? defaultId
+      : null;
+  }
+  return reset;
+}

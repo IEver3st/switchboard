@@ -2,15 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Device } from '../../../../shared/contracts';
 import g502XPlusBlackUrl from '@/assets/device-renders/g502-x-plus.png';
 import g502XPlusWhiteUrl from '@/assets/device-renders/g502-x-plus-white.png';
-import quadCast2Url from '@/assets/device-renders/quadcast-2.jpg';
+import quadCast2Url from '@/assets/device-renders/quadcast-2.png';
 import { DeviceGlyph } from '@/components/shared/device-glyph';
 import { cn } from '@/lib/cn';
 
-type LightingMask = 'saturated' | 'red';
+type LightingMask = 'red';
 
 interface DeviceArtwork {
   src: string;
-  removeLightBackground?: boolean;
   lightingMask?: LightingMask;
 }
 
@@ -23,9 +22,9 @@ interface ProcessedArtwork {
 const processedArtworkCache = new Map<string, ProcessedArtwork>();
 const maximumCachedArtwork = 6;
 const artworkByAssetKey: Record<string, DeviceArtwork> = {
-  'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl, lightingMask: 'saturated' },
-  'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl, lightingMask: 'saturated' },
-  'hyperx-quadcast-2': { src: quadCast2Url, removeLightBackground: true, lightingMask: 'red' },
+  'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl },
+  'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl },
+  'hyperx-quadcast-2': { src: quadCast2Url, lightingMask: 'red' },
 };
 
 export function DeviceRender({
@@ -38,8 +37,8 @@ export function DeviceRender({
   className?: string;
 }) {
   const artwork = artworkByAssetKey[device.asset.key];
-  const lightingEnabled = device.capabilities.includes('lighting') && asBoolean(device.settings.lightingEnabled, false);
-  const lightingColor = asColor(device.settings.lightingColor, device.kind === 'microphone' ? '#e51937' : '#ff658a');
+  const lightingEnabled = device.capabilities.lighting?.enabled ?? false;
+  const lightingColor = asColor(device.capabilities.lighting?.color, device.kind === 'microphone' ? '#e51937' : '#ff658a');
   const label = [device.identity.manufacturer, device.displayName].filter(Boolean).join(' ');
 
   return (
@@ -92,10 +91,9 @@ function ProductCanvas({
     let active = true;
     const cacheKey = [
       artwork.src,
-      artwork.removeLightBackground ? 'remove-light' : 'keep-background',
       artwork.lightingMask ?? 'no-lighting',
-      lighting.enabled ? 'on' : 'off',
-      lighting.color,
+      artwork.lightingMask ? (lighting.enabled ? 'on' : 'off') : 'static',
+      artwork.lightingMask ? lighting.color : 'source-color',
     ].join('|');
     const cached = processedArtworkCache.get(cacheKey);
     if (cached && canvasRef.current && paintProcessedArtwork(canvasRef.current, cached)) {
@@ -136,12 +134,8 @@ function ProductCanvas({
 
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-        if (artwork.removeLightBackground) {
-          removeConnectedLightBackground(pixels.data, canvas.width, canvas.height);
-          removeEnclosedLightMatte(pixels.data, canvas.width, canvas.height);
-        }
         if (artwork.lightingMask) {
-          applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color);
+          applyLighting(pixels.data, lighting.enabled, lighting.color);
         }
 
         const bounds = findVisibleBounds(pixels.data, canvas.width, canvas.height);
@@ -173,7 +167,7 @@ function ProductCanvas({
       image.onload = null;
       image.onerror = null;
     };
-  }, [artwork.lightingMask, artwork.removeLightBackground, artwork.src, lighting.color, lighting.enabled]);
+  }, [artwork.lightingMask, artwork.src, lighting.color, lighting.enabled]);
 
   if (status === 'failed') return fallback;
   return (
@@ -204,146 +198,7 @@ function rememberProcessedArtwork(key: string, artwork: ProcessedArtwork): void 
   if (typeof oldest === 'string') processedArtworkCache.delete(oldest);
 }
 
-function removeConnectedLightBackground(data: Uint8ClampedArray, width: number, height: number): void {
-  const pixelCount = width * height;
-  if (pixelCount === 0) return;
-
-  const exterior = new Uint8Array(pixelCount);
-  const queue = new Int32Array(pixelCount);
-  let readIndex = 0;
-  let writeIndex = 0;
-
-  const enqueue = (pixelIndex: number) => {
-    if (exterior[pixelIndex] || !isWithinWhiteDistance(data, pixelIndex, 30)) return;
-    exterior[pixelIndex] = 1;
-    queue[writeIndex] = pixelIndex;
-    writeIndex += 1;
-  };
-
-  for (let x = 0; x < width; x += 1) {
-    enqueue(x);
-    enqueue((height - 1) * width + x);
-  }
-  for (let y = 1; y < height - 1; y += 1) {
-    enqueue(y * width);
-    enqueue(y * width + width - 1);
-  }
-
-  while (readIndex < writeIndex) {
-    const pixelIndex = queue[readIndex];
-    readIndex += 1;
-    if (pixelIndex === undefined) continue;
-    const x = pixelIndex % width;
-    const y = Math.floor(pixelIndex / width);
-    if (x > 0) enqueue(pixelIndex - 1);
-    if (x + 1 < width) enqueue(pixelIndex + 1);
-    if (y > 0) enqueue(pixelIndex - width);
-    if (y + 1 < height) enqueue(pixelIndex + width);
-  }
-
-  for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
-    const offset = pixelIndex * 4;
-    if (exterior[pixelIndex]) {
-      data[offset + 3] = 0;
-      continue;
-    }
-
-    const x = pixelIndex % width;
-    const y = Math.floor(pixelIndex / width);
-    const touchesExterior =
-      (x > 0 && exterior[pixelIndex - 1]) ||
-      (x + 1 < width && exterior[pixelIndex + 1]) ||
-      (y > 0 && exterior[pixelIndex - width]) ||
-      (y + 1 < height && exterior[pixelIndex + width]);
-    if (!touchesExterior) continue;
-
-    const squaredDistance = squaredDistanceFromWhite(data, pixelIndex);
-    if (squaredDistance >= 96 * 96 * 3) continue;
-    const distance = Math.sqrt(squaredDistance / 3);
-    const alpha = clamp((distance - 12) / 84, 0, 1);
-    if (alpha <= 0.02) {
-      data[offset + 3] = 0;
-      continue;
-    }
-
-    decontaminateLightEdge(data, offset, alpha);
-  }
-}
-
-function removeEnclosedLightMatte(data: Uint8ClampedArray, width: number, height: number): void {
-  const pixelCount = width * height;
-  const visited = new Uint8Array(pixelCount);
-  const matte = new Uint8Array(pixelCount);
-  const queue = new Int32Array(pixelCount);
-
-  const isLightMatte = (pixelIndex: number) => {
-    const offset = pixelIndex * 4;
-    return (
-      (data[offset + 3] ?? 0) > 0 &&
-      (data[offset] ?? 0) > 215 &&
-      (data[offset + 1] ?? 0) > 215 &&
-      (data[offset + 2] ?? 0) > 215
-    );
-  };
-
-  for (let start = 0; start < pixelCount; start += 1) {
-    if (visited[start] || !isLightMatte(start)) continue;
-    let readIndex = 0;
-    let writeIndex = 0;
-    visited[start] = 1;
-    queue[writeIndex] = start;
-    writeIndex += 1;
-
-    const enqueueNeighbor = (neighbor: number) => {
-      if (visited[neighbor] || !isLightMatte(neighbor)) return;
-      visited[neighbor] = 1;
-      queue[writeIndex] = neighbor;
-      writeIndex += 1;
-    };
-
-    while (readIndex < writeIndex) {
-      const pixelIndex = queue[readIndex];
-      readIndex += 1;
-      if (pixelIndex === undefined) continue;
-      const x = pixelIndex % width;
-      const y = Math.floor(pixelIndex / width);
-      if (x > 0) enqueueNeighbor(pixelIndex - 1);
-      if (x + 1 < width) enqueueNeighbor(pixelIndex + 1);
-      if (y > 0) enqueueNeighbor(pixelIndex - width);
-      if (y + 1 < height) enqueueNeighbor(pixelIndex + width);
-    }
-
-    if (writeIndex < 100) continue;
-    for (let index = 0; index < writeIndex; index += 1) {
-      const pixelIndex = queue[index];
-      if (pixelIndex !== undefined) matte[pixelIndex] = 1;
-    }
-  }
-
-  for (let pass = 0; pass < 2; pass += 1) {
-    const expanded = matte.slice();
-    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
-      if (matte[pixelIndex] || !isWithinWhiteDistance(data, pixelIndex, 105)) continue;
-      const x = pixelIndex % width;
-      const y = Math.floor(pixelIndex / width);
-      if (
-        (x > 0 && matte[pixelIndex - 1]) ||
-        (x + 1 < width && matte[pixelIndex + 1]) ||
-        (y > 0 && matte[pixelIndex - width]) ||
-        (y + 1 < height && matte[pixelIndex + width])
-      ) {
-        expanded[pixelIndex] = 1;
-      }
-    }
-    matte.set(expanded);
-  }
-
-  for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
-    if (matte[pixelIndex]) data[pixelIndex * 4 + 3] = 0;
-  }
-}
-
-function applyLighting(data: Uint8ClampedArray, mask: LightingMask, enabled: boolean, color: string): void {
+function applyLighting(data: Uint8ClampedArray, enabled: boolean, color: string): void {
   const target = parseHexColor(color);
   const targetMaximum = Math.max(target.red, target.green, target.blue, 1);
 
@@ -354,10 +209,7 @@ function applyLighting(data: Uint8ClampedArray, mask: LightingMask, enabled: boo
     const blue = data[offset + 2] ?? 0;
     const maximum = Math.max(red, green, blue);
     const minimum = Math.min(red, green, blue);
-    const chroma = maximum - minimum;
-    const matches = mask === 'red'
-      ? red > 70 && red - Math.max(green, blue) > 24
-      : maximum > 60 && chroma > 22;
+    const matches = red > 70 && red - Math.max(green, blue) > 24;
     if (!matches) continue;
 
     if (!enabled) {
@@ -409,26 +261,6 @@ function findVisibleBounds(
   };
 }
 
-function squaredDistanceFromWhite(data: Uint8ClampedArray, pixelIndex: number): number {
-  const offset = pixelIndex * 4;
-  const red = 255 - (data[offset] ?? 255);
-  const green = 255 - (data[offset + 1] ?? 255);
-  const blue = 255 - (data[offset + 2] ?? 255);
-  return red * red + green * green + blue * blue;
-}
-
-function isWithinWhiteDistance(data: Uint8ClampedArray, pixelIndex: number, distance: number): boolean {
-  return squaredDistanceFromWhite(data, pixelIndex) <= distance * distance * 3;
-}
-
-function decontaminateLightEdge(data: Uint8ClampedArray, offset: number, alpha: number): void {
-  for (let channel = 0; channel < 3; channel += 1) {
-    const observed = data[offset + channel] ?? 255;
-    data[offset + channel] = clamp(Math.round((observed - 255 * (1 - alpha)) / alpha), 0, 255);
-  }
-  data[offset + 3] = Math.round(255 * alpha);
-}
-
 function parseHexColor(value: string): { red: number; green: number; blue: number } {
   return {
     red: Number.parseInt(value.slice(1, 3), 16),
@@ -437,14 +269,6 @@ function parseHexColor(value: string): { red: number; green: number; blue: numbe
   };
 }
 
-function asBoolean(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}
-
 function asColor(value: unknown, fallback: string): string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
 }

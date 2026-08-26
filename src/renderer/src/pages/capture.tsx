@@ -51,7 +51,7 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const [renameTarget, setRenameTarget] = useState<Clip | null>(null);
   const [hotkeyDraft, setHotkeyDraft] = useState(snapshot.capture.config.hotkey);
   const [toast, setToast] = useState<string | null>(null);
-  const previousSavedAt = useRef(snapshot.capture.runtime.lastSavedAt);
+  const previousSavedClipId = useRef(snapshot.clips[0]?.id);
   const config = snapshot.capture.config;
   const runtime = snapshot.capture.runtime;
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'capture');
@@ -60,10 +60,11 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   useEffect(() => setHotkeyDraft(config.hotkey), [config.hotkey]);
   useEffect(() => {
-    if (!runtime.lastSavedAt || runtime.lastSavedAt === previousSavedAt.current) return;
-    previousSavedAt.current = runtime.lastSavedAt;
     const latest = snapshot.clips[0];
-    setToast(latest ? `Replay saved · ${latest.game ?? 'Desktop'} · ${formatDuration(latest.durationMs / 1_000)} · ${formatBytes(latest.fileSize)}` : 'Replay saved');
+    if (!latest || latest.id === previousSavedClipId.current) return;
+    previousSavedClipId.current = latest.id;
+    if (!runtime.lastSavedAt || Math.abs(latest.createdAt - new Date(runtime.lastSavedAt).getTime()) > 5_000) return;
+    setToast(`Replay saved · ${latest.game ?? 'Desktop'} · ${formatDuration(latest.durationMs / 1_000)} · ${formatBytes(latest.fileSize)}`);
     const timeout = window.setTimeout(() => setToast(null), 4_000);
     return () => window.clearTimeout(timeout);
   }, [runtime.lastSavedAt, snapshot.clips]);
@@ -117,7 +118,7 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 id="capture-heading" className="m-0 text-[13px] font-semibold text-foreground">Instant Replay</h2>
-              <ReplayStatus state={runtime.state} />
+              <ReplayStatus state={runtime.state} source={config.source} />
             </div>
             <p className="mt-0.5 truncate text-[10px] tabular-nums text-muted-foreground">{captureStatusDetail(snapshot)}</p>
           </div>
@@ -261,8 +262,8 @@ function ConfigCell({ label, children }: { label: string; children: React.ReactN
 function ConfigField({ label, children }: { label: string; children: React.ReactNode }) { return <div className="min-w-0"><span className="mb-1.5 block text-[10px] font-medium text-muted-foreground">{label}</span>{children}</div>; }
 function CompactToggle({ label, checked, disabled, onCheckedChange }: { label: string; checked: boolean; disabled: boolean; onCheckedChange: (checked: boolean) => void }) { return <label className="flex min-h-11 items-center justify-between gap-3 px-3 text-[11px] font-medium text-foreground">{label}<Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} aria-label={label} /></label>; }
 
-function ReplayStatus({ state }: { state: ReplayState }) {
-  const labels: Record<ReplayState, string> = { stopped: 'Off', starting: 'Starting', waiting: 'Waiting for a game', buffering: 'Buffering', saving: 'Saving replay', recovering: 'Recovering', error: 'Needs attention' };
+function ReplayStatus({ state, source }: { state: ReplayState; source: CaptureConfig['source'] }) {
+  const labels: Record<ReplayState, string> = { stopped: 'Off', starting: 'Starting', waiting: source === 'automatic-game' ? 'Waiting for a game' : 'Waiting for source', buffering: 'Buffering', saving: 'Saving replay', recovering: 'Recovering', error: 'Needs attention' };
   return <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground" role="status"><span className={cn('size-1.5 rounded-full border border-current', state === 'buffering' || state === 'saving' ? 'bg-success text-success' : state === 'starting' || state === 'recovering' ? 'bg-warning text-warning' : state === 'error' ? 'bg-destructive text-destructive' : 'text-muted-foreground')} aria-hidden="true" />{labels[state]}</span>;
 }
 
@@ -300,7 +301,9 @@ function formatEstimate(lower: number, upper: number): string { return `~${forma
 function captureStatusDetail(snapshot: SystemSnapshot): string {
   const { config, runtime } = snapshot.capture;
   if (runtime.state === 'buffering' || runtime.state === 'saving') return `${Math.floor(runtime.bufferedSeconds)} / ${config.replaySeconds} sec · ${formatBytes(runtime.replayCacheBytes)} · ${runtime.encoderLabel}`;
-  if (runtime.state === 'waiting') return runtime.activeSource ? `${runtime.activeSource.name} detected` : 'Automatic capture stays off until a game is detected';
+  if (runtime.state === 'waiting') return config.source === 'automatic-game'
+    ? 'Automatic capture stays off until a game is detected'
+    : 'Replay will resume when the selected source becomes available';
   if (runtime.state === 'recovering') return 'Capture.Host is recovering after an encoder or source interruption';
   if (runtime.state === 'starting') return 'Starting Capture.Host and probing available encoders';
   if (runtime.state === 'error') return runtime.error ?? 'Capture needs attention';

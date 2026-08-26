@@ -8,53 +8,43 @@ import { AudioDevicePicker } from './AudioDevicePicker';
 import { LevelMeter } from './LevelMeter';
 import { MixerFader } from './MixerFader';
 
-export const ChannelStrip = memo(function ChannelStrip({
+export const MixerChannelStrip = memo(function MixerChannelStrip({
   bus,
   devices,
   icon: Icon,
   engineRunning,
   pending,
-  selected,
   onGainCommit,
   onEnabledChange,
   onDeviceChange,
-  onSelect,
+  onOpen,
 }: {
   bus: AudioBus;
   devices: AudioDevice[];
   icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
   engineRunning: boolean;
   pending: boolean;
-  selected: boolean;
   onGainCommit: (gain: number) => void;
   onEnabledChange: (enabled: boolean) => void;
   onDeviceChange: (deviceId: string) => void;
-  onSelect: () => void;
+  onOpen: () => void;
 }) {
   const direction: AudioDeviceDirection = bus.id === 'mic' ? 'input' : 'output';
   const channelActive = bus.enabled && !bus.muted;
   const assignment = bus.id === 'mic'
-    ? 'Input channel'
-    : `${bus.appCount} ${bus.appCount === 1 ? 'app' : 'apps'}`;
+    ? 'Input path'
+    : bus.appCount === 0 ? 'No routed applications' : `${bus.appCount} ${bus.appCount === 1 ? 'application' : 'applications'}`;
 
   return (
-    <article
-      className={cn(
-        'relative flex min-w-0 flex-col bg-card px-3 pb-2.5 pt-3 transition-colors duration-150 motion-reduce:transition-none',
-        selected && 'bg-[#12161c]',
-        !bus.enabled && 'bg-background',
-      )}
-    >
-      <span className={cn('absolute inset-x-0 top-0 h-[2px] bg-transparent', selected && 'bg-primary')} aria-hidden="true" />
-
+    <article className={cn('relative flex min-w-0 flex-col bg-card px-4 pb-3 pt-4', !channelActive && 'bg-background')}>
       <header className="flex min-w-0 items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-2">
-          <Icon className={cn('mt-0.5 size-3.5 shrink-0', channelActive ? 'text-foreground/80' : 'text-muted-foreground/45')} aria-hidden={true} />
+        <div className="flex min-w-0 items-start gap-2.5">
+          <Icon className={cn('mt-0.5 size-4 shrink-0', channelActive ? 'text-foreground/85' : 'text-muted-foreground/45')} aria-hidden={true} />
           <div className="min-w-0">
-            <h3 className="m-0 truncate text-[11px] font-semibold text-foreground">{bus.label}</h3>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[8px] text-muted-foreground">
+            <h3 className="m-0 truncate text-[12px] font-semibold text-foreground">{bus.label}</h3>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[9px] text-muted-foreground">
               <span className={cn('size-1.5 rounded-full bg-[#4e5560]', channelActive && engineRunning && 'bg-success')} aria-hidden="true" />
-              <span>{channelActive ? assignment : 'Muted'}</span>
+              <span className="truncate">{channelActive ? assignment : 'Muted'}</span>
             </div>
           </div>
         </div>
@@ -69,7 +59,7 @@ export const ChannelStrip = memo(function ChannelStrip({
               aria-label={`${channelActive ? 'Mute' : 'Unmute'} ${bus.label}`}
               aria-pressed={!channelActive}
               onClick={() => onEnabledChange(!bus.enabled)}
-              className={cn('size-6 shrink-0', !channelActive && 'bg-primary/10 text-primary hover:bg-primary/15')}
+              className={cn('size-7 shrink-0', !channelActive && 'bg-primary/10 text-primary hover:bg-primary/15')}
             >
               {channelActive ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
             </Button>
@@ -78,7 +68,12 @@ export const ChannelStrip = memo(function ChannelStrip({
         </Tooltip>
       </header>
 
-      <div className="mt-2 border-y border-border py-0.5">
+      <div className={cn('mt-4 flex h-[clamp(270px,40vh,390px)] min-h-[270px] items-stretch justify-center gap-3', !channelActive && 'opacity-55')}>
+        <LevelMeter busId={bus.id} active={engineRunning && channelActive} label={bus.label} />
+        <MixerFader value={bus.gain} disabled={!bus.enabled || pending} label={bus.label} onCommit={onGainCommit} />
+      </div>
+
+      <div className="mt-3 border-y border-border py-1">
         <AudioDevicePicker
           value={bus.deviceId}
           devices={devices}
@@ -89,33 +84,15 @@ export const ChannelStrip = memo(function ChannelStrip({
         />
       </div>
 
-      <div className={cn('mt-3 flex h-[205px] items-stretch justify-center gap-2', !bus.enabled && 'opacity-55')}>
-        <LevelMeter busId={bus.id} active={engineRunning && channelActive} label={bus.label} />
-        <MixerFader
-          value={bus.gain}
-          disabled={!bus.enabled || pending}
-          label={bus.label}
-          onCommit={onGainCommit}
-        />
-      </div>
-
-      <footer className="mt-2 flex min-w-0 items-center justify-between gap-2 border-t border-border pt-2">
+      <footer className="mt-2 flex min-w-0 items-center justify-between gap-2">
         <span className="truncate text-[8px] text-muted-foreground" title={bus.endpoint}>{bus.endpoint}</span>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn('size-6 shrink-0', selected && 'text-primary')}
-              aria-label={`Inspect ${bus.label} route`}
-              aria-pressed={selected}
-              onClick={onSelect}
-            >
+            <Button type="button" variant="ghost" size="icon" className="size-7 shrink-0" aria-label={`Open ${bus.label} processing`} onClick={onOpen}>
               <Route className="size-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Inspect route</TooltipContent>
+          <TooltipContent>Open processing page</TooltipContent>
         </Tooltip>
       </footer>
     </article>
