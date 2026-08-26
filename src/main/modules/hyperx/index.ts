@@ -1,4 +1,4 @@
-import type { Device, DeviceControlChange, DeviceSettingValue } from '../../../shared/contracts';
+import type { Device, DeviceControlChange } from '../../../shared/contracts';
 import { resolveDeviceVariant } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
 import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
@@ -86,10 +86,6 @@ export class HyperXDeviceModule implements DeviceModule {
       throw new Error('QuadCast 2 lighting is fixed red and does not support color writes.');
     }
     throw new Error(`${device.displayName} does not support the requested device control.`);
-  }
-
-  public onSettingChanged(deviceId: string, key: string, value: DeviceSettingValue): void {
-    if (deviceId === this.sessionDeviceId) this.session?.updatePassiveSetting(key, value);
   }
 
   public async deactivate(): Promise<void> {

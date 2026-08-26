@@ -3,7 +3,6 @@ import type {
   Device,
   DeviceAppearanceOverride,
   DeviceControlChange,
-  DeviceSettingValue,
 } from '../../shared/contracts';
 
 export interface DeviceDiscoveryContext {
@@ -16,7 +15,6 @@ export interface DeviceModule {
   id: string;
   discover(context: DeviceDiscoveryContext): Promise<Device[]>;
   setControl?(device: Device, change: DeviceControlChange): Promise<void>;
-  onSettingChanged?(deviceId: string, key: string, value: DeviceSettingValue): void;
   deactivate?(): Promise<void> | void;
   dispose?(): Promise<void> | void;
 }

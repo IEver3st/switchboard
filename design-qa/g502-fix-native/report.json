@@ -1,0 +1,226 @@
+{
+  "device": {
+    "id": "logitech:receiver-c547",
+    "asset": {
+      "key": "logitech-g502-x-plus-white",
+      "matchedBy": "exact-variant",
+      "source": "bundled-official"
+    },
+    "variant": "white",
+    "battery": {
+      "percentage": 79,
+      "charging": false,
+      "fullyCharged": false,
+      "updatedAt": 1787732768131
+    },
+    "dpi": 3000,
+    "reportRate": 500
+  },
+  "pollingRateReadOnlyReason": "Switchboard can read the live polling rate, but this mouse rejected direct polling-rate writes.",
+  "captures": [
+    {
+      "viewport": {
+        "name": "1080x720",
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-g502-white.png",
+      "imageSize": {
+        "width": 1620,
+        "height": 1083
+      },
+      "metrics": {
+        "innerWidth": 1080,
+        "innerHeight": 722,
+        "documentWidth": 1080,
+        "viewportWidth": 1012,
+        "viewportScrollWidth": 1012,
+        "assetKey": "logitech-g502-x-plus-white",
+        "variantSource": "Stable device appearance override",
+        "renderState": "ready",
+        "batteryLabel": "Battery, 79 percent battery",
+        "charging": null,
+        "callouts": [
+          {
+            "id": "primary",
+            "side": "left",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "back",
+            "side": "left",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "dpi-shift",
+            "side": "left",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "secondary",
+            "side": "right",
+            "lineJoinGap": 0.0000457763671875,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          },
+          {
+            "id": "wheel",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "forward",
+            "side": "right",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          }
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-g502-white.png",
+      "imageSize": {
+        "width": 2130,
+        "height": 1350
+      },
+      "metrics": {
+        "innerWidth": 1420,
+        "innerHeight": 900,
+        "documentWidth": 1420,
+        "viewportWidth": 1352,
+        "viewportScrollWidth": 1352,
+        "assetKey": "logitech-g502-x-plus-white",
+        "variantSource": "Stable device appearance override",
+        "renderState": "ready",
+        "batteryLabel": "Battery, 79 percent battery",
+        "charging": null,
+        "callouts": [
+          {
+            "id": "primary",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "back",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "dpi-shift",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "secondary",
+            "side": "right",
+            "lineJoinGap": 0.0000457763671875,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          },
+          {
+            "id": "wheel",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "forward",
+            "side": "right",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          }
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "name": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-g502-white.png",
+      "imageSize": {
+        "width": 2880,
+        "height": 1620
+      },
+      "metrics": {
+        "innerWidth": 1920,
+        "innerHeight": 1080,
+        "documentWidth": 1920,
+        "viewportWidth": 1852,
+        "viewportScrollWidth": 1852,
+        "assetKey": "logitech-g502-x-plus-white",
+        "variantSource": "Stable device appearance override",
+        "renderState": "ready",
+        "batteryLabel": "Battery, 79 percent battery",
+        "charging": null,
+        "callouts": [
+          {
+            "id": "primary",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "back",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "dpi-shift",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "secondary",
+            "side": "right",
+            "lineJoinGap": 0.0000457763671875,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          },
+          {
+            "id": "wheel",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "forward",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0103759765625,
+            "verticalGap": 0
+          }
+        ]
+      }
+    }
+  ]
+}

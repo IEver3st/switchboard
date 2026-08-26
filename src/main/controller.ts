@@ -216,7 +216,6 @@ export class AppController {
       }
       device.settings[input.key] = input.value;
     });
-    this.devices.settingChanged(input.deviceId, input.key, input.value);
     return snapshot;
   }
 

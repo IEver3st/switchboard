@@ -11,6 +11,7 @@ The Electron prototype includes:
 - sandboxed renderer with a narrow, schema-validated preload API.
 - persisted module, device, audio, capture, and lifecycle state.
 - capability-driven Logitech mouse and HyperX microphone workbenches.
+- event-driven QuadCast 2 physical mute state plus maintained fixed-red lighting, brightness, breathing/pulse timing, and hardware-backed lighting profiles.
 - G502 X Plus hold-to-lower-DPI behavior through event-driven HID++ MouseButtonSpy and live sensor DPI control.
 - optional audio and capture utility processes that exist only while enabled.
 - audio buses, ChatMix, microphone processing, replay buffer, and clip library surfaces.

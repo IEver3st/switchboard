@@ -165,10 +165,6 @@ export class QuadCast2Session {
     });
   }
 
-  public updatePassiveSetting(key: string, value: DeviceSettingValue): void {
-    if (key in this.settings) (this.settings as unknown as Record<string, DeviceSettingValue>)[key] = value;
-  }
-
   public async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
@@ -201,7 +197,13 @@ export class QuadCast2Session {
     config: QuadCast2LightingConfig,
     patch: Partial<SessionSettings>,
   ): Promise<void> {
-    await this.applyConfig(config, { ...patch, lightingProfileId: 'custom' });
+    await this.applyConfig(config, {
+      ...patch,
+      lightingProfileId: 'custom',
+      customLightingBrightness: config.brightness,
+      customLightingEffect: config.effectId,
+      customLightingSpeed: config.speed,
+    });
   }
 
   private async applyConfig(
@@ -406,12 +408,16 @@ function score(descriptor: HidDevice): number {
 function normalizeSettings(settings: Record<string, DeviceSettingValue> | undefined): SessionSettings {
   const effect = isLightingEffect(settings?.lightingEffect) ? settings.lightingEffect : 'solid';
   const customEffect = isLightingEffect(settings?.customLightingEffect) ? settings.customLightingEffect : effect;
+  const storedProfileId = stringSetting(settings?.lightingProfileId, 'broadcast');
+  const lightingProfileId = quadCast2LightingProfiles.some((profile) => profile.id === storedProfileId)
+    ? storedProfileId
+    : 'broadcast';
   return {
     lightingEnabled: booleanSetting(settings?.lightingEnabled, true),
     lightingBrightness: numberSetting(settings?.lightingBrightness, 72, 0, 100),
     lightingEffect: effect,
     lightingSpeed: numberSetting(settings?.lightingSpeed, 50, 1, 100),
-    lightingProfileId: stringSetting(settings?.lightingProfileId, 'broadcast'),
+    lightingProfileId,
     customLightingBrightness: numberSetting(settings?.customLightingBrightness, 55, 0, 100),
     customLightingEffect: customEffect,
     customLightingSpeed: numberSetting(settings?.customLightingSpeed, 50, 1, 100),

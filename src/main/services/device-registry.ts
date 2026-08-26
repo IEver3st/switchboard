@@ -1,5 +1,5 @@
 import { devicesAsync } from 'node-hid';
-import type { Device, DeviceControlChange, DeviceSettingValue, SystemSnapshot } from '../../shared/contracts';
+import type { Device, DeviceControlChange, SystemSnapshot } from '../../shared/contracts';
 import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
@@ -57,12 +57,6 @@ export class DeviceRegistry {
     // device-confirmed state instead of optimistic React state.
     if (this.refreshPromise) await this.refreshPromise;
     await this.refresh();
-  }
-
-  public settingChanged(deviceId: string, key: string, value: DeviceSettingValue): void {
-    const device = this.getSnapshot().devices.find((candidate) => candidate.id === deviceId);
-    if (!device) return;
-    this.modules.find((module) => module.id === device.moduleId)?.onSettingChanged?.(deviceId, key, value);
   }
 
   public async dispose(): Promise<void> {
