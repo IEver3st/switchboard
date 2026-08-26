@@ -12,7 +12,7 @@ var outputGate = new SemaphoreSlim(1, 1);
 var shutdown = new CancellationTokenSource();
 var requests = new ConcurrentDictionary<Guid, Task>();
 await using var engine = new ReplayEngine();
-var previousCpuTime = Process.GetCurrentProcess().TotalProcessorTime;
+var previousCpuTime = Process.GetCurrentProcess().TotalProcessorTime + engine.ChildProcessorTime;
 var previousCpuSampleAt = Stopwatch.GetTimestamp();
 
 engine.SnapshotChanged += snapshot =>
@@ -119,8 +119,9 @@ async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
         _ => "running",
     };
     var process = Process.GetCurrentProcess();
+    process.Refresh();
     var sampledAt = Stopwatch.GetTimestamp();
-    var cpuTime = process.TotalProcessorTime;
+    var cpuTime = process.TotalProcessorTime + engine.ChildProcessorTime;
     var elapsedSeconds = (sampledAt - previousCpuSampleAt) / (double)Stopwatch.Frequency;
     var cpuSeconds = (cpuTime - previousCpuTime).TotalSeconds;
     var cpuPercent = elapsedSeconds <= 0
@@ -137,7 +138,7 @@ async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
             state,
             pid = state == "stopped" ? (int?)null : Environment.ProcessId,
             cpuPercent = Math.Round(cpuPercent, 1),
-            memoryMb = Math.Round(process.WorkingSet64 / 1024d / 1024d, 1),
+            memoryMb = Math.Round((process.WorkingSet64 + engine.ChildWorkingSetBytes) / 1024d / 1024d, 1),
             uptimeSeconds = Math.Max(0, engine.Uptime.TotalSeconds),
             message = snapshot.Runtime.Error ?? snapshot.Runtime.Warning,
             updatedAt = DateTimeOffset.UtcNow,

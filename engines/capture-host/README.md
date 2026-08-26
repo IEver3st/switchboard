@@ -1,40 +1,27 @@
 # Capture.Host
 
-Windows-first `.NET 10` prototype host for the production capture process.
+Windows-first `.NET 10` host for Switchboard Instant Replay. It is the data plane; Electron sends validated settings and receives low-frequency status snapshots, never video or audio buffers.
 
-## What works
+## Implemented pipeline
 
-- JSON-lines control protocol over standard input/output.
-- Safe simulation mode by default.
-- FFmpeg discovery and hardware encoder probing.
-- Optional Windows Desktop Duplication capture through FFmpeg `ddagrab`.
-- Two-second MKV segment ring with `segment_wrap`.
-- Clip save by snapshotting completed segments and remuxing to MP4 without re-encoding.
+- Windows Graphics Capture through FFmpeg `gfxcapture`, with Desktop Duplication as the display-capture fallback.
+- Working encoder probes and automatic preference for NVENC, AMF, or Quick Sync, followed by a software fallback.
+- One-second, keyframe-aligned Matroska video segments plus independently encoded system-audio and microphone segment streams.
+- Duration- and byte-bounded disk ring with abandoned-session cleanup.
+- Immutable hard-link snapshots for queued saves, stream-copy MP4 assembly, fsync, and atomic final rename.
+- WASAPI loopback and microphone capture through bounded named pipes; no realtime audio or video crosses Electron IPC.
+- Conservative sticky automatic-game detection. It never falls back from a game to an arbitrary foreground window.
+- Explicit waiting, recovery, low-storage, encoder, source, and audio failure states.
 
-## Explicit limitations
+Exclusive-fullscreen graphics hooking is not implemented. Automatic game and window capture use Windows Graphics Capture and are truthful about that boundary.
 
-- System/game audio is not wired yet. The intended source is the future `Switchboard Clip` virtual endpoint from `Audio.Host`.
-- Automatic game-window selection is not wired yet.
-- Real capture is opt-in to avoid starting desktop capture during prototype work.
-
-## Run
+## Build and run
 
 ```powershell
+dotnet build .\engines\capture-host\Capture.Host.csproj
 dotnet run --project .\engines\capture-host\Capture.Host.csproj
 ```
 
-To exercise real capture:
+The host locates a full FFmpeg build on `PATH`, beside `Capture.Host.exe`, or through `SWITCHBOARD_FFMPEG` and `SWITCHBOARD_FFPROBE`. Packaged Switchboard builds stage the host and FFmpeg together.
 
-```powershell
-$env:SWITCHBOARD_REAL_CAPTURE = "1"
-$env:SWITCHBOARD_FFMPEG = "C:\\tools\\ffmpeg\\bin\\ffmpeg.exe"
-dotnet run --project .\engines\capture-host\Capture.Host.csproj
-```
-
-Then send one JSON object per line:
-
-```json
-{"requestId":"1","command":"start"}
-{"requestId":"2","command":"saveReplay","payload":{"directory":"C:\\Users\\Manuel\\Videos\\Switchboard Clips"}}
-{"requestId":"3","command":"stop"}
-```
+The standard-input protocol is newline-delimited JSON. A `start` request includes the validated capture configuration and application-resolved cache/Clips paths. Other commands are `configure`, `stop`, `status`, `listSources`, `saveReplay`, and `shutdown`.

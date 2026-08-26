@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Play } from 'lucide-react';
 import type { SystemSnapshot } from '../../../shared/contracts';
-import { AudioTabs, type AudioWorkspaceTab } from '@/components/audio/AudioTabs';
+import { AudioTabs, audioWorkspaceTabs, type AudioWorkspaceTab } from '@/components/audio/AudioTabs';
 import { ChannelProcessingPage } from '@/components/audio/ChannelProcessingPage';
 import { clearAudioMeters, publishAudioMeterFrame } from '@/components/audio/meter-bus';
 import { MicrophonePage } from '@/components/audio/MicrophonePage';
@@ -12,12 +12,23 @@ import { Switch } from '@/components/ui/switch';
 import { switchboardApi } from '@/lib/demo-api';
 import { useSystemStore } from '@/stores/use-system-store';
 
+function tabFromHash(): AudioWorkspaceTab {
+  const candidate = window.location.hash.replace(/^#audio\/?/, '');
+  return audioWorkspaceTabs.includes(candidate as AudioWorkspaceTab) ? candidate as AudioWorkspaceTab : 'mixer';
+}
+
 export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const setAudioEnabled = useSystemStore((state) => state.setAudioEnabled);
   const actionPending = useSystemStore((state) => state.actionPending);
-  const [tab, setTab] = useState<AudioWorkspaceTab>('mixer');
+  const [tab, setTab] = useState<AudioWorkspaceTab>(tabFromHash);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
+
+  useEffect(() => {
+    const onHashChange = () => setTab(tabFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   useEffect(() => {
     if (!engineRunning) {
@@ -33,6 +44,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   const navigate = (next: AudioWorkspaceTab) => {
     setTab(next);
+    if (window.location.hash !== `#audio/${next}`) window.location.hash = `audio/${next}`;
   };
 
   return (

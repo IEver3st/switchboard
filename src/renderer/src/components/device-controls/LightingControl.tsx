@@ -33,7 +33,7 @@ export function LightingControl({
         <Lightbulb aria-hidden className="device-setting-row__icon" />
         <div className="device-setting-row__copy">
           <span>Lighting</span>
-          <p>{capability.profileMode === 'onboard' ? 'Controlled by the active onboard profile.' : 'Static software lighting across all eight zones.'}</p>
+          <p>{capability.profileMode === 'onboard' ? 'Controlled by the active onboard profile.' : 'Static color stored in the active G HUB profile.'}</p>
         </div>
         <Tooltip>
           <TooltipTrigger asChild>

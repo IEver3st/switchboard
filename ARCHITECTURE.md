@@ -19,18 +19,15 @@ Electron main
         └─ Capture host
 ```
 
-## Prototype versus production host
+## Host migration status
 
-The checked-in utility workers make the desktop prototype immediately runnable and validate the most important lifecycle rule: a disabled engine has no process.
-
-Production Windows builds should substitute:
+Capture has crossed the native-host boundary. Audio still retains its utility-worker fallback while its packaged host and virtual endpoint work are completed:
 
 ```text
-utility worker        → .NET host
-postMessage           → named pipe
-simulation status     → measured status
-metadata clip         → FFmpeg segment ring and remux
-software bus state    → WASAPI + signed virtual endpoints
+Capture utility worker  → replaced by packaged .NET Capture.Host
+metadata clip           → replaced by encoded segment ring and atomic remux
+Audio utility worker    → pending packaged Audio.Host cutover
+software bus state      → pending WASAPI + signed virtual endpoints
 ```
 
 The shared command vocabulary is intentionally small so transport replacement does not force a renderer rewrite.
@@ -88,7 +85,7 @@ The Logitech module currently enumerates HID transport locally and can enrich ac
 
 ## Audio
 
-Production target:
+Implemented Windows pipeline:
 
 ```text
 Virtual Game ─┐
@@ -116,16 +113,18 @@ Windows display/game source
           ↓
 D3D11 hardware frames
           ↓
-Hardware encoder through FFmpeg
+Hardware encoder through FFmpeg (`gfxcapture`; display fallback via `ddagrab`)
           ↓
-2-second MKV ring segments
+1-second keyframe-aligned MKV video segments
+          +
+bounded AAC system/microphone segment streams
           ↓
 Snapshot completed segments
           ↓
 MP4 remux, no re-encode
 ```
 
-The first native host uses FFmpeg `ddagrab`. Automatic game/window capture can move to FFmpeg `gfxcapture` or a direct Windows.Graphics.Capture adapter after Windows validation.
+Automatic game capture holds a conservative, stable game-window identity and waits rather than switching to unrelated foreground applications. This does not claim exclusive-fullscreen graphics hooking; a future hook can implement the existing source boundary without changing renderer IPC.
 
 ## Security
 

@@ -8,7 +8,6 @@ import type {
 } from '../../../../../shared/contracts';
 import {
   getLogitechAgent,
-  removeLogitechAgent,
   setLogitechAgent,
 } from '../../ghub-metadata';
 import {
@@ -41,6 +40,9 @@ const cardSchema = z.object({
       id: z.string(),
       zoneType: z.string().optional(),
       persistent: z.boolean().optional(),
+      fixedParams: z.object({
+        color: z.object({ hex: z.string().regex(/^#[0-9a-f]{6}$/i) }),
+      }).optional(),
     }).passthrough()).default([]),
   }).optional(),
 }).passthrough();
@@ -69,7 +71,10 @@ const mouseInfoSchema = z.object({
   }),
 });
 
-const onboardModeSchema = z.object({ mode: z.enum(['HOST', 'ONBOARD']).optional() });
+const onboardModeSchema = z.object({
+  mode: z.enum(['HOST', 'ONBOARD']).optional(),
+  enabled: z.boolean().optional(),
+});
 const onboardButtonMappingSchema = z.object({
   button: z.number().int().nonnegative().default(0),
   macro: z.object({
@@ -95,22 +100,6 @@ const onboardDirectorySchema = z.object({
 });
 
 const brightnessSchema = z.object({ value: z.number().min(0).max(1) });
-const viewerSchema = z.object({
-  effectMetadata: z.object({
-    type: z.string().optional(),
-    solidMetadata: z.object({
-      color: z.object({
-        rgba: z.object({
-          red: z.number().min(0).max(1),
-          green: z.number().min(0).max(1),
-          blue: z.number().min(0).max(1),
-          alpha: z.number().min(0).max(1).optional(),
-        }),
-      }),
-    }).optional(),
-  }).optional(),
-}).passthrough();
-
 type LogitechProfile = z.infer<typeof profileSchema>;
 type LogitechCard = z.infer<typeof cardSchema>;
 type OnboardProfile = z.infer<typeof onboardProfileSchema>;
@@ -118,6 +107,7 @@ type OnboardProfile = z.infer<typeof onboardProfileSchema>;
 interface SoftwareProfileBundle {
   profile: LogitechProfile;
   mouseCard: LogitechCard;
+  lightingCard?: LogitechCard;
 }
 
 export async function readG502Capabilities(
@@ -131,14 +121,10 @@ export async function readG502Capabilities(
   const modePayload = await getLogitechAgent(`/onboard_profiles/${agentDeviceId}/onboard_mode`);
   const directoryPayload = await getLogitechAgent(`/onboard_profiles/${agentDeviceId}/profiles`);
   const brightnessPayload = await getLogitechAgent(`/lighting/${agentDeviceId}/brightness`);
-  const viewerPayload = await getLogitechAgent(
-    '/lighting/viewer/state',
-    { devices: [agentDeviceId], time: { milliseconds: 0 } },
-  ).catch(() => undefined);
   const bundle = await loadSoftwareProfile();
 
   const mouseInfo = mouseInfoSchema.parse(mouseInfoPayload);
-  const mode = onboardModeSchema.parse(modePayload).mode === 'ONBOARD' ? 'onboard' : 'software';
+  const mode = isOnboardMode(onboardModeSchema.parse(modePayload)) ? 'onboard' : 'software';
   const directory = onboardDirectorySchema.parse(directoryPayload);
   const activeOnboard = directory.directoryEntries.find((entry) => entry.onboardSlotId === directory.activeProfile)
     ?? directory.directoryEntries.find((entry) => entry.enabled)
@@ -153,8 +139,9 @@ export async function readG502Capabilities(
     ? buildOnboardBindings(activeOnboard)
     : buildSoftwareBindings(bundle.profile);
   const availableActions = withCurrentCustomAction(bindings);
-  const viewer = viewerPayload ? viewerSchema.safeParse(viewerPayload) : undefined;
-  const viewerColor = viewer?.success ? colorToHex(viewer.data.effectMetadata?.solidMetadata?.color.rgba) : undefined;
+  const firmwareEffect = bundle.lightingCard?.firmwareLightingSettings?.effects[0];
+  const softwareLightingWritable = !firmwareEffect || ['OFF', 'FIXED'].includes(firmwareEffect.id);
+  const firmwareColor = firmwareEffect?.id === 'FIXED' ? firmwareEffect.fixedParams?.color.hex : undefined;
   const previousColor = previous?.capabilities.lighting?.color;
   const onboardEffect = activeOnboard?.lighting?.effects[0];
   const supportedRates = mouseInfo.reportRates.wirelessRates.length > 0
@@ -203,16 +190,21 @@ export async function readG502Capabilities(
           unavailableReason,
         }
       : {
-          writable: true,
-          enabled: viewer?.success === true && viewer.data.effectMetadata?.type === 'SOLID',
-          activeEffectId: 'solid',
-          availableEffects: [{ id: 'solid', label: 'Static' }],
-          color: viewerColor ?? previousColor ?? '#ff1744',
-          colorWritable: true,
+          writable: softwareLightingWritable,
+          enabled: Boolean(firmwareEffect && firmwareEffect.id !== 'OFF'),
+          activeEffectId: softwareLightingWritable ? 'solid' : firmwareEffect?.id.toLowerCase() ?? 'profile',
+          availableEffects: softwareLightingWritable
+            ? [{ id: 'solid', label: 'Static' }]
+            : [{ id: firmwareEffect?.id.toLowerCase() ?? 'profile', label: 'Existing G HUB effect' }],
+          color: firmwareColor ?? previousColor,
+          colorWritable: softwareLightingWritable,
           brightness: Math.round(brightnessSchema.parse(brightnessPayload).value * 100),
           brightnessWritable: true,
           profileMode: mode,
-          source: 'software',
+          source: 'firmware',
+          unavailableReason: softwareLightingWritable
+            ? undefined
+            : 'This profile uses a G HUB lighting effect that Switchboard does not overwrite automatically.',
         },
     onboardMemory: {
       writable: true,
@@ -310,17 +302,18 @@ export async function writeG502Control(
   }
 
   if (change.type === 'lighting-enabled') {
+    assertLightingWritable(device);
     if (change.enabled) {
-      await startSolidViewer(agentDeviceId, device.capabilities.lighting?.color ?? '#ff1744');
+      await setFirmwareLightingSolid(device.capabilities.lighting?.color ?? '#ff1744');
     } else {
-      await stopViewer(agentDeviceId);
-      await setFirmwareLightingOff().catch(() => undefined);
+      await setFirmwareLightingOff();
     }
     return;
   }
 
   if (change.type === 'lighting-color') {
-    await startSolidViewer(agentDeviceId, change.color);
+    assertLightingWritable(device);
+    await setFirmwareLightingSolid(change.color);
     return;
   }
 
@@ -331,8 +324,9 @@ export async function writeG502Control(
   }
 
   if (change.type === 'lighting-effect') {
+    assertLightingWritable(device);
     if (change.effectId !== 'solid') throw new Error('That lighting effect is not supported by this device.');
-    await startSolidViewer(agentDeviceId, device.capabilities.lighting?.color ?? '#ff1744');
+    await setFirmwareLightingSolid(device.capabilities.lighting?.color ?? '#ff1744');
   }
 }
 
@@ -403,7 +397,13 @@ async function loadSoftwareProfile(): Promise<SoftwareProfileBundle> {
   if (!mouseAssignment) throw new Error('The active Logitech profile has no mouse-settings card.');
   const mouseCard = cardSchema.parse(await getLogitechAgent('/card', { id: mouseAssignment.cardId }));
   if (!mouseCard.mouseSettings) throw new Error('The Logitech mouse-settings card is invalid.');
-  return { profile, mouseCard };
+  const lightingAssignment = profile.assignments.find(
+    (assignment) => assignment.slotId === `${g502XPlusDefinition.slotPrefix}_lighting_setting_firmware`,
+  );
+  const lightingCard = lightingAssignment
+    ? cardSchema.parse(await getLogitechAgent('/card', { id: lightingAssignment.cardId }))
+    : undefined;
+  return { profile, mouseCard, lightingCard };
 }
 
 async function writeMouseSettings(mutator: (settings: z.infer<typeof mouseSettingsSchema>) => void): Promise<void> {
@@ -416,7 +416,7 @@ async function writeMouseSettings(mutator: (settings: z.infer<typeof mouseSettin
 
 async function assertSoftwareMode(agentDeviceId: string): Promise<void> {
   const mode = onboardModeSchema.parse(await getLogitechAgent(`/onboard_profiles/${agentDeviceId}/onboard_mode`));
-  if (mode.mode === 'ONBOARD') throw new Error('Turn off onboard memory before editing the software profile.');
+  if (isOnboardMode(mode)) throw new Error('Turn off onboard memory before editing the software profile.');
 }
 
 async function waitForOnboardMode(agentDeviceId: string, expected: 'HOST' | 'ONBOARD'): Promise<void> {
@@ -427,7 +427,7 @@ async function waitForOnboardMode(agentDeviceId: string, expected: 'HOST' | 'ONB
       const result = onboardModeSchema.parse(
         await getLogitechAgent(`/onboard_profiles/${agentDeviceId}/onboard_mode`),
       );
-      const actual = result.mode === 'ONBOARD' ? 'ONBOARD' : 'HOST';
+      const actual = isOnboardMode(result) ? 'ONBOARD' : 'HOST';
       if (actual === expected) {
         // The mode response leads the mouse and lighting endpoints slightly.
         // Give the agent one beat to re-register them before discovery resumes.
@@ -441,40 +441,35 @@ async function waitForOnboardMode(agentDeviceId: string, expected: 'HOST' | 'ONB
   throw new Error(`Logitech did not enter ${expected.toLowerCase()} profile mode.`, { cause: lastError });
 }
 
-async function startSolidViewer(agentDeviceId: string, color: string): Promise<void> {
-  await stopViewer(agentDeviceId);
-  const rgba = hexToColor(color);
-  await setLogitechAgent('/lighting/viewer', {
-    devices: [agentDeviceId],
-    effectPackage: { prefab: { id: '37dd7c07-8ad3-44da-b88e-8d368872c9c8' } },
-    effectMetadata: {
-      deviceSupport: ['MOUSE_RGB_PER_KEY'],
-      duration: 0,
-      type: 'SOLID',
-      solidMetadata: { color: { rgba: { ...rgba, alpha: 1 }, tag: '' } },
-    },
-    actionType: 'START',
-    streaming: { enabled: true },
-  });
-}
-
-async function stopViewer(agentDeviceId: string): Promise<void> {
-  await removeLogitechAgent('/lighting/viewer', { devices: [agentDeviceId] }).catch(() => undefined);
+function isOnboardMode(value: z.infer<typeof onboardModeSchema>): boolean {
+  return value.mode === 'ONBOARD' || value.enabled === true;
 }
 
 async function setFirmwareLightingOff(): Promise<void> {
+  await writeFirmwareLightingEffect({ id: 'OFF', zoneType: 'ZONE_PRIMARY', persistent: false });
+}
+
+async function setFirmwareLightingSolid(color: string): Promise<void> {
+  await writeFirmwareLightingEffect({
+    id: 'FIXED',
+    zoneType: 'ZONE_PRIMARY',
+    persistent: false,
+    fixedParams: { color: { hex: color.toUpperCase() } },
+  });
+}
+
+async function writeFirmwareLightingEffect(
+  effect: NonNullable<LogitechCard['firmwareLightingSettings']>['effects'][number],
+): Promise<void> {
   const bundle = await loadSoftwareProfile();
-  const assignment = bundle.profile.assignments.find(
-    (candidate) => candidate.slotId === `${g502XPlusDefinition.slotPrefix}_lighting_setting_firmware`,
-  );
-  if (!assignment) return;
-  const card = cardSchema.parse(await getLogitechAgent('/card', { id: assignment.cardId }));
+  const card = bundle.lightingCard;
+  if (!card) throw new Error('The active Logitech profile has no lighting card.');
   if (!card.firmwareLightingSettings) return;
   await setLogitechAgent('/card', {
     ...card,
     firmwareLightingSettings: {
       ...card.firmwareLightingSettings,
-      effects: [{ id: 'OFF', zoneType: 'ZONE_PRIMARY', persistent: false }],
+      effects: [effect],
     },
   });
 }
@@ -487,18 +482,10 @@ function validateDpi(device: Device, value: number): void {
   }
 }
 
-function hexToColor(value: string): { red: number; green: number; blue: number } {
-  return {
-    red: Number.parseInt(value.slice(1, 3), 16) / 255,
-    green: Number.parseInt(value.slice(3, 5), 16) / 255,
-    blue: Number.parseInt(value.slice(5, 7), 16) / 255,
-  };
-}
-
-function colorToHex(value: { red: number; green: number; blue: number } | undefined): string | undefined {
-  if (!value) return undefined;
-  const channel = (part: number) => Math.round(part * 255).toString(16).padStart(2, '0');
-  return `#${channel(value.red)}${channel(value.green)}${channel(value.blue)}`;
+function assertLightingWritable(device: Device): void {
+  if (!device.capabilities.lighting?.writable) {
+    throw new Error(device.capabilities.lighting?.unavailableReason ?? 'Lighting is not writable in this profile mode.');
+  }
 }
 
 function delay(milliseconds: number): Promise<void> {
