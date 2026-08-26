@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Switchboard Prototype</title>
+  <style>
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #eef0f3;
+  background: #0d0f12;
+  --surface-0: #0d0f12;
+  --surface-1: #12151a;
+  --surface-2: #171a20;
+  --surface-3: #1d2128;
+  --border: #262b33;
+  --border-strong: #343b46;
+  --muted: #8e96a3;
+  --muted-2: #69717d;
+  --text: #f2f3f5;
+  --accent: #ff658a;
+  --accent-muted: #5c2939;
+  --success: #58c49a;
+  --warning: #e6b85c;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: var(--surface-0); color: var(--text); }
+button, input, select { font: inherit; }
+button { color: inherit; }
+.app-shell { height: 100%; display: flex; flex-direction: column; }
+.title-strip { height: 38px; flex: 0 0 38px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding: 0 16px; background: #0d0f12; }
+.title-strip strong { font-size: 12px; letter-spacing: -.01em; }
+.brand-mark { position: relative; width: 20px; height: 20px; border: 1px solid #353b44; border-radius: 5px; background: #171a1f; }
+.brand-mark i, .brand-mark b, .brand-mark em { position: absolute; display: block; border-radius: 99px; }
+.brand-mark i { left: 5px; top: 5px; width: 8px; height: 2px; background: #e9eaec; }
+.brand-mark b { left: 5px; top: 9px; width: 2px; height: 6px; background: var(--accent); }
+.brand-mark em { left: 9px; top: 9px; width: 6px; height: 2px; background: var(--accent); }
+.prototype-label { padding: 3px 6px; border: 1px solid #343943; border-radius: 4px; background: #171a1f; color: #747d88; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.title-meta { margin-left: auto; margin-right: 104px; display: flex; align-items: center; gap: 8px; color: #5e6671; font-size: 10px; }
+.title-meta span { width: 4px; height: 4px; background: #343a43; border-radius: 50%; }
+.workspace { min-height: 0; flex: 1; display: flex; }
+.sidebar { width: 214px; flex: 0 0 214px; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: #101216; padding: 12px; }
+.sidebar nav { display: grid; gap: 4px; }
+.nav-button, .settings-link { width: 100%; height: 36px; border: 0; border-radius: 7px; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: transparent; color: #8f97a3; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.nav-button .nav-icon { width: 17px; color: #707986; font-size: 13px; }
+.nav-button small { margin-left: auto; color: #646c77; font-size: 11px; }
+.nav-button:hover, .settings-link:hover { background: #171a20; color: #d9dde2; }
+.nav-button.active, .settings-link.active { background: #1c2027; color: #f4f5f6; box-shadow: inset 2px 0 0 var(--accent); }
+.nav-button.active .nav-icon { color: var(--accent); }
+.runtime-block { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px; }
+.runtime-block h4 { margin: 0 0 12px 12px; color: #555d68; font-size: 10px; text-transform: uppercase; letter-spacing: .14em; }
+.runtime-row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; color: #7f8793; font-size: 11px; }
+.runtime-row span:nth-child(2) { flex: 1; }
+.runtime-row small { color: #555d68; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #4e5560; }
+.dot.running { background: var(--success); }
+.sidebar-bottom { margin-top: auto; display: grid; gap: 8px; }
+.budget-card { border: 1px solid var(--border); border-radius: 8px; background: #13161b; padding: 12px; }
+.budget-title { color: #a7aeb8; font-size: 11px; font-weight: 600; }
+.budget-number { margin-top: 9px; display: flex; align-items: flex-end; justify-content: space-between; }
+.budget-number strong { color: #eef0f2; font-size: 19px; letter-spacing: -.04em; }
+.budget-number small { padding-bottom: 2px; color: #646d79; font-size: 10px; }
+.progress { height: 3px; margin-top: 9px; overflow: hidden; border-radius: 99px; background: #282d35; }
+.progress i { display: block; height: 100%; background: var(--success); }
+.main-panel { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.topbar { height: 70px; flex: 0 0 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--border); }
+.topbar h1 { margin: 0; color: #f4f5f6; font-size: 20px; line-height: 1; letter-spacing: -.025em; }
+.topbar p { margin: 6px 0 0; color: #717a86; font-size: 12px; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.runtime-pill { height: 32px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 7px; background: #13161a; padding: 0 12px; color: #7f8792; font-size: 11px; }
+.runtime-pill b { font-weight: 500; }
+.runtime-pill i { width: 1px; height: 12px; background: #363c45; }
+.healthy-pill { height: 32px; display: flex; align-items: center; border: 1px solid #29473c; border-radius: 7px; background: #13241e; padding: 0 12px; color: #75d1ad; font-size: 11px; font-weight: 650; }
+.icon-button { width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: #737c87; cursor: pointer; }
+#page-content { min-height: 0; flex: 1; overflow: auto; background: #0f1114; padding: 24px; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.surface { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); }
+.hero { grid-column: span 8; min-height: 194px; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+.hero-top { display: flex; justify-content: space-between; gap: 28px; }
+.eyebrow { margin-bottom: 8px; color: #68717d; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .15em; }
+.eyebrow .live { display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--success); }
+.hero h2 { max-width: 650px; margin: 0; color: #f4f5f6; font-size: 27px; line-height: 1.12; letter-spacing: -.04em; }
+.hero p { max-width: 650px; margin: 11px 0 0; color: #7f8894; font-size: 13px; line-height: 1.55; }
+.metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 17px 28px; min-width: 258px; border-left: 1px solid var(--border); padding-left: 28px; }
+.metric small, .mini-metric small { display: block; color: #606975; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
+.metric strong { display: block; margin-top: 5px; color: #e9ebee; font-size: 17px; letter-spacing: -.03em; }
+.hero-actions { display: flex; gap: 8px; margin-top: 18px; border-top: 1px solid var(--border); padding-top: 15px; }
+.button { height: 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); padding: 0 12px; color: #e8eaed; font-size: 12px; font-weight: 650; cursor: pointer; }
+.button:hover { border-color: var(--border-strong); background: var(--surface-3); }
+.button.primary { border-color: var(--accent); background: var(--accent); color: #170a0f; }
+.button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.engines { grid-column: span 4; min-height: 194px; padding: 20px; }
+.section-title h3 { margin: 0; color: #f3f4f6; font-size: 18px; letter-spacing: -.02em; }
+.section-title p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.engine-list { margin-top: 12px; }
+.engine-row { min-height: 62px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--border); }
+.engine-row:first-child { border-top: 0; }
+.engine-icon, .device-icon, .summary-icon { display: grid; place-items: center; border: 1px solid var(--border); border-radius: 7px; background: #171a20; color: #66707c; }
+.engine-icon { width: 32px; height: 32px; }
+.engine-icon.running { border-color: #29473c; background: #13241e; color: #67c9a4; }
+.engine-copy { min-width: 0; flex: 1; }
+.engine-copy strong { display: flex; align-items: center; gap: 7px; color: #dfe2e6; font-size: 12px; }
+.engine-copy small { display: block; margin-top: 4px; color: #646d78; font-size: 10px; }
+.devices-panel { grid-column: span 7; padding: 20px; }
+.quick-panel { grid-column: span 5; padding: 20px; }
+.section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.device-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+.device-card { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; background: #14171c; padding: 12px; cursor: pointer; }
+.device-card:hover { border-color: #39404a; background: #171b21; }
+.device-icon { width: 36px; height: 36px; border-color: #593242; background: #21161a; color: var(--accent); font-size: 17px; }
+.device-card .copy { min-width: 0; flex: 1; }
+.device-card .copy strong { display: block; color: #e9ebee; font-size: 13px; }
+.device-card .copy small { display: block; margin-top: 5px; color: #69727e; font-size: 10px; }
+.quick-list { margin-top: 13px; }
+.quick-row { width: 100%; height: 48px; display: flex; align-items: center; gap: 12px; border: 0; border-top: 1px solid var(--border); background: transparent; text-align: left; cursor: pointer; }
+.quick-row:first-child { border-top: 0; }
+.quick-row span:first-child { width: 18px; color: #707986; }
+.quick-row b { flex: 1; color: #cfd3d8; font-size: 12px; }
+.quick-row strong { color: #eceef0; font-size: 15px; }
+.quick-row small { width: 54px; color: #626b76; font-size: 10px; }
+.budget-wide { grid-column: span 12; display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; }
+.budget-wide-left { display: flex; align-items: center; gap: 12px; }
+.summary-icon { width: 36px; height: 36px; border-color: #29473c; background: #13241e; color: #6fd0aa; }
+.budget-wide strong { color: #e9ebee; font-size: 13px; }
+.budget-wide p { margin: 4px 0 0; color: #707985; font-size: 10px; }
+.budget-stats { display: flex; align-items: center; gap: 28px; }
+.mini-metric { text-align: right; }
+.mini-metric b { display: block; margin-top: 5px; color: #bdc2c9; font-size: 11px; }
+.page-stack { display: grid; gap: 16px; }
+.header-surface { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 20px; }
+.header-left { display: flex; align-items: center; gap: 15px; }
+.header-icon { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 9px; background: #171a20; color: #69727e; font-size: 19px; }
+.header-icon.active { border-color: #5c3743; background: #24171c; color: var(--accent); }
+.header-left h2 { margin: 4px 0 0; color: #eef0f2; font-size: 20px; letter-spacing: -.025em; }
+.header-left p { margin: 4px 0 0; color: #6f7884; font-size: 11px; }
+.header-actions { display: flex; align-items: center; gap: 22px; }
+.runtime-stat { text-align: right; }
+.runtime-stat small { display: block; color: #59626d; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
+.runtime-stat b { display: block; margin-top: 5px; color: #d9dce0; font-size: 12px; }
+.switch { width: 36px; height: 20px; border: 1px solid var(--border-strong); border-radius: 99px; background: #232831; padding: 2px; cursor: pointer; }
+.switch i { display: block; width: 14px; height: 14px; border-radius: 50%; background: #9ca3ad; transition: transform .15s; }
+.switch.on { border-color: #7c3b4e; background: var(--accent-muted); }
+.switch.on i { transform: translateX(16px); background: var(--accent); }
+.audio-grid { display: grid; grid-template-columns: 8fr 4fr; gap: 16px; }
+.panel { padding: 20px; }
+.bus-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 17px; border: 1px solid var(--border); border-radius: 8px; background: #14171b; padding: 16px 0; }
+.bus { min-height: 225px; display: flex; flex-direction: column; align-items: center; border-left: 1px solid var(--border); }
+.bus:first-child { border-left: 0; }
+.bus strong { color: #cdd1d6; font-size: 11px; }
+.bus small { margin-top: 5px; color: #59626d; font-size: 9px; }
+.fader-wrap { height: 145px; margin-top: 14px; display: flex; gap: 12px; align-items: flex-end; }
+.level-meter { width: 6px; height: 100%; display: flex; align-items: flex-end; overflow: hidden; border-radius: 99px; background: #272c34; }
+.level-meter i { width: 100%; border-radius: 99px; background: var(--success); }
+.fader { width: 5px; height: 100%; position: relative; border-radius: 99px; background: #2b3039; }
+.fader i { position: absolute; left: 50%; bottom: var(--value); width: 16px; height: 12px; transform: translate(-50%, 50%); border: 1px solid #ff9ab0; border-radius: 4px; background: var(--accent); }
+.bus b { margin-top: 12px; color: #dfe2e6; font-size: 12px; }
+.chatmix { height: 48px; margin-top: 14px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; background: #14171b; padding: 0 15px; }
+.chatmix strong { width: 68px; color: #626b76; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.chatmix small { color: #89919c; font-size: 10px; }
+.track { flex: 1; height: 3px; position: relative; border-radius: 99px; background: #2b3039; }
+.track i { position: absolute; left: 58%; top: 50%; width: 13px; height: 13px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--accent); }
+.route-list, .module-list, .settings-list { margin-top: 16px; display: grid; gap: 10px; }
+.route, .setting-row, .module-row { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; background: #15181d; padding: 12px; }
+.route .copy, .module-row .copy, .setting-row .copy { min-width: 0; flex: 1; }
+.route .copy small, .module-row .copy small, .setting-row .copy small { display: block; color: #69727d; font-size: 9px; }
+.route .copy b, .module-row .copy b, .setting-row .copy b { display: block; margin-top: 4px; color: #d5d9de; font-size: 11px; }
+.processor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.processor { min-height: 62px; display: flex; align-items: center; gap: 10px; border: 1px solid #3a3440; border-radius: 8px; background: #1c171d; padding: 11px; }
+.processor i { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid #71384a; border-radius: 6px; background: #2a1820; color: var(--accent); font-style: normal; }
+.processor b { color: #d9dce0; font-size: 10px; }
+.processor small { display: block; margin-top: 4px; color: #5f6873; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+.capture-grid { display: grid; grid-template-columns: 7fr 5fr; gap: 16px; }
+.config-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 28px; margin-top: 20px; }
+.config-row { display: flex; align-items: center; gap: 12px; }
+.config-row .symbol { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 7px; background: #171a20; color: #6c7580; }
+.config-row .copy { flex: 1; }
+.config-row .copy b { display: block; color: #d2d6db; font-size: 11px; }
+.config-row .copy small { display: block; margin-top: 3px; color: #5e6772; font-size: 9px; }
+select { height: 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); padding: 0 10px; color: #dfe2e6; font-size: 11px; }
+.ring { margin-top: 18px; border: 1px solid var(--border); border-radius: 8px; background: #14171b; padding: 15px; }
+.ring-head { display: flex; justify-content: space-between; color: #68717c; font-size: 10px; }
+.segments { display: grid; grid-template-columns: repeat(15, 1fr); gap: 4px; margin-top: 12px; }
+.segments i { height: 36px; border: 1px solid #262b32; border-radius: 3px; background: #1a1d22; }
+.segments i.filled { border-color: #633546; background: #3a202a; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.summary-box { display: flex; align-items: center; gap: 14px; padding: 16px; }
+.summary-box .summary-icon { border-color: var(--border); background: #171a20; color: #747d88; }
+.summary-box small { display: block; color: #59626d; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
+.summary-box strong { display: block; margin-top: 5px; color: #e9ebee; font-size: 18px; }
+.module-table { overflow: hidden; }
+.module-table .section-title { padding: 20px; }
+.module-row { min-height: 75px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; padding: 12px 20px; }
+.module-row .module-icon { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; background: #171a20; color: #6a7380; }
+.module-row.enabled .module-icon { border-color: #5c3743; background: #24171c; color: var(--accent); }
+.module-row .copy b { margin: 0; color: #e1e4e8; font-size: 12px; }
+.module-row .copy small { margin-top: 5px; max-width: 720px; line-height: 1.4; }
+.module-row .size { width: 70px; color: #929aa5; font-size: 10px; text-align: right; }
+.module-row .kind { width: 80px; color: #59626d; font-size: 9px; text-align: right; text-transform: uppercase; letter-spacing: .1em; }
+.settings-grid { display: grid; grid-template-columns: 7fr 5fr; gap: 16px; }
+.setting-row { border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; padding: 14px 0; }
+.setting-row:first-child { border-top: 0; }
+.setting-row .symbol { width: 18px; color: #68717c; }
+.setting-row .copy b { margin: 0; color: #d6dade; font-size: 12px; }
+.setting-row .copy small { margin-top: 5px; }
+.device-workbench { display: grid; grid-template-columns: 248px 1fr; gap: 16px; }
+.device-list { overflow: hidden; }
+.device-list-head { padding: 16px; border-bottom: 1px solid var(--border); }
+.device-list-head b { color: #5e6772; font-size: 10px; text-transform: uppercase; letter-spacing: .14em; }
+.device-list-head small { display: block; margin-top: 5px; color: #818a95; font-size: 11px; }
+.device-choice { margin: 8px; display: flex; align-items: center; gap: 10px; border-radius: 8px; padding: 10px; cursor: pointer; }
+.device-choice.active { background: #1c2027; }
+.device-choice .device-icon { width: 36px; height: 36px; }
+.device-choice b { display: block; color: #dfe2e6; font-size: 11px; }
+.device-choice small { display: block; margin-top: 4px; color: #626b76; font-size: 9px; }
+.device-detail { display: grid; gap: 16px; }
+.device-hero { display: flex; align-items: center; gap: 18px; padding: 20px; }
+.device-hero .device-icon { width: 94px; height: 94px; font-size: 36px; }
+.device-hero h2 { margin: 5px 0 0; color: #f2f3f5; font-size: 25px; letter-spacing: -.035em; }
+.capabilities { display: flex; gap: 6px; margin-top: 10px; }
+.capabilities span { border: 1px solid var(--border); border-radius: 5px; background: #15181d; padding: 4px 7px; color: #737c88; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.device-controls { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.big-number { color: #f0f1f3; font-size: 30px; font-weight: 700; letter-spacing: -.045em; }
+.slider-line { height: 3px; position: relative; margin-top: 20px; border-radius: 99px; background: #2b3039; }
+.slider-line i { position: absolute; left: 32%; top: 50%; width: 13px; height: 13px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--accent); }
+.dpi-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 15px; }
+.dpi-stages button { height: 36px; border: 1px solid var(--border); border-radius: 7px; background: #16191e; color: #8d95a0; font-size: 11px; font-weight: 650; }
+.dpi-stages button.active { border-color: #71384a; background: #26171d; color: var(--accent); }
+.toast { position: fixed; right: 18px; bottom: 18px; opacity: 0; transform: translateY(8px); transition: .18s; border: 1px solid var(--border); border-radius: 7px; background: #171a20; padding: 10px 13px; color: #89919c; font-size: 10px; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+@media (max-width: 1100px) { .metrics { display: none; } .hero { grid-column: span 7; } .engines { grid-column: span 5; } }
+
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="title-strip">
+      <div class="brand-mark"><i></i><b></b><em></em></div>
+      <strong>Switchboard</strong>
+      <span class="prototype-label">Prototype</span>
+      <div class="title-meta">Control plane simulation <span></span> v0.1.0</div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar">
+        <nav id="navigation"></nav>
+        <div class="runtime-block">
+          <h4>Runtime</h4>
+          <div class="runtime-row"><span class="dot" id="audio-dot"></span><span>Audio host</span><small id="audio-memory">off</small></div>
+          <div class="runtime-row"><span class="dot" id="capture-dot"></span><span>Capture host</span><small id="capture-memory">off</small></div>
+        </div>
+        <div class="sidebar-bottom">
+          <div class="budget-card">
+            <div class="budget-title">⌁&nbsp; Performance guard</div>
+            <div class="budget-number"><strong id="total-memory">136</strong><small>MB total</small></div>
+            <div class="progress"><i id="memory-progress" style="width:57%"></i></div>
+          </div>
+          <button class="settings-link" data-page="settings">⚙ <span>Settings</span></button>
+        </div>
+      </aside>
+      <section class="main-panel">
+        <header class="topbar">
+          <div><h1 id="page-title">Overview</h1><p id="page-description">The parts of your setup that are active right now.</p></div>
+          <div class="topbar-right">
+            <div class="runtime-pill"><span>⌁</span><b id="cpu-total">0.3% CPU</b><i></i><b id="memory-total">136 MB</b></div>
+            <div class="healthy-pill">✓ Within budget</div>
+            <button class="icon-button">○</button>
+          </div>
+        </header>
+        <main id="page-content"></main>
+      </section>
+    </div>
+  </div>
+  <div class="toast" id="toast">Change applied</div>
+  <script>
+const state = {
+  page: 'overview',
+  audio: false,
+  capture: false,
+  memory: 136,
+  cpu: 0.3,
+  buffered: 0,
+  selectedDevice: 'mouse',
+  modules: [
+    { name: 'HyperX QuadCast', description: 'QuadCast, QuadCast S, and QuadCast 2 controls through one capability module.', kind: 'device', size: '1.2 MB', enabled: true },
+    { name: 'Logitech HID++', description: 'Self-describing Logitech mouse and keyboard support without one package per model.', kind: 'device', size: '1.8 MB', enabled: true },
+    { name: 'Instant Replay', description: 'Isolated capture process with a disk-backed rolling buffer and hardware encoder selection.', kind: 'capture', size: '84 MB', enabled: false },
+    { name: 'Audio Router', description: 'Game, chat, media, and aux buses with independent personal, stream, and clip mixes.', kind: 'audio', size: '11.6 MB', enabled: false },
+  ]
+};
+
+const pages = [
+  ['overview', '◉', 'Overview'],
+  ['devices', '⌁', 'Devices'],
+  ['audio', '≋', 'Audio'],
+  ['capture', '●', 'Capture'],
+  ['modules', '▦', 'Modules'],
+];
+const copy = {
+  overview: ['Overview', 'The parts of your setup that are active right now.'],
+  devices: ['Devices', 'Capability-driven controls, loaded only for connected hardware.'],
+  audio: ['Audio', 'Route, mix, and process audio without a monolithic suite.'],
+  capture: ['Capture', 'A disk-backed replay buffer in its own process.'],
+  modules: ['Modules', 'Install only the device families and engines you use.'],
+  settings: ['Settings', 'Lifecycle, diagnostics, and performance budgets.'],
+};
+
+const nav = document.querySelector('#navigation');
+const content = document.querySelector('#page-content');
+const toast = document.querySelector('#toast');
+
+function renderNav() {
+  nav.innerHTML = pages.map(([id, icon, label]) => `<button class="nav-button ${state.page === id ? 'active' : ''}" data-page="${id}"><span class="nav-icon">${icon}</span><span>${label}</span>${id === 'devices' ? '<small>2</small>' : id === 'modules' ? `<small>${state.modules.filter(m => m.enabled).length}</small>` : ''}</button>`).join('');
+  document.querySelector('.settings-link').classList.toggle('active', state.page === 'settings');
+  document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => { state.page = button.dataset.page; render(); });
+}
+
+function updateRuntime() {
+  state.memory = 136 + (state.audio ? 24 : 0) + (state.capture ? 31 : 0);
+  state.cpu = .3 + (state.audio ? .3 : 0) + (state.capture ? .8 : 0);
+  document.querySelector('#total-memory').textContent = Math.round(state.memory);
+  document.querySelector('#memory-total').textContent = `${Math.round(state.memory)} MB`;
+  document.querySelector('#cpu-total').textContent = `${state.cpu.toFixed(1)}% CPU`;
+  document.querySelector('#memory-progress').style.width = `${Math.min(100, state.memory / 240 * 100)}%`;
+  document.querySelector('#audio-dot').classList.toggle('running', state.audio);
+  document.querySelector('#capture-dot').classList.toggle('running', state.capture);
+  document.querySelector('#audio-memory').textContent = state.audio ? '24 MB' : 'off';
+  document.querySelector('#capture-memory').textContent = state.capture ? '31 MB' : 'off';
+  const replayModule = state.modules.find(m => m.name === 'Instant Replay');
+  const audioModule = state.modules.find(m => m.name === 'Audio Router');
+  replayModule.enabled = state.capture;
+  audioModule.enabled = state.audio;
+}
+
+function render() {
+  updateRuntime();
+  renderNav();
+  document.querySelector('#page-title').textContent = copy[state.page][0];
+  document.querySelector('#page-description').textContent = copy[state.page][1];
+  content.innerHTML = ({
+    overview: renderOverview,
+    devices: renderDevices,
+    audio: renderAudio,
+    capture: renderCapture,
+    modules: renderModules,
+    settings: renderSettings,
+  })[state.page]();
+  wirePage();
+}
+
+function engineRow(kind, label, on) {
+  return `<div class="engine-row"><div class="engine-icon ${on ? 'running' : ''}">${kind === 'audio' ? '≋' : '●'}</div><div class="engine-copy"><strong><span class="dot ${on ? 'running' : ''}"></span>${label}</strong><small>${on ? (kind === 'audio' ? '24 MB · 0.3% CPU' : `31 MB · ${state.buffered}s buffered`) : 'No process'}</small></div><button class="button ${on ? '' : ''}" data-toggle="${kind}">${on ? 'Stop' : 'Start'}</button></div>`;
+}
+
+function renderOverview() {
+  return `<div class="grid">
+    <section class="surface hero"><div class="hero-top"><div><div class="eyebrow"><span class="live"></span>Lightweight by default</div><h2>Your hardware, audio, and clips without another always-on suite.</h2><p>Device families and realtime engines are isolated. Disable a capability and its process disappears.</p></div><div class="metrics"><div class="metric"><small>Active modules</small><strong>${state.modules.filter(m => m.enabled).length}</strong></div><div class="metric"><small>Processes</small><strong>${2 + (state.audio ? 1 : 0) + (state.capture ? 1 : 0)}</strong></div><div class="metric"><small>Memory</small><strong>${Math.round(state.memory)} MB</strong></div><div class="metric"><small>CPU</small><strong>${state.cpu.toFixed(1)}%</strong></div></div></div><div class="hero-actions"><button class="button primary" data-go="modules">Manage modules&nbsp; →</button><button class="button ghost" data-go="settings">View performance guard</button></div></section>
+    <section class="surface engines"><div class="section-title"><div class="eyebrow">Runtime</div><h3>Engines</h3><p>Nothing starts until its feature is enabled.</p></div><div class="engine-list">${engineRow('audio','Audio router',state.audio)}${engineRow('capture','Instant replay',state.capture)}</div></section>
+    <section class="surface devices-panel"><div class="section-header"><div class="section-title"><div class="eyebrow">Connected</div><h3>Devices</h3><p>Controls are generated from capabilities exposed by each installed module.</p></div><button class="button ghost" data-go="devices">Open workbench&nbsp; →</button></div><div class="device-grid"><button class="device-card" data-device="mouse"><div class="device-icon">⌁</div><div class="copy"><strong>G502 X Plus</strong><small>Logitech · wireless · 82% battery</small></div><span>→</span></button><button class="device-card" data-device="mic"><div class="device-icon">◉</div><div class="copy"><strong>QuadCast 2</strong><small>HyperX · USB · connected</small></div><span>→</span></button></div></section>
+    <section class="surface quick-panel"><div class="section-title"><div class="eyebrow">One-click</div><h3>Quick controls</h3><p>The most-used controls across active modules.</p></div><div class="quick-list"><button class="quick-row" data-go="devices"><span>⌁</span><b>Mouse DPI</b><strong>1600</strong><small>DPI</small><span>→</span></button><button class="quick-row" data-go="devices"><span>◉</span><b>Microphone gain</b><strong>58</strong><small>%</small><span>→</span></button><button class="quick-row" data-go="capture"><span>●</span><b>Replay length</b><strong>60</strong><small>seconds</small><span>→</span></button></div></section>
+    <section class="surface budget-wide"><div class="budget-wide-left"><div class="summary-icon">✓</div><div><strong>Performance budget is healthy</strong><p>${Math.round(state.memory)} of 240 MB · ${state.cpu.toFixed(1)} of 2.0% idle CPU target</p></div></div><div class="budget-stats"><div class="mini-metric"><small>Core</small><b>44 MB</b></div><div class="mini-metric"><small>Renderer</small><b>92 MB</b></div><div class="mini-metric"><small>Engines</small><b>${state.memory - 136} MB</b></div><button class="button ghost" data-go="settings">Inspect</button></div></section>
+  </div>`;
+}
+
+function renderAudio() {
+  const buses = [['Game',72,67,'0 dB'],['Chat',38,54,'-2 dB'],['Media',21,31,'-8 dB'],['Aux',8,60,'-1 dB']];
+  return `<div class="page-stack"><section class="surface header-surface"><div class="header-left"><div class="header-icon ${state.audio ? 'active' : ''}">≋</div><div><div class="eyebrow"><span class="live" style="background:${state.audio ? 'var(--success)' : '#4e5560'}"></span>${state.audio ? 'Audio host running' : 'Audio host stopped'}</div><h2>Audio Router</h2><p>One 48 kHz graph for personal, stream, and clip mixes.</p></div></div><div class="header-actions"><div class="runtime-stat"><small>Memory</small><b>${state.audio ? '24 MB' : '0 MB'}</b></div><div class="runtime-stat"><small>CPU</small><b>${state.audio ? '0.3%' : '0.0%'}</b></div><div class="runtime-stat"><small>Sample rate</small><b>48 kHz</b></div><button class="switch ${state.audio ? 'on' : ''}" data-toggle="audio"><i></i></button></div></section><div class="audio-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Personal mix</div><h3>Application buses</h3><p>Applications target virtual endpoints. The engine produces one low-latency headphone mix.</p></div><div class="bus-grid">${buses.map(b => `<div class="bus"><strong>${b[0]}</strong><small>${b[0] === 'Aux' ? '0 apps' : '1 app'}</small><div class="fader-wrap"><div class="level-meter"><i style="height:${b[1]}%"></i></div><div class="fader"><i style="--value:${b[2]}%"></i></div></div><b>${b[3]}</b><small>Switchboard ${b[0]}</small></div>`).join('')}</div><div class="chatmix"><strong>ChatMix</strong><small>Game</small><div class="track"><i></i></div><small>Chat</small><b>+15</b></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Output</div><h3>Routing</h3><p>The physical endpoint can change without moving applications.</p></div><div class="route-list"><div class="route"><span>◖</span><div class="copy"><small>Personal output</small><b>Arctis Nova Pro Wireless</b></div><span>⌄</span></div><div class="route"><span>◎</span><div class="copy"><small>Stream output</small><b>Switchboard Stream</b></div><span class="prototype-label">Virtual</span></div><div class="route"><span>⌁</span><div class="copy"><small>Clip mix</small><b>Game + Chat + Mic</b></div><span>3 buses</span></div></div></section></div><div class="audio-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Microphone</div><h3>Processing chain</h3><p>Small, allocation-free processors. Disabled nodes are skipped entirely.</p></div><div class="processor-grid">${['Input gain','Noise gate','Noise suppression','Parametric EQ','Compressor','Limiter'].map(x => `<div class="processor"><i>✓</i><div><b>${x}</b><small>${x === 'Noise suppression' ? 'medium' : 'low'} cost</small></div></div>`).join('')}</div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Mix outputs</div><h3>Independent destinations</h3><p>Personal, stream, and clip outputs reuse the same graph.</p></div><div class="route-list"><div class="route"><span class="dot running"></span><div class="copy"><b>Personal</b><small>Game 100 · Chat 76 · Media 42</small></div></div><div class="route"><span class="dot running"></span><div class="copy"><b>Stream</b><small>Game 100 · Chat 100 · Mic 100</small></div></div><div class="route"><span class="dot running"></span><div class="copy"><b>Clip</b><small>Game 100 · Chat 55 · Mic 100</small></div></div></div></section></div></div>`;
+}
+
+function renderCapture() {
+  const filled = Math.ceil((state.buffered / 60) * 30);
+  return `<div class="page-stack"><section class="surface header-surface"><div class="header-left"><div class="header-icon ${state.capture ? 'active' : ''}">●</div><div><div class="eyebrow"><span class="live" style="background:${state.capture ? 'var(--success)' : '#4e5560'}"></span>${state.capture ? 'Replay buffer active' : 'Capture host stopped'}</div><h2>Instant Replay</h2><p>Compressed segments live on disk. Saving a clip does not re-encode.</p></div></div><div class="header-actions"><div class="runtime-stat"><small>Buffered</small><b>${state.buffered}s</b></div><div class="runtime-stat"><small>Disk ring</small><b>${Math.round(state.buffered*3.75)} MB</b></div><div class="runtime-stat"><small>Encoder</small><b>NVENC AV1</b></div><button class="switch ${state.capture ? 'on' : ''}" data-toggle="capture"><i></i></button><button class="button primary" id="save-replay" ${state.capture ? '' : 'disabled'}>Save replay</button></div></section><div class="capture-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Capture</div><h3>Quality and source</h3><p>The prototype models the FFmpeg-backed engine contract and isolated process lifecycle.</p></div><div class="config-grid"><div class="config-row"><div class="symbol">▣</div><div class="copy"><b>Source</b><small>Automatic game window</small></div><select><option>Automatic game</option><option>Display</option><option>Window</option></select></div><div class="config-row"><div class="symbol">▤</div><div class="copy"><b>Resolution</b><small>Output canvas</small></div><select><option>1440p</option><option>1080p</option><option>Native</option></select></div><div class="config-row"><div class="symbol">⌁</div><div class="copy"><b>Frame rate</b><small>Stable output target</small></div><select><option>60 FPS</option><option>120 FPS</option><option>30 FPS</option></select></div><div class="config-row"><div class="symbol">▰</div><div class="copy"><b>Codec</b><small>Hardware encoder preferred</small></div><select><option>AV1 · Auto</option><option>H.264 · NVENC</option></select></div></div><div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px"><div style="display:flex;align-items:end;justify-content:space-between"><div><b style="font-size:11px;color:#89919c">Replay duration</b><small style="display:block;margin-top:5px;color:#616a75">Disk usage scales with encoded bitrate.</small></div><div class="big-number">60 <small style="font-size:10px;color:#626b76">seconds</small></div></div><div class="slider-line"><i style="left:16%"></i></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Rolling buffer</div><h3>Segment ring</h3><p>Two-second segments are overwritten in place.</p></div><div class="ring"><div class="ring-head"><span>${Math.ceil(state.buffered/2)} segments</span><b>${Math.round(state.buffered/60*100)}% ready</b></div><div class="segments">${Array.from({length:30},(_,i)=>`<i class="${i<filled?'filled':''}"></i>`).join('')}</div></div><div class="summary-grid" style="grid-template-columns:repeat(2,1fr);margin-top:12px"><div class="route"><span>◷</span><div class="copy"><small>Target</small><b>60s</b></div></div><div class="route"><span>▰</span><div class="copy"><small>Estimated</small><b>${Math.round(state.buffered*3.75)} MB</b></div></div></div></section></div><div class="capture-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Tracks</div><h3>Audio and pointer</h3><p>The audio engine can provide a dedicated clip mix.</p></div><div class="settings-list"><div class="setting-row"><span>◉</span><div class="copy"><b>Microphone track</b><small>Processed mic on its own track.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span>≋</span><div class="copy"><b>Chat track</b><small>Keep voice chat separate from game audio.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span>⌁</span><div class="copy"><b>Capture cursor</b><small>Include the hardware pointer in clips.</small></div><button class="switch"><i></i></button></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Recent</div><h3>Clips</h3><p>Prototype saves write a metadata artifact.</p></div><div class="route-list"><div class="route"><span>▣</span><div class="copy"><b>War Thunder · clean pass</b><small>45 seconds · 126 MB · 42m ago</small></div><span class="prototype-label">Prototype</span></div><div class="route"><span>▣</span><div class="copy"><b>FiveM · pursuit ending</b><small>60 seconds · 178 MB · 3h ago</small></div><span class="prototype-label">Prototype</span></div></div></section></div></div>`;
+}
+
+function renderModules() {
+  return `<div class="page-stack"><div class="summary-grid"><section class="surface summary-box"><div class="summary-icon">✓</div><div><small>Installed</small><strong>4</strong><span style="font-size:9px;color:#606975">${state.modules.filter(m=>m.enabled).length} enabled</span></div></section><section class="surface summary-box"><div class="summary-icon">▰</div><div><small>Module storage</small><strong>99 MB</strong><span style="font-size:9px;color:#606975">Capture engine is 84 MB</span></div></section><section class="surface summary-box"><div class="summary-icon">◇</div><div><small>Trust policy</small><strong>Official only</strong><span style="font-size:9px;color:#606975">Signed package manifests</span></div></section></div><section class="surface module-table"><div class="section-title"><div class="eyebrow">Local</div><h3>Installed modules</h3><p>Only enabled modules may claim devices or start an engine process.</p></div>${state.modules.map((m,i)=>`<div class="module-row ${m.enabled?'enabled':''}"><div class="module-icon">${m.kind==='device'?'⌁':m.kind==='audio'?'≋':'●'}</div><div class="copy"><b>${m.name}</b><small>${m.description}</small></div><div class="size">${m.size}</div><div class="kind">${m.kind}</div><button class="button" data-module="${i}">${m.enabled?'Disable':'Enable'}</button></div>`).join('')}</section></div>`;
+}
+
+function renderDevices() {
+  const mouse = state.selectedDevice === 'mouse';
+  return `<div class="device-workbench"><section class="surface device-list"><div class="device-list-head"><b>Connected hardware</b><small>2 devices · 2 modules</small></div><div class="device-choice ${mouse?'active':''}" data-device="mouse"><div class="device-icon">⌁</div><div><b>G502 X Plus</b><small>● wireless</small></div></div><div class="device-choice ${!mouse?'active':''}" data-device="mic"><div class="device-icon">◉</div><div><b>QuadCast 2</b><small>● USB</small></div></div></section><div class="device-detail"><section class="surface device-hero"><div class="device-icon">${mouse?'⌁':'◉'}</div><div><div class="eyebrow"><span class="live"></span>${mouse?'Logitech · wireless':'HyperX · USB'}</div><h2>${mouse?'G502 X Plus':'QuadCast 2'}</h2><div class="capabilities">${(mouse?['dpi','polling rate','buttons','battery','profiles']:['gain','monitoring','mute','lighting']).map(x=>`<span>${x}</span>`).join('')}</div></div></section><div class="device-controls"><section class="surface panel"><div class="section-title"><div class="eyebrow">${mouse?'Pointer':'Input'}</div><h3>${mouse?'Sensitivity':'Microphone level'}</h3><p>${mouse?'Stages are rendered by the shared mouse capability UI.':'Raw controls stay in the HyperX module; DSP belongs to Audio.Host.'}</p></div><div style="margin-top:24px;display:flex;justify-content:space-between;align-items:end"><span style="font-size:11px;color:#89919c">${mouse?'Active DPI':'Input gain'}</span><div class="big-number">${mouse?'1600':'58'} <small style="font-size:10px;color:#626b76">${mouse?'DPI':'%'}</small></div></div><div class="slider-line"><i style="left:${mouse?'32':'58'}%"></i></div>${mouse?'<div class="dpi-stages"><button>800</button><button class="active">1600</button><button>3200</button></div>':'<div class="route" style="margin-top:24px"><span>≋</span><div class="copy"><small>Live input meter</small><b>−8.4 dB</b></div><div class="progress" style="width:130px"><i style="width:68%"></i></div></div>'}</section><section class="surface panel"><div class="section-title"><div class="eyebrow">${mouse?'Sensor':'Hardware'}</div><h3>${mouse?'Report rate':'Status ring'}</h3><p>${mouse?'Written only when the value changes.':'Static state requires no separate RGB process.'}</p></div><div class="route-list"><div class="route"><span>${mouse?'⌁':'●'}</span><div class="copy"><small>${mouse?'Polling rate':'Lighting'}</small><b>${mouse?'1000 Hz':'Enabled · #ff4f7d'}</b></div><span>${mouse?'⌄':''}</span></div><div class="setting-row"><span>✓</span><div class="copy"><b>${mouse?'Onboard memory':'Mute LED follows state'}</b><small>${mouse?'Keep the profile on the mouse.':'Mirror tap-to-mute without polling.'}</small></div><button class="switch on"><i></i></button></div></div></section></div></div></div>`;
+}
+
+function renderSettings() {
+  return `<div class="settings-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Lifecycle</div><h3>Background behavior</h3><p>The renderer can be destroyed in tray mode while device and engine hosts continue independently.</p></div><div class="settings-list"><div class="setting-row"><span class="symbol">◷</span><div class="copy"><b>Launch at startup</b><small>Start the core only. Optional engines remain off until required.</small></div><button class="switch"><i></i></button></div><div class="setting-row"><span class="symbol">▰</span><div class="copy"><b>Close to tray</b><small>Keep hotkeys and connected device profiles available.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span class="symbol">×</span><div class="copy"><b>Destroy renderer in tray</b><small>Release the Chromium page instead of merely hiding it.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span class="symbol">↻</span><div class="copy"><b>Automatic module updates</b><small>Verify signatures, install atomically, retain a rollback.</small></div><button class="switch on"><i></i></button></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Guardrails</div><h3>Performance budget</h3><p>A regression should fail release validation instead of becoming normal.</p></div><div style="margin-top:22px"><div class="ring-head"><span>Memory</span><b>${Math.round(state.memory)} / 240 MB</b></div><div class="progress" style="height:6px;margin-top:10px"><i style="width:${Math.min(100,state.memory/240*100)}%"></i></div><div class="ring-head" style="margin-top:22px"><span>Idle CPU</span><b>${state.cpu.toFixed(1)} / 2.0%</b></div><div class="progress" style="height:6px;margin-top:10px"><i style="width:${Math.min(100,state.cpu/2*100)}%"></i></div></div><div class="summary-grid" style="margin-top:22px"><div class="route"><div class="copy"><small>Core</small><b>44 MB</b></div></div><div class="route"><div class="copy"><small>Renderer</small><b>92 MB</b></div></div><div class="route"><div class="copy"><small>Processes</small><b>${2+(state.audio?1:0)+(state.capture?1:0)}</b></div></div></div></section></div>`;
+}
+
+function wirePage() {
+  document.querySelectorAll('[data-go]').forEach(button => button.onclick = () => { state.page = button.dataset.go; render(); });
+  document.querySelectorAll('[data-toggle]').forEach(button => button.onclick = () => {
+    const kind = button.dataset.toggle;
+    state[kind] = !state[kind];
+    showToast(`${kind === 'audio' ? 'Audio host' : 'Capture host'} ${state[kind] ? 'started' : 'stopped'}`);
+    render();
+  });
+  document.querySelectorAll('[data-device]').forEach(button => button.onclick = () => { state.selectedDevice = button.dataset.device; state.page = 'devices'; render(); });
+  document.querySelectorAll('[data-module]').forEach(button => button.onclick = () => { const module = state.modules[Number(button.dataset.module)]; module.enabled = !module.enabled; if(module.kind==='audio') state.audio=module.enabled; if(module.kind==='capture') state.capture=module.enabled; showToast(`${module.name} ${module.enabled?'enabled':'disabled'}`); render(); });
+  const save = document.querySelector('#save-replay');
+  if (save) save.onclick = () => showToast('Prototype replay metadata saved');
+  document.querySelectorAll('.switch:not([data-toggle])').forEach(button => button.onclick = () => { button.classList.toggle('on'); showToast('Setting updated'); });
+}
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('show'), 1400);
+}
+
+setInterval(() => {
+  if (!state.capture) return;
+  state.buffered = Math.min(60, state.buffered + 1);
+  if (state.page === 'capture' || state.page === 'overview') render();
+  else updateRuntime();
+}, 1000);
+
+render();
+
+</script>
+</body>
+</html>

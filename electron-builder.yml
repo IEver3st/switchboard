@@ -1,0 +1,21 @@
+appId: dev.switchboard.prototype
+productName: Switchboard
+artifactName: ${productName}-${version}-${arch}.${ext}
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: resources/engine-workers
+    to: engine-workers
+asar: true
+asarUnpack:
+  - resources/**
+win:
+  target:
+    - nsis
+  executableName: switchboard
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Switchboard Prototype</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="title-strip">
+      <div class="brand-mark"><i></i><b></b><em></em></div>
+      <strong>Switchboard</strong>
+      <span class="prototype-label">Prototype</span>
+      <div class="title-meta">Control plane simulation <span></span> v0.1.0</div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar">
+        <nav id="navigation"></nav>
+        <div class="runtime-block">
+          <h4>Runtime</h4>
+          <div class="runtime-row"><span class="dot" id="audio-dot"></span><span>Audio host</span><small id="audio-memory">off</small></div>
+          <div class="runtime-row"><span class="dot" id="capture-dot"></span><span>Capture host</span><small id="capture-memory">off</small></div>
+        </div>
+        <div class="sidebar-bottom">
+          <div class="budget-card">
+            <div class="budget-title">⌁&nbsp; Performance guard</div>
+            <div class="budget-number"><strong id="total-memory">136</strong><small>MB total</small></div>
+            <div class="progress"><i id="memory-progress" style="width:57%"></i></div>
+          </div>
+          <button class="settings-link" data-page="settings">⚙ <span>Settings</span></button>
+        </div>
+      </aside>
+      <section class="main-panel">
+        <header class="topbar">
+          <div><h1 id="page-title">Overview</h1><p id="page-description">The parts of your setup that are active right now.</p></div>
+          <div class="topbar-right">
+            <div class="runtime-pill"><span>⌁</span><b id="cpu-total">0.3% CPU</b><i></i><b id="memory-total">136 MB</b></div>
+            <div class="healthy-pill">✓ Within budget</div>
+            <button class="icon-button">○</button>
+          </div>
+        </header>
+        <main id="page-content"></main>
+      </section>
+    </div>
+  </div>
+  <div class="toast" id="toast">Change applied</div>
+  <script src="./app.js"></script>
+</body>
+</html>
