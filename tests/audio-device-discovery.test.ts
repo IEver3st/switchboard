@@ -1,4 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { StateStore } from '../src/main/services/state-store';
 import { reconcileAudioDevices } from '../src/shared/audio-devices';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 import type { AudioDevice } from '../src/shared/contracts';
@@ -12,6 +16,35 @@ describe('audio endpoint discovery', () => {
     expect(audio.microphoneDevice).toBe('');
     expect(audio.monitoringDeviceId).toBe('');
     expect(audio.buses.every((bus) => bus.deviceId === '')).toBeTrue();
+  });
+
+  test('drops persisted endpoint inventory and labels before rediscovery', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-audio-devices-'));
+    try {
+      const filePath = join(directory, 'switchboard-state.json');
+      const first = new StateStore(filePath);
+      await first.load();
+      first.update((draft) => {
+        draft.audio.outputDevice = 'Arctis Nova Pro Wireless';
+        draft.audio.devices = [{
+          id: 'output-nova-pro',
+          name: 'Arctis Nova Pro Wireless',
+          direction: 'output',
+          isDefault: true,
+          available: true,
+          isVirtual: false,
+        }];
+      });
+      await first.flush();
+
+      const restarted = new StateStore(filePath);
+      await restarted.load();
+
+      expect(restarted.get().audio.devices).toEqual([]);
+      expect(restarted.get().audio.outputDevice).toBe('');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   test('replaces stale routes with discovered physical headphones and microphone', () => {

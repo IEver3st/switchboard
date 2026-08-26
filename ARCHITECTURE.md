@@ -83,6 +83,8 @@ Identity fields are optional because USB and HID do not consistently expose cosm
 
 The Logitech module currently enumerates HID transport locally and can enrich active devices with Logitech's localhost DEVIO metadata when that vendor service is present. G502 X Plus `extendedModel` distinguishes the known black and white hardware variants; the receiver USB PID alone does not. Without DEVIO metadata, the module resolves the model from its known receiver mapping, leaves colorway unknown, and uses the model asset or an optional override rather than claiming an exact color.
 
+The G502 X Plus also has one narrowly scoped direct HID++ path when DEVIO is absent. A non-exclusive long-report session listens to the device's event-driven MouseButtonSpy feature (`0x8110`) and temporarily writes the live Adjustable DPI feature (`0x2201`) while the physical sniper button is held. The base DPI is restored on release, module disable, and shutdown. This path does not rewrite onboard profile flash, and its HID handle exists only while the Logitech module and matching device are active.
+
 ## Audio
 
 Implemented Windows pipeline:

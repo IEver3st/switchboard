@@ -9,6 +9,8 @@ import type {
   SetAudioBusDeviceInput,
   SetAudioBusEnabledInput,
   SetAudioBusGainInput,
+  SetAudioMasterEnabledInput,
+  SetAudioMasterGainInput,
   SetDeviceAppearanceOverrideInput,
   SetDeviceControlInput,
   SetDeviceSettingInput,
@@ -194,6 +196,14 @@ const demoApi: SwitchboardApi = {
   async setAudioBusGain(input: SetAudioBusGainInput) {
     const bus = snapshot.audio.buses.find((candidate) => candidate.id === input.busId);
     if (bus) bus.gain = input.gain;
+    return emit();
+  },
+  async setAudioMasterGain(input: SetAudioMasterGainInput) {
+    snapshot.audio.master.gain = input.gain;
+    return emit();
+  },
+  async setAudioMasterEnabled(input: SetAudioMasterEnabledInput) {
+    snapshot.audio.master.enabled = input.enabled;
     return emit();
   },
   async setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput) {

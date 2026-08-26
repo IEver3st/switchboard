@@ -1,0 +1,35 @@
+{
+  "initial": {
+    "channelCount": 5,
+    "exactInputs": 5,
+    "horizontalOverflow": false,
+    "values": {
+      "Master": "100",
+      "Game": "100",
+      "Chat": "76",
+      "Media": "42",
+      "Microphone": "92"
+    }
+  },
+  "dragReadout": {
+    "visible": true,
+    "text": "123%",
+    "className": "mixer-fader__floating-value is-visible",
+    "opacity": "1"
+  },
+  "restored": {
+    "channelCount": 5,
+    "exactInputs": 5,
+    "horizontalOverflow": false,
+    "values": {
+      "Master": "127",
+      "Game": "83",
+      "Chat": "76",
+      "Media": "42",
+      "Microphone": "92"
+    }
+  },
+  "masterRoundTrip": true,
+  "gameRoundTrip": true,
+  "muteRoundTrip": true
+}

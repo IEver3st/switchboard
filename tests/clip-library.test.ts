@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Clip } from '../src/shared/contracts';
-import { clipSchema } from '../src/shared/contracts';
+import { clipSchema, clipTrimInputSchema, exportClipInputSchema } from '../src/shared/contracts';
 import {
   clipGameLabel,
   createDefaultClipTitle,
@@ -63,12 +63,27 @@ describe('canonical clip metadata', () => {
     const filePath = join(directory, 'switchboard-state.json');
     const first = new StateStore(filePath);
     await first.load();
-    first.update((draft) => { draft.clips = [clip(1, { name: 'Downtown pursuit', favorite: true, titleEdited: true })]; });
+    first.update((draft) => {
+      draft.clips = [clip(1, {
+        name: 'Downtown pursuit', favorite: true, titleEdited: true, trimStartMs: 1_250, trimEndMs: 9_000,
+      })];
+    });
     await first.flush();
 
     const restarted = new StateStore(filePath);
     await restarted.load();
-    expect(restarted.get().clips[0]).toMatchObject({ name: 'Downtown pursuit', favorite: true, titleEdited: true });
+    expect(restarted.get().clips[0]).toMatchObject({
+      name: 'Downtown pursuit', favorite: true, titleEdited: true, trimStartMs: 1_250, trimEndMs: 9_000,
+    });
+  });
+
+  test('validates saved trim ranges and file-size export presets at the shared boundary', () => {
+    expect(clipTrimInputSchema.parse({ id: 'clip-1', startMs: 1_250, endMs: 9_000 })).toEqual({
+      id: 'clip-1', startMs: 1_250, endMs: 9_000,
+    });
+    expect(() => clipTrimInputSchema.parse({ id: 'clip-1', startMs: 9_000, endMs: 1_250 })).toThrow();
+    expect(exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '10mb' }).preset).toBe('10mb');
+    expect(() => exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '5mb' })).toThrow();
   });
 });
 

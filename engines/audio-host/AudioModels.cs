@@ -28,5 +28,7 @@ internal sealed record AudioHostStatus(
     IReadOnlyCollection<AudioBusState> Buses,
     IReadOnlyCollection<ProcessorState> Processors,
     float ChatMix,
+    float MasterGain,
+    bool MasterEnabled,
     bool VirtualDriverPresent,
     string Message);

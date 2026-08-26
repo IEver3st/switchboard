@@ -158,6 +158,7 @@ export async function readG502Capabilities(
       activeDpi: activeSettings.dpiTable.activeDpi,
       defaultDpi: activeSettings.dpiTable.defaultDpi,
       shiftDpi: activeSettings.dpiTable.shiftDpi,
+      shiftMode: 'device-profile',
       maxStages: mouseInfo.dpiInfo.range.maxLevels || 5,
       profileMode: mode,
       unavailableReason,

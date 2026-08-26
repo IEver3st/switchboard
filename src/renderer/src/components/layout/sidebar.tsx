@@ -1,8 +1,7 @@
 import {
   AudioLines,
-  Boxes,
   Disc3,
-  Settings2,
+  Settings,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
@@ -13,7 +12,6 @@ const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 
   { id: 'devices', label: 'Devices', icon: SlidersHorizontal },
   { id: 'audio', label: 'Audio', icon: AudioLines, engine: 'audio' },
   { id: 'capture', label: 'Capture', icon: Disc3, engine: 'capture' },
-  { id: 'modules', label: 'Modules', icon: Boxes },
 ];
 
 export function Sidebar({
@@ -68,15 +66,15 @@ export function Sidebar({
           type="button"
           onClick={() => onNavigate('settings')}
           aria-label="Settings"
-          aria-current={page === 'settings' ? 'page' : undefined}
+          aria-current={page === 'settings' || page === 'modules' ? 'page' : undefined}
           title="Settings"
           className={cn(
             'relative grid size-9 place-items-center rounded-[6px] transition-colors duration-150 no-drag',
-            page === 'settings' ? 'bg-surface-interactive text-foreground' : 'text-text-muted hover:bg-surface-interactive hover:text-foreground',
+            page === 'settings' || page === 'modules' ? 'bg-surface-interactive text-foreground' : 'text-text-muted hover:bg-surface-interactive hover:text-foreground',
           )}
         >
-          {page === 'settings' ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
-          <Settings2 className={cn('size-[18px]', page === 'settings' && 'text-foreground')} strokeWidth={1.75} />
+          {page === 'settings' || page === 'modules' ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
+          <Settings className={cn('size-[18px]', (page === 'settings' || page === 'modules') && 'text-foreground')} strokeWidth={1.75} />
         </button>
       </div>
     </aside>

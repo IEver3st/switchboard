@@ -32,6 +32,7 @@ export function DeviceCallout({
         <button
           type="button"
           className="mouse-callout"
+          data-callout-id={binding.hotspot.id}
           style={{ '--callout-y': `${binding.hotspot.position.y}%` } as CSSProperties}
           aria-label={`${binding.hotspot.label}, assigned to ${currentAction.label}${disabled ? ', editing unavailable' : ''}`}
           title={disabled ? unavailableReason : undefined}

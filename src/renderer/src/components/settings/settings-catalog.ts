@@ -219,8 +219,15 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'modules.installed',
     category: 'modules',
     title: 'Installed modules',
-    description: 'Review the modules currently installed and enabled.',
-    keywords: ['extensions', 'plugins', 'drivers', 'hardware'],
+    description: 'Review installed modules and change their enabled state.',
+    keywords: ['extensions', 'plugins', 'drivers', 'hardware', 'disable', 'enable'],
+  },
+  {
+    id: 'modules.available',
+    category: 'modules',
+    title: 'Available modules',
+    description: 'Install modules detected for this setup.',
+    keywords: ['extensions', 'plugins', 'drivers', 'hardware', 'install', 'discovery'],
   },
   {
     id: 'diagnostics.guard',

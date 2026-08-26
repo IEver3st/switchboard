@@ -8,6 +8,7 @@ import type {
   SystemSnapshot,
 } from '../../../shared/contracts';
 import { estimateClipSize, getEncodingPreset } from '../../../shared/capture-presets';
+import { ModuleManagement } from '@/components/settings/module-management';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import {
   isSettingsCategory,
@@ -493,13 +494,10 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
 
 function ModulesSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
-  const setPage = useSystemStore((state) => state.setPage);
   const pending = useSystemStore((state) => state.actionPending) === 'settings:update';
-  const installed = snapshot.modules.filter((module) => module.installed);
-  const enabled = installed.filter((module) => module.enabled);
 
   return (
-    <>
+    <div className="settings-category--modules">
       <SettingsCategoryHeader title="Modules" onReset={onReset} />
       <SettingSection title="Maintenance">
         <SettingSwitch
@@ -510,15 +508,9 @@ function ModulesSettings({ snapshot, onReset }: CategoryProps) {
           disabled={pending}
           onCheckedChange={(automaticModuleUpdates) => void updateSettings({ automaticModuleUpdates })}
         />
-        <SettingAction
-          settingId="modules.installed"
-          title="Installed modules"
-          description={`${installed.length} installed · ${enabled.length} enabled. Discovery, installation, removal, and per-module state remain in the Modules workspace.`}
-          label="Open Modules"
-          onClick={() => setPage('modules')}
-        />
       </SettingSection>
-    </>
+      <ModuleManagement snapshot={snapshot} />
+    </div>
   );
 }
 

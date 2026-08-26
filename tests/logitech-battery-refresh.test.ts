@@ -4,6 +4,7 @@ import {
   LogitechDeviceModule,
   type LogitechDeviceModuleDependencies,
 } from '../src/main/modules/logitech';
+import { parseUnifiedBatteryInfoPayload } from '../src/main/modules/logitech/devices/g502-x-plus/sniper-dpi';
 
 const agentDevice = {
   id: 'agent-g502',
@@ -32,6 +33,17 @@ const receiver = {
 } as HidDevice;
 
 describe('Logitech battery discovery', () => {
+  test('decodes the direct HID++ battery state without inventing a charge transition', () => {
+    expect(parseUnifiedBatteryInfoPayload(Uint8Array.from([81, 8, 0]), 1234)).toEqual({
+      percentage: 81,
+      charging: false,
+      fullyCharged: false,
+      updatedAt: 1234,
+    });
+    expect(parseUnifiedBatteryInfoPayload(Uint8Array.from([81, 8, 1]), 1234).charging).toBe(true);
+    expect(parseUnifiedBatteryInfoPayload(Uint8Array.from([100, 8, 3]), 1234).fullyCharged).toBe(true);
+  });
+
   test('publishes a newly observed charging state on the next discovery cycle', async () => {
     let batteryReads = 0;
     const dependencies: LogitechDeviceModuleDependencies = {
@@ -61,5 +73,38 @@ describe('Logitech battery discovery', () => {
     expect(first[0]?.capabilities.battery?.charging).toBe(false);
     expect(second[0]?.capabilities.battery?.charging).toBe(true);
     expect(batteryReads).toBe(2);
+  });
+
+  test('keeps the known white variant and drops stale charging state when the agent disappears', async () => {
+    let agentAvailable = true;
+    const dependencies: LogitechDeviceModuleDependencies = {
+      readAgentDevices: async () => agentAvailable
+        ? [{
+            ...agentDevice,
+            activeInterfaces: [{ ...agentDevice.activeInterfaces[0]!, extendedModel: 1 }],
+          }]
+        : [],
+      readCapabilities: async () => ({}),
+      readBattery: async () => ({ percentage: 61, charging: true, fullyCharged: false }),
+      writeControl: async () => undefined,
+    };
+    const module = new LogitechDeviceModule(dependencies);
+
+    const detected = await module.discover({
+      hidDevices: [receiver],
+      previousDevices: [],
+      appearanceOverrides: {},
+    });
+    agentAvailable = false;
+    const fallback = await module.discover({
+      hidDevices: [receiver],
+      previousDevices: detected,
+      appearanceOverrides: {},
+    });
+
+    expect(detected[0]?.asset.key).toBe('logitech-g502-x-plus-white');
+    expect(fallback[0]?.asset.key).toBe('logitech-g502-x-plus-white');
+    expect(fallback[0]?.identity.variant).toBe('white');
+    expect(fallback[0]?.capabilities.battery).toBeUndefined();
   });
 });

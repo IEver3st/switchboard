@@ -11,7 +11,7 @@
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
       "viewportScrollHeight": 684,
-      "channelStrips": 4,
+      "channelStrips": 5,
       "page": "#audio/mixer"
     },
     "filename": "1080x720-audio-mixer.png"
@@ -27,7 +27,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 976,
+      "viewportScrollHeight": 920,
       "channelStrips": 0,
       "page": "#audio/game"
     },
@@ -44,7 +44,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 1348,
+      "viewportScrollHeight": 1292,
       "channelStrips": 0,
       "page": "#audio/microphone"
     },
@@ -62,7 +62,7 @@
       "viewportScrollWidth": 1352,
       "viewportHeight": 862,
       "viewportScrollHeight": 862,
-      "channelStrips": 4,
+      "channelStrips": 5,
       "page": "#audio/mixer"
     },
     "filename": "1420x900-audio-mixer.png"
@@ -89,7 +89,7 @@
       "viewportWidth": 1352,
       "viewportScrollWidth": 1352,
       "viewportHeight": 862,
-      "viewportScrollHeight": 957,
+      "viewportScrollHeight": 901,
       "channelStrips": 0,
       "page": "#audio/game"
     },
@@ -106,7 +106,7 @@
       "viewportWidth": 1352,
       "viewportScrollWidth": 1352,
       "viewportHeight": 862,
-      "viewportScrollHeight": 1305,
+      "viewportScrollHeight": 1249,
       "channelStrips": 0,
       "page": "#audio/microphone"
     },
@@ -124,7 +124,7 @@
       "viewportScrollWidth": 1852,
       "viewportHeight": 1042,
       "viewportScrollHeight": 1042,
-      "channelStrips": 4,
+      "channelStrips": 5,
       "page": "#audio/mixer"
     },
     "filename": "1920x1080-audio-mixer.png"
@@ -157,7 +157,7 @@
       "viewportWidth": 1852,
       "viewportScrollWidth": 1852,
       "viewportHeight": 1042,
-      "viewportScrollHeight": 1413,
+      "viewportScrollHeight": 1357,
       "channelStrips": 0,
       "page": "#audio/microphone"
     },

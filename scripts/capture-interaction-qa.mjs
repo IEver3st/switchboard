@@ -141,12 +141,22 @@ await waitFor("!document.querySelector('#delete-clip-title')");
 await click("document.querySelector('button[aria-label^=\\\"Open \\\"]')");
 await waitFor("document.querySelector('#clip-editor-title')");
 results.editor = await evaluate("({ title: document.querySelector('#clip-editor-title')?.textContent, video: document.querySelector('video')?.getAttribute('src'), favorite: document.querySelector('header button[aria-pressed]')?.getAttribute('aria-pressed') })");
+results.editorContainment = await evaluate("(() => { const root = document.querySelector('[data-testid=\"capture-library\"]'); const library = root?.firstElementChild; const editor = document.querySelector('[data-testid=\"clip-editor\"]'); return { libraryInert: library?.inert === true, libraryHidden: library?.getAttribute('aria-hidden') === 'true', modal: editor?.getAttribute('aria-modal') === 'true' }; })()");
+await clickButton('Rename');
+await waitFor("document.querySelector('#rename-clip-title')");
+results.renameDialogFocus = await evaluate("document.activeElement?.tagName === 'INPUT'");
+results.dialogContainment = await evaluate("document.querySelector('[data-testid=\"clip-editor\"]')?.parentElement?.inert === true");
+await evaluate("document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))");
+await waitFor("!document.querySelector('#rename-clip-title')");
+results.renameDialogEscape = await evaluate("document.querySelector('[data-testid=\"clip-editor\"]')?.contains(document.activeElement)");
+results.editorTabLoop = await evaluate("(() => { const editor = document.querySelector('[data-testid=\"clip-editor\"]'); const controls = [...editor.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), video[controls], [tabindex]:not([tabindex=\"-1\"])')].filter((element) => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true'); controls.at(-1)?.focus(); controls.at(-1)?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })); return document.activeElement === controls[0]; })()");
 await clickButton('Back to clips');
 await waitFor("!document.querySelector('#clip-editor-title')");
 
 await clickButton('More');
 await waitFor("document.querySelector('button[aria-label=Encoder]')");
 results.more = await evaluate("['Encoder','Codec','Game audio','Microphone','Capture cursor'].every((label) => document.querySelector('[aria-label=\\\"' + label + '\\\"]')) && Boolean(document.querySelector('[aria-label^=\\\"Save replay shortcut:\\\"]'))");
+results.audioCapabilityTruth = await evaluate("(() => { const game = document.querySelector('[aria-label=\"Game audio\"]'); const microphone = document.querySelector('[aria-label=\"Microphone\"]'); return { gameDisabled: game?.disabled === true, microphoneDisabled: microphone?.disabled === true, reasons: [...document.querySelectorAll('[data-radix-popper-content-wrapper] span')].filter((node) => node.textContent === 'Unavailable for this capture setup').length }; })()");
 await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
 
 const replaySwitch = "document.querySelector('[role=switch][aria-label=\\\"Instant Replay\\\"]')";

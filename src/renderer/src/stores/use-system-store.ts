@@ -15,6 +15,8 @@ import {
   type SetAudioBusDeviceInput,
   type SetAudioBusEnabledInput,
   type SetAudioBusGainInput,
+  type SetAudioMasterEnabledInput,
+  type SetAudioMasterGainInput,
   type SetDeviceAppearanceOverrideInput,
   type SetDeviceControlInput,
   type SetDeviceSettingInput,
@@ -29,8 +31,14 @@ import { switchboardApi } from '../lib/demo-api';
 
 type AsyncAction = () => Promise<SystemSnapshot>;
 
+const settingsCategoryStorageKey = 'switchboard.settings.category';
+
 function pageFromHash(): PageId {
   const hash = window.location.hash.replace('#', '').split('/')[0];
+  if (hash === 'modules') {
+    window.sessionStorage.setItem(settingsCategoryStorageKey, 'modules');
+    return 'settings';
+  }
   const parsed = pageIdSchema.safeParse(hash);
   return parsed.success ? parsed.data : 'devices';
 }
@@ -59,6 +67,8 @@ interface SystemStore {
   setDeviceSetting(input: SetDeviceSettingInput): Promise<void>;
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<void>;
   setAudioEnabled(enabled: boolean): Promise<void>;
+  setAudioMasterGain(input: SetAudioMasterGainInput): Promise<void>;
+  setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<void>;
   setAudioBusGain(input: SetAudioBusGainInput): Promise<void>;
   setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<void>;
   setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<void>;
@@ -135,8 +145,10 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       };
     },
     setPage: (page) => {
-      if (window.location.hash !== `#${page}`) window.location.hash = page;
-      set({ page });
+      const nextPage = page === 'modules' ? 'settings' : page;
+      if (page === 'modules') window.sessionStorage.setItem(settingsCategoryStorageKey, 'modules');
+      if (window.location.hash !== `#${nextPage}`) window.location.hash = nextPage;
+      set({ page: nextPage });
     },
     selectDevice: (selectedDeviceId) => set({ selectedDeviceId, page: 'devices' }),
     clearDeviceSelection: () => set({ selectedDeviceId: null }),
@@ -146,6 +158,8 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     setDeviceSetting: (input) => run(`device:${input.deviceId}:${input.key}`, () => switchboardApi.setDeviceSetting(input)),
     setDeviceAppearanceOverride: (input) => run(`device:${input.deviceId}:appearance`, () => switchboardApi.setDeviceAppearanceOverride(input)),
     setAudioEnabled: (enabled) => run('audio:enabled', () => switchboardApi.setAudioEnabled(enabled)),
+    setAudioMasterGain: (input) => run('audio:master', () => switchboardApi.setAudioMasterGain(input)),
+    setAudioMasterEnabled: (input) => run('audio:master:enabled', () => switchboardApi.setAudioMasterEnabled(input)),
     setAudioBusGain: (input) => run(`audio:${input.busId}`, () => switchboardApi.setAudioBusGain(input)),
     setAudioBusEnabled: (input) => run(`audio:${input.busId}:enabled`, () => switchboardApi.setAudioBusEnabled(input)),
     setAudioBusDevice: (input) => run(`audio:${input.busId}:device`, () => switchboardApi.setAudioBusDevice(input)),

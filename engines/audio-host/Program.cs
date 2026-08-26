@@ -34,6 +34,8 @@ await foreach (var line in ReadLinesAsync(Console.In))
             "listSessions" => endpoints.ListSessions(),
             "setBusGain" => SetBusGain(payload),
             "setBusEnabled" => SetBusEnabled(payload),
+            "setMasterGain" => SetMasterGain(payload),
+            "setMasterEnabled" => SetMasterEnabled(payload),
             "setChatMix" => SetChatMix(payload),
             "setProcessor" => SetProcessor(payload),
             _ => throw new InvalidOperationException($"Unknown command: {command}"),
@@ -65,6 +67,18 @@ object SetBusEnabled(JsonElement payload)
     return Status();
 }
 
+object SetMasterGain(JsonElement payload)
+{
+    graph.SetMasterGain(payload.GetProperty("gain").GetSingle());
+    return Status();
+}
+
+object SetMasterEnabled(JsonElement payload)
+{
+    graph.SetMasterEnabled(payload.GetProperty("enabled").GetBoolean());
+    return Status();
+}
+
 object SetChatMix(JsonElement payload)
 {
     graph.SetChatMix(payload.GetProperty("value").GetSingle());
@@ -85,6 +99,8 @@ AudioHostStatus Status() => new(
     graph.GetBuses(),
     graph.GetProcessors(),
     graph.ChatMix,
+    graph.MasterGain,
+    graph.MasterEnabled,
     VirtualDriverPresent: false,
     Message: "Control graph and Core Audio discovery are implemented. Signed virtual endpoints are the next hard dependency.");
 

@@ -7,7 +7,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AudioPage } from '@/pages/audio';
 import { CapturePage } from '@/pages/capture';
 import { DevicesPage } from '@/pages/devices';
-import { ModulesPage } from '@/pages/modules';
 import { SettingsPage } from '@/pages/settings';
 import { useSystemStore } from '@/stores/use-system-store';
 
@@ -15,7 +14,7 @@ const pageTitles: Record<PageId, string> = {
   devices: 'Devices',
   audio: 'Audio',
   capture: 'Capture',
-  modules: 'Modules',
+  modules: 'Settings',
   settings: 'Settings',
 };
 
@@ -57,14 +56,13 @@ export function App() {
         <section className="flex min-h-0 flex-1 flex-col">
           <main className="min-h-0 flex-1 bg-background">
             <h1 className="sr-only">{pageTitles[page]}</h1>
-            {page === 'settings' ? (
+            {page === 'settings' || page === 'modules' ? (
               <SettingsPage snapshot={snapshot} />
             ) : (
               <ScrollArea className="h-full">
                 {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
                 {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
                 {page === 'capture' ? <CapturePage snapshot={snapshot} /> : null}
-                {page === 'modules' ? <ModulesPage snapshot={snapshot} /> : null}
               </ScrollArea>
             )}
           </main>

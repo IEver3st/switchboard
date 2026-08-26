@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ArrowLeft, FolderOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
 import type { Clip, ClipAudioChannel, ClipExportPreset } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
@@ -29,6 +29,7 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
   onDelete: () => void;
 }) {
   const backRef = useRef<HTMLButtonElement>(null);
+  const editorRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const savedStartMs = clip.trimStartMs ?? 0;
   const savedEndMs = clip.trimEndMs ?? clip.durationMs;
@@ -43,12 +44,26 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
 
   useEffect(() => {
     backRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, []);
+
+  const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[data-radix-popper-content-wrapper]')) {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const controls = focusableElements(editorRef.current);
+    if (controls.length === 0) return;
+    const current = controls.indexOf(document.activeElement as HTMLElement);
+    if (event.shiftKey && current <= 0) {
+      event.preventDefault();
+      controls.at(-1)?.focus();
+    } else if (!event.shiftKey && current === controls.length - 1) {
+      event.preventDefault();
+      controls[0]?.focus();
+    }
+  };
 
   const updateTrim = (nextStartMs: number, nextEndMs: number) => {
     setStartMs(nextStartMs);
@@ -56,7 +71,7 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
   };
 
   return (
-    <section className="fixed bottom-0 left-[68px] right-0 top-[38px] z-40 flex min-h-0 flex-col bg-background" aria-labelledby="clip-editor-title" data-testid="clip-editor">
+    <section ref={editorRef} className="fixed bottom-0 left-[68px] right-0 top-[38px] z-40 flex min-h-0 flex-col bg-background" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" onKeyDown={keepFocusInside}>
       <header className="flex min-h-[52px] shrink-0 items-center gap-3 border-b border-border bg-card px-3 no-drag">
         <Button ref={backRef} type="button" variant="ghost" size="sm" className="no-drag px-2" onClick={onClose}>
           <ArrowLeft className="size-4" /> Back to clips
@@ -69,7 +84,7 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
         <Button type="button" variant="ghost" size="icon" className={cn('no-drag', clip.favorite && 'text-primary')} aria-label={clip.favorite ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={clip.favorite} onClick={() => onFavorite(!clip.favorite)}>
           <Star className={cn('size-4', clip.favorite && 'fill-current')} />
         </Button>
-        <ShareClipPopover clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} onExport={(preset) => onExport(preset, startMs, endMs)} />
+        <ShareClipPopover clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs)} />
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_272px] max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto">
@@ -80,7 +95,7 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
               src={`switchboard-media://clip/${encodeURIComponent(clip.id)}`}
               controls
               preload="metadata"
-              className="block max-h-full max-w-full bg-black"
+              className="block size-full bg-black object-contain"
               onLoadedMetadata={(event) => { event.currentTarget.currentTime = startMs / 1_000; }}
             />
           </div>
@@ -136,4 +151,10 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
 
 function Detail({ label, value }: { label: string; value: string }) {
   return <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-2 border-b border-border py-2"><dt className="text-muted-foreground">{label}</dt><dd className="m-0 min-w-0 break-words tabular-nums text-text-secondary">{value}</dd></div>;
+}
+
+function focusableElements(root: HTMLElement | null): HTMLElement[] {
+  if (!root) return [];
+  return [...root.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), video[controls], [tabindex]:not([tabindex="-1"])')]
+    .filter((element) => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true');
 }

@@ -71,6 +71,15 @@ export function ClipTimeline({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [currentMs, endMs, startMs, videoRef]);
 
+  if (durationMs < minimumTrimMs) {
+    return (
+      <section className="border-t border-border pt-3" aria-labelledby="trim-heading">
+        <h3 id="trim-heading" className="m-0 text-[12px] font-semibold text-foreground">Trim unavailable</h3>
+        <p className="m-0 mt-1 text-[10px] leading-4 text-muted-foreground">Switchboard could not read enough clip duration to set a trim range.</p>
+      </section>
+    );
+  }
+
   const updateRange = ([nextStart = startMs, nextEnd = endMs]: number[]) => {
     const boundedStart = Math.min(nextStart, nextEnd - minimumTrimMs);
     const boundedEnd = Math.max(nextEnd, boundedStart + minimumTrimMs);

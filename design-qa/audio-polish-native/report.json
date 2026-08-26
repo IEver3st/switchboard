@@ -1,0 +1,482 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "tab": "game",
+    "filename": "1080x720-audio-game.png",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 847,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 138.1,
+        "y": 98.7,
+        "width": 216,
+        "height": 32,
+        "top": 98.7,
+        "right": 354.1,
+        "bottom": 130.7,
+        "left": 138.1
+      },
+      "eqGraph": {
+        "x": 96.1,
+        "y": 245.5,
+        "width": 955.9,
+        "height": 220,
+        "top": 245.5,
+        "right": 1051.9,
+        "bottom": 465.5,
+        "left": 96.1
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "tab": "chat",
+    "filename": "1080x720-audio-chat.png",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 847,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 138.1,
+        "y": 98.7,
+        "width": 216,
+        "height": 32,
+        "top": 98.7,
+        "right": 354.1,
+        "bottom": 130.7,
+        "left": 138.1
+      },
+      "eqGraph": {
+        "x": 96.1,
+        "y": 245.5,
+        "width": 955.9,
+        "height": 220,
+        "top": 245.5,
+        "right": 1051.9,
+        "bottom": 465.5,
+        "left": 96.1
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "tab": "media",
+    "filename": "1080x720-audio-media.png",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 847,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 138.1,
+        "y": 98.7,
+        "width": 216,
+        "height": 32,
+        "top": 98.7,
+        "right": 354.1,
+        "bottom": 130.7,
+        "left": 138.1
+      },
+      "eqGraph": {
+        "x": 96.1,
+        "y": 245.5,
+        "width": 955.9,
+        "height": 220,
+        "top": 245.5,
+        "right": 1051.9,
+        "bottom": 465.5,
+        "left": 96.1
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "tab": "microphone",
+    "filename": "1080x720-audio-microphone.png",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1190,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 166.9,
+        "y": 100.7,
+        "width": 216,
+        "height": 32,
+        "top": 100.7,
+        "right": 382.9,
+        "bottom": 132.7,
+        "left": 166.9
+      },
+      "eqGraph": {
+        "x": 96.1,
+        "y": 249.5,
+        "width": 955.9,
+        "height": 190,
+        "top": 249.5,
+        "right": 1051.9,
+        "bottom": 439.5,
+        "left": 96.1
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "tab": "game",
+    "filename": "1420x900-audio-game.png",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 146,
+        "y": 98.7,
+        "width": 250,
+        "height": 32,
+        "top": 98.7,
+        "right": 396,
+        "bottom": 130.7,
+        "left": 146
+      },
+      "eqGraph": {
+        "x": 104,
+        "y": 245.5,
+        "width": 1280,
+        "height": 270,
+        "top": 245.5,
+        "right": 1384,
+        "bottom": 515.5,
+        "left": 104
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "tab": "chat",
+    "filename": "1420x900-audio-chat.png",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 146,
+        "y": 98.7,
+        "width": 250,
+        "height": 32,
+        "top": 98.7,
+        "right": 396,
+        "bottom": 130.7,
+        "left": 146
+      },
+      "eqGraph": {
+        "x": 104,
+        "y": 245.5,
+        "width": 1280,
+        "height": 270,
+        "top": 245.5,
+        "right": 1384,
+        "bottom": 515.5,
+        "left": 104
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "tab": "media",
+    "filename": "1420x900-audio-media.png",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 146,
+        "y": 98.7,
+        "width": 250,
+        "height": 32,
+        "top": 98.7,
+        "right": 396,
+        "bottom": 130.7,
+        "left": 146
+      },
+      "eqGraph": {
+        "x": 104,
+        "y": 245.5,
+        "width": 1280,
+        "height": 270,
+        "top": 245.5,
+        "right": 1384,
+        "bottom": 515.5,
+        "left": 104
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "tab": "microphone",
+    "filename": "1420x900-audio-microphone.png",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1148,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 174.8,
+        "y": 100.7,
+        "width": 250,
+        "height": 32,
+        "top": 100.7,
+        "right": 424.8,
+        "bottom": 132.7,
+        "left": 174.8
+      },
+      "eqGraph": {
+        "x": 104,
+        "y": 249.5,
+        "width": 1280,
+        "height": 216,
+        "top": 249.5,
+        "right": 1384,
+        "bottom": 465.5,
+        "left": 104
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "tab": "game",
+    "filename": "1920x1080-audio-game.png",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 212,
+        "y": 98.7,
+        "width": 250,
+        "height": 32,
+        "top": 98.7,
+        "right": 462,
+        "bottom": 130.7,
+        "left": 212
+      },
+      "eqGraph": {
+        "x": 170,
+        "y": 245.5,
+        "width": 1648,
+        "height": 334.8,
+        "top": 245.5,
+        "right": 1818,
+        "bottom": 580.3,
+        "left": 170
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "tab": "chat",
+    "filename": "1920x1080-audio-chat.png",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 212,
+        "y": 98.7,
+        "width": 250,
+        "height": 32,
+        "top": 98.7,
+        "right": 462,
+        "bottom": 130.7,
+        "left": 212
+      },
+      "eqGraph": {
+        "x": 170,
+        "y": 245.5,
+        "width": 1648,
+        "height": 334.8,
+        "top": 245.5,
+        "right": 1818,
+        "bottom": 580.3,
+        "left": 170
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "tab": "media",
+    "filename": "1920x1080-audio-media.png",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 212,
+        "y": 98.7,
+        "width": 250,
+        "height": 32,
+        "top": 98.7,
+        "right": 462,
+        "bottom": 130.7,
+        "left": 212
+      },
+      "eqGraph": {
+        "x": 170,
+        "y": 245.5,
+        "width": 1648,
+        "height": 334.8,
+        "top": 245.5,
+        "right": 1818,
+        "bottom": 580.3,
+        "left": 170
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "tab": "microphone",
+    "filename": "1920x1080-audio-microphone.png",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1256,
+      "repeatedRouteControls": 0,
+      "featuredPresetControls": 0,
+      "presetTrigger": {
+        "x": 240.8,
+        "y": 100.7,
+        "width": 250,
+        "height": 32,
+        "top": 100.7,
+        "right": 490.8,
+        "bottom": 132.7,
+        "left": 240.8
+      },
+      "eqGraph": {
+        "x": 170,
+        "y": 249.5,
+        "width": 1648,
+        "height": 324,
+        "top": 249.5,
+        "right": 1818,
+        "bottom": 573.5,
+        "left": 170
+      }
+    }
+  }
+]

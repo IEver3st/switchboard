@@ -291,6 +291,7 @@ export const defaultAudio: AudioState = {
   outputDevice: '',
   microphoneDevice: '',
   sampleRate: 48000,
+  master: { gain: 1, enabled: true },
   chatMix: 0.15,
   monitoring: 0.18,
   monitoringEnabled: false,

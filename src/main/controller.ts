@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
-import { app, dialog, globalShortcut, shell } from 'electron';
+import { app, desktopCapturer, dialog, globalShortcut, shell, type DesktopCapturerSource } from 'electron';
 import { z } from 'zod';
 import {
   captureConfigSchema,
@@ -29,6 +29,8 @@ import {
   type SetAudioBusDeviceInput,
   type SetAudioBusEnabledInput,
   type SetAudioBusGainInput,
+  type SetAudioMasterEnabledInput,
+  type SetAudioMasterGainInput,
   type SetDeviceSettingInput,
   type SetDeviceControlInput,
   type SetDeviceAppearanceOverrideInput,
@@ -72,6 +74,8 @@ const workerSavedClipSchema = z.object({
 });
 
 type WorkerSavedClip = z.infer<typeof workerSavedClipSchema>;
+const audioEndpointRefreshMinimumIntervalMs = 10_000;
+const captureSourceThumbnailRefreshMinimumIntervalMs = 10_000;
 
 export class AppController {
   private readonly store: StateStore;
@@ -87,6 +91,9 @@ export class AppController {
   private captureRestartAttempts = 0;
   private audioDeviceRefresh: Promise<SystemSnapshot> | null = null;
   private audioDevicesRefreshedAt = 0;
+  private readonly captureSourceThumbnails = new Map<string, Buffer>();
+  private captureSourceThumbnailRefresh: Promise<void> | null = null;
+  private captureSourceThumbnailsRefreshedAt = 0;
   private disposed = false;
 
   public constructor() {
@@ -106,10 +113,10 @@ export class AppController {
     );
     this.devices = new DeviceRegistry(
       () => this.store.get(),
-      (devices) => {
+      (devices, options) => {
         this.store.update((draft) => {
           draft.devices = devices;
-        });
+        }, { persist: options?.persist ?? true });
       },
     );
   }
@@ -158,15 +165,18 @@ export class AppController {
 
   public refreshAudioDevices(force = false): Promise<SystemSnapshot> {
     if (this.audioDeviceRefresh) return this.audioDeviceRefresh;
-    if (!force && Date.now() - this.audioDevicesRefreshedAt < 2_000) {
+    if (!force && Date.now() - this.audioDevicesRefreshedAt < audioEndpointRefreshMinimumIntervalMs) {
       return Promise.resolve(this.store.get());
     }
 
     const refresh = this.audioEndpointDiscovery.list()
       .then((devices) => {
-        const snapshot = this.store.update((draft) => reconcileAudioDevices(draft.audio, devices));
+        const current = this.store.get();
+        const audio = structuredClone(current.audio);
+        reconcileAudioDevices(audio, devices);
         this.audioDevicesRefreshedAt = Date.now();
-        return snapshot;
+        if (JSON.stringify(audio) === JSON.stringify(current.audio)) return current;
+        return this.store.update((draft) => { draft.audio = audio; });
       })
       .catch((error) => {
         console.warn('Windows audio endpoint discovery failed.', error);
@@ -197,7 +207,7 @@ export class AppController {
   }
 
   public setDeviceSetting(input: SetDeviceSettingInput): SystemSnapshot {
-    return this.store.update((draft) => {
+    const snapshot = this.store.update((draft) => {
       const device = draft.devices.find((candidate) => candidate.id === input.deviceId);
       if (!device) throw new Error(`Unknown device: ${input.deviceId}`);
       if (!Object.hasOwn(device.settings, input.key)) {
@@ -205,6 +215,8 @@ export class AppController {
       }
       device.settings[input.key] = input.value;
     });
+    this.devices.settingChanged(input.deviceId, input.key, input.value);
+    return snapshot;
   }
 
   public async setDeviceControl(input: SetDeviceControlInput): Promise<SystemSnapshot> {
@@ -252,6 +264,22 @@ export class AppController {
       bus.gain = input.gain;
     });
     this.engines.send('audio', 'setBusGain', input);
+    return snapshot;
+  }
+
+  public setAudioMasterGain(input: SetAudioMasterGainInput): SystemSnapshot {
+    const snapshot = this.store.update((draft) => {
+      draft.audio.master.gain = input.gain;
+    });
+    this.engines.send('audio', 'setMasterGain', input);
+    return snapshot;
+  }
+
+  public setAudioMasterEnabled(input: SetAudioMasterEnabledInput): SystemSnapshot {
+    const snapshot = this.store.update((draft) => {
+      draft.audio.master.enabled = input.enabled;
+    });
+    this.engines.send('audio', 'setMasterEnabled', input);
     return snapshot;
   }
 
@@ -618,7 +646,9 @@ export class AppController {
       const sources = z.array(captureSourceSchema).parse(
         await this.engines.request('capture', 'listSources', undefined, 15_000),
       );
-      return this.store.update((draft) => { draft.capture.sources = sources; }, { persist: false });
+      const snapshot = this.store.update((draft) => { draft.capture.sources = sources; }, { persist: false });
+      await this.refreshCaptureSourceThumbnails(true);
+      return snapshot;
     } finally {
       if (!wasRunning) await this.engines.stop('capture');
     }
@@ -790,12 +820,20 @@ export class AppController {
     return path && existsSync(path) ? path : null;
   }
 
+  public async getCaptureSourceThumbnail(id: string): Promise<Buffer | null> {
+    const knownSource = this.store.get().capture.sources.find((source) => source.id === id);
+    if (!knownSource || knownSource.type !== 'display') return null;
+    await this.refreshCaptureSourceThumbnails(false);
+    return this.captureSourceThumbnails.get(id) ?? null;
+  }
+
   public async dispose(): Promise<void> {
     this.disposed = true;
     if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
     this.captureRestartTimer = null;
     if (this.registeredShortcut) globalShortcut.unregister(this.registeredShortcut);
-    this.devices.dispose();
+    this.captureSourceThumbnails.clear();
+    await this.devices.dispose();
     await this.engines.dispose();
     await this.store.flush();
   }
@@ -824,6 +862,40 @@ export class AppController {
       await this.engines.stop('capture');
       throw error;
     }
+  }
+
+  private async refreshCaptureSourceThumbnails(force: boolean): Promise<void> {
+    if (this.captureSourceThumbnailRefresh) return this.captureSourceThumbnailRefresh;
+    const now = Date.now();
+    if (!force && now - this.captureSourceThumbnailsRefreshedAt < captureSourceThumbnailRefreshMinimumIntervalMs) return;
+
+    this.captureSourceThumbnailRefresh = (async () => {
+      const sources = this.store.get().capture.sources.filter((source) => source.type === 'display');
+      if (sources.length === 0) {
+        this.captureSourceThumbnails.clear();
+        this.captureSourceThumbnailsRefreshedAt = Date.now();
+        return;
+      }
+
+      const nativeSources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 320, height: 180 },
+      });
+      const next = new Map<string, Buffer>();
+      for (const source of sources) {
+        const nativeSource = matchDesktopCaptureSource(source, nativeSources);
+        if (!nativeSource || nativeSource.thumbnail.isEmpty()) continue;
+        next.set(source.id, nativeSource.thumbnail.toPNG());
+      }
+      this.captureSourceThumbnails.clear();
+      for (const [id, thumbnail] of next) this.captureSourceThumbnails.set(id, thumbnail);
+      this.captureSourceThumbnailsRefreshedAt = Date.now();
+    })().catch((error) => {
+      console.warn('Capture source thumbnails could not be refreshed.', error);
+    }).finally(() => {
+      this.captureSourceThumbnailRefresh = null;
+    });
+    return this.captureSourceThumbnailRefresh;
   }
 
   private applyLoginItemSetting(enabled: boolean): void {
@@ -1030,6 +1102,18 @@ export class AppController {
   }
 }
 
+function matchDesktopCaptureSource(
+  source: SystemSnapshot['capture']['sources'][number],
+  nativeSources: DesktopCapturerSource[],
+): DesktopCapturerSource | undefined {
+  if (source.type === 'display') {
+    const displays = nativeSources.filter((candidate) => candidate.id.startsWith('screen:'));
+    const displayIndex = Number(source.displayId ?? source.id.replace(/^display:/, ''));
+    return displays.find((candidate) => candidate.display_id === source.displayId) ?? displays[displayIndex];
+  }
+  return undefined;
+}
+
 function createResetAudioState(current: SystemSnapshot['audio']): SystemSnapshot['audio'] {
   const reset = structuredClone(defaultAudio);
   reset.devices = structuredClone(current.devices);
@@ -1045,10 +1129,7 @@ function createResetAudioState(current: SystemSnapshot['audio']): SystemSnapshot
     if (currentBus && availableDeviceIds.has(currentBus.deviceId)) bus.deviceId = currentBus.deviceId;
   }
 
-  const defaultOutput = reset.devices.find((device) => device.direction === 'output' && device.available && device.isDefault);
-  const defaultInput = reset.devices.find((device) => device.direction === 'input' && device.available && device.isDefault);
-  reset.outputDevice = defaultOutput?.name ?? current.outputDevice;
-  reset.microphoneDevice = defaultInput?.name ?? current.microphoneDevice;
+  reconcileAudioDevices(reset, current.devices);
   for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
     const defaultId = defaultAudio.activePresetIds[kind];
     reset.activePresetIds[kind] = defaultId && reset.pathPresets.some((preset) => preset.id === defaultId)

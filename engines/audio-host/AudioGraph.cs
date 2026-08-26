@@ -23,8 +23,12 @@ internal sealed class AudioGraph
     };
 
     private float chatMix = 0.15f;
+    private float masterGain = 1f;
+    private bool masterEnabled = true;
 
     public float ChatMix => chatMix;
+    public float MasterGain => masterGain;
+    public bool MasterEnabled => masterEnabled;
 
     public IReadOnlyCollection<AudioBusState> GetBuses() => buses.Values
         .Select(bus => new AudioBusState(bus.Id, bus.Gain, bus.Muted, bus.ApplicationCount))
@@ -44,6 +48,22 @@ internal sealed class AudioGraph
     {
         if (!buses.TryGetValue(busId, out var bus)) throw new ArgumentOutOfRangeException(nameof(busId));
         bus.Muted = !enabled;
+    }
+
+    public void SetMasterGain(float gain)
+    {
+        masterGain = Math.Clamp(gain, 0f, 1.5f);
+    }
+
+    public void SetMasterEnabled(bool enabled)
+    {
+        masterEnabled = enabled;
+    }
+
+    // Realtime rule: caller owns the aggregate output buffer. No allocations or locks.
+    public void ProcessMaster(Span<float> interleavedSamples)
+    {
+        ApplyGain(interleavedSamples, masterEnabled ? masterGain : 0f);
     }
 
     public void SetChatMix(float value)

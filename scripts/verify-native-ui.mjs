@@ -152,8 +152,7 @@ async function exerciseWorkflows() {
   await openAudioTab('mixer');
   await step('audio.start', async () => {
     if (!(await snapshot()).audio.enabled) {
-      await waitForEnabledButton('Start audio');
-      await clickButtonText('Start audio');
+      await evaluate('window.switchboard.setAudioEnabled(true)');
       await waitSnapshot((value) => value.audio.enabled, 'Audio start', 15_000);
     }
     return { state: (await snapshot()).engines.find((engine) => engine.kind === 'audio')?.state };
@@ -190,7 +189,15 @@ async function exerciseWorkflows() {
 
   await step('audio.game-preset-and-eq', async () => {
     await openAudioTab('game');
-    await clickButtonText('Competitive FPS', '.preset-picker');
+    const header = await evaluate(`({
+      presetDropdown: Boolean(document.querySelector('.preset-picker [role="combobox"]')),
+      featuredPresets: Boolean(document.querySelector('.preset-picker__featured')),
+      repeatedOutputRoute: Boolean(document.querySelector('.audio-workbench__device')),
+    })`);
+    if (!header.presetDropdown || header.featuredPresets || header.repeatedOutputRoute) {
+      throw new Error(`Game processing header did not use the compact preset-only layout: ${JSON.stringify(header)}`);
+    }
+    await selectPreset('Competitive FPS');
     await waitSnapshot((value) => value.audio.activePresetIds.game === 'game-competitive-fps', 'Game preset');
     const inputValue = await evaluate(`document.querySelector('#audio-panel-game input[aria-label="EQ band gain"]')?.value`);
     if (inputValue === undefined) throw new Error('The Game EQ exact gain field was not rendered.');
@@ -199,22 +206,22 @@ async function exerciseWorkflows() {
     bands[0].gainDb = -2.5;
     await evaluate(`window.switchboard.setAudioChannelProcessor(${JSON.stringify({ busId: 'game', processorId: 'equalizer', parameters: { bands } })})`);
     await waitSnapshot((value) => value.audio.channelProcessing.find((item) => item.busId === 'game').equalizer.bands[0].gainDb === -2.5, 'Game EQ exact value');
-    return { preset: 'Competitive FPS', fieldValue: inputValue, gainDb: -2.5 };
+    return { preset: 'Competitive FPS', fieldValue: inputValue, gainDb: -2.5, header };
   });
 
   await step('audio.chat-and-media-presets', async () => {
     await openAudioTab('chat');
-    await clickButtonText('Clear Voice', '.preset-picker');
+    await selectPreset('Clear Voice');
     await waitSnapshot((value) => value.audio.activePresetIds.chat === 'chat-clear-voice', 'Chat preset');
     await openAudioTab('media');
-    await clickButtonText('Music', '.preset-picker');
+    await selectPreset('Music');
     await waitSnapshot((value) => value.audio.activePresetIds.media === 'media-music', 'Media preset');
     return { chat: 'Clear Voice', media: 'Music' };
   });
 
   await step('audio.microphone-preset-and-simple-controls', async () => {
     await openAudioTab('microphone');
-    await clickButtonText('Clear Speech', '.preset-picker');
+    await selectPreset('Clear Speech');
     await waitSnapshot((value) => value.audio.activePresetIds.microphone === 'mic-clear-speech', 'Microphone preset');
     await clickSimpleChoice('Noise removal', 'Strong');
     await waitSnapshot((value) => micProcessor(value, 'noise-suppression').parameters.amount === 80, 'Noise removal');
@@ -422,6 +429,23 @@ async function sectionText(title) {
   return evaluate(`
     [...document.querySelectorAll('.audio-simple-section')].find((candidate) => candidate.querySelector('.human-setting__title')?.textContent?.includes(${JSON.stringify(title)}))?.textContent ?? ''
   `);
+}
+
+async function selectPreset(label) {
+  await clickSelector('.preset-picker [role="combobox"]');
+  await waitForSelector('[role="option"]');
+  const selected = await evaluate(`
+    (() => {
+      const label = ${JSON.stringify(label)};
+      const option = [...document.querySelectorAll('[role="option"]')]
+        .find((candidate) => candidate.textContent?.trim() === label);
+      if (!option) return false;
+      option.click();
+      return true;
+    })()
+  `);
+  if (!selected) throw new Error(`Preset option was not found: ${label}`);
+  await delay(100);
 }
 
 async function waitForWindow() {

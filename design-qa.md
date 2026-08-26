@@ -42,7 +42,9 @@ The isolated Electron round trip passed:
 - delete confirmation language without deleting real media;
 - editor open/back with a real `switchboard-media://clip/` source;
 - editor/library favorite synchronization;
+- editor and dialog Tab containment, Escape handling, background inertness, and focus restoration;
 - More settings contents;
+- capture-capability-backed audio controls, including truthful unavailable states;
 - search focus and no horizontal overflow;
 - Replay-off human language and visible Turn on Replay primary action.
 
@@ -52,6 +54,8 @@ The isolated Electron round trip passed:
 - P1: the empty state described Settings instead of offering a direct recovery action. Resolved with a canonical Turn on Instant Replay action and the configured shortcut.
 - P2: the date popover remained open after selection. Resolved by controlling and dismissing it on choice.
 - P2: the first comparison capture retained editor state. Resolved by reloading Capture before each viewport capture and regenerating the shared comparison input.
+- P1: unsupported audio toggles could appear usable. Resolved by deriving disabled and unavailable states from canonical capture capabilities.
+- P1: the editor and confirmation dialogs could expose hidden background controls to keyboard navigation. Resolved with inert background layers, modal semantics, focus loops, Escape behavior, and focus restoration.
 
 ## Remaining external runtime evidence
 

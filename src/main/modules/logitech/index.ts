@@ -6,11 +6,12 @@ import type {
   DeviceIdentity,
   DeviceControlChange,
 } from '../../../shared/contracts';
-import { resolveDeviceVariant } from '../../../shared/device-variant';
+import { resolveDeviceVariant, type DeviceVariantCandidate } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
 import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
 import { readG502Capabilities, writeG502Control } from './devices/g502-x-plus/agent';
 import { g502XPlusDefinition, resolveG502XPlusVariant } from './devices/g502-x-plus/definition';
+import { G502SniperDpiSession } from './devices/g502-x-plus/sniper-dpi';
 import {
   readLogitechAgentDevices,
   readLogitechBattery,
@@ -44,33 +45,70 @@ export class LogitechDeviceModule implements DeviceModule {
   public readonly id = 'device.logitech-hidpp';
   private readonly agentIds = new Map<string, string>();
   private readonly capabilityCache = new Map<string, TimedValue<DeviceCapabilities>>();
+  private directDpiSession: G502SniperDpiSession | null = null;
+  private directDpiPath: string | null = null;
+  private directDeviceId: string | null = null;
 
   public constructor(private readonly dependencies: LogitechDeviceModuleDependencies = defaultDependencies) {}
 
   public async discover(context: DeviceDiscoveryContext): Promise<Device[]> {
     const logitechHid = context.hidDevices.filter((device) => device.vendorId === logitechVendorId);
-    if (logitechHid.length === 0) return [];
+    this.agentIds.clear();
+    if (logitechHid.length === 0) {
+      await this.stopDirectDpiSession();
+      return [];
+    }
 
     const agentDevices = await this.dependencies.readAgentDevices();
-    const discovered = await Promise.all(agentDevices
-      .filter((device) => device.deviceBaseModel === g502XPlusDefinition.deviceBaseModel)
-      .map((device) => this.createG502XPlus(device, logitechHid, context)));
-    if (discovered.length > 0) return discovered;
+    const matchingAgentDevices = agentDevices
+      .filter((device) => device.deviceBaseModel === g502XPlusDefinition.deviceBaseModel);
+    if (matchingAgentDevices.length > 0) {
+      await this.stopDirectDpiSession();
+      return Promise.all(matchingAgentDevices.map((device) => this.createG502XPlus(device, logitechHid, context)));
+    }
 
     const receiver = logitechHid.find((device) => g502XPlusDefinition.receiverProductIds.includes(device.productId as 0xc547));
     const wired = logitechHid.find((device) => device.productId === g502XPlusDefinition.wiredProductId);
     const transport = wired ?? receiver;
-    return transport ? [this.createG502XPlusFallback(transport, context)] : [];
+    const directEndpoint = findLongHidppEndpoint(logitechHid, transport?.productId);
+    return transport ? [await this.createG502XPlusFallback(transport, directEndpoint, context)] : [];
   }
 
   public async setControl(device: Device, change: DeviceControlChange): Promise<void> {
     if (!device.connected) throw new Error(`${device.displayName} is disconnected.`);
+    if (this.directDpiSession && device.id === this.directDeviceId) {
+      if (change.type === 'dpi') {
+        await this.directDpiSession.setBaseDpi(change.value);
+        return;
+      }
+      if (change.type === 'dpi-shift') {
+        await this.directDpiSession.setShiftDpi(change.value);
+        return;
+      }
+      if (change.type === 'dpi-stages') {
+        this.directDpiSession.setStages(change.stages);
+        return;
+      }
+      if (change.type === 'report-rate') {
+        await this.directDpiSession.setReportRate(change.value);
+        return;
+      }
+      throw new Error('This control still requires the local Logitech device service. Live DPI, hold-to-shift, polling rate, and battery remain available.');
+    }
     const agentDeviceId = this.agentIds.get(device.id);
     if (!agentDeviceId) throw new Error('Logitech configuration requires the local G HUB device service.');
     await this.dependencies.writeControl(agentDeviceId, device, change);
     for (const key of this.capabilityCache.keys()) {
       if (key.startsWith(`${agentDeviceId}:`)) this.capabilityCache.delete(key);
     }
+  }
+
+  public deactivate(): Promise<void> {
+    return this.stopDirectDpiSession();
+  }
+
+  public dispose(): Promise<void> {
+    return this.stopDirectDpiSession();
   }
 
   private async createG502XPlus(
@@ -125,9 +163,14 @@ export class LogitechDeviceModule implements DeviceModule {
     };
   }
 
-  private createG502XPlusFallback(transport: HidDevice, context: DeviceDiscoveryContext): Device {
+  private async createG502XPlusFallback(
+    transport: HidDevice,
+    directEndpoint: HidDevice | undefined,
+    context: DeviceDiscoveryContext,
+  ): Promise<Device> {
     const wireless = g502XPlusDefinition.receiverProductIds.includes(transport.productId as 0xc547);
     const id = `logitech:${wireless ? `receiver-${transport.productId.toString(16)}` : `wired-${transport.productId.toString(16)}`}`;
+    const previous = findPreviousDevice(context.previousDevices, id, g502XPlusDefinition.model);
     const identity: DeviceIdentity = {
       manufacturer: g502XPlusDefinition.manufacturer,
       productFamily: g502XPlusDefinition.productFamily,
@@ -140,8 +183,44 @@ export class LogitechDeviceModule implements DeviceModule {
       transportProductId: transport.productId,
       productString: transport.product,
     };
-    const resolved = resolveDeviceVariant(identity, [], context.appearanceOverrides[id]);
-    const previous = findPreviousDevice(context.previousDevices, id, g502XPlusDefinition.model);
+    const previousOverride = previous?.variantResolution.confidence === 'user-override'
+      && previous.identity.variant && previous.identity.variant !== 'default'
+      ? { variant: previous.identity.variant, colorway: previous.identity.colorway }
+      : undefined;
+    const resolved = resolveDeviceVariant(
+      identity,
+      previousVariantCandidates(previous),
+      context.appearanceOverrides[id]
+        ?? (previous ? context.appearanceOverrides[previous.id] : undefined)
+        ?? previousOverride,
+    );
+    let capabilities = disableControls(previous?.capabilities);
+    delete capabilities.battery;
+    delete capabilities.reportRate;
+    if (directEndpoint?.path) {
+      try {
+        const session = await this.ensureDirectDpiSession(directEndpoint, previous);
+        capabilities = { ...capabilities, dpi: await session.getCapability() };
+        try {
+          const reportRate = await session.getReportRateCapability();
+          if (reportRate) capabilities.reportRate = reportRate;
+        } catch (error) {
+          console.warn('Direct G502 X Plus polling rate is temporarily unavailable.', error);
+        }
+        try {
+          const battery = await session.getBatteryCapability();
+          if (battery) capabilities.battery = battery;
+        } catch (error) {
+          console.warn('Direct G502 X Plus battery state is temporarily unavailable.', error);
+        }
+        this.directDeviceId = id;
+      } catch (error) {
+        console.warn('Direct G502 X Plus DPI Shift is temporarily unavailable.', error);
+        await this.stopDirectDpiSession();
+      }
+    } else {
+      await this.stopDirectDpiSession();
+    }
     return {
       id,
       moduleId: this.id,
@@ -151,9 +230,31 @@ export class LogitechDeviceModule implements DeviceModule {
       identity: resolved.identity,
       variantResolution: resolved.resolution,
       asset: resolveProductAsset(resolved.identity, 'mouse'),
-      capabilities: disableControls(previous?.capabilities),
+      capabilities,
       settings: withoutLegacyMouseSettings(previous?.settings),
     };
+  }
+
+  private async ensureDirectDpiSession(
+    endpoint: HidDevice,
+    previous: Device | undefined,
+  ): Promise<G502SniperDpiSession> {
+    if (this.directDpiSession && !this.directDpiSession.isClosed && this.directDpiPath === endpoint.path) {
+      return this.directDpiSession;
+    }
+    await this.stopDirectDpiSession();
+    const session = await G502SniperDpiSession.open(endpoint, previous?.capabilities.dpi);
+    this.directDpiSession = session;
+    this.directDpiPath = endpoint.path ?? null;
+    return session;
+  }
+
+  private async stopDirectDpiSession(): Promise<void> {
+    const session = this.directDpiSession;
+    this.directDpiSession = null;
+    this.directDpiPath = null;
+    this.directDeviceId = null;
+    if (session) await session.close();
   }
 
   private async readCapabilities(
@@ -227,9 +328,32 @@ function findTransportProductId(path: string | undefined, hidDevices: HidDevice[
   return hidDevices.find((device) => g502XPlusDefinition.receiverProductIds.includes(device.productId as 0xc547))?.productId;
 }
 
+function findLongHidppEndpoint(hidDevices: HidDevice[], productId: number | undefined): HidDevice | undefined {
+  if (productId === undefined) return undefined;
+  return hidDevices.find((device) => (
+    device.productId === productId
+    && device.usagePage === 0xff00
+    && device.usage === 2
+    && Boolean(device.path)
+  ));
+}
+
 function findPreviousDevice(previous: Device[], id: string, model: string): Device | undefined {
   return previous.find((device) => device.id === id)
     ?? previous.find((device) => device.moduleId === 'device.logitech-hidpp' && device.identity.model === model);
+}
+
+function previousVariantCandidates(previous: Device | undefined): DeviceVariantCandidate[] {
+  if (!previous || previous.identity.variant === undefined || previous.identity.variant === 'default') return [];
+  const { confidence } = previous.variantResolution;
+  if (confidence !== 'hardware' && confidence !== 'product-id' && confidence !== 'module-metadata') return [];
+  return [{
+    variant: previous.identity.variant,
+    colorway: previous.identity.colorway,
+    confidence,
+    source: `Previously observed ${previous.variantResolution.source}`,
+    evidence: previous.variantResolution.evidence,
+  }];
 }
 
 const legacyMouseSettingKeys = new Set([

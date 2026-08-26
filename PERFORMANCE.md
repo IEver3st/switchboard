@@ -40,3 +40,7 @@ The product should surface sustained regressions, not react to one noisy sample.
 4. Save a replay every 2 minutes for 4 hours.
 5. Audio graph active for 24 hours while endpoints connect/disconnect.
 6. Repeatedly start/stop each engine 500 times.
+
+## Device sessions
+
+The G502 X Plus live DPI Shift path holds one non-exclusive HID++ long-report handle only while the Logitech module and matching device are active. Sniper-button edges are notification-driven; the session adds no button polling timer. Release, module disable, disconnect, and application shutdown close the handle deterministically and restore the pre-hold DPI when the device remains reachable.

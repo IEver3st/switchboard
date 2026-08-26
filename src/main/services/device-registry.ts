@@ -1,5 +1,5 @@
 import { devicesAsync } from 'node-hid';
-import type { Device, DeviceControlChange, SystemSnapshot } from '../../shared/contracts';
+import type { Device, DeviceControlChange, DeviceSettingValue, SystemSnapshot } from '../../shared/contracts';
 import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
@@ -8,15 +8,20 @@ const discoveryIntervalMs = 5_000;
 const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1']);
 
 export class DeviceRegistry {
-  private readonly modules: DeviceModule[] = [new LogitechDeviceModule(), new HyperXDeviceModule()];
+  private readonly modules: DeviceModule[];
   private timer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
   private disposed = false;
 
   public constructor(
     private readonly getSnapshot: () => SystemSnapshot,
-    private readonly applyDevices: (devices: Device[]) => void,
-  ) {}
+    private readonly applyDevices: (devices: Device[], options?: { persist?: boolean }) => void,
+  ) {
+    this.modules = [
+      new LogitechDeviceModule(),
+      new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
+    ];
+  }
 
   public async start(): Promise<void> {
     await this.refresh();
@@ -54,10 +59,17 @@ export class DeviceRegistry {
     await this.refresh();
   }
 
-  public dispose(): void {
+  public settingChanged(deviceId: string, key: string, value: DeviceSettingValue): void {
+    const device = this.getSnapshot().devices.find((candidate) => candidate.id === deviceId);
+    if (!device) return;
+    this.modules.find((module) => module.id === device.moduleId)?.onSettingChanged?.(deviceId, key, value);
+  }
+
+  public async dispose(): Promise<void> {
     this.disposed = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    await Promise.all(this.modules.map((module) => module.dispose?.()));
   }
 
   private setFixtureControl(deviceId: string, change: DeviceControlChange): void {
@@ -83,6 +95,19 @@ export class DeviceRegistry {
     }
     if (change.type === 'lighting-brightness' && device.capabilities.lighting) device.capabilities.lighting.brightness = change.brightness;
     if (change.type === 'lighting-effect' && device.capabilities.lighting) device.capabilities.lighting.activeEffectId = change.effectId;
+    if (change.type === 'lighting-speed' && device.capabilities.lighting) device.capabilities.lighting.speed = change.speed;
+    if (change.type === 'lighting-profile' && device.capabilities.lighting) {
+      const profile = device.capabilities.lighting.profiles.find((candidate) => candidate.id === change.profileId);
+      if (profile) Object.assign(device.capabilities.lighting, {
+        activeProfileId: profile.id,
+        activeEffectId: profile.effectId,
+        brightness: profile.brightness,
+        speed: profile.speed,
+      });
+    }
+    if (change.type === 'microphone-mute-lighting' && device.capabilities.lighting) {
+      device.capabilities.lighting.muteLinked = change.enabled;
+    }
 
     this.applyDevices(devices);
   }
@@ -93,12 +118,15 @@ export class DeviceRegistry {
     const hidDevices = await devicesAsync();
     const enabledModuleIds = new Set(snapshot.modules.filter((module) => module.enabled).map((module) => module.id));
     const activeModules = this.modules.filter((module) => enabledModuleIds.has(module.id));
+    await Promise.all(this.modules
+      .filter((module) => !enabledModuleIds.has(module.id))
+      .map((module) => module.deactivate?.()));
     const groups = await Promise.all(activeModules.map((module) => module.discover({
       hidDevices,
       previousDevices: snapshot.devices,
       appearanceOverrides: snapshot.settings.deviceAppearanceOverrides,
     })));
-    const connected = groups.flat();
+    const connected = groups.flat().map((device) => mergeDeviceSettings(device, snapshot.devices));
     const connectedIds = new Set(connected.map((device) => device.id));
     const moduleIds = new Set(this.modules.map((module) => module.id));
     const disconnected = snapshot.devices
@@ -120,4 +148,29 @@ export class DeviceRegistry {
 
     if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next);
   }
+
+  private applyModuleDevices(moduleId: string, published: Device[], persist: boolean): void {
+    if (this.disposed) return;
+    const snapshot = this.getSnapshot();
+    const merged = published.map((device) => mergeDeviceSettings(device, snapshot.devices));
+    const next = [
+      ...merged,
+      ...snapshot.devices.filter((device) => device.moduleId !== moduleId),
+    ].sort((left, right) => {
+      if (left.connected !== right.connected) return left.connected ? -1 : 1;
+      return left.displayName.localeCompare(right.displayName);
+    });
+    if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next, { persist });
+  }
+}
+
+function mergeDeviceSettings(device: Device, previousDevices: Device[]): Device {
+  const previous = previousDevices.find((candidate) => candidate.id === device.id)
+    ?? previousDevices.find((candidate) => (
+      candidate.moduleId === device.moduleId
+      && candidate.identity.model === device.identity.model
+    ));
+  return previous
+    ? { ...device, settings: { ...previous.settings, ...device.settings } }
+    : device;
 }

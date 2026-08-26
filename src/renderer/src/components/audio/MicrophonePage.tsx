@@ -1,7 +1,6 @@
 import type { MicProcessor, MicProcessorId, SystemSnapshot } from '../../../../shared/contracts';
 import { AdvancedDisclosure, PrimarySlider, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
 import { AudioDevicePicker } from './AudioDevicePicker';
-import { channelIcons } from './channel-identity';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
@@ -43,7 +42,6 @@ const voiceOptions = [
 ] satisfies Array<{ value: VoiceStyle; label: string }>;
 
 export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
-  const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const setMicProcessor = useSystemStore((state) => state.setMicProcessor);
   const setAudioMonitoring = useSystemStore((state) => state.setAudioMonitoring);
   const applyAudioPreset = useSystemStore((state) => state.applyAudioPreset);
@@ -65,7 +63,6 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const processingPending = actionPending?.startsWith('audio:processor:') ?? false;
   const unavailable = support === 'unavailable';
   const monitoringUnavailable = snapshot.audio.capabilities.monitoring === 'unavailable';
-  const MicIcon = channelIcons.mic;
 
   if (!micBus || !gain || !gate || !suppression || !equalizer || !compressor || !limiter) {
     return <div className="px-6 py-8 text-sm text-destructive">Microphone sound settings are unavailable.</div>;
@@ -74,28 +71,6 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   return (
     <div className="audio-workbench microphone-workbench" data-channel="microphone">
       <header className="audio-workbench__header microphone-workbench__header">
-        <div className="audio-workbench__identity">
-          <h2><MicIcon className="audio-workbench__channel-icon" aria-hidden={true} />Microphone</h2>
-          <label className="audio-workbench__device">
-            <span>Input</span>
-            <AudioDevicePicker
-              value={micBus.deviceId}
-              devices={snapshot.audio.devices}
-              direction="input"
-              label="Microphone input device"
-              disabled={actionPending === 'audio:mic:device'}
-              onChange={(deviceId) => void setAudioBusDevice({ busId: 'mic', deviceId })}
-            />
-          </label>
-          {support !== 'available' ? (
-            <p className="audio-workbench__availability" role="status">
-              {support === 'simulation'
-                ? 'Voice processing is not available on this setup yet. Your settings will still be saved.'
-                : 'Voice processing is unavailable for this microphone.'}
-            </p>
-          ) : null}
-        </div>
-
         <div className="microphone-workbench__preset">
           <PresetPicker
             kind="microphone"
@@ -115,6 +90,14 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           <MicrophoneTest support={snapshot.audio.capabilities.microphoneTest} />
         </div>
       </header>
+
+      {support !== 'available' ? (
+        <p className="audio-workbench__availability" role="status">
+          {support === 'simulation'
+            ? 'Voice processing is not available on this setup yet. Your settings will still be saved.'
+            : 'Voice processing is unavailable for this microphone.'}
+        </p>
+      ) : null}
 
       <section className="audio-primary-section" aria-labelledby="microphone-equalizer-heading">
         <SettingToggle

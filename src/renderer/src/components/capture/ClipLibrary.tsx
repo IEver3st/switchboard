@@ -36,12 +36,11 @@ const dateOptions: Array<{ value: ClipDateFilter; label: string }> = [
   { value: 'last-30-days', label: 'Last 30 days' },
 ];
 
-export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, onEnableReplay }: {
+export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey }: {
   clips: Clip[];
   actions: ClipActions;
   replayEnabled: boolean;
   hotkey: string;
-  onEnableReplay(): void;
 }) {
   const [query, setQuery] = useState('');
   const [game, setGame] = useState('all');
@@ -117,7 +116,7 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, o
         {clips.length > 0 ? (
           layout === 'grid' ? <ClipGrid clips={clips} actions={actions} grouped={clips.length >= 8} /> : <ClipList clips={clips} actions={actions} />
         ) : allClips.length === 0 ? (
-          <EmptyLibrary replayEnabled={replayEnabled} hotkey={hotkey} onEnableReplay={onEnableReplay} />
+          <EmptyLibrary replayEnabled={replayEnabled} hotkey={hotkey} />
         ) : (
           <div className="grid min-h-64 place-items-center border-y border-border py-12 text-center">
             <div>
@@ -163,16 +162,15 @@ function DateFilter({ value, onChange }: { value: ClipDateFilter; onChange: (val
   );
 }
 
-function EmptyLibrary({ replayEnabled, hotkey, onEnableReplay }: { replayEnabled: boolean; hotkey: string; onEnableReplay(): void }) {
+function EmptyLibrary({ replayEnabled, hotkey }: { replayEnabled: boolean; hotkey: string }) {
   return (
     <div className="grid min-h-72 place-items-center border-y border-border py-12 text-center">
       <div className="max-w-sm">
         <Video className="mx-auto size-7 text-muted-foreground" strokeWidth={1.5} />
         <h3 className="m-0 mt-3 text-[15px] font-semibold text-foreground">No clips yet</h3>
         <p className="m-0 mt-1.5 text-[12px] leading-5 text-muted-foreground">
-          {replayEnabled ? <>Press {hotkey} when something worth saving happens.</> : <>Turn on Instant Replay and press {hotkey}<br />when something worth saving happens.</>}
+          {replayEnabled ? <>Press {hotkey} when something worth saving happens.</> : <>Turn on Instant Replay in Capture Settings.<br />Then press {hotkey} when something worth saving happens.</>}
         </p>
-        {!replayEnabled ? <Button type="button" variant="primary" size="sm" className="mt-4" onClick={onEnableReplay}>Turn on Instant Replay</Button> : null}
       </div>
     </div>
   );

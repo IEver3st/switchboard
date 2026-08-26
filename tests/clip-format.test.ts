@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { formatClipDateGroup, formatClipTimestamp, formatDuration, formatReplayLength } from '../src/renderer/src/lib/format';
+import {
+  formatClipDateGroup,
+  formatClipTimestamp,
+  formatDuration,
+  formatRelativeTime,
+  formatReplayLength,
+  formatVideoQuality,
+} from '../src/renderer/src/lib/format';
 
 describe('capture media formatting', () => {
   test('uses media duration and human replay-length conventions', () => {
@@ -19,5 +26,13 @@ describe('capture media formatting', () => {
     const older = new Date(2026, 7, 24, 23, 42);
     expect(formatClipTimestamp(older.getTime(), now)).toContain(`${older.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · `);
     expect(formatClipDateGroup(older.getTime(), now)).toBe(older.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }));
+  });
+
+  test('formats relative age and video quality for capture list rows', () => {
+    const now = Date.UTC(2026, 7, 26, 12, 0);
+    expect(formatRelativeTime(now - 3 * 60 * 60_000, now)).toBe('3 hr ago');
+    expect(formatRelativeTime(now - 24 * 60 * 60_000, now)).toBe('1 day ago');
+    expect(formatVideoQuality(2560, 1440, 59.94)).toBe('1440p, 60 FPS');
+    expect(formatVideoQuality(0, 0, 0)).toBe('Unavailable');
   });
 });

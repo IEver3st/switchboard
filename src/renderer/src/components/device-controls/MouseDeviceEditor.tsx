@@ -52,7 +52,11 @@ function MouseStage({ device }: { device: Device }) {
   };
 
   return (
-    <section className="mouse-stage" aria-label={`${device.displayName} button assignments`}>
+    <section
+      className="mouse-stage"
+      data-callouts-disabled={!capability?.writable || undefined}
+      aria-label={`${device.displayName} button assignments`}
+    >
       <div className="mouse-stage__callouts mouse-stage__callouts--left">
         {leftBindings.map(renderCallout)}
       </div>

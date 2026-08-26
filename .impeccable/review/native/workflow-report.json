@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-08-26T07:49:31.221Z",
+  "startedAt": "2026-08-26T08:16:52.180Z",
   "steps": [
     {
       "name": "devices.open-g502",
@@ -102,8 +102,8 @@
           {
             "label": "Game fader",
             "min": "0",
-            "max": "100",
-            "valueText": "0 dB"
+            "max": "150",
+            "valueText": "100 percent"
           },
           {
             "label": "ChatMix game and chat balance",
@@ -129,7 +129,12 @@
       "evidence": {
         "preset": "Competitive FPS",
         "fieldValue": "-3",
-        "gainDb": -2.5
+        "gainDb": -2.5,
+        "header": {
+          "presetDropdown": true,
+          "featuredPresets": false,
+          "repeatedOutputRoute": false
+        }
       }
     },
     {
@@ -190,5 +195,5 @@
     "microphoneTest": "unavailable",
     "monitoring": "unavailable"
   },
-  "completedAt": "2026-08-26T07:49:35.801Z"
+  "completedAt": "2026-08-26T08:16:57.518Z"
 }

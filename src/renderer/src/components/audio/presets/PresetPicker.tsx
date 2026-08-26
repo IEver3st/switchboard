@@ -4,7 +4,6 @@ import type { AudioPathId, AudioPathPreset } from '../../../../../shared/contrac
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function PresetPicker({
@@ -37,7 +36,6 @@ export function PresetPicker({
   onExport: (presetId: string) => void;
 }) {
   const relevant = presets.filter((preset) => preset.kind === kind);
-  const featured = relevant.filter((preset) => preset.builtIn).slice(0, 4);
   const active = relevant.find((preset) => preset.id === activeId);
   const [mode, setMode] = useState<'create' | 'rename' | null>(null);
   const [name, setName] = useState('');
@@ -92,19 +90,6 @@ export function PresetPicker({
           <PresetAction label="Export audio preset" tooltip={desktopFeatures ? 'Export preset' : 'Export is available in the desktop app'} disabled={pending || !active || !desktopFeatures} onClick={() => active && onExport(active.id)}><Download /></PresetAction>
         </div>
       </div>
-
-      {featured.length > 1 ? (
-        <ToggleGroup
-          type="single"
-          value={activeId ?? ''}
-          disabled={pending}
-          aria-label={`Featured ${label.toLowerCase()} presets`}
-          onValueChange={(value) => value && onApply(value)}
-          className="preset-picker__featured"
-        >
-          {featured.map((preset) => <ToggleGroupItem key={preset.id} value={preset.id}>{preset.name}</ToggleGroupItem>)}
-        </ToggleGroup>
-      ) : null}
 
       {mode ? (
         <div className="preset-picker__editor">

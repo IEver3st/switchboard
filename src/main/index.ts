@@ -153,9 +153,19 @@ if (hasSingleInstanceLock) {
 
     controller = new AppController();
     await controller.initialize();
-    await protocol.handle('switchboard-media', (request) => {
+    await protocol.handle('switchboard-media', async (request) => {
       const url = new URL(request.url);
       const id = decodeURIComponent(url.pathname.replace(/^\//, ''));
+      if (url.hostname === 'capture-source') {
+        const thumbnail = await controller?.getCaptureSourceThumbnail(id);
+        if (!thumbnail) return new Response('Not found', { status: 404 });
+        return new Response(new Uint8Array(thumbnail), {
+          headers: {
+            'Cache-Control': 'no-store',
+            'Content-Type': 'image/png',
+          },
+        });
+      }
       const path = controller?.getClipPath(id, url.hostname === 'thumbnail');
       if (!path) return new Response('Not found', { status: 404 });
       const range = request.headers.get('range');

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Clip, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
@@ -16,22 +16,29 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const renameClip = useSystemStore((state) => state.renameClip);
   const exportClip = useSystemStore((state) => state.exportClip);
   const setClipTrim = useSystemStore((state) => state.setClipTrim);
-  const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const actionPending = useSystemStore((state) => state.actionPending);
   const [editorClipId, setEditorClipId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Clip | null>(null);
   const [renameTarget, setRenameTarget] = useState<Clip | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const previousSavedClipId = useRef(snapshot.clips[0]?.id);
+  const restoreFocusClipId = useRef<string | null>(null);
   const editorClip = snapshot.clips.find((clip) => clip.id === editorClipId) ?? null;
+  const dialogOpen = Boolean(deleteTarget || renameTarget);
 
-  const closeEditor = () => {
-    const closingId = editorClipId;
+  const closeEditor = useCallback(() => {
+    restoreFocusClipId.current = editorClipId;
     setEditorClipId(null);
-    if (closingId) window.requestAnimationFrame(() => {
+  }, [editorClipId]);
+
+  useEffect(() => {
+    if (editorClipId || !restoreFocusClipId.current) return;
+    const closingId = restoreFocusClipId.current;
+    restoreFocusClipId.current = null;
+    window.requestAnimationFrame(() => {
       document.querySelector<HTMLElement>(`[data-clip-id="${CSS.escape(closingId)}"]`)?.focus();
     });
-  };
+  }, [editorClipId]);
 
   useEffect(() => {
     if (editorClipId && !editorClip) setEditorClipId(null);
@@ -61,27 +68,35 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <div className="relative flex min-h-full flex-1 flex-col" data-testid="capture-library">
-      <CaptureHeader snapshot={snapshot} />
-      <ClipLibrary clips={snapshot.clips} actions={actions} replayEnabled={snapshot.capture.config.enabled} hotkey={snapshot.capture.config.hotkey} onEnableReplay={() => void setCaptureConfig({ enabled: true })} />
+      <div
+        className="flex min-h-full flex-1 flex-col"
+        aria-hidden={editorClip || dialogOpen ? true : undefined}
+        inert={editorClip || dialogOpen ? true : undefined}
+      >
+        <CaptureHeader snapshot={snapshot} />
+        <ClipLibrary clips={snapshot.clips} actions={actions} replayEnabled={snapshot.capture.config.enabled} hotkey={snapshot.capture.config.hotkey} />
+      </div>
 
       {editorClip ? (
-        <ClipEditor
-          clip={editorClip}
-          exportPending={actionPending === `clip:${editorClip.id}:export`}
-          trimPending={actionPending === `clip:${editorClip.id}:trim`}
-          onClose={closeEditor}
-          onFavorite={(favorite) => void setClipFavorite({ id: editorClip.id, favorite })}
-          onRename={() => setRenameTarget(editorClip)}
-          onReveal={() => void revealClip(editorClip.id)}
-          onSaveTrim={(startMs, endMs) => setClipTrim({ id: editorClip.id, startMs, endMs }).then(() => {
-            showTransientToast('Trim saved', setToast);
-          })}
-          onExport={(preset: ClipExportPreset, startMs, endMs) => exportClip({ id: editorClip.id, startMs, endMs, preset }).then((exported) => {
-            if (exported) showTransientToast('Share file created', setToast);
-            return exported;
-          })}
-          onDelete={() => setDeleteTarget(editorClip)}
-        />
+        <div className="contents" aria-hidden={dialogOpen ? true : undefined} inert={dialogOpen ? true : undefined}>
+          <ClipEditor
+            clip={editorClip}
+            exportPending={actionPending === `clip:${editorClip.id}:export`}
+            trimPending={actionPending === `clip:${editorClip.id}:trim`}
+            onClose={closeEditor}
+            onFavorite={(favorite) => void setClipFavorite({ id: editorClip.id, favorite })}
+            onRename={() => setRenameTarget(editorClip)}
+            onReveal={() => void revealClip(editorClip.id)}
+            onSaveTrim={(startMs, endMs) => setClipTrim({ id: editorClip.id, startMs, endMs }).then(() => {
+              showTransientToast('Trim saved', setToast);
+            })}
+            onExport={(preset: ClipExportPreset, startMs, endMs) => exportClip({ id: editorClip.id, startMs, endMs, preset }).then((exported) => {
+              if (exported) showTransientToast('Share file created', setToast);
+              return exported;
+            })}
+            onDelete={() => setDeleteTarget(editorClip)}
+          />
+        </div>
       ) : null}
 
       {deleteTarget ? (

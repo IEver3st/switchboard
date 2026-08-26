@@ -1,7 +1,7 @@
-import { useMemo, type CSSProperties } from 'react';
-import { ChevronDown, FolderOpen, LoaderCircle, RefreshCw, Save, SlidersHorizontal } from 'lucide-react';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Monitor, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
-import type { CaptureConfig, CaptureSource, ReplayState, SystemSnapshot } from '../../../../shared/contracts';
+import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,14 +16,11 @@ const qualityLabels: Record<number, string> = { 1: 'Economy', 2: 'Balanced', 3: 
 
 export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
-  const saveReplay = useSystemStore((state) => state.saveReplay);
   const actionPending = useSystemStore((state) => state.actionPending);
   const config = snapshot.capture.config;
   const runtime = snapshot.capture.runtime;
   const configPending = actionPending === 'capture:config';
-  const savePending = actionPending === 'capture:save' || runtime.saveQueueDepth > 0;
-  const canSave = config.enabled && runtime.segmentCount > 0 && runtime.state !== 'error';
-  const sourceOptions = sourceChoices(config.source, snapshot.capture.sources);
+  const sourceOptions = sourceChoices(config, snapshot.capture.sources);
   const selectedSourceValue = config.source === 'automatic-game'
     ? 'automatic-game'
     : config.source === 'display'
@@ -45,34 +42,14 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <section aria-label="Capture controls" className="sticky top-0 z-20 border-b border-border bg-card">
-      <div className="flex min-h-[66px] flex-wrap items-center gap-x-6 gap-y-2 border-b border-border px-5 py-2.5">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="m-0 text-[13px] font-semibold text-foreground">Instant Replay</h2>
-            <ReplayStatus enabled={config.enabled} state={runtime.state} source={config.source} ready={canSave} />
-          </div>
-          <p className="m-0 mt-1 truncate text-[10px] tabular-nums text-muted-foreground">{captureStatusDetail(snapshot, canSave)}</p>
-        </div>
-        {(runtime.state === 'buffering' || runtime.state === 'saving') && config.enabled ? (
-          <div className="hidden w-32 shrink-0 lg:block" role="progressbar" aria-label="Replay buffer" aria-valuemin={0} aria-valuemax={config.replaySeconds} aria-valuenow={Math.floor(runtime.bufferedSeconds)}>
-            <div className="h-[3px] overflow-hidden rounded-full bg-input"><span className="block h-full rounded-full bg-primary transition-[width] duration-150 motion-reduce:transition-none" style={{ width: `${Math.min(100, runtime.bufferedSeconds / config.replaySeconds * 100)}%` }} /></div>
-          </div>
-        ) : null}
-        <div className="ml-auto flex shrink-0 items-center gap-3">
-          <label className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-            {config.enabled ? 'Replay on' : 'Replay off'}
-            <Switch checked={config.enabled} disabled={configPending} aria-label="Instant Replay" onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
-          </label>
-          <Button type="button" variant="primary" size="sm" className="h-9 min-w-32" disabled={config.enabled ? !canSave || savePending || configPending : configPending} title={config.enabled && !canSave ? 'A replay will be available after the buffer has footage' : undefined} onClick={() => config.enabled ? void saveReplay() : void setCaptureConfig({ enabled: true })}>
-            {savePending ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Save className="size-4" />}
-            {!config.enabled ? 'Turn on Replay' : savePending ? 'Saving…' : 'Save replay'}
-          </Button>
-        </div>
-      </div>
-
       <div className="capture-config-grid px-5 py-2.5">
         <CaptureControl label="Source">
-          <CompactSelect value={selectedSourceValue} onChange={changeSource} ariaLabel="Capture source" disabled={configPending} options={sourceOptions} />
+          <CaptureSourcePicker
+            value={selectedSourceValue}
+            options={sourceOptions}
+            disabled={configPending}
+            onChange={changeSource}
+          />
         </CaptureControl>
         <CaptureControl label="Length">
           <CompactSelect value={String(config.replaySeconds)} onChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })} ariaLabel="Replay length" disabled={configPending} options={durationOptions.map((seconds) => ({ value: String(seconds), label: formatReplayLength(seconds) }))} />
@@ -118,8 +95,22 @@ function CaptureMore({ snapshot, configPending }: { snapshot: SystemSnapshot; co
         </div>
 
         <div className="mt-4 border-y border-border">
-          <CaptureToggle label="Game audio" color="var(--channel-game)" checked={config.includeSystemAudio} disabled={configPending} onChange={(checked) => void setCaptureConfig({ includeSystemAudio: checked })} />
-          <CaptureToggle label="Microphone" color="var(--channel-microphone)" checked={config.includeMic} disabled={configPending} onChange={(checked) => void setCaptureConfig({ includeMic: checked })} />
+          <CaptureToggle
+            label="Game audio"
+            color="var(--channel-game)"
+            checked={snapshot.capture.capabilities.systemAudio && config.includeSystemAudio}
+            disabled={configPending || !snapshot.capture.capabilities.systemAudio}
+            unavailableReason={!snapshot.capture.capabilities.systemAudio ? 'Unavailable for this capture setup' : undefined}
+            onChange={(checked) => void setCaptureConfig({ includeSystemAudio: checked })}
+          />
+          <CaptureToggle
+            label="Microphone"
+            color="var(--channel-microphone)"
+            checked={snapshot.capture.capabilities.microphoneAudio && config.includeMic}
+            disabled={configPending || !snapshot.capture.capabilities.microphoneAudio}
+            unavailableReason={!snapshot.capture.capabilities.microphoneAudio ? 'Unavailable for this capture setup' : undefined}
+            onChange={(checked) => void setCaptureConfig({ includeMic: checked })}
+          />
           <CaptureToggle label="Capture cursor" checked={config.includeCursor} disabled={configPending} onChange={(checked) => void setCaptureConfig({ includeCursor: checked })} />
         </div>
 
@@ -133,15 +124,154 @@ function CaptureMore({ snapshot, configPending }: { snapshot: SystemSnapshot; co
 }
 
 function CaptureControl({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="min-w-0"><span className="mb-1 block text-[10px] font-medium text-muted-foreground">{label}</span>{children}</label>;
+  return <div className="min-w-0"><span className="mb-1 block text-[10px] font-medium text-muted-foreground">{label}</span>{children}</div>;
 }
 
 function CompactSelect({ value, options, onChange, ariaLabel, disabled }: { value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void; ariaLabel: string; disabled?: boolean }) {
   return <Select value={value} onValueChange={onChange} disabled={disabled}><SelectTrigger aria-label={ariaLabel} className="h-9 text-[12px]"><SelectValue /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select>;
 }
 
-function CaptureToggle({ label, color, checked, disabled, onChange }: { label: string; color?: string; checked: boolean; disabled: boolean; onChange: (checked: boolean) => void }) {
-  return <label className="flex h-11 items-center justify-between gap-3 border-b border-border px-1 last:border-b-0" style={color ? { '--control-accent': color } as CSSProperties : undefined}><span className="flex items-center gap-2 text-[11px] font-medium text-foreground">{color ? <span className="h-4 w-[3px] rounded-sm" style={{ backgroundColor: color }} aria-hidden="true" /> : null}{label}</span><Switch checked={checked} disabled={disabled} aria-label={label} onCheckedChange={onChange} /></label>;
+type CaptureSourceOption = Pick<CaptureSource, 'type' | 'available'> & {
+  value: string;
+  label: string;
+};
+
+function CaptureSourcePicker({
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  options: CaptureSourceOption[];
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
+  const actionPending = useSystemStore((state) => state.actionPending);
+  const [open, setOpen] = useState(false);
+  const [previewRevision, setPreviewRevision] = useState(0);
+  const selected = options.find((option) => option.value === value);
+  const currentType: CaptureSourceOption['type'] = selected?.type ?? (value === 'automatic-game' ? 'automatic-game' : 'display');
+  const currentLabel = selected?.label ?? (value === 'automatic-game' ? 'Automatic game' : 'Choose a display');
+  const discoveredCount = options.length;
+  const refreshPending = actionPending === 'capture:sources';
+  const selectSource = (nextValue: string) => {
+    onChange(nextValue);
+    setOpen(false);
+  };
+  const refresh = async () => {
+    await refreshCaptureSources();
+    setPreviewRevision((revision) => revision + 1);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="capture-source-trigger"
+          aria-label={`Capture source: ${currentLabel}`}
+          disabled={disabled}
+        >
+          <SourceIcon type={currentType} />
+          <span className="min-w-0 flex-1 truncate text-left">{currentLabel}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={6} className="capture-source-popover p-0" aria-label="Choose capture source">
+        <div className="capture-source-popover__header">
+          <div className="min-w-0">
+            <div className="text-[12px] font-semibold text-foreground">Capture source</div>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">Choose what Instant Replay records. Preview images stay on this PC.</p>
+          </div>
+          <Button type="button" variant="secondary" size="sm" disabled={refreshPending || disabled} onClick={() => void refresh()}>
+            <RefreshCw className={cn('size-3.5', refreshPending && 'animate-spin motion-reduce:animate-none')} />
+            {refreshPending ? 'Refreshing…' : 'Refresh'}
+          </Button>
+        </div>
+
+        <div className="capture-source-grid" role="group" aria-label="Available capture sources">
+          {options.map((option) => (
+            <CaptureSourceOptionButton
+              key={`${option.value}:${previewRevision}`}
+              option={option}
+              selected={option.value === value}
+              previewRevision={previewRevision}
+              onSelect={selectSource}
+            />
+          ))}
+        </div>
+        {discoveredCount === 0 ? (
+          <div className="capture-source-empty" role="status">No displays or windows are loaded. Refresh to scan available sources.</div>
+        ) : null}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function CaptureSourceOptionButton({
+  option,
+  selected,
+  previewRevision,
+  onSelect,
+}: {
+  option: CaptureSourceOption;
+  selected: boolean;
+  previewRevision: number;
+  onSelect: (value: string) => void;
+}) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const automatic = option.type === 'automatic-game';
+  const previewUrl = automatic
+    ? null
+    : `switchboard-media://capture-source/${encodeURIComponent(option.value)}?v=${previewRevision}`;
+
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      className="capture-source-option"
+      data-selected={selected ? 'true' : 'false'}
+      disabled={!option.available}
+      onClick={() => onSelect(option.value)}
+    >
+      <span className="capture-source-option__preview" aria-hidden="true">
+        {automatic ? (
+          <span className="capture-source-option__automatic"><Gamepad2 className="size-7" /><span>Detect active game</span></span>
+        ) : previewFailed ? (
+          <span className="capture-source-option__fallback"><ImageOff className="size-5" /><span>Preview unavailable</span></span>
+        ) : (
+          <img src={previewUrl ?? undefined} alt="" draggable={false} onError={() => setPreviewFailed(true)} />
+        )}
+        {!option.available ? <span className="capture-source-option__unavailable">Unavailable</span> : null}
+      </span>
+      <span className="capture-source-option__copy">
+        <span className="capture-source-option__name" title={option.label}>{option.label}</span>
+        <span className="capture-source-option__type">{sourceTypeLabel(option.type)}{selected ? ' · Selected' : ''}</span>
+      </span>
+    </button>
+  );
+}
+
+function SourceIcon({ type }: { type: CaptureSourceOption['type'] }) {
+  const Icon = type === 'display' ? Monitor : type === 'window' ? AppWindow : Gamepad2;
+  return <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />;
+}
+
+function CaptureToggle({ label, color, checked, disabled, unavailableReason, onChange }: { label: string; color?: string; checked: boolean; disabled: boolean; unavailableReason?: string; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex min-h-11 items-center justify-between gap-3 border-b border-border px-1 py-1.5 last:border-b-0" style={color ? { '--control-accent': color } as CSSProperties : undefined}>
+      <span className="flex min-w-0 items-center gap-2">
+        {color ? <span className="h-4 w-[3px] shrink-0 rounded-sm" style={{ backgroundColor: color }} aria-hidden="true" /> : null}
+        <span className="min-w-0">
+          <span className="block text-[11px] font-medium text-foreground">{label}</span>
+          {unavailableReason ? <span className="mt-0.5 block text-[10px] text-muted-foreground">{unavailableReason}</span> : null}
+        </span>
+      </span>
+      <Switch checked={checked} disabled={disabled} aria-label={label} onCheckedChange={onChange} />
+    </label>
+  );
 }
 
 function encoderChoices(snapshot: SystemSnapshot): Array<{ value: string; label: string }> {
@@ -156,35 +286,31 @@ function encoderChoices(snapshot: SystemSnapshot): Array<{ value: string; label:
   return values.filter((option) => !option.match || available.includes(option.match) || option.value === snapshot.capture.config.encoder).map(({ value, label }) => ({ value, label }));
 }
 
-function sourceChoices(type: CaptureConfig['source'], sources: CaptureSource[]): Array<{ value: string; label: string }> {
-  const relevant = sources.filter((source) => source.type !== 'automatic-game').map((source) => ({ value: source.id, label: source.name }));
-  if (type === 'window' && !relevant.some((source) => source.value.startsWith('window:'))) relevant.push({ value: 'window:none', label: 'Select a window' });
-  return [{ value: 'automatic-game', label: 'Automatic game' }, ...relevant];
+function sourceChoices(config: CaptureConfig, sources: CaptureSource[]): CaptureSourceOption[] {
+  const choices: CaptureSourceOption[] = [];
+  const knownIds = new Set(choices.map((choice) => choice.value));
+  for (const source of sources) {
+    if (source.type !== 'display' || knownIds.has(source.id)) continue;
+    choices.push({ value: source.id, label: source.name, type: source.type, available: source.available });
+    knownIds.add(source.id);
+  }
+  if (config.source === 'display') {
+    const selectedDisplay = `display:${config.displayIndex}`;
+    if (!knownIds.has(selectedDisplay)) {
+      choices.push({ value: selectedDisplay, label: `Display ${config.displayIndex + 1}`, type: 'display', available: false });
+    }
+  }
+  return choices;
 }
 
-function ReplayStatus({ enabled, state, source, ready }: { enabled: boolean; state: ReplayState; source: CaptureConfig['source']; ready: boolean }) {
-  const label = !enabled ? 'Replay is off' : state === 'error' ? 'Replay needs attention' : ready ? 'Ready' : state === 'waiting' ? source === 'automatic-game' ? 'Waiting for a game' : 'Waiting for source' : state === 'starting' ? 'Starting' : state === 'recovering' ? 'Recovering' : state === 'saving' ? 'Saving replay' : 'Building buffer';
-  const tone = state === 'error' && enabled ? 'bg-destructive text-destructive' : ready ? 'bg-success text-success' : state === 'starting' || state === 'recovering' ? 'bg-warning text-warning' : 'text-muted-foreground';
-  return <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground" role="status"><span className={cn('size-1.5 rounded-full border border-current', tone)} aria-hidden="true" />{label}</span>;
-}
-
-function captureStatusDetail(snapshot: SystemSnapshot, ready: boolean): string {
-  const { config, runtime } = snapshot.capture;
-  const settings = `${formatReplayLength(config.replaySeconds)} replay · ${config.resolution === 'native' ? 'Native' : config.resolution} · ${config.fps} FPS · ${qualityLabels[config.quality]}`;
-  if (!config.enabled) return settings;
-  if (runtime.state === 'waiting') return config.source === 'automatic-game' ? 'Instant Replay will start when a game is detected' : 'Waiting for the selected source';
-  if (runtime.state === 'starting') return 'Starting Instant Replay';
-  if (runtime.state === 'recovering') return 'Restoring Instant Replay';
-  if (runtime.state === 'error') return settings;
-  const source = runtime.activeSource?.name?.trim();
-  if (ready) return source ? `${source} · Ready to save the last ${formatReplayLength(config.replaySeconds)}` : `Ready to save the last ${formatReplayLength(config.replaySeconds)}`;
-  if (runtime.state === 'saving') return source ? `${source} · Saving replay` : 'Saving replay';
-  return source ? `${source} · ${settings}` : settings;
+function sourceTypeLabel(type: CaptureSourceOption['type']): string {
+  if (type === 'automatic-game') return 'Automatic';
+  return type === 'display' ? 'Display' : 'Window';
 }
 
 function captureNotice(snapshot: SystemSnapshot): { message: string; tone: 'danger' | 'warning' } | null {
   if (snapshot.capture.storage.criticalSpace) return { message: 'Storage is too low to save replays. Choose another clip folder.', tone: 'danger' };
-  if (snapshot.capture.runtime.error) return { message: "Instant Replay couldn't start. Turn it off and on, or check Diagnostics.", tone: 'danger' };
+  if (snapshot.capture.runtime.error) return { message: "Instant Replay couldn't start. Restart it in Capture Settings, or check Diagnostics.", tone: 'danger' };
   if (snapshot.capture.storage.lowSpace) return { message: 'Storage is running low. Choose another clip folder soon.', tone: 'warning' };
   if (snapshot.capture.runtime.warning) return { message: 'Instant Replay is recovering. Check Diagnostics if this continues.', tone: 'warning' };
   return null;

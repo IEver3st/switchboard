@@ -71,6 +71,15 @@ const preloadSource = read('src/preload/index.ts');
 assert(preloadSource.includes("contextBridge.exposeInMainWorld('switchboard'"), 'Preload must expose the narrow Switchboard API.');
 assert(!preloadSource.includes('ipcRenderer.send('), 'Preload must not expose an unrestricted ipcRenderer.send surface.');
 
+const captureHeaderSource = read('src/renderer/src/components/capture/CaptureHeader.tsx');
+assert(
+  !captureHeaderSource.includes('function ReplayStatus(')
+    && !captureHeaderSource.includes('aria-label="Replay buffer"')
+    && !captureHeaderSource.includes('state.saveReplay')
+    && /<section aria-label="Capture controls"[^>]*>\s*<div className="capture-config-grid/.test(captureHeaderSource),
+  'CaptureHeader must keep the removed replay status/action row out of the capture workspace.',
+);
+
 const ipcSource = read('src/main/ipc.ts');
 assert(ipcSource.includes('assertTrustedSender'), 'IPC handlers must validate their sender.');
 assert(ipcSource.includes('.parse('), 'IPC payloads must be schema validated.');

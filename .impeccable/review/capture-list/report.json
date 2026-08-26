@@ -1,0 +1,125 @@
+{
+  "report": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-capture-list.png",
+      "metrics": {
+        "viewport": {
+          "width": 1080,
+          "height": 722
+        },
+        "document": {
+          "scrollWidth": 1080,
+          "clientWidth": 1080
+        },
+        "main": {
+          "scrollWidth": 1012,
+          "clientWidth": 1012
+        },
+        "listSelected": "true",
+        "rowCount": 4,
+        "row": {
+          "width": 972,
+          "height": 124
+        },
+        "thumbnail": {
+          "width": 184,
+          "height": 104
+        },
+        "source": "Desktop",
+        "metadata": "1 hr agoVideo quality: 720p, 30 FPSSize: 3 MB",
+        "duration": "0:30",
+        "actionLabels": [
+          "Open Desktop clip",
+          "Add Desktop clip to favorites",
+          "Actions for Desktop clip"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-capture-list.png",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "document": {
+          "scrollWidth": 1420,
+          "clientWidth": 1420
+        },
+        "main": {
+          "scrollWidth": 1352,
+          "clientWidth": 1352
+        },
+        "listSelected": "true",
+        "rowCount": 4,
+        "row": {
+          "width": 1312,
+          "height": 124
+        },
+        "thumbnail": {
+          "width": 184,
+          "height": 104
+        },
+        "source": "Desktop",
+        "metadata": "1 hr agoVideo quality: 720p, 30 FPSSize: 3 MB",
+        "duration": "0:30",
+        "actionLabels": [
+          "Open Desktop clip",
+          "Add Desktop clip to favorites",
+          "Actions for Desktop clip"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-capture-list.png",
+      "metrics": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "document": {
+          "scrollWidth": 1920,
+          "clientWidth": 1920
+        },
+        "main": {
+          "scrollWidth": 1852,
+          "clientWidth": 1852
+        },
+        "listSelected": "true",
+        "rowCount": 4,
+        "row": {
+          "width": 1812,
+          "height": 124
+        },
+        "thumbnail": {
+          "width": 184,
+          "height": 104
+        },
+        "source": "Desktop",
+        "metadata": "1 hr agoVideo quality: 720p, 30 FPSSize: 3 MB",
+        "duration": "0:30",
+        "actionLabels": [
+          "Open Desktop clip",
+          "Add Desktop clip to favorites",
+          "Actions for Desktop clip"
+        ]
+      }
+    }
+  ],
+  "favoriteRoundTrip": {
+    "before": "false",
+    "after": "true"
+  }
+}

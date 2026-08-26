@@ -74,10 +74,13 @@ async function runReview() {
       await waitForViewport(viewport);
       console.log(`Native review: ${viewport.name} ${screen.name}.`);
       await screen.prepare();
-      if (window.isMaximized()) window.unmaximize();
-      window.setContentSize(viewport.width, viewport.height, false);
-      await waitForViewport(viewport);
-      await delay(200);
+      const currentViewport = await getViewportSize();
+      if (window.isMaximized() || currentViewport.width !== viewport.width || Math.abs(currentViewport.height - viewport.height) > 2) {
+        if (window.isMaximized()) window.unmaximize();
+        window.setContentSize(viewport.width, viewport.height, false);
+        await waitForViewport(viewport);
+      }
+      await waitForPaint();
       const metrics = await getLayoutMetrics(window);
       const image = await window.webContents.capturePage();
       const imageSize = image.getSize();
@@ -95,11 +98,23 @@ async function runReview() {
 async function waitForViewport(viewport) {
   const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
-    const size = await window.webContents.executeJavaScript(`({ width: innerWidth, height: innerHeight })`);
+    const size = await getViewportSize();
     if (size.width === viewport.width && Math.abs(size.height - viewport.height) <= 2) return;
     await delay(40);
   }
   throw new Error(`Native window did not reach ${viewport.name}.`);
+}
+
+function getViewportSize() {
+  return window.webContents.executeJavaScript(`({ width: innerWidth, height: innerHeight })`);
+}
+
+async function waitForPaint() {
+  window.webContents.invalidate();
+  await window.webContents.executeJavaScript(`
+    new Promise((resolvePaint) => requestAnimationFrame(() => requestAnimationFrame(resolvePaint)))
+  `);
+  await delay(80);
 }
 
 async function waitForWindow() {
@@ -155,7 +170,9 @@ async function openDevice(name) {
     })()
   `);
   if (!opened) throw new Error(`Could not open ${name}.`);
-  await waitForSelector('.device-workbench__controls, .mouse-config');
+  await waitForCondition(`
+    (() => document.querySelector('.device-workbench__identity h2')?.textContent?.trim() === ${JSON.stringify(name)})()
+  `, name);
   await scrollMainToTop();
 }
 
@@ -168,6 +185,7 @@ async function openAudioTab(tab) {
       return true;
     })()
   `);
+  await waitForSelector(`#audio-tab-${tab}[aria-selected="true"]`);
   await waitForSelector(`#audio-panel-${tab}`);
   await scrollMainToTop();
 }
@@ -220,13 +238,17 @@ async function clickButton(label) {
 }
 
 async function waitForSelector(selector) {
+  return waitForCondition(`Boolean(document.querySelector(${JSON.stringify(selector)}))`, selector);
+}
+
+async function waitForCondition(expression, label) {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    const found = await window.webContents.executeJavaScript(`Boolean(document.querySelector(${JSON.stringify(selector)}))`);
+    const found = await window.webContents.executeJavaScript(expression);
     if (found) return;
     await delay(40);
   }
-  throw new Error(`Timed out waiting for ${selector}.`);
+  throw new Error(`Timed out waiting for ${label}.`);
 }
 
 async function scrollMainToTop() {

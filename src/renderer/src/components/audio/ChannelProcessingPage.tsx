@@ -1,11 +1,9 @@
 import type { ChannelAudioBusId, SystemSnapshot } from '../../../../shared/contracts';
 import { AdvancedDisclosure, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
-import { AudioDevicePicker } from './AudioDevicePicker';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
 import { ProcessorSection } from './processors/ProcessorSection';
-import { channelIcons } from './channel-identity';
 import { channelLeveling, matchChannelLeveling, type SemanticStrength } from './semantic-mapping';
 import { useSystemStore } from '@/stores/use-system-store';
 
@@ -28,7 +26,6 @@ const strengthOptions = [
 ] satisfies Array<{ value: SemanticStrength; label: string }>;
 
 export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSnapshot; busId: ChannelAudioBusId }) {
-  const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const setAudioChannelProcessor = useSystemStore((state) => state.setAudioChannelProcessor);
   const applyAudioPreset = useSystemStore((state) => state.applyAudioPreset);
   const createAudioPreset = useSystemStore((state) => state.createAudioPreset);
@@ -50,7 +47,6 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
 
   const levelingEnabled = processing.normalization.enabled || processing.compressor.enabled;
   const levelingStrength = matchChannelLeveling(processing);
-  const ChannelIcon = channelIcons[busId];
 
   const setLevelingEnabled = async (enabled: boolean) => {
     await setAudioChannelProcessor({ busId, processorId: 'normalization', enabled });
@@ -76,28 +72,6 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
   return (
     <div className="audio-workbench" data-channel={busId}>
       <header className="audio-workbench__header">
-        <div className="audio-workbench__identity">
-          <h2><ChannelIcon className="audio-workbench__channel-icon" aria-hidden={true} />{labels[busId]}</h2>
-          <label className="audio-workbench__device">
-            <span>Output</span>
-            <AudioDevicePicker
-              value={bus.deviceId}
-              devices={snapshot.audio.devices}
-              direction="output"
-              label={`${labels[busId]} output device`}
-              disabled={pendingId === `audio:${busId}:device`}
-              onChange={(deviceId) => void setAudioBusDevice({ busId, deviceId })}
-            />
-          </label>
-          {support !== 'available' ? (
-            <p className="audio-workbench__availability" role="status">
-              {support === 'simulation'
-                ? 'Sound processing is not available on this setup yet. Your settings will still be saved.'
-                : 'Sound processing is unavailable for this output.'}
-            </p>
-          ) : null}
-        </div>
-
         <PresetPicker
           kind={busId}
           label="Sound"
@@ -114,6 +88,14 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
           onExport={(presetId) => void exportAudioPreset({ presetId })}
         />
       </header>
+
+      {support !== 'available' ? (
+        <p className="audio-workbench__availability" role="status">
+          {support === 'simulation'
+            ? 'Sound processing is not available on this setup yet. Your settings will still be saved.'
+            : 'Sound processing is unavailable for this output.'}
+        </p>
+      ) : null}
 
       <section className="audio-primary-section" aria-labelledby={`${busId}-equalizer-heading`}>
         <SettingToggle

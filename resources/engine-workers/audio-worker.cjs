@@ -6,6 +6,8 @@ if (!parentPort) throw new Error('Audio worker must run as an Electron utility p
 let startedAt = 0;
 let running = false;
 let chatMix = 0.15;
+let masterGain = 1;
+let masterEnabled = true;
 let meterSequence = 0;
 let meterPhase = 0;
 const busGains = { game: 1, chat: 0.76, media: 0.42, mic: 0.92 };
@@ -55,6 +57,10 @@ function activeProcessorCost() {
 function applyConfiguration(payload) {
   if (!isRecord(payload)) return;
   chatMix = clampNumber(payload.chatMix, -1, 1, chatMix);
+  if (isRecord(payload.master)) {
+    masterGain = clampNumber(payload.master.gain, 0, 1.5, masterGain);
+    if (typeof payload.master.enabled === 'boolean') masterEnabled = payload.master.enabled;
+  }
 
   if (Array.isArray(payload.buses)) {
     for (const bus of payload.buses) {
@@ -137,6 +143,14 @@ parentPort.on('message', (event) => {
 
   if (message.command === 'setBusGain' && isRecord(message.payload) && Object.hasOwn(busGains, message.payload.busId)) {
     busGains[message.payload.busId] = clampNumber(message.payload.gain, 0, 1.5, busGains[message.payload.busId]);
+  }
+
+  if (message.command === 'setMasterGain' && isRecord(message.payload)) {
+    masterGain = clampNumber(message.payload.gain, 0, 1.5, masterGain);
+  }
+
+  if (message.command === 'setMasterEnabled' && isRecord(message.payload) && typeof message.payload.enabled === 'boolean') {
+    masterEnabled = message.payload.enabled;
   }
 
   if (message.command === 'setBusEnabled' && isRecord(message.payload) && Object.hasOwn(busEnabled, message.payload.busId)) {

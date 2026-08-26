@@ -11,6 +11,7 @@ The Electron prototype includes:
 - sandboxed renderer with a narrow, schema-validated preload API.
 - persisted module, device, audio, capture, and lifecycle state.
 - capability-driven Logitech mouse and HyperX microphone workbenches.
+- G502 X Plus hold-to-lower-DPI behavior through event-driven HID++ MouseButtonSpy and live sensor DPI control.
 - optional audio and capture utility processes that exist only while enabled.
 - audio buses, ChatMix, microphone processing, replay buffer, and clip library surfaces.
 - tray lifecycle with optional renderer destruction.
@@ -20,7 +21,7 @@ The Electron prototype includes:
 
 The prototype does not claim to provide:
 
-- direct HID writes to physical devices;
+- broad direct HID configuration or persistent onboard-profile writes beyond the scoped G502 X Plus live DPI path;
 - production game capture through the default Electron worker;
 - signed virtual Windows audio endpoints;
 - a production module registry, signing service, or updater.

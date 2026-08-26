@@ -1,12 +1,19 @@
-export function formatRelativeTime(value: string | number): string {
+export function formatRelativeTime(value: string | number, now = Date.now()): string {
   const timestamp = typeof value === 'number' ? value : new Date(value).getTime();
-  const delta = Date.now() - timestamp;
+  const delta = now - timestamp;
   const minutes = Math.max(0, Math.floor(delta / 60_000));
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} hr ago`;
-  return `${Math.floor(hours / 24)} days ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+}
+
+export function formatVideoQuality(width: number, height: number, fps: number): string {
+  const resolution = width > 0 && height > 0 ? `${height}p` : null;
+  const frameRate = fps > 0 ? `${Math.round(fps)} FPS` : null;
+  return [resolution, frameRate].filter(Boolean).join(', ') || 'Unavailable';
 }
 
 export function formatDuration(seconds: number): string {

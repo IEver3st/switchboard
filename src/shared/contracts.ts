@@ -129,6 +129,7 @@ export const dpiCapabilitySchema = z.object({
   activeDpi: z.number().int().positive(),
   defaultDpi: z.number().int().positive(),
   shiftDpi: z.number().int().positive().optional(),
+  shiftMode: z.enum(['device-profile', 'host-button-spy']).optional(),
   maxStages: z.number().int().positive().optional(),
   profileMode: deviceProfileModeSchema,
   unavailableReason: z.string().optional(),
@@ -192,6 +193,15 @@ export const lightingEffectSchema = z.object({
 });
 export type LightingEffect = z.infer<typeof lightingEffectSchema>;
 
+export const lightingProfileSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  effectId: z.string().min(1),
+  brightness: z.number().min(0).max(100),
+  speed: z.number().min(1).max(100),
+});
+export type LightingProfile = z.infer<typeof lightingProfileSchema>;
+
 export const lightingCapabilitySchema = z.object({
   writable: z.boolean(),
   enabled: z.boolean(),
@@ -201,11 +211,28 @@ export const lightingCapabilitySchema = z.object({
   colorWritable: z.boolean().default(false),
   brightness: z.number().min(0).max(100).optional(),
   brightnessWritable: z.boolean().default(false),
+  speed: z.number().min(1).max(100).optional(),
+  speedWritable: z.boolean().default(false),
+  profiles: z.array(lightingProfileSchema).default([]),
+  activeProfileId: z.string().min(1).optional(),
+  muteLinked: z.boolean().default(false),
+  muteLinkedWritable: z.boolean().default(false),
+  state: z.enum(['maintained', 'unknown']).optional(),
+  stateReason: z.string().optional(),
+  physicalEffectVerified: z.boolean().default(false),
   profileMode: deviceProfileModeSchema,
   source: z.enum(['software', 'firmware']),
   unavailableReason: z.string().optional(),
 });
 export type LightingCapability = z.infer<typeof lightingCapabilitySchema>;
+
+export const microphoneMuteStateCapabilitySchema = z.object({
+  muted: z.boolean().nullable(),
+  source: z.literal('hardware'),
+  updatedAt: z.string().optional(),
+  unavailableReason: z.string().optional(),
+});
+export type MicrophoneMuteStateCapability = z.infer<typeof microphoneMuteStateCapabilitySchema>;
 
 export const onboardMemoryCapabilitySchema = z.object({
   writable: z.boolean(),
@@ -224,6 +251,7 @@ export const deviceCapabilitiesSchema = z.object({
   gain: z.boolean().optional(),
   monitoring: z.boolean().optional(),
   mute: z.boolean().optional(),
+  muteState: microphoneMuteStateCapabilitySchema.optional(),
 });
 export type DeviceCapabilities = z.infer<typeof deviceCapabilitiesSchema>;
 
@@ -284,6 +312,12 @@ export const audioBusSchema = z.object({
   deviceId: z.string().default(''),
 });
 export type AudioBus = z.infer<typeof audioBusSchema>;
+
+export const audioMasterSchema = z.object({
+  gain: z.number().min(0).max(1.5),
+  enabled: z.boolean(),
+});
+export type AudioMaster = z.infer<typeof audioMasterSchema>;
 
 export const audioMeterValueSchema = z.object({
   busId: audioBusIdSchema,
@@ -486,6 +520,7 @@ export const audioStateSchema = z.object({
   outputDevice: z.string(),
   microphoneDevice: z.string(),
   sampleRate: z.literal(48000),
+  master: audioMasterSchema.default({ gain: 1, enabled: true }),
   chatMix: z.number().min(-1).max(1),
   monitoring: z.number().min(0).max(1),
   monitoringEnabled: z.boolean().default(false),
@@ -710,6 +745,9 @@ export const deviceControlChangeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('lighting-color'), color: z.string().regex(/^#[0-9a-f]{6}$/i) }),
   z.object({ type: z.literal('lighting-brightness'), brightness: z.number().min(0).max(100) }),
   z.object({ type: z.literal('lighting-effect'), effectId: z.string().min(1) }),
+  z.object({ type: z.literal('lighting-speed'), speed: z.number().min(1).max(100) }),
+  z.object({ type: z.literal('lighting-profile'), profileId: z.string().min(1) }),
+  z.object({ type: z.literal('microphone-mute-lighting'), enabled: z.boolean() }),
 ]);
 export type DeviceControlChange = z.infer<typeof deviceControlChangeSchema>;
 
@@ -730,6 +768,16 @@ export const setAudioBusGainInputSchema = z.object({
   gain: z.number().min(0).max(1.5),
 });
 export type SetAudioBusGainInput = z.infer<typeof setAudioBusGainInputSchema>;
+
+export const setAudioMasterGainInputSchema = z.object({
+  gain: z.number().min(0).max(1.5),
+});
+export type SetAudioMasterGainInput = z.infer<typeof setAudioMasterGainInputSchema>;
+
+export const setAudioMasterEnabledInputSchema = z.object({
+  enabled: z.boolean(),
+});
+export type SetAudioMasterEnabledInput = z.infer<typeof setAudioMasterEnabledInputSchema>;
 
 export const setAudioBusEnabledInputSchema = z.object({
   busId: audioBusIdSchema,
@@ -878,6 +926,8 @@ export const ipcChannels = {
   setDeviceSetting: 'devices:set-setting',
   setDeviceAppearanceOverride: 'devices:set-appearance-override',
   setAudioEnabled: 'audio:set-enabled',
+  setAudioMasterGain: 'audio:set-master-gain',
+  setAudioMasterEnabled: 'audio:set-master-enabled',
   setAudioBusGain: 'audio:set-bus-gain',
   setAudioBusEnabled: 'audio:set-bus-enabled',
   setAudioBusDevice: 'audio:set-bus-device',
@@ -916,6 +966,8 @@ export interface SwitchboardApi {
   setDeviceSetting(input: SetDeviceSettingInput): Promise<SystemSnapshot>;
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<SystemSnapshot>;
   setAudioEnabled(enabled: boolean): Promise<SystemSnapshot>;
+  setAudioMasterGain(input: SetAudioMasterGainInput): Promise<SystemSnapshot>;
+  setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<SystemSnapshot>;
   setAudioBusGain(input: SetAudioBusGainInput): Promise<SystemSnapshot>;
   setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<SystemSnapshot>;
   setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<SystemSnapshot>;

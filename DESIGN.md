@@ -19,10 +19,10 @@ colors:
   signal-good: "#5cc69b"
   signal-warning: "#e5b567"
   signal-danger: "#e96969"
-  channel-game: "#49c7b1"
-  channel-chat: "#6c9eff"
-  channel-media: "#a98cf5"
-  channel-microphone: "#e7a95f"
+  channel-game: "#53bfae"
+  channel-chat: "#6f9fe8"
+  channel-media: "#a889dc"
+  channel-microphone: "#dda65a"
 typography:
   family: '"Inter Variable", Inter, "Segoe UI", system-ui, sans-serif'
   page-title: "14px / 600"
@@ -125,6 +125,7 @@ hairline group boundary.              decorative icon box, duplicated
 - **DO** keep the canvas uninterrupted and neutral; use tone changes (surface-1, surface-2, interactive, hover) for structure.
 - **DO** reserve signal pink for interaction: selected tab/control, focus ring, active slider range, primary action, rare attention.
 - **DO** use channel identity colors only to mark audio channel ownership: the channel's icon/dot, its fader range, its EQ curve, its tab underline, its clip-audio legend. A muted or disabled channel falls back to neutral.
+- **DO** use the canonical semantic mapping consistently across Capture, the clip editor, and audio pages: Game teal (`#53bfae`), Chat blue (`#6f9fe8`), Microphone amber (`#dda65a`), and Media violet (`#a889dc`).
   **DON'T** wash a whole panel in a channel color, tint backgrounds with it, or apply channel colors outside audio context.
 - **DO** use success/warning/danger only for real semantic state (meter zones, clipping, failures, battery).
   **DON'T** use gradients, glow, glassmorphism, neon, chroma, animated RGB, or pink as a theme wash.
@@ -207,7 +208,7 @@ Audio UI is an instrument, not a settings form and not a debug console.
 
 **Mixer (the channel console).** The mixer page is the channel columns. Each strip carries, top to bottom: channel identity (icon + name in channel color), a shortcut to its processing page, its active preset, its route (device picker), a tall fader beside a live meter with dB readouts, its mute control adjacent to the fader, and its routed apps. A balance control (ChatMix) sits below the columns as one slim bar. Everything a user touches daily is on the strip; nothing routine lives in a dialog.
 
-**Channel processing pages (Game / Chat / Media).** One compact header row: channel identity, output route, and preset management. The EQ is the hero: a full-width response graph with draggable band nodes, a band selector strip, and an inspector row for exact values. Below it, simple processors appear as compact toggle rows with semantic strength choices (Natural / Balanced / Strong), in signal-chain order. Engineer parameters (threshold, ratio, attack, release, LUFS) live behind one `AdvancedDisclosure`.
+**Channel processing pages (Game / Chat / Media).** One compact header row contains preset management; channel identity comes from the selected workspace tab and output routing stays on the Mixer strip so neither is repeated above the editor. The EQ is the hero: a full-width response graph with draggable band nodes, a band selector strip, and an inspector row for exact values. Below it, simple processors appear as compact toggle rows with semantic strength choices (Natural / Balanced / Strong), in signal-chain order. Engineer parameters (threshold, ratio, attack, release, LUFS) live behind one `AdvancedDisclosure`.
 
 **Microphone page.** Same structure, plus: the processing chain order visible as a strip (input volume, gate, noise removal, EQ, consistency, safety) with enabled state per stage; noise tools as toggle + strength; monitoring as one section at the bottom.
 
@@ -234,6 +235,9 @@ Hardware is the primary subject.
 ### Capture, modules, updates, and settings
 
 - Capture emphasizes source, engine state, recording/replay readiness, storage consequence, and the primary save action. No hero banner plus vanity metrics.
+- The media-library grid is an earned exception to the card prohibition: each clip is an independently selectable media object, and its 16:9 thumbnail remains visually dominant. Reflow the library to two, three, or four columns as width permits without horizontal overflow.
+- Present replay state in human terms before technical detail. Put duration and favorite state over the thumbnail, keep clip metadata human-readable, and expose secondary per-clip actions through hover or focus overflow with keyboard-equivalent access.
+- Keep routine capture work visible; place technical capture options under `More`. External capture-library references may inspire hierarchy and interaction, but are never cloned.
 - Module management uses compact rows or a table for name, trust, size, state, and the relevant action. No marketplace card per module.
 - Update and storage state are inline summaries with progress when active. No giant updater or storage cards for rare events.
 - Settings use a stable category list and aligned setting rows. Search exists only when it queries a real, complete settings catalog and navigates to an actual control.

@@ -1,57 +1,57 @@
-import { Star } from 'lucide-react';
 import type { Clip } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
-import { cn } from '@/lib/cn';
-import { formatBytes, formatClipTimestamp, formatDuration } from '@/lib/format';
-import { ClipActionsMenu } from './ClipActions';
+import { formatBytes, formatRelativeTime, formatVideoQuality } from '@/lib/format';
+import { ClipActionsMenu, ClipFavorite } from './ClipActions';
 import { ClipThumbnail } from './ClipThumbnail';
 import type { ClipActions } from './types';
 
 export function ClipList({ clips, actions }: { clips: Clip[]; actions: ClipActions }) {
   return (
-    <div className="overflow-x-auto border-y border-border">
-      <table className="w-full min-w-[760px] table-fixed border-collapse text-left">
-        <thead>
-          <tr className="h-9 text-[10px] font-medium text-muted-foreground">
-            <th className="w-[44%] px-2 font-medium">Clip</th>
-            <th className="w-24 px-2 font-medium">Duration</th>
-            <th className="w-44 px-2 font-medium">Date</th>
-            <th className="w-24 px-2 text-right font-medium">Size</th>
-            <th className="w-12 px-1"><span className="sr-only">Favorite</span></th>
-            <th className="w-12 px-1"><span className="sr-only">Actions</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {clips.map((clip) => (
-            <tr key={clip.id} className="group h-[74px] border-t border-border transition-colors hover:bg-card">
-              <td className="min-w-0 px-2 py-2">
-                <div className="flex min-w-0 items-center gap-3">
-                  <ClipThumbnail clip={clip} compact onOpen={() => actions.open(clip)} className="h-14 w-[100px] shrink-0 rounded-md border border-border" />
-                  <button type="button" onClick={() => actions.open(clip)} className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:underline">
-                    <span className="block truncate text-[13px] font-semibold text-foreground hover:text-primary">{clip.name}</span>
-                    <span className="mt-1 block truncate text-[11px] text-muted-foreground">{clipGameLabel(clip)}</span>
-                  </button>
-                </div>
-              </td>
-              <td className="px-2 text-[11px] tabular-nums text-text-secondary">{formatDuration(clip.durationMs / 1_000)}</td>
-              <td className="px-2 text-[11px] tabular-nums text-muted-foreground">{formatClipTimestamp(clip.createdAt)}</td>
-              <td className="px-2 text-right text-[11px] tabular-nums text-muted-foreground">{formatBytes(clip.fileSize)}</td>
-              <td className="px-1 text-center">
-                <button
-                  type="button"
-                  aria-label={clip.favorite ? `Remove ${clip.name} from favorites` : `Add ${clip.name} to favorites`}
-                  aria-pressed={clip.favorite}
-                  onClick={() => actions.favorite(clip, !clip.favorite)}
-                  className={cn('grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground', clip.favorite && 'text-primary')}
-                >
-                  <Star className={cn('size-4', clip.favorite && 'fill-current')} />
-                </button>
-              </td>
-              <td className="px-1 text-center"><ClipActionsMenu clip={clip} actions={actions} className="border-0 bg-transparent text-muted-foreground opacity-100 hover:bg-accent hover:text-foreground" /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ul className="capture-clip-list" aria-label="Clips in list view">
+      {clips.map((clip) => (
+        <li key={clip.id} className="capture-clip-list__item group">
+          <div className="capture-clip-list__preview">
+            <ClipThumbnail
+              clip={clip}
+              onOpen={() => actions.open(clip)}
+              className="capture-clip-list__thumbnail rounded-md border border-border"
+            />
+            <ClipFavorite
+              clip={clip}
+              onChange={(favorite) => actions.favorite(clip, favorite)}
+              className="absolute right-2 top-2"
+            />
+          </div>
+
+          <div className="min-w-0">
+            <h3 className="m-0 truncate text-[13px] font-semibold leading-5 text-foreground">
+              <button
+                type="button"
+                onClick={() => actions.open(clip)}
+                className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:underline"
+              >
+                {clip.name}
+              </button>
+            </h3>
+            <p className="m-0 mt-0.5 truncate text-[11px] font-medium leading-4 text-text-secondary">
+              {clipGameLabel(clip)}
+            </p>
+            <p className="capture-clip-list__metadata">
+              <span>{formatRelativeTime(clip.createdAt)}</span>
+              <span>Video quality: {formatVideoQuality(clip.width, clip.height, clip.fps)}</span>
+              <span>Size: {formatBytes(clip.fileSize)}</span>
+            </p>
+          </div>
+
+          <div className="capture-clip-list__actions">
+            <ClipActionsMenu
+              clip={clip}
+              actions={actions}
+              className="border-0 bg-transparent text-muted-foreground opacity-100 hover:bg-accent hover:text-foreground"
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

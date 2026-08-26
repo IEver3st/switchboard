@@ -25,7 +25,7 @@ describe('settings search metadata', () => {
       'capture.engine', 'capture.storage', 'capture.duration', 'capture.shortcut', 'capture.source',
       'capture.resolution', 'capture.frameRate', 'capture.quality', 'capture.encoder',
       'capture.codec', 'capture.microphone', 'capture.systemAudio', 'capture.cursor', 'capture.workspace',
-      'modules.automaticUpdates', 'modules.installed',
+      'modules.automaticUpdates', 'modules.installed', 'modules.available',
       'diagnostics.telemetry', 'diagnostics.retention', 'diagnostics.guard',
       'diagnostics.memory', 'diagnostics.engines', 'diagnostics.capture-path',
       'diagnostics.capture-health', 'diagnostics.deviceIdentity',

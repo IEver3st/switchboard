@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import WebSocket from 'ws';
 
-class EarlyCdpClient {
+class CdpClient {
   constructor(url) {
     this.socket = new WebSocket(url);
     this.sequence = 0;
@@ -56,7 +56,7 @@ const target = targets.find((candidate) => candidate.type === 'page' && candidat
   ?? targets.find((candidate) => candidate.type === 'page');
 if (!target?.webSocketDebuggerUrl) throw new Error('Switchboard renderer target was not found.');
 
-const client = new EarlyCdpClient(target.webSocketDebuggerUrl);
+const client = new CdpClient(target.webSocketDebuggerUrl);
 await client.connect();
 await client.send('Page.enable');
 await client.send('Runtime.enable');
@@ -102,43 +102,4 @@ async function evaluate(client, expression) {
 
 function delay(milliseconds) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
-}
-
-class CdpClient {
-  constructor(url) {
-    this.socket = new WebSocket(url);
-    this.sequence = 0;
-    this.pending = new Map();
-  }
-
-  async connect() {
-    await new Promise((resolvePromise, reject) => {
-      this.socket.once('open', resolvePromise);
-      this.socket.once('error', reject);
-    });
-    this.socket.on('message', (raw) => {
-      const message = JSON.parse(raw.toString());
-      if (!message.id) return;
-      const pending = this.pending.get(message.id);
-      if (!pending) return;
-      this.pending.delete(message.id);
-      if (message.error) pending.reject(new Error(message.error.message));
-      else pending.resolve(message.result ?? {});
-    });
-  }
-
-  send(method, params = {}) {
-    const id = ++this.sequence;
-    return new Promise((resolvePromise, reject) => {
-      this.pending.set(id, { resolve: resolvePromise, reject });
-      this.socket.send(JSON.stringify({ id, method, params }));
-    });
-  }
-
-  async close() {
-    await new Promise((resolvePromise) => {
-      this.socket.once('close', resolvePromise);
-      this.socket.close();
-    });
-  }
 }

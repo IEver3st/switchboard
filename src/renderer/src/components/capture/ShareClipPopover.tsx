@@ -18,11 +18,12 @@ const sharePresets: Array<{
   { id: 'original', label: 'Original quality', description: 'Trim only, no size target' },
 ];
 
-export function ShareClipPopover({ clip, startMs, endMs, exportPending, onExport }: {
+export function ShareClipPopover({ clip, startMs, endMs, exportPending, disabled = false, onExport }: {
   clip: Clip;
   startMs: number;
   endMs: number;
   exportPending: boolean;
+  disabled?: boolean;
   onExport: (preset: ClipExportPreset) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
@@ -40,7 +41,7 @@ export function ShareClipPopover({ clip, startMs, endMs, exportPending, onExport
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="primary" size="sm" className="no-drag" disabled={exportPending}>
+        <Button type="button" variant="primary" size="sm" className="no-drag" disabled={exportPending || disabled} title={disabled ? 'Clip duration is unavailable' : undefined}>
           <Share2 className="size-4" /> {exportPending ? 'Preparing…' : 'Share'}
         </Button>
       </PopoverTrigger>

@@ -4,11 +4,14 @@ import type { AudioWorkspaceTab } from './AudioTabs';
 import { ChatMixSlider } from './ChatMixSlider';
 import { channelIcons, mixerChannelOrder, type MixerChannelId } from './channel-identity';
 import { MixerChannelStrip } from './MixerChannelStrip';
+import { MixerMasterStrip } from './MixerMasterStrip';
 import { useSystemStore } from '@/stores/use-system-store';
 
 export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; onNavigate: (tab: AudioWorkspaceTab) => void }) {
   const setAudioBusGain = useSystemStore((state) => state.setAudioBusGain);
   const setAudioBusEnabled = useSystemStore((state) => state.setAudioBusEnabled);
+  const setAudioMasterGain = useSystemStore((state) => state.setAudioMasterGain);
+  const setAudioMasterEnabled = useSystemStore((state) => state.setAudioMasterEnabled);
   const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const setChatMix = useSystemStore((state) => state.setChatMix);
   const actionPending = useSystemStore((state) => state.actionPending);
@@ -34,6 +37,12 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
       ) : null}
 
       <div className="mixer-grid" data-testid="mixer-grid">
+        <MixerMasterStrip
+          master={snapshot.audio.master}
+          pending={actionPending?.startsWith('audio:master') ?? false}
+          onGainCommit={(gain) => void setAudioMasterGain({ gain })}
+          onEnabledChange={(enabled) => void setAudioMasterEnabled({ enabled })}
+        />
         {buses.map((bus) => {
           const channel = bus.id as MixerChannelId;
           return (

@@ -16,6 +16,8 @@ import {
   setAudioBusDeviceInputSchema,
   setAudioBusEnabledInputSchema,
   setAudioBusGainInputSchema,
+  setAudioMasterEnabledInputSchema,
+  setAudioMasterGainInputSchema,
   setDeviceAppearanceOverrideInputSchema,
   setDeviceControlInputSchema,
   setDeviceSettingInputSchema,
@@ -91,6 +93,18 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => z.boolean().parse(input),
     (enabled) => controller.setAudioEnabled(enabled),
+  );
+  handle(
+    ipcChannels.setAudioMasterGain,
+    getMainWindow,
+    (input) => setAudioMasterGainInputSchema.parse(input),
+    (input) => controller.setAudioMasterGain(input),
+  );
+  handle(
+    ipcChannels.setAudioMasterEnabled,
+    getMainWindow,
+    (input) => setAudioMasterEnabledInputSchema.parse(input),
+    (input) => controller.setAudioMasterEnabled(input),
   );
   handle(
     ipcChannels.setAudioBusGain,

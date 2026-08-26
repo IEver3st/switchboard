@@ -161,7 +161,7 @@
           "charging": false,
           "fullyCharged": false,
           "estimatedMinutesRemaining": 2820,
-          "updatedAt": 1787730571268
+          "updatedAt": 1787732212231
         },
         "dpi": {
           "writable": true,
@@ -378,6 +378,11 @@
           "colorWritable": true,
           "brightness": 75,
           "brightnessWritable": true,
+          "speedWritable": false,
+          "profiles": [],
+          "muteLinked": false,
+          "muteLinkedWritable": false,
+          "physicalEffectVerified": false,
           "profileMode": "software",
           "source": "software"
         },
@@ -433,6 +438,11 @@
           "color": "#ff4f7d",
           "colorWritable": false,
           "brightnessWritable": false,
+          "speedWritable": false,
+          "profiles": [],
+          "muteLinked": false,
+          "muteLinkedWritable": false,
+          "physicalEffectVerified": false,
           "profileMode": "software",
           "source": "firmware",
           "unavailableReason": "QuadCast lighting writes are not implemented by the HyperX module yet."
@@ -457,7 +467,7 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-08-26T07:49:34.035Z"
+      "updatedAt": "2026-08-26T08:16:55.636Z"
     },
     {
       "kind": "capture",
@@ -465,7 +475,7 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-08-26T07:49:34.035Z"
+      "updatedAt": "2026-08-26T08:16:55.636Z"
     }
   ],
   "audio": {
@@ -473,6 +483,10 @@
     "outputDevice": "Headphones (2- WH-1000XM6)",
     "microphoneDevice": "Microphone (HyperX QuadCast 2)",
     "sampleRate": 48000,
+    "master": {
+      "gain": 1,
+      "enabled": true
+    },
     "chatMix": 0.15,
     "monitoring": 0.18,
     "monitoringEnabled": false,
@@ -2209,13 +2223,12 @@
       "audioSyncCorrections": 0,
       "activeSource": null,
       "saveQueueDepth": 0,
-      "shortcutRegistered": false,
-      "warning": "Ctrl+Shift+F10 could not be registered. Another application may already use it."
+      "shortcutRegistered": true
     },
     "storage": {
       "clipsDirectory": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
       "cacheDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\replay",
-      "availableBytes": 2726798241792,
+      "availableBytes": 2725906350080,
       "clipsBytes": 12566633,
       "replayCacheBytes": 0,
       "lowSpace": false,
@@ -2236,7 +2249,7 @@
   },
   "clips": [
     {
-      "id": "640426b2-3d06-43ea-a879-606dcbe11879",
+      "id": "72e46f05-a181-4a2e-851b-4533b1ab5e46",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08_2.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725988692,
@@ -2246,13 +2259,13 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\640426b2-3d06-43ea-a879-606dcbe11879.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\72e46f05-a181-4a2e-851b-4533b1ab5e46.v2.jpg",
       "favorite": false,
       "titleEdited": false,
       "audioChannels": []
     },
     {
-      "id": "74380ad5-6303-4785-829d-8084eecb2d86",
+      "id": "752701c0-d108-467c-b0df-b9cce58ce251",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725988342,
@@ -2262,13 +2275,13 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\74380ad5-6303-4785-829d-8084eecb2d86.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\752701c0-d108-467c-b0df-b9cce58ce251.v2.jpg",
       "favorite": false,
       "titleEdited": false,
       "audioChannels": []
     },
     {
-      "id": "119fd325-ae55-4157-ae8f-26eaceac74e1",
+      "id": "0a0829ba-f73d-456a-a54f-6b5b89ebf740",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-07.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725987982,
@@ -2278,13 +2291,13 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\119fd325-ae55-4157-ae8f-26eaceac74e1.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\0a0829ba-f73d-456a-a54f-6b5b89ebf740.v2.jpg",
       "favorite": false,
       "titleEdited": false,
       "audioChannels": []
     },
     {
-      "id": "a03c15af-c69d-4e27-bb9a-704e57887c1e",
+      "id": "6a4522a8-9f52-47ee-a8da-9d4eb067804b",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-32-02.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725922793,
@@ -2294,7 +2307,7 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\a03c15af-c69d-4e27-bb9a-704e57887c1e.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\6a4522a8-9f52-47ee-a8da-9d4eb067804b.v2.jpg",
       "favorite": false,
       "titleEdited": false,
       "audioChannels": []
