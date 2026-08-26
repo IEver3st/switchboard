@@ -1,64 +1,60 @@
-# Mouse workbench design QA
+# Capture design QA
 
-## Comparison target
+## Goal summary
 
-- Source visual truth: `C:\Users\User\.t3\userdata\attachments\5c6d184d-50e2-4552-beae-724e78317a5d-868dd1fe-defc-4801-b2fe-dd3cd8b6a2b6.png`
-- Implementation: `design-qa/mouse-workbench-1420x900.png`
-- Supporting captures: `design-qa/mouse-workbench-1080x720.png` and `design-qa/mouse-workbench-1920x1080.png`
-- Full-view comparison: `design-qa/reference-comparison.png`
-- Focused callout comparison: `design-qa/callout-comparison.png`
-- State: Devices route, Logitech G502 X Plus selected, dark colorway, lighting off, 1600 DPI, 1000 Hz report rate.
+Rebuild Capture as a restrained, consumer-facing instant-replay library using SteelSeries Moments as the information-architecture and density baseline while preserving Switchboard's own console language, capability model, and pink capture accent.
 
-## Viewport and density
+Primary comparison input: `design-qa/reference-vs-switchboard.png`
 
-- Source pixels: 2482 x 1375.
-- Standard implementation CSS viewport: 1421 x 902 at reported `devicePixelRatio: 1`; Electron `capturePage` returned a 2132 x 1353 native image on the Windows host display.
-- Full comparison normalization: both images were Lanczos-scaled to 900 physical pixels high. The source and implementation remain at their native aspect ratios rather than being stretched.
-- Focused comparison normalization: the source assignment region was cropped to 1150 x 700 then scaled to 650 pixels high; the implementation stage was cropped to 1740 x 650 native pixels.
-- Responsive evidence: exact Electron renderer captures at requested 1080 x 720, 1420 x 900, and 1920 x 1080 window sizes.
+- Left: official SteelSeries Moments reference.
+- Right: Switchboard Capture at 1920 × 1080.
+- Intentional differences: no promotional/community surfaces, no persistent selection controls, no share clutter, compact Switchboard navigation, hover-revealed actions, and real local clip media rather than fabricated game footage.
 
-## Findings
+## Visible result
 
-- No actionable P0, P1, or P2 mismatch remains.
-- The implementation preserves the selected reference idea: a dominant centered product render, balanced assignment labels on both sides, and fine leader lines ending at the device silhouette.
-- The reference's command library, profile controls, white colorway, and vendor chrome were intentionally not copied. Switchboard keeps its own navigation, canonical device state, black reported colorway, and existing sensitivity controls.
+- The top surface reads as Instant Replay state first, five common settings second, and one primary replay action.
+- Technical encoder, codec, shortcut, audio, cursor, folder, and refresh controls live under More.
+- The media grid uses large 16:9 thumbnails, direct duration overlays, human titles, game identity, polished time, secondary size, hover favorite, and overflow actions.
+- The toolbar provides search, first-class Favorites, derived games, date filters, all required sort modes, and distinct grid/list views.
+- The editor preserves library state because it overlays the mounted library and uses the same canonical clip record for rename, favorite, export, reveal, and delete.
 
-## Required fidelity surfaces
+## Viewport evidence
 
-- Fonts and typography: Switchboard's Inter/Segoe UI stack, compact 10–14 px labels, semibold assignment values, and tabular settings values remain consistent with `DESIGN.md`. Labels do not wrap or truncate at supported window sizes.
-- Spacing and layout rhythm: the mouse stays centered at all three supported captures; left/right callouts remain balanced; the controls stay visible at the minimum 1080 x 720 window; no horizontal page or main-region overflow was detected.
-- Colors and visual tokens: the canvas, hairlines, muted labels, primary text, semantic connection dot, and scarce pink selection color use Switchboard's existing tokens. No gradients, glow, decorative shadows, or card shells were introduced.
-- Image quality and asset fidelity: the existing real G502 X Plus render is used through the shared device renderer, not recreated with CSS or placeholder art. The standard and maximized captures retain sharp edges and correct aspect ratio.
-- Copy and content: all six visible assignments come from the canonical `Device.controlBindings` contract. Connection, battery, DPI, report rate, memory, and lighting values remain sourced from the system snapshot.
+Native Electron renderer captures were checked at 1080 × 720, 1420 × 900, 1920 × 1080, and 2560 × 1440. Document and main-content widths matched at every viewport, with no horizontal overflow. The grid resolved to 2, 2, 3, and 4 columns respectively.
 
-## Interaction and runtime evidence
+The 1420 × 900 native BrowserWindow scale sweep rendered:
 
-- Opened Devices, selected the Logitech mouse, and waited for the product canvas to reach its ready state.
-- Changed the active DPI stage to 800 and verified the slider's canonical `aria-valuenow` updated to `800`.
-- Enabled Lighting and verified the shared device renderer's `data-lighting-enabled` state updated to `true`.
-- Checked the renderer console. No React or application runtime errors were emitted; only Electron's development CSP notice and a Canvas2D performance advisory appeared.
+- 0 clips: concise empty state and real Turn on Instant Replay action.
+- 1 clip: one substantial card without stretching into a database row.
+- 20 clips: chronological Today/Yesterday groups.
+- 240 clips: 240 cards, eleven chronological groups, lazy loading on all thumbnails, only seven decoded images near the viewport, and no horizontal overflow.
 
-## Comparison history
+## Interaction evidence
 
-- Pass 1 P2: the horizontal leader endpoints stopped too far from the device and read as detached rules in `design-qa/mouse-workbench-1420x900-v2.png`.
-- Fix: extended the desktop leader rules 56 px into the center column while preserving the stacked, line-free narrow layout.
-- Pass 2 evidence: `design-qa/mouse-workbench-1420x900.png` and `design-qa/callout-comparison.png` show the endpoints pulled into the mouse silhouette region. No P0, P1, or P2 issue remains.
+The isolated Electron round trip passed:
 
-## Open questions
+- favorite toggle, persistence after reload, Favorites filtering, and restoration;
+- title/game/date search and derived Desktop game filtering;
+- Newest, Oldest, Largest, Smallest, Longest, and Shortest sorting;
+- date filter choices and compact popover dismissal;
+- true table-based list view;
+- rename persistence after reload and restoration to the generated default;
+- delete confirmation language without deleting real media;
+- editor open/back with a real `switchboard-media://clip/` source;
+- editor/library favorite synchronization;
+- More settings contents;
+- search focus and no horizontal overflow;
+- Replay-off human language and visible Turn on Replay primary action.
 
-- None for this directional implementation.
+## Issues found and resolved
 
-## Implementation checklist
+- P1: a concurrent source revision regressed the replay header to an eight-field form row. Resolved by restoring the human state header and moving the shortcut to More.
+- P1: the empty state described Settings instead of offering a direct recovery action. Resolved with a canonical Turn on Instant Replay action and the configured shortcut.
+- P2: the date popover remained open after selection. Resolved by controlling and dismissing it on choice.
+- P2: the first comparison capture retained editor state. Resolved by reloading Capture before each viewport capture and regenerating the shared comparison input.
 
-- [x] Use canonical assignment data rather than renderer-only mock labels.
-- [x] Keep the existing product render and device capability controls.
-- [x] Reflow without hidden assignment content.
-- [x] Verify minimum, standard, and maximized Electron windows.
-- [x] Verify DPI and lighting interactions.
-- [x] Check source rules, production build, and both .NET hosts.
+## Remaining external runtime evidence
 
-## Follow-up polish
+Saving a fresh replay and observing it appear live still requires an active game/source and a ready replay buffer. Physical-device audio-track confirmation and a long capture-host soak remain separate from this visual/library QA.
 
-- P3: a future device-family module can provide per-control anchor coordinates if exact physical-button targeting becomes functional rather than directional.
-
-final result: passed
+passed

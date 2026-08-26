@@ -466,12 +466,12 @@
     {
       "kind": "audio",
       "state": "running",
-      "pid": 66320,
-      "cpuPercent": 0.5,
-      "memoryMb": 73.2,
-      "uptimeSeconds": 205.3,
+      "pid": 32348,
+      "cpuPercent": 0.4,
+      "memoryMb": 70.2,
+      "uptimeSeconds": 124.9,
       "message": "48 kHz float32 graph simulation active · ChatMix 0.21",
-      "updatedAt": "2026-08-26T07:41:54.093Z"
+      "updatedAt": "2026-08-26T07:50:42.202Z"
     },
     {
       "kind": "capture",
@@ -479,7 +479,7 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-08-26T07:38:28.376Z"
+      "updatedAt": "2026-08-26T07:48:36.844Z"
     }
   ],
   "audio": {
@@ -2166,7 +2166,7 @@
     "storage": {
       "clipsDirectory": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
       "cacheDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\runtime-profile-capture\\cache\\replay",
-      "availableBytes": 2727041425408,
+      "availableBytes": 2726835757056,
       "clipsBytes": 12566633,
       "replayCacheBytes": 0,
       "lowSpace": false,
@@ -2211,6 +2211,7 @@
       "thumbnailPath": "C:\\Users\\User\\AppData\\Roaming\\switchboard-prototype\\cache\\thumbnails\\74ba14ee-1abc-49c2-a44b-bd86248f7711.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     },
     {
@@ -2227,6 +2228,7 @@
       "thumbnailPath": "C:\\Users\\User\\AppData\\Roaming\\switchboard-prototype\\cache\\thumbnails\\a612e72a-f615-4373-a131-95cddbc85435.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     },
     {
@@ -2243,6 +2245,7 @@
       "thumbnailPath": "C:\\Users\\User\\AppData\\Roaming\\switchboard-prototype\\cache\\thumbnails\\ca122a89-3d36-42a5-b4b0-32f2c93a4f6c.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     },
     {
@@ -2259,14 +2262,15 @@
       "thumbnailPath": "C:\\Users\\User\\AppData\\Roaming\\switchboard-prototype\\cache\\thumbnails\\cd363456-d215-4054-9ebf-6c8883e0aaab.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     }
   ],
   "performance": {
     "coreMemoryMb": 44,
     "rendererMemoryMb": 92,
-    "totalMemoryMb": 209.2,
-    "totalCpuPercent": 0.8,
+    "totalMemoryMb": 206.2,
+    "totalCpuPercent": 0.7,
     "activeProcesses": 3,
     "budgetMemoryMb": 240,
     "budgetCpuPercent": 2

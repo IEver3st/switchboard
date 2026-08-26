@@ -1,3 +1,3 @@
-2026/08/26-02:38:28.360 c110 Reusing MANIFEST C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\Local Storage\leveldb/MANIFEST-000001
-2026/08/26-02:38:28.363 c110 Recovering log #3
-2026/08/26-02:38:28.364 c110 Reusing old log C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\Local Storage\leveldb/000003.log 
+2026/08/26-02:48:36.830 d7ac Reusing MANIFEST C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\Local Storage\leveldb/MANIFEST-000001
+2026/08/26-02:48:36.836 d7ac Recovering log #3
+2026/08/26-02:48:36.837 d7ac Reusing old log C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\Local Storage\leveldb/000003.log 

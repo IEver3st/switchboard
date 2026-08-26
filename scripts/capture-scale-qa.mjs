@@ -59,6 +59,8 @@ state.capture.storage.clipsDirectory = join(isolatedUserData, 'Clips');
 state.capture.storage.cacheDirectory = join(isolatedUserData, 'cache', 'replay');
 state.capture.storage.clipsBytes = state.clips.reduce((total, clip) => total + clip.fileSize, 0);
 state.capture.storage.replayCacheBytes = 0;
+const replayModule = state.modules.find((module) => module.id === 'capability.replay');
+if (replayModule) replayModule.enabled = false;
 await writeFile(join(isolatedUserData, 'switchboard-state.json'), JSON.stringify(state, null, 2));
 
 app.setName('switchboard-capture-scale-review');
@@ -81,8 +83,10 @@ async function runReview() {
     await new Promise((resolveLoad) => window.webContents.once('did-finish-load', resolveLoad));
   }
   window.setContentSize(1420, 900, false);
-  await window.webContents.executeJavaScript("location.hash = 'capture'");
+  await waitForApp(window);
+  await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Capture')?.click()");
   await waitForLibrary(window, count);
+  await window.webContents.executeJavaScript("document.querySelectorAll('[data-radix-scroll-area-viewport]').forEach((element) => element.scrollTo(0, 0))");
   await delay(250);
 
 const metricsExpression = [
@@ -96,7 +100,7 @@ const metricsExpression = [
   "rows: document.querySelectorAll('tbody tr').length,",
   "columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0,",
   "emptyState: document.body.textContent.includes('No clips yet'),",
-  "dateGroups: [...document.querySelectorAll('h3')].map((node) => node.textContent.trim()).filter((text) => /^(Today|Yesterday|[A-Z][a-z]+ \\\\d{1,2})$/.test(text)),",
+  "dateGroups: [...document.querySelectorAll('[id^=clip-group-]')].map((node) => node.textContent.trim()),",
   "lazyImages: images.filter((image) => image.loading === 'lazy').length,",
   'decodedImages: images.filter((image) => image.complete && image.naturalWidth > 0).length,',
   'horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,',
@@ -134,7 +138,18 @@ async function waitForLibrary(target, expected) {
     if (ready) return;
     await delay(50);
   }
-  throw new Error('Capture library did not render ' + expected + ' clips.');
+  const debug = await target.webContents.executeJavaScript("({ hash: location.hash, cards: document.querySelectorAll('.capture-clip-card').length, text: document.body.textContent.slice(0, 500) })");
+  throw new Error('Capture library did not render ' + expected + ' clips: ' + JSON.stringify(debug));
+}
+
+async function waitForApp(target) {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    const ready = await target.webContents.executeJavaScript("[...document.querySelectorAll('button')].some((button) => button.textContent.trim() === 'Capture')");
+    if (ready) return;
+    await delay(50);
+  }
+  throw new Error('Switchboard renderer did not finish initializing.');
 }
 
 function delay(milliseconds) {

@@ -1,0 +1,28 @@
+{
+  "requestedClips": 240,
+  "cards": 240,
+  "rows": 0,
+  "columns": 2,
+  "emptyState": false,
+  "dateGroups": [
+    "Today",
+    "Yesterday",
+    "August 24",
+    "August 23",
+    "August 22",
+    "August 21",
+    "August 20",
+    "August 19",
+    "August 18",
+    "August 17",
+    "August 16"
+  ],
+  "lazyImages": 240,
+  "decodedImages": 7,
+  "horizontalOverflow": false,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-240-clips.png",
+  "imageSize": {
+    "width": 2130,
+    "height": 1350
+  }
+}

@@ -64,6 +64,7 @@ function createWindow(): BrowserWindow {
 
   controller?.setRendererActive(true);
   window.once('ready-to-show', () => window.show());
+  window.on('focus', () => { void controller?.refreshAudioDevices(); });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event, url) => {
     if (!isTrustedNavigation(url)) event.preventDefault();
@@ -105,6 +106,7 @@ function createWindow(): BrowserWindow {
 function showWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow();
   else mainWindow.show();
+  void controller?.refreshAudioDevices();
   mainWindow.focus();
 }
 

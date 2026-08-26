@@ -15,28 +15,43 @@ import {
   readLogitechAgentDevices,
   readLogitechBattery,
   type LogitechAgentDevice,
+  type LogitechBatteryState,
 } from './ghub-metadata';
 
 const logitechVendorId = 0x046d;
 const capabilityCacheDurationMs = 12_000;
-const batteryCacheDurationMs = 60_000;
 
 interface TimedValue<T> {
   value: T;
   updatedAt: number;
 }
 
+export interface LogitechDeviceModuleDependencies {
+  readAgentDevices(): Promise<LogitechAgentDevice[]>;
+  readBattery(deviceId: string): Promise<LogitechBatteryState | undefined>;
+  readCapabilities: typeof readG502Capabilities;
+  writeControl: typeof writeG502Control;
+}
+
+const defaultDependencies: LogitechDeviceModuleDependencies = {
+  readAgentDevices: readLogitechAgentDevices,
+  readBattery: readLogitechBattery,
+  readCapabilities: readG502Capabilities,
+  writeControl: writeG502Control,
+};
+
 export class LogitechDeviceModule implements DeviceModule {
   public readonly id = 'device.logitech-hidpp';
   private readonly agentIds = new Map<string, string>();
   private readonly capabilityCache = new Map<string, TimedValue<DeviceCapabilities>>();
-  private readonly batteryCache = new Map<string, TimedValue<BatteryCapability | undefined>>();
+
+  public constructor(private readonly dependencies: LogitechDeviceModuleDependencies = defaultDependencies) {}
 
   public async discover(context: DeviceDiscoveryContext): Promise<Device[]> {
     const logitechHid = context.hidDevices.filter((device) => device.vendorId === logitechVendorId);
     if (logitechHid.length === 0) return [];
 
-    const agentDevices = await readLogitechAgentDevices();
+    const agentDevices = await this.dependencies.readAgentDevices();
     const discovered = await Promise.all(agentDevices
       .filter((device) => device.deviceBaseModel === g502XPlusDefinition.deviceBaseModel)
       .map((device) => this.createG502XPlus(device, logitechHid, context)));
@@ -52,7 +67,7 @@ export class LogitechDeviceModule implements DeviceModule {
     if (!device.connected) throw new Error(`${device.displayName} is disconnected.`);
     const agentDeviceId = this.agentIds.get(device.id);
     if (!agentDeviceId) throw new Error('Logitech configuration requires the local G HUB device service.');
-    await writeG502Control(agentDeviceId, device, change);
+    await this.dependencies.writeControl(agentDeviceId, device, change);
     for (const key of this.capabilityCache.keys()) {
       if (key.startsWith(`${agentDeviceId}:`)) this.capabilityCache.delete(key);
     }
@@ -151,7 +166,7 @@ export class LogitechDeviceModule implements DeviceModule {
     if (cached && Date.now() - cached.updatedAt < capabilityCacheDurationMs) return structuredClone(cached.value);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const value = await readG502Capabilities(agentDeviceId, connection);
+        const value = await this.dependencies.readCapabilities(agentDeviceId, connection);
         this.capabilityCache.set(cacheKey, { value, updatedAt: Date.now() });
         return structuredClone(value);
       } catch (error) {
@@ -170,9 +185,9 @@ export class LogitechDeviceModule implements DeviceModule {
     agentDeviceId: string,
     previous: BatteryCapability | undefined,
   ): Promise<BatteryCapability | undefined> {
-    const cached = this.batteryCache.get(agentDeviceId);
-    if (cached && Date.now() - cached.updatedAt < batteryCacheDurationMs) return structuredClone(cached.value);
-    const state = await readLogitechBattery(agentDeviceId);
+    // Charging is a user-visible cable transition, so read it on every existing
+    // five-second discovery cycle instead of serving the former minute-old cache.
+    const state = await this.dependencies.readBattery(agentDeviceId);
     const updatedAt = Date.now();
     const value = typeof state?.percentage === 'number'
       ? {
@@ -185,7 +200,6 @@ export class LogitechDeviceModule implements DeviceModule {
           updatedAt,
         }
       : previous;
-    this.batteryCache.set(agentDeviceId, { value, updatedAt });
     return structuredClone(value);
   }
 }

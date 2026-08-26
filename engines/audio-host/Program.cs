@@ -6,6 +6,12 @@ using var endpoints = new EndpointService();
 var graph = new AudioGraph();
 var running = false;
 
+if (args.Contains("--list-endpoints", StringComparer.OrdinalIgnoreCase))
+{
+    Console.WriteLine(JsonSerializer.Serialize(endpoints.List(), jsonOptions));
+    return;
+}
+
 await foreach (var line in ReadLinesAsync(Console.In))
 {
     if (string.IsNullOrWhiteSpace(line)) continue;

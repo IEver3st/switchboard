@@ -35,7 +35,7 @@ internal sealed class EndpointService : IDisposable
                 device.DataFlow.ToString().ToLowerInvariant(),
                 isDefault,
                 TryGetFormFactor(device),
-                TryGetInstanceId(device),
+                TryGetInterfaceName(device),
                 volume,
                 muted));
         }
@@ -102,11 +102,11 @@ internal sealed class EndpointService : IDisposable
         }
     }
 
-    private static string? TryGetInstanceId(MMDevice device)
+    private static string? TryGetInterfaceName(MMDevice device)
     {
         try
         {
-            return device.InstanceId;
+            return device.DeviceFriendlyName;
         }
         catch
         {

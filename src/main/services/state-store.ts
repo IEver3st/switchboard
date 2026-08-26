@@ -85,11 +85,9 @@ export class StateStore {
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
     const defaults = createDefaultSnapshot();
-    const knownAudioDevices = new Map(next.audio.devices.map((device) => [device.id, device]));
-    for (const device of defaults.audio.devices) {
-      if (!knownAudioDevices.has(device.id)) knownAudioDevices.set(device.id, structuredClone(device));
-    }
-    next.audio.devices = [...knownAudioDevices.values()];
+    next.audio.devices = [];
+    next.audio.outputDevice = '';
+    next.audio.microphoneDevice = '';
 
     const currentBuses = new Map(next.audio.buses.map((bus) => [bus.id, bus]));
     const legacyAux = currentBuses.get('aux');

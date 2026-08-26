@@ -49,8 +49,10 @@ import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
 import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-presets';
 import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
+import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService } from './services/clip-library';
+import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
 import { DeviceRegistry } from './services/device-registry';
 import { EngineSupervisor } from './services/engine-supervisor';
 import { StateStore } from './services/state-store';
@@ -78,10 +80,13 @@ export class AppController {
   private readonly audioMeterListeners = new Set<(frame: AudioMeterFrame) => void>();
   private readonly captureStorage: CaptureStorageService;
   private readonly clipLibrary: ClipLibraryService;
+  private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
   private capturePaths: CapturePaths;
   private registeredShortcut: string | null = null;
   private captureRestartTimer: NodeJS.Timeout | null = null;
   private captureRestartAttempts = 0;
+  private audioDeviceRefresh: Promise<SystemSnapshot> | null = null;
+  private audioDevicesRefreshedAt = 0;
   private disposed = false;
 
   public constructor() {
@@ -89,6 +94,11 @@ export class AppController {
     this.captureStorage = new CaptureStorageService(app.getPath('videos'), app.getPath('userData'));
     this.capturePaths = this.captureStorage.resolvePaths(null);
     this.clipLibrary = new ClipLibraryService(this.capturePaths.thumbnailDirectory);
+    this.audioEndpointDiscovery = new AudioEndpointDiscovery({
+      appPath: app.getAppPath(),
+      isPackaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+    });
     this.engines = new EngineSupervisor(
       (status) => this.applyEngineStatus(status),
       (frame) => this.emitAudioMeters(frame),
@@ -106,6 +116,7 @@ export class AppController {
 
   public async initialize(): Promise<void> {
     await this.store.load();
+    await this.refreshAudioDevices(true);
     // Native UI review uses canonical fixture devices so automated interaction
     // checks never issue writes to connected physical hardware.
     if (process.env.SWITCHBOARD_NATIVE_FIXTURES !== '1') await this.devices.start();
@@ -141,7 +152,31 @@ export class AppController {
   }
 
   public setRendererActive(active: boolean): SystemSnapshot {
+    if (active) void this.refreshAudioDevices();
     return this.store.setRendererActive(active);
+  }
+
+  public refreshAudioDevices(force = false): Promise<SystemSnapshot> {
+    if (this.audioDeviceRefresh) return this.audioDeviceRefresh;
+    if (!force && Date.now() - this.audioDevicesRefreshedAt < 2_000) {
+      return Promise.resolve(this.store.get());
+    }
+
+    const refresh = this.audioEndpointDiscovery.list()
+      .then((devices) => {
+        const snapshot = this.store.update((draft) => reconcileAudioDevices(draft.audio, devices));
+        this.audioDevicesRefreshedAt = Date.now();
+        return snapshot;
+      })
+      .catch((error) => {
+        console.warn('Windows audio endpoint discovery failed.', error);
+        return this.store.get();
+      })
+      .finally(() => {
+        if (this.audioDeviceRefresh === refresh) this.audioDeviceRefresh = null;
+      });
+    this.audioDeviceRefresh = refresh;
+    return refresh;
   }
 
   public async setModuleState(input: SetModuleStateInput): Promise<SystemSnapshot> {

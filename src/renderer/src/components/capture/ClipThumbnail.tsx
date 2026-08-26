@@ -15,6 +15,7 @@ export function ClipThumbnail({ clip, onOpen, className, compact = false }: {
   return (
     <button
       type="button"
+      data-clip-id={clip.id}
       onClick={onOpen}
       aria-label={`Open ${clip.name}`}
       className={cn(

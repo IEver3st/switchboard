@@ -6,7 +6,7 @@ internal sealed record AudioEndpoint(
     string Flow,
     bool IsDefault,
     string? FormFactor,
-    string? InstanceId,
+    string? InterfaceName,
     float Volume,
     bool Muted);
 

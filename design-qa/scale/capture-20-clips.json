@@ -1,0 +1,19 @@
+{
+  "requestedClips": 20,
+  "cards": 20,
+  "rows": 0,
+  "columns": 2,
+  "emptyState": false,
+  "dateGroups": [
+    "Today",
+    "Yesterday"
+  ],
+  "lazyImages": 20,
+  "decodedImages": 7,
+  "horizontalOverflow": false,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-20-clips.png",
+  "imageSize": {
+    "width": 2130,
+    "height": 1350
+  }
+}

@@ -182,7 +182,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 1408,
+      "viewportScrollHeight": 1348,
       "page": "#audio/microphone"
     },
     "imageSize": {
@@ -206,7 +206,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 995,
+      "viewportScrollHeight": 1023,
       "page": "#capture"
     },
     "imageSize": {
@@ -470,7 +470,7 @@
       "viewportWidth": 1352,
       "viewportScrollWidth": 1352,
       "viewportHeight": 862,
-      "viewportScrollHeight": 1341,
+      "viewportScrollHeight": 1305,
       "page": "#audio/microphone"
     },
     "imageSize": {
@@ -494,7 +494,7 @@
       "viewportWidth": 1352,
       "viewportScrollWidth": 1352,
       "viewportHeight": 862,
-      "viewportScrollHeight": 1186,
+      "viewportScrollHeight": 1023,
       "page": "#capture"
     },
     "imageSize": {
@@ -758,7 +758,7 @@
       "viewportWidth": 1852,
       "viewportScrollWidth": 1852,
       "viewportHeight": 1042,
-      "viewportScrollHeight": 1392,
+      "viewportScrollHeight": 1413,
       "page": "#audio/microphone"
     },
     "imageSize": {
@@ -782,7 +782,7 @@
       "viewportWidth": 1852,
       "viewportScrollWidth": 1852,
       "viewportHeight": 1042,
-      "viewportScrollHeight": 1125,
+      "viewportScrollHeight": 1042,
       "page": "#capture"
     },
     "imageSize": {
@@ -1046,7 +1046,7 @@
       "viewportWidth": 2492,
       "viewportScrollWidth": 2492,
       "viewportHeight": 1402,
-      "viewportScrollHeight": 1402,
+      "viewportScrollHeight": 1439,
       "page": "#audio/microphone"
     },
     "imageSize": {

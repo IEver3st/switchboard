@@ -44,7 +44,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 1408,
+      "viewportScrollHeight": 1348,
       "channelStrips": 0,
       "page": "#audio/microphone"
     },
@@ -66,6 +66,17 @@
       "page": "#audio/mixer"
     },
     "filename": "1420x900-audio-mixer.png"
+  },
+  {
+    "viewport": "1420x900",
+    "screen": "audio-mixer-mute-interaction",
+    "interaction": {
+      "ok": true,
+      "before": "false",
+      "after": "true",
+      "restored": "false",
+      "mutedClass": true
+    }
   },
   {
     "viewport": "1420x900",
@@ -95,7 +106,7 @@
       "viewportWidth": 1352,
       "viewportScrollWidth": 1352,
       "viewportHeight": 862,
-      "viewportScrollHeight": 1341,
+      "viewportScrollHeight": 1305,
       "channelStrips": 0,
       "page": "#audio/microphone"
     },
@@ -146,7 +157,7 @@
       "viewportWidth": 1852,
       "viewportScrollWidth": 1852,
       "viewportHeight": 1042,
-      "viewportScrollHeight": 1392,
+      "viewportScrollHeight": 1413,
       "channelStrips": 0,
       "page": "#audio/microphone"
     },

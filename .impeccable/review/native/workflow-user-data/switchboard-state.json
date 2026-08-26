@@ -161,7 +161,7 @@
           "charging": false,
           "fullyCharged": false,
           "estimatedMinutesRemaining": 2820,
-          "updatedAt": 1787730198530
+          "updatedAt": 1787730571268
         },
         "dpi": {
           "writable": true,
@@ -457,7 +457,7 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-08-26T07:43:19.951Z"
+      "updatedAt": "2026-08-26T07:49:34.035Z"
     },
     {
       "kind": "capture",
@@ -465,18 +465,18 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-08-26T07:43:19.951Z"
+      "updatedAt": "2026-08-26T07:49:34.035Z"
     }
   ],
   "audio": {
     "enabled": false,
-    "outputDevice": "Arctis Nova Pro Wireless",
-    "microphoneDevice": "HyperX QuadCast 2",
+    "outputDevice": "Headphones (2- WH-1000XM6)",
+    "microphoneDevice": "Microphone (HyperX QuadCast 2)",
     "sampleRate": 48000,
     "chatMix": 0.15,
     "monitoring": 0.18,
     "monitoringEnabled": false,
-    "monitoringDeviceId": "output-nova-pro",
+    "monitoringDeviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}",
     "buses": [
       {
         "id": "game",
@@ -487,7 +487,7 @@
         "muted": false,
         "meter": 0.72,
         "endpoint": "Switchboard Game",
-        "deviceId": "output-nova-pro"
+        "deviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}"
       },
       {
         "id": "chat",
@@ -498,7 +498,7 @@
         "muted": false,
         "meter": 0.38,
         "endpoint": "Switchboard Chat",
-        "deviceId": "output-nova-pro"
+        "deviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}"
       },
       {
         "id": "media",
@@ -509,7 +509,7 @@
         "muted": false,
         "meter": 0.21,
         "endpoint": "Switchboard Media",
-        "deviceId": "output-realtek-speakers"
+        "deviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}"
       },
       {
         "id": "mic",
@@ -520,7 +520,7 @@
         "muted": false,
         "meter": 0.56,
         "endpoint": "Switchboard Microphone",
-        "deviceId": "input-quadcast-2"
+        "deviceId": "{0.0.1.00000000}.{99654bfd-3598-4298-8fae-01a3402fd0ec}"
       }
     ],
     "micProcessors": [
@@ -861,39 +861,85 @@
     ],
     "devices": [
       {
-        "id": "output-nova-pro",
-        "name": "Arctis Nova Pro Wireless",
+        "id": "{0.0.0.00000000}.{465a8d05-925b-4c11-9bc5-24cbcb1ce947}",
+        "name": "SteelSeries Sonar - Gaming (SteelSeries Sonar Virtual Audio Device)",
         "direction": "output",
         "isDefault": true,
-        "available": true
+        "available": true,
+        "formFactor": "headphones",
+        "isVirtual": true
       },
       {
-        "id": "output-realtek-speakers",
-        "name": "Speakers (Realtek Audio)",
-        "direction": "output",
-        "isDefault": false,
-        "available": true
-      },
-      {
-        "id": "output-display-audio",
-        "name": "LG ULTRAGEAR (NVIDIA Audio)",
-        "direction": "output",
-        "isDefault": false,
-        "available": true
-      },
-      {
-        "id": "input-quadcast-2",
-        "name": "HyperX QuadCast 2",
+        "id": "{0.0.1.00000000}.{b40d83ee-7b70-4f96-b384-46f8394ab2db}",
+        "name": "SteelSeries Sonar - Microphone (SteelSeries Sonar Virtual Audio Device)",
         "direction": "input",
         "isDefault": true,
-        "available": true
+        "available": true,
+        "formFactor": "microphone",
+        "isVirtual": true
       },
       {
-        "id": "input-realtek-mic",
-        "name": "Microphone (Realtek Audio)",
+        "id": "{0.0.0.00000000}.{258f67db-9c7b-4320-9a6f-8289ed053c0f}",
+        "name": "1 - Odyssey G60SD (AMD High Definition Audio Device)",
+        "direction": "output",
+        "isDefault": false,
+        "available": true,
+        "formFactor": "digital-display",
+        "isVirtual": false
+      },
+      {
+        "id": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}",
+        "name": "Headphones (2- WH-1000XM6)",
+        "direction": "output",
+        "isDefault": false,
+        "available": true,
+        "formFactor": "headphones",
+        "isVirtual": false
+      },
+      {
+        "id": "{0.0.1.00000000}.{d08361a0-cb69-4777-b293-c17d9937d063}",
+        "name": "Headset (2- WH-1000XM6)",
         "direction": "input",
         "isDefault": false,
-        "available": true
+        "available": true,
+        "formFactor": "headset",
+        "isVirtual": false
+      },
+      {
+        "id": "{0.0.1.00000000}.{99654bfd-3598-4298-8fae-01a3402fd0ec}",
+        "name": "Microphone (HyperX QuadCast 2)",
+        "direction": "input",
+        "isDefault": false,
+        "available": true,
+        "formFactor": "microphone",
+        "isVirtual": false
+      },
+      {
+        "id": "{0.0.0.00000000}.{d1458dcb-bf1c-42c9-b904-fd2baa63b868}",
+        "name": "PG32UCDP (NVIDIA High Definition Audio)",
+        "direction": "output",
+        "isDefault": false,
+        "available": true,
+        "formFactor": "digital-display",
+        "isVirtual": false
+      },
+      {
+        "id": "{0.0.0.00000000}.{c3d8ca90-d745-448a-95a4-913c74f87fd0}",
+        "name": "SteelSeries Sonar - Chat (SteelSeries Sonar Virtual Audio Device)",
+        "direction": "output",
+        "isDefault": false,
+        "available": true,
+        "formFactor": "headset",
+        "isVirtual": true
+      },
+      {
+        "id": "{0.0.0.00000000}.{dbc94112-9cf9-47a4-8e9e-522328be59cd}",
+        "name": "SteelSeries Sonar - Microphone (SteelSeries Sonar Virtual Audio Device)",
+        "direction": "output",
+        "isDefault": false,
+        "available": true,
+        "formFactor": "line-level",
+        "isVirtual": true
       }
     ],
     "applications": [],
@@ -1749,7 +1795,7 @@
         "monitoring": {
           "enabled": false,
           "level": 0.18,
-          "deviceId": "output-nova-pro"
+          "deviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}"
         }
       },
       {
@@ -1873,7 +1919,7 @@
         "monitoring": {
           "enabled": false,
           "level": 0.18,
-          "deviceId": "output-nova-pro"
+          "deviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}"
         }
       },
       {
@@ -1997,7 +2043,7 @@
         "monitoring": {
           "enabled": false,
           "level": 0.18,
-          "deviceId": "output-nova-pro"
+          "deviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}"
         }
       },
       {
@@ -2121,7 +2167,7 @@
         "monitoring": {
           "enabled": false,
           "level": 0.18,
-          "deviceId": "output-nova-pro"
+          "deviceId": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}"
         }
       }
     ],
@@ -2163,12 +2209,13 @@
       "audioSyncCorrections": 0,
       "activeSource": null,
       "saveQueueDepth": 0,
-      "shortcutRegistered": true
+      "shortcutRegistered": false,
+      "warning": "Ctrl+Shift+F10 could not be registered. Another application may already use it."
     },
     "storage": {
       "clipsDirectory": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
       "cacheDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\replay",
-      "availableBytes": 2726967173120,
+      "availableBytes": 2726798241792,
       "clipsBytes": 12566633,
       "replayCacheBytes": 0,
       "lowSpace": false,
@@ -2189,7 +2236,7 @@
   },
   "clips": [
     {
-      "id": "a4ec3923-4cf2-4bb6-b774-764758051cab",
+      "id": "640426b2-3d06-43ea-a879-606dcbe11879",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08_2.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725988692,
@@ -2199,14 +2246,13 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\a4ec3923-4cf2-4bb6-b774-764758051cab.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\640426b2-3d06-43ea-a879-606dcbe11879.v2.jpg",
       "favorite": false,
       "titleEdited": false,
-      "trimStartMs": 0,
       "audioChannels": []
     },
     {
-      "id": "612d72cd-a194-4df8-bc3b-06eb78a38f64",
+      "id": "74380ad5-6303-4785-829d-8084eecb2d86",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725988342,
@@ -2216,14 +2262,13 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\612d72cd-a194-4df8-bc3b-06eb78a38f64.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\74380ad5-6303-4785-829d-8084eecb2d86.v2.jpg",
       "favorite": false,
       "titleEdited": false,
-      "trimStartMs": 0,
       "audioChannels": []
     },
     {
-      "id": "81535a45-30dc-40cf-ab0f-d337526ddf44",
+      "id": "119fd325-ae55-4157-ae8f-26eaceac74e1",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-07.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725987982,
@@ -2233,14 +2278,13 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\81535a45-30dc-40cf-ab0f-d337526ddf44.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\119fd325-ae55-4157-ae8f-26eaceac74e1.v2.jpg",
       "favorite": false,
       "titleEdited": false,
-      "trimStartMs": 0,
       "audioChannels": []
     },
     {
-      "id": "379b955f-c981-4c64-9df8-6a3c632afd63",
+      "id": "a03c15af-c69d-4e27-bb9a-704e57887c1e",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-32-02.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725922793,
@@ -2250,10 +2294,9 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\379b955f-c981-4c64-9df8-6a3c632afd63.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\a03c15af-c69d-4e27-bb9a-704e57887c1e.v2.jpg",
       "favorite": false,
       "titleEdited": false,
-      "trimStartMs": 0,
       "audioChannels": []
     }
   ],

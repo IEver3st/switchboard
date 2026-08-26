@@ -90,13 +90,6 @@ export const LevelMeter = memo(function LevelMeter({
           <div ref={dangerRef} className="absolute inset-x-0 bottom-[92%] bg-destructive" />
           <div ref={peakRef} className="absolute inset-x-[-1px] h-px bg-foreground" />
         </div>
-        <div className="relative h-full w-6 text-[10px] tabular-nums text-muted-foreground/70" aria-hidden="true">
-          <span className="absolute -top-0.5 left-0">0</span>
-          <span className="absolute top-[10%] left-0">−6</span>
-          <span className="absolute top-[22%] left-0">−12</span>
-          <span className="absolute top-[42%] left-0">−24</span>
-          <span className="absolute top-[78%] left-0">−48</span>
-        </div>
       </div>
       <span ref={readoutRef} className="w-full text-center text-[10px] tabular-nums text-muted-foreground">−∞ dB</span>
     </div>

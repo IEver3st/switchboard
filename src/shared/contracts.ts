@@ -247,12 +247,28 @@ export type AudioBusId = z.infer<typeof audioBusIdSchema>;
 export const audioDeviceDirectionSchema = z.enum(['output', 'input']);
 export type AudioDeviceDirection = z.infer<typeof audioDeviceDirectionSchema>;
 
+export const audioEndpointFormFactorSchema = z.enum([
+  'remote-network-device',
+  'speakers',
+  'line-level',
+  'headphones',
+  'microphone',
+  'headset',
+  'handset',
+  'spdif',
+  'digital-display',
+  'unknown',
+]);
+export type AudioEndpointFormFactor = z.infer<typeof audioEndpointFormFactorSchema>;
+
 export const audioDeviceSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   direction: audioDeviceDirectionSchema,
   isDefault: z.boolean(),
   available: z.boolean(),
+  formFactor: audioEndpointFormFactorSchema.nullable().optional(),
+  isVirtual: z.boolean().default(false),
 });
 export type AudioDevice = z.infer<typeof audioDeviceSchema>;
 
@@ -453,7 +469,7 @@ export const audioPathPresetSchema = z.discriminatedUnion('kind', [
     monitoring: z.object({
       enabled: z.boolean(),
       level: z.number().min(0).max(1),
-      deviceId: z.string().min(1),
+      deviceId: z.string(),
     }),
   }),
 ]);
@@ -473,7 +489,7 @@ export const audioStateSchema = z.object({
   chatMix: z.number().min(-1).max(1),
   monitoring: z.number().min(0).max(1),
   monitoringEnabled: z.boolean().default(false),
-  monitoringDeviceId: z.string().default('output-nova-pro'),
+  monitoringDeviceId: z.string().default(''),
   buses: z.array(audioBusSchema),
   micProcessors: z.array(micProcessorSchema),
   channelProcessing: z.array(channelProcessingSchema).default([]),
@@ -621,7 +637,7 @@ export const clipSchema = z.object({
   thumbnailPath: z.string().optional(),
   favorite: z.boolean().default(false),
   titleEdited: z.boolean().default(false),
-  trimStartMs: z.number().int().nonnegative().default(0),
+  trimStartMs: z.number().int().nonnegative().optional(),
   trimEndMs: z.number().int().positive().optional(),
   audioChannels: z.array(clipAudioChannelSchema).max(4).optional(),
 });

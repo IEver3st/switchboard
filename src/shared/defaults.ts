@@ -288,18 +288,18 @@ export const defaultDevices: Device[] = [
 
 export const defaultAudio: AudioState = {
   enabled: false,
-  outputDevice: 'Arctis Nova Pro Wireless',
-  microphoneDevice: 'HyperX QuadCast 2',
+  outputDevice: '',
+  microphoneDevice: '',
   sampleRate: 48000,
   chatMix: 0.15,
   monitoring: 0.18,
   monitoringEnabled: false,
-  monitoringDeviceId: 'output-nova-pro',
+  monitoringDeviceId: '',
   buses: [
-    { id: 'game', label: 'Game', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard Game', deviceId: 'output-nova-pro' },
-    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard Chat', deviceId: 'output-nova-pro' },
-    { id: 'media', label: 'Media', enabled: true, appCount: 0, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard Media', deviceId: 'output-realtek-speakers' },
-    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, gain: 0.92, muted: false, meter: 0.56, endpoint: 'Switchboard Microphone', deviceId: 'input-quadcast-2' },
+    { id: 'game', label: 'Game', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard Game', deviceId: '' },
+    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard Chat', deviceId: '' },
+    { id: 'media', label: 'Media', enabled: true, appCount: 0, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard Media', deviceId: '' },
+    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, gain: 0.92, muted: false, meter: 0.56, endpoint: 'Switchboard Microphone', deviceId: '' },
   ],
   micProcessors: createNaturalMicrophoneProcessors(),
   channelProcessing: [
@@ -307,13 +307,7 @@ export const defaultAudio: AudioState = {
     createDefaultChannelProcessing('chat'),
     createDefaultChannelProcessing('media'),
   ],
-  devices: [
-    { id: 'output-nova-pro', name: 'Arctis Nova Pro Wireless', direction: 'output', isDefault: true, available: true },
-    { id: 'output-realtek-speakers', name: 'Speakers (Realtek Audio)', direction: 'output', isDefault: false, available: true },
-    { id: 'output-display-audio', name: 'LG ULTRAGEAR (NVIDIA Audio)', direction: 'output', isDefault: false, available: true },
-    { id: 'input-quadcast-2', name: 'HyperX QuadCast 2', direction: 'input', isDefault: true, available: true },
-    { id: 'input-realtek-mic', name: 'Microphone (Realtek Audio)', direction: 'input', isDefault: false, available: true },
-  ],
+  devices: [],
   applications: [],
   capabilities: {
     virtualChannels: 'simulation',

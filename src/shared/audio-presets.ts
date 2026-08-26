@@ -125,7 +125,7 @@ function microphonePreset(
     builtIn: true,
     schemaVersion: 1,
     processors,
-    monitoring: { enabled: false, level: 0.18, deviceId: 'output-nova-pro' },
+    monitoring: { enabled: false, level: 0.18, deviceId: '' },
   };
 }
 

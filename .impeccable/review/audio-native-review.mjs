@@ -52,6 +52,26 @@ async function runReview() {
       const filename = `${viewport.name}-${screen.name}.png`;
       await writeFile(join(outputDirectory, filename), image.toPNG());
       report.push({ viewport: viewport.name, screen: screen.name, metrics, filename });
+
+      if (viewport.name === '1420x900' && screen.name === 'audio-mixer') {
+        const interaction = await window.webContents.executeJavaScript(`
+          (async () => {
+            const strip = document.querySelector('.mixer-channel');
+            const mute = strip?.querySelector('button[aria-pressed]');
+            if (!mute) return { ok: false, reason: 'mute button not found' };
+            const before = mute.getAttribute('aria-pressed');
+            mute.click();
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            const after = mute.getAttribute('aria-pressed');
+            const mutedClass = strip.classList.contains('is-muted');
+            mute.click();
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            const restored = mute.getAttribute('aria-pressed');
+            return { ok: before !== after && restored === before && mutedClass === (after === 'true'), before, after, restored, mutedClass };
+          })()
+        `);
+        report.push({ viewport: viewport.name, screen: 'audio-mixer-mute-interaction', interaction });
+      }
     }
   }
 

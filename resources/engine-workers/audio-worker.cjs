@@ -11,10 +11,10 @@ let meterPhase = 0;
 const busGains = { game: 1, chat: 0.76, media: 0.42, mic: 0.92 };
 const busEnabled = { game: true, chat: true, media: true, mic: true };
 const busDevices = {
-  game: 'output-nova-pro',
-  chat: 'output-nova-pro',
-  media: 'output-realtek-speakers',
-  mic: 'input-quadcast-2',
+  game: '',
+  chat: '',
+  media: '',
+  mic: '',
 };
 const processors = {
   gain: true,
@@ -33,7 +33,7 @@ const processorParameters = {
   limiter: { thresholdDb: -1, releaseMs: 90 },
 };
 const channelProcessing = { game: {}, chat: {}, media: {} };
-let monitoring = { enabled: false, level: 0.18, deviceId: 'output-nova-pro' };
+let monitoring = { enabled: false, level: 0.18, deviceId: '' };
 
 function isRecord(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);

@@ -11,6 +11,8 @@ extraResources:
     to: branding
   - from: .switchboard/build/capture-host
     to: capture-host
+  - from: .switchboard/build/audio-host
+    to: audio-host
 asar: true
 asarUnpack:
   - resources/**

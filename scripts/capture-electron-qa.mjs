@@ -61,6 +61,7 @@ await client.connect();
 await client.send('Page.enable');
 await client.send('Runtime.enable');
 await client.send('Runtime.evaluate', { expression: "location.hash = 'capture'" });
+await client.send('Page.reload', { ignoreCache: true });
 await delay(750);
 await mkdir(outputDirectory, { recursive: true });
 
