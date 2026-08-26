@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { app, dialog, globalShortcut, shell } from 'electron';
 import { z } from 'zod';
@@ -18,11 +18,13 @@ import {
   type CaptureConfig,
   type CaptureHostSnapshot,
   type Clip,
+  type ExportClipInput,
   type EngineStatus,
   type CreateAudioPresetInput,
   type RenameAudioPresetInput,
   type RenameClipInput,
   type SetClipFavoriteInput,
+  type SetClipTrimInput,
   type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
   type SetAudioBusEnabledInput,
@@ -699,19 +701,49 @@ export class AppController {
     });
   }
 
-  public async exportClip(id: string): Promise<boolean> {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+  public setClipTrim(input: SetClipTrimInput): SystemSnapshot {
+    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    if (!clip) throw new Error('The clip no longer exists in the library.');
+    if (input.endMs > clip.durationMs) throw new Error('The trim range exceeds the clip duration.');
+    if (input.endMs - input.startMs < 100) throw new Error('Keep at least 0.1 seconds in the trim range.');
+    return this.store.update((draft) => {
+      const current = draft.clips.find((candidate) => candidate.id === input.id);
+      if (!current) return;
+      current.trimStartMs = input.startMs;
+      current.trimEndMs = input.endMs < current.durationMs ? input.endMs : undefined;
+    });
+  }
+
+  public async exportClip(input: ExportClipInput): Promise<boolean> {
+    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
-    const extension = extname(clip.path) || '.mp4';
+    if (input.endMs > clip.durationMs) throw new Error('The export range exceeds the clip duration.');
+    if (input.endMs - input.startMs < 100) throw new Error('Keep at least 0.1 seconds in the export range.');
+    const fullRange = input.startMs === 0 && input.endMs === clip.durationMs;
+    const canCopyOriginal = input.preset === 'original' && fullRange;
+    const extension = canCopyOriginal ? extname(clip.path) || '.mp4' : '.mp4';
+    const presetSuffix = input.preset === 'original' ? (fullRange ? '' : '-trimmed') : `-${input.preset}`;
     const selection = await dialog.showSaveDialog({
-      title: 'Export clip',
-      defaultPath: join(app.getPath('videos'), `${sanitizeClipBaseName(clip.name)}${extension}`),
+      title: 'Create share file',
+      defaultPath: join(app.getPath('videos'), `${sanitizeClipBaseName(clip.name)}${presetSuffix}${extension}`),
       filters: [{ name: 'Video', extensions: [extension.replace(/^\./, '')] }],
     });
     if (selection.canceled || !selection.filePath) return false;
-    if (resolve(selection.filePath).toLocaleLowerCase() !== resolve(clip.path).toLocaleLowerCase()) {
+    const destinationIsSource = resolve(selection.filePath).toLocaleLowerCase() === resolve(clip.path).toLocaleLowerCase();
+    if (destinationIsSource && !canCopyOriginal) {
+      throw new Error('Choose a different file name so the original clip stays intact.');
+    }
+    if (canCopyOriginal) {
+      if (destinationIsSource) return true;
       await copyFile(clip.path, selection.filePath);
+      return true;
+    }
+    try {
+      await this.clipLibrary.renderExport(clip, selection.filePath, input);
+    } catch (error) {
+      await rm(selection.filePath, { force: true });
+      throw error;
     }
     return true;
   }

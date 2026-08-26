@@ -415,6 +415,14 @@ const demoApi: SwitchboardApi = {
     if (clip) clip.favorite = input.favorite;
     return emit();
   },
+  async setClipTrim(input) {
+    const clip = snapshot.clips.find((candidate) => candidate.id === input.id);
+    if (clip) {
+      clip.trimStartMs = input.startMs;
+      clip.trimEndMs = input.endMs < clip.durationMs ? input.endMs : undefined;
+    }
+    return emit();
+  },
   async exportClip() { return false; },
   subscribe(listener) {
     listeners.add(listener);

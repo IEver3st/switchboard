@@ -2,9 +2,13 @@ import type { ComponentPropsWithoutRef } from 'react';
 import * as SliderPrimitive from '@radix-ui/react-slider';
 import { cn } from '@/lib/cn';
 
-type SliderProps = ComponentPropsWithoutRef<typeof SliderPrimitive.Root>;
+type SliderProps = ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
+  thumbLabels?: string[];
+  thumbValueText?: string[];
+};
 
-export function Slider({ className, 'aria-label': ariaLabel, 'aria-valuetext': ariaValueText, ...props }: SliderProps) {
+export function Slider({ className, 'aria-label': ariaLabel, 'aria-valuetext': ariaValueText, thumbLabels, thumbValueText, ...props }: SliderProps) {
+  const thumbCount = props.value?.length ?? props.defaultValue?.length ?? 1;
   return (
     <SliderPrimitive.Root
       className={cn(
@@ -30,11 +34,14 @@ export function Slider({ className, 'aria-label': ariaLabel, 'aria-valuetext': a
           )}
         />
       </SliderPrimitive.Track>
-      <SliderPrimitive.Thumb
-        aria-label={ariaLabel}
-        aria-valuetext={ariaValueText}
-        className="block size-4 shrink-0 rounded-full border border-[var(--control-accent)] bg-[var(--control-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-      />
+      {Array.from({ length: thumbCount }, (_, index) => (
+        <SliderPrimitive.Thumb
+          key={index}
+          aria-label={thumbLabels?.[index] ?? ariaLabel}
+          aria-valuetext={thumbValueText?.[index] ?? ariaValueText}
+          className="block size-4 shrink-0 rounded-full border border-[var(--control-accent)] bg-[var(--control-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        />
+      ))}
     </SliderPrimitive.Root>
   );
 }

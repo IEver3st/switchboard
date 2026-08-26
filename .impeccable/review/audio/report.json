@@ -1,0 +1,155 @@
+[
+  {
+    "viewport": "1080x720",
+    "screen": "audio-mixer",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 684,
+      "channelStrips": 4,
+      "page": "#audio/mixer"
+    },
+    "filename": "1080x720-audio-mixer.png"
+  },
+  {
+    "viewport": "1080x720",
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 976,
+      "channelStrips": 0,
+      "page": "#audio/game"
+    },
+    "filename": "1080x720-audio-game.png"
+  },
+  {
+    "viewport": "1080x720",
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1408,
+      "channelStrips": 0,
+      "page": "#audio/microphone"
+    },
+    "filename": "1080x720-audio-microphone.png"
+  },
+  {
+    "viewport": "1420x900",
+    "screen": "audio-mixer",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "channelStrips": 4,
+      "page": "#audio/mixer"
+    },
+    "filename": "1420x900-audio-mixer.png"
+  },
+  {
+    "viewport": "1420x900",
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 957,
+      "channelStrips": 0,
+      "page": "#audio/game"
+    },
+    "filename": "1420x900-audio-game.png"
+  },
+  {
+    "viewport": "1420x900",
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1341,
+      "channelStrips": 0,
+      "page": "#audio/microphone"
+    },
+    "filename": "1420x900-audio-microphone.png"
+  },
+  {
+    "viewport": "1920x1080",
+    "screen": "audio-mixer",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "channelStrips": 4,
+      "page": "#audio/mixer"
+    },
+    "filename": "1920x1080-audio-mixer.png"
+  },
+  {
+    "viewport": "1920x1080",
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "channelStrips": 0,
+      "page": "#audio/game"
+    },
+    "filename": "1920x1080-audio-game.png"
+  },
+  {
+    "viewport": "1920x1080",
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1392,
+      "channelStrips": 0,
+      "page": "#audio/microphone"
+    },
+    "filename": "1920x1080-audio-microphone.png"
+  }
+]

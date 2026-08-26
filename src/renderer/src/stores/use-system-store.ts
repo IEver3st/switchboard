@@ -5,9 +5,11 @@ import {
   type AudioPresetIdInput,
   type CaptureConfig,
   type CreateAudioPresetInput,
+  type ExportClipInput,
   type PageId,
   type RenameClipInput,
   type SetClipFavoriteInput,
+  type SetClipTrimInput,
   type RenameAudioPresetInput,
   type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
@@ -79,7 +81,8 @@ interface SystemStore {
   deleteClip(id: string): Promise<void>;
   renameClip(input: RenameClipInput): Promise<void>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<void>;
-  exportClip(id: string): Promise<boolean>;
+  setClipTrim(input: SetClipTrimInput): Promise<void>;
+  exportClip(input: ExportClipInput): Promise<boolean>;
   updateSettings(input: UpdateSettingsInput): Promise<void>;
   resetSettings(scope: SettingsResetScope): Promise<void>;
   revealClip(path: string): Promise<void>;
@@ -205,9 +208,17 @@ export const useSystemStore = create<SystemStore>((set, get) => {
         throw error;
       } finally { set({ actionPending: null }); }
     },
-    exportClip: async (id) => {
-      set({ actionPending: `clip:${id}:export`, error: null });
-      try { return await switchboardApi.exportClip(id); }
+    setClipTrim: async (input) => {
+      set({ actionPending: `clip:${input.id}:trim`, error: null });
+      try { set({ snapshot: await switchboardApi.setClipTrim(input) }); }
+      catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      } finally { set({ actionPending: null }); }
+    },
+    exportClip: async (input) => {
+      set({ actionPending: `clip:${input.id}:export`, error: null });
+      try { return await switchboardApi.exportClip(input); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;

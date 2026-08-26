@@ -68,18 +68,22 @@ process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 process.stdout.write(`scale ${count}: importing main\n`);
 await import('../out/main/index.js');
 process.stdout.write(`scale ${count}: waiting for ready\n`);
-await app.whenReady();
-process.stdout.write(`scale ${count}: waiting for window\n`);
+void app.whenReady().then(runReview).catch((error) => {
+  console.error(error);
+  app.exit(1);
+});
 
-const window = await waitForWindow();
-process.stdout.write(`scale ${count}: window found\n`);
-if (window.webContents.isLoading()) {
-  await new Promise((resolveLoad) => window.webContents.once('did-finish-load', resolveLoad));
-}
-window.setContentSize(1420, 900, false);
-await window.webContents.executeJavaScript("location.hash = 'capture'");
-await waitForLibrary(window, count);
-await delay(250);
+async function runReview() {
+  process.stdout.write(`scale ${count}: waiting for window\n`);
+  const window = await waitForWindow();
+  process.stdout.write(`scale ${count}: window found\n`);
+  if (window.webContents.isLoading()) {
+    await new Promise((resolveLoad) => window.webContents.once('did-finish-load', resolveLoad));
+  }
+  window.setContentSize(1420, 900, false);
+  await window.webContents.executeJavaScript("location.hash = 'capture'");
+  await waitForLibrary(window, count);
+  await delay(250);
 
 const metricsExpression = [
   '(() => {',
@@ -99,14 +103,15 @@ const metricsExpression = [
   '};',
   '})()',
 ].join('\n');
-const metrics = await window.webContents.executeJavaScript(metricsExpression);
-const image = await window.webContents.capturePage();
-const imagePath = join(outputDirectory, 'capture-' + count + '-clips.png');
-await writeFile(imagePath, image.toPNG());
-const report = { ...metrics, imagePath, imageSize: image.getSize() };
-await writeFile(join(outputDirectory, 'capture-' + count + '-clips.json'), JSON.stringify(report, null, 2) + '\n');
-process.stdout.write(JSON.stringify(report) + '\n');
-app.quit();
+  const metrics = await window.webContents.executeJavaScript(metricsExpression);
+  const image = await window.webContents.capturePage();
+  const imagePath = join(outputDirectory, 'capture-' + count + '-clips.png');
+  await writeFile(imagePath, image.toPNG());
+  const report = { ...metrics, imagePath, imageSize: image.getSize() };
+  await writeFile(join(outputDirectory, 'capture-' + count + '-clips.json'), JSON.stringify(report, null, 2) + '\n');
+  process.stdout.write(JSON.stringify(report) + '\n');
+  app.quit();
+}
 
 async function waitForWindow() {
   const deadline = Date.now() + 20_000;

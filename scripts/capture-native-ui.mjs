@@ -68,12 +68,15 @@ async function runReview() {
 
   const report = [];
   for (const viewport of viewports) {
-    window.setContentSize(viewport.width, viewport.height, false);
-    await delay(250);
-
     for (const screen of screens) {
+      if (window.isMaximized()) window.unmaximize();
+      window.setContentSize(viewport.width, viewport.height, false);
+      await waitForViewport(viewport);
       console.log(`Native review: ${viewport.name} ${screen.name}.`);
       await screen.prepare();
+      if (window.isMaximized()) window.unmaximize();
+      window.setContentSize(viewport.width, viewport.height, false);
+      await waitForViewport(viewport);
       await delay(200);
       const metrics = await getLayoutMetrics(window);
       const image = await window.webContents.capturePage();
@@ -87,6 +90,16 @@ async function runReview() {
   await writeFile(join(outputDirectory, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify({ outputDirectory, captures: report.length, report }, null, 2));
   app.quit();
+}
+
+async function waitForViewport(viewport) {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const size = await window.webContents.executeJavaScript(`({ width: innerWidth, height: innerHeight })`);
+    if (size.width === viewport.width && Math.abs(size.height - viewport.height) <= 2) return;
+    await delay(40);
+  }
+  throw new Error(`Native window did not reach ${viewport.name}.`);
 }
 
 async function waitForWindow() {
