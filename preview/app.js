@@ -18,14 +18,12 @@ const pages = [
   ['devices', '⌁', 'Devices'],
   ['audio', '≋', 'Audio'],
   ['capture', '●', 'Capture'],
-  ['modules', '▦', 'Modules'],
 ];
 const copy = {
   devices: ['Devices', 'Connected hardware and its most important controls.'],
   audio: ['Audio', 'Route, mix, and process audio without a monolithic suite.'],
   capture: ['Capture', 'A disk-backed replay buffer in its own process.'],
-  modules: ['Modules', 'Install only the device families and engines you use.'],
-  settings: ['Settings', 'Lifecycle, diagnostics, and performance budgets.'],
+  settings: ['Settings', 'Lifecycle, modules, diagnostics, and performance budgets.'],
 };
 
 const nav = document.querySelector('#navigation');
@@ -33,7 +31,7 @@ const content = document.querySelector('#page-content');
 const toast = document.querySelector('#toast');
 
 function renderNav() {
-  nav.innerHTML = pages.map(([id, icon, label]) => `<button class="nav-button ${state.page === id ? 'active' : ''}" data-page="${id}"><span class="nav-icon">${icon}</span><span>${label}</span>${id === 'devices' ? '<small>2</small>' : id === 'modules' ? `<small>${state.modules.filter(m => m.enabled).length}</small>` : ''}</button>`).join('');
+  nav.innerHTML = pages.map(([id, icon, label]) => `<button class="nav-button ${state.page === id ? 'active' : ''}" data-page="${id}"><span class="nav-icon">${icon}</span><span>${label}</span>${id === 'devices' ? '<small>2</small>' : ''}</button>`).join('');
   document.querySelector('.settings-link').classList.toggle('active', state.page === 'settings');
   document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => { state.page = button.dataset.page; render(); });
 }
@@ -64,7 +62,6 @@ function render() {
     devices: renderDevices,
     audio: renderAudio,
     capture: renderCapture,
-    modules: renderModules,
     settings: renderSettings,
   })[state.page]();
   wirePage();
@@ -81,7 +78,7 @@ function renderCapture() {
 }
 
 function renderModules() {
-  return `<div class="page-stack"><div class="summary-grid"><section class="surface summary-box"><div class="summary-icon">✓</div><div><small>Installed</small><strong>4</strong><span style="font-size:9px;color:#606975">${state.modules.filter(m=>m.enabled).length} enabled</span></div></section><section class="surface summary-box"><div class="summary-icon">▰</div><div><small>Module storage</small><strong>99 MB</strong><span style="font-size:9px;color:#606975">Capture engine is 84 MB</span></div></section><section class="surface summary-box"><div class="summary-icon">◇</div><div><small>Trust policy</small><strong>Official only</strong><span style="font-size:9px;color:#606975">Signed package manifests</span></div></section></div><section class="surface module-table"><div class="section-title"><div class="eyebrow">Local</div><h3>Installed modules</h3><p>Only enabled modules may claim devices or start an engine process.</p></div>${state.modules.map((m,i)=>`<div class="module-row ${m.enabled?'enabled':''}"><div class="module-icon">${m.kind==='device'?'⌁':m.kind==='audio'?'≋':'●'}</div><div class="copy"><b>${m.name}</b><small>${m.description}</small></div><div class="size">${m.size}</div><div class="kind">${m.kind}</div><button class="button" data-module="${i}">${m.enabled?'Disable':'Enable'}</button></div>`).join('')}</section></div>`;
+  return `<section class="surface module-table"><div class="section-title"><div class="eyebrow">Modules</div><h3>Installed modules</h3><p>Only enabled modules may claim devices or start an engine process.</p></div>${state.modules.map((m,i)=>`<div class="module-row ${m.enabled?'enabled':''}"><div class="module-icon">${m.kind==='device'?'⌁':m.kind==='audio'?'≋':'●'}</div><div class="copy"><b>${m.name}</b><small>${m.description}</small></div><div class="size">${m.size}</div><div class="kind">${m.kind}</div><button class="button" data-module="${i}">${m.enabled?'Disable':'Enable'}</button></div>`).join('')}</section>`;
 }
 
 function renderDevices() {
@@ -90,7 +87,7 @@ function renderDevices() {
 }
 
 function renderSettings() {
-  return `<div class="settings-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Lifecycle</div><h3>Background behavior</h3><p>The renderer can be destroyed in tray mode while device and engine hosts continue independently.</p></div><div class="settings-list"><div class="setting-row"><span class="symbol">◷</span><div class="copy"><b>Launch at startup</b><small>Start the core only. Optional engines remain off until required.</small></div><button class="switch"><i></i></button></div><div class="setting-row"><span class="symbol">▰</span><div class="copy"><b>Close to tray</b><small>Keep hotkeys and connected device profiles available.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span class="symbol">×</span><div class="copy"><b>Destroy renderer in tray</b><small>Release the Chromium page instead of merely hiding it.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span class="symbol">↻</span><div class="copy"><b>Automatic module updates</b><small>Verify signatures, install atomically, retain a rollback.</small></div><button class="switch on"><i></i></button></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Guardrails</div><h3>Performance budget</h3><p>A regression should fail release validation instead of becoming normal.</p></div><div style="margin-top:22px"><div class="ring-head"><span>Memory</span><b>${Math.round(state.memory)} / 240 MB</b></div><div class="progress" style="height:6px;margin-top:10px"><i style="width:${Math.min(100,state.memory/240*100)}%"></i></div><div class="ring-head" style="margin-top:22px"><span>Idle CPU</span><b>${state.cpu.toFixed(1)} / 2.0%</b></div><div class="progress" style="height:6px;margin-top:10px"><i style="width:${Math.min(100,state.cpu/2*100)}%"></i></div></div><div class="summary-grid" style="margin-top:22px"><div class="route"><div class="copy"><small>Core</small><b>44 MB</b></div></div><div class="route"><div class="copy"><small>Renderer</small><b>92 MB</b></div></div><div class="route"><div class="copy"><small>Processes</small><b>${2+(state.audio?1:0)+(state.capture?1:0)}</b></div></div></div></section></div>`;
+  return `<div class="page-stack"><div class="settings-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Lifecycle</div><h3>Background behavior</h3><p>The renderer can be destroyed in tray mode while device and engine hosts continue independently.</p></div><div class="settings-list"><div class="setting-row"><span class="symbol">◷</span><div class="copy"><b>Launch at startup</b><small>Start the core only. Optional engines remain off until required.</small></div><button class="switch"><i></i></button></div><div class="setting-row"><span class="symbol">▰</span><div class="copy"><b>Close to tray</b><small>Keep hotkeys and connected device profiles available.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span class="symbol">×</span><div class="copy"><b>Destroy renderer in tray</b><small>Release the Chromium page instead of merely hiding it.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span class="symbol">↻</span><div class="copy"><b>Automatic module updates</b><small>Verify signatures, install atomically, retain a rollback.</small></div><button class="switch on"><i></i></button></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Guardrails</div><h3>Performance budget</h3><p>A regression should fail release validation instead of becoming normal.</p></div><div style="margin-top:22px"><div class="ring-head"><span>Memory</span><b>${Math.round(state.memory)} / 240 MB</b></div><div class="progress" style="height:6px;margin-top:10px"><i style="width:${Math.min(100,state.memory/240*100)}%"></i></div><div class="ring-head" style="margin-top:22px"><span>Idle CPU</span><b>${state.cpu.toFixed(1)} / 2.0%</b></div><div class="progress" style="height:6px;margin-top:10px"><i style="width:${Math.min(100,state.cpu/2*100)}%"></i></div></div><div class="summary-grid" style="margin-top:22px"><div class="route"><div class="copy"><small>Core</small><b>44 MB</b></div></div><div class="route"><div class="copy"><small>Renderer</small><b>92 MB</b></div></div><div class="route"><div class="copy"><small>Processes</small><b>${2+(state.audio?1:0)+(state.capture?1:0)}</b></div></div></div></section></div>${renderModules()}</div>`;
 }
 
 function wirePage() {

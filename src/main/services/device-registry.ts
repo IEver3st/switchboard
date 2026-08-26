@@ -93,9 +93,9 @@ export class DeviceRegistry {
       device.capabilities.lighting.color = change.color;
       device.capabilities.lighting.enabled = true;
     }
-    if (change.type === 'lighting-brightness' && device.capabilities.lighting) device.capabilities.lighting.brightness = change.brightness;
-    if (change.type === 'lighting-effect' && device.capabilities.lighting) device.capabilities.lighting.activeEffectId = change.effectId;
-    if (change.type === 'lighting-speed' && device.capabilities.lighting) device.capabilities.lighting.speed = change.speed;
+    if (change.type === 'lighting-brightness' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { brightness: change.brightness, activeProfileId: 'custom' });
+    if (change.type === 'lighting-effect' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { activeEffectId: change.effectId, activeProfileId: 'custom' });
+    if (change.type === 'lighting-speed' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { speed: change.speed, activeProfileId: 'custom' });
     if (change.type === 'lighting-profile' && device.capabilities.lighting) {
       const profile = device.capabilities.lighting.profiles.find((candidate) => candidate.id === change.profileId);
       if (profile) Object.assign(device.capabilities.lighting, {

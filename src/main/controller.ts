@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
-import { app, desktopCapturer, dialog, globalShortcut, shell, type DesktopCapturerSource } from 'electron';
+import { app, desktopCapturer, dialog, globalShortcut, screen, shell, type DesktopCapturerSource, type Display } from 'electron';
 import { z } from 'zod';
 import {
   captureConfigSchema,
@@ -17,6 +17,7 @@ import {
   type ApplyAudioPresetInput,
   type CaptureConfig,
   type CaptureHostSnapshot,
+  type CaptureSource,
   type Clip,
   type ExportClipInput,
   type EngineStatus,
@@ -646,7 +647,8 @@ export class AppController {
       const sources = z.array(captureSourceSchema).parse(
         await this.engines.request('capture', 'listSources', undefined, 15_000),
       );
-      const snapshot = this.store.update((draft) => { draft.capture.sources = sources; }, { persist: false });
+      const orderedSources = orderCaptureSourcesByDisplayPosition(sources);
+      const snapshot = this.store.update((draft) => { draft.capture.sources = orderedSources; }, { persist: false });
       await this.refreshCaptureSourceThumbnails(true);
       return snapshot;
     } finally {
@@ -1030,7 +1032,7 @@ export class AppController {
       draft.capture.runtime = { ...snapshot.runtime, shortcutRegistered };
       draft.capture.storage = snapshot.storage;
       draft.capture.capabilities = snapshot.capabilities;
-      draft.capture.sources = snapshot.sources;
+      draft.capture.sources = orderCaptureSourcesByDisplayPosition(snapshot.sources);
     }, { persist: false });
   }
 
@@ -1109,9 +1111,36 @@ function matchDesktopCaptureSource(
   if (source.type === 'display') {
     const displays = nativeSources.filter((candidate) => candidate.id.startsWith('screen:'));
     const displayIndex = Number(source.displayId ?? source.id.replace(/^display:/, ''));
-    return displays.find((candidate) => candidate.display_id === source.displayId) ?? displays[displayIndex];
+    const windowsDisplay = captureIndexedDisplays()[displayIndex];
+    return displays.find((candidate) => candidate.display_id === String(windowsDisplay?.id)) ?? displays[displayIndex];
   }
   return undefined;
+}
+
+function orderCaptureSourcesByDisplayPosition(sources: CaptureSource[]): CaptureSource[] {
+  const windowsDisplays = captureIndexedDisplays();
+  const displaySources = sources
+    .filter((source) => source.type === 'display')
+    .map((source) => {
+      const displayIndex = Number(source.displayId ?? source.id.replace(/^display:/, ''));
+      const bounds = windowsDisplays[displayIndex]?.bounds;
+      return { source, x: bounds?.x ?? displayIndex, y: bounds?.y ?? 0 };
+    })
+    .sort((left, right) => left.x - right.x || left.y - right.y)
+    .map(({ source }) => source);
+  return [
+    ...sources.filter((source) => source.type === 'automatic-game'),
+    ...displaySources,
+    ...sources.filter((source) => source.type === 'window'),
+  ];
+}
+
+function captureIndexedDisplays(): Display[] {
+  const primary = screen.getPrimaryDisplay();
+  return [
+    primary,
+    ...screen.getAllDisplays().filter((display) => display.id !== primary.id),
+  ];
 }
 
 function createResetAudioState(current: SystemSnapshot['audio']): SystemSnapshot['audio'] {

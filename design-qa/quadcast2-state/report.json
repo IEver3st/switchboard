@@ -1,0 +1,91 @@
+{
+  "report": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "metrics": {
+        "viewport": {
+          "width": 1080,
+          "height": 722
+        },
+        "horizontalOverflow": false,
+        "lightingVisible": true,
+        "fixedRed": true,
+        "muteState": true,
+        "maintainedState": true,
+        "colorInputs": 0,
+        "profiles": [
+          "Broadcast",
+          "Breathe",
+          "Night",
+          "Custom"
+        ]
+      },
+      "name": "1080x720-quadcast2.png"
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "horizontalOverflow": false,
+        "lightingVisible": true,
+        "fixedRed": true,
+        "muteState": true,
+        "maintainedState": true,
+        "colorInputs": 0,
+        "profiles": [
+          "Broadcast",
+          "Breathe",
+          "Night",
+          "Custom"
+        ]
+      },
+      "name": "1420x900-quadcast2.png"
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "metrics": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "horizontalOverflow": false,
+        "lightingVisible": true,
+        "fixedRed": true,
+        "muteState": true,
+        "maintainedState": true,
+        "colorInputs": 0,
+        "profiles": [
+          "Broadcast",
+          "Breathe",
+          "Night",
+          "Custom"
+        ]
+      },
+      "name": "1920x1080-quadcast2.png"
+    }
+  ],
+  "interactions": {
+    "breathe": {
+      "profile": "Breathe",
+      "pattern": "Breathing",
+      "brightness": "55"
+    },
+    "custom": {
+      "pattern": "Pulse",
+      "speedDisabled": null
+    },
+    "persistedOff": true
+  }
+}

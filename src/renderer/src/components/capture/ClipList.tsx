@@ -19,7 +19,7 @@ export function ClipList({ clips, actions }: { clips: Clip[]; actions: ClipActio
             <ClipFavorite
               clip={clip}
               onChange={(favorite) => actions.favorite(clip, favorite)}
-              className="absolute right-2 top-2"
+              className="absolute right-2 top-2 opacity-100"
             />
           </div>
 

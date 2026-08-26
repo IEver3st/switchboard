@@ -56,6 +56,7 @@ export function SemanticChoice<T extends string>({
   value,
   options,
   disabled,
+  customIsOption = false,
   onChange,
   className,
 }: {
@@ -63,6 +64,7 @@ export function SemanticChoice<T extends string>({
   value: T | 'custom';
   options: Array<SemanticOption<T>>;
   disabled?: boolean;
+  customIsOption?: boolean;
   onChange: (value: T) => void;
   className?: string;
 }) {
@@ -71,7 +73,7 @@ export function SemanticChoice<T extends string>({
       <span className="sr-only">{label}</span>
       <ToggleGroup
         type="single"
-        value={value === 'custom' ? '' : value}
+        value={value === 'custom' && !customIsOption ? '' : value}
         disabled={disabled}
         aria-label={label}
         onValueChange={(next) => next && onChange(next as T)}
@@ -80,7 +82,7 @@ export function SemanticChoice<T extends string>({
           <ToggleGroupItem key={option.value} value={option.value}>{option.label}</ToggleGroupItem>
         ))}
       </ToggleGroup>
-      {value === 'custom' ? <span className="semantic-choice__custom">Custom</span> : null}
+      {value === 'custom' && !customIsOption ? <span className="semantic-choice__custom">Custom</span> : null}
     </div>
   );
 }

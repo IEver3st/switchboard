@@ -11,14 +11,18 @@
       "optionCount": 2,
       "windowOptionCount": 0,
       "nonDisplayOptionCount": 0,
+      "displayLabels": [
+        "Display 2",
+        "Display 1"
+      ],
       "selectedCount": 1,
       "previewCount": 2,
       "previewLoadedCount": 2,
       "popover": {
-        "left": 88,
-        "top": 175.33334350585938,
-        "right": 768,
-        "bottom": 485.2083435058594
+        "left": 88.0348129272461,
+        "top": 109.32872009277344,
+        "right": 767.9651718139648,
+        "bottom": 419.17198181152344
       }
     }
   },
@@ -34,14 +38,18 @@
       "optionCount": 2,
       "windowOptionCount": 0,
       "nonDisplayOptionCount": 0,
+      "displayLabels": [
+        "Display 2",
+        "Display 1"
+      ],
       "selectedCount": 1,
       "previewCount": 2,
       "previewLoadedCount": 2,
       "popover": {
-        "left": 88.14720153808594,
-        "top": 175.3138427734375,
-        "right": 767.8527679443359,
-        "bottom": 485.0546875
+        "left": 88.08103942871094,
+        "top": 109.32259368896484,
+        "right": 767.9189300537109,
+        "bottom": 419.12374114990234
       }
     }
   },
@@ -57,14 +65,18 @@
       "optionCount": 2,
       "windowOptionCount": 0,
       "nonDisplayOptionCount": 0,
+      "displayLabels": [
+        "Display 2",
+        "Display 1"
+      ],
       "selectedCount": 1,
       "previewCount": 2,
       "previewLoadedCount": 2,
       "popover": {
-        "left": 88,
-        "top": 175.33334350585938,
-        "right": 768,
-        "bottom": 485.2083435058594
+        "left": 88.034912109375,
+        "top": 109.32870483398438,
+        "right": 767.965087890625,
+        "bottom": 419.1719055175781
       }
     }
   }

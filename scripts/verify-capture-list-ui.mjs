@@ -30,6 +30,7 @@ async function run() {
   const window = await waitForWindow();
   await waitForLoad(window);
   await window.webContents.insertCSS('* { animation-duration: 0s !important; transition-duration: 0s !important; }');
+  await waitFor(window, "[...document.querySelectorAll('button')].some((button) => button.textContent?.trim() === 'Capture')");
   await clickByText(window, 'Capture');
   await waitFor(window, 'document.querySelector(\'[aria-label="List view"]\')');
   await window.webContents.executeJavaScript('document.querySelector(\'[aria-label="List view"]\')?.click()');

@@ -44,7 +44,7 @@ const screens = [
   { name: 'audio-microphone', prepare: () => openAudioTab('microphone') },
   { name: 'capture', prepare: () => openPage('Capture', '.capture-config-grid') },
   { name: 'clip-editor', prepare: () => openClipEditor() },
-  { name: 'modules', prepare: () => openPage('Modules', 'h2') },
+  { name: 'modules', prepare: () => openSettingsCategory('Modules') },
   { name: 'settings', prepare: () => openSettings() },
 ];
 
@@ -221,6 +221,23 @@ async function openSettings() {
   `);
   if (!clicked) throw new Error('Could not find the Settings button.');
   await waitForSelector('.settings-page');
+  await scrollMainToTop();
+}
+
+async function openSettingsCategory(label) {
+  await openSettings();
+  const clicked = await window.webContents.executeJavaScript(`
+    (() => {
+      const label = ${JSON.stringify(label)};
+      const button = [...document.querySelectorAll('[data-settings-category]')]
+        .find((candidate) => candidate.textContent?.trim() === label);
+      if (!button) return false;
+      button.click();
+      return true;
+    })()
+  `);
+  if (!clicked) throw new Error(`Could not find the ${label} Settings category.`);
+  await waitForCondition(`document.querySelector('[data-settings-category][aria-current="page"]')?.textContent?.trim() === ${JSON.stringify(label)}`, `${label} Settings category`);
   await scrollMainToTop();
 }
 

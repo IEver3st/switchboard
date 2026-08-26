@@ -9,14 +9,19 @@ import { cn } from '@/lib/cn';
 
 export function SettingsCategoryHeader({
   title,
+  description,
   onReset,
 }: {
   title: string;
+  description?: string;
   onReset?: () => void;
 }) {
   return (
     <div className="settings-category-header">
-      <h2>{title}</h2>
+      <div>
+        <h2>{title}</h2>
+        {description ? <p>{description}</p> : null}
+      </div>
       {onReset ? (
         <Button type="button" variant="ghost" size="sm" onClick={onReset} className="h-7 px-2 text-[11px]">
           <RotateCcw className="size-3" aria-hidden />
@@ -162,6 +167,7 @@ export function SettingFolder({
   disabled,
   onChange,
   onOpen,
+  className,
 }: {
   settingId: string;
   title: string;
@@ -169,12 +175,14 @@ export function SettingFolder({
   disabled?: boolean;
   onChange: () => void;
   onOpen: () => void;
+  className?: string;
 }) {
   return (
     <SettingRow
       settingId={settingId}
       title={title}
       description={<span className="settings-path" title={path}>{path}</span>}
+      className={className}
       controlClassName="settings-row__control--actions"
     >
       <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onOpen} aria-label={`Open ${title}`}>

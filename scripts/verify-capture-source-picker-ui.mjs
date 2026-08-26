@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, screen } from 'electron';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -29,6 +29,15 @@ void app.whenReady().then(run).catch((error) => {
 
 async function run() {
   const window = await waitForWindow();
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const captureIndexedDisplays = [
+    primaryDisplay,
+    ...screen.getAllDisplays().filter((display) => display.id !== primaryDisplay.id),
+  ];
+  const expectedDisplayOrder = captureIndexedDisplays
+    .map((display, index) => ({ label: `Display ${index + 1}`, x: display.bounds.x, y: display.bounds.y }))
+    .sort((left, right) => left.x - right.x || left.y - right.y)
+    .map((display) => display.label);
   await waitForLoad(window);
   await window.webContents.insertCSS('* { animation-duration: 0s !important; transition-duration: 0s !important; }');
   await clickByText(window, 'Capture');
@@ -89,6 +98,7 @@ async function run() {
           optionCount: options.length,
           windowOptionCount: options.filter((option) => option.querySelector('.capture-source-option__type')?.textContent?.startsWith('Window')).length,
           nonDisplayOptionCount: options.filter((option) => !option.querySelector('.capture-source-option__type')?.textContent?.startsWith('Display')).length,
+          displayLabels: options.map((option) => option.querySelector('.capture-source-option__name')?.textContent?.trim() ?? ''),
           selectedCount: options.filter((option) => option.getAttribute('aria-pressed') === 'true').length,
           previewCount: document.querySelectorAll('.capture-source-option img').length,
           previewLoadedCount: [...document.querySelectorAll('.capture-source-option img')]
@@ -100,7 +110,15 @@ async function run() {
     if (!metrics.popover || metrics.popover.left < 0 || metrics.popover.right > viewport.width || metrics.popover.bottom > viewport.height) {
       throw new Error(`Source picker overflowed at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics)}`);
     }
-    if (metrics.documentWidth > metrics.innerWidth || metrics.selectedCount !== 1 || metrics.windowOptionCount !== 0 || metrics.nonDisplayOptionCount !== 0) {
+    if (
+      metrics.documentWidth > metrics.innerWidth
+      || metrics.selectedCount !== 1
+      || metrics.windowOptionCount !== 0
+      || metrics.nonDisplayOptionCount !== 0
+      || metrics.previewCount !== metrics.optionCount
+      || metrics.previewLoadedCount !== metrics.previewCount
+      || JSON.stringify(metrics.displayLabels) !== JSON.stringify(expectedDisplayOrder)
+    ) {
       throw new Error(`Source picker layout/state failed at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics)}`);
     }
     const image = await window.webContents.capturePage();

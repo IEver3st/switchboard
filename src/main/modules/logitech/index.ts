@@ -90,10 +90,9 @@ export class LogitechDeviceModule implements DeviceModule {
         return;
       }
       if (change.type === 'report-rate') {
-        await this.directDpiSession.setReportRate(change.value);
-        return;
+        throw new Error('Switchboard can read the live polling rate, but this mouse rejected direct polling-rate writes.');
       }
-      throw new Error('This control still requires the local Logitech device service. Live DPI, hold-to-shift, polling rate, and battery remain available.');
+      throw new Error('This control still requires the local Logitech device service. Live DPI, hold-to-shift, polling-rate status, and battery remain available.');
     }
     const agentDeviceId = this.agentIds.get(device.id);
     if (!agentDeviceId) throw new Error('Logitech configuration requires the local G HUB device service.');

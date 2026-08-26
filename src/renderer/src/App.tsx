@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AlertTriangle, LoaderCircle, X } from 'lucide-react';
 import type { PageId } from '../../shared/contracts';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -27,6 +27,7 @@ export function App() {
   const initialize = useSystemStore((state) => state.initialize);
   const setPage = useSystemStore((state) => state.setPage);
   const clearError = useSystemStore((state) => state.clearError);
+  const previousWorkspaceRef = useRef<Exclude<PageId, 'settings' | 'modules'>>('devices');
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -35,6 +36,10 @@ export function App() {
     });
     return () => unsubscribe?.();
   }, [initialize]);
+
+  useEffect(() => {
+    if (page !== 'settings' && page !== 'modules') previousWorkspaceRef.current = page;
+  }, [page]);
 
   if (loading || !snapshot) {
     return (
@@ -49,25 +54,30 @@ export function App() {
   }
 
   return (
-    <div className="flex h-full bg-background">
-      <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TitleStrip />
-        <section className="flex min-h-0 flex-1 flex-col">
-          <main className="min-h-0 flex-1 bg-background">
-            <h1 className="sr-only">{pageTitles[page]}</h1>
-            {page === 'settings' || page === 'modules' ? (
-              <SettingsPage snapshot={snapshot} />
-            ) : (
-              <ScrollArea className="h-full">
-                {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
-                {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
-                {page === 'capture' ? <CapturePage snapshot={snapshot} /> : null}
-              </ScrollArea>
-            )}
-          </main>
-        </section>
-      </div>
+    <div className="relative flex h-full bg-background">
+      {page === 'settings' || page === 'modules' ? (
+        <main className="min-h-0 min-w-0 flex-1 bg-background">
+          <h1 className="sr-only">{pageTitles[page]}</h1>
+          <SettingsPage snapshot={snapshot} onClose={() => setPage(previousWorkspaceRef.current)} />
+        </main>
+      ) : (
+        <>
+          <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TitleStrip />
+            <section className="flex min-h-0 flex-1 flex-col">
+              <main className="min-h-0 flex-1 bg-background">
+                <h1 className="sr-only">{pageTitles[page]}</h1>
+                <ScrollArea className="h-full">
+                  {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
+                  {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
+                  {page === 'capture' ? <CapturePage snapshot={snapshot} /> : null}
+                </ScrollArea>
+              </main>
+            </section>
+          </div>
+        </>
+      )}
 
       {actionPending ? (
         <div className="pointer-events-none fixed bottom-4 right-4 flex items-center gap-2 rounded-md border border-border bg-popover px-3 py-2 text-[10px] text-muted-foreground shadow-xl" role="status">

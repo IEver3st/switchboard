@@ -2203,7 +2203,7 @@ select {
 }
 
 .settings-module-meta {
-  color: color-mix(in srgb, var(--muted-foreground) 76%, var(--background));
+  color: var(--muted-foreground);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
@@ -3468,6 +3468,61 @@ select {
   font-size: 11px;
 }
 
+.microphone-hardware__state {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 24px;
+}
+
+.microphone-state {
+  display: flex;
+  min-width: 126px;
+  align-items: center;
+  gap: 8px;
+}
+
+.microphone-state__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-neutral);
+}
+
+.microphone-state__dot[data-tone="live"] {
+  background: var(--success);
+}
+
+.microphone-state__dot[data-tone="muted"] {
+  background: var(--destructive);
+}
+
+.microphone-state > span {
+  display: grid;
+  gap: 2px;
+}
+
+.microphone-state strong,
+.microphone-state small {
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.microphone-state strong {
+  color: var(--foreground);
+  font-weight: 620;
+}
+
+.microphone-state small {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-weight: 450;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .microphone-hardware__primary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3475,13 +3530,51 @@ select {
   margin-top: 14px;
 }
 
-.microphone-hardware__secondary {
+.microphone-hardware__lighting {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.microphone-hardware__lighting-topline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.55fr);
+  gap: clamp(36px, 7vw, 80px);
+}
+
+.microphone-hardware__choice-row {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.microphone-hardware__choice-row .semantic-choice {
+  min-width: 0;
+}
+
+.microphone-hardware__lighting-sliders {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(36px, 7vw, 80px);
-  margin-top: 18px;
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding: 10px 0 12px;
+}
+
+.microphone-hardware__lighting > .human-setting {
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.microphone-hardware__lighting-error {
+  margin: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding: 8px 0;
+  color: var(--destructive);
+  font-size: 10px;
 }
 
 .microphone-hardware__color {
@@ -3490,7 +3583,6 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   color: var(--muted-foreground);
   font-size: 11px;
 }
@@ -3684,7 +3776,8 @@ select {
   .advanced-processor-grid,
   .advanced-processor-grid--microphone,
   .microphone-hardware__primary,
-  .microphone-hardware__secondary,
+  .microphone-hardware__lighting-topline,
+  .microphone-hardware__lighting-sliders,
   .monitoring-section__controls {
     grid-template-columns: 1fr;
   }
@@ -3710,6 +3803,83 @@ select {
 
   .chatmix-control__value {
     margin-left: auto;
+  }
+}
+
+@media (max-height: 950px) and (min-width: 900px) {
+  .device-workbench[data-device-kind="microphone"] {
+    display: grid;
+    min-height: calc(100vh - 38px);
+    grid-template-columns: minmax(300px, 0.78fr) minmax(520px, 1.22fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px 28px;
+    padding: 14px 28px 20px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .device-workbench__toolbar {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .device-workbench__hero {
+    min-height: 0;
+    align-items: center;
+    align-self: stretch;
+    margin-top: 0;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .device-render--hero {
+    width: min(100%, 430px);
+    height: min(100%, 520px);
+  }
+
+  .device-workbench[data-device-kind="microphone"] .device-workbench__controls {
+    width: 100%;
+    align-self: start;
+    margin: 0;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware {
+    padding-top: 12px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware__heading {
+    gap: 14px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware__state {
+    gap: 12px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-state {
+    min-width: 0;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-state small {
+    max-width: 110px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware__primary {
+    gap: 24px;
+    margin-top: 10px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware__lighting {
+    margin-top: 12px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware__lighting-topline,
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware__lighting-sliders {
+    gap: 24px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .microphone-hardware__choice-row {
+    min-height: 38px;
+  }
+
+  .device-workbench[data-device-kind="microphone"] .horizontal-meter {
+    margin-top: 10px;
+    padding-top: 10px;
   }
 }
 

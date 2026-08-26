@@ -118,7 +118,6 @@ export class SniperDpiRuntime {
 export class G502SniperDpiSession {
   private readonly runtime: SniperDpiRuntime;
   private readonly supportedDpi: number[];
-  private supportedReportRates: number[] = [];
   private stages: number[];
   private unsubscribe: (() => void) | null;
   private closed = false;
@@ -224,8 +223,13 @@ export class G502SniperDpiSession {
     const supportedRates = parseAdjustableReportRateListPayload(listResponse.subarray(4));
     const value = parseAdjustableReportRatePayload(currentResponse.subarray(4));
     if (!supportedRates.includes(value)) throw new Error('The mouse reported an active polling rate outside its supported list.');
-    this.supportedReportRates = supportedRates;
-    return { writable: true, value, supportedRates, profileMode: 'software' };
+    return {
+      writable: false,
+      value,
+      supportedRates,
+      profileMode: 'software',
+      unavailableReason: 'Switchboard can read the live polling rate, but this mouse rejected direct polling-rate writes.',
+    };
   }
 
   public async setBaseDpi(value: number): Promise<void> {
@@ -245,13 +249,6 @@ export class G502SniperDpiSession {
       throw new Error('DPI stages must contain one to five values supported by this mouse.');
     }
     this.stages = stages;
-  }
-
-  public async setReportRate(value: number): Promise<void> {
-    if (this.reportRateFeatureIndex === null || !this.supportedReportRates.includes(value)) {
-      throw new Error(`${value.toLocaleString()} Hz is not supported by this mouse.`);
-    }
-    await this.transport.request(this.deviceIndex, this.reportRateFeatureIndex, 2, [reportRateInterval(value)]);
   }
 
   public async close(): Promise<void> {
@@ -317,14 +314,6 @@ export function parseAdjustableReportRatePayload(payload: Uint8Array): number {
 function reportRateFromInterval(intervalMilliseconds: number): number | null {
   if (intervalMilliseconds <= 0 || 1_000 % intervalMilliseconds !== 0) return null;
   return 1_000 / intervalMilliseconds;
-}
-
-function reportRateInterval(rate: number): number {
-  const interval = 1_000 / rate;
-  if (!Number.isInteger(interval) || interval < 1 || interval > 8) {
-    throw new Error(`${rate.toLocaleString()} Hz cannot be represented by this mouse.`);
-  }
-  return interval;
 }
 
 export function parseMouseButtonSpyNotification(

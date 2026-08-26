@@ -37,8 +37,12 @@ export function DeviceRender({
   className?: string;
 }) {
   const artwork = artworkByAssetKey[device.asset.key];
-  const lightingEnabled = device.capabilities.lighting?.enabled ?? false;
-  const lightingColor = asColor(device.capabilities.lighting?.color, device.kind === 'microphone' ? '#e51937' : '#ff658a');
+  const lighting = device.capabilities.lighting;
+  const lightingEnabled = Boolean(
+    lighting?.enabled
+    && !(lighting.muteLinked && device.capabilities.muteState?.muted === true),
+  );
+  const lightingColor = asColor(lighting?.color, device.kind === 'microphone' ? '#e51937' : '#ff658a');
   const label = [device.identity.manufacturer, device.displayName].filter(Boolean).join(' ');
 
   return (

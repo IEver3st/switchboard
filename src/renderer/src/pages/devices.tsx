@@ -4,7 +4,7 @@ import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../shared
 import { BatteryStatus } from '@/components/device-controls/BatteryStatus';
 import { MouseDeviceEditor } from '@/components/device-controls/MouseDeviceEditor';
 import { HorizontalLevelMeter } from '@/components/audio/HorizontalLevelMeter';
-import { PrimarySlider, SettingToggle } from '@/components/shared/human-controls';
+import { PrimarySlider, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
 import { DeviceRender } from '@/components/shared/device-render';
 import { StatusDot } from '@/components/shared/surface';
 import { useSystemStore } from '@/stores/use-system-store';
@@ -147,12 +147,15 @@ function connectionLabel(device: Device): string {
 
 function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: SystemSnapshot }) {
   const setDeviceSetting = useSystemStore((state) => state.setDeviceSetting);
+  const setDeviceControl = useSystemStore((state) => state.setDeviceControl);
+  const actionPending = useSystemStore((state) => state.actionPending);
   const gain = asNumber(device.settings.gain, 58);
   const monitoring = asNumber(device.settings.monitoring, 18);
-  const muteLed = asBoolean(device.settings.muteLed, true);
-  const lightingEnabled = asBoolean(device.settings.lightingEnabled, true);
   const lighting = device.capabilities.lighting;
-  const color = lighting?.color ?? asString(device.settings.lightingColor, '#ff4f7d');
+  const muteState = device.capabilities.muteState;
+  const muted = muteState?.muted ?? null;
+  const controlsPending = actionPending?.startsWith(`device:${device.id}:`) ?? false;
+  const lightingDisabled = !device.connected || !lighting?.writable || controlsPending;
   const engineRunning = snapshot.engines.find((candidate) => candidate.kind === 'audio')?.state === 'running';
   const microphoneBusEnabled = snapshot.audio.buses.find((candidate) => candidate.id === 'mic')?.enabled ?? false;
 
@@ -162,6 +165,20 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
         <div>
           <h3 id="microphone-hardware-heading">Microphone controls</h3>
           <p>Audio processing is configured in Audio &gt; Microphone.</p>
+        </div>
+        <div className="microphone-hardware__state" aria-live="polite">
+          <HardwareState
+            tone={muted === null ? 'unknown' : muted ? 'muted' : 'live'}
+            label={muted === null ? 'Mute state unknown' : muted ? 'Muted' : 'Microphone live'}
+            detail={muteState?.unavailableReason ?? 'Physical touch sensor'}
+          />
+          {lighting ? (
+            <HardwareState
+              tone={lighting.state === 'maintained' ? 'live' : 'unknown'}
+              label={lighting.state === 'maintained' ? 'Lighting maintained' : 'Lighting state unknown'}
+              detail={lighting.state === 'maintained' ? 'No hardware readback' : (lighting.stateReason ?? 'Waiting for hardware')}
+            />
+          ) : null}
         </div>
       </header>
 
@@ -191,33 +208,84 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
         ) : null}
       </div>
 
-      <div className="microphone-hardware__secondary">
-        {lighting ? (
-          <div className="microphone-hardware__lighting">
+      {lighting ? (
+        <div className="microphone-hardware__lighting">
+          <div className="microphone-hardware__lighting-topline">
             <SettingToggle
               title="Lighting"
-              description={lighting.writable ? 'Controls the microphone status light.' : 'This microphone uses its built-in lighting.'}
-              checked={lightingEnabled}
-              disabled={!lighting.writable}
-              onCheckedChange={(checked) => void setDeviceSetting({ deviceId: device.id, key: 'lightingEnabled', value: checked })}
+              description="Maintains the microphone's fixed-red status light."
+              checked={lighting.enabled}
+              disabled={lightingDisabled}
+              onCheckedChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-enabled', enabled } })}
             />
-            {lighting.color ? (
-              <div className="microphone-hardware__color">
-                <span>Color</span>
-                <strong><i style={{ backgroundColor: color }} aria-hidden /> {friendlyColorName(color)}</strong>
-              </div>
-            ) : null}
+            <div className="microphone-hardware__color">
+              <span>Color</span>
+              <strong><i style={{ backgroundColor: '#f20000' }} aria-hidden /> Fixed red</strong>
+            </div>
           </div>
-        ) : null}
-        {device.capabilities.mute ? (
-          <SettingToggle
-            title="Mute light follows microphone state"
-            description="Shows when the microphone is muted."
-            checked={muteLed}
-            onCheckedChange={(checked) => void setDeviceSetting({ deviceId: device.id, key: 'muteLed', value: checked })}
-          />
-        ) : null}
-      </div>
+
+          {lighting.profiles.length > 0 ? (
+            <div className="microphone-hardware__choice-row">
+              <span>Profile</span>
+              <SemanticChoice
+                label="Lighting profile"
+                value={lighting.activeProfileId ?? 'custom'}
+                options={lighting.profiles.map((profile) => ({ value: profile.id, label: profile.label }))}
+                customIsOption
+                disabled={lightingDisabled}
+                onChange={(profileId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-profile', profileId } })}
+              />
+            </div>
+          ) : null}
+
+          <div className="microphone-hardware__choice-row">
+            <span>Pattern</span>
+            <SemanticChoice
+              label="Lighting pattern"
+              value={lighting.activeEffectId}
+              options={lighting.availableEffects.map((effect) => ({ value: effect.id, label: effect.label }))}
+              disabled={lightingDisabled || !lighting.enabled}
+              onChange={(effectId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-effect', effectId } })}
+            />
+          </div>
+
+          <div className="microphone-hardware__lighting-sliders">
+            <PrimarySlider
+              label="Brightness"
+              value={lighting.brightness ?? 72}
+              min={0}
+              max={100}
+              step={1}
+              unit="%"
+              disabled={lightingDisabled || !lighting.enabled || !lighting.brightnessWritable}
+              onCommit={(brightness) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } })}
+            />
+            <PrimarySlider
+              label="Effect speed"
+              value={lighting.speed ?? 50}
+              min={1}
+              max={100}
+              step={1}
+              unit="%"
+              disabled={lightingDisabled || !lighting.enabled || !lighting.speedWritable || lighting.activeEffectId === 'solid'}
+              onCommit={(speed) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-speed', speed } })}
+            />
+          </div>
+
+          {device.capabilities.mute && lighting.muteLinkedWritable ? (
+            <SettingToggle
+              title="Follow physical mute"
+              description="Turns the maintained red light off when the touch sensor reports muted."
+              checked={lighting.muteLinked}
+              disabled={lightingDisabled}
+              onCheckedChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'microphone-mute-lighting', enabled } })}
+            />
+          ) : null}
+          {lighting.state === 'unknown' && lighting.stateReason ? (
+            <p className="microphone-hardware__lighting-error" role="status">{lighting.stateReason}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       <HorizontalLevelMeter
         busId="mic"
@@ -229,19 +297,23 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
   );
 }
 
-function asNumber(value: DeviceSettingValue | undefined, fallback: number): number {
-  return typeof value === 'number' ? value : fallback;
-}
-function asBoolean(value: DeviceSettingValue | undefined, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}
-function asString(value: DeviceSettingValue | undefined, fallback: string): string {
-  return typeof value === 'string' ? value : fallback;
+function HardwareState({
+  tone,
+  label,
+  detail,
+}: {
+  tone: 'live' | 'muted' | 'unknown';
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className="microphone-state">
+      <i className="microphone-state__dot" data-tone={tone} aria-hidden />
+      <span><strong>{label}</strong><small>{detail}</small></span>
+    </div>
+  );
 }
 
-function friendlyColorName(color: string): string {
-  const normalized = color.toLowerCase();
-  if (normalized === '#ff4f7d' || normalized === '#ff658a') return 'Pink';
-  if (normalized === '#f20000' || normalized === '#ff0000') return 'Red';
-  return 'Custom color';
+function asNumber(value: DeviceSettingValue | undefined, fallback: number): number {
+  return typeof value === 'number' ? value : fallback;
 }

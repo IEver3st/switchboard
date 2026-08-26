@@ -15,6 +15,7 @@ export function Slider({ className, 'aria-label': ariaLabel, 'aria-valuetext': a
         'relative flex touch-none select-none items-center',
         'data-[orientation=horizontal]:h-6 data-[orientation=horizontal]:w-full',
         'data-[orientation=vertical]:h-full data-[orientation=vertical]:w-5 data-[orientation=vertical]:flex-col',
+        'data-[disabled]:opacity-40',
         className,
       )}
       {...props}
