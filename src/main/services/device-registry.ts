@@ -38,6 +38,10 @@ export class DeviceRegistry {
   }
 
   public async setControl(deviceId: string, change: DeviceControlChange): Promise<void> {
+    if (process.env.SWITCHBOARD_NATIVE_FIXTURES === '1') {
+      this.setFixtureControl(deviceId, change);
+      return;
+    }
     const device = this.getSnapshot().devices.find((candidate) => candidate.id === deviceId);
     if (!device) throw new Error('Device not found.');
     const module = this.modules.find((candidate) => candidate.id === device.moduleId);
@@ -54,6 +58,33 @@ export class DeviceRegistry {
     this.disposed = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+  }
+
+  private setFixtureControl(deviceId: string, change: DeviceControlChange): void {
+    const devices = structuredClone(this.getSnapshot().devices);
+    const device = devices.find((candidate) => candidate.id === deviceId);
+    if (!device) throw new Error('Fixture device not found.');
+
+    if (change.type === 'dpi' && device.capabilities.dpi) device.capabilities.dpi.activeDpi = change.value;
+    if (change.type === 'dpi-stages' && device.capabilities.dpi) device.capabilities.dpi.stages = change.stages;
+    if (change.type === 'dpi-shift' && device.capabilities.dpi) device.capabilities.dpi.shiftDpi = change.value;
+    if (change.type === 'report-rate' && device.capabilities.reportRate) device.capabilities.reportRate.value = change.value;
+    if (change.type === 'button-assignment' && device.capabilities.buttonAssignments) {
+      const binding = device.capabilities.buttonAssignments.bindings.find((candidate) => candidate.buttonId === change.buttonId);
+      if (binding) binding.currentActionId = change.actionId;
+    }
+    if (change.type === 'onboard-memory' && device.capabilities.onboardMemory) {
+      device.capabilities.onboardMemory.enabled = change.enabled;
+    }
+    if (change.type === 'lighting-enabled' && device.capabilities.lighting) device.capabilities.lighting.enabled = change.enabled;
+    if (change.type === 'lighting-color' && device.capabilities.lighting) {
+      device.capabilities.lighting.color = change.color;
+      device.capabilities.lighting.enabled = true;
+    }
+    if (change.type === 'lighting-brightness' && device.capabilities.lighting) device.capabilities.lighting.brightness = change.brightness;
+    if (change.type === 'lighting-effect' && device.capabilities.lighting) device.capabilities.lighting.activeEffectId = change.effectId;
+
+    this.applyDevices(devices);
   }
 
   private async discover(): Promise<void> {

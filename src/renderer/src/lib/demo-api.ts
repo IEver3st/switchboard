@@ -402,7 +402,20 @@ const demoApi: SwitchboardApi = {
   },
   async revealClip() {},
   async deleteClip() { return emit(); },
-  async renameClip() { return emit(); },
+  async renameClip(input) {
+    const clip = snapshot.clips.find((candidate) => candidate.id === input.id);
+    if (clip) {
+      clip.name = input.name;
+      clip.titleEdited = true;
+    }
+    return emit();
+  },
+  async setClipFavorite(input) {
+    const clip = snapshot.clips.find((candidate) => candidate.id === input.id);
+    if (clip) clip.favorite = input.favorite;
+    return emit();
+  },
+  async exportClip() { return false; },
   subscribe(listener) {
     listeners.add(listener);
     return () => listeners.delete(listener);

@@ -22,10 +22,10 @@ export function OnboardMemoryControl({
                 <Info aria-hidden className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Uses profiles stored directly on the mouse.</TooltipContent>
+            <TooltipContent>Stores compatible settings directly on the mouse.</TooltipContent>
           </Tooltip>
         </div>
-        <p>{capability.enabled ? `Using ${formatProfile(capability.activeProfile)}` : 'Using the active software profile.'}</p>
+        <p>{capability.enabled ? `Using ${formatProfile(capability.activeProfile)}` : 'Store compatible settings directly on the mouse.'}</p>
       </div>
       <Switch
         checked={capability.enabled}

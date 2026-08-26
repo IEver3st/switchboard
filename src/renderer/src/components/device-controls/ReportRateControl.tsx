@@ -13,10 +13,10 @@ export function ReportRateControl({
   return (
     <div className="report-rate-control">
       <div className="control-heading control-heading--compact">
-        <span>Report rate</span>
+        <span>Polling rate</span>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" className="control-info" aria-label="About report rate">
+            <button type="button" className="control-info" aria-label="About polling rate">
               <Info aria-hidden className="size-3.5" />
             </button>
           </TooltipTrigger>
@@ -30,7 +30,7 @@ export function ReportRateControl({
               type="single"
               value={String(capability.value)}
               disabled={!capability.writable}
-              aria-label="Report rate"
+              aria-label="Polling rate"
               onValueChange={(value) => value && onChange(Number(value))}
             >
               {capability.supportedRates.map((rate) => (

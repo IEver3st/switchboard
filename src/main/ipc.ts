@@ -18,6 +18,7 @@ import {
   setDeviceControlInputSchema,
   setDeviceSettingInputSchema,
   setMicProcessorInputSchema,
+  setClipFavoriteInputSchema,
   setModuleStateInputSchema,
   settingsResetScopeSchema,
 } from '../shared/contracts';
@@ -222,6 +223,18 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => renameClipInputSchema.parse(input),
     (input) => controller.renameClip(input),
+  );
+  handle(
+    ipcChannels.setClipFavorite,
+    getMainWindow,
+    (input) => setClipFavoriteInputSchema.parse(input),
+    (input) => controller.setClipFavorite(input),
+  );
+  handle(
+    ipcChannels.exportClip,
+    getMainWindow,
+    (input) => z.string().min(1).max(256).parse(input),
+    (id) => controller.exportClip(id),
   );
 
   const unsubscribe = controller.subscribe((snapshot) => {

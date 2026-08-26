@@ -1,0 +1,100 @@
+{
+  "startedAt": "2026-08-26T07:36:45.090Z",
+  "steps": [
+    {
+      "name": "devices.open-g502",
+      "passed": true,
+      "evidence": {
+        "selected": "G502 X Plus"
+      }
+    },
+    {
+      "name": "devices.g502-dpi",
+      "passed": true,
+      "evidence": {
+        "from": 1600,
+        "to": 3200
+      }
+    },
+    {
+      "name": "devices.g502-dpi-shift",
+      "passed": true,
+      "evidence": {
+        "from": 800,
+        "to": 700,
+        "editor": {
+          "trigger": "800 DPI",
+          "min": 100,
+          "max": 25600,
+          "step": 50
+        }
+      }
+    },
+    {
+      "name": "devices.g502-polling-rate",
+      "passed": true,
+      "evidence": {
+        "from": 1000,
+        "to": 500
+      }
+    },
+    {
+      "name": "devices.g502-lighting",
+      "passed": true,
+      "evidence": {
+        "enabled": true,
+        "color": "#FF4F7D",
+        "colorTrigger": "Lighting color #ff1744"
+      }
+    },
+    {
+      "name": "devices.g502-button-assignment",
+      "passed": true,
+      "evidence": {
+        "callout": "Back, assigned to Back",
+        "button": "Back",
+        "testedAssignment": "Forward",
+        "restored": "Back"
+      }
+    },
+    {
+      "name": "devices.open-quadcast",
+      "passed": true,
+      "evidence": {
+        "selected": "QuadCast 2"
+      }
+    },
+    {
+      "name": "devices.quadcast-hardware-controls",
+      "passed": true,
+      "evidence": {
+        "sliders": [
+          {
+            "label": "Input volume",
+            "min": "0",
+            "max": "100",
+            "value": "58"
+          },
+          {
+            "label": "Direct monitoring",
+            "min": "0",
+            "max": "100",
+            "value": "18"
+          }
+        ],
+        "gain": 59,
+        "monitoring": 19,
+        "muteLed": false
+      }
+    },
+    {
+      "name": "write.failure",
+      "passed": false,
+      "error": "Timed out waiting for enabled button: Start audio. {\"hash\":\"#audio/mixer\",\"text\":\"Devices\\nAudio\\nCapture\\nModules\\nAudio\\nAudio\\n\\nMixer and sound settings are ready when you start audio.\\n\\nMixer\\nGame\\nChat\\nMedia\\nMicrophone\\n\\nLive levels are unavailable on this setup.\\n\\nGame\\nPresetFlat\\nOutput\\nArctis Nova Pro Wireless · Default\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n0 dB\\nChat\\nPresetNatural\\nOutput\\nArctis Nova Pro Wireless · Default\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n-2.4 dB\\nMedia\\nPresetFlat\\nOutput\\nSpeakers (Realtek Audio)\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n-7.5 dB\\nMicrophone\\nPresetNatural Voice\\nInput\\nHyperX QuadCast 2 · Default\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n-0.7 dB\\nChatMix\\n\\nGame sound vs voice chat\\n\\n43 / 57\\n\\nApp routing is not ready yet. Start Audio after Switchboard's Game, Chat, and Media outputs are installed.\",\"buttons\":[{\"text\":\"Devices\",\"disabled\":false},{\"text\":\"Audio\",\"disabled\":false},{\"text\":\"Capture\",\"disabled\":false},{\"text\":\"Modules\",\"disabled\":false},{\"text\":\"Mixer\",\"disabled\":false},{\"text\":\"Game\",\"disabled\":false},{\"text\":\"Chat\",\"disabled\":false},{\"text\":\"Media\",\"disabled\":false},{\"text\":\"Microphone\",\"disabled\":false},{\"text\":\"PresetFlat\",\"disabled\":false},{\"text\":\"Arctis Nova Pro Wireless · Default\",\"disabled\":false},{\"text\":\"PresetNatural\",\"disabled\":false},{\"text\":\"Arctis Nova Pro Wireless · Default\",\"disabled\":false},{\"text\":\"PresetFlat\",\"disabled\":false},{\"text\":\"Speakers (Realtek Audio)\",\"disabled\":false},{\"text\":\"PresetNatural Voice\",\"disabled\":false},{\"text\":\"HyperX QuadCast 2 · Default\",\"disabled\":false}]}"
+    }
+  ],
+  "capabilities": {
+    "quadCastLighting": "unavailable",
+    "quadCastInputMeter": "simulation"
+  }
+}

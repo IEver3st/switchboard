@@ -16,7 +16,7 @@ protocol.registerSchemesAsPrivileged([{
   privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
 }]);
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const hasSingleInstanceLock = process.env.SWITCHBOARD_NATIVE_REVIEW === '1' || app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 
 function isTrustedNavigation(url: string): boolean {
@@ -44,12 +44,12 @@ function createWindow(): BrowserWindow {
     minHeight: 720,
     show: false,
     icon: getBrandIconPath(),
-    backgroundColor: '#0d0f12',
+    backgroundColor: '#0d1015',
     title: 'Switchboard',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#0d0f12',
-      symbolColor: '#9ca3af',
+      color: '#10141a',
+      symbolColor: '#a1aab7',
       height: 38,
     },
     webPreferences: {

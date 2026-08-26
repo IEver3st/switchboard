@@ -3,8 +3,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { access, mkdir, opendir, rename, rm, stat } from 'node:fs/promises';
 import { basename, delimiter, dirname, extname, join, parse, resolve } from 'node:path';
-import type { Clip } from '../../shared/contracts';
-import { sanitizeClipBaseName } from '../../shared/capture-presets';
+import type { Clip, ClipAudioChannel } from '../../shared/contracts';
+import { createDefaultClipTitle, inferClipGame, normalizeClipRecord } from '../../shared/clip-library';
 
 const supportedExtensions = new Set(['.mp4', '.mkv', '.webm', '.mov']);
 
@@ -14,7 +14,10 @@ type ProbeResult = {
   height: number;
   fps: number;
   codec?: string;
+  audioChannels: ClipAudioChannel[];
 };
+
+type ClipEnrichment = Pick<Clip, 'thumbnailPath' | 'audioChannels'>;
 
 export class ClipLibraryService {
   private thumbnailQueue: Promise<void> = Promise.resolve();
@@ -25,7 +28,8 @@ export class ClipLibraryService {
     await mkdir(directory, { recursive: true });
     await mkdir(this.thumbnailDirectory, { recursive: true });
     const existing: Clip[] = [];
-    for (const clip of indexed) {
+    for (const indexedClip of indexed) {
+      const clip = normalizeClipRecord(indexedClip);
       try {
         await access(clip.path);
         if (clip.thumbnailPath) {
@@ -64,35 +68,35 @@ export class ClipLibraryService {
     return existing.sort((left, right) => right.createdAt - left.createdAt);
   }
 
-  public enqueueThumbnail(clip: Clip, onReady: (thumbnailPath: string) => void): void {
+  public needsEnrichment(clip: Clip): boolean {
+    return clip.audioChannels === undefined
+      || !clip.thumbnailPath
+      || basename(clip.thumbnailPath) !== `${clip.id}.v2.jpg`;
+  }
+
+  public enqueueThumbnail(clip: Clip, onReady: (enrichment: ClipEnrichment) => void): void {
     this.thumbnailQueue = this.thumbnailQueue
       .catch(() => undefined)
       .then(async () => {
-        if (clip.thumbnailPath) {
-          try { await access(clip.thumbnailPath); onReady(clip.thumbnailPath); return; } catch { }
+        let audioChannels = clip.audioChannels;
+        if (audioChannels === undefined) {
+          audioChannels = (await this.probe(clip.path)).audioChannels;
         }
-        const thumbnailPath = join(this.thumbnailDirectory, `${clip.id}.jpg`);
+        if (clip.thumbnailPath && basename(clip.thumbnailPath) === `${clip.id}.v2.jpg`) {
+          try {
+            await access(clip.thumbnailPath);
+            onReady({ thumbnailPath: clip.thumbnailPath, audioChannels });
+            return;
+          } catch { }
+        }
+        const thumbnailPath = join(this.thumbnailDirectory, `${clip.id}.v2.jpg`);
         await this.generateThumbnail(clip.path, thumbnailPath, clip.durationMs);
-        onReady(thumbnailPath);
+        onReady({ thumbnailPath, audioChannels });
+        if (clip.thumbnailPath && resolve(clip.thumbnailPath) !== resolve(thumbnailPath)) {
+          await rm(clip.thumbnailPath, { force: true });
+        }
       })
       .catch((error) => console.warn('Clip thumbnail generation failed.', error));
-  }
-
-  public async renameClip(clip: Clip, requestedName: string): Promise<Clip> {
-    const safeName = sanitizeClipBaseName(requestedName);
-    const extension = extname(clip.path);
-    let nextPath = join(dirname(clip.path), `${safeName}${extension}`);
-    if (resolve(nextPath).toLocaleLowerCase() === resolve(clip.path).toLocaleLowerCase()) {
-      return { ...clip, name: parse(clip.path).name };
-    }
-    for (let suffix = 2; ; suffix += 1) {
-      try {
-        await access(nextPath);
-        nextPath = join(dirname(clip.path), `${safeName}_${suffix}${extension}`);
-      } catch { break; }
-    }
-    await rename(clip.path, nextPath);
-    return { ...clip, name: parse(nextPath).name, path: nextPath };
   }
 
   public async removeThumbnail(clip: Clip): Promise<void> {
@@ -101,10 +105,12 @@ export class ClipLibraryService {
 
   public async createClipFromFile(path: string): Promise<Clip> {
     const [file, media] = await Promise.all([stat(path), this.probe(path)]);
+    const game = inferClipGame(parse(path).name);
     return {
       id: randomUUID(),
       path,
-      name: parse(path).name,
+      name: createDefaultClipTitle(game),
+      ...(game ? { game } : {}),
       createdAt: file.birthtimeMs > 0 ? Math.round(file.birthtimeMs) : Math.round(file.mtimeMs),
       durationMs: Math.max(0, Math.round(media.durationMs)),
       fileSize: file.size,
@@ -112,6 +118,9 @@ export class ClipLibraryService {
       height: media.height,
       fps: media.fps,
       ...(media.codec ? { codec: media.codec } : {}),
+      favorite: false,
+      titleEdited: false,
+      audioChannels: media.audioChannels,
     };
   }
 
@@ -119,11 +128,18 @@ export class ClipLibraryService {
     const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
     const output = await run(executable, [
       '-v', 'error', '-print_format', 'json', '-show_entries',
-      'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate', path,
+      'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate:stream_tags=title', path,
     ]);
     const parsed = JSON.parse(output) as {
       format?: { duration?: string };
-      streams?: Array<{ codec_type?: string; codec_name?: string; width?: number; height?: number; avg_frame_rate?: string }>;
+      streams?: Array<{
+        codec_type?: string;
+        codec_name?: string;
+        width?: number;
+        height?: number;
+        avg_frame_rate?: string;
+        tags?: { title?: string };
+      }>;
     };
     const video = parsed.streams?.find((stream) => stream.codec_type === 'video');
     if (!video) throw new Error('Video stream not found.');
@@ -133,24 +149,41 @@ export class ClipLibraryService {
       height: video.height ?? 0,
       fps: parseRate(video.avg_frame_rate),
       ...(video.codec_name ? { codec: video.codec_name } : {}),
+      audioChannels: [...new Set((parsed.streams ?? [])
+        .filter((stream) => stream.codec_type === 'audio')
+        .map((stream) => audioChannelFromTitle(stream.tags?.title))
+        .filter((channel): channel is ClipAudioChannel => channel !== null))],
     };
   }
 
   private async generateThumbnail(path: string, thumbnailPath: string, durationMs: number): Promise<void> {
     await mkdir(dirname(thumbnailPath), { recursive: true });
     const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
-    const seekSeconds = Math.max(0, Math.min(5, durationMs / 3_000));
+    const durationSeconds = durationMs / 1_000;
+    const seekSeconds = durationSeconds <= 1
+      ? 0
+      : Math.max(0.5, Math.min(durationSeconds - 0.25, durationSeconds * 0.32));
     const temporary = `${thumbnailPath}.${createHash('sha1').update(path).digest('hex').slice(0, 8)}.tmp.jpg`;
     try {
       await run(executable, [
         '-hide_banner', '-loglevel', 'error', '-ss', seekSeconds.toFixed(3), '-i', path,
-        '-frames:v', '1', '-vf', 'scale=480:-2', '-q:v', '3', '-y', temporary,
+        '-frames:v', '1', '-vf', "scale='min(960,iw)':-2:flags=lanczos", '-q:v', '2', '-y', temporary,
       ]);
       await rename(temporary, thumbnailPath);
     } finally {
       await rm(temporary, { force: true });
     }
   }
+}
+
+function audioChannelFromTitle(title: string | undefined): ClipAudioChannel | null {
+  const normalized = title?.trim().toLocaleLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes('microphone') || normalized === 'mic') return 'microphone';
+  if (normalized.includes('chat')) return 'chat';
+  if (normalized.includes('media')) return 'media';
+  if (normalized.includes('game') || normalized.includes('system')) return 'game';
+  return null;
 }
 
 function parseRate(value: string | undefined): number {

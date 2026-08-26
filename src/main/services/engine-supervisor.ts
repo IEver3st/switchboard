@@ -105,15 +105,18 @@ export class EngineSupervisor {
 
     this.expectedStops.add(kind);
     try {
-      const exit = this.waitForExit(worker, kind === 'capture' ? 5_000 : 900);
+      const exit = this.waitForExit(worker, kind === 'capture' ? 12_000 : 900);
       this.sendEnvelope(worker, { command: 'shutdown' });
       const exited = await exit;
       if (!exited) {
         worker.kill();
-        await this.waitForExit(worker, 500);
+        const killed = await this.waitForExit(worker, 2_000);
+        if (!killed) throw new Error(`${kind} engine did not exit after termination.`);
       }
-    } finally {
+    } catch (error) {
       this.expectedStops.delete(kind);
+      throw error;
+    } finally {
       this.processes.delete(kind);
       this.failPending(kind, new Error(`${kind} engine stopped`));
     }
@@ -256,7 +259,7 @@ export class EngineSupervisor {
 
     (worker as unknown as EventEmitter).on('exit', (code: number | null) => {
       if (this.processes.get(kind) === worker) this.processes.delete(kind);
-      const expected = this.expectedStops.has(kind);
+      const expected = this.expectedStops.delete(kind);
       this.failPending(kind, new Error(`${kind} engine exited`));
       this.updateStatus({
         ...this.stoppedStatus(kind),

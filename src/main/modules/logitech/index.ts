@@ -106,7 +106,7 @@ export class LogitechDeviceModule implements DeviceModule {
       variantResolution: resolved.resolution,
       asset: resolveProductAsset(resolved.identity, 'mouse'),
       capabilities: { ...capabilities, battery },
-      settings: previous?.settings ?? {},
+      settings: withoutLegacyMouseSettings(previous?.settings),
     };
   }
 
@@ -137,7 +137,7 @@ export class LogitechDeviceModule implements DeviceModule {
       variantResolution: resolved.resolution,
       asset: resolveProductAsset(resolved.identity, 'mouse'),
       capabilities: disableControls(previous?.capabilities),
-      settings: previous?.settings ?? {},
+      settings: withoutLegacyMouseSettings(previous?.settings),
     };
   }
 
@@ -151,7 +151,7 @@ export class LogitechDeviceModule implements DeviceModule {
     if (cached && Date.now() - cached.updatedAt < capabilityCacheDurationMs) return structuredClone(cached.value);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const value = await readG502Capabilities(agentDeviceId, previous, connection);
+        const value = await readG502Capabilities(agentDeviceId, connection);
         this.capabilityCache.set(cacheKey, { value, updatedAt: Date.now() });
         return structuredClone(value);
       } catch (error) {
@@ -216,6 +216,21 @@ function findTransportProductId(path: string | undefined, hidDevices: HidDevice[
 function findPreviousDevice(previous: Device[], id: string, model: string): Device | undefined {
   return previous.find((device) => device.id === id)
     ?? previous.find((device) => device.moduleId === 'device.logitech-hidpp' && device.identity.model === model);
+}
+
+const legacyMouseSettingKeys = new Set([
+  'activeDpi',
+  'dpiStages',
+  'lightingColor',
+  'lightingEnabled',
+  'onboardMemory',
+  'pollingRate',
+]);
+
+function withoutLegacyMouseSettings(settings: Device['settings'] | undefined): Device['settings'] {
+  return Object.fromEntries(
+    Object.entries(settings ?? {}).filter(([key]) => !legacyMouseSettingKeys.has(key)),
+  );
 }
 
 function isTransientAgentError(error: unknown): boolean {

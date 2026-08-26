@@ -113,7 +113,6 @@ interface SoftwareProfileBundle {
 
 export async function readG502Capabilities(
   agentDeviceId: string,
-  previous: Device | undefined,
   connection: DeviceIdentity['connection'],
 ): Promise<DeviceCapabilities> {
   // The local Logitech agent intermittently starves profile requests when a
@@ -144,7 +143,6 @@ export async function readG502Capabilities(
   const firmwareEffect = bundle.lightingCard?.firmwareLightingSettings?.effects[0];
   const softwareLightingWritable = !firmwareEffect || ['OFF', 'FIXED'].includes(firmwareEffect.id);
   const firmwareColor = firmwareEffect?.id === 'FIXED' ? firmwareEffect.fixedParams?.color.hex : undefined;
-  const previousColor = previous?.capabilities.lighting?.color;
   const onboardEffect = activeOnboard?.lighting?.effects[0];
   const supportedRates = connection === 'wireless' && mouseInfo.reportRates.wirelessRates.length > 0
     ? mouseInfo.reportRates.wirelessRates
@@ -198,7 +196,7 @@ export async function readG502Capabilities(
           availableEffects: softwareLightingWritable
             ? [{ id: 'solid', label: 'Static' }]
             : [{ id: firmwareEffect?.id.toLowerCase() ?? 'profile', label: 'Existing G HUB effect' }],
-          color: firmwareColor ?? previousColor,
+          color: firmwareColor,
           colorWritable: softwareLightingWritable,
           brightness: Math.round(brightnessSchema.parse(brightnessPayload).value * 100),
           brightnessWritable: true,

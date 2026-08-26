@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Play } from 'lucide-react';
+import { AlertTriangle, Play } from 'lucide-react';
 import type { SystemSnapshot } from '../../../shared/contracts';
 import { AudioTabs, audioWorkspaceTabs, type AudioWorkspaceTab } from '@/components/audio/AudioTabs';
 import { ChannelProcessingPage } from '@/components/audio/ChannelProcessingPage';
 import { clearAudioMeters, publishAudioMeterFrame } from '@/components/audio/meter-bus';
 import { MicrophonePage } from '@/components/audio/MicrophonePage';
 import { MixerPage } from '@/components/audio/MixerPage';
-import { StatusDot } from '@/components/shared/surface';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { switchboardApi } from '@/lib/demo-api';
@@ -49,42 +48,31 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <div className="min-h-full" data-testid="audio-console">
-      <header className="grid min-h-[58px] grid-cols-[minmax(0,1fr)_auto] items-center gap-5 border-b border-border px-5 py-3 max-[720px]:grid-cols-1">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <StatusDot active={engineRunning} warning={engine?.state === 'error'} />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-              <h2 className="m-0 text-sm font-semibold text-foreground">Audio</h2>
-              <span className="text-[9px] tabular-nums text-muted-foreground">
-                {engineRunning
-                  ? `${Math.round(engine.memoryMb)} MB · ${engine.cpuPercent.toFixed(1)}% CPU · ${snapshot.audio.sampleRate / 1_000} kHz`
-                  : engine?.state === 'error' ? (engine.message ?? 'Engine error') : 'Engine stopped'}
-              </span>
-            </div>
-            <p className="m-0 mt-0.5 text-[8px] text-muted-foreground">
-              {snapshot.prototypeMode
-                ? 'Prototype audio graph · settings persist; routing, metering, and DSP support levels are shown per feature.'
-                : 'Audio.Host owns routing and DSP outside Electron.'}
+      <header className="audio-console-header">
+        <div className="audio-console-header__identity">
+          <h2>Audio</h2>
+          {engine?.state === 'error' ? (
+            <p className="audio-console-header__error" role="alert">
+              <AlertTriangle aria-hidden className="size-4" />
+              Audio needs attention. {engine.message || 'Use Audio Settings to restart the engine.'}
             </p>
-          </div>
+          ) : (
+            <p>{engine?.state === 'starting' ? 'Starting audio…' : engineRunning ? 'Your mixer and sound processing are active.' : 'Mixer and sound settings are ready when you start audio.'}</p>
+          )}
         </div>
-
-        <label className="flex items-center justify-end gap-2 text-[9px] font-medium text-muted-foreground">
-          Engine
-          <Switch checked={snapshot.audio.enabled} disabled={actionPending === 'audio:enabled'} aria-label="Audio engine" onCheckedChange={(checked) => void setAudioEnabled(checked)} />
-        </label>
+        <div className="audio-console-header__action">
+          <span className="audio-console-header__state">{engine?.state === 'starting' ? 'Starting' : engineRunning ? 'On' : 'Off'}</span>
+          {engineRunning ? (
+            <Switch checked disabled={actionPending === 'audio:enabled'} aria-label="Turn audio off" onCheckedChange={(checked) => void setAudioEnabled(checked)} />
+          ) : (
+            <Button type="button" variant="primary" size="sm" disabled={actionPending === 'audio:enabled' || engine?.state === 'starting'} onClick={() => void setAudioEnabled(true)}>
+              <Play className="size-3.5" /> Start audio
+            </Button>
+          )}
+        </div>
       </header>
 
       <AudioTabs value={tab} onChange={navigate} />
-
-      {!engineRunning ? (
-        <div className="flex min-h-10 items-center justify-between gap-4 border-b border-border bg-card px-5 py-2 text-[9px] text-muted-foreground" role="status">
-          <span>Audio engine is off. Configuration remains available; realtime meters and audio operations are paused.</span>
-          <Button type="button" variant="secondary" size="sm" className="h-7 shrink-0 gap-1.5 px-2.5 text-[9px]" disabled={actionPending === 'audio:enabled'} onClick={() => void setAudioEnabled(true)}>
-            <Play className="size-3" /> Start audio engine
-          </Button>
-        </div>
-      ) : null}
 
       <div
         id={`audio-panel-${tab}`}

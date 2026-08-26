@@ -111,6 +111,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['mixer', 'dsp', 'chatmix', 'monitoring', 'bus', 'equalizer'],
   },
   {
+    id: 'capture.engine',
+    category: 'capture',
+    title: 'Capture engine',
+    description: 'Start or stop the isolated Capture host and restore its saved state at launch.',
+    keywords: ['capture', 'replay', 'engine', 'host', 'start', 'stop'],
+  },
+  {
     id: 'capture.storage',
     category: 'capture',
     title: 'Clip storage location',
@@ -197,9 +204,9 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   {
     id: 'capture.workspace',
     category: 'capture',
-    title: 'Replay controls and library',
-    description: 'Open Capture to start the engine, save replays, and manage clips.',
-    keywords: ['save replay', 'clip library', 'instant replay', 'start capture'],
+    title: 'Capture controls and library',
+    description: 'Open Capture to configure and save replays or manage clips.',
+    keywords: ['save replay', 'clip library', 'instant replay', 'capture'],
   },
   {
     id: 'modules.automaticUpdates',
@@ -219,7 +226,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'diagnostics.guard',
     category: 'diagnostics',
     title: 'Performance guard',
-    description: 'Warn when sustained resource use crosses the prototype budget.',
+    description: 'Warn when sustained resource use crosses the performance budget.',
     keywords: ['cpu', 'memory', 'ram', 'performance', 'resource', 'budget'],
   },
   {

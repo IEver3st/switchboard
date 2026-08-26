@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { extname, join, resolve } from 'node:path';
 import { app, dialog, globalShortcut, shell } from 'electron';
 import { z } from 'zod';
 import {
@@ -17,10 +17,12 @@ import {
   type ApplyAudioPresetInput,
   type CaptureConfig,
   type CaptureHostSnapshot,
+  type Clip,
   type EngineStatus,
   type CreateAudioPresetInput,
   type RenameAudioPresetInput,
   type RenameClipInput,
+  type SetClipFavoriteInput,
   type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
   type SetAudioBusEnabledInput,
@@ -43,7 +45,8 @@ import {
 } from '../shared/audio-presets';
 import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
-import { getEncodingPreset } from '../shared/capture-presets';
+import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-presets';
+import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService } from './services/clip-library';
 import { DeviceRegistry } from './services/device-registry';
@@ -101,7 +104,9 @@ export class AppController {
 
   public async initialize(): Promise<void> {
     await this.store.load();
-    await this.devices.start();
+    // Native UI review uses canonical fixture devices so automated interaction
+    // checks never issue writes to connected physical hardware.
+    if (process.env.SWITCHBOARD_NATIVE_FIXTURES !== '1') await this.devices.start();
     const snapshot = this.store.get();
     this.applyLoginItemSetting(snapshot.settings.launchAtStartup);
     await this.initializeCaptureStorage();
@@ -433,9 +438,35 @@ export class AppController {
     if (hotkeyChanged) {
       this.registerCaptureShortcut(requestedHotkey, true);
     }
+    const disabling = before.capture.config.enabled && !nextConfig.enabled;
+    if (disabling) {
+      if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
+      this.captureRestartTimer = null;
+      this.captureRestartAttempts = 0;
+      this.store.update((draft) => {
+        draft.capture.config = nextConfig;
+        draft.capture.runtime = {
+          ...draft.capture.runtime,
+          state: 'stopped',
+          bufferedSeconds: 0,
+          segmentCount: 0,
+          replayCacheBytes: 0,
+          observedBitrateBps: 0,
+          activeSource: null,
+          saveQueueDepth: 0,
+          error: undefined,
+          warning: draft.capture.runtime.warning?.includes('could not be registered')
+            ? draft.capture.runtime.warning
+            : undefined,
+        };
+        draft.capture.storage.replayCacheBytes = 0;
+        const module = draft.modules.find((candidate) => candidate.id === 'capability.replay');
+        if (module) module.enabled = false;
+      });
+    }
     try {
       if (!before.capture.config.enabled && nextConfig.enabled) await this.startCaptureEngine(nextConfig);
-      if (before.capture.config.enabled && !nextConfig.enabled) await this.engines.stop('capture');
+      if (disabling) await this.engines.stop('capture');
       if (before.capture.config.enabled && nextConfig.enabled) {
         const hostSnapshot = captureHostSnapshotSchema.parse(
           await this.engines.request('capture', 'configure', this.toHostSettings(nextConfig), 45_000),
@@ -472,10 +503,10 @@ export class AppController {
       120_000,
     );
     const result = workerSavedClipSchema.parse(response);
-    const clip = {
+    const clip: Clip = {
       id: randomUUID(),
       path: result.path,
-      name: result.name,
+      name: createDefaultClipTitle(result.game),
       ...(result.game ? { game: result.game } : {}),
       createdAt: result.createdAt,
       durationMs: result.durationMs,
@@ -485,16 +516,18 @@ export class AppController {
       fps: result.fps,
       ...(result.codec ? { codec: result.codec } : {}),
       ...(result.thumbnailPath ? { thumbnailPath: result.thumbnailPath } : {}),
+      favorite: false,
+      titleEdited: false,
     };
     const updated = this.store.update((draft) => {
       draft.capture.runtime.lastSavedAt = new Date(result.createdAt).toISOString();
       draft.clips.unshift(clip);
       draft.capture.storage.clipsBytes = draft.clips.reduce((sum, candidate) => sum + candidate.fileSize, 0);
     });
-    this.clipLibrary.enqueueThumbnail(clip, (thumbnailPath) => {
+    this.clipLibrary.enqueueThumbnail(clip, (enrichment) => {
       this.store.update((draft) => {
         const current = draft.clips.find((candidate) => candidate.id === clip.id);
-        if (current) current.thumbnailPath = thumbnailPath;
+        if (current) Object.assign(current, enrichment);
       });
     });
     return updated;
@@ -643,11 +676,44 @@ export class AppController {
   public async renameClip(input: RenameClipInput): Promise<SystemSnapshot> {
     const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
-    const renamed = await this.clipLibrary.renameClip(clip, input.name);
     return this.store.update((draft) => {
       const index = draft.clips.findIndex((candidate) => candidate.id === input.id);
-      if (index >= 0) draft.clips[index] = renamed;
+      if (index >= 0) {
+        const current = draft.clips[index]!;
+        const name = input.name.trim();
+        draft.clips[index] = {
+          ...current,
+          name,
+          titleEdited: name !== createDefaultClipTitle(clipGameLabel(current)),
+        };
+      }
     });
+  }
+
+  public setClipFavorite(input: SetClipFavoriteInput): SystemSnapshot {
+    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    if (!clip) throw new Error('The clip no longer exists in the library.');
+    return this.store.update((draft) => {
+      const current = draft.clips.find((candidate) => candidate.id === input.id);
+      if (current) current.favorite = input.favorite;
+    });
+  }
+
+  public async exportClip(id: string): Promise<boolean> {
+    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+    if (!clip) throw new Error('The clip no longer exists in the library.');
+    if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
+    const extension = extname(clip.path) || '.mp4';
+    const selection = await dialog.showSaveDialog({
+      title: 'Export clip',
+      defaultPath: join(app.getPath('videos'), `${sanitizeClipBaseName(clip.name)}${extension}`),
+      filters: [{ name: 'Video', extensions: [extension.replace(/^\./, '')] }],
+    });
+    if (selection.canceled || !selection.filePath) return false;
+    if (resolve(selection.filePath).toLocaleLowerCase() !== resolve(clip.path).toLocaleLowerCase()) {
+      await copyFile(clip.path, selection.filePath);
+    }
+    return true;
   }
 
   public getClipPath(id: string, thumbnail: boolean): string | null {
@@ -713,7 +779,17 @@ export class AppController {
           draft.capture.runtime.state = 'error';
           draft.capture.runtime.error = status.message ?? 'Capture.Host exited unexpectedly.';
         } else if (status.kind === 'capture' && status.state === 'stopped') {
-          draft.capture.runtime.state = 'stopped';
+          draft.capture.runtime = {
+            ...draft.capture.runtime,
+            state: 'stopped',
+            bufferedSeconds: 0,
+            segmentCount: 0,
+            replayCacheBytes: 0,
+            observedBitrateBps: 0,
+            activeSource: null,
+            saveQueueDepth: 0,
+          };
+          draft.capture.storage.replayCacheBytes = 0;
         }
       },
       { persist: false },
@@ -762,11 +838,11 @@ export class AppController {
         draft.clips = clips;
         draft.capture.storage.clipsBytes = clips.reduce((sum, clip) => sum + clip.fileSize, 0);
       });
-      for (const clip of clips.filter((candidate) => !candidate.thumbnailPath)) {
-        this.clipLibrary.enqueueThumbnail(clip, (thumbnailPath) => {
+      for (const clip of clips.filter((candidate) => this.clipLibrary.needsEnrichment(candidate))) {
+        this.clipLibrary.enqueueThumbnail(clip, (enrichment) => {
           this.store.update((draft) => {
             const current = draft.clips.find((candidate) => candidate.id === clip.id);
-            if (current) current.thumbnailPath = thumbnailPath;
+            if (current) Object.assign(current, enrichment);
           });
         });
       }

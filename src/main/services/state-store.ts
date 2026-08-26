@@ -122,6 +122,17 @@ export class StateStore {
       if (!next.audio.activePresetIds[kind]) next.audio.activePresetIds[kind] = defaults.audio.activePresetIds[kind];
     }
     next.audio.capabilities = structuredClone(defaults.audio.capabilities);
+    if (next.audio.capabilities.applicationRouting === 'unavailable') {
+      next.audio.applications = [];
+      for (const bus of next.audio.buses) bus.appCount = 0;
+    } else {
+      const applicationCounts = new Map<string, number>();
+      for (const application of next.audio.applications) {
+        if (!application.active) continue;
+        applicationCounts.set(application.destination, (applicationCounts.get(application.destination) ?? 0) + 1);
+      }
+      for (const bus of next.audio.buses) bus.appCount = applicationCounts.get(bus.id) ?? 0;
+    }
 
     next.prototypeMode = true;
     next.engines = runtimeEngineKinds.map((kind) => ({

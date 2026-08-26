@@ -2,18 +2,27 @@
 name: Switchboard
 description: "A compact Windows routing console for hardware, audio, capture, and modular engines."
 colors:
-  canvas: "#0b0d10"
-  work-surface: "#101318"
-  raised-control: "#1a1e24"
-  hover-surface: "#1c2027"
-  hairline: "#23282f"
-  hairline-strong: "#2a3038"
-  primary-text: "#f2f3f5"
-  muted-text: "#8e96a3"
-  signal-pink: "#ff658a"
-  signal-good: "#58c49a"
-  signal-warning: "#e6b85c"
-  signal-danger: "#ef6c75"
+  canvas: "#0d1015"
+  chrome: "#10141a"
+  work-surface: "#141920"
+  raised-surface: "#161c24"
+  interactive-surface: "#181e27"
+  hover-surface: "#1d2530"
+  hairline: "#252d38"
+  hairline-strong: "#323c49"
+  primary-text: "#f2f4f7"
+  secondary-text: "#a1aab7"
+  description-text: "#7d8795"
+  muted-text: "#697586"
+  signal-pink: "#f05d7d"
+  signal-pink-hover: "#ff6b8b"
+  signal-good: "#5cc69b"
+  signal-warning: "#e5b567"
+  signal-danger: "#e96969"
+  channel-game: "#49c7b1"
+  channel-chat: "#6c9eff"
+  channel-media: "#a98cf5"
+  channel-microphone: "#e7a95f"
 typography:
   family: '"Inter Variable", Inter, "Segoe UI", system-ui, sans-serif'
   page-title: "14px / 600"
@@ -38,11 +47,21 @@ supported-windows:
 
 # Design system: Switchboard
 
-## Product direction
+Read this entire document before creating, changing, or reviewing any renderer UI. It is the product's taste, written down. When a decision is not covered here, resolve it by the philosophy in section 1, not by habit from other apps.
 
-**Creative north star: the routing console.**
+Explicit user direction can override this document for a task. Record the exception and its reason in the affected section instead of silently creating a second design language.
 
-Switchboard is a focused Windows utility for connected hardware, audio routing, processing, and capture. It should feel like a coherent professional control surface: compact, quiet, explicit, and trustworthy enough to leave running. It is not a marketing site, a dashboard template, a generic settings form, a gaming HUD, or a vehicle for visual novelty.
+## 1. Philosophy
+
+**North star: the routing console.** Switchboard is a professional control surface that happens to be easy: the restraint of a broadcast console, the clarity of a first-party hardware utility, the compactness of a Windows tool that stays open all day. It is never a website, a dashboard template, a settings form, a gaming HUD, or a demo of a component library.
+
+Five taste principles govern every screen:
+
+1. **The instrument, not the brochure.** The page exists to do work. The main control (fader, EQ graph, device render, save button) is the visual center and gets the most space, the strongest contrast, and the best position. Everything else is supporting structure.
+2. **Hierarchy through subtraction.** Position, alignment, type, and spacing create order. Boxes, colors, badges, and big type are spent last and sparingly. If every section has a border and a heading treatment, none of them do.
+3. **Density with air.** Compact means related things sit close and unrelated things sit apart. It never means shrunk text, cramped controls, or hidden state. Whitespace is a grouping tool, not wasted space.
+4. **Truth over theater.** Every control reflects a real capability and completes a real state transition. Every meter shows real data. Unavailable things are absent or visibly unavailable with a reason. A convincing but inert control is the worst object in the product.
+5. **One accent, few signals.** Signal pink means interaction: selection, focus, active range, primary action. Channel identity colors (game, chat, media, microphone) mean "this belongs to that channel" and appear only on audio surfaces. Status colors mean state. Neutral gray is the default for everything else.
 
 Make design decisions in this order:
 
@@ -54,69 +73,11 @@ Make design decisions in this order:
 
 Decoration never compensates for weak information architecture. Minimalism is not permission to hide useful state, and density is not permission to erase hierarchy.
 
-Explicit user direction can override this document for a task. Record the exception and its reason instead of silently creating a second design language.
+**Reference bar.** Mature first-party audio and hardware utilities set the usability bar. Borrow their information architecture (what sits next to what, what is always visible, what is one click away) and express it with Switchboard's own tokens, controls, and copy. Never copy another product pixel-for-pixel.
 
-## Automatic rejection patterns
+## 2. The element admission test
 
-The following are design failures unless a concrete product function requires the treatment and the task documents that reason. “Using less of it” is not a justification when the underlying pattern is inappropriate.
-
-### Aesthetic direction
-
-- No gradients, glow, glassmorphism, frosted panes, neon gamer styling, hyper-futuristic or hyper-techy decoration.
-- No rainbow, chroma, animated RGB, or excessive pink. Signal pink is a scarce interaction/state accent, not a theme wash.
-- No generic SaaS dashboards, landing-page hero sections, giant empty page headers, analytics-template charts, generic FiveM NUI styling, or unadapted shadcn demo layouts.
-- No obvious AI-generated composition: stitched-together templates, competing visual ideas, arbitrary novelty, or components that look independently designed rather than product-owned.
-- No copying another product pixel-for-pixel. Borrow sound information architecture, then express it with Switchboard's own contracts, tokens, copy, and components.
-
-### Surfaces, shapes, and chrome
-
-- No giant rounded rectangles, excessive corner radii, text pills, floating capsules, bubbles, or detached pill-shaped navigation.
-- No card inside a card, card per setting, card per metric, or card grid used as the default page structure.
-- No colored icons inside decorative rounded containers, decorative icon boxes, excessive badges, or icons scattered without a hierarchy.
-- No shadows on routine work surfaces, border around every section, separator after every row, nested surface stacks, or excessive sidebar chrome.
-- No giant status banners, updater cards, battery widgets, storage widgets, processor panels, or oversized EQ backdrops. Present their useful values in the work area at the scale their importance warrants.
-
-### Scale, spacing, and density
-
-- No giant headings, labels, buttons, dropdowns, controls, or empty headers in the desktop application.
-- No excessive padding, margins, gaps, or dead space; no tiny control isolated inside a large empty region.
-- No low-information filler and no stretched full-width control when a compact intrinsic width communicates the action better.
-- No tiny product render when a hardware page has usable space; no tiny mixer, fader, meter, or EQ relegated to a decorative corner.
-- No mandatory scrolling to reach critical state or routine actions at the minimum supported window. Long libraries, logs, and genuinely secondary settings may scroll in a clearly owned region.
-
-### Disclosure and workflow
-
-- Do not hide common controls behind extra clicks, routine configuration in a modal, or stable information in an accordion.
-- Do not reveal audio processors one at a time without also keeping the complete signal-chain order and enabled/bypassed state visible.
-- Do not use tabs to conceal a layout that should show related regions together. Tabs are for peer workspaces whose simultaneous visibility is not useful.
-- Do not make every advanced capability equally prominent. Separate primary, secondary, and diagnostic information without making users hunt for common actions.
-- Do not ask normal users to configure protocol, driver, endpoint, or hardware concepts that Switchboard can derive safely.
-
-### Product truth
-
-- No fake settings search, fake analytics, fabricated charts, placeholder activity, UI-only audio features, fake capability controls, or controls that update React state without completing the canonical backend transition.
-- Do not design controls for unsupported states just to make a panel look complete. Capability metadata determines what exists.
-- Do not duplicate one status, measurement, or concept in multiple cards, labels, banners, and badges.
-- Do not put IDs, VID/PID, HID interfaces, protocol details, device paths, or similar diagnostic metadata in primary UI.
-- Do not leave rarely used actions in a permanent action bar. Place them in the relevant secondary or diagnostic context while keeping recovery actions near failures.
-
-### Motion and cost
-
-- No animation for decoration, bouncy controls, floating devices, tilt, parallax, particles, animated backgrounds, or dramatic hover movement.
-- No decorative waveform or visualizer. A realtime visualization must help make an audio or capture decision, use real data, stop when hidden or disabled, and justify its CPU/GPU/timer cost.
-- No excessive motion or long transitions. Feedback is brief, causal, interruptible, and removed by reduced-motion preferences.
-
-### Consistency
-
-- No page-specific substitute for an existing shared concept, no different control styles for equivalent settings, and no arbitrary one-off sizes.
-- Do not abstract until important state, comparison, or control relationships disappear. An abstraction must preserve the information the task requires.
-- Reject weak or inconsistent typography, misaligned control columns, irregular spacing, unbalanced visual mass, and arbitrary component dimensions before adding decoration.
-- No blind component-library example, dependency added for one trivial primitive, or new visual vocabulary created because an existing component needs a small adaptation.
-- Do not stop after the first acceptable-looking iteration. Inspect the whole route, compare it with adjacent routes, and correct the highest-impact hierarchy, density, alignment, and truthfulness problems.
-
-## Element admission test
-
-Before adding a visible element, answer:
+Before adding any visible element, answer:
 
 1. Which user decision, action, comparison, or recovery does it support?
 2. Is its information absent from the surrounding label, value, state, and structure?
@@ -126,9 +87,89 @@ Before adding a visible element, answer:
 6. Does it still earn its space at 1080 x 720?
 7. Can alignment, whitespace, or one hairline communicate the group without another container?
 
-If questions 1–4 do not have specific answers, omit the element. If question 7 is yes, remove the container.
+If questions 1-4 have no specific answers, omit the element. If question 7 is yes, remove the container.
 
-## Information architecture
+## 3. Core DOs and DON'Ts
+
+Each DON'T names the failure; the paired DO names the target. Do the DO; the DON'T exists so you recognize the failure when you see it.
+
+### Composition
+
+- **DO** build pages as continuous workbenches: open sections, aligned rows, shared baselines, one hairline at a genuine boundary.
+  **DON'T** ship card grids, nested cards, a card per setting or metric, or bordered boxes around every section.
+- **DO** give a region a bounded `Surface` only when it independently scrolls, changes state as a unit, or is interacted with as a unit.
+  **DON'T** nest `Surface` inside `Surface` for appearance, or stack bordered panels inside bordered panels.
+- **DO** let the primary work area dominate the window.
+  **DON'T** build a hero header, giant empty page title, or marketing-style intro block above a small work area.
+
+Example, composition of a settings region:
+
+```
+GOOD                                  BAD
+Volume leveling                [On]   +-----------------------------+
+Keeps quiet and loud moments          |  +-+  Volume leveling       |
+closer together.  Natural|Balanced    |  |i|  Keeps things level.   |
+                                      |  +-+              (toggle)  |
+Output safety                  [On]   +-----------------------------+
+Prevents clipping and peaks.          +-----------------------------+
+                                      |  +-+  Output safety         |
+                                      |  |i|               (toggle) |
+                                      +-----------------------------+
+Plain rows separated by one           One bordered card per setting,
+hairline group boundary.              decorative icon box, duplicated
+                                      boundary, dead padding.
+```
+
+### Color and channel identity
+
+- **DO** keep the canvas uninterrupted and neutral; use tone changes (surface-1, surface-2, interactive, hover) for structure.
+- **DO** reserve signal pink for interaction: selected tab/control, focus ring, active slider range, primary action, rare attention.
+- **DO** use channel identity colors only to mark audio channel ownership: the channel's icon/dot, its fader range, its EQ curve, its tab underline, its clip-audio legend. A muted or disabled channel falls back to neutral.
+  **DON'T** wash a whole panel in a channel color, tint backgrounds with it, or apply channel colors outside audio context.
+- **DO** use success/warning/danger only for real semantic state (meter zones, clipping, failures, battery).
+  **DON'T** use gradients, glow, glassmorphism, neon, chroma, animated RGB, or pink as a theme wash.
+
+### Typography
+
+- **DO** use the type scale exactly: page title 14px/600, section title 12-13px/600, body 11-12px, label 10-11px, technical values 9-10px tabular numerals. Sentence case.
+- **DO** make measurements and changing values tabular-numeric and place units beside values.
+  **DON'T** use hero headings, eyebrow/kicker labels, stacked subtitle+badge+helper paragraphs that repeat one point, or uppercase tracking as a default heading device. Uppercase tracking is reserved for rare technical classifications (a CLIP indicator, a diagnostic tag).
+
+### Density and space
+
+- **DO** follow the 4px rhythm: 8px between related controls, 16px between related sections, 24-32px between major work regions. Default control height 28-36px.
+- **DO** reflow before truncating, hiding, or shrinking. At 1080 x 720 every routine control and critical state is visible without scrolling.
+  **DON'T** leave dead space beside compressed controls, stretch a switch or short selector across the window, or isolate a tiny control in a large empty region.
+
+### Controls
+
+- **DO** choose the control from the shape of the decision (see the table in section 6).
+  **DON'T** put booleans in dropdowns, 2-5 choices in selects, or continuous values in text fields.
+- **DO** keep values, units, validation, and recovery adjacent to the control they belong to.
+  **DON'T** make the eye shuttle across the page to connect a value with its fader, route, device, or toggle.
+
+### States and truth
+
+- **DO** design loading, empty, unavailable, disabled, pending, error, recovery, hover, focus, active, overflow, and reduced-motion states with the primary path.
+  **DON'T** ship the happy path only.
+- **DO** gate every control on capability metadata; absent or visibly-unavailable-with-reason are the only two honest presentations of an unsupported feature.
+  **DON'T** render fake search, fake analytics, placeholder activity, visual-only audio controls, or React-state-only "features".
+- **DO** state each status or measurement once on a page.
+  **DON'T** duplicate one fact across cards, labels, banners, and badges.
+
+### Motion
+
+- **DO** make feedback quick and causal: hover/focus 80-140ms, selection continuity up to 180ms, disclosure up to 210ms, realtime and keyboard actions immediate.
+  **DON'T** add decorative animation, bounce, float, tilt, parallax, particles, animated backgrounds, or decorative waveforms/visualizers. A realtime visualization must change a user decision, use real data, and stop subscribing and drawing when hidden or disabled.
+
+### Consistency
+
+- **DO** extend the shared primitive when an equivalent concept needs improvement; adapt centrally.
+  **DON'T** introduce a page-specific substitute for an existing shared concept, a one-off control style, an arbitrary one-off size, or a dependency for a trivial primitive.
+- **DO** iterate: inspect the rendered route, compare adjacent routes, fix the highest-impact hierarchy problem, inspect again.
+  **DON'T** stop after the first acceptable-looking pass.
+
+## 4. Information architecture
 
 ### Page contract
 
@@ -141,11 +182,7 @@ Each page has one primary job and one focal work area. Define before implementat
 - the empty, unavailable, disabled, loading, error, and recovery states;
 - the canonical state transition for every interactive control.
 
-Keep values close to the controls they affect. Put units beside values. Put validation and recovery beside the failed control or region. Do not make the eye shuttle across the page to connect a value with its fader, route, device, or toggle.
-
-### Hierarchy
-
-Create hierarchy in this order:
+### Hierarchy order
 
 1. Stable placement and shared alignment.
 2. Type size, weight, and contrast.
@@ -155,54 +192,54 @@ Create hierarchy in this order:
 
 Never use a rounded shell, colored icon tile, badge, or oversized title to manufacture hierarchy.
 
-### Continuous-console rule
+### Disclosure
 
-Pages are continuous workbenches separated into functional regions. A region earns a bounded `Surface` only when it independently scrolls, changes state as a unit, is interacted with as a unit, or must remain visually distinct from adjacent work. Do not nest `Surface` inside `Surface` for appearance.
+Tabs are for peer workspaces whose simultaneous visibility is not useful. Inline disclosure (`AdvancedDisclosure`) is for rare, engineer-grade parameters while context stays visible. Modals are for destructive or interruptive decisions only.
 
-Use aligned rows, shared baselines, open sections, tables, split panes, compact toolbars, and one divider at a genuine boundary. The interface should scan as a designed instrument, not a collection of independently styled cards.
+- Routine controls stay on the page. Hiding common work behind clicks, modals, accordions, or deep tabs is a design failure.
+- When one audio processor is being edited, the rest of the signal chain, with enabled/bypassed state, stays visible.
 
-## Layout and density
+## 5. Page-type guidance
 
-The application shell uses the existing 38px title strip and one scroll-owning main region. Page content follows a 4px rhythm with a nominal 20px inset.
+### Audio pages
 
-- Use 8px between directly related controls, 16px between related sections, and 24–32px only between major work regions.
-- Default button and field height is 28–36px. Icon-only targets remain accessible without turning the surrounding toolbar into oversized chrome.
-- Prefer intrinsic or task-appropriate widths. A boolean switch, short selector, or folder action does not stretch across the window.
-- Reflow before truncating, hiding, or shrinking. Do not reduce normal UI text below the defined scale to make a layout fit.
-- Page-level horizontal overflow is a release blocker. A purpose-built canvas may pan only when panning is the task and has explicit controls.
-- Preserve focus, selection, unsaved values, scroll position, and route context across resize and navigation.
-- At 1080 x 720, critical state and routine controls stay visible without a mandatory page scroll. At 1420 x 900 and 1920 x 1080, use available space to improve the main work area rather than inflating padding or leaving arbitrary dead zones.
+Audio UI is an instrument, not a settings form and not a debug console.
 
-Empty space is useful when it separates major ideas or gives a hardware render, mixer, waveform, or editor room to function. It is waste when nearby related controls are compressed, hidden, or pushed below the fold.
+**Mixer (the channel console).** The mixer page is the channel columns. Each strip carries, top to bottom: channel identity (icon + name in channel color), a shortcut to its processing page, its active preset, its route (device picker), a tall fader beside a live meter with dB readouts, its mute control adjacent to the fader, and its routed apps. A balance control (ChatMix) sits below the columns as one slim bar. Everything a user touches daily is on the strip; nothing routine lives in a dialog.
 
-## Typography
+**Channel processing pages (Game / Chat / Media).** One compact header row: channel identity, output route, and preset management. The EQ is the hero: a full-width response graph with draggable band nodes, a band selector strip, and an inspector row for exact values. Below it, simple processors appear as compact toggle rows with semantic strength choices (Natural / Balanced / Strong), in signal-chain order. Engineer parameters (threshold, ratio, attack, release, LUFS) live behind one `AdvancedDisclosure`.
 
-Use Inter Variable with Segoe UI and system sans-serif fallbacks. Use sentence case.
+**Microphone page.** Same structure, plus: the processing chain order visible as a strip (input volume, gate, noise removal, EQ, consistency, safety) with enabled state per stage; noise tools as toggle + strength; monitoring as one section at the bottom.
 
-- Page title: 14px, semibold. Route names are not hero headlines.
-- Section title: 12–13px, semibold.
-- Body: 11–12px, regular, with readable line height.
-- Label: 10–11px, medium.
-- Technical value: 9–10px with tabular numerals for changing measurements, percentages, dB, CPU, memory, time, rates, and identifiers.
+Hard requirements:
 
-Use one clear title for a region. Do not stack an eyebrow, heading, subtitle, badge, and helper paragraph that repeat the same point. Uppercase tracking is reserved for a rare technical classification, not a default heading device. Important state must not be so muted that it disappears.
+- Keep the complete signal chain visible in order, including enabled, bypassed, unavailable, and clipping state.
+- EQ is a first-class purpose-built editor whenever supported. Never reduce it to a generic slider list, tiny thumbnail, decorative background, or hidden advanced panel.
+- At the minimum window, a visible channel strip keeps roughly 160px or more of usable fader travel and a legible meter with persistent peak and clipping feedback.
+- Put dB values, units, peak state, and route destinations next to the fader or meter they describe.
+- Meters use real data and stop subscribing, drawing, and timing when inactive or offscreen.
+- No processor or route control exists unless the host supports it.
+- Channel identity color marks the strip icon, fader range, EQ curve, and tab underline of its channel. Muted or unavailable channels render neutral.
 
-## Color, shape, and depth
+### Hardware pages
 
-The canvas is uninterrupted. Work surfaces and raised controls use neutral tone changes. Hairlines are 1px and purposeful.
+Hardware is the primary subject.
 
-- Controls: 4px radius.
-- Ordinary bounded surfaces: 8px maximum.
-- Dialogs, menus, and transient notifications: 10px maximum.
-- Page regions: open and usually square.
-- Shadows: transient overlays only.
-- Circles: status dots, slider thumbs, rotary controls, switch geometry, meter ends, or literal circular diagrams only.
+- Use a real bundled or vendor-provided product render when available. Preserve aspect ratio, resolution, transparency, lighting zones, and known colorway. Resolve the correct variant from canonical hardware evidence; never recolor a render to impersonate another SKU.
+- Give the render meaningful stage space at standard and large windows. Controls frame or annotate it; they do not reduce it to a thumbnail.
+- Keep connection, battery, active profile, and mute state visible and close to the device identity.
+- Low-level identifiers (VID/PID, HID paths, protocol details, internal IDs) belong in diagnostics-only context.
+- No decorative device motion. A transform may support direct inspection, but the product never floats, bobs, tilts on hover, or burns resources while idle.
 
-`rounded-full` is allowed only when physical geometry requires a circle or track. It is prohibited on visible text. An icon-only button may be circular only when a Windows/platform convention or the hit target specifically benefits from it.
+### Capture, modules, updates, and settings
 
-Signal pink marks the primary action, current selection, focus, active range, or rare attention. Good, warning, danger, and clipping colors communicate real semantic state only. Neutral content stays neutral.
+- Capture emphasizes source, engine state, recording/replay readiness, storage consequence, and the primary save action. No hero banner plus vanity metrics.
+- Module management uses compact rows or a table for name, trust, size, state, and the relevant action. No marketplace card per module.
+- Update and storage state are inline summaries with progress when active. No giant updater or storage cards for rare events.
+- Settings use a stable category list and aligned setting rows. Search exists only when it queries a real, complete settings catalog and navigates to an actual control.
+- Diagnostics stay out of the ordinary path but deliberately reachable.
 
-## Controls and interaction choices
+## 6. Controls reference
 
 Choose a control from the shape of the decision, not from component-library convenience.
 
@@ -220,81 +257,39 @@ Choose a control from the shape of the decision, not from component-library conv
 
 Use direct verbs on buttons. Avoid arrows, sparkles, redundant icons, and labels that merely repeat the containing section. A familiar icon-only action needs an accessible name and a tooltip when its meaning is not universal.
 
-## Status, messaging, and metadata
+## 7. Surfaces, shape, and depth
+
+- Controls: 4px radius. Ordinary bounded surfaces: 8px maximum. Dialogs, menus, transient notifications: 10px maximum. Page regions: open and usually square.
+- Hairlines are 1px and purposeful. Shadows appear on transient overlays only, never on routine work surfaces.
+- Circles exist only where geometry requires them: status dots, slider thumbs, rotary controls, switch geometry, meter ends, literal circular diagrams. `rounded-full` is prohibited on visible text; an icon-only button may be circular only when a platform convention or hit target benefits.
+- No text pills, floating capsules, bubbles, giant radii, decorative icon boxes, needless badges, separators after every row, or excessive sidebar chrome.
+- The local `Badge` primitive is exceptional: short classifications whose bounded shape prevents misreading (`Prototype`, `Unsigned`, `Destructive`), kept rectangular.
+
+## 8. Status, messaging, and metadata
 
 Status is compact and inline: semantic dot or small icon, plain state text, and a tabular value when useful.
 
-- Show battery percentage as readable text near the device status; do not bury it in tiny metadata or inflate it into a widget.
-- Show engine health, clipping, route failure, disconnection, and unavailable state with enough contrast to notice while scanning.
-- Use inline errors and nearby recovery. Reserve a banner for a page-wide blocker or safety-critical state.
-- Use transient toasts for completed background actions. Do not celebrate routine success with permanent banners, illustrations, or confetti.
+- Battery percentage is readable text near device status; never buried in tiny metadata, never inflated into a widget.
+- Engine health, clipping, route failure, disconnection, and unavailable state carry enough contrast to notice while scanning.
+- Errors appear inline beside the failed control with nearby recovery. Banners are reserved for page-wide blockers or safety-critical state.
+- Toasts are transient and mark completed background actions. Routine success gets no permanent banner, illustration, or celebration.
 - Empty states state what is absent and the next valid action in one or two lines.
-- The local `Badge` primitive is exceptional. Use it only for a short classification whose bounded shape prevents a real misreading, such as `Prototype`, `Unsigned`, or `Destructive`; keep it rectangular.
 
-## Hardware pages and imagery
+## 9. Copy
 
-Hardware is the primary subject on a hardware page.
-
-- Use a real bundled or vendor-provided product render when available. Preserve aspect ratio, resolution, transparency, lighting zones, and known colorway.
-- Resolve the correct variant from canonical hardware evidence. Never recolor a render to impersonate another SKU or colorway.
-- Use a generic placeholder only when no trustworthy render exists, and label uncertainty without claiming an exact variant.
-- Give the render meaningful stage space at standard and large windows. Controls may frame or annotate it, but must not reduce it to a thumbnail while decorative whitespace dominates.
-- Keep connection, battery, active profile, mute, and other important device state visible and close to the device identity.
-- Low-level hardware identifiers belong in an explicitly diagnostic context, not the main workbench.
-
-Do not add decorative device motion. A transform may support a direct inspection interaction, but it must not make the product float, bob, tilt on hover, or consume resources while idle.
-
-## Audio pages
-
-Audio UI is an instrument, not a settings form and not a debug console.
-
-- Keep the complete signal chain visible in order, including enabled, bypassed, unavailable, and clipping state. Selecting one processor may change the editor, but must not hide the rest of the chain.
-- EQ is a first-class purpose-built editor whenever supported. Do not reduce it to a generic slider list, tiny thumbnail, decorative background, or hidden “advanced” panel.
-- Keep mixer channels wide enough to identify, route, meter, mute, and adjust without precision loss. At the minimum window, a visible strip should retain roughly 160px or more of usable fader travel and a legible meter with persistent peak/clipping feedback.
-- Do not compress channel strips until labels, endpoints, meters, or controls become ambiguous. Reflow the surrounding layout or reduce secondary chrome first.
-- Put dB values, units, peak state, and route destinations close to the corresponding fader or meter. Live level feedback must be strong enough to scan without overpowering labels.
-- Use real meter data. A waveform or analyzer exists only when it changes a mixing/processing decision, and it stops subscribing, drawing, and timing when inactive or offscreen.
-- Do not expose a processor or route control unless the host supports it. A visual-only toggle, EQ node, bus, or routing choice is prohibited.
-
-## Capture, modules, updates, and settings
-
-- Capture emphasizes source, current engine state, recording/replay readiness, storage consequence, and the primary save action. Do not turn it into a hero banner plus vanity metrics.
-- Module management uses compact rows or a table for name, trust, size, state, and the relevant action. Do not use a marketplace card for each installed module.
-- Update and storage state are inline summaries with progress when active. Do not create giant updater or storage cards for rare events.
-- Settings use a stable category list and aligned setting rows. They do not become a dashboard of cards or a search-first experience.
-- Search exists only when it queries a real, complete settings catalog and navigates to an actual control. A decorative or incomplete search box is prohibited.
-- Hide diagnostics from the ordinary path while keeping them deliberately reachable for troubleshooting.
-
-## Icons and charts
-
-Icons identify a known action, device class, route, or semantic state. They do not decorate headings or sit in colored rounded tiles by default. Prefer a label alone when the icon adds no recognition value.
-
-Use a chart only when comparison, trend, response, level, or time is part of the task. It must use real data, correct units, an appropriate scale, and domain-specific interaction. Generic analytics charts are not substitutes for meters, EQ response, replay timelines, routing graphs, or diagnostics tables.
-
-## Copy
-
-- Lead with the control, value, or state.
-- Use short nouns for destinations and direct verbs for actions.
-- Add explanation only for scope, consequence, recovery, privacy, cost, or a non-obvious hardware boundary.
-- Remove excessive helper copy, redundant labels, repeated descriptions, and prose that restates a visible heading or control.
-- Keep one visible source of truth for each status or measurement on a page.
+- Lead with the control, value, or state. Short nouns for destinations, direct verbs for actions.
+- Explain only scope, consequence, recovery, privacy, cost, or a non-obvious hardware boundary.
+- Remove helper copy that restates a visible heading or control.
 - Identify prototype, simulated, unavailable, and unsupported behavior beside the affected feature.
-- Do not use marketing filler such as “powerful,” “seamless,” “next-generation,” “level up,” or “your command center.”
+- No marketing filler: "powerful", "seamless", "next-generation", "level up", "your command center".
 
-## Motion and accessibility
+## 10. Motion and accessibility
 
-Interaction feedback is quick and causal:
+Interaction feedback is quick and causal (timings in section 3). Reduced motion removes translation, spring, pulse, and nonessential transitions.
 
-- hover and focus color/border changes: 80–140ms;
-- selection continuity: up to 180ms;
-- necessary disclosure: up to 210ms;
-- frequent keyboard actions and realtime controls: immediate.
+Always required: visible keyboard focus ring, semantic elements, accessible names, logical focus order, sufficient contrast, complete keyboard operation. Interactive elements inside Electron drag regions use `no-drag`. Full-screen or transparent overlays default to pointer-transparent outside explicitly interactive controls; never create a page-sized invisible hit target or steal game input.
 
-Reduced motion removes translation, spring, pulse, and nonessential transitions. Keep a visible keyboard focus ring, semantic elements, accessible names, logical focus order, sufficient contrast, and full keyboard operation. Interactive elements inside Electron drag regions use `no-drag`.
-
-Full-screen or transparent overlays default to pointer-transparent outside explicitly interactive controls. Never use a page-sized invisible button, accidental full-viewport hit target, or overlay that steals game input.
-
-## Implementation workflow
+## 11. Implementation workflow
 
 Before editing:
 
@@ -308,7 +303,7 @@ While implementing:
 1. Build the information hierarchy and geometry before adding surface styling.
 2. Reuse shared controls and tokens; adapt them centrally when equivalent concepts need the same improvement.
 3. Keep primary, secondary, and diagnostic information visibly distinct.
-4. Exercise the dense case, long labels, missing assets, unavailable capabilities, failures, and reduced motion—not only the ideal demo state.
+4. Exercise the dense case, long labels, missing assets, unavailable capabilities, failures, and reduced motion, not only the ideal demo state.
 
 After implementing:
 
@@ -317,25 +312,25 @@ After implementing:
 3. Compare against adjacent routes for typography, spacing, alignment, control style, icon treatment, and density.
 4. Fix the highest-impact hierarchy or usability issue, then inspect again. One visually acceptable pass is not completion.
 
-## Review gate
+## 12. Review gate
 
 A renderer change is rejected until all applicable statements are true:
 
 1. Every visible element passes the element admission test.
 2. The page reads as one task-specific workbench, not a website, dashboard, settings form, gaming HUD, or card collection.
-3. There is no gradient, glow, glass, neon/chroma decoration, decorative blur, particle, tilt, floating motion, decorative visualizer, or routine shadow.
-4. There is no new text pill, giant radius, floating capsule, decorative icon box, needless badge, nested card, or unearned surface.
-5. Typography, alignment, spacing, control sizes, and state treatment match the established system.
+3. No gradient, glow, glass, neon/chroma decoration, decorative blur, particle, tilt, floating motion, decorative visualizer, or routine shadow.
+4. No new text pill, giant radius, floating capsule, decorative icon box, needless badge, nested card, or unearned surface.
+5. Typography, alignment, spacing, control sizes, and state treatment match this system.
 6. Critical state and routine controls are visible at 1080 x 720 without page-level horizontal overflow or mandatory page scrolling.
-7. Related values and controls are adjacent; no useful control is hidden behind an unnecessary modal, accordion, tab, or click.
+7. Related values and controls are adjacent; no useful control hides behind an unnecessary modal, accordion, tab, or click.
 8. Hardware pages use the best truthful render and make hardware visually primary. Important device state is legible.
-9. Audio pages expose the full chain, useful EQ, usable faders/meters, peak/clipping feedback, and real host-backed behavior.
+9. Audio pages expose the full chain, useful EQ, usable faders and meters, peak/clipping feedback, and real host-backed behavior. Channel identity color is used per section 5 and nowhere else.
 10. Loading, empty, unavailable, disabled, pending, error, recovery, focus, hover, active, overflow, and reduced-motion states relevant to the change are handled.
 11. Every interactive feature is capability-driven and completes the canonical renderer-to-main/host-to-renderer round trip. No fake or UI-only feature remains.
 12. Only intended regions receive pointer input; Electron drag and any full-screen overlay boundaries are correct.
 13. No trivial dependency or duplicate UI pattern was introduced.
 14. The exact changed route was visually inspected after at least one corrective iteration.
 
-During source review, search changed renderer files for `rounded-full`, arbitrary large radii, `Badge`, `Surface`, gradients, shadows, backdrop filters, blur, uppercase tracking, fixed viewport overlays, page-level `overflow-x`, and newly added animation/timer code. A search hit is a prompt to inspect intent, not an automatic failure: physical circles, track geometry, transient overlay shadows, and measured realtime feedback remain valid where this document permits them.
+During source review, search changed renderer files for `rounded-full`, arbitrary large radii, `Badge`, `Surface`, gradients, shadows, backdrop filters, blur, uppercase tracking, fixed viewport overlays, page-level `overflow-x`, and newly added animation or timer code. A search hit prompts inspection of intent, not automatic failure: physical circles, track geometry, transient overlay shadows, and measured realtime feedback remain valid where this document permits them.
 
 Static source checks and browser DOM inspection support the review but do not prove native Electron layout, input regions, device imagery, or renderer-to-main behavior. Record the evidence actually gathered and name any hardware, packaged-app, or long-running validation that remains external.

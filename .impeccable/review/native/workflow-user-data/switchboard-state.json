@@ -1,0 +1,2277 @@
+{
+  "version": "0.1.0",
+  "prototypeMode": true,
+  "modules": [
+    {
+      "id": "device.hyperx-quadcast",
+      "name": "HyperX QuadCast",
+      "description": "QuadCast, QuadCast S, and QuadCast 2 controls through one capability module.",
+      "version": "0.1.0",
+      "kind": "device",
+      "sizeMb": 1.2,
+      "installed": true,
+      "enabled": true,
+      "official": true,
+      "restartRequired": false,
+      "capabilities": [
+        "microphone",
+        "gain",
+        "monitoring",
+        "lighting",
+        "firmware"
+      ],
+      "vendors": [
+        "0951"
+      ]
+    },
+    {
+      "id": "device.logitech-hidpp",
+      "name": "Logitech HID++",
+      "description": "Self-describing Logitech mouse and keyboard support without one package per model.",
+      "version": "0.1.0",
+      "kind": "device",
+      "sizeMb": 1.8,
+      "installed": true,
+      "enabled": true,
+      "official": true,
+      "restartRequired": false,
+      "capabilities": [
+        "mouse",
+        "dpi",
+        "polling-rate",
+        "buttons",
+        "battery",
+        "profiles"
+      ],
+      "vendors": [
+        "046d"
+      ]
+    },
+    {
+      "id": "capability.replay",
+      "name": "Instant Replay",
+      "description": "Isolated capture process with a disk-backed rolling buffer and hardware encoder selection.",
+      "version": "0.1.0",
+      "kind": "capture",
+      "sizeMb": 84,
+      "installed": true,
+      "enabled": false,
+      "official": true,
+      "restartRequired": false,
+      "capabilities": [
+        "display-capture",
+        "window-capture",
+        "replay-buffer",
+        "clips"
+      ],
+      "vendors": []
+    },
+    {
+      "id": "capability.audio-router",
+      "name": "Audio Router",
+      "description": "Game, chat, media, and aux buses with independent personal, stream, and clip mixes.",
+      "version": "0.1.0",
+      "kind": "audio",
+      "sizeMb": 11.6,
+      "installed": true,
+      "enabled": true,
+      "official": true,
+      "restartRequired": false,
+      "capabilities": [
+        "audio-buses",
+        "chatmix",
+        "microphone-dsp",
+        "stream-mix"
+      ],
+      "vendors": []
+    },
+    {
+      "id": "device.steelseries-hid",
+      "name": "SteelSeries Devices",
+      "description": "Optional SteelSeries HID support without installing the GG suite.",
+      "version": "0.0.1",
+      "kind": "device",
+      "sizeMb": 2.4,
+      "installed": false,
+      "enabled": false,
+      "official": true,
+      "restartRequired": false,
+      "capabilities": [
+        "mouse",
+        "keyboard",
+        "headset",
+        "lighting"
+      ],
+      "vendors": [
+        "1038"
+      ]
+    },
+    {
+      "id": "integration.obs",
+      "name": "OBS Integration",
+      "description": "Expose clip, stream mix, and scene actions through OBS WebSocket.",
+      "version": "0.0.1",
+      "kind": "integration",
+      "sizeMb": 0.7,
+      "installed": false,
+      "enabled": false,
+      "official": false,
+      "restartRequired": false,
+      "capabilities": [
+        "obs-websocket",
+        "scene-actions"
+      ],
+      "vendors": []
+    }
+  ],
+  "devices": [
+    {
+      "id": "logitech-g502x-plus-1",
+      "moduleId": "device.logitech-hidpp",
+      "displayName": "G502 X Plus",
+      "kind": "mouse",
+      "connected": true,
+      "identity": {
+        "manufacturer": "Logitech",
+        "productFamily": "G502",
+        "model": "G502 X Plus",
+        "variant": "white",
+        "colorway": "White",
+        "connection": "wireless",
+        "connectionLabel": "LIGHTSPEED",
+        "vendorId": 1133,
+        "productId": 16537,
+        "transportProductId": 50503,
+        "serialNumber": "PREVIEW-G502X",
+        "productString": "G502 X PLUS"
+      },
+      "variantResolution": {
+        "confidence": "hardware",
+        "source": "Logitech DEVIO extended model",
+        "evidence": "extendedModel 1"
+      },
+      "asset": {
+        "key": "logitech-g502-x-plus-white",
+        "matchedBy": "exact-variant",
+        "source": "bundled-official"
+      },
+      "capabilities": {
+        "battery": {
+          "percentage": 82,
+          "charging": false,
+          "fullyCharged": false,
+          "estimatedMinutesRemaining": 2820,
+          "updatedAt": 1787729890802
+        },
+        "dpi": {
+          "writable": true,
+          "min": 100,
+          "max": 25600,
+          "step": 50,
+          "stages": [
+            800,
+            1600,
+            3200
+          ],
+          "activeDpi": 1600,
+          "defaultDpi": 800,
+          "shiftDpi": 800,
+          "maxStages": 5,
+          "profileMode": "software"
+        },
+        "reportRate": {
+          "writable": true,
+          "value": 1000,
+          "supportedRates": [
+            125,
+            250,
+            500,
+            1000
+          ],
+          "profileMode": "software"
+        },
+        "buttonAssignments": {
+          "writable": true,
+          "profileMode": "software",
+          "bindings": [
+            {
+              "buttonId": "primary",
+              "slotId": "g502x-plus_g1_m1",
+              "currentActionId": "mouse.primary-click",
+              "hotspot": {
+                "id": "primary",
+                "label": "Primary click",
+                "position": {
+                  "x": 44,
+                  "y": 23
+                },
+                "calloutSide": "left",
+                "order": 0,
+                "capability": "button-assignment"
+              }
+            },
+            {
+              "buttonId": "back",
+              "slotId": "g502x-plus_g4_m1",
+              "currentActionId": "mouse.back",
+              "hotspot": {
+                "id": "back",
+                "label": "Back",
+                "position": {
+                  "x": 29,
+                  "y": 55
+                },
+                "calloutSide": "left",
+                "order": 1,
+                "capability": "button-assignment"
+              }
+            },
+            {
+              "buttonId": "dpi-shift",
+              "slotId": "g502x-plus_g5_m1",
+              "currentActionId": "mouse.dpi-shift",
+              "hotspot": {
+                "id": "dpi-shift",
+                "label": "DPI shift",
+                "position": {
+                  "x": 25,
+                  "y": 43
+                },
+                "calloutSide": "left",
+                "order": 2,
+                "capability": "button-assignment"
+              }
+            },
+            {
+              "buttonId": "secondary",
+              "slotId": "g502x-plus_g2_m1",
+              "currentActionId": "mouse.secondary-click",
+              "hotspot": {
+                "id": "secondary",
+                "label": "Secondary click",
+                "position": {
+                  "x": 56,
+                  "y": 23
+                },
+                "calloutSide": "right",
+                "order": 0,
+                "capability": "button-assignment"
+              }
+            },
+            {
+              "buttonId": "wheel",
+              "slotId": "g502x-plus_g3_m1",
+              "currentActionId": "mouse.middle-click",
+              "hotspot": {
+                "id": "wheel",
+                "label": "Wheel press",
+                "position": {
+                  "x": 50,
+                  "y": 35
+                },
+                "calloutSide": "right",
+                "order": 1,
+                "capability": "button-assignment"
+              }
+            },
+            {
+              "buttonId": "forward",
+              "slotId": "g502x-plus_g6_m1",
+              "currentActionId": "mouse.forward",
+              "hotspot": {
+                "id": "forward",
+                "label": "Forward",
+                "position": {
+                  "x": 32,
+                  "y": 49
+                },
+                "calloutSide": "right",
+                "order": 2,
+                "capability": "button-assignment"
+              }
+            }
+          ],
+          "availableActions": [
+            {
+              "id": "mouse.primary-click",
+              "label": "Left click",
+              "category": "mouse",
+              "searchTerms": [
+                "primary click",
+                "mb1"
+              ]
+            },
+            {
+              "id": "mouse.secondary-click",
+              "label": "Right click",
+              "category": "mouse",
+              "searchTerms": [
+                "secondary click",
+                "mb2"
+              ]
+            },
+            {
+              "id": "mouse.middle-click",
+              "label": "Middle click",
+              "category": "mouse",
+              "searchTerms": [
+                "wheel press",
+                "mb3"
+              ]
+            },
+            {
+              "id": "mouse.back",
+              "label": "Back",
+              "category": "mouse",
+              "searchTerms": [
+                "browser back",
+                "mb4"
+              ]
+            },
+            {
+              "id": "mouse.forward",
+              "label": "Forward",
+              "category": "mouse",
+              "searchTerms": [
+                "browser forward",
+                "mb5"
+              ]
+            },
+            {
+              "id": "mouse.dpi-up",
+              "label": "DPI up",
+              "category": "mouse",
+              "searchTerms": [
+                "sensitivity increase"
+              ]
+            },
+            {
+              "id": "mouse.dpi-down",
+              "label": "DPI down",
+              "category": "mouse",
+              "searchTerms": [
+                "sensitivity decrease"
+              ]
+            },
+            {
+              "id": "mouse.dpi-shift",
+              "label": "DPI shift",
+              "category": "mouse",
+              "searchTerms": [
+                "sniper",
+                "temporary dpi"
+              ]
+            }
+          ]
+        },
+        "lighting": {
+          "writable": true,
+          "enabled": false,
+          "activeEffectId": "solid",
+          "availableEffects": [
+            {
+              "id": "solid",
+              "label": "Static"
+            }
+          ],
+          "color": "#ff1744",
+          "colorWritable": true,
+          "brightness": 75,
+          "brightnessWritable": true,
+          "profileMode": "software",
+          "source": "software"
+        },
+        "onboardMemory": {
+          "writable": true,
+          "enabled": false,
+          "activeProfile": "PROFILE_1"
+        }
+      },
+      "settings": {}
+    },
+    {
+      "id": "hyperx-quadcast2-1",
+      "moduleId": "device.hyperx-quadcast",
+      "displayName": "QuadCast 2",
+      "kind": "microphone",
+      "connected": true,
+      "identity": {
+        "manufacturer": "HyperX",
+        "productFamily": "QuadCast",
+        "model": "QuadCast 2",
+        "variant": "default",
+        "connection": "usb",
+        "vendorId": 1008,
+        "productId": 1972,
+        "interfaceProductIds": [
+          1972,
+          2479
+        ],
+        "serialNumber": "PREVIEW-QUADCAST2",
+        "productString": "HyperX QuadCast 2"
+      },
+      "variantResolution": {
+        "confidence": "fallback",
+        "source": "No cosmetic SKU reported by hardware"
+      },
+      "asset": {
+        "key": "hyperx-quadcast-2",
+        "matchedBy": "exact-model",
+        "source": "bundled-official"
+      },
+      "capabilities": {
+        "lighting": {
+          "writable": false,
+          "enabled": true,
+          "activeEffectId": "status-ring",
+          "availableEffects": [
+            {
+              "id": "status-ring",
+              "label": "Status ring"
+            }
+          ],
+          "color": "#ff4f7d",
+          "colorWritable": false,
+          "brightnessWritable": false,
+          "profileMode": "software",
+          "source": "firmware",
+          "unavailableReason": "QuadCast lighting writes are not implemented by the HyperX module yet."
+        },
+        "gain": true,
+        "monitoring": true,
+        "mute": true
+      },
+      "settings": {
+        "gain": 58,
+        "monitoring": 18,
+        "muteLed": true,
+        "lightingEnabled": true,
+        "lightingColor": "#ff4f7d"
+      }
+    }
+  ],
+  "engines": [
+    {
+      "kind": "audio",
+      "state": "running",
+      "pid": 64140,
+      "cpuPercent": 0.5,
+      "memoryMb": 109.4,
+      "uptimeSeconds": 0,
+      "message": "48 kHz float32 graph simulation active · ChatMix 0.15",
+      "updatedAt": "2026-08-26T07:38:11.484Z"
+    },
+    {
+      "kind": "capture",
+      "state": "stopped",
+      "cpuPercent": 0,
+      "memoryMb": 0,
+      "uptimeSeconds": 0,
+      "updatedAt": "2026-08-26T07:38:10.802Z"
+    }
+  ],
+  "audio": {
+    "enabled": true,
+    "outputDevice": "Arctis Nova Pro Wireless",
+    "microphoneDevice": "HyperX QuadCast 2",
+    "sampleRate": 48000,
+    "chatMix": 0.15,
+    "monitoring": 0.18,
+    "monitoringEnabled": false,
+    "monitoringDeviceId": "output-nova-pro",
+    "buses": [
+      {
+        "id": "game",
+        "label": "Game",
+        "enabled": true,
+        "appCount": 0,
+        "gain": 1,
+        "muted": false,
+        "meter": 0.72,
+        "endpoint": "Switchboard Game",
+        "deviceId": "output-nova-pro"
+      },
+      {
+        "id": "chat",
+        "label": "Chat",
+        "enabled": true,
+        "appCount": 0,
+        "gain": 0.76,
+        "muted": false,
+        "meter": 0.38,
+        "endpoint": "Switchboard Chat",
+        "deviceId": "output-nova-pro"
+      },
+      {
+        "id": "media",
+        "label": "Media",
+        "enabled": true,
+        "appCount": 0,
+        "gain": 0.42,
+        "muted": false,
+        "meter": 0.21,
+        "endpoint": "Switchboard Media",
+        "deviceId": "output-realtek-speakers"
+      },
+      {
+        "id": "mic",
+        "label": "Microphone",
+        "enabled": true,
+        "appCount": 0,
+        "gain": 0.92,
+        "muted": false,
+        "meter": 0.56,
+        "endpoint": "Switchboard Microphone",
+        "deviceId": "input-quadcast-2"
+      }
+    ],
+    "micProcessors": [
+      {
+        "label": "Input gain",
+        "enabled": true,
+        "cost": "none",
+        "id": "gain",
+        "parameters": {
+          "gainDb": 0
+        }
+      },
+      {
+        "label": "Noise gate",
+        "enabled": true,
+        "cost": "low",
+        "id": "noise-gate",
+        "parameters": {
+          "thresholdDb": -48,
+          "attackMs": 10,
+          "releaseMs": 180
+        }
+      },
+      {
+        "label": "Noise suppression",
+        "enabled": true,
+        "cost": "medium",
+        "id": "noise-suppression",
+        "parameters": {
+          "amount": 45
+        }
+      },
+      {
+        "label": "Parametric EQ",
+        "enabled": true,
+        "cost": "low",
+        "id": "equalizer",
+        "parameters": {
+          "bands": [
+            {
+              "id": "mic-natural-1",
+              "enabled": true,
+              "type": "low-shelf",
+              "frequency": 80,
+              "gainDb": -1,
+              "q": 0.7
+            },
+            {
+              "id": "mic-natural-2",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 180,
+              "gainDb": -1.5,
+              "q": 1
+            },
+            {
+              "id": "mic-natural-3",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 500,
+              "gainDb": 0,
+              "q": 1.1
+            },
+            {
+              "id": "mic-natural-4",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 2800,
+              "gainDb": 2,
+              "q": 1.2
+            },
+            {
+              "id": "mic-natural-5",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 5500,
+              "gainDb": 1,
+              "q": 1
+            },
+            {
+              "id": "mic-natural-6",
+              "enabled": true,
+              "type": "high-shelf",
+              "frequency": 10000,
+              "gainDb": 1,
+              "q": 0.7
+            }
+          ]
+        }
+      },
+      {
+        "label": "Compressor",
+        "enabled": true,
+        "cost": "low",
+        "id": "compressor",
+        "parameters": {
+          "thresholdDb": -18,
+          "ratio": 3,
+          "attackMs": 12,
+          "releaseMs": 180,
+          "makeupDb": 2
+        }
+      },
+      {
+        "label": "Limiter",
+        "enabled": true,
+        "cost": "low",
+        "id": "limiter",
+        "parameters": {
+          "thresholdDb": -1,
+          "releaseMs": 90
+        }
+      }
+    ],
+    "channelProcessing": [
+      {
+        "busId": "game",
+        "equalizer": {
+          "enabled": true,
+          "bands": [
+            {
+              "id": "flat-1",
+              "enabled": true,
+              "type": "low-shelf",
+              "frequency": 80,
+              "gainDb": 0,
+              "q": 0.7
+            },
+            {
+              "id": "flat-2",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 180,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-3",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 700,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-4",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 2500,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-5",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 6000,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-6",
+              "enabled": true,
+              "type": "high-shelf",
+              "frequency": 10000,
+              "gainDb": 0,
+              "q": 0.7
+            }
+          ]
+        },
+        "normalization": {
+          "enabled": false,
+          "targetLufs": -18,
+          "maxGainDb": 8
+        },
+        "compressor": {
+          "enabled": false,
+          "thresholdDb": -18,
+          "ratio": 3,
+          "attackMs": 15,
+          "releaseMs": 180,
+          "makeupDb": 0
+        },
+        "limiter": {
+          "enabled": true,
+          "thresholdDb": -1,
+          "releaseMs": 90
+        }
+      },
+      {
+        "busId": "chat",
+        "equalizer": {
+          "enabled": true,
+          "bands": [
+            {
+              "id": "flat-1",
+              "enabled": true,
+              "type": "low-shelf",
+              "frequency": 80,
+              "gainDb": 0,
+              "q": 0.7
+            },
+            {
+              "id": "flat-2",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 180,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-3",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 700,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-4",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 2500,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-5",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 6000,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-6",
+              "enabled": true,
+              "type": "high-shelf",
+              "frequency": 10000,
+              "gainDb": 0,
+              "q": 0.7
+            }
+          ]
+        },
+        "normalization": {
+          "enabled": false,
+          "targetLufs": -18,
+          "maxGainDb": 8
+        },
+        "compressor": {
+          "enabled": false,
+          "thresholdDb": -18,
+          "ratio": 3,
+          "attackMs": 15,
+          "releaseMs": 180,
+          "makeupDb": 0
+        },
+        "limiter": {
+          "enabled": true,
+          "thresholdDb": -1,
+          "releaseMs": 90
+        }
+      },
+      {
+        "busId": "media",
+        "equalizer": {
+          "enabled": true,
+          "bands": [
+            {
+              "id": "flat-1",
+              "enabled": true,
+              "type": "low-shelf",
+              "frequency": 80,
+              "gainDb": 0,
+              "q": 0.7
+            },
+            {
+              "id": "flat-2",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 180,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-3",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 700,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-4",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 2500,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-5",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 6000,
+              "gainDb": 0,
+              "q": 1
+            },
+            {
+              "id": "flat-6",
+              "enabled": true,
+              "type": "high-shelf",
+              "frequency": 10000,
+              "gainDb": 0,
+              "q": 0.7
+            }
+          ]
+        },
+        "normalization": {
+          "enabled": false,
+          "targetLufs": -18,
+          "maxGainDb": 8
+        },
+        "compressor": {
+          "enabled": false,
+          "thresholdDb": -18,
+          "ratio": 3,
+          "attackMs": 15,
+          "releaseMs": 180,
+          "makeupDb": 0
+        },
+        "limiter": {
+          "enabled": true,
+          "thresholdDb": -1,
+          "releaseMs": 90
+        }
+      }
+    ],
+    "devices": [
+      {
+        "id": "output-nova-pro",
+        "name": "Arctis Nova Pro Wireless",
+        "direction": "output",
+        "isDefault": true,
+        "available": true
+      },
+      {
+        "id": "output-realtek-speakers",
+        "name": "Speakers (Realtek Audio)",
+        "direction": "output",
+        "isDefault": false,
+        "available": true
+      },
+      {
+        "id": "output-display-audio",
+        "name": "LG ULTRAGEAR (NVIDIA Audio)",
+        "direction": "output",
+        "isDefault": false,
+        "available": true
+      },
+      {
+        "id": "input-quadcast-2",
+        "name": "HyperX QuadCast 2",
+        "direction": "input",
+        "isDefault": true,
+        "available": true
+      },
+      {
+        "id": "input-realtek-mic",
+        "name": "Microphone (Realtek Audio)",
+        "direction": "input",
+        "isDefault": false,
+        "available": true
+      }
+    ],
+    "applications": [],
+    "capabilities": {
+      "virtualChannels": "simulation",
+      "applicationRouting": "unavailable",
+      "channelDsp": "simulation",
+      "microphoneDsp": "simulation",
+      "realtimeMetering": "simulation",
+      "microphoneTest": "unavailable",
+      "monitoring": "unavailable",
+      "spatialAudio": "unavailable"
+    },
+    "pathPresets": [
+      {
+        "id": "game-flat",
+        "name": "Flat",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "game",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "flat-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 80,
+                "gainDb": 0,
+                "q": 0.7
+              },
+              {
+                "id": "flat-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2500,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 6000,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 10000,
+                "gainDb": 0,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": false,
+            "targetLufs": -18,
+            "maxGainDb": 8
+          },
+          "compressor": {
+            "enabled": false,
+            "thresholdDb": -18,
+            "ratio": 3,
+            "attackMs": 15,
+            "releaseMs": 180,
+            "makeupDb": 0
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "game-competitive-fps",
+        "name": "Competitive FPS",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "game",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "game-fps-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 80,
+                "gainDb": -3,
+                "q": 0.7
+              },
+              {
+                "id": "game-fps-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": -2,
+                "q": 1
+              },
+              {
+                "id": "game-fps-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": -1,
+                "q": 1.1
+              },
+              {
+                "id": "game-fps-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2500,
+                "gainDb": 3.5,
+                "q": 1.1
+              },
+              {
+                "id": "game-fps-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 5500,
+                "gainDb": 2.5,
+                "q": 1.2
+              },
+              {
+                "id": "game-fps-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 10000,
+                "gainDb": 1,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": true,
+            "targetLufs": -17,
+            "maxGainDb": 6
+          },
+          "compressor": {
+            "enabled": true,
+            "thresholdDb": -20,
+            "ratio": 2.5,
+            "attackMs": 12,
+            "releaseMs": 140,
+            "makeupDb": 1
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "game-immersive",
+        "name": "Immersive",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "game",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "game-immersive-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 70,
+                "gainDb": 3,
+                "q": 0.7
+              },
+              {
+                "id": "game-immersive-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": 1.5,
+                "q": 1
+              },
+              {
+                "id": "game-immersive-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": -0.5,
+                "q": 1
+              },
+              {
+                "id": "game-immersive-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2500,
+                "gainDb": 1,
+                "q": 1
+              },
+              {
+                "id": "game-immersive-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 6000,
+                "gainDb": 1.5,
+                "q": 1
+              },
+              {
+                "id": "game-immersive-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 11000,
+                "gainDb": 2,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": false,
+            "targetLufs": -18,
+            "maxGainDb": 8
+          },
+          "compressor": {
+            "enabled": false,
+            "thresholdDb": -18,
+            "ratio": 3,
+            "attackMs": 15,
+            "releaseMs": 180,
+            "makeupDb": 0
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "chat-natural",
+        "name": "Natural",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "chat",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "flat-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 80,
+                "gainDb": 0,
+                "q": 0.7
+              },
+              {
+                "id": "flat-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2500,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 6000,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 10000,
+                "gainDb": 0,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": false,
+            "targetLufs": -18,
+            "maxGainDb": 8
+          },
+          "compressor": {
+            "enabled": false,
+            "thresholdDb": -18,
+            "ratio": 3,
+            "attackMs": 15,
+            "releaseMs": 180,
+            "makeupDb": 0
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "chat-clear-voice",
+        "name": "Clear Voice",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "chat",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "chat-clear-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 100,
+                "gainDb": -4,
+                "q": 0.7
+              },
+              {
+                "id": "chat-clear-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 220,
+                "gainDb": -2,
+                "q": 1
+              },
+              {
+                "id": "chat-clear-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": -1,
+                "q": 1
+              },
+              {
+                "id": "chat-clear-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2200,
+                "gainDb": 3,
+                "q": 1.1
+              },
+              {
+                "id": "chat-clear-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 4500,
+                "gainDb": 2,
+                "q": 1.2
+              },
+              {
+                "id": "chat-clear-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 9000,
+                "gainDb": 1,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": true,
+            "targetLufs": -19,
+            "maxGainDb": 7
+          },
+          "compressor": {
+            "enabled": true,
+            "thresholdDb": -22,
+            "ratio": 3,
+            "attackMs": 10,
+            "releaseMs": 160,
+            "makeupDb": 1
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "chat-reduced-bass",
+        "name": "Reduced Bass",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "chat",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "flat-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 80,
+                "gainDb": -5,
+                "q": 0.7
+              },
+              {
+                "id": "flat-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": -2,
+                "q": 1
+              },
+              {
+                "id": "flat-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2500,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 6000,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 10000,
+                "gainDb": 0,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": false,
+            "targetLufs": -18,
+            "maxGainDb": 8
+          },
+          "compressor": {
+            "enabled": false,
+            "thresholdDb": -18,
+            "ratio": 3,
+            "attackMs": 15,
+            "releaseMs": 180,
+            "makeupDb": 0
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "media-flat",
+        "name": "Flat",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "media",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "flat-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 80,
+                "gainDb": 0,
+                "q": 0.7
+              },
+              {
+                "id": "flat-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2500,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 6000,
+                "gainDb": 0,
+                "q": 1
+              },
+              {
+                "id": "flat-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 10000,
+                "gainDb": 0,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": false,
+            "targetLufs": -18,
+            "maxGainDb": 8
+          },
+          "compressor": {
+            "enabled": false,
+            "thresholdDb": -18,
+            "ratio": 3,
+            "attackMs": 15,
+            "releaseMs": 180,
+            "makeupDb": 0
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "media-music",
+        "name": "Music",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "media",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "media-music-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 70,
+                "gainDb": 2,
+                "q": 0.7
+              },
+              {
+                "id": "media-music-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": 0.5,
+                "q": 1
+              },
+              {
+                "id": "media-music-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": -1,
+                "q": 1
+              },
+              {
+                "id": "media-music-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2500,
+                "gainDb": 1,
+                "q": 1
+              },
+              {
+                "id": "media-music-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 6000,
+                "gainDb": 1.5,
+                "q": 1
+              },
+              {
+                "id": "media-music-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 11000,
+                "gainDb": 2,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": false,
+            "targetLufs": -18,
+            "maxGainDb": 8
+          },
+          "compressor": {
+            "enabled": false,
+            "thresholdDb": -18,
+            "ratio": 3,
+            "attackMs": 15,
+            "releaseMs": 180,
+            "makeupDb": 0
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "media-movies",
+        "name": "Movies",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "media",
+        "processors": {
+          "equalizer": {
+            "enabled": true,
+            "bands": [
+              {
+                "id": "media-movies-1",
+                "enabled": true,
+                "type": "low-shelf",
+                "frequency": 65,
+                "gainDb": 2.5,
+                "q": 0.7
+              },
+              {
+                "id": "media-movies-2",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 180,
+                "gainDb": 1,
+                "q": 1
+              },
+              {
+                "id": "media-movies-3",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 700,
+                "gainDb": -1.5,
+                "q": 1
+              },
+              {
+                "id": "media-movies-4",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 2200,
+                "gainDb": 2.5,
+                "q": 1.1
+              },
+              {
+                "id": "media-movies-5",
+                "enabled": true,
+                "type": "bell",
+                "frequency": 5500,
+                "gainDb": 1,
+                "q": 1
+              },
+              {
+                "id": "media-movies-6",
+                "enabled": true,
+                "type": "high-shelf",
+                "frequency": 10000,
+                "gainDb": 1.5,
+                "q": 0.7
+              }
+            ]
+          },
+          "normalization": {
+            "enabled": true,
+            "targetLufs": -18,
+            "maxGainDb": 5
+          },
+          "compressor": {
+            "enabled": false,
+            "thresholdDb": -18,
+            "ratio": 3,
+            "attackMs": 15,
+            "releaseMs": 180,
+            "makeupDb": 0
+          },
+          "limiter": {
+            "enabled": true,
+            "thresholdDb": -1,
+            "releaseMs": 90
+          }
+        }
+      },
+      {
+        "id": "mic-natural-voice",
+        "name": "Natural Voice",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "microphone",
+        "processors": [
+          {
+            "label": "Input gain",
+            "enabled": true,
+            "cost": "none",
+            "id": "gain",
+            "parameters": {
+              "gainDb": 0
+            }
+          },
+          {
+            "label": "Noise gate",
+            "enabled": true,
+            "cost": "low",
+            "id": "noise-gate",
+            "parameters": {
+              "thresholdDb": -48,
+              "attackMs": 10,
+              "releaseMs": 180
+            }
+          },
+          {
+            "label": "Noise suppression",
+            "enabled": true,
+            "cost": "medium",
+            "id": "noise-suppression",
+            "parameters": {
+              "amount": 45
+            }
+          },
+          {
+            "label": "Parametric EQ",
+            "enabled": true,
+            "cost": "low",
+            "id": "equalizer",
+            "parameters": {
+              "bands": [
+                {
+                  "id": "mic-natural-1",
+                  "enabled": true,
+                  "type": "low-shelf",
+                  "frequency": 80,
+                  "gainDb": -1,
+                  "q": 0.7
+                },
+                {
+                  "id": "mic-natural-2",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 180,
+                  "gainDb": -1.5,
+                  "q": 1
+                },
+                {
+                  "id": "mic-natural-3",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 500,
+                  "gainDb": 0,
+                  "q": 1.1
+                },
+                {
+                  "id": "mic-natural-4",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 2800,
+                  "gainDb": 2,
+                  "q": 1.2
+                },
+                {
+                  "id": "mic-natural-5",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 5500,
+                  "gainDb": 1,
+                  "q": 1
+                },
+                {
+                  "id": "mic-natural-6",
+                  "enabled": true,
+                  "type": "high-shelf",
+                  "frequency": 10000,
+                  "gainDb": 1,
+                  "q": 0.7
+                }
+              ]
+            }
+          },
+          {
+            "label": "Compressor",
+            "enabled": true,
+            "cost": "low",
+            "id": "compressor",
+            "parameters": {
+              "thresholdDb": -18,
+              "ratio": 3,
+              "attackMs": 12,
+              "releaseMs": 180,
+              "makeupDb": 2
+            }
+          },
+          {
+            "label": "Limiter",
+            "enabled": true,
+            "cost": "low",
+            "id": "limiter",
+            "parameters": {
+              "thresholdDb": -1,
+              "releaseMs": 90
+            }
+          }
+        ],
+        "monitoring": {
+          "enabled": false,
+          "level": 0.18,
+          "deviceId": "output-nova-pro"
+        }
+      },
+      {
+        "id": "mic-clear-speech",
+        "name": "Clear Speech",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "microphone",
+        "processors": [
+          {
+            "label": "Input gain",
+            "enabled": true,
+            "cost": "none",
+            "id": "gain",
+            "parameters": {
+              "gainDb": 0
+            }
+          },
+          {
+            "label": "Noise gate",
+            "enabled": true,
+            "cost": "low",
+            "id": "noise-gate",
+            "parameters": {
+              "thresholdDb": -44,
+              "attackMs": 10,
+              "releaseMs": 180
+            }
+          },
+          {
+            "label": "Noise suppression",
+            "enabled": true,
+            "cost": "medium",
+            "id": "noise-suppression",
+            "parameters": {
+              "amount": 60
+            }
+          },
+          {
+            "label": "Parametric EQ",
+            "enabled": true,
+            "cost": "low",
+            "id": "equalizer",
+            "parameters": {
+              "bands": [
+                {
+                  "id": "mic-clear-1",
+                  "enabled": true,
+                  "type": "low-shelf",
+                  "frequency": 90,
+                  "gainDb": -3,
+                  "q": 0.7
+                },
+                {
+                  "id": "mic-clear-2",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 220,
+                  "gainDb": -2,
+                  "q": 1
+                },
+                {
+                  "id": "mic-clear-3",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 650,
+                  "gainDb": -1,
+                  "q": 1
+                },
+                {
+                  "id": "mic-clear-4",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 2800,
+                  "gainDb": 3,
+                  "q": 1.1
+                },
+                {
+                  "id": "mic-clear-5",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 5500,
+                  "gainDb": 2,
+                  "q": 1.2
+                },
+                {
+                  "id": "mic-clear-6",
+                  "enabled": true,
+                  "type": "high-shelf",
+                  "frequency": 10000,
+                  "gainDb": 1,
+                  "q": 0.7
+                }
+              ]
+            }
+          },
+          {
+            "label": "Compressor",
+            "enabled": true,
+            "cost": "low",
+            "id": "compressor",
+            "parameters": {
+              "thresholdDb": -20,
+              "ratio": 3.5,
+              "attackMs": 10,
+              "releaseMs": 150,
+              "makeupDb": 2.5
+            }
+          },
+          {
+            "label": "Limiter",
+            "enabled": true,
+            "cost": "low",
+            "id": "limiter",
+            "parameters": {
+              "thresholdDb": -1,
+              "releaseMs": 90
+            }
+          }
+        ],
+        "monitoring": {
+          "enabled": false,
+          "level": 0.18,
+          "deviceId": "output-nova-pro"
+        }
+      },
+      {
+        "id": "mic-broadcast",
+        "name": "Broadcast",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "microphone",
+        "processors": [
+          {
+            "label": "Input gain",
+            "enabled": true,
+            "cost": "none",
+            "id": "gain",
+            "parameters": {
+              "gainDb": 1.5
+            }
+          },
+          {
+            "label": "Noise gate",
+            "enabled": true,
+            "cost": "low",
+            "id": "noise-gate",
+            "parameters": {
+              "thresholdDb": -48,
+              "attackMs": 10,
+              "releaseMs": 180
+            }
+          },
+          {
+            "label": "Noise suppression",
+            "enabled": true,
+            "cost": "medium",
+            "id": "noise-suppression",
+            "parameters": {
+              "amount": 50
+            }
+          },
+          {
+            "label": "Parametric EQ",
+            "enabled": true,
+            "cost": "low",
+            "id": "equalizer",
+            "parameters": {
+              "bands": [
+                {
+                  "id": "mic-broadcast-1",
+                  "enabled": true,
+                  "type": "low-shelf",
+                  "frequency": 75,
+                  "gainDb": 1.5,
+                  "q": 0.7
+                },
+                {
+                  "id": "mic-broadcast-2",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 180,
+                  "gainDb": 1,
+                  "q": 1
+                },
+                {
+                  "id": "mic-broadcast-3",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 450,
+                  "gainDb": -2,
+                  "q": 1.1
+                },
+                {
+                  "id": "mic-broadcast-4",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 2400,
+                  "gainDb": 2.5,
+                  "q": 1.1
+                },
+                {
+                  "id": "mic-broadcast-5",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 5000,
+                  "gainDb": 1.5,
+                  "q": 1
+                },
+                {
+                  "id": "mic-broadcast-6",
+                  "enabled": true,
+                  "type": "high-shelf",
+                  "frequency": 10000,
+                  "gainDb": 2,
+                  "q": 0.7
+                }
+              ]
+            }
+          },
+          {
+            "label": "Compressor",
+            "enabled": true,
+            "cost": "low",
+            "id": "compressor",
+            "parameters": {
+              "thresholdDb": -22,
+              "ratio": 4,
+              "attackMs": 8,
+              "releaseMs": 130,
+              "makeupDb": 3
+            }
+          },
+          {
+            "label": "Limiter",
+            "enabled": true,
+            "cost": "low",
+            "id": "limiter",
+            "parameters": {
+              "thresholdDb": -1,
+              "releaseMs": 90
+            }
+          }
+        ],
+        "monitoring": {
+          "enabled": false,
+          "level": 0.18,
+          "deviceId": "output-nova-pro"
+        }
+      },
+      {
+        "id": "mic-studio",
+        "name": "Studio",
+        "builtIn": true,
+        "schemaVersion": 1,
+        "kind": "microphone",
+        "processors": [
+          {
+            "label": "Input gain",
+            "enabled": true,
+            "cost": "none",
+            "id": "gain",
+            "parameters": {
+              "gainDb": 0
+            }
+          },
+          {
+            "label": "Noise gate",
+            "enabled": true,
+            "cost": "low",
+            "id": "noise-gate",
+            "parameters": {
+              "thresholdDb": -56,
+              "attackMs": 10,
+              "releaseMs": 180
+            }
+          },
+          {
+            "label": "Noise suppression",
+            "enabled": true,
+            "cost": "medium",
+            "id": "noise-suppression",
+            "parameters": {
+              "amount": 20
+            }
+          },
+          {
+            "label": "Parametric EQ",
+            "enabled": true,
+            "cost": "low",
+            "id": "equalizer",
+            "parameters": {
+              "bands": [
+                {
+                  "id": "mic-natural-1",
+                  "enabled": true,
+                  "type": "low-shelf",
+                  "frequency": 80,
+                  "gainDb": -1,
+                  "q": 0.7
+                },
+                {
+                  "id": "mic-natural-2",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 180,
+                  "gainDb": -1.5,
+                  "q": 1
+                },
+                {
+                  "id": "mic-natural-3",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 500,
+                  "gainDb": 0,
+                  "q": 1.1
+                },
+                {
+                  "id": "mic-natural-4",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 2800,
+                  "gainDb": 2,
+                  "q": 1.2
+                },
+                {
+                  "id": "mic-natural-5",
+                  "enabled": true,
+                  "type": "bell",
+                  "frequency": 5500,
+                  "gainDb": 1,
+                  "q": 1
+                },
+                {
+                  "id": "mic-natural-6",
+                  "enabled": true,
+                  "type": "high-shelf",
+                  "frequency": 10000,
+                  "gainDb": 1,
+                  "q": 0.7
+                }
+              ]
+            }
+          },
+          {
+            "label": "Compressor",
+            "enabled": true,
+            "cost": "low",
+            "id": "compressor",
+            "parameters": {
+              "thresholdDb": -16,
+              "ratio": 2.2,
+              "attackMs": 18,
+              "releaseMs": 220,
+              "makeupDb": 1
+            }
+          },
+          {
+            "label": "Limiter",
+            "enabled": true,
+            "cost": "low",
+            "id": "limiter",
+            "parameters": {
+              "thresholdDb": -1,
+              "releaseMs": 90
+            }
+          }
+        ],
+        "monitoring": {
+          "enabled": false,
+          "level": 0.18,
+          "deviceId": "output-nova-pro"
+        }
+      }
+    ],
+    "activePresetIds": {
+      "game": "game-flat",
+      "chat": "chat-natural",
+      "media": "media-flat",
+      "microphone": "mic-natural-voice"
+    }
+  },
+  "capture": {
+    "config": {
+      "enabled": false,
+      "source": "automatic-game",
+      "sourceId": null,
+      "displayIndex": 0,
+      "fps": 60,
+      "resolution": "1440p",
+      "codec": "h264",
+      "encoder": "auto",
+      "quality": 4,
+      "replaySeconds": 60,
+      "includeMic": true,
+      "includeSystemAudio": true,
+      "includeCursor": false,
+      "hotkey": "Ctrl+Shift+F10",
+      "clipsDirectory": null
+    },
+    "runtime": {
+      "state": "stopped",
+      "bufferedSeconds": 0,
+      "segmentCount": 0,
+      "replayCacheBytes": 0,
+      "observedBitrateBps": 0,
+      "encoderLabel": "Not selected",
+      "backendLabel": "Windows Graphics Capture",
+      "droppedFrames": 0,
+      "encodedFrames": 0,
+      "audioSyncCorrections": 0,
+      "activeSource": null,
+      "saveQueueDepth": 0,
+      "shortcutRegistered": true
+    },
+    "storage": {
+      "clipsDirectory": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
+      "cacheDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\replay",
+      "availableBytes": 2727107985408,
+      "clipsBytes": 12566633,
+      "replayCacheBytes": 0,
+      "lowSpace": false,
+      "criticalSpace": false
+    },
+    "capabilities": {
+      "backend": "unavailable",
+      "encoders": [],
+      "codecs": [
+        "h264"
+      ],
+      "maximumFps": 60,
+      "systemAudio": false,
+      "microphoneAudio": false,
+      "exclusiveFullscreen": false
+    },
+    "sources": []
+  },
+  "clips": [
+    {
+      "id": "06064b40-0983-4090-bd8e-3b567297825f",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08_2.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725988692,
+      "durationMs": 30016,
+      "fileSize": 3227082,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\06064b40-0983-4090-bd8e-3b567297825f.v2.jpg",
+      "favorite": false,
+      "titleEdited": false,
+      "audioChannels": []
+    },
+    {
+      "id": "139891a6-ad1e-43c5-b248-f616565a4d75",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725988342,
+      "durationMs": 30016,
+      "fileSize": 3227082,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\139891a6-ad1e-43c5-b248-f616565a4d75.v2.jpg",
+      "favorite": false,
+      "titleEdited": false,
+      "audioChannels": []
+    },
+    {
+      "id": "6a061f7f-ccb4-48ec-8ba3-a8637dda257e",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-07.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725987982,
+      "durationMs": 30016,
+      "fileSize": 3251905,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\6a061f7f-ccb4-48ec-8ba3-a8637dda257e.v2.jpg",
+      "favorite": false,
+      "titleEdited": false,
+      "audioChannels": []
+    },
+    {
+      "id": "6c33824c-74f2-44e0-8e3d-6d5b55ff6bad",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-32-02.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725922793,
+      "durationMs": 30017,
+      "fileSize": 2860564,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\6c33824c-74f2-44e0-8e3d-6d5b55ff6bad.v2.jpg",
+      "favorite": false,
+      "titleEdited": false,
+      "audioChannels": []
+    }
+  ],
+  "performance": {
+    "coreMemoryMb": 44,
+    "rendererMemoryMb": 92,
+    "totalMemoryMb": 245.4,
+    "totalCpuPercent": 0.8,
+    "activeProcesses": 3,
+    "budgetMemoryMb": 240,
+    "budgetCpuPercent": 2
+  },
+  "settings": {
+    "launchAtStartup": false,
+    "closeToTray": true,
+    "destroyRendererInTray": true,
+    "automaticModuleUpdates": true,
+    "performanceGuard": true,
+    "diagnosticsRetentionDays": 7,
+    "telemetry": false,
+    "deviceAppearanceOverrides": {}
+  }
+}

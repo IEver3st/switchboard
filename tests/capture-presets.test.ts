@@ -8,6 +8,7 @@ import {
   selectReplaySegments,
   type ReplaySegment,
 } from '../src/shared/capture-presets';
+import { captureRuntimeSchema } from '../src/shared/contracts';
 
 const baseConfig = {
   quality: 3 as const,
@@ -75,5 +76,23 @@ describe('capture filesystem and state rules', () => {
     expect(canTransitionReplayState('buffering', 'saving')).toBeTrue();
     expect(canTransitionReplayState('saving', 'buffering')).toBeTrue();
     expect(canTransitionReplayState('stopped', 'saving')).toBeFalse();
+  });
+
+  test('normalizes an omitted native-host source to null', () => {
+    const runtime = captureRuntimeSchema.parse({
+      state: 'stopped',
+      bufferedSeconds: 0,
+      segmentCount: 0,
+      replayCacheBytes: 0,
+      observedBitrateBps: 0,
+      encoderLabel: 'Not selected',
+      backendLabel: 'Unavailable',
+      droppedFrames: 0,
+      encodedFrames: 0,
+      audioSyncCorrections: 0,
+      saveQueueDepth: 0,
+      shortcutRegistered: false,
+    });
+    expect(runtime.activeSource).toBeNull();
   });
 });

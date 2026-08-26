@@ -26,8 +26,11 @@ export function Sidebar({
   onNavigate: (page: PageId) => void;
 }) {
   return (
-    <aside className="flex w-16 shrink-0 flex-col items-center border-r border-border bg-card py-2">
-      <nav aria-label="Primary" className="flex w-full flex-col items-center gap-0.5 px-2">
+    <aside className="flex w-[68px] shrink-0 flex-col items-center bg-chrome py-2">
+      <div className="app-drag flex h-[38px] w-full shrink-0 items-center justify-center">
+        <img src="./switchboard-icon.png" alt="" className="size-[22px] object-contain opacity-90" draggable={false} />
+      </div>
+      <nav aria-label="Primary" className="mt-8 flex w-full flex-col items-center gap-1.5 px-1.5">
         {navigation.map(({ id, label, icon: Icon, engine }) => {
           const active = page === id;
           const running = engine ? snapshot.engines.find((candidate) => candidate.kind === engine)?.state === 'running' : undefined;
@@ -38,41 +41,42 @@ export function Sidebar({
               onClick={() => onNavigate(id)}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'relative flex h-13 w-full flex-col items-center justify-center gap-1 rounded-md transition-colors',
-                active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                'relative flex h-[56px] w-full flex-col items-center justify-center gap-1 rounded-[6px] transition-colors duration-150 no-drag',
+                active ? 'bg-surface-interactive text-foreground' : 'text-text-secondary hover:bg-surface-interactive hover:text-foreground',
               )}
             >
-              {active ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
+              {active ? <span className="absolute left-0 top-1/2 h-[18px] w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
               <span className="relative">
-                <Icon className={cn('size-[17px]', active && 'text-primary')} strokeWidth={1.8} />
+                <Icon className={cn('size-[20px] text-text-muted', active && 'text-foreground')} strokeWidth={1.75} />
                 {typeof running === 'boolean' ? (
                   <span
                     className={cn(
-                      'absolute -right-1 -top-1 size-[6px] rounded-full ring-2 ring-card',
-                      running ? 'bg-success' : 'bg-[#4e5560]',
+                      'absolute -right-1 -top-1 size-[6px] rounded-full ring-2 ring-background',
+                      running ? 'bg-success' : 'bg-status-neutral',
                     )}
                   />
                 ) : null}
               </span>
-              <span className="text-[9px] font-medium leading-none">{label}</span>
+              <span className="text-[10px] font-medium leading-none tracking-[-0.01em]">{label}</span>
             </button>
           );
         })}
       </nav>
 
-      <div className="mt-auto flex w-full flex-col items-center px-2">
+      <div className="mt-auto flex w-full flex-col items-center px-1.5 pb-1">
         <button
           type="button"
           onClick={() => onNavigate('settings')}
+          aria-label="Settings"
           aria-current={page === 'settings' ? 'page' : undefined}
+          title="Settings"
           className={cn(
-            'relative flex h-13 w-full flex-col items-center justify-center gap-1 rounded-md transition-colors',
-            page === 'settings' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+            'relative grid size-9 place-items-center rounded-[6px] transition-colors duration-150 no-drag',
+            page === 'settings' ? 'bg-surface-interactive text-foreground' : 'text-text-muted hover:bg-surface-interactive hover:text-foreground',
           )}
         >
           {page === 'settings' ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
-          <Settings2 className={cn('size-[17px]', page === 'settings' && 'text-primary')} strokeWidth={1.8} />
-          <span className="text-[9px] font-medium leading-none">Settings</span>
+          <Settings2 className={cn('size-[18px]', page === 'settings' && 'text-foreground')} strokeWidth={1.75} />
         </button>
       </div>
     </aside>

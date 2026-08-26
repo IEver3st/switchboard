@@ -34,21 +34,14 @@ export const ChatMixSlider = memo(function ChatMixSlider({
   };
 
   return (
-    <section
-      aria-labelledby="chatmix-heading"
-      className={cn('grid grid-cols-[104px_minmax(0,1fr)_86px] items-center gap-4 border-b border-border px-3 py-2.5 max-[760px]:grid-cols-1', inactive && 'opacity-55')}
-    >
-      <div>
-        <h3 id="chatmix-heading" className="m-0 text-[10px] font-semibold text-foreground">ChatMix</h3>
-        <div className="mt-0.5 text-[8px] text-muted-foreground">Game / voice balance</div>
+    <section aria-labelledby="chatmix-heading" className={cn('chatmix-control', inactive && 'is-disabled')}>
+      <div className="chatmix-control__label">
+        <h3 id="chatmix-heading">ChatMix</h3>
+        <p>Game sound vs voice chat</p>
       </div>
 
-      <div className="min-w-0">
-        <div className="mb-1.5 flex items-center justify-between text-[8px] font-medium text-muted-foreground">
-          <span className="flex items-center gap-1"><Gamepad2 className="size-3" aria-hidden="true" /> Game</span>
-          <span className="text-foreground/75">50 / 50</span>
-          <span className="flex items-center gap-1">Chat <MessageCircle className="size-3" aria-hidden="true" /></span>
-        </div>
+      <div className="chatmix-control__slider">
+        <Gamepad2 className="size-4 shrink-0 text-[var(--channel-game)]" aria-hidden="true" />
         <SliderPrimitive.Root
           min={-1}
           max={1}
@@ -58,33 +51,29 @@ export const ChatMixSlider = memo(function ChatMixSlider({
           onValueChange={([next]) => typeof next === 'number' && setCurrent(snapCenter(next))}
           onValueCommit={([next]) => typeof next === 'number' && commit(next)}
           onDoubleClick={() => commit(0)}
-          className="relative flex h-5 w-full touch-none select-none items-center"
+          className="relative flex h-8 w-full min-w-0 touch-none select-none items-center"
         >
-          <SliderPrimitive.Track className="relative h-[3px] w-full grow rounded-[2px] bg-input">
-            <span className="absolute left-1/2 top-[-4px] h-[11px] w-px -translate-x-1/2 bg-foreground/55" aria-hidden="true" />
-            <span className="absolute left-1/4 top-[-2px] h-[7px] w-px bg-input" aria-hidden="true" />
-            <span className="absolute left-3/4 top-[-2px] h-[7px] w-px bg-input" aria-hidden="true" />
+          <SliderPrimitive.Track className="relative h-1 w-full grow rounded-[2px] bg-input">
+            <span className="absolute left-1/2 top-[-5px] h-[14px] w-px -translate-x-1/2 bg-foreground/70" aria-hidden="true" />
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
             aria-label="ChatMix game and chat balance"
             aria-valuetext={`${game} percent game, ${chat} percent chat`}
-            className="block size-[12px] rounded-full border border-[#ff9ab0] bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+            className="block size-[18px] rounded-full border border-accent-hover bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
           />
         </SliderPrimitive.Root>
-        <div className="mt-0.5 grid grid-cols-5 text-[8px] tabular-nums text-muted-foreground/55" aria-hidden="true">
-          <span>100 / 0</span><span className="text-center">75 / 25</span><span className="text-center">50 / 50</span><span className="text-center">25 / 75</span><span className="text-right">0 / 100</span>
-        </div>
+        <MessageCircle className="size-4 shrink-0 text-[var(--channel-chat)]" aria-hidden="true" />
       </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <output className="w-12 text-right text-[11px] font-semibold tabular-nums text-foreground">{game} / {chat}</output>
+      <div className="chatmix-control__value">
+        <output>{game} / {chat}</output>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="size-6"
+              className="size-7"
               disabled={inactive || current === 0}
               aria-label="Reset ChatMix to center"
               onClick={() => commit(0)}

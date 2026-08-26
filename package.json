@@ -9,6 +9,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "review:native": "bun run build && electron ./scripts/capture-native-ui.mjs",
+    "verify:native-ui": "bun run build && electron ./scripts/verify-native-ui.mjs --phase=write && electron ./scripts/verify-native-ui.mjs --phase=verify",
     "preview:static": "node ./scripts/build-standalone-preview.mjs",
     "build:capture-host": "node ./scripts/publish-capture-host.mjs",
     "dist:win": "bun run build:capture-host && bun run build && electron-builder --win nsis",

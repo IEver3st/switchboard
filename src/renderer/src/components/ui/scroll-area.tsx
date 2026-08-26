@@ -30,7 +30,7 @@ export function ScrollBar({
       )}
       {...props}
     >
-      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-input hover:bg-[#363d47]" />
+      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border-strong hover:bg-text-muted" />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
   );
 }

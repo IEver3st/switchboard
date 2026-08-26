@@ -29,7 +29,12 @@ function MouseStage({ device }: { device: Device }) {
     .filter((binding) => binding.hotspot.calloutSide === 'right')
     .sort(compareBindingOrder) ?? [];
   const renderCallout = (binding: NonNullable<typeof capability>['bindings'][number]) => {
-    const currentAction = actions.find((action) => action.id === binding.currentActionId) ?? customAction;
+    const assignedAction = actions.find((action) => action.id === binding.currentActionId) ?? customAction;
+    const currentAction = binding.buttonId === 'dpi-shift'
+      && assignedAction.id === 'mouse.dpi-shift'
+      && device.capabilities.dpi?.shiftDpi !== undefined
+      ? { ...assignedAction, label: `${device.capabilities.dpi.shiftDpi.toLocaleString()} DPI` }
+      : assignedAction;
     return (
       <DeviceCallout
         key={binding.buttonId}
@@ -78,7 +83,7 @@ function MouseControls({ device }: { device: Device }) {
     <section className="device-controls mouse-config" aria-label="Mouse configuration">
       <div className="mouse-config__section-heading">
         <span>Sensitivity</span>
-        <p>{dpi?.profileMode === 'onboard' ? 'Viewing the active onboard profile.' : 'Changes apply to the active software profile.'}</p>
+        <p>{dpi?.profileMode === 'onboard' ? 'Using settings stored on the mouse.' : 'Changes apply to the current profile.'}</p>
       </div>
       <div className="mouse-config__sensitivity">
         {dpi ? (

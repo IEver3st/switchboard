@@ -11,10 +11,12 @@ export const LevelMeter = memo(function LevelMeter({
   busId,
   active,
   label,
+  accentColor,
 }: {
   busId: AudioBusId;
   active: boolean;
   label: string;
+  accentColor: string;
 }) {
   const meterRef = useRef<HTMLDivElement>(null);
   const goodRef = useRef<HTMLDivElement>(null);
@@ -71,7 +73,7 @@ export const LevelMeter = memo(function LevelMeter({
   }, [active, busId]);
 
   return (
-    <div className="flex min-w-11 flex-col items-center gap-1.5">
+    <div className="flex min-w-14 flex-col items-center gap-2">
       <ClipIndicator ref={clipRef} label={`${label} clipping indicator`} />
       <div className="flex min-h-0 flex-1 items-stretch gap-1.5">
         <div
@@ -81,14 +83,14 @@ export const LevelMeter = memo(function LevelMeter({
           aria-valuemin={-60}
           aria-valuemax={0}
           aria-valuenow={-60}
-          className="relative h-full w-[7px] overflow-hidden rounded-[2px] bg-input"
+          className="relative h-full w-[10px] overflow-hidden rounded-[2px] bg-input"
         >
-          <div ref={goodRef} className="absolute inset-x-0 bottom-0 bg-success" />
+          <div ref={goodRef} className="absolute inset-x-0 bottom-0" style={{ backgroundColor: accentColor }} />
           <div ref={warningRef} className="absolute inset-x-0 bottom-[72%] bg-warning" />
           <div ref={dangerRef} className="absolute inset-x-0 bottom-[92%] bg-destructive" />
           <div ref={peakRef} className="absolute inset-x-[-1px] h-px bg-foreground" />
         </div>
-        <div className="relative h-full w-5 text-[8px] tabular-nums text-muted-foreground/55" aria-hidden="true">
+        <div className="relative h-full w-6 text-[10px] tabular-nums text-muted-foreground/70" aria-hidden="true">
           <span className="absolute -top-0.5 left-0">0</span>
           <span className="absolute top-[10%] left-0">−6</span>
           <span className="absolute top-[22%] left-0">−12</span>
@@ -96,7 +98,7 @@ export const LevelMeter = memo(function LevelMeter({
           <span className="absolute top-[78%] left-0">−48</span>
         </div>
       </div>
-      <span ref={readoutRef} className="w-full text-center text-[8px] tabular-nums text-muted-foreground">−∞ dB</span>
+      <span ref={readoutRef} className="w-full text-center text-[10px] tabular-nums text-muted-foreground">−∞ dB</span>
     </div>
   );
 });

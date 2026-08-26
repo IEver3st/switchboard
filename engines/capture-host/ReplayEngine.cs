@@ -407,7 +407,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
         Directory.CreateDirectory(capture.ClipsDirectory);
         if (!string.IsNullOrWhiteSpace(capture.ThumbnailDirectory)) Directory.CreateDirectory(capture.ThumbnailDirectory);
         ring = new ReplaySegmentRing(capture.CacheDirectory, capture.SegmentSeconds);
-        ring.CleanupAbandonedSessions(TimeSpan.FromHours(24));
+        // A single-instance Switchboard process owns this cache. Any directory present
+        // before a new host session starts was left behind by an interrupted host/save.
+        ring.CleanupAbandonedSessions(TimeSpan.Zero);
     }
 
     private async Task ProbeCapabilitiesAsync(CaptureSettings capture, CancellationToken cancellationToken)
@@ -734,18 +736,21 @@ internal sealed class ReplayEngine : IAsyncDisposable
         var process = ffmpeg;
         var systemAudioProcess = systemAudioFfmpeg;
         var microphoneProcess = microphoneFfmpeg;
+        var systemAudioCapture = systemAudio;
+        var microphoneCapture = microphoneAudio;
         ffmpeg = null;
         systemAudioFfmpeg = null;
         microphoneFfmpeg = null;
+        audioSyncCorrections = GetAudioCorrectionCount();
+        systemAudio = null;
+        microphoneAudio = null;
+        await Task.WhenAll(
+            systemAudioCapture?.DisposeAsync().AsTask() ?? Task.CompletedTask,
+            microphoneCapture?.DisposeAsync().AsTask() ?? Task.CompletedTask);
         await Task.WhenAll(
             StopProcessAsync(process, cancellationToken),
             StopProcessAsync(systemAudioProcess, cancellationToken),
             StopProcessAsync(microphoneProcess, cancellationToken));
-        audioSyncCorrections = GetAudioCorrectionCount();
-        if (systemAudio is not null) await systemAudio.DisposeAsync();
-        if (microphoneAudio is not null) await microphoneAudio.DisposeAsync();
-        systemAudio = null;
-        microphoneAudio = null;
         activeSource = null;
         if (!preserveRing && sessionDirectory is not null)
         {
@@ -766,7 +771,13 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
             catch
             {
-                try { process.Kill(entireProcessTree: true); } catch { }
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync(CancellationToken.None)
+                        .WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
+                }
+                catch { }
             }
         }
         process.Dispose();

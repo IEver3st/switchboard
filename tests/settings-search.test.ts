@@ -22,7 +22,7 @@ describe('settings search metadata', () => {
       'general.startup', 'general.closeToTray', 'general.destroyRenderer',
       'devices.connected', 'devices.appearanceFallback', 'devices.workspace',
       'audio.engine', 'audio.sampleRate', 'audio.output', 'audio.microphone', 'audio.mixer',
-      'capture.storage', 'capture.duration', 'capture.shortcut', 'capture.source',
+      'capture.engine', 'capture.storage', 'capture.duration', 'capture.shortcut', 'capture.source',
       'capture.resolution', 'capture.frameRate', 'capture.quality', 'capture.encoder',
       'capture.codec', 'capture.microphone', 'capture.systemAudio', 'capture.cursor', 'capture.workspace',
       'modules.automaticUpdates', 'modules.installed',

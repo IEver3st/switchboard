@@ -586,7 +586,7 @@ export const captureRuntimeSchema = z.object({
   droppedFrames: z.number().int().min(0),
   encodedFrames: z.number().int().min(0),
   audioSyncCorrections: z.number().int().min(0),
-  activeSource: captureSourceSchema.nullable(),
+  activeSource: captureSourceSchema.nullish().transform((source) => source ?? null),
   saveQueueDepth: z.number().int().min(0),
   shortcutRegistered: z.boolean(),
   warning: z.string().optional(),
@@ -603,6 +603,9 @@ export const captureHostSnapshotSchema = z.object({
 });
 export type CaptureHostSnapshot = z.infer<typeof captureHostSnapshotSchema>;
 
+export const clipAudioChannelSchema = z.enum(['game', 'chat', 'microphone', 'media']);
+export type ClipAudioChannel = z.infer<typeof clipAudioChannelSchema>;
+
 export const clipSchema = z.object({
   id: z.string().min(1),
   path: z.string().min(1),
@@ -616,6 +619,9 @@ export const clipSchema = z.object({
   fps: z.number().nonnegative(),
   codec: z.string().optional(),
   thumbnailPath: z.string().optional(),
+  favorite: z.boolean().default(false),
+  titleEdited: z.boolean().default(false),
+  audioChannels: z.array(clipAudioChannelSchema).max(4).optional(),
 });
 export type Clip = z.infer<typeof clipSchema>;
 
@@ -879,6 +885,8 @@ export const ipcChannels = {
   revealClip: 'clips:reveal',
   deleteClip: 'clips:delete',
   renameClip: 'clips:rename',
+  setClipFavorite: 'clips:set-favorite',
+  exportClip: 'clips:export',
   snapshotUpdated: 'system:snapshot-updated',
 } as const;
 
@@ -914,6 +922,8 @@ export interface SwitchboardApi {
   revealClip(id: string): Promise<void>;
   deleteClip(id: string): Promise<SystemSnapshot>;
   renameClip(input: RenameClipInput): Promise<SystemSnapshot>;
+  setClipFavorite(input: SetClipFavoriteInput): Promise<SystemSnapshot>;
+  exportClip(id: string): Promise<boolean>;
   subscribe(listener: (snapshot: SystemSnapshot) => void): () => void;
 }
 
@@ -922,3 +932,9 @@ export const renameClipInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
 });
 export type RenameClipInput = z.infer<typeof renameClipInputSchema>;
+
+export const setClipFavoriteInputSchema = z.object({
+  id: z.string().min(1).max(256),
+  favorite: z.boolean(),
+});
+export type SetClipFavoriteInput = z.infer<typeof setClipFavoriteInputSchema>;

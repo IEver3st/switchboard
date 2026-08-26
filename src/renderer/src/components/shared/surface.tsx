@@ -38,7 +38,7 @@ export function StatusDot({ active, warning = false }: { active: boolean; warnin
     <span
       className={cn(
         'inline-block size-[7px] rounded-full',
-        warning ? 'bg-warning' : active ? 'bg-success' : 'bg-[#4e5560]',
+        warning ? 'bg-warning' : active ? 'bg-success' : 'bg-status-neutral',
       )}
     />
   );

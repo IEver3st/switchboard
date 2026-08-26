@@ -33,7 +33,7 @@ export function LightingControl({
         <Lightbulb aria-hidden className="device-setting-row__icon" />
         <div className="device-setting-row__copy">
           <span>Lighting</span>
-          <p>{capability.profileMode === 'onboard' ? 'Controlled by the active onboard profile.' : 'Static color stored in the active G HUB profile.'}</p>
+          <p>{capability.profileMode === 'onboard' ? 'Uses the lighting stored on the mouse.' : 'Choose the color and brightness for this profile.'}</p>
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -63,7 +63,7 @@ export function LightingControl({
                   aria-label={`Lighting color ${color}`}
                 >
                   <span style={{ backgroundColor: color }} aria-hidden />
-                  <strong className="tabular-nums">{color.toUpperCase()}</strong>
+                  <strong>{friendlyColorName(color)}</strong>
                 </button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-72">
@@ -110,4 +110,12 @@ export function LightingControl({
       </div>
     </div>
   );
+}
+
+function friendlyColorName(color: string): string {
+  const normalized = color.toLowerCase();
+  if (normalized === '#ff0000' || normalized === '#f20000') return 'Red';
+  if (normalized.startsWith('#ff') && Number.parseInt(normalized.slice(3, 5), 16) < 0x90) return 'Pink';
+  if (normalized === '#ffffff') return 'White';
+  return 'Custom';
 }

@@ -7,6 +7,7 @@ import {
   type CreateAudioPresetInput,
   type PageId,
   type RenameClipInput,
+  type SetClipFavoriteInput,
   type RenameAudioPresetInput,
   type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
@@ -77,6 +78,8 @@ interface SystemStore {
   refreshCaptureSources(): Promise<void>;
   deleteClip(id: string): Promise<void>;
   renameClip(input: RenameClipInput): Promise<void>;
+  setClipFavorite(input: SetClipFavoriteInput): Promise<void>;
+  exportClip(id: string): Promise<boolean>;
   updateSettings(input: UpdateSettingsInput): Promise<void>;
   resetSettings(scope: SettingsResetScope): Promise<void>;
   revealClip(path: string): Promise<void>;
@@ -183,6 +186,28 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     renameClip: async (input) => {
       set({ actionPending: `clip:${input.id}:rename`, error: null });
       try { set({ snapshot: await switchboardApi.renameClip(input) }); }
+      catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      } finally { set({ actionPending: null }); }
+    },
+    setClipFavorite: async (input) => {
+      const before = get().snapshot;
+      if (!before) return;
+      const optimistic = structuredClone(before);
+      const clip = optimistic.clips.find((candidate) => candidate.id === input.id);
+      if (!clip) return;
+      clip.favorite = input.favorite;
+      set({ snapshot: optimistic, actionPending: `clip:${input.id}:favorite`, error: null });
+      try { set({ snapshot: await switchboardApi.setClipFavorite(input) }); }
+      catch (error) {
+        set({ snapshot: before, error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      } finally { set({ actionPending: null }); }
+    },
+    exportClip: async (id) => {
+      set({ actionPending: `clip:${id}:export`, error: null });
+      try { return await switchboardApi.exportClip(id); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;

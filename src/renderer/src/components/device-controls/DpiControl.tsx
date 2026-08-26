@@ -112,7 +112,7 @@ function DpiStageEditor({ capability, onApply }: { capability: DpiCapability; on
       </PopoverTrigger>
       <PopoverContent align="end" className="dpi-stage-editor">
         <div className="popover-heading">DPI stages</div>
-        <p className="popover-description">Stored in the active software profile.</p>
+        <p className="popover-description">Choose the sensitivity steps you use most.</p>
         <div className="dpi-stage-editor__list">
           {stages.map((stage) => (
             <div key={stage} className="dpi-stage-editor__row">
@@ -176,7 +176,7 @@ function DpiShiftControl({ capability, onChange }: { capability: DpiCapability; 
     <div className="dpi-shift-control">
       <div>
         <span>DPI Shift</span>
-        <p>Temporary sensitivity while its assigned button is held.</p>
+        <p>Temporarily lowers sensitivity while the DPI Shift button is held.</p>
       </div>
       <Popover>
         <PopoverTrigger asChild>

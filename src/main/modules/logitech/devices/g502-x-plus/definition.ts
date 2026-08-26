@@ -13,8 +13,8 @@ export const g502XPlusDefinition = {
 } as const;
 
 export const g502XPlusActions: MouseAction[] = [
-  { id: 'mouse.primary-click', label: 'Primary click', category: 'mouse', searchTerms: ['left click', 'mb1'], selectable: true },
-  { id: 'mouse.secondary-click', label: 'Secondary click', category: 'mouse', searchTerms: ['right click', 'mb2'], selectable: true },
+  { id: 'mouse.primary-click', label: 'Left click', category: 'mouse', searchTerms: ['primary click', 'mb1'], selectable: true },
+  { id: 'mouse.secondary-click', label: 'Right click', category: 'mouse', searchTerms: ['secondary click', 'mb2'], selectable: true },
   { id: 'mouse.middle-click', label: 'Middle click', category: 'mouse', searchTerms: ['wheel press', 'mb3'], selectable: true },
   { id: 'mouse.back', label: 'Back', category: 'mouse', searchTerms: ['browser back', 'mb4'], selectable: true },
   { id: 'mouse.forward', label: 'Forward', category: 'mouse', searchTerms: ['browser forward', 'mb5'], selectable: true },
@@ -36,11 +36,11 @@ export const g502ActionCardSuffixes: Record<string, string> = {
 
 export const g502XPlusBindings: ButtonAssignmentBinding[] = [
   createBinding('primary', 'Primary click', 'g1', 'mouse.primary-click', 'left', 0, 44, 23),
-  createBinding('back', 'Back button', 'g4', 'mouse.back', 'left', 1, 29, 55),
+  createBinding('back', 'Back', 'g4', 'mouse.back', 'left', 1, 29, 55),
   createBinding('dpi-shift', 'DPI shift', 'g5', 'mouse.dpi-shift', 'left', 2, 25, 43),
   createBinding('secondary', 'Secondary click', 'g2', 'mouse.secondary-click', 'right', 0, 56, 23),
   createBinding('wheel', 'Wheel press', 'g3', 'mouse.middle-click', 'right', 1, 50, 35),
-  createBinding('forward', 'Forward button', 'g6', 'mouse.forward', 'right', 2, 32, 49),
+  createBinding('forward', 'Forward', 'g6', 'mouse.forward', 'right', 2, 32, 49),
 ];
 
 function createBinding(

@@ -1,0 +1,1154 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 684,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 902,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 792,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-mixer",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1010,
+      "page": "#audio/mixer"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-mixer.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1128,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1128,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1128,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1524,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-microphone.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "capture",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 897,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-capture.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "clip-editor",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 897,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-clip-editor.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "modules",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 684,
+      "page": "#modules"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-modules.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "settings",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-settings.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 932,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 867,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-mixer",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1168,
+      "page": "#audio/mixer"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-mixer.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1086,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1086,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1086,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1458,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-microphone.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "capture",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1088,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-capture.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "clip-editor",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1088,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-clip-editor.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "modules",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "page": "#modules"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-modules.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "settings",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-settings.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-mixer",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1168,
+      "page": "#audio/mixer"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-mixer.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1140,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1140,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1140,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1508,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-microphone.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "capture",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-capture.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "clip-editor",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-clip-editor.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "modules",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "page": "#modules"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-modules.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "settings",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-settings.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-mixer",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#audio/mixer"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-mixer.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1516,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-microphone.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "capture",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-capture.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "clip-editor",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-clip-editor.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "modules",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "page": "#modules"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-modules.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "settings",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-settings.png"
+  }
+]

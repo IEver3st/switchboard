@@ -194,8 +194,8 @@ export const defaultDevices: Device[] = [
         writable: true,
         profileMode: 'software',
         availableActions: [
-          { id: 'mouse.primary-click', label: 'Primary click', category: 'mouse', searchTerms: ['left click', 'mb1'] },
-          { id: 'mouse.secondary-click', label: 'Secondary click', category: 'mouse', searchTerms: ['right click', 'mb2'] },
+          { id: 'mouse.primary-click', label: 'Left click', category: 'mouse', searchTerms: ['primary click', 'mb1'] },
+          { id: 'mouse.secondary-click', label: 'Right click', category: 'mouse', searchTerms: ['secondary click', 'mb2'] },
           { id: 'mouse.middle-click', label: 'Middle click', category: 'mouse', searchTerms: ['wheel press', 'mb3'] },
           { id: 'mouse.back', label: 'Back', category: 'mouse', searchTerms: ['browser back', 'mb4'] },
           { id: 'mouse.forward', label: 'Forward', category: 'mouse', searchTerms: ['browser forward', 'mb5'] },
@@ -205,11 +205,11 @@ export const defaultDevices: Device[] = [
         ],
         bindings: [
           previewBinding('primary', 'Primary click', 'g1', 'mouse.primary-click', 'left', 0, 44, 23),
-          previewBinding('back', 'Back button', 'g4', 'mouse.back', 'left', 1, 29, 55),
+          previewBinding('back', 'Back', 'g4', 'mouse.back', 'left', 1, 29, 55),
           previewBinding('dpi-shift', 'DPI shift', 'g5', 'mouse.dpi-shift', 'left', 2, 25, 43),
           previewBinding('secondary', 'Secondary click', 'g2', 'mouse.secondary-click', 'right', 0, 56, 23),
           previewBinding('wheel', 'Wheel press', 'g3', 'mouse.middle-click', 'right', 1, 50, 35),
-          previewBinding('forward', 'Forward button', 'g6', 'mouse.forward', 'right', 2, 32, 49),
+          previewBinding('forward', 'Forward', 'g6', 'mouse.forward', 'right', 2, 32, 49),
         ],
       },
       lighting: {

@@ -3,16 +3,53 @@ export function formatRelativeTime(value: string | number): string {
   const delta = Date.now() - timestamp;
   const minutes = Math.max(0, Math.floor(delta / 60_000));
   if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return `${hours} hr ago`;
+  return `${Math.floor(hours / 24)} days ago`;
 }
 
 export function formatDuration(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.floor(seconds % 60);
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3_600);
+  const minutes = Math.floor(total % 3_600 / 60);
+  const remaining = total % 60;
+  if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${remaining.toString().padStart(2, '0')}`;
   return `${minutes}:${remaining.toString().padStart(2, '0')}`;
+}
+
+export function formatReplayLength(seconds: number): string {
+  if (seconds < 60) return `${seconds} sec`;
+  const minutes = seconds / 60;
+  return `${Number.isInteger(minutes) ? minutes : minutes.toFixed(1)} min`;
+}
+
+export function formatClipTimestamp(value: number, now = Date.now()): string {
+  const date = new Date(value);
+  const elapsedMinutes = Math.max(0, Math.floor((now - value) / 60_000));
+  if (elapsedMinutes < 1) return 'Just now';
+  if (elapsedMinutes < 60) return `${elapsedMinutes} min ago`;
+  if (sameDay(date, new Date(now))) return formatClock(date);
+  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${formatClock(date)}`;
+}
+
+export function formatClipDateGroup(value: number, now = Date.now()): string {
+  const date = new Date(value);
+  const today = new Date(now);
+  if (sameDay(date, today)) return 'Today';
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (sameDay(date, yesterday)) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+}
+
+function sameDay(left: Date, right: Date): boolean {
+  return left.getFullYear() === right.getFullYear()
+    && left.getMonth() === right.getMonth()
+    && left.getDate() === right.getDate();
+}
+
+function formatClock(date: Date): string {
+  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 export function formatMb(value: number): string {

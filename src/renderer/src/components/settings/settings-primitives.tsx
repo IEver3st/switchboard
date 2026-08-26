@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { FolderOpen, Keyboard, RotateCcw } from 'lucide-react';
+import { FolderOpen, RotateCcw } from 'lucide-react';
+import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -198,50 +199,18 @@ export function SettingShortcut({
   disabled?: boolean;
   onValueChange: (value: string) => void;
 }) {
-  const [recording, setRecording] = useState(false);
-
-  useEffect(() => {
-    if (!recording) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (event.key === 'Escape') {
-        setRecording(false);
-        return;
-      }
-      if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return;
-      const key = normalizeShortcutKey(event.key, event.code);
-      const modifiers = [
-        event.ctrlKey ? 'Ctrl' : null,
-        event.altKey ? 'Alt' : null,
-        event.shiftKey ? 'Shift' : null,
-        event.metaKey ? 'Win' : null,
-      ].filter((candidate): candidate is string => candidate !== null);
-      onValueChange([...modifiers, key].join('+'));
-      setRecording(false);
-    };
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [onValueChange, recording]);
-
   return (
     <SettingRow
       settingId={settingId}
       title={title}
-      description={recording ? 'Press the new shortcut. Escape cancels recording.' : 'Use a combination that does not conflict with a game or Windows shortcut.'}
+      description="Select the shortcut, then press a new key combination. Escape cancels."
     >
-      <Button
-        type="button"
-        variant={recording ? 'primary' : 'secondary'}
-        size="sm"
+      <ShortcutRecorderButton
+        value={value}
         disabled={disabled}
-        aria-pressed={recording}
-        onClick={() => setRecording((active) => !active)}
-        className="w-full justify-start tabular-nums"
-      >
-        <Keyboard className="size-3.5" aria-hidden />
-        {recording ? 'Recording…' : value}
-      </Button>
+        label={title}
+        onValueChange={onValueChange}
+      />
     </SettingRow>
   );
 }
@@ -311,17 +280,6 @@ export function SettingAction({
       <Button type="button" variant="secondary" size="sm" onClick={onClick} className="w-full">{label}</Button>
     </SettingRow>
   );
-}
-
-function normalizeShortcutKey(key: string, code: string): string {
-  if (key === ' ') return 'Space';
-  if (key.length === 1) return key.toLocaleUpperCase();
-  if (/^F\d{1,2}$/.test(key)) return key.toLocaleUpperCase();
-  if (key === 'ArrowUp') return 'Up';
-  if (key === 'ArrowDown') return 'Down';
-  if (key === 'ArrowLeft') return 'Left';
-  if (key === 'ArrowRight') return 'Right';
-  return code.startsWith('Key') ? code.slice(3) : key;
 }
 
 function slug(value: string): string {

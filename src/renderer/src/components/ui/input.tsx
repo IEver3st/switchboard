@@ -10,8 +10,8 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       ref={ref}
       type={type}
       className={cn(
-        'h-8 w-full rounded-md border border-input bg-secondary px-2.5 text-xs text-foreground transition-[border-color,background-color] duration-100',
-        'placeholder:text-muted-foreground/75 hover:border-[#39414c] focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25',
+        'h-8 w-full rounded-md border border-border bg-surface-interactive px-2.5 text-xs text-foreground transition-[border-color,background-color] duration-100',
+        'placeholder:text-text-description hover:border-border-strong hover:bg-surface-hover focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}

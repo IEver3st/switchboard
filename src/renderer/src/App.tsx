@@ -50,11 +50,11 @@ export function App() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <TitleStrip />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} />
-        <section className="flex min-w-0 flex-1 flex-col">
+    <div className="flex h-full bg-background">
+      <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TitleStrip />
+        <section className="flex min-h-0 flex-1 flex-col">
           <main className="min-h-0 flex-1 bg-background">
             <h1 className="sr-only">{pageTitles[page]}</h1>
             {page === 'settings' ? (
@@ -78,7 +78,7 @@ export function App() {
       ) : null}
 
       {error ? (
-        <div className="fixed bottom-4 left-20 flex max-w-lg items-center gap-3 rounded-lg border border-destructive/40 bg-[#2a171b] px-4 py-3 text-[11px] text-[#f0a4ad] shadow-xl" role="alert">
+        <div className="fixed bottom-4 left-20 flex max-w-lg items-center gap-3 rounded-lg border border-destructive/45 bg-popover px-4 py-3 text-[11px] text-destructive shadow-xl" role="alert">
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">{error}</span>
           <button type="button" onClick={clearError} aria-label="Dismiss error" className="grid size-6 place-items-center rounded-sm hover:bg-white/5">

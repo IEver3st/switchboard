@@ -8,7 +8,7 @@ export function formatDb(db: number): string {
 
 export function DbReadout({ db, className }: { db: number; className?: string }) {
   return (
-    <output className={cn('text-[10px] font-semibold tabular-nums text-foreground', className)}>
+    <output className={cn('text-[13px] font-semibold tabular-nums text-foreground', className)}>
       {formatDb(db)}
     </output>
   );

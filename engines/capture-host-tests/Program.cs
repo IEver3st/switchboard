@@ -32,6 +32,21 @@ _ = validSettings.Validate();
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { Fps = 59 }).Validate(), "Unsupported FPS must fail validation.");
 AssertThrows<InvalidOperationException>(() => (validSettings with { Source = "window", SourceId = null }).Validate(), "Window capture requires a target.");
 
+var cleanupRoot = Path.Combine(Path.GetTempPath(), $"switchboard-ring-cleanup-{Guid.NewGuid():N}");
+try
+{
+    var abandoned = Path.Combine(cleanupRoot, "session-abandoned");
+    Directory.CreateDirectory(abandoned);
+    File.WriteAllText(Path.Combine(abandoned, "segment-000000000.mkv"), "encoded-test-data");
+    new ReplaySegmentRing(cleanupRoot, 1).CleanupAbandonedSessions(TimeSpan.Zero);
+    if (Directory.Exists(abandoned))
+        throw new InvalidOperationException("Abandoned replay sessions must be removed before a new host session starts.");
+}
+finally
+{
+    if (Directory.Exists(cleanupRoot)) Directory.Delete(cleanupRoot, recursive: true);
+}
+
 Console.WriteLine("Capture.Host deterministic tests passed.");
 
 static void AssertSequence(IEnumerable<string> actual, IReadOnlyList<string> expected, string message)

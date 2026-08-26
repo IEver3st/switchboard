@@ -1,5 +1,6 @@
-import type { KeyboardEvent } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import { cn } from '@/lib/cn';
+import { channelColor } from './channel-identity';
 
 export const audioWorkspaceTabs = ['mixer', 'game', 'chat', 'media', 'microphone'] as const;
 export type AudioWorkspaceTab = (typeof audioWorkspaceTabs)[number];
@@ -33,7 +34,7 @@ export function AudioTabs({ value, onChange }: { value: AudioWorkspaceTab; onCha
       role="tablist"
       aria-label="Audio workspace"
       onKeyDown={onKeyDown}
-      className="flex min-w-0 overflow-x-auto border-b border-border px-5"
+      className="flex min-w-0 overflow-x-auto border-b border-border px-6"
     >
       {audioWorkspaceTabs.map((tab) => (
         <button
@@ -45,9 +46,10 @@ export function AudioTabs({ value, onChange }: { value: AudioWorkspaceTab; onCha
           aria-controls={`audio-panel-${tab}`}
           tabIndex={value === tab ? 0 : -1}
           onClick={() => onChange(tab)}
+          style={{ '--tab-accent': tab === 'mixer' ? 'var(--primary)' : channelColor(tab === 'microphone' ? 'mic' : tab) } as CSSProperties}
           className={cn(
-            'relative h-10 shrink-0 border-0 bg-transparent px-4 text-[11px] font-medium text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 motion-reduce:transition-none',
-            value === tab && 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-[2px] after:bg-primary',
+            'relative h-11 shrink-0 border-0 bg-transparent px-5 text-xs font-semibold text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 motion-reduce:transition-none',
+            value === tab && 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-[2px] after:bg-[var(--tab-accent)]',
           )}
         >
           {labels[tab]}

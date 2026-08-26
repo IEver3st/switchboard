@@ -265,7 +265,7 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
           settingId="audio.engine"
           title="Audio engine"
           description={snapshot.audio.enabled
-            ? 'The isolated Audio host is enabled and will be restored on the next launch. Stopping it releases its process and endpoints.'
+            ? 'Audio starts automatically at launch. Turning it off releases audio devices and background work.'
             : 'Start the isolated Audio host now and restore it on the next launch.'}
           checked={snapshot.audio.enabled}
           disabled={actionPending === 'audio:enabled'}
@@ -278,7 +278,7 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
           value={`${snapshot.audio.sampleRate / 1000} kHz · float32`}
         />
       </SettingSection>
-      <SettingSection title="Default endpoints">
+      <SettingSection title="Default devices">
         {gameBus ? (
           <SettingSelect
             settingId="audio.output"
@@ -332,10 +332,21 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
   const codecOptions = [...new Set([...capabilities.codecs, config.codec])]
     .map((codec) => ({ value: codec, label: codecLabels[codec] }));
   const encoderOptions = getEncoderOptions(config.encoder, capabilities.encoders);
+  const engine = snapshot.engines.find((candidate) => candidate.kind === 'capture');
 
   return (
     <>
       <SettingsCategoryHeader title="Capture" onReset={onReset} />
+      <SettingSection title="Engine">
+        <SettingSwitch
+          settingId="capture.engine"
+          title="Capture engine"
+          description={captureEngineDescription(config.enabled, engine?.state, engine?.message)}
+          checked={config.enabled}
+          disabled={configPending || engine?.state === 'starting'}
+          onCheckedChange={(enabled) => void setCaptureConfig({ enabled })}
+        />
+      </SettingSection>
       <SettingSection title="Clips">
         <SettingFolder
           settingId="capture.storage"
@@ -470,8 +481,8 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
         />
         <SettingAction
           settingId="capture.workspace"
-          title="Instant Replay workspace"
-          description="Replay state, buffer readiness, saving, and the clip library stay on the Capture page."
+          title="Capture workspace"
+          description="Replay configuration, the save action, and the clip library stay on the Capture page."
           label="Open Capture"
           onClick={() => setPage('capture')}
         />
@@ -494,7 +505,7 @@ function ModulesSettings({ snapshot, onReset }: CategoryProps) {
         <SettingSwitch
           settingId="modules.automaticUpdates"
           title="Automatic module updates"
-          description="Verify signatures, install atomically, and retain one rollback copy. Application updates are not configured in this prototype."
+          description="Verify signatures, install safely, and keep one rollback copy. Application updates are not configured yet."
           checked={snapshot.settings.automaticModuleUpdates}
           disabled={pending}
           onCheckedChange={(automaticModuleUpdates) => void updateSettings({ automaticModuleUpdates })}
@@ -541,7 +552,7 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
         <SettingSwitch
           settingId="diagnostics.guard"
           title="Performance guard"
-          description="Warn when sustained runtime usage crosses the prototype memory or idle CPU budget."
+          description="Warn when sustained resource use crosses the memory or idle CPU budget."
           checked={snapshot.settings.performanceGuard}
           disabled={pending}
           onCheckedChange={(performanceGuard) => void updateSettings({ performanceGuard })}
@@ -657,7 +668,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
         </div>
       </div>
       <SettingSection title="Build">
-        <SettingValue settingId="about.version" title="Version" description={snapshot.prototypeMode ? 'Prototype mode is enabled.' : undefined} value={snapshot.version} />
+        <SettingValue settingId="about.version" title="Version" description={snapshot.prototypeMode ? 'Development features are enabled.' : undefined} value={snapshot.version} />
         <SettingValue settingId="about.runtime" title="Runtime" description={platform} value={electronVersion ? `Electron ${electronVersion}` : 'Browser preview'} />
         <SettingValue settingId="about.isolation" title="Renderer isolation" description="Sandboxed renderer with a narrow, validated preload bridge." value="Enabled" tone="success" />
       </SettingSection>
@@ -743,6 +754,17 @@ function statusDotClass(state: 'stopped' | 'starting' | 'running' | 'error' | un
   if (state === 'starting') return 'settings-status-dot--warning';
   if (state === 'error') return 'settings-status-dot--danger';
   return '';
+}
+
+function captureEngineDescription(
+  enabled: boolean,
+  state: 'stopped' | 'starting' | 'running' | 'error' | undefined,
+  message: string | undefined,
+): string {
+  if (state === 'error') return message ? `Capture failed: ${message}` : 'Capture failed. Turn the engine off and on to retry, or check Diagnostics.';
+  if (state === 'starting') return 'Starting the isolated Capture host and registering the save shortcut.';
+  if (enabled) return 'The isolated Capture host is enabled and will be restored on the next launch. Turning it off releases the process and encoder session.';
+  return 'Start the isolated Capture host now and restore it on the next launch.';
 }
 
 function getEncoderOptions(current: CaptureEncoderPreference, reported: readonly string[]) {

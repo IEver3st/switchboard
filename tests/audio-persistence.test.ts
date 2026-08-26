@@ -43,4 +43,32 @@ describe('audio workspace persistence', () => {
     expect(audio.pathPresets.some((preset) => preset.id === 'user-game-test')).toBeTrue();
     expect(audio.activePresetIds.game).toBe('user-game-test');
   });
+
+  test('removes legacy application metadata when routing is unavailable', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-audio-routing-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const first = new StateStore(filePath);
+    await first.load();
+
+    first.update((draft) => {
+      const game = draft.audio.buses.find((bus) => bus.id === 'game')!;
+      game.appCount = 3;
+      draft.audio.applications = [{
+        id: 'legacy-session',
+        name: 'Legacy application',
+        processId: 1234,
+        destination: 'game',
+        active: true,
+      }];
+    });
+    await first.flush();
+
+    const restarted = new StateStore(filePath);
+    await restarted.load();
+    const audio = restarted.get().audio;
+    expect(audio.capabilities.applicationRouting).toBe('unavailable');
+    expect(audio.applications).toEqual([]);
+    expect(audio.buses.every((bus) => bus.appCount === 0)).toBeTrue();
+  });
 });
