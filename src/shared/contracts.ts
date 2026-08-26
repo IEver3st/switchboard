@@ -59,6 +59,12 @@ export const deviceSettingValueSchema = z.union([
 ]);
 export type DeviceSettingValue = z.infer<typeof deviceSettingValueSchema>;
 
+export const deviceAppearanceSchema = z.object({
+  colorway: z.enum(['black', 'white', 'unknown']),
+  source: z.enum(['hardware-reported', 'module-mapped', 'user-override', 'fixture', 'unknown']),
+});
+export type DeviceAppearance = z.infer<typeof deviceAppearanceSchema>;
+
 export const deviceSchema = z.object({
   id: z.string(),
   moduleId: z.string(),
@@ -69,6 +75,7 @@ export const deviceSchema = z.object({
   batteryPercent: z.number().min(0).max(100).optional(),
   connection: z.enum(['usb', 'wireless', 'bluetooth']).optional(),
   imageKey: z.string(),
+  appearance: deviceAppearanceSchema.optional(),
   capabilities: z.array(z.string()),
   settings: z.record(z.string(), deviceSettingValueSchema),
 });

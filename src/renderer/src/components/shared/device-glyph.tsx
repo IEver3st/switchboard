@@ -10,13 +10,24 @@ const icons: Record<DeviceKind, LucideIcon> = {
   unknown: Radio,
 };
 
-export function DeviceGlyph({ kind, active = false, large = false }: { kind: DeviceKind; active?: boolean; large?: boolean }) {
+export function DeviceGlyph({
+  kind,
+  active = false,
+  large = false,
+  bare = false,
+}: {
+  kind: DeviceKind;
+  active?: boolean;
+  large?: boolean;
+  bare?: boolean;
+}) {
   const Icon = icons[kind];
   return (
     <div
       className={cn(
-        'grid shrink-0 place-items-center rounded-[8px] border border-[var(--border)] bg-[#15181d] text-[#8f98a5]',
-        active && 'border-[#593242] bg-[#21161a] text-[var(--accent)]',
+        'grid shrink-0 place-items-center text-muted-foreground',
+        !bare && 'rounded-md border border-border bg-muted',
+        active && (bare ? 'text-primary' : 'border-primary/40 bg-primary/10 text-primary'),
         large ? 'size-24' : 'size-9',
       )}
     >

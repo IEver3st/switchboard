@@ -24,11 +24,7 @@ button { color: inherit; }
 .app-shell { height: 100%; display: flex; flex-direction: column; }
 .title-strip { height: 38px; flex: 0 0 38px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding: 0 16px; background: #0d0f12; }
 .title-strip strong { font-size: 12px; letter-spacing: -.01em; }
-.brand-mark { position: relative; width: 20px; height: 20px; border: 1px solid #353b44; border-radius: 5px; background: #171a1f; }
-.brand-mark i, .brand-mark b, .brand-mark em { position: absolute; display: block; border-radius: 99px; }
-.brand-mark i { left: 5px; top: 5px; width: 8px; height: 2px; background: #e9eaec; }
-.brand-mark b { left: 5px; top: 9px; width: 2px; height: 6px; background: var(--accent); }
-.brand-mark em { left: 9px; top: 9px; width: 6px; height: 2px; background: var(--accent); }
+.brand-mark { width: 24px; height: 24px; object-fit: contain; }
 .prototype-label { padding: 3px 6px; border: 1px solid #343943; border-radius: 4px; background: #171a1f; color: #747d88; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
 .title-meta { margin-left: auto; margin-right: 104px; display: flex; align-items: center; gap: 8px; color: #5e6671; font-size: 10px; }
 .title-meta span { width: 4px; height: 4px; background: #343a43; border-radius: 50%; }

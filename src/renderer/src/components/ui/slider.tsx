@@ -17,20 +17,20 @@ export function Slider({ className, ...props }: SliderProps) {
     >
       <SliderPrimitive.Track
         className={cn(
-          'relative grow overflow-hidden rounded-full bg-[#2b3039]',
+          'relative grow overflow-hidden rounded-full bg-input',
           'data-[orientation=horizontal]:h-[3px] data-[orientation=horizontal]:w-full',
           'data-[orientation=vertical]:h-full data-[orientation=vertical]:w-[3px]',
         )}
       >
         <SliderPrimitive.Range
           className={cn(
-            'absolute bg-[var(--accent)]',
+            'absolute bg-primary',
             'data-[orientation=horizontal]:h-full',
             'data-[orientation=vertical]:w-full',
           )}
         />
       </SliderPrimitive.Track>
-      <SliderPrimitive.Thumb className="block size-[13px] shrink-0 rounded-full border border-[#ff9ab0] bg-[var(--accent)] shadow-[0_0_0_3px_rgba(255,101,138,0.08)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6c8d]/40" />
+      <SliderPrimitive.Thumb className="block size-[13px] shrink-0 rounded-full border border-[#ff9ab0] bg-primary shadow-[0_0_0_3px_rgba(255,101,138,0.08)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40" />
     </SliderPrimitive.Root>
   );
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 
 export function ToggleRow({
@@ -22,12 +23,12 @@ export function ToggleRow({
   return (
     <div className={cn('flex items-center justify-between gap-6 py-3', className)}>
       <div className="min-w-0">
-        <div className="text-[13px] font-medium text-[#e8eaed]">{label}</div>
-        {description ? <div className="mt-0.5 text-[12px] leading-4 text-[var(--muted-2)]">{description}</div> : null}
+        <div className="text-[13px] font-medium text-foreground">{label}</div>
+        {description ? <div className="mt-0.5 text-xs leading-4 text-muted-foreground/80">{description}</div> : null}
       </div>
       <div className="flex shrink-0 items-center gap-3">
         {trailing}
-        <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+        <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} aria-label={label} />
       </div>
     </div>
   );
@@ -36,24 +37,30 @@ export function ToggleRow({
 export function SelectField({
   value,
   onChange,
-  children,
+  options,
   className,
+  ariaLabel,
+  disabled,
 }: {
-  value: string | number;
+  value: string;
   onChange: (value: string) => void;
-  children: ReactNode;
+  options: Array<{ value: string; label: string }>;
   className?: string;
+  ariaLabel?: string;
+  disabled?: boolean;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className={cn(
-        'h-8 rounded-[7px] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 text-[12px] font-medium text-[#dfe2e6] outline-none hover:border-[var(--border-strong)]',
-        className,
-      )}
-    >
-      {children}
-    </select>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger className={cn('w-auto min-w-28', className)} aria-label={ariaLabel}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

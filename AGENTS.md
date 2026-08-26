@@ -47,6 +47,7 @@ Do not describe virtual audio routing, real game capture, or hardware writes as 
 
 ## Coding rules
 
+- Before creating, changing, or reviewing renderer UI, read `DESIGN.md` and enforce its no-pill, continuous-console, copy, density, accessibility, and visual-review gates.
 - Read the relevant contract and controller before modifying a page.
 - Preserve process isolation. Do not move engine work into Electron main for convenience.
 - Use small services and explicit interfaces. Avoid generic service locators and plugin frameworks.

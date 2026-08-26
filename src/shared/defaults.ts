@@ -111,13 +111,15 @@ export const defaultDevices: Device[] = [
     batteryPercent: 82,
     connection: 'wireless',
     imageKey: 'mouse-g502x',
-    capabilities: ['dpi', 'polling-rate', 'buttons', 'battery', 'profiles'],
+    appearance: { colorway: 'black', source: 'fixture' },
+    capabilities: ['dpi', 'polling-rate', 'buttons', 'battery', 'profiles', 'lighting'],
     settings: {
       dpiStages: [800, 1600, 3200],
       activeDpi: 1600,
       pollingRate: 1000,
       onboardMemory: true,
       lightingEnabled: false,
+      lightingColor: '#ff658a',
     },
   },
   {
@@ -129,6 +131,7 @@ export const defaultDevices: Device[] = [
     connected: true,
     connection: 'usb',
     imageKey: 'mic-quadcast2',
+    appearance: { colorway: 'black', source: 'fixture' },
     capabilities: ['gain', 'monitoring', 'mute', 'lighting'],
     settings: {
       gain: 58,

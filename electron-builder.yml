@@ -7,10 +7,13 @@ files:
 extraResources:
   - from: resources/engine-workers
     to: engine-workers
+  - from: resources/branding
+    to: branding
 asar: true
 asarUnpack:
   - resources/**
 win:
+  icon: build/icon.ico
   target:
     - nsis
   executableName: switchboard
@@ -19,3 +22,5 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico

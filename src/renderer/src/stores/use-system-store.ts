@@ -1,17 +1,23 @@
 import { create } from 'zustand';
-import type {
+import { pageIdSchema, type
   CaptureConfig,
-  PageId,
-  SetAudioBusGainInput,
-  SetDeviceSettingInput,
-  SetMicProcessorInput,
-  SetModuleStateInput,
-  SystemSnapshot,
-  UpdateSettingsInput,
+  type PageId,
+  type SetAudioBusGainInput,
+  type SetDeviceSettingInput,
+  type SetMicProcessorInput,
+  type SetModuleStateInput,
+  type SystemSnapshot,
+  type UpdateSettingsInput,
 } from '../../../shared/contracts';
 import { switchboardApi } from '../lib/demo-api';
 
 type AsyncAction = () => Promise<SystemSnapshot>;
+
+function pageFromHash(): PageId {
+  const hash = window.location.hash.replace('#', '');
+  const parsed = pageIdSchema.safeParse(hash);
+  return parsed.success ? parsed.data : 'overview';
+}
 
 interface SystemStore {
   snapshot: SystemSnapshot | null;
@@ -23,6 +29,7 @@ interface SystemStore {
   initialize(): Promise<() => void>;
   setPage(page: PageId): void;
   selectDevice(id: string): void;
+  clearDeviceSelection(): void;
   clearError(): void;
   setModuleState(input: SetModuleStateInput): Promise<void>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<void>;
@@ -51,7 +58,7 @@ export const useSystemStore = create<SystemStore>((set, get) => {
 
   return {
     snapshot: null,
-    page: 'overview',
+    page: pageFromHash(),
     selectedDeviceId: null,
     loading: true,
     actionPending: null,
@@ -61,7 +68,7 @@ export const useSystemStore = create<SystemStore>((set, get) => {
         const snapshot = await switchboardApi.getSnapshot();
         set({
           snapshot,
-          selectedDeviceId: get().selectedDeviceId ?? snapshot.devices[0]?.id ?? null,
+          selectedDeviceId: get().selectedDeviceId,
           loading: false,
         });
       } catch (error) {
@@ -69,8 +76,12 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       }
       return switchboardApi.subscribe((snapshot) => set({ snapshot }));
     },
-    setPage: (page) => set({ page }),
+    setPage: (page) => {
+      if (window.location.hash !== `#${page}`) window.location.hash = page;
+      set({ page });
+    },
     selectDevice: (selectedDeviceId) => set({ selectedDeviceId, page: 'devices' }),
+    clearDeviceSelection: () => set({ selectedDeviceId: null }),
     clearError: () => set({ error: null }),
     setModuleState: (input) => run(`module:${input.moduleId}`, () => switchboardApi.setModuleState(input)),
     setDeviceSetting: (input) => run(`device:${input.deviceId}:${input.key}`, () => switchboardApi.setDeviceSetting(input)),

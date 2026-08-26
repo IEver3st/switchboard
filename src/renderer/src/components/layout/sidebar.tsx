@@ -2,22 +2,19 @@ import {
   AudioLines,
   Boxes,
   CircleGauge,
-  Cpu,
   Disc3,
-  MonitorDot,
   Settings2,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId, SystemSnapshot } from '../../../../shared/contracts';
 import { cn } from '@/lib/cn';
-import { StatusDot } from '@/components/shared/surface';
 
-const navigation: Array<{ id: PageId; label: string; icon: LucideIcon }> = [
+const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 'audio' | 'capture' }> = [
   { id: 'overview', label: 'Overview', icon: CircleGauge },
   { id: 'devices', label: 'Devices', icon: SlidersHorizontal },
-  { id: 'audio', label: 'Audio', icon: AudioLines },
-  { id: 'capture', label: 'Capture', icon: Disc3 },
+  { id: 'audio', label: 'Audio', icon: AudioLines, engine: 'audio' },
+  { id: 'capture', label: 'Capture', icon: Disc3, engine: 'capture' },
   { id: 'modules', label: 'Modules', icon: Boxes },
 ];
 
@@ -30,83 +27,56 @@ export function Sidebar({
   page: PageId;
   onNavigate: (page: PageId) => void;
 }) {
-  const audio = snapshot.engines.find((engine) => engine.kind === 'audio');
-  const capture = snapshot.engines.find((engine) => engine.kind === 'capture');
-
   return (
-    <aside className="flex w-[214px] shrink-0 flex-col border-r border-[var(--border)] bg-[#101216] px-3 py-3">
-      <nav className="space-y-1">
-        {navigation.map(({ id, label, icon: Icon }) => {
+    <aside className="flex w-16 shrink-0 flex-col items-center border-r border-border bg-card py-2">
+      <nav aria-label="Primary" className="flex w-full flex-col items-center gap-0.5 px-2">
+        {navigation.map(({ id, label, icon: Icon, engine }) => {
           const active = page === id;
-          const count = id === 'devices' ? snapshot.devices.filter((device) => device.connected).length : id === 'modules' ? snapshot.modules.filter((module) => module.enabled).length : undefined;
+          const running = engine ? snapshot.engines.find((candidate) => candidate.kind === engine)?.state === 'running' : undefined;
           return (
             <button
               key={id}
               type="button"
               onClick={() => onNavigate(id)}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex h-9 w-full items-center gap-3 rounded-[7px] px-3 text-left text-[13px] font-medium transition-colors',
-                active
-                  ? 'bg-[#1c2027] text-[#f4f5f6] shadow-[inset_2px_0_0_var(--accent)]'
-                  : 'text-[#8f97a3] hover:bg-[#171a20] hover:text-[#d9dde2]',
+                'relative flex h-13 w-full flex-col items-center justify-center gap-1 rounded-md transition-colors',
+                active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
               )}
             >
-              <Icon className={cn('size-[16px]', active && 'text-[var(--accent)]')} strokeWidth={1.8} />
-              <span className="flex-1">{label}</span>
-              {typeof count === 'number' ? <span className="text-[11px] tabular-nums text-[#646c77]">{count}</span> : null}
+              {active ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
+              <span className="relative">
+                <Icon className={cn('size-[17px]', active && 'text-primary')} strokeWidth={1.8} />
+                {typeof running === 'boolean' ? (
+                  <span
+                    className={cn(
+                      'absolute -right-1 -top-1 size-[6px] rounded-full ring-2 ring-card',
+                      running ? 'bg-success' : 'bg-[#4e5560]',
+                    )}
+                  />
+                ) : null}
+              </span>
+              <span className="text-[9px] font-medium leading-none">{label}</span>
             </button>
           );
         })}
       </nav>
 
-      <div className="mt-6 border-t border-[var(--border)] pt-4">
-        <div className="px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#555d68]">Runtime</div>
-        <div className="mt-3 space-y-2 px-3">
-          <RuntimeRow label="Audio host" running={audio?.state === 'running'} memory={audio?.memoryMb ?? 0} />
-          <RuntimeRow label="Capture host" running={capture?.state === 'running'} memory={capture?.memoryMb ?? 0} />
-        </div>
-      </div>
-
-      <div className="mt-auto space-y-2">
-        <div className="rounded-[8px] border border-[var(--border)] bg-[#13161b] p-3">
-          <div className="flex items-center gap-2 text-[11px] font-medium text-[#a7aeb8]">
-            <Cpu className="size-3.5 text-[#747d89]" />
-            Performance guard
-          </div>
-          <div className="mt-2 flex items-end justify-between">
-            <span className="text-[19px] font-semibold tracking-[-0.04em] text-[#eef0f2]">{Math.round(snapshot.performance.totalMemoryMb)}</span>
-            <span className="pb-0.5 text-[10px] text-[#646d79]">MB total</span>
-          </div>
-          <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-[#282d35]">
-            <div
-              className="h-full bg-[var(--success)] transition-[width]"
-              style={{ width: `${Math.min(100, (snapshot.performance.totalMemoryMb / snapshot.performance.budgetMemoryMb) * 100)}%` }}
-            />
-          </div>
-        </div>
-
+      <div className="mt-auto flex w-full flex-col items-center px-2">
         <button
           type="button"
           onClick={() => onNavigate('settings')}
+          aria-current={page === 'settings' ? 'page' : undefined}
           className={cn(
-            'flex h-9 w-full items-center gap-3 rounded-[7px] px-3 text-[13px] font-medium transition-colors',
-            page === 'settings' ? 'bg-[#1c2027] text-white' : 'text-[#8f97a3] hover:bg-[#171a20] hover:text-[#d9dde2]',
+            'relative flex h-13 w-full flex-col items-center justify-center gap-1 rounded-md transition-colors',
+            page === 'settings' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
           )}
         >
-          <Settings2 className="size-[16px]" strokeWidth={1.8} />
-          Settings
+          {page === 'settings' ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
+          <Settings2 className={cn('size-[17px]', page === 'settings' && 'text-primary')} strokeWidth={1.8} />
+          <span className="text-[9px] font-medium leading-none">Settings</span>
         </button>
       </div>
     </aside>
-  );
-}
-
-function RuntimeRow({ label, running, memory }: { label: string; running: boolean; memory: number }) {
-  return (
-    <div className="flex items-center gap-2 text-[11px]">
-      <StatusDot active={running} />
-      <span className="flex-1 text-[#7f8793]">{label}</span>
-      <span className="tabular-nums text-[#555d68]">{running ? `${Math.round(memory)} MB` : 'off'}</span>
-    </div>
   );
 }

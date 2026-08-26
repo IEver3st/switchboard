@@ -24,6 +24,12 @@ function isTrustedNavigation(url: string): boolean {
   }
 }
 
+function getBrandIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'branding', 'switchboard-icon.png')
+    : join(app.getAppPath(), 'resources', 'branding', 'switchboard-icon.png');
+}
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1420,
@@ -31,6 +37,7 @@ function createWindow(): BrowserWindow {
     minWidth: 1080,
     minHeight: 720,
     show: false,
+    icon: getBrandIconPath(),
     backgroundColor: '#0d0f12',
     title: 'Switchboard',
     titleBarStyle: 'hidden',
@@ -101,14 +108,9 @@ function requestQuit(): void {
 }
 
 function createTray(): Tray {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <rect width="32" height="32" rx="8" fill="#171a1f"/>
-      <path d="M9 11h8.5a4.5 4.5 0 010 9H14" fill="none" stroke="#f2f3f5" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M14 16H9v7" fill="none" stroke="#ff5f85" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
-  const icon = nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
-  const created = new Tray(icon.resize({ width: 18, height: 18 }));
+  const icon = nativeImage.createFromPath(getBrandIconPath());
+  if (icon.isEmpty()) throw new Error('Switchboard brand icon could not be loaded.');
+  const created = new Tray(icon.resize({ width: 18, height: 18, quality: 'best' }));
   created.setToolTip('Switchboard');
   created.setContextMenu(
     Menu.buildFromTemplate([
