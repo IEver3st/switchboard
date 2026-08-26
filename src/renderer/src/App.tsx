@@ -1,16 +1,23 @@
 import { useEffect } from 'react';
 import { AlertTriangle, LoaderCircle, X } from 'lucide-react';
+import type { PageId } from '../../shared/contracts';
 import { Sidebar } from '@/components/layout/sidebar';
 import { TitleStrip } from '@/components/layout/title-strip';
-import { Topbar } from '@/components/layout/topbar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AudioPage } from '@/pages/audio';
 import { CapturePage } from '@/pages/capture';
 import { DevicesPage } from '@/pages/devices';
 import { ModulesPage } from '@/pages/modules';
-import { OverviewPage } from '@/pages/overview';
 import { SettingsPage } from '@/pages/settings';
 import { useSystemStore } from '@/stores/use-system-store';
+
+const pageTitles: Record<PageId, string> = {
+  devices: 'Devices',
+  audio: 'Audio',
+  capture: 'Capture',
+  modules: 'Modules',
+  settings: 'Settings',
+};
 
 export function App() {
   const snapshot = useSystemStore((state) => state.snapshot);
@@ -48,16 +55,18 @@ export function App() {
       <div className="flex min-h-0 flex-1">
         <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} />
         <section className="flex min-w-0 flex-1 flex-col">
-          <Topbar page={page} snapshot={snapshot} />
           <main className="min-h-0 flex-1 bg-background">
-            <ScrollArea className="h-full">
-              {page === 'overview' ? <OverviewPage snapshot={snapshot} /> : null}
-              {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
-              {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
-              {page === 'capture' ? <CapturePage snapshot={snapshot} /> : null}
-              {page === 'modules' ? <ModulesPage snapshot={snapshot} /> : null}
-              {page === 'settings' ? <SettingsPage snapshot={snapshot} /> : null}
-            </ScrollArea>
+            <h1 className="sr-only">{pageTitles[page]}</h1>
+            {page === 'settings' ? (
+              <SettingsPage snapshot={snapshot} />
+            ) : (
+              <ScrollArea className="h-full">
+                {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
+                {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
+                {page === 'capture' ? <CapturePage snapshot={snapshot} /> : null}
+                {page === 'modules' ? <ModulesPage snapshot={snapshot} /> : null}
+              </ScrollArea>
+            )}
           </main>
         </section>
       </div>

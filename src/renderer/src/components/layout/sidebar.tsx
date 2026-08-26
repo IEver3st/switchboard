@@ -1,7 +1,6 @@
 import {
   AudioLines,
   Boxes,
-  CircleGauge,
   Disc3,
   Settings2,
   SlidersHorizontal,
@@ -11,7 +10,6 @@ import type { PageId, SystemSnapshot } from '../../../../shared/contracts';
 import { cn } from '@/lib/cn';
 
 const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 'audio' | 'capture' }> = [
-  { id: 'overview', label: 'Overview', icon: CircleGauge },
   { id: 'devices', label: 'Devices', icon: SlidersHorizontal },
   { id: 'audio', label: 'Audio', icon: AudioLines, engine: 'audio' },
   { id: 'capture', label: 'Capture', icon: Disc3, engine: 'capture' },

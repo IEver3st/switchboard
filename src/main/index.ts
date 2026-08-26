@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, nativeImage, session, Tray } from 'electron';
+import { app, BrowserWindow, Menu, nativeImage, net, protocol, session, Tray } from 'electron';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { AppController } from './controller';
 import { registerIpc } from './ipc';
 
@@ -9,6 +10,11 @@ let controller: AppController | null = null;
 let cleanupIpc: (() => void) | null = null;
 let quitting = false;
 let shutdownStarted = false;
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'switchboard-media',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+}]);
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
@@ -47,7 +53,7 @@ function createWindow(): BrowserWindow {
       height: 38,
     },
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
@@ -124,6 +130,7 @@ function createTray(): Tray {
 }
 
 async function shutdown(): Promise<void> {
+  if (protocol.isProtocolHandled('switchboard-media')) await protocol.unhandle('switchboard-media');
   cleanupIpc?.();
   cleanupIpc = null;
   await controller?.dispose();
@@ -144,6 +151,13 @@ if (hasSingleInstanceLock) {
 
     controller = new AppController();
     await controller.initialize();
+    await protocol.handle('switchboard-media', (request) => {
+      const url = new URL(request.url);
+      const id = decodeURIComponent(url.pathname.replace(/^\//, ''));
+      const path = controller?.getClipPath(id, url.hostname === 'thumbnail');
+      if (!path) return new Response('Not found', { status: 404 });
+      return net.fetch(pathToFileURL(path).toString());
+    });
     cleanupIpc = registerIpc(controller, () => mainWindow);
     tray = createTray();
     showWindow();

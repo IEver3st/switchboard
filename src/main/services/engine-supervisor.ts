@@ -1,15 +1,24 @@
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
 import { join } from 'node:path';
+import { createInterface } from 'node:readline';
 import { app, utilityProcess, type UtilityProcess } from 'electron';
 import { z } from 'zod';
 import {
+  audioMeterFrameSchema,
   engineKindSchema,
   engineStatusSchema,
+  type AudioMeterFrame,
   type EngineKind,
   type EngineStatus,
 } from '../../shared/contracts';
 
 type StatusListener = (status: EngineStatus) => void;
+type AudioMeterListener = (frame: AudioMeterFrame) => void;
+type EventListener = (kind: EngineKind, event: string, payload: unknown) => void;
+type EngineProcess = UtilityProcess | ChildProcessWithoutNullStreams;
 
 type PendingRequest = {
   kind: EngineKind;
@@ -29,18 +38,31 @@ const workerMessageSchema = z.discriminatedUnion('type', [
     result: z.unknown().optional(),
     error: z.string().optional(),
   }),
+  z.object({
+    type: z.literal('meters'),
+    frame: audioMeterFrameSchema,
+  }),
+  z.object({
+    type: z.literal('event'),
+    event: z.string().min(1),
+    payload: z.unknown().optional(),
+  }),
 ]);
 
 type WorkerMessage = z.infer<typeof workerMessageSchema>;
 
 export class EngineSupervisor {
-  private readonly processes = new Map<EngineKind, UtilityProcess>();
+  private readonly processes = new Map<EngineKind, EngineProcess>();
   private readonly statuses = new Map<EngineKind, EngineStatus>();
   private readonly pending = new Map<string, PendingRequest>();
   private readonly starts = new Map<EngineKind, Promise<EngineStatus>>();
   private readonly expectedStops = new Set<EngineKind>();
 
-  public constructor(private readonly onStatus: StatusListener) {
+  public constructor(
+    private readonly onStatus: StatusListener,
+    private readonly onAudioMeters: AudioMeterListener = () => undefined,
+    private readonly onEvent: EventListener = () => undefined,
+  ) {
     for (const kind of engineKindSchema.options) {
       this.statuses.set(kind, this.stoppedStatus(kind));
     }
@@ -83,8 +105,8 @@ export class EngineSupervisor {
 
     this.expectedStops.add(kind);
     try {
-      worker.postMessage({ type: 'command', command: 'shutdown' });
-      const exited = await this.waitForExit(worker, 900);
+      this.sendEnvelope(worker, { command: 'shutdown' });
+      const exited = await this.waitForExit(worker, kind === 'capture' ? 5_000 : 900);
       if (!exited) {
         worker.kill();
         await this.waitForExit(worker, 500);
@@ -103,10 +125,10 @@ export class EngineSupervisor {
   public send(kind: EngineKind, command: string, payload?: unknown): void {
     const worker = this.processes.get(kind);
     if (!worker?.pid) return;
-    worker.postMessage({ type: 'command', command, payload });
+    this.sendEnvelope(worker, { command, payload });
   }
 
-  public request<T>(kind: EngineKind, command: string, payload?: unknown, timeoutMs = 5_000): Promise<T> {
+  public request<T>(kind: EngineKind, command: string, payload?: unknown, timeoutMs = 10_000): Promise<T> {
     const worker = this.processes.get(kind);
     if (!worker?.pid) {
       return Promise.reject(new Error(`${kind} engine is not running`));
@@ -125,7 +147,7 @@ export class EngineSupervisor {
         reject,
         timeout,
       });
-      worker.postMessage({ type: 'request', requestId, command, payload });
+      this.sendEnvelope(worker, { requestId, command, payload });
     });
   }
 
@@ -145,12 +167,9 @@ export class EngineSupervisor {
       message: 'Starting isolated engine host…',
     });
 
-    let worker: UtilityProcess;
+    let worker: EngineProcess;
     try {
-      worker = utilityProcess.fork(this.resolveWorkerPath(kind), [], {
-        serviceName: `Switchboard ${kind} engine`,
-        stdio: 'pipe',
-      });
+      worker = kind === 'capture' ? this.spawnCaptureHost() : this.spawnUtilityWorker(kind);
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
       this.updateStatus({
@@ -165,18 +184,19 @@ export class EngineSupervisor {
     this.attachWorkerListeners(kind, worker);
 
     try {
-      await this.waitForSpawn(worker, 3_000);
-      this.updateStatus({
-        kind,
-        state: 'running',
-        pid: worker.pid,
-        cpuPercent: 0,
-        memoryMb: 0,
-        uptimeSeconds: 0,
-        message: 'Prototype engine simulation active',
-        updatedAt: new Date().toISOString(),
-      });
-      worker.postMessage({ type: 'command', command: 'start' });
+      await this.waitForSpawn(worker, 8_000);
+      if (kind === 'audio') {
+        this.updateStatus({
+          kind,
+          state: 'running',
+          pid: worker.pid,
+          cpuPercent: 0,
+          memoryMb: 0,
+          uptimeSeconds: 0,
+          updatedAt: new Date().toISOString(),
+        });
+        this.sendEnvelope(worker, { command: 'start' });
+      }
       return this.getStatus(kind);
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
@@ -192,10 +212,48 @@ export class EngineSupervisor {
     }
   }
 
-  private attachWorkerListeners(kind: EngineKind, worker: UtilityProcess): void {
-    worker.on('message', (raw: unknown) => this.handleWorkerMessage(kind, raw));
+  private spawnUtilityWorker(kind: EngineKind): UtilityProcess {
+    return utilityProcess.fork(this.resolveWorkerPath(kind), [], {
+      serviceName: `Switchboard ${kind} engine`,
+      stdio: 'pipe',
+    });
+  }
 
-    worker.on('exit', (code) => {
+  private spawnCaptureHost(): ChildProcessWithoutNullStreams {
+    const resolved = this.resolveCaptureHost();
+    const environment = { ...process.env };
+    delete environment.ELECTRON_RUN_AS_NODE;
+    return spawn(resolved.command, resolved.arguments, {
+      cwd: app.getAppPath(),
+      env: environment,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  }
+
+  private attachWorkerListeners(kind: EngineKind, worker: EngineProcess): void {
+    if (this.isUtilityProcess(worker)) {
+      worker.on('message', (raw: unknown) => this.handleWorkerMessage(kind, raw));
+      worker.on('error', (type, location, report) => {
+        const normalized = new Error(`${type} in ${location}${report ? `\n${report}` : ''}`);
+        this.handleProcessError(kind, normalized);
+      });
+      worker.stdout?.on('data', (chunk) => console.debug(`[${kind}] ${String(chunk).trim()}`));
+      worker.stderr?.on('data', (chunk) => console.warn(`[${kind}] ${String(chunk).trim()}`));
+    } else {
+      const lines = createInterface({ input: worker.stdout });
+      lines.on('line', (line) => {
+        try { this.handleWorkerMessage(kind, JSON.parse(line)); }
+        catch (error) { console.warn(`[${kind}] ignored malformed host output`, error); }
+      });
+      worker.stderr.on('data', (chunk) => {
+        const message = String(chunk).trim();
+        if (message) console.warn(`[${kind}] ${message}`);
+      });
+      worker.on('error', (processError) => this.handleProcessError(kind, processError));
+    }
+
+    (worker as unknown as EventEmitter).on('exit', (code: number | null) => {
       if (this.processes.get(kind) === worker) this.processes.delete(kind);
       const expected = this.expectedStops.has(kind);
       this.failPending(kind, new Error(`${kind} engine exited`));
@@ -206,18 +264,11 @@ export class EngineSupervisor {
       });
     });
 
-    worker.on('error', (error) => {
-      const normalized = error instanceof Error ? error : new Error(String(error));
-      this.failPending(kind, normalized);
-      this.updateStatus({
-        ...this.stoppedStatus(kind),
-        state: 'error',
-        message: normalized.message,
-      });
-    });
+  }
 
-    worker.stdout?.on('data', (chunk) => console.debug(`[${kind}] ${String(chunk).trim()}`));
-    worker.stderr?.on('data', (chunk) => console.warn(`[${kind}] ${String(chunk).trim()}`));
+  private handleProcessError(kind: EngineKind, error: Error): void {
+    this.failPending(kind, error);
+    this.updateStatus({ ...this.stoppedStatus(kind), state: 'error', message: error.message });
   }
 
   private handleWorkerMessage(kind: EngineKind, raw: unknown): void {
@@ -234,6 +285,16 @@ export class EngineSupervisor {
         return;
       }
       this.updateStatus(message.status);
+      return;
+    }
+
+    if (message.type === 'meters') {
+      if (kind === 'audio') this.onAudioMeters(message.frame);
+      return;
+    }
+
+    if (message.type === 'event') {
+      this.onEvent(kind, message.event, message.payload);
       return;
     }
 
@@ -254,7 +315,21 @@ export class EngineSupervisor {
     }
   }
 
-  private waitForSpawn(worker: UtilityProcess, timeoutMs: number): Promise<void> {
+  private sendEnvelope(worker: EngineProcess, message: Record<string, unknown>): void {
+    if (this.isUtilityProcess(worker)) {
+      const type = typeof message.requestId === 'string' ? 'request' : 'command';
+      worker.postMessage({ type, ...message });
+    } else {
+      worker.stdin.write(`${JSON.stringify(message)}\n`, 'utf8');
+    }
+  }
+
+  private isUtilityProcess(worker: EngineProcess): worker is UtilityProcess {
+    return 'postMessage' in worker;
+  }
+
+  private waitForSpawn(worker: EngineProcess, timeoutMs: number): Promise<void> {
+    if (worker.pid) return Promise.resolve();
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup();
@@ -265,38 +340,40 @@ export class EngineSupervisor {
         cleanup();
         resolve();
       };
-      const onError = (error: Error) => {
+      const onError = (...details: unknown[]) => {
         cleanup();
-        reject(error);
+        reject(new Error(details.map(String).join(' ')));
       };
-      const onExit = (code: number) => {
+      const onExit = (code: number | null) => {
         cleanup();
         reject(new Error(`Engine exited during startup with code ${code}`));
       };
       const cleanup = () => {
         clearTimeout(timeout);
-        worker.removeListener('spawn', onSpawn);
-        worker.removeListener('error', onError);
-        worker.removeListener('exit', onExit);
+        const emitter = worker as unknown as EventEmitter;
+        emitter.removeListener('spawn', onSpawn);
+        emitter.removeListener('error', onError);
+        emitter.removeListener('exit', onExit);
       };
 
-      worker.once('spawn', onSpawn);
-      worker.once('error', onError);
-      worker.once('exit', onExit);
+      const emitter = worker as unknown as EventEmitter;
+      emitter.once('spawn', onSpawn);
+      emitter.once('error', onError);
+      emitter.once('exit', onExit);
     });
   }
 
-  private waitForExit(worker: UtilityProcess, timeoutMs: number): Promise<boolean> {
+  private waitForExit(worker: EngineProcess, timeoutMs: number): Promise<boolean> {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        worker.removeListener('exit', onExit);
+        (worker as unknown as EventEmitter).removeListener('exit', onExit);
         resolve(false);
       }, timeoutMs);
       const onExit = () => {
         clearTimeout(timeout);
         resolve(true);
       };
-      worker.once('exit', onExit);
+      (worker as unknown as EventEmitter).once('exit', onExit);
     });
   }
 
@@ -305,6 +382,18 @@ export class EngineSupervisor {
       ? join(process.resourcesPath, 'engine-workers')
       : join(app.getAppPath(), 'resources', 'engine-workers');
     return join(workerDirectory, `${kind}-worker.cjs`);
+  }
+
+  private resolveCaptureHost(): { command: string; arguments: string[] } {
+    if (app.isPackaged) {
+      const executable = join(process.resourcesPath, 'capture-host', 'Capture.Host.exe');
+      if (!existsSync(executable)) throw new Error('The Capture.Host executable is missing from this installation.');
+      return { command: executable, arguments: [] };
+    }
+    const executable = join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
+    if (existsSync(executable)) return { command: executable, arguments: [] };
+    const project = join(app.getAppPath(), 'engines', 'capture-host', 'Capture.Host.csproj');
+    return { command: 'dotnet', arguments: ['run', '--project', project, '--no-launch-profile'] };
   }
 
   private updateStatus(status: EngineStatus): void {

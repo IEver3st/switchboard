@@ -27,6 +27,7 @@ await foreach (var line in ReadLinesAsync(Console.In))
             "listEndpoints" => endpoints.List(),
             "listSessions" => endpoints.ListSessions(),
             "setBusGain" => SetBusGain(payload),
+            "setBusEnabled" => SetBusEnabled(payload),
             "setChatMix" => SetChatMix(payload),
             "setProcessor" => SetProcessor(payload),
             _ => throw new InvalidOperationException($"Unknown command: {command}"),
@@ -49,6 +50,12 @@ object SetRunning(bool value)
 object SetBusGain(JsonElement payload)
 {
     graph.SetBusGain(payload.GetProperty("busId").GetString()!, payload.GetProperty("gain").GetSingle());
+    return Status();
+}
+
+object SetBusEnabled(JsonElement payload)
+{
+    graph.SetBusEnabled(payload.GetProperty("busId").GetString()!, payload.GetProperty("enabled").GetBoolean());
     return Status();
 }
 

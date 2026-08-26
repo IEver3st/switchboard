@@ -23,7 +23,7 @@ export class StateStore {
   public async load(): Promise<void> {
     try {
       const raw = await readFile(this.filePath, 'utf8');
-      const parsed = systemSnapshotSchema.safeParse(JSON.parse(raw));
+      const parsed = systemSnapshotSchema.safeParse(migrateLegacyCaptureState(migrateLegacyDeviceState(JSON.parse(raw))));
       if (parsed.success) {
         this.snapshot = this.resetRuntimeState(parsed.data);
         return;
@@ -84,15 +84,48 @@ export class StateStore {
 
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
-    const visualDefaults = new Map(createDefaultSnapshot().devices.map((device) => [device.imageKey, device]));
+    const defaults = createDefaultSnapshot();
+    const visualDefaults = new Map(defaults.devices.map((device) => [device.moduleId, device]));
     for (const device of next.devices) {
-      const fallback = visualDefaults.get(device.imageKey);
+      const fallback = visualDefaults.get(device.moduleId);
       if (!fallback) continue;
-      device.appearance ??= fallback.appearance ? structuredClone(fallback.appearance) : undefined;
-      if (!Object.hasOwn(device.settings, 'lightingColor') && Object.hasOwn(fallback.settings, 'lightingColor')) {
-        device.settings.lightingColor = fallback.settings.lightingColor;
+      device.controlBindings ??= fallback.controlBindings ? structuredClone(fallback.controlBindings) : undefined;
+      const fallbackLightingColor = fallback.settings.lightingColor;
+      if (!Object.hasOwn(device.settings, 'lightingColor') && fallbackLightingColor !== undefined) {
+        device.settings.lightingColor = structuredClone(fallbackLightingColor);
       }
     }
+
+    const knownAudioDevices = new Map(next.audio.devices.map((device) => [device.id, device]));
+    for (const device of defaults.audio.devices) {
+      if (!knownAudioDevices.has(device.id)) knownAudioDevices.set(device.id, structuredClone(device));
+    }
+    next.audio.devices = [...knownAudioDevices.values()];
+
+    const currentBuses = new Map(next.audio.buses.map((bus) => [bus.id, bus]));
+    const legacyAux = currentBuses.get('aux');
+    next.audio.buses = defaults.audio.buses.map((fallback) => {
+      const existing = currentBuses.get(fallback.id) ?? (fallback.id === 'mic' ? legacyAux : undefined);
+      if (!existing) return structuredClone(fallback);
+      return {
+        ...structuredClone(fallback),
+        ...existing,
+        id: fallback.id,
+        label: fallback.label,
+        endpoint: fallback.endpoint,
+        deviceId: existing.deviceId || fallback.deviceId,
+      };
+    });
+
+    const knownPresets = new Map(next.audio.presets.map((preset) => [preset.id, preset]));
+    for (const preset of defaults.audio.presets) {
+      if (!knownPresets.has(preset.id)) knownPresets.set(preset.id, structuredClone(preset));
+    }
+    next.audio.presets = [...knownPresets.values()];
+    if (next.audio.activePresetId && !knownPresets.has(next.audio.activePresetId)) {
+      next.audio.activePresetId = null;
+    }
+
     next.prototypeMode = true;
     next.engines = runtimeEngineKinds.map((kind) => ({
       kind,
@@ -102,10 +135,13 @@ export class StateStore {
       uptimeSeconds: 0,
       updatedAt: new Date().toISOString(),
     }));
-    next.capture.runtime.bufferedSeconds = 0;
-    next.capture.runtime.segmentCount = 0;
-    next.capture.runtime.estimatedDiskMb = 0;
-    next.capture.runtime.droppedFrames = 0;
+    next.capture.runtime = {
+      ...defaults.capture.runtime,
+      shortcutRegistered: false,
+      state: 'stopped',
+    };
+    next.capture.storage.replayCacheBytes = 0;
+    next.capture.sources = [];
     next.performance = this.calculatePerformance(next);
     return systemSnapshotSchema.parse(next);
   }
@@ -153,4 +189,75 @@ export class StateStore {
 
     return this.persistChain;
   }
+}
+
+function migrateLegacyDeviceState(value: unknown): unknown {
+  if (!isRecord(value) || !Array.isArray(value.devices)) return value;
+  const defaults = createDefaultSnapshot();
+  const byModule = new Map(defaults.devices.map((device) => [device.moduleId, device]));
+  const migratedDevices = value.devices.map((candidate) => {
+    if (!isRecord(candidate) || isRecord(candidate.identity)) return candidate;
+    const moduleId = typeof candidate.moduleId === 'string' ? candidate.moduleId : '';
+    const fallback = byModule.get(moduleId);
+    if (!fallback) return candidate;
+    return {
+      ...structuredClone(fallback),
+      id: typeof candidate.id === 'string' ? candidate.id : fallback.id,
+      connected: typeof candidate.connected === 'boolean' ? candidate.connected : fallback.connected,
+      batteryPercent: typeof candidate.batteryPercent === 'number' ? candidate.batteryPercent : fallback.batteryPercent,
+      settings: isRecord(candidate.settings)
+        ? { ...structuredClone(fallback.settings), ...candidate.settings }
+        : structuredClone(fallback.settings),
+      controlBindings: Array.isArray(candidate.controlBindings)
+        ? candidate.controlBindings
+        : structuredClone(fallback.controlBindings),
+    };
+  });
+
+  return { ...value, devices: migratedDevices };
+}
+
+function migrateLegacyCaptureState(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const defaults = createDefaultSnapshot();
+  const capture = isRecord(value.capture) ? value.capture : {};
+  const config = isRecord(capture.config) ? capture.config : {};
+  const runtime = isRecord(capture.runtime) ? capture.runtime : {};
+  const legacySource = config.source;
+  const source = legacySource === 'game'
+    ? 'automatic-game'
+    : legacySource === 'display' || legacySource === 'window' || legacySource === 'automatic-game'
+      ? legacySource
+      : defaults.capture.config.source;
+  const clips = Array.isArray(value.clips)
+    ? value.clips.filter((clip) => isRecord(clip) && typeof clip.durationMs === 'number' && typeof clip.fileSize === 'number')
+    : [];
+
+  return {
+    ...value,
+    clips,
+    capture: {
+      ...capture,
+      config: {
+        ...defaults.capture.config,
+        ...config,
+        source,
+        sourceId: typeof config.sourceId === 'string' ? config.sourceId : null,
+        includeSystemAudio: typeof config.includeSystemAudio === 'boolean' ? config.includeSystemAudio : true,
+        clipsDirectory: typeof config.clipsDirectory === 'string' ? config.clipsDirectory : null,
+      },
+      runtime: { ...defaults.capture.runtime, ...runtime },
+      storage: isRecord(capture.storage)
+        ? { ...defaults.capture.storage, ...capture.storage }
+        : defaults.capture.storage,
+      capabilities: isRecord(capture.capabilities)
+        ? { ...defaults.capture.capabilities, ...capture.capabilities }
+        : defaults.capture.capabilities,
+      sources: Array.isArray(capture.sources) ? capture.sources : [],
+    },
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

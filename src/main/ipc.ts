@@ -1,13 +1,19 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { z } from 'zod';
 import {
+  applyAudioPresetInputSchema,
   appSettingsSchema,
   captureConfigSchema,
   ipcChannels,
+  renameClipInputSchema,
+  setAudioBusDeviceInputSchema,
+  setAudioBusEnabledInputSchema,
   setAudioBusGainInputSchema,
+  setDeviceAppearanceOverrideInputSchema,
   setDeviceSettingInputSchema,
   setMicProcessorInputSchema,
   setModuleStateInputSchema,
+  settingsResetScopeSchema,
 } from '../shared/contracts';
 import type { AppController } from './controller';
 
@@ -60,6 +66,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => controller.setDeviceSetting(input),
   );
   handle(
+    ipcChannels.setDeviceAppearanceOverride,
+    getMainWindow,
+    (input) => setDeviceAppearanceOverrideInputSchema.parse(input),
+    (input) => controller.setDeviceAppearanceOverride(input),
+  );
+  handle(
     ipcChannels.setAudioEnabled,
     getMainWindow,
     (input) => z.boolean().parse(input),
@@ -70,6 +82,24 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setAudioBusGainInputSchema.parse(input),
     (input) => controller.setAudioBusGain(input),
+  );
+  handle(
+    ipcChannels.setAudioBusEnabled,
+    getMainWindow,
+    (input) => setAudioBusEnabledInputSchema.parse(input),
+    (input) => controller.setAudioBusEnabled(input),
+  );
+  handle(
+    ipcChannels.setAudioBusDevice,
+    getMainWindow,
+    (input) => setAudioBusDeviceInputSchema.parse(input),
+    (input) => controller.setAudioBusDevice(input),
+  );
+  handle(
+    ipcChannels.applyAudioPreset,
+    getMainWindow,
+    (input) => applyAudioPresetInputSchema.parse(input),
+    (input) => controller.applyAudioPreset(input),
   );
   handle(
     ipcChannels.setChatMix,
@@ -86,12 +116,24 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   handle(
     ipcChannels.setCaptureConfig,
     getMainWindow,
-    (input) => captureConfigSchema.partial().parse(input),
+    (input) => captureConfigSchema.omit({ clipsDirectory: true }).partial().parse(input),
     (input) => controller.setCaptureConfig(input),
   );
   ipcMain.handle(ipcChannels.saveReplay, (event) => {
     assertTrustedSender(event, getMainWindow);
     return controller.saveReplay();
+  });
+  ipcMain.handle(ipcChannels.chooseClipDirectory, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.chooseClipDirectory();
+  });
+  ipcMain.handle(ipcChannels.openClipsDirectory, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.openClipsDirectory();
+  });
+  ipcMain.handle(ipcChannels.refreshCaptureSources, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.refreshCaptureSources();
   });
   handle(
     ipcChannels.updateSettings,
@@ -100,10 +142,28 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => controller.updateSettings(input),
   );
   handle(
+    ipcChannels.resetSettings,
+    getMainWindow,
+    (input) => settingsResetScopeSchema.parse(input),
+    (scope) => controller.resetSettings(scope),
+  );
+  handle(
     ipcChannels.revealClip,
     getMainWindow,
     (input) => z.string().min(1).max(4_096).parse(input),
-    (path) => controller.revealClip(path),
+    (id) => controller.revealClip(id),
+  );
+  handle(
+    ipcChannels.deleteClip,
+    getMainWindow,
+    (input) => z.string().min(1).max(256).parse(input),
+    (id) => controller.deleteClip(id),
+  );
+  handle(
+    ipcChannels.renameClip,
+    getMainWindow,
+    (input) => renameClipInputSchema.parse(input),
+    (input) => controller.renameClip(input),
   );
 
   const unsubscribe = controller.subscribe((snapshot) => {
@@ -111,9 +171,15 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     if (!window || window.isDestroyed()) return;
     window.webContents.send(ipcChannels.snapshotUpdated, snapshot);
   });
+  const unsubscribeAudioMeters = controller.subscribeAudioMeters((frame) => {
+    const window = getMainWindow();
+    if (!window || window.isDestroyed() || !window.isVisible()) return;
+    window.webContents.send(ipcChannels.audioMeterUpdated, frame);
+  });
 
   return () => {
     unsubscribe();
+    unsubscribeAudioMeters();
     for (const channel of Object.values(ipcChannels)) {
       if (channel !== ipcChannels.snapshotUpdated) ipcMain.removeHandler(channel);
     }

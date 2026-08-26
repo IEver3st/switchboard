@@ -1,5 +1,5 @@
 const state = {
-  page: 'overview',
+  page: 'devices',
   audio: false,
   capture: false,
   memory: 136,
@@ -15,15 +15,13 @@ const state = {
 };
 
 const pages = [
-  ['overview', '◉', 'Overview'],
   ['devices', '⌁', 'Devices'],
   ['audio', '≋', 'Audio'],
   ['capture', '●', 'Capture'],
   ['modules', '▦', 'Modules'],
 ];
 const copy = {
-  overview: ['Overview', 'The parts of your setup that are active right now.'],
-  devices: ['Devices', 'Capability-driven controls, loaded only for connected hardware.'],
+  devices: ['Devices', 'Connected hardware and its most important controls.'],
   audio: ['Audio', 'Route, mix, and process audio without a monolithic suite.'],
   capture: ['Capture', 'A disk-backed replay buffer in its own process.'],
   modules: ['Modules', 'Install only the device families and engines you use.'],
@@ -63,7 +61,6 @@ function render() {
   document.querySelector('#page-title').textContent = copy[state.page][0];
   document.querySelector('#page-description').textContent = copy[state.page][1];
   content.innerHTML = ({
-    overview: renderOverview,
     devices: renderDevices,
     audio: renderAudio,
     capture: renderCapture,
@@ -71,20 +68,6 @@ function render() {
     settings: renderSettings,
   })[state.page]();
   wirePage();
-}
-
-function engineRow(kind, label, on) {
-  return `<div class="engine-row"><div class="engine-icon ${on ? 'running' : ''}">${kind === 'audio' ? '≋' : '●'}</div><div class="engine-copy"><strong><span class="dot ${on ? 'running' : ''}"></span>${label}</strong><small>${on ? (kind === 'audio' ? '24 MB · 0.3% CPU' : `31 MB · ${state.buffered}s buffered`) : 'No process'}</small></div><button class="button ${on ? '' : ''}" data-toggle="${kind}">${on ? 'Stop' : 'Start'}</button></div>`;
-}
-
-function renderOverview() {
-  return `<div class="grid">
-    <section class="surface hero"><div class="hero-top"><div><div class="eyebrow"><span class="live"></span>Lightweight by default</div><h2>Your hardware, audio, and clips without another always-on suite.</h2><p>Device families and realtime engines are isolated. Disable a capability and its process disappears.</p></div><div class="metrics"><div class="metric"><small>Active modules</small><strong>${state.modules.filter(m => m.enabled).length}</strong></div><div class="metric"><small>Processes</small><strong>${2 + (state.audio ? 1 : 0) + (state.capture ? 1 : 0)}</strong></div><div class="metric"><small>Memory</small><strong>${Math.round(state.memory)} MB</strong></div><div class="metric"><small>CPU</small><strong>${state.cpu.toFixed(1)}%</strong></div></div></div><div class="hero-actions"><button class="button primary" data-go="modules">Manage modules&nbsp; →</button><button class="button ghost" data-go="settings">View performance guard</button></div></section>
-    <section class="surface engines"><div class="section-title"><div class="eyebrow">Runtime</div><h3>Engines</h3><p>Nothing starts until its feature is enabled.</p></div><div class="engine-list">${engineRow('audio','Audio router',state.audio)}${engineRow('capture','Instant replay',state.capture)}</div></section>
-    <section class="surface devices-panel"><div class="section-header"><div class="section-title"><div class="eyebrow">Connected</div><h3>Devices</h3><p>Controls are generated from capabilities exposed by each installed module.</p></div><button class="button ghost" data-go="devices">Open workbench&nbsp; →</button></div><div class="device-grid"><button class="device-card" data-device="mouse"><div class="device-icon">⌁</div><div class="copy"><strong>G502 X Plus</strong><small>Logitech · wireless · 82% battery</small></div><span>→</span></button><button class="device-card" data-device="mic"><div class="device-icon">◉</div><div class="copy"><strong>QuadCast 2</strong><small>HyperX · USB · connected</small></div><span>→</span></button></div></section>
-    <section class="surface quick-panel"><div class="section-title"><div class="eyebrow">One-click</div><h3>Quick controls</h3><p>The most-used controls across active modules.</p></div><div class="quick-list"><button class="quick-row" data-go="devices"><span>⌁</span><b>Mouse DPI</b><strong>1600</strong><small>DPI</small><span>→</span></button><button class="quick-row" data-go="devices"><span>◉</span><b>Microphone gain</b><strong>58</strong><small>%</small><span>→</span></button><button class="quick-row" data-go="capture"><span>●</span><b>Replay length</b><strong>60</strong><small>seconds</small><span>→</span></button></div></section>
-    <section class="surface budget-wide"><div class="budget-wide-left"><div class="summary-icon">✓</div><div><strong>Performance budget is healthy</strong><p>${Math.round(state.memory)} of 240 MB · ${state.cpu.toFixed(1)} of 2.0% idle CPU target</p></div></div><div class="budget-stats"><div class="mini-metric"><small>Core</small><b>44 MB</b></div><div class="mini-metric"><small>Renderer</small><b>92 MB</b></div><div class="mini-metric"><small>Engines</small><b>${state.memory - 136} MB</b></div><button class="button ghost" data-go="settings">Inspect</button></div></section>
-  </div>`;
 }
 
 function renderAudio() {
@@ -135,7 +118,7 @@ function showToast(message) {
 setInterval(() => {
   if (!state.capture) return;
   state.buffered = Math.min(60, state.buffered + 1);
-  if (state.page === 'capture' || state.page === 'overview') render();
+  if (state.page === 'capture') render();
   else updateRuntime();
 }, 1000);
 

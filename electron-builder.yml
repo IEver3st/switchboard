@@ -12,6 +12,7 @@ extraResources:
 asar: true
 asarUnpack:
   - resources/**
+  - node_modules/node-hid/**
 win:
   icon: build/icon.ico
   target:

@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 
 type SliderProps = ComponentPropsWithoutRef<typeof SliderPrimitive.Root>;
 
-export function Slider({ className, ...props }: SliderProps) {
+export function Slider({ className, 'aria-label': ariaLabel, 'aria-valuetext': ariaValueText, ...props }: SliderProps) {
   return (
     <SliderPrimitive.Root
       className={cn(
@@ -30,7 +30,11 @@ export function Slider({ className, ...props }: SliderProps) {
           )}
         />
       </SliderPrimitive.Track>
-      <SliderPrimitive.Thumb className="block size-[13px] shrink-0 rounded-full border border-[#ff9ab0] bg-primary shadow-[0_0_0_3px_rgba(255,101,138,0.08)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40" />
+      <SliderPrimitive.Thumb
+        aria-label={ariaLabel}
+        aria-valuetext={ariaValueText}
+        className="block size-[13px] shrink-0 rounded-full border border-[#ff9ab0] bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      />
     </SliderPrimitive.Root>
   );
 }

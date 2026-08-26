@@ -66,6 +66,26 @@ A module represents a protocol or major capability, not one model:
 
 Device modules expose capabilities and settings. The core renderer owns canonical controls for common capabilities so every vendor surface remains coherent.
 
+Device discovery keeps vendor protocol knowledge out of Electron's renderer:
+
+```text
+HID / USB descriptors
+        ↓
+vendor module metadata adapter
+        ↓
+canonical identity + variant evidence + capabilities
+        ↓
+DeviceRegistry
+        ↓
+variant resolver → bundled product-asset resolver
+        ↓
+renderer snapshot
+```
+
+Identity fields are optional because USB and HID do not consistently expose cosmetic SKUs. A vendor module may submit stronger evidence such as an onboard model identifier or receiver-reported extended model. The shared resolver prefers hardware evidence, then product/module mappings, then a stable-identity user fallback. An unknown cosmetic variant never blocks discovery.
+
+The Logitech module currently enumerates HID transport locally and can enrich active devices with Logitech's localhost DEVIO metadata when that vendor service is present. G502 X Plus `extendedModel` distinguishes the known black and white hardware variants; the receiver USB PID alone does not. Without DEVIO metadata, the module resolves the model from its known receiver mapping, leaves colorway unknown, and uses the model asset or an optional override rather than claiming an exact color.
+
 ## Audio
 
 Production target:

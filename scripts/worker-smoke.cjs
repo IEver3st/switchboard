@@ -50,6 +50,9 @@ async function smokeAudio() {
   const running = await waitFor((message) => message?.type === 'status' && message.status?.state === 'running');
   assert.equal(running.status.kind, 'audio');
   assert.ok(running.status.memoryMb > 0);
+  const meterFrame = await waitFor((message) => message?.type === 'meters');
+  assert.equal(meterFrame.frame.values.length, 4);
+  assert.ok(meterFrame.frame.values.every((value) => value.level >= 0 && value.level <= 1));
 
   worker.postMessage({
     type: 'command',
@@ -57,7 +60,7 @@ async function smokeAudio() {
     payload: {
       chatMix: -0.25,
       buses: [{ id: 'game', gain: 0.8 }],
-      micProcessors: [{ id: 'noise-suppression', enabled: false }],
+      micProcessors: [{ id: 'noise-suppression', enabled: false, parameters: { amount: 35 } }],
     },
   });
   const configured = await waitFor(

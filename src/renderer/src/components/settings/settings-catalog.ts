@@ -1,0 +1,257 @@
+export const settingsCategoryIds = [
+  'general',
+  'audio',
+  'capture',
+  'modules',
+  'diagnostics',
+  'about',
+] as const;
+
+export type SettingsCategoryId = (typeof settingsCategoryIds)[number];
+
+export type SettingsSearchEntry = {
+  id: string;
+  category: SettingsCategoryId;
+  title: string;
+  description: string;
+  keywords: readonly string[];
+};
+
+export const settingsCategories: ReadonlyArray<{
+  id: SettingsCategoryId;
+  label: string;
+  resettable: boolean;
+}> = [
+  { id: 'general', label: 'General', resettable: true },
+  { id: 'audio', label: 'Audio', resettable: true },
+  { id: 'capture', label: 'Capture', resettable: true },
+  { id: 'modules', label: 'Modules', resettable: true },
+  { id: 'diagnostics', label: 'Diagnostics', resettable: true },
+  { id: 'about', label: 'About', resettable: false },
+];
+
+export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
+  {
+    id: 'general.startup',
+    category: 'general',
+    title: 'Start Switchboard with Windows',
+    description: 'Launch the control plane automatically when you sign in.',
+    keywords: ['startup', 'start up', 'login', 'boot', 'launch'],
+  },
+  {
+    id: 'general.closeToTray',
+    category: 'general',
+    title: 'Close to tray',
+    description: 'Keep hotkeys, profiles, and active engines available after closing the window.',
+    keywords: ['tray', 'close', 'background', 'window'],
+  },
+  {
+    id: 'general.destroyRenderer',
+    category: 'general',
+    title: 'Release interface memory in tray',
+    description: 'Destroy the Chromium renderer while Switchboard is in the tray.',
+    keywords: ['renderer', 'memory', 'ram', 'chromium', 'tray', 'resource'],
+  },
+  {
+    id: 'audio.engine',
+    category: 'audio',
+    title: 'Audio engine',
+    description: 'Start the isolated Audio host now and restore it on the next launch.',
+    keywords: ['audio', 'engine', 'startup', 'host', 'routing'],
+  },
+  {
+    id: 'audio.output',
+    category: 'audio',
+    title: 'Default output',
+    description: 'Choose the output used by the Game bus.',
+    keywords: ['speaker', 'headphones', 'headset', 'endpoint', 'device', 'game'],
+  },
+  {
+    id: 'audio.microphone',
+    category: 'audio',
+    title: 'Default microphone',
+    description: 'Choose the input used by the Microphone bus.',
+    keywords: ['mic', 'input', 'endpoint', 'device', 'voice'],
+  },
+  {
+    id: 'audio.sampleRate',
+    category: 'audio',
+    title: 'Processing format',
+    description: 'The Audio host currently runs a fixed 48 kHz float32 graph.',
+    keywords: ['sample rate', '48 khz', 'format', 'quality', 'float32'],
+  },
+  {
+    id: 'capture.storage',
+    category: 'capture',
+    title: 'Clip storage location',
+    description: 'Choose where saved replay clips are written.',
+    keywords: ['clips', 'folder', 'directory', 'path', 'storage', 'videos'],
+  },
+  {
+    id: 'capture.source',
+    category: 'capture',
+    title: 'Capture source',
+    description: 'Choose how Instant Replay finds the content to capture.',
+    keywords: ['game', 'window', 'display', 'monitor', 'screen'],
+  },
+  {
+    id: 'capture.duration',
+    category: 'capture',
+    title: 'Default replay length',
+    description: 'Set how much recent footage is retained for the next saved clip.',
+    keywords: ['clips', 'duration', 'seconds', 'instant replay', 'buffer'],
+  },
+  {
+    id: 'capture.resolution',
+    category: 'capture',
+    title: 'Resolution',
+    description: 'Set the output size for newly encoded replay segments.',
+    keywords: ['720p', '1080p', '1440p', '4k', '2160p', 'native'],
+  },
+  {
+    id: 'capture.frameRate',
+    category: 'capture',
+    title: 'Frame rate',
+    description: 'Set the target frame rate within the active capture host limit.',
+    keywords: ['fps', 'frames', '30', '60', '120'],
+  },
+  {
+    id: 'capture.quality',
+    category: 'capture',
+    title: 'Capture quality',
+    description: 'Balance encoder bitrate against clip size.',
+    keywords: ['bitrate', 'size', 'quality', 'compression'],
+  },
+  {
+    id: 'capture.shortcut',
+    category: 'capture',
+    title: 'Save replay shortcut',
+    description: 'Record the global keyboard shortcut used to save the current replay.',
+    keywords: ['hotkey', 'keyboard', 'keybind', 'shortcut', 'save clip'],
+  },
+  {
+    id: 'capture.microphone',
+    category: 'capture',
+    title: 'Record microphone',
+    description: 'Include the selected microphone as a separate replay input.',
+    keywords: ['mic', 'voice', 'track', 'audio'],
+  },
+  {
+    id: 'capture.systemAudio',
+    category: 'capture',
+    title: 'Record system audio',
+    description: 'Include desktop audio when the capture host supports it.',
+    keywords: ['desktop audio', 'game audio', 'sound', 'track'],
+  },
+  {
+    id: 'capture.cursor',
+    category: 'capture',
+    title: 'Capture cursor',
+    description: 'Include the Windows pointer in saved footage.',
+    keywords: ['mouse', 'pointer', 'cursor'],
+  },
+  {
+    id: 'capture.encoder',
+    category: 'capture',
+    title: 'Preferred encoder',
+    description: 'Let the host choose automatically or prefer an available encoder.',
+    keywords: ['gpu', 'nvenc', 'amf', 'qsv', 'software', 'hardware'],
+  },
+  {
+    id: 'capture.codec',
+    category: 'capture',
+    title: 'Video codec',
+    description: 'Choose a codec reported by the active capture host.',
+    keywords: ['h264', 'h.264', 'hevc', 'h265', 'av1', 'compression'],
+  },
+  {
+    id: 'modules.automaticUpdates',
+    category: 'modules',
+    title: 'Automatic module updates',
+    description: 'Verify and install signed module packages with rollback retained.',
+    keywords: ['extensions', 'plugins', 'updates', 'signed', 'rollback'],
+  },
+  {
+    id: 'modules.installed',
+    category: 'modules',
+    title: 'Installed modules',
+    description: 'Review the modules currently installed and enabled.',
+    keywords: ['extensions', 'plugins', 'drivers', 'hardware'],
+  },
+  {
+    id: 'diagnostics.guard',
+    category: 'diagnostics',
+    title: 'Performance guard',
+    description: 'Warn when sustained resource use crosses the prototype budget.',
+    keywords: ['cpu', 'memory', 'ram', 'performance', 'resource', 'budget'],
+  },
+  {
+    id: 'diagnostics.retention',
+    category: 'diagnostics',
+    title: 'Local retention',
+    description: 'Choose how long local crash and module failure records are retained.',
+    keywords: ['logs', 'history', 'days', 'crash', 'privacy'],
+  },
+  {
+    id: 'diagnostics.telemetry',
+    category: 'diagnostics',
+    title: 'Telemetry',
+    description: 'Remote telemetry is hard-disabled in the current schema.',
+    keywords: ['privacy', 'analytics', 'tracking', 'collection'],
+  },
+  {
+    id: 'diagnostics.memory',
+    category: 'diagnostics',
+    title: 'Process usage',
+    description: 'Inspect the latest low-frequency memory and CPU snapshot.',
+    keywords: ['renderer memory', 'idle cpu', 'processes', 'ram'],
+  },
+  {
+    id: 'diagnostics.engines',
+    category: 'diagnostics',
+    title: 'Engine status',
+    description: 'Inspect the latest Audio and Capture host state.',
+    keywords: ['audio host', 'capture host', 'stopped', 'running', 'pid'],
+  },
+  {
+    id: 'about.version',
+    category: 'about',
+    title: 'Version',
+    description: 'View the current Switchboard application version.',
+    keywords: ['build', 'release', 'about'],
+  },
+  {
+    id: 'about.runtime',
+    category: 'about',
+    title: 'Runtime',
+    description: 'View the desktop runtime and platform reported to the renderer.',
+    keywords: ['electron', 'windows', 'platform', 'architecture'],
+  },
+];
+
+export function categoryLabel(category: SettingsCategoryId): string {
+  return settingsCategories.find((candidate) => candidate.id === category)?.label ?? category;
+}
+
+export function isSettingsCategory(value: string | null): value is SettingsCategoryId {
+  return settingsCategoryIds.some((candidate) => candidate === value);
+}
+
+export function searchSettings(query: string): SettingsSearchEntry[] {
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return [];
+
+  return settingsSearchEntries
+    .map((entry) => {
+      const category = categoryLabel(entry.category).toLocaleLowerCase();
+      const title = entry.title.toLocaleLowerCase();
+      const haystack = [title, entry.description, category, ...entry.keywords].join(' ').toLocaleLowerCase();
+      if (!terms.every((term) => haystack.includes(term))) return null;
+      const titleHit = terms.some((term) => title.includes(term));
+      const categoryHit = terms.some((term) => category.includes(term));
+      return { entry, score: titleHit ? 0 : categoryHit ? 1 : 2 };
+    })
+    .filter((result): result is { entry: SettingsSearchEntry; score: number } => result !== null)
+    .sort((left, right) => left.score - right.score || left.entry.title.localeCompare(right.entry.title))
+    .map(({ entry }) => entry);
+}

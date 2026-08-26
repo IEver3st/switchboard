@@ -1,18 +1,42 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text.Json;
 using Switchboard.CaptureHost;
 
-var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+var outputGate = new SemaphoreSlim(1, 1);
+var shutdown = new CancellationTokenSource();
+var requests = new ConcurrentDictionary<Guid, Task>();
+await using var engine = new ReplayEngine();
+
+engine.SnapshotChanged += snapshot =>
 {
-    WriteIndented = false,
+    _ = WriteAsync(new { type = "event", @event = "captureSnapshot", payload = snapshot });
+    _ = WriteStatusAsync(snapshot);
 };
 
-await using var engine = new ReplayEngine();
-var settings = new CaptureSettings();
+await WriteStatusAsync(engine.GetSnapshot());
 
-await foreach (var line in ReadLinesAsync(Console.In))
+try
 {
-    if (string.IsNullOrWhiteSpace(line)) continue;
+    while (!shutdown.IsCancellationRequested && await Console.In.ReadLineAsync(shutdown.Token) is { } line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) continue;
+        var operationId = Guid.NewGuid();
+        var operation = HandleLineAsync(line).ContinueWith(
+            completedTask => requests.TryRemove(operationId, out var _),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+        requests[operationId] = operation;
+    }
+}
+catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
 
+await Task.WhenAll(requests.Values);
+
+async Task HandleLineAsync(string line)
+{
     string? requestId = null;
     try
     {
@@ -20,40 +44,84 @@ await foreach (var line in ReadLinesAsync(Console.In))
         var root = document.RootElement;
         requestId = root.TryGetProperty("requestId", out var id) ? id.GetString() : null;
         var command = root.GetProperty("command").GetString() ?? throw new InvalidOperationException("Missing command.");
-
-        object result = command switch
+        var payload = root.TryGetProperty("payload", out var body) ? body : default;
+        object? result = command switch
         {
-            "status" => engine.GetStatus(),
-            "start" => await engine.StartAsync(settings, CancellationToken.None),
-            "stop" => await engine.StopAsync(CancellationToken.None),
-            "configure" => await ConfigureAsync(root, engine),
-            "saveReplay" => await SaveAsync(root, engine),
+            "start" => await engine.StartAsync(ParseSettings(payload), shutdown.Token),
+            "configure" => await engine.ConfigureAsync(ParseSettings(payload), shutdown.Token),
+            "stop" => await engine.StopAsync(shutdown.Token),
+            "status" => engine.GetSnapshot(),
+            "listSources" => engine.ListSources(),
+            "saveReplay" => await engine.SaveReplayAsync(shutdown.Token),
+            "shutdown" => await ShutdownAsync(),
             _ => throw new InvalidOperationException($"Unknown command: {command}"),
         };
 
-        Console.WriteLine(JsonSerializer.Serialize(new { requestId, ok = true, result }, jsonOptions));
+        if (requestId is not null) await WriteAsync(new { type = "response", requestId, result });
     }
-    catch (Exception error)
+    catch (Exception commandError)
     {
-        Console.WriteLine(JsonSerializer.Serialize(new { requestId, ok = false, error = error.Message }, jsonOptions));
+        if (requestId is not null)
+            await WriteAsync(new { type = "response", requestId, error = commandError.Message });
+        else
+            await WriteAsync(new { type = "event", @event = "fatalCaptureError", payload = new { message = commandError.Message } });
     }
 }
 
-async Task<object> ConfigureAsync(JsonElement root, ReplayEngine replayEngine)
+CaptureSettings ParseSettings(JsonElement payload)
 {
-    settings = root.GetProperty("payload").Deserialize<CaptureSettings>(jsonOptions) ?? settings;
-    await replayEngine.ConfigureAsync(settings, CancellationToken.None);
-    return replayEngine.GetStatus();
+    if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        throw new InvalidOperationException("Capture settings are required.");
+    return payload.Deserialize<CaptureSettings>(jsonOptions)?.Validate()
+           ?? throw new InvalidOperationException("Capture settings could not be parsed.");
 }
 
-static async Task<SavedReplay> SaveAsync(JsonElement root, ReplayEngine replayEngine)
+async Task<object> ShutdownAsync()
 {
-    var outputDirectory = root.GetProperty("payload").GetProperty("directory").GetString()
-                          ?? throw new InvalidOperationException("Missing output directory.");
-    return await replayEngine.SaveReplayAsync(outputDirectory, CancellationToken.None);
+    await engine.StopAsync(CancellationToken.None);
+    shutdown.Cancel();
+    return new { stopped = true };
 }
 
-static async IAsyncEnumerable<string> ReadLinesAsync(TextReader reader)
+async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
 {
-    while (await reader.ReadLineAsync() is { } line) yield return line;
+    var replayState = snapshot.Runtime.State;
+    var state = replayState switch
+    {
+        "stopped" => "stopped",
+        "starting" => "starting",
+        "error" => "error",
+        _ => "running",
+    };
+    var process = Process.GetCurrentProcess();
+    await WriteAsync(new
+    {
+        type = "status",
+        status = new
+        {
+            kind = "capture",
+            state,
+            pid = state == "stopped" ? (int?)null : Environment.ProcessId,
+            cpuPercent = 0d,
+            memoryMb = Math.Round(process.WorkingSet64 / 1024d / 1024d, 1),
+            uptimeSeconds = Math.Max(0, engine.Uptime.TotalSeconds),
+            message = snapshot.Runtime.Error ?? snapshot.Runtime.Warning,
+            updatedAt = DateTimeOffset.UtcNow,
+        },
+    });
+}
+
+async Task WriteAsync(object message)
+{
+    var json = JsonSerializer.Serialize(message, jsonOptions);
+    await outputGate.WaitAsync();
+    try
+    {
+        await Console.Out.WriteLineAsync(json);
+        await Console.Out.FlushAsync();
+    }
+    finally
+    {
+        outputGate.Release();
+    }
 }

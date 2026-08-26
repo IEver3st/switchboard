@@ -1,0 +1,41 @@
+import type { AudioDevice, AudioDeviceDirection } from '../../../../shared/contracts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/cn';
+
+export function AudioDevicePicker({
+  value,
+  devices,
+  direction,
+  label,
+  disabled,
+  className,
+  onChange,
+}: {
+  value: string;
+  devices: AudioDevice[];
+  direction: AudioDeviceDirection;
+  label: string;
+  disabled?: boolean;
+  className?: string;
+  onChange: (deviceId: string) => void;
+}) {
+  const options = devices.filter((device) => device.direction === direction && device.available);
+
+  return (
+    <Select value={value} onValueChange={onChange} disabled={disabled || options.length === 0}>
+      <SelectTrigger
+        aria-label={label}
+        className={cn('h-7 w-full min-w-0 border-0 bg-transparent px-0 text-[10px] font-medium shadow-none hover:text-foreground focus:ring-0', className)}
+      >
+        <SelectValue placeholder="No available device" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((device) => (
+          <SelectItem key={device.id} value={device.id}>
+            {device.name}{device.isDefault ? ' · Default' : ''}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}

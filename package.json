@@ -14,6 +14,7 @@
     "check": "node ./scripts/check.mjs",
     "check:source": "node ./scripts/transpile-check.mjs",
     "check:types": "tsc -p tsconfig.node.json --noEmit --pretty false && tsc -p tsconfig.web.json --noEmit --pretty false",
+    "test": "bun test",
     "validate": "bun run check && bun run check:types && bun run build",
     "check:workers": "node ./scripts/worker-smoke.cjs"
   },
@@ -27,6 +28,7 @@
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "1.34.0",
+    "node-hid": "3.4.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "tailwind-merge": "3.6.0",

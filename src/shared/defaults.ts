@@ -2,7 +2,9 @@ import type {
   AppSettings,
   AudioState,
   CaptureConfig,
+  CaptureCapabilities,
   CaptureRuntime,
+  CaptureStorage,
   Clip,
   Device,
   EngineStatus,
@@ -104,15 +106,42 @@ export const defaultDevices: Device[] = [
   {
     id: 'logitech-g502x-plus-1',
     moduleId: 'device.logitech-hidpp',
-    name: 'G502 X Plus',
-    vendor: 'Logitech',
+    displayName: 'G502 X Plus',
     kind: 'mouse',
     connected: true,
     batteryPercent: 82,
-    connection: 'wireless',
-    imageKey: 'mouse-g502x',
-    appearance: { colorway: 'black', source: 'fixture' },
+    identity: {
+      manufacturer: 'Logitech',
+      productFamily: 'G502',
+      model: 'G502 X Plus',
+      variant: 'white',
+      colorway: 'White',
+      connection: 'wireless',
+      vendorId: 0x046d,
+      productId: 0x4099,
+      transportProductId: 0xc547,
+      serialNumber: 'PREVIEW-G502X',
+      productString: 'G502 X PLUS',
+    },
+    variantResolution: {
+      confidence: 'hardware',
+      source: 'Logitech DEVIO extended model',
+      evidence: 'extendedModel 1',
+    },
+    asset: {
+      key: 'logitech-g502-x-plus-white',
+      matchedBy: 'exact-variant',
+      source: 'bundled-official',
+    },
     capabilities: ['dpi', 'polling-rate', 'buttons', 'battery', 'profiles', 'lighting'],
+    controlBindings: [
+      { id: 'primary', label: 'Primary click', assignment: 'Left click', side: 'left', order: 0 },
+      { id: 'back', label: 'Back button', assignment: 'Back', side: 'left', order: 1 },
+      { id: 'dpi-shift', label: 'DPI shift', assignment: '800 DPI', side: 'left', order: 2 },
+      { id: 'secondary', label: 'Secondary click', assignment: 'Right click', side: 'right', order: 0 },
+      { id: 'wheel', label: 'Wheel press', assignment: 'Middle click', side: 'right', order: 1 },
+      { id: 'forward', label: 'Forward button', assignment: 'Forward', side: 'right', order: 2 },
+    ],
     settings: {
       dpiStages: [800, 1600, 3200],
       activeDpi: 1600,
@@ -125,13 +154,30 @@ export const defaultDevices: Device[] = [
   {
     id: 'hyperx-quadcast2-1',
     moduleId: 'device.hyperx-quadcast',
-    name: 'QuadCast 2',
-    vendor: 'HyperX',
+    displayName: 'QuadCast 2',
     kind: 'microphone',
     connected: true,
-    connection: 'usb',
-    imageKey: 'mic-quadcast2',
-    appearance: { colorway: 'black', source: 'fixture' },
+    identity: {
+      manufacturer: 'HyperX',
+      productFamily: 'QuadCast',
+      model: 'QuadCast 2',
+      variant: 'default',
+      connection: 'usb',
+      vendorId: 0x03f0,
+      productId: 0x07b4,
+      interfaceProductIds: [0x07b4, 0x09af],
+      serialNumber: 'PREVIEW-QUADCAST2',
+      productString: 'HyperX QuadCast 2',
+    },
+    variantResolution: {
+      confidence: 'fallback',
+      source: 'No cosmetic SKU reported by hardware',
+    },
+    asset: {
+      key: 'hyperx-quadcast-2',
+      matchedBy: 'exact-model',
+      source: 'bundled-official',
+    },
     capabilities: ['gain', 'monitoring', 'mute', 'lighting'],
     settings: {
       gain: 58,
@@ -151,43 +197,180 @@ export const defaultAudio: AudioState = {
   chatMix: 0.15,
   monitoring: 0.18,
   buses: [
-    { id: 'game', label: 'Game', appCount: 1, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard Game' },
-    { id: 'chat', label: 'Chat', appCount: 1, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard Chat' },
-    { id: 'media', label: 'Media', appCount: 2, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard Media' },
-    { id: 'aux', label: 'Aux', appCount: 0, gain: 0.9, muted: false, meter: 0.08, endpoint: 'Switchboard Aux' },
+    { id: 'game', label: 'Game', enabled: true, appCount: 1, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard Game', deviceId: 'output-nova-pro' },
+    { id: 'chat', label: 'Chat', enabled: true, appCount: 1, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard Chat', deviceId: 'output-nova-pro' },
+    { id: 'media', label: 'Media', enabled: true, appCount: 2, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard Media', deviceId: 'output-realtek-speakers' },
+    { id: 'mic', label: 'Microphone', enabled: true, appCount: 1, gain: 0.92, muted: false, meter: 0.56, endpoint: 'Switchboard Microphone', deviceId: 'input-quadcast-2' },
   ],
   micProcessors: [
-    { id: 'gain', label: 'Input gain', enabled: true, cost: 'none' },
-    { id: 'noise-gate', label: 'Noise gate', enabled: true, cost: 'low' },
-    { id: 'noise-suppression', label: 'Noise suppression', enabled: true, cost: 'medium' },
-    { id: 'equalizer', label: 'Parametric EQ', enabled: true, cost: 'low' },
-    { id: 'compressor', label: 'Compressor', enabled: true, cost: 'low' },
-    { id: 'limiter', label: 'Limiter', enabled: true, cost: 'low' },
+    { id: 'gain', label: 'Input gain', enabled: true, cost: 'none', parameters: { gainDb: 0 } },
+    {
+      id: 'noise-gate',
+      label: 'Noise gate',
+      enabled: true,
+      cost: 'low',
+      parameters: { thresholdDb: -48, attackMs: 10, releaseMs: 180 },
+    },
+    {
+      id: 'noise-suppression',
+      label: 'Noise suppression',
+      enabled: true,
+      cost: 'medium',
+      parameters: { amount: 55 },
+    },
+    {
+      id: 'equalizer',
+      label: 'Parametric EQ',
+      enabled: true,
+      cost: 'low',
+      parameters: {
+        bands: [
+          { id: 'low', enabled: true, type: 'low-shelf', frequency: 90, gainDb: 0, q: 0.7 },
+          { id: 'body', enabled: true, type: 'bell', frequency: 250, gainDb: -1.5, q: 1 },
+          { id: 'clarity', enabled: true, type: 'bell', frequency: 2_800, gainDb: 2, q: 1.2 },
+          { id: 'air', enabled: true, type: 'high-shelf', frequency: 9_000, gainDb: 1, q: 0.7 },
+        ],
+      },
+    },
+    {
+      id: 'compressor',
+      label: 'Compressor',
+      enabled: true,
+      cost: 'low',
+      parameters: { thresholdDb: -18, ratio: 4, attackMs: 12, releaseMs: 180, makeupDb: 2 },
+    },
+    {
+      id: 'limiter',
+      label: 'Limiter',
+      enabled: true,
+      cost: 'low',
+      parameters: { thresholdDb: -1, releaseMs: 90 },
+    },
   ],
+  devices: [
+    { id: 'output-nova-pro', name: 'Arctis Nova Pro Wireless', direction: 'output', isDefault: true, available: true },
+    { id: 'output-realtek-speakers', name: 'Speakers (Realtek Audio)', direction: 'output', isDefault: false, available: true },
+    { id: 'output-display-audio', name: 'LG ULTRAGEAR (NVIDIA Audio)', direction: 'output', isDefault: false, available: true },
+    { id: 'input-quadcast-2', name: 'HyperX QuadCast 2', direction: 'input', isDefault: true, available: true },
+    { id: 'input-realtek-mic', name: 'Microphone (Realtek Audio)', direction: 'input', isDefault: false, available: true },
+  ],
+  presets: [
+    {
+      id: 'balanced',
+      label: 'Balanced',
+      description: 'Even game and chat with media on speakers.',
+      chatMix: 0.15,
+      buses: [
+        { busId: 'game', enabled: true, gain: 1, deviceId: 'output-nova-pro' },
+        { busId: 'chat', enabled: true, gain: 0.76, deviceId: 'output-nova-pro' },
+        { busId: 'media', enabled: true, gain: 0.42, deviceId: 'output-realtek-speakers' },
+        { busId: 'mic', enabled: true, gain: 0.92, deviceId: 'input-quadcast-2' },
+      ],
+      micProcessors: [
+        { processorId: 'gain', enabled: true },
+        { processorId: 'noise-gate', enabled: true },
+        { processorId: 'noise-suppression', enabled: true },
+        { processorId: 'equalizer', enabled: true },
+        { processorId: 'compressor', enabled: true },
+        { processorId: 'limiter', enabled: true },
+      ],
+    },
+    {
+      id: 'competitive',
+      label: 'Competitive',
+      description: 'Game forward with quieter chat and media.',
+      chatMix: -0.35,
+      buses: [
+        { busId: 'game', enabled: true, gain: 1.1, deviceId: 'output-nova-pro' },
+        { busId: 'chat', enabled: true, gain: 0.62, deviceId: 'output-nova-pro' },
+        { busId: 'media', enabled: true, gain: 0.26, deviceId: 'output-realtek-speakers' },
+        { busId: 'mic', enabled: true, gain: 0.85, deviceId: 'input-quadcast-2' },
+      ],
+      micProcessors: [
+        { processorId: 'gain', enabled: true },
+        { processorId: 'noise-gate', enabled: true },
+        { processorId: 'noise-suppression', enabled: true },
+        { processorId: 'equalizer', enabled: true },
+        { processorId: 'compressor', enabled: false },
+        { processorId: 'limiter', enabled: true },
+      ],
+    },
+    {
+      id: 'broadcast',
+      label: 'Broadcast',
+      description: 'Voice processing on with a fuller program mix.',
+      chatMix: 0.1,
+      buses: [
+        { busId: 'game', enabled: true, gain: 0.9, deviceId: 'output-nova-pro' },
+        { busId: 'chat', enabled: true, gain: 0.85, deviceId: 'output-nova-pro' },
+        { busId: 'media', enabled: true, gain: 0.65, deviceId: 'output-realtek-speakers' },
+        { busId: 'mic', enabled: true, gain: 1, deviceId: 'input-quadcast-2' },
+      ],
+      micProcessors: [
+        { processorId: 'gain', enabled: true },
+        { processorId: 'noise-gate', enabled: true },
+        { processorId: 'noise-suppression', enabled: true },
+        { processorId: 'equalizer', enabled: true },
+        { processorId: 'compressor', enabled: true },
+        { processorId: 'limiter', enabled: true },
+      ],
+    },
+  ],
+  activePresetId: 'balanced',
 };
 
 export const defaultCaptureConfig: CaptureConfig = {
   enabled: false,
-  source: 'game',
+  source: 'automatic-game',
+  sourceId: null,
   displayIndex: 0,
   fps: 60,
   resolution: '1440p',
-  codec: 'av1',
+  codec: 'h264',
   encoder: 'auto',
   quality: 4,
   replaySeconds: 60,
   includeMic: true,
-  includeChat: true,
+  includeSystemAudio: true,
   includeCursor: false,
   hotkey: 'Ctrl+Shift+F10',
+  clipsDirectory: null,
 };
 
 export const defaultCaptureRuntime: CaptureRuntime = {
+  state: 'stopped',
   bufferedSeconds: 0,
   segmentCount: 0,
-  estimatedDiskMb: 0,
-  encoderLabel: 'NVIDIA NVENC AV1',
+  replayCacheBytes: 0,
+  observedBitrateBps: 0,
+  encoderLabel: 'Not selected',
+  backendLabel: 'Windows Graphics Capture',
   droppedFrames: 0,
+  encodedFrames: 0,
+  audioSyncCorrections: 0,
+  activeSource: null,
+  saveQueueDepth: 0,
+  shortcutRegistered: false,
+};
+
+export const defaultCaptureStorage: CaptureStorage = {
+  clipsDirectory: '',
+  cacheDirectory: '',
+  availableBytes: 0,
+  clipsBytes: 0,
+  replayCacheBytes: 0,
+  lowSpace: false,
+  criticalSpace: false,
+};
+
+export const defaultCaptureCapabilities: CaptureCapabilities = {
+  backend: 'unavailable',
+  encoders: [],
+  codecs: ['h264'],
+  maximumFps: 60,
+  systemAudio: false,
+  microphoneAudio: false,
+  exclusiveFullscreen: false,
 };
 
 export const defaultSettings: AppSettings = {
@@ -198,6 +381,7 @@ export const defaultSettings: AppSettings = {
   performanceGuard: true,
   diagnosticsRetentionDays: 7,
   telemetry: false,
+  deviceAppearanceOverrides: {},
 };
 
 export const stoppedEngines: EngineStatus[] = [
@@ -229,28 +413,7 @@ export const defaultPerformance: PerformanceSnapshot = {
   budgetCpuPercent: 2,
 };
 
-export const seedClips: Clip[] = [
-  {
-    id: 'clip-demo-1',
-    name: 'War Thunder · clean pass',
-    game: 'War Thunder',
-    durationSeconds: 45,
-    sizeMb: 126,
-    createdAt: new Date(Date.now() - 42 * 60_000).toISOString(),
-    path: 'C:\\Users\\Manuel\\Videos\\Switchboard Clips\\WarThunder_demo.mp4',
-    prototype: true,
-  },
-  {
-    id: 'clip-demo-2',
-    name: 'FiveM · pursuit ending',
-    game: 'FiveM',
-    durationSeconds: 60,
-    sizeMb: 178,
-    createdAt: new Date(Date.now() - 3.2 * 60 * 60_000).toISOString(),
-    path: 'C:\\Users\\Manuel\\Videos\\Switchboard Clips\\FiveM_demo.mp4',
-    prototype: true,
-  },
-];
+export const seedClips: Clip[] = [];
 
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
@@ -263,6 +426,9 @@ export function createDefaultSnapshot(): SystemSnapshot {
     capture: {
       config: structuredClone(defaultCaptureConfig),
       runtime: structuredClone(defaultCaptureRuntime),
+      storage: structuredClone(defaultCaptureStorage),
+      capabilities: structuredClone(defaultCaptureCapabilities),
+      sources: [],
     },
     clips: structuredClone(seedClips),
     performance: structuredClone(defaultPerformance),

@@ -1,12 +1,13 @@
-import { ArrowLeft, BatteryCharging, Cable, Check, Crosshair, Lightbulb, RotateCcw, Usb } from 'lucide-react';
-import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
-import { Button } from '@/components/ui/button';
+import { ArrowLeft, BatteryCharging, Cable, Check, Crosshair, Lightbulb, Usb } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import type { Device, DeviceControlBinding, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { DeviceRender } from '@/components/shared/device-render';
 import { SelectField } from '@/components/shared/controls';
 import { SectionHeading, StatusDot } from '@/components/shared/surface';
 import { cn } from '@/lib/cn';
+import { formatMb } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
 export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
@@ -14,6 +15,23 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const selectDevice = useSystemStore((state) => state.selectDevice);
   const clearDeviceSelection = useSystemStore((state) => state.clearDeviceSelection);
   const selected = snapshot.devices.find((device) => device.id === selectedDeviceId);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const deviceButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const returnFocusDeviceId = useRef<string | null>(null);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (selected) {
+        backButtonRef.current?.focus();
+        return;
+      }
+      const deviceId = returnFocusDeviceId.current;
+      if (!deviceId) return;
+      deviceButtonRefs.current.get(deviceId)?.focus();
+      returnFocusDeviceId.current = null;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selected]);
 
   if (snapshot.devices.length === 0) {
     return (
@@ -30,42 +48,69 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
   if (!selected) {
     return (
       <div className="device-gallery-page">
-        <div className="device-gallery" role="list" aria-label="Connected devices">
-          {snapshot.devices.map((device) => (
-            <button
-              key={device.id}
-              type="button"
-              role="listitem"
-              onClick={() => selectDevice(device.id)}
-              className="device-gallery__item"
-              aria-label={`Open controls for ${device.vendor} ${device.name}`}
-            >
-              <DeviceRender device={device} density="gallery" />
-              <span className="device-gallery__name">{device.name}</span>
-              <span className="sr-only">{device.connected ? 'Connected' : 'Disconnected'}</span>
-            </button>
-          ))}
+        <div className="device-gallery-stage">
+          <ul className="device-gallery" aria-label="Switchboard devices">
+            {snapshot.devices.map((device) => (
+              <li key={device.id} className="device-gallery__entry" data-connected={device.connected} data-kind={device.kind}>
+                <button
+                  ref={(node) => {
+                    if (node) deviceButtonRefs.current.set(device.id, node);
+                    else deviceButtonRefs.current.delete(device.id);
+                  }}
+                  type="button"
+                  onClick={() => {
+                    returnFocusDeviceId.current = device.id;
+                    selectDevice(device.id);
+                  }}
+                  className="device-gallery__item"
+                  aria-label={`Open controls for ${device.identity.manufacturer ?? ''} ${device.displayName}`.trim()}
+                >
+                  <DeviceRender device={device} density="gallery" />
+                  <span className="device-gallery__copy">
+                    <span className="device-gallery__name">{device.displayName}</span>
+                    <span className="device-gallery__status">
+                      <span className={cn('device-gallery__status-dot', device.connected && 'is-connected')} aria-hidden />
+                      <span>{device.connected ? 'Connected' : 'Disconnected'}</span>
+                      {device.kind === 'mouse' && typeof device.batteryPercent === 'number' ? (
+                        <><span aria-hidden>·</span><span className="tabular-nums">{Math.round(device.batteryPercent)}%</span></>
+                      ) : null}
+                      {device.kind === 'microphone' && device.identity.connection ? (
+                        <><span aria-hidden>·</span><span className="uppercase">{device.identity.connection}</span></>
+                      ) : null}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
+        <RuntimeStatus snapshot={snapshot} />
       </div>
     );
   }
 
   return (
     <div className="device-workbench">
-      <button type="button" className="device-workbench__back" onClick={clearDeviceSelection}>
-        <ArrowLeft aria-hidden className="size-3.5" />
-        All devices
-      </button>
-
-      <div className="device-workbench__hero">
-        <DeviceRender device={selected} density="hero" />
+      <div className="device-workbench__toolbar">
+        <button
+          ref={backButtonRef}
+          type="button"
+          className="device-workbench__back"
+          onClick={() => {
+            returnFocusDeviceId.current = selected.id;
+            clearDeviceSelection();
+          }}
+        >
+          <ArrowLeft aria-hidden className="size-3.5" />
+          All devices
+        </button>
         <div className="device-workbench__identity">
-          <h2>{selected.name}</h2>
+          <h2>{selected.displayName}</h2>
           <div className="device-workbench__meta">
             <StatusDot active={selected.connected} />
-            <span>{selected.vendor}</span>
+            <span>{selected.identity.manufacturer ?? 'Unknown manufacturer'}</span>
             <span aria-hidden>·</span>
-            <span className="capitalize">{selected.connection ?? 'unknown'}</span>
+            <span className="capitalize">{selected.identity.connection ?? 'unknown'}</span>
             {typeof selected.batteryPercent === 'number' ? (
               <>
                 <span aria-hidden>·</span>
@@ -77,6 +122,14 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
         </div>
       </div>
 
+      {selected.kind === 'mouse' ? (
+        <MouseStage device={selected} />
+      ) : (
+        <div className="device-workbench__hero">
+          <DeviceRender device={selected} density="hero" />
+        </div>
+      )}
+
       <div className="device-workbench__controls">
         {selected.kind === 'mouse' ? <MouseControls device={selected} /> : null}
         {selected.kind === 'microphone' ? <MicrophoneControls device={selected} /> : null}
@@ -86,6 +139,57 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
       </div>
     </div>
   );
+}
+
+function MouseStage({ device }: { device: Device }) {
+  const bindings = device.capabilities.includes('buttons') ? (device.controlBindings ?? []) : [];
+  const leftBindings = bindings.filter((binding) => binding.side === 'left').sort(compareBindingOrder);
+  const rightBindings = bindings.filter((binding) => binding.side === 'right').sort(compareBindingOrder);
+
+  return (
+    <section className="mouse-stage" aria-label={`${device.displayName} button assignments`}>
+      <div className="mouse-stage__callouts mouse-stage__callouts--left">
+        {leftBindings.map((binding) => <MouseCallout key={binding.id} binding={binding} />)}
+      </div>
+      <DeviceRender device={device} density="hero" className="mouse-stage__render" />
+      <div className="mouse-stage__callouts mouse-stage__callouts--right">
+        {rightBindings.map((binding) => <MouseCallout key={binding.id} binding={binding} />)}
+      </div>
+    </section>
+  );
+}
+
+function RuntimeStatus({ snapshot }: { snapshot: SystemSnapshot }) {
+  const connected = snapshot.devices.filter((device) => device.connected).length;
+  const audioState = snapshot.engines.find((engine) => engine.kind === 'audio')?.state ?? 'stopped';
+  const replayState = snapshot.capture.runtime.state;
+  return (
+    <footer className="device-runtime" aria-label="Runtime status">
+      <span>{connected} {connected === 1 ? 'device' : 'devices'} connected</span>
+      <span aria-hidden className="device-runtime__divider" />
+      <span>Audio {snapshot.audio.enabled ? audioState : 'off'}</span>
+      <span aria-hidden className="device-runtime__divider" />
+      <span>Replay {snapshot.capture.config.enabled ? replayState : 'off'}</span>
+      <span aria-hidden className="device-runtime__divider" />
+      <span className="tabular-nums">{formatMb(snapshot.performance.totalMemoryMb)} · {snapshot.performance.totalCpuPercent.toFixed(1)}% CPU</span>
+    </footer>
+  );
+}
+
+function MouseCallout({ binding }: { binding: DeviceControlBinding }) {
+  return (
+    <div className="mouse-callout">
+      <span className="mouse-callout__copy">
+        <span className="mouse-callout__label">{binding.label}</span>
+        <span className="mouse-callout__assignment">{binding.assignment}</span>
+      </span>
+      <span className="mouse-callout__line" aria-hidden />
+    </div>
+  );
+}
+
+function compareBindingOrder(left: DeviceControlBinding, right: DeviceControlBinding): number {
+  return left.order - right.order;
 }
 
 function MouseControls({ device }: { device: Device }) {
@@ -99,16 +203,7 @@ function MouseControls({ device }: { device: Device }) {
 
   return (
     <section className="device-controls">
-      <SectionHeading
-        eyebrow="Mouse controls"
-        title="Sensitivity and behavior"
-        description="Stages are stored by the Logitech HID++ module and rendered by the shared mouse capability UI."
-        action={
-          <Button size="sm" variant="ghost">
-            <RotateCcw className="size-3.5" /> Reset
-          </Button>
-        }
-      />
+      <SectionHeading title="Sensitivity and behavior" />
       <div className="device-controls__grid mt-6 grid grid-cols-12 gap-x-8 gap-y-6">
         <div className="device-controls__primary col-span-6">
           <div className="flex items-center justify-between">
@@ -180,24 +275,6 @@ function MouseControls({ device }: { device: Device }) {
         </div>
       </div>
 
-      <div className="device-controls__assignments mt-6 border-t border-border pt-5">
-        <div className="mb-3 text-xs font-medium text-muted-foreground">Button assignments</div>
-        <div className="grid grid-cols-6 gap-2">
-          {[
-            ['Primary', 'Left click'],
-            ['Secondary', 'Right click'],
-            ['Wheel', 'Middle click'],
-            ['G4', 'Back'],
-            ['G5', 'Forward'],
-            ['DPI Shift', '800 DPI'],
-          ].map(([button, action]) => (
-            <button key={button} type="button" className="rounded-md border border-border bg-muted px-3 py-2.5 text-left transition-colors hover:border-input">
-              <div className="text-[10px] font-semibold text-muted-foreground">{button}</div>
-              <div className="mt-0.5 text-[11px] text-foreground">{action}</div>
-            </button>
-          ))}
-        </div>
-      </div>
     </section>
   );
 }

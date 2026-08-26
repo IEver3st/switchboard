@@ -9,7 +9,7 @@ internal sealed class AudioGraph
         ["game"] = new("game", 1.00f),
         ["chat"] = new("chat", 0.76f),
         ["media"] = new("media", 0.42f),
-        ["aux"] = new("aux", 0.90f),
+        ["mic"] = new("mic", 0.92f),
     };
 
     private readonly Dictionary<string, bool> processors = new(StringComparer.OrdinalIgnoreCase)
@@ -38,6 +38,12 @@ internal sealed class AudioGraph
     {
         if (!buses.TryGetValue(busId, out var bus)) throw new ArgumentOutOfRangeException(nameof(busId));
         bus.Gain = Math.Clamp(gain, 0f, 1.5f);
+    }
+
+    public void SetBusEnabled(string busId, bool enabled)
+    {
+        if (!buses.TryGetValue(busId, out var bus)) throw new ArgumentOutOfRangeException(nameof(busId));
+        bus.Muted = !enabled;
     }
 
     public void SetChatMix(float value)

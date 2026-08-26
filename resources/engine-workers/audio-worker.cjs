@@ -6,7 +6,16 @@ if (!parentPort) throw new Error('Audio worker must run as an Electron utility p
 let startedAt = 0;
 let running = false;
 let chatMix = 0.15;
-const busGains = { game: 1, chat: 0.76, media: 0.42, aux: 0.9 };
+let meterSequence = 0;
+let meterPhase = 0;
+const busGains = { game: 1, chat: 0.76, media: 0.42, mic: 0.92 };
+const busEnabled = { game: true, chat: true, media: true, mic: true };
+const busDevices = {
+  game: 'output-nova-pro',
+  chat: 'output-nova-pro',
+  media: 'output-realtek-speakers',
+  mic: 'input-quadcast-2',
+};
 const processors = {
   gain: true,
   'noise-gate': true,
@@ -14,6 +23,14 @@ const processors = {
   equalizer: true,
   compressor: true,
   limiter: true,
+};
+const processorParameters = {
+  gain: { gainDb: 0 },
+  'noise-gate': { thresholdDb: -48, attackMs: 10, releaseMs: 180 },
+  'noise-suppression': { amount: 55 },
+  equalizer: { bands: [] },
+  compressor: { thresholdDb: -18, ratio: 4, attackMs: 12, releaseMs: 180, makeupDb: 2 },
+  limiter: { thresholdDb: -1, releaseMs: 90 },
 };
 
 function isRecord(value) {
@@ -41,6 +58,8 @@ function applyConfiguration(payload) {
     for (const bus of payload.buses) {
       if (!isRecord(bus) || !Object.hasOwn(busGains, bus.id)) continue;
       busGains[bus.id] = clampNumber(bus.gain, 0, 1.5, busGains[bus.id]);
+      if (typeof bus.enabled === 'boolean') busEnabled[bus.id] = bus.enabled;
+      if (typeof bus.deviceId === 'string' && bus.deviceId.length > 0) busDevices[bus.id] = bus.deviceId;
     }
   }
 
@@ -48,8 +67,29 @@ function applyConfiguration(payload) {
     for (const processor of payload.micProcessors) {
       if (!isRecord(processor) || !Object.hasOwn(processors, processor.id)) continue;
       if (typeof processor.enabled === 'boolean') processors[processor.id] = processor.enabled;
+      if (isRecord(processor.parameters)) {
+        processorParameters[processor.id] = { ...processorParameters[processor.id], ...processor.parameters };
+      }
     }
   }
+}
+
+function meters() {
+  if (!running) return;
+  meterPhase += 0.17;
+  const baseLevels = { game: 0.78, chat: 0.52, media: 0.38, mic: 0.64 };
+  const values = Object.keys(busGains).map((busId, index) => {
+    const movement = 0.52 + Math.sin(meterPhase + index * 1.31) * 0.22 + Math.sin(meterPhase * 0.43 + index) * 0.12;
+    const level = busEnabled[busId]
+      ? Math.max(0, Math.min(1, baseLevels[busId] * movement * Math.min(1.25, busGains[busId] + 0.18)))
+      : 0;
+    const peak = Math.min(1, level + 0.055);
+    return { busId, level, peak, clipping: peak >= 0.985 };
+  });
+  parentPort.postMessage({
+    type: 'meters',
+    frame: { sequence: meterSequence++, timestamp: new Date().toISOString(), values },
+  });
 }
 
 function status() {
@@ -85,12 +125,28 @@ parentPort.on('message', (event) => {
     busGains[message.payload.busId] = clampNumber(message.payload.gain, 0, 1.5, busGains[message.payload.busId]);
   }
 
+  if (message.command === 'setBusEnabled' && isRecord(message.payload) && Object.hasOwn(busEnabled, message.payload.busId)) {
+    if (typeof message.payload.enabled === 'boolean') busEnabled[message.payload.busId] = message.payload.enabled;
+  }
+
+  if (message.command === 'setBusDevice' && isRecord(message.payload) && Object.hasOwn(busDevices, message.payload.busId)) {
+    if (typeof message.payload.deviceId === 'string' && message.payload.deviceId.length > 0) {
+      busDevices[message.payload.busId] = message.payload.deviceId;
+    }
+  }
+
   if (message.command === 'setChatMix' && isRecord(message.payload)) {
     chatMix = clampNumber(message.payload.value, -1, 1, chatMix);
   }
 
   if (message.command === 'setMicProcessor' && isRecord(message.payload) && Object.hasOwn(processors, message.payload.processorId)) {
     if (typeof message.payload.enabled === 'boolean') processors[message.payload.processorId] = message.payload.enabled;
+    if (isRecord(message.payload.parameters)) {
+      processorParameters[message.payload.processorId] = {
+        ...processorParameters[message.payload.processorId],
+        ...message.payload.parameters,
+      };
+    }
   }
 
   if (message.command === 'shutdown') {
@@ -104,4 +160,5 @@ parentPort.on('message', (event) => {
 });
 
 setInterval(status, 1000).unref();
+setInterval(meters, 50).unref();
 status();
