@@ -621,6 +621,8 @@ export const clipSchema = z.object({
   thumbnailPath: z.string().optional(),
   favorite: z.boolean().default(false),
   titleEdited: z.boolean().default(false),
+  trimStartMs: z.number().int().nonnegative().default(0),
+  trimEndMs: z.number().int().positive().optional(),
   audioChannels: z.array(clipAudioChannelSchema).max(4).optional(),
 });
 export type Clip = z.infer<typeof clipSchema>;
@@ -886,6 +888,7 @@ export const ipcChannels = {
   deleteClip: 'clips:delete',
   renameClip: 'clips:rename',
   setClipFavorite: 'clips:set-favorite',
+  setClipTrim: 'clips:set-trim',
   exportClip: 'clips:export',
   snapshotUpdated: 'system:snapshot-updated',
 } as const;
@@ -923,7 +926,8 @@ export interface SwitchboardApi {
   deleteClip(id: string): Promise<SystemSnapshot>;
   renameClip(input: RenameClipInput): Promise<SystemSnapshot>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<SystemSnapshot>;
-  exportClip(id: string): Promise<boolean>;
+  setClipTrim(input: SetClipTrimInput): Promise<SystemSnapshot>;
+  exportClip(input: ExportClipInput): Promise<boolean>;
   subscribe(listener: (snapshot: SystemSnapshot) => void): () => void;
 }
 
@@ -938,3 +942,27 @@ export const setClipFavoriteInputSchema = z.object({
   favorite: z.boolean(),
 });
 export type SetClipFavoriteInput = z.infer<typeof setClipFavoriteInputSchema>;
+
+const clipTrimInputShape = {
+  id: z.string().min(1).max(256),
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().positive(),
+};
+
+export const clipTrimInputSchema = z.object(clipTrimInputShape).refine((input) => input.endMs > input.startMs, {
+  message: 'The trim end must be after the trim start.',
+  path: ['endMs'],
+});
+export type SetClipTrimInput = z.infer<typeof clipTrimInputSchema>;
+
+export const clipExportPresetSchema = z.enum(['original', '10mb', '25mb', '50mb']);
+export type ClipExportPreset = z.infer<typeof clipExportPresetSchema>;
+
+export const exportClipInputSchema = z.object({
+  ...clipTrimInputShape,
+  preset: clipExportPresetSchema,
+}).refine((input) => input.endMs > input.startMs, {
+  message: 'The trim end must be after the trim start.',
+  path: ['endMs'],
+});
+export type ExportClipInput = z.infer<typeof exportClipInputSchema>;

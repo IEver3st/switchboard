@@ -1,2 +1,3 @@
-2026/08/26-02:36:43.293 f5ec Creating DB C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\shared_proto_db\metadata since it was missing.
-2026/08/26-02:36:43.298 f5ec Reusing MANIFEST C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\shared_proto_db\metadata/MANIFEST-000001
+2026/08/26-02:40:27.966 fb00 Reusing MANIFEST C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\shared_proto_db\metadata/MANIFEST-000001
+2026/08/26-02:40:27.966 fb00 Recovering log #3
+2026/08/26-02:40:27.966 fb00 Reusing old log C:\Users\User\Desktop\Development\Applications\switchboard\design-qa\runtime-profile-capture\shared_proto_db\metadata/000003.log 

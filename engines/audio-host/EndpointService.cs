@@ -34,6 +34,8 @@ internal sealed class EndpointService : IDisposable
                 device.FriendlyName,
                 device.DataFlow.ToString().ToLowerInvariant(),
                 isDefault,
+                TryGetFormFactor(device),
+                TryGetInstanceId(device),
                 volume,
                 muted));
         }
@@ -69,6 +71,42 @@ internal sealed class EndpointService : IDisposable
         try
         {
             return enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? TryGetFormFactor(MMDevice device)
+    {
+        try
+        {
+            return Convert.ToUInt32(device.Properties[PropertyKeys.PKEY_AudioEndpoint_FormFactor].Value) switch
+            {
+                0 => "remote-network-device",
+                1 => "speakers",
+                2 => "line-level",
+                3 => "headphones",
+                4 => "microphone",
+                5 => "headset",
+                6 => "handset",
+                8 => "spdif",
+                9 => "digital-display",
+                _ => "unknown",
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? TryGetInstanceId(MMDevice device)
+    {
+        try
+        {
+            return device.InstanceId;
         }
         catch
         {

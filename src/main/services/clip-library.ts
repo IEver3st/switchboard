@@ -2,8 +2,9 @@ import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { access, mkdir, opendir, rename, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, join, parse, resolve } from 'node:path';
-import type { Clip, ClipAudioChannel } from '../../shared/contracts';
+import type { Clip, ClipAudioChannel, ExportClipInput } from '../../shared/contracts';
 import { createDefaultClipTitle, inferClipGame, normalizeClipRecord } from '../../shared/clip-library';
 
 const supportedExtensions = new Set(['.mp4', '.mkv', '.webm', '.mov']);
@@ -124,6 +125,60 @@ export class ClipLibraryService {
     };
   }
 
+  public async renderExport(clip: Clip, destination: string, input: ExportClipInput): Promise<void> {
+    const startMs = Math.max(0, Math.min(input.startMs, clip.durationMs - 1));
+    const endMs = Math.max(startMs + 1, Math.min(input.endMs, clip.durationMs));
+    const durationSeconds = (endMs - startMs) / 1_000;
+    const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
+    const seek = (startMs / 1_000).toFixed(3);
+    const duration = durationSeconds.toFixed(3);
+    const common = [
+      '-hide_banner', '-loglevel', 'error', '-ss', seek, '-i', clip.path, '-t', duration,
+      '-map', '0:v:0', '-map_metadata', '0',
+    ];
+    const video = ['-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2'];
+
+    if (input.preset === 'original') {
+      await run(executable, [
+        ...common, '-map', '0:a?', ...video, '-crf', '18', '-c:a', 'aac', '-b:a', '160k',
+        '-movflags', '+faststart', '-y', destination,
+      ]);
+      return;
+    }
+
+    const targetBytes = exportPresetBytes[input.preset];
+    const budgetKbps = targetBytes * 8 * 0.94 / durationSeconds / 1_000;
+    const audioKbps = budgetKbps >= 420 ? 96 : 64;
+    const sourceKbps = clip.fileSize * 8 / Math.max(1, clip.durationMs / 1_000) / 1_000;
+    const videoKbps = Math.floor(Math.min(
+      Math.max(120, budgetKbps - audioKbps),
+      Math.max(120, sourceKbps - audioKbps),
+    ));
+    if (budgetKbps < audioKbps + 120) {
+      throw new Error('This clip is too long for the selected file size. Choose a larger share preset or shorten the trim.');
+    }
+
+    const passLog = join(tmpdir(), `switchboard-export-${randomUUID()}`);
+    try {
+      await run(executable, [
+        ...common, ...video, '-b:v', `${videoKbps}k`, '-pass', '1', '-passlogfile', passLog,
+        '-an', '-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null',
+      ]);
+
+      const audioStreamCount = await this.countAudioStreams(clip.path);
+      const audioArguments = buildShareAudioArguments(audioStreamCount, audioKbps);
+      await run(executable, [
+        ...common, ...audioArguments, ...video, '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passLog,
+        '-movflags', '+faststart', '-y', destination,
+      ]);
+    } finally {
+      await Promise.all([
+        rm(`${passLog}-0.log`, { force: true }),
+        rm(`${passLog}-0.log.mbtree`, { force: true }),
+      ]);
+    }
+  }
+
   private async probe(path: string): Promise<ProbeResult> {
     const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
     const output = await run(executable, [
@@ -156,6 +211,15 @@ export class ClipLibraryService {
     };
   }
 
+  private async countAudioStreams(path: string): Promise<number> {
+    const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
+    const output = await run(executable, [
+      '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'json', path,
+    ]);
+    const parsed = JSON.parse(output) as { streams?: unknown[] };
+    return parsed.streams?.length ?? 0;
+  }
+
   private async generateThumbnail(path: string, thumbnailPath: string, durationMs: number): Promise<void> {
     await mkdir(dirname(thumbnailPath), { recursive: true });
     const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
@@ -174,6 +238,22 @@ export class ClipLibraryService {
       await rm(temporary, { force: true });
     }
   }
+}
+
+const exportPresetBytes = {
+  '10mb': 10 * 1_024 * 1_024,
+  '25mb': 25 * 1_024 * 1_024,
+  '50mb': 50 * 1_024 * 1_024,
+} as const;
+
+function buildShareAudioArguments(streamCount: number, bitrateKbps: number): string[] {
+  if (streamCount <= 0) return ['-an'];
+  if (streamCount === 1) return ['-map', '0:a:0', '-c:a', 'aac', '-b:a', `${bitrateKbps}k`];
+  const inputs = Array.from({ length: streamCount }, (_, index) => `[0:a:${index}]`).join('');
+  return [
+    '-filter_complex', `${inputs}amix=inputs=${streamCount}:duration=longest:dropout_transition=0:normalize=1[aout]`,
+    '-map', '[aout]', '-c:a', 'aac', '-b:a', `${bitrateKbps}k`,
+  ];
 }
 
 function audioChannelFromTitle(title: string | undefined): ClipAudioChannel | null {

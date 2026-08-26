@@ -5,7 +5,9 @@ import {
   audioPresetIdInputSchema,
   appSettingsSchema,
   captureConfigSchema,
+  clipTrimInputSchema,
   createAudioPresetInputSchema,
+  exportClipInputSchema,
   ipcChannels,
   renameClipInputSchema,
   renameAudioPresetInputSchema,
@@ -231,10 +233,16 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => controller.setClipFavorite(input),
   );
   handle(
+    ipcChannels.setClipTrim,
+    getMainWindow,
+    (input) => clipTrimInputSchema.parse(input),
+    (input) => controller.setClipTrim(input),
+  );
+  handle(
     ipcChannels.exportClip,
     getMainWindow,
-    (input) => z.string().min(1).max(256).parse(input),
-    (id) => controller.exportClip(id),
+    (input) => exportClipInputSchema.parse(input),
+    (input) => controller.exportClip(input),
   );
 
   const unsubscribe = controller.subscribe((snapshot) => {

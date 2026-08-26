@@ -1,0 +1,11 @@
+{
+  "gamePreset": null,
+  "gameEqGainDb": -2.5,
+  "chatPreset": "chat-clear-voice",
+  "mediaPreset": "media-music",
+  "microphonePreset": null,
+  "noiseRemoval": 80,
+  "gateThresholdDb": -48,
+  "compressorRatio": 4.1,
+  "microphoneEqGainDb": -2.5
+}

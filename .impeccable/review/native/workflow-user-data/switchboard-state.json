@@ -74,7 +74,7 @@
       "kind": "audio",
       "sizeMb": 11.6,
       "installed": true,
-      "enabled": true,
+      "enabled": false,
       "official": true,
       "restartRequired": false,
       "capabilities": [
@@ -161,7 +161,7 @@
           "charging": false,
           "fullyCharged": false,
           "estimatedMinutesRemaining": 2820,
-          "updatedAt": 1787729890802
+          "updatedAt": 1787730198530
         },
         "dpi": {
           "writable": true,
@@ -453,13 +453,11 @@
   "engines": [
     {
       "kind": "audio",
-      "state": "running",
-      "pid": 64140,
-      "cpuPercent": 0.5,
-      "memoryMb": 109.4,
+      "state": "stopped",
+      "cpuPercent": 0,
+      "memoryMb": 0,
       "uptimeSeconds": 0,
-      "message": "48 kHz float32 graph simulation active · ChatMix 0.15",
-      "updatedAt": "2026-08-26T07:38:11.484Z"
+      "updatedAt": "2026-08-26T07:43:19.951Z"
     },
     {
       "kind": "capture",
@@ -467,11 +465,11 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-08-26T07:38:10.802Z"
+      "updatedAt": "2026-08-26T07:43:19.951Z"
     }
   ],
   "audio": {
-    "enabled": true,
+    "enabled": false,
     "outputDevice": "Arctis Nova Pro Wireless",
     "microphoneDevice": "HyperX QuadCast 2",
     "sampleRate": 48000,
@@ -485,7 +483,7 @@
         "label": "Game",
         "enabled": true,
         "appCount": 0,
-        "gain": 1,
+        "gain": 0.7975,
         "muted": false,
         "meter": 0.72,
         "endpoint": "Switchboard Game",
@@ -496,7 +494,7 @@
         "label": "Chat",
         "enabled": true,
         "appCount": 0,
-        "gain": 0.76,
+        "gain": 0.9025,
         "muted": false,
         "meter": 0.38,
         "endpoint": "Switchboard Chat",
@@ -552,7 +550,7 @@
         "cost": "medium",
         "id": "noise-suppression",
         "parameters": {
-          "amount": 45
+          "amount": 80
         }
       },
       {
@@ -563,47 +561,47 @@
         "parameters": {
           "bands": [
             {
-              "id": "mic-natural-1",
+              "id": "mic-clear-1",
               "enabled": true,
               "type": "low-shelf",
-              "frequency": 80,
-              "gainDb": -1,
+              "frequency": 90,
+              "gainDb": -2.5,
               "q": 0.7
             },
             {
-              "id": "mic-natural-2",
+              "id": "mic-clear-2",
               "enabled": true,
               "type": "bell",
-              "frequency": 180,
-              "gainDb": -1.5,
+              "frequency": 220,
+              "gainDb": -2,
               "q": 1
             },
             {
-              "id": "mic-natural-3",
+              "id": "mic-clear-3",
               "enabled": true,
               "type": "bell",
-              "frequency": 500,
-              "gainDb": 0,
-              "q": 1.1
+              "frequency": 650,
+              "gainDb": -1,
+              "q": 1
             },
             {
-              "id": "mic-natural-4",
+              "id": "mic-clear-4",
               "enabled": true,
               "type": "bell",
               "frequency": 2800,
+              "gainDb": 3,
+              "q": 1.1
+            },
+            {
+              "id": "mic-clear-5",
+              "enabled": true,
+              "type": "bell",
+              "frequency": 5500,
               "gainDb": 2,
               "q": 1.2
             },
             {
-              "id": "mic-natural-5",
-              "enabled": true,
-              "type": "bell",
-              "frequency": 5500,
-              "gainDb": 1,
-              "q": 1
-            },
-            {
-              "id": "mic-natural-6",
+              "id": "mic-clear-6",
               "enabled": true,
               "type": "high-shelf",
               "frequency": 10000,
@@ -619,11 +617,11 @@
         "cost": "low",
         "id": "compressor",
         "parameters": {
-          "thresholdDb": -18,
-          "ratio": 3,
-          "attackMs": 12,
-          "releaseMs": 180,
-          "makeupDb": 2
+          "thresholdDb": -22,
+          "ratio": 4.1,
+          "attackMs": 8,
+          "releaseMs": 130,
+          "makeupDb": 3
         }
       },
       {
@@ -644,67 +642,67 @@
           "enabled": true,
           "bands": [
             {
-              "id": "flat-1",
+              "id": "game-fps-1",
               "enabled": true,
               "type": "low-shelf",
               "frequency": 80,
-              "gainDb": 0,
+              "gainDb": -2.5,
               "q": 0.7
             },
             {
-              "id": "flat-2",
+              "id": "game-fps-2",
               "enabled": true,
               "type": "bell",
               "frequency": 180,
-              "gainDb": 0,
+              "gainDb": -2,
               "q": 1
             },
             {
-              "id": "flat-3",
+              "id": "game-fps-3",
               "enabled": true,
               "type": "bell",
               "frequency": 700,
-              "gainDb": 0,
-              "q": 1
+              "gainDb": -1,
+              "q": 1.1
             },
             {
-              "id": "flat-4",
+              "id": "game-fps-4",
               "enabled": true,
               "type": "bell",
               "frequency": 2500,
-              "gainDb": 0,
-              "q": 1
+              "gainDb": 3.5,
+              "q": 1.1
             },
             {
-              "id": "flat-5",
+              "id": "game-fps-5",
               "enabled": true,
               "type": "bell",
-              "frequency": 6000,
-              "gainDb": 0,
-              "q": 1
+              "frequency": 5500,
+              "gainDb": 2.5,
+              "q": 1.2
             },
             {
-              "id": "flat-6",
+              "id": "game-fps-6",
               "enabled": true,
               "type": "high-shelf",
               "frequency": 10000,
-              "gainDb": 0,
+              "gainDb": 1,
               "q": 0.7
             }
           ]
         },
         "normalization": {
-          "enabled": false,
-          "targetLufs": -18,
-          "maxGainDb": 8
+          "enabled": true,
+          "targetLufs": -17,
+          "maxGainDb": 6
         },
         "compressor": {
-          "enabled": false,
-          "thresholdDb": -18,
-          "ratio": 3,
-          "attackMs": 15,
-          "releaseMs": 180,
-          "makeupDb": 0
+          "enabled": true,
+          "thresholdDb": -20,
+          "ratio": 2.5,
+          "attackMs": 12,
+          "releaseMs": 140,
+          "makeupDb": 1
         },
         "limiter": {
           "enabled": true,
@@ -718,67 +716,67 @@
           "enabled": true,
           "bands": [
             {
-              "id": "flat-1",
+              "id": "chat-clear-1",
               "enabled": true,
               "type": "low-shelf",
-              "frequency": 80,
-              "gainDb": 0,
+              "frequency": 100,
+              "gainDb": -4,
               "q": 0.7
             },
             {
-              "id": "flat-2",
+              "id": "chat-clear-2",
               "enabled": true,
               "type": "bell",
-              "frequency": 180,
-              "gainDb": 0,
+              "frequency": 220,
+              "gainDb": -2,
               "q": 1
             },
             {
-              "id": "flat-3",
+              "id": "chat-clear-3",
               "enabled": true,
               "type": "bell",
               "frequency": 700,
-              "gainDb": 0,
+              "gainDb": -1,
               "q": 1
             },
             {
-              "id": "flat-4",
+              "id": "chat-clear-4",
               "enabled": true,
               "type": "bell",
-              "frequency": 2500,
-              "gainDb": 0,
-              "q": 1
+              "frequency": 2200,
+              "gainDb": 3,
+              "q": 1.1
             },
             {
-              "id": "flat-5",
+              "id": "chat-clear-5",
               "enabled": true,
               "type": "bell",
-              "frequency": 6000,
-              "gainDb": 0,
-              "q": 1
+              "frequency": 4500,
+              "gainDb": 2,
+              "q": 1.2
             },
             {
-              "id": "flat-6",
+              "id": "chat-clear-6",
               "enabled": true,
               "type": "high-shelf",
-              "frequency": 10000,
-              "gainDb": 0,
+              "frequency": 9000,
+              "gainDb": 1,
               "q": 0.7
             }
           ]
         },
         "normalization": {
-          "enabled": false,
-          "targetLufs": -18,
-          "maxGainDb": 8
+          "enabled": true,
+          "targetLufs": -19,
+          "maxGainDb": 7
         },
         "compressor": {
-          "enabled": false,
-          "thresholdDb": -18,
+          "enabled": true,
+          "thresholdDb": -22,
           "ratio": 3,
-          "attackMs": 15,
-          "releaseMs": 180,
-          "makeupDb": 0
+          "attackMs": 10,
+          "releaseMs": 160,
+          "makeupDb": 1
         },
         "limiter": {
           "enabled": true,
@@ -792,51 +790,51 @@
           "enabled": true,
           "bands": [
             {
-              "id": "flat-1",
+              "id": "media-music-1",
               "enabled": true,
               "type": "low-shelf",
-              "frequency": 80,
-              "gainDb": 0,
+              "frequency": 70,
+              "gainDb": 2,
               "q": 0.7
             },
             {
-              "id": "flat-2",
+              "id": "media-music-2",
               "enabled": true,
               "type": "bell",
               "frequency": 180,
-              "gainDb": 0,
+              "gainDb": 0.5,
               "q": 1
             },
             {
-              "id": "flat-3",
+              "id": "media-music-3",
               "enabled": true,
               "type": "bell",
               "frequency": 700,
-              "gainDb": 0,
+              "gainDb": -1,
               "q": 1
             },
             {
-              "id": "flat-4",
+              "id": "media-music-4",
               "enabled": true,
               "type": "bell",
               "frequency": 2500,
-              "gainDb": 0,
+              "gainDb": 1,
               "q": 1
             },
             {
-              "id": "flat-5",
+              "id": "media-music-5",
               "enabled": true,
               "type": "bell",
               "frequency": 6000,
-              "gainDb": 0,
+              "gainDb": 1.5,
               "q": 1
             },
             {
-              "id": "flat-6",
+              "id": "media-music-6",
               "enabled": true,
               "type": "high-shelf",
-              "frequency": 10000,
-              "gainDb": 0,
+              "frequency": 11000,
+              "gainDb": 2,
               "q": 0.7
             }
           ]
@@ -2128,10 +2126,10 @@
       }
     ],
     "activePresetIds": {
-      "game": "game-flat",
-      "chat": "chat-natural",
-      "media": "media-flat",
-      "microphone": "mic-natural-voice"
+      "game": null,
+      "chat": "chat-clear-voice",
+      "media": "media-music",
+      "microphone": null
     }
   },
   "capture": {
@@ -2170,7 +2168,7 @@
     "storage": {
       "clipsDirectory": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
       "cacheDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\replay",
-      "availableBytes": 2727107985408,
+      "availableBytes": 2726967173120,
       "clipsBytes": 12566633,
       "replayCacheBytes": 0,
       "lowSpace": false,
@@ -2191,7 +2189,7 @@
   },
   "clips": [
     {
-      "id": "06064b40-0983-4090-bd8e-3b567297825f",
+      "id": "a4ec3923-4cf2-4bb6-b774-764758051cab",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08_2.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725988692,
@@ -2201,13 +2199,14 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\06064b40-0983-4090-bd8e-3b567297825f.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\a4ec3923-4cf2-4bb6-b774-764758051cab.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     },
     {
-      "id": "139891a6-ad1e-43c5-b248-f616565a4d75",
+      "id": "612d72cd-a194-4df8-bc3b-06eb78a38f64",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725988342,
@@ -2217,13 +2216,14 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\139891a6-ad1e-43c5-b248-f616565a4d75.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\612d72cd-a194-4df8-bc3b-06eb78a38f64.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     },
     {
-      "id": "6a061f7f-ccb4-48ec-8ba3-a8637dda257e",
+      "id": "81535a45-30dc-40cf-ab0f-d337526ddf44",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-07.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725987982,
@@ -2233,13 +2233,14 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\6a061f7f-ccb4-48ec-8ba3-a8637dda257e.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\81535a45-30dc-40cf-ab0f-d337526ddf44.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     },
     {
-      "id": "6c33824c-74f2-44e0-8e3d-6d5b55ff6bad",
+      "id": "379b955f-c981-4c64-9df8-6a3c632afd63",
       "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-32-02.mp4",
       "name": "Desktop clip",
       "createdAt": 1787725922793,
@@ -2249,18 +2250,19 @@
       "height": 720,
       "fps": 30,
       "codec": "h264",
-      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\6c33824c-74f2-44e0-8e3d-6d5b55ff6bad.v2.jpg",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\379b955f-c981-4c64-9df8-6a3c632afd63.v2.jpg",
       "favorite": false,
       "titleEdited": false,
+      "trimStartMs": 0,
       "audioChannels": []
     }
   ],
   "performance": {
     "coreMemoryMb": 44,
     "rendererMemoryMb": 92,
-    "totalMemoryMb": 245.4,
-    "totalCpuPercent": 0.8,
-    "activeProcesses": 3,
+    "totalMemoryMb": 136,
+    "totalCpuPercent": 0.3,
+    "activeProcesses": 2,
     "budgetMemoryMb": 240,
     "budgetCpuPercent": 2
   },

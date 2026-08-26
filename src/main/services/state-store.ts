@@ -119,7 +119,6 @@ export class StateStore {
     for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
       const activeId = next.audio.activePresetIds[kind];
       if (activeId && !knownPresets.has(activeId)) next.audio.activePresetIds[kind] = null;
-      if (!next.audio.activePresetIds[kind]) next.audio.activePresetIds[kind] = defaults.audio.activePresetIds[kind];
     }
     next.audio.capabilities = structuredClone(defaults.audio.capabilities);
     if (next.audio.capabilities.applicationRouting === 'unavailable') {

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-08-26T07:36:45.090Z",
+  "startedAt": "2026-08-26T07:43:18.474Z",
   "steps": [
     {
       "name": "devices.open-g502",
@@ -88,13 +88,107 @@
       }
     },
     {
-      "name": "write.failure",
-      "passed": false,
-      "error": "Timed out waiting for enabled button: Start audio. {\"hash\":\"#audio/mixer\",\"text\":\"Devices\\nAudio\\nCapture\\nModules\\nAudio\\nAudio\\n\\nMixer and sound settings are ready when you start audio.\\n\\nMixer\\nGame\\nChat\\nMedia\\nMicrophone\\n\\nLive levels are unavailable on this setup.\\n\\nGame\\nPresetFlat\\nOutput\\nArctis Nova Pro Wireless · Default\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n0 dB\\nChat\\nPresetNatural\\nOutput\\nArctis Nova Pro Wireless · Default\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n-2.4 dB\\nMedia\\nPresetFlat\\nOutput\\nSpeakers (Realtek Audio)\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n-7.5 dB\\nMicrophone\\nPresetNatural Voice\\nInput\\nHyperX QuadCast 2 · Default\\nCLIP\\n0\\n−6\\n−12\\n−24\\n−48\\n-∞ dB\\n+3\\n0\\n−12\\n−24\\n−48\\n-0.7 dB\\nChatMix\\n\\nGame sound vs voice chat\\n\\n43 / 57\\n\\nApp routing is not ready yet. Start Audio after Switchboard's Game, Chat, and Media outputs are installed.\",\"buttons\":[{\"text\":\"Devices\",\"disabled\":false},{\"text\":\"Audio\",\"disabled\":false},{\"text\":\"Capture\",\"disabled\":false},{\"text\":\"Modules\",\"disabled\":false},{\"text\":\"Mixer\",\"disabled\":false},{\"text\":\"Game\",\"disabled\":false},{\"text\":\"Chat\",\"disabled\":false},{\"text\":\"Media\",\"disabled\":false},{\"text\":\"Microphone\",\"disabled\":false},{\"text\":\"PresetFlat\",\"disabled\":false},{\"text\":\"Arctis Nova Pro Wireless · Default\",\"disabled\":false},{\"text\":\"PresetNatural\",\"disabled\":false},{\"text\":\"Arctis Nova Pro Wireless · Default\",\"disabled\":false},{\"text\":\"PresetFlat\",\"disabled\":false},{\"text\":\"Speakers (Realtek Audio)\",\"disabled\":false},{\"text\":\"PresetNatural Voice\",\"disabled\":false},{\"text\":\"HyperX QuadCast 2 · Default\",\"disabled\":false}]}"
+      "name": "audio.start",
+      "passed": true,
+      "evidence": {
+        "state": "running"
+      }
+    },
+    {
+      "name": "audio.mixer-and-chatmix",
+      "passed": true,
+      "evidence": {
+        "controls": [
+          {
+            "label": "Game fader",
+            "min": "0",
+            "max": "100",
+            "valueText": "0 dB"
+          },
+          {
+            "label": "ChatMix game and chat balance",
+            "min": "-1",
+            "max": "1",
+            "valueText": "43 percent game, 57 percent chat"
+          }
+        ],
+        "gameGainChanged": true,
+        "chatMixChanged": true
+      }
+    },
+    {
+      "name": "audio.routing-empty-state",
+      "passed": true,
+      "evidence": {
+        "state": "unavailable"
+      }
+    },
+    {
+      "name": "audio.game-preset-and-eq",
+      "passed": true,
+      "evidence": {
+        "preset": "Competitive FPS",
+        "fieldValue": "-3",
+        "gainDb": -2.5
+      }
+    },
+    {
+      "name": "audio.chat-and-media-presets",
+      "passed": true,
+      "evidence": {
+        "chat": "Clear Voice",
+        "media": "Music"
+      }
+    },
+    {
+      "name": "audio.microphone-preset-and-simple-controls",
+      "passed": true,
+      "evidence": {
+        "noiseRemoval": 80,
+        "gateThresholdDb": -48,
+        "compressorRatio": 4
+      }
+    },
+    {
+      "name": "audio.microphone-advanced-and-precise-eq",
+      "passed": true,
+      "evidence": {
+        "ratioFieldValue": "4",
+        "compressorRatio": 4.1,
+        "simpleState": "Custom",
+        "eqGainDb": -2.5
+      }
+    },
+    {
+      "name": "audio.unavailable-workflows",
+      "passed": true,
+      "evidence": {
+        "microphoneTest": true,
+        "monitoring": true
+      }
+    },
+    {
+      "name": "application-restart.persistence",
+      "passed": true,
+      "evidence": {
+        "gamePreset": null,
+        "gameEqGainDb": -2.5,
+        "chatPreset": "chat-clear-voice",
+        "mediaPreset": "media-music",
+        "microphonePreset": null,
+        "noiseRemoval": 80,
+        "gateThresholdDb": -48,
+        "compressorRatio": 4.1,
+        "microphoneEqGainDb": -2.5
+      }
     }
   ],
   "capabilities": {
     "quadCastLighting": "unavailable",
-    "quadCastInputMeter": "simulation"
-  }
+    "quadCastInputMeter": "simulation",
+    "applicationRouting": "unavailable",
+    "microphoneTest": "unavailable",
+    "monitoring": "unavailable"
+  },
+  "completedAt": "2026-08-26T07:43:20.218Z"
 }

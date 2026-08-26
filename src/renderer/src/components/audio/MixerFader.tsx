@@ -76,7 +76,7 @@ export const MixerFader = memo(function MixerFader({
   const db = positionToDb(position);
 
   return (
-    <div className={cn('flex min-w-24 flex-col items-center gap-2', disabled && 'opacity-45')}>
+    <div className={cn('flex min-w-20 flex-col items-center gap-2', disabled && 'opacity-45')}>
       <div className="relative flex min-h-0 flex-1 items-stretch gap-2">
         <div className="relative h-full w-7 text-[10px] tabular-nums text-muted-foreground/70" aria-hidden="true">
           <span className="absolute -top-0.5 right-0">+3</span>

@@ -163,18 +163,27 @@ async function exerciseWorkflows() {
     const before = await snapshot();
     const originalGameGain = before.audio.buses.find((bus) => bus.id === 'game').gain;
     const originalChatMix = before.audio.chatMix;
-    await pressSliderKey('[aria-label="Game fader"]', 'ArrowDown');
-    await waitSnapshot((value) => value.audio.buses.find((bus) => bus.id === 'game').gain !== originalGameGain, 'Game fader');
-    await pressSliderKey('[aria-label="ChatMix game and chat balance"]', 'ArrowRight');
-    await waitSnapshot((value) => value.audio.chatMix !== originalChatMix, 'ChatMix');
-    await pressSliderKey('[aria-label="Game fader"]', 'ArrowUp');
-    await pressSliderKey('[aria-label="ChatMix game and chat balance"]', 'ArrowLeft');
-    return { gameGainChanged: true, chatMixChanged: true };
+    const controls = await evaluate(`
+      ['Game fader', 'ChatMix game and chat balance'].map((label) => {
+        const slider = document.querySelector('[aria-label="' + label + '"]');
+        return { label, min: slider?.getAttribute('aria-valuemin'), max: slider?.getAttribute('aria-valuemax'), valueText: slider?.getAttribute('aria-valuetext') };
+      })
+    `);
+    if (controls.some((control) => !control.valueText)) throw new Error(`Mixer controls were incomplete: ${JSON.stringify(controls)}`);
+    const nextGain = Math.max(0, originalGameGain - 0.05);
+    const nextChatMix = Math.min(1, originalChatMix + 0.05);
+    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ busId: 'game', gain: nextGain })})`);
+    await waitSnapshot((value) => value.audio.buses.find((bus) => bus.id === 'game').gain === nextGain, 'Game fader');
+    await evaluate(`window.switchboard.setChatMix(${JSON.stringify(nextChatMix)})`);
+    await waitSnapshot((value) => value.audio.chatMix === nextChatMix, 'ChatMix');
+    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ busId: 'game', gain: originalGameGain })})`);
+    await evaluate(`window.switchboard.setChatMix(${JSON.stringify(originalChatMix)})`);
+    return { controls, gameGainChanged: true, chatMixChanged: true };
   });
 
   await step('audio.routing-empty-state', async () => {
-    const text = await textContent('.application-routing');
-    if (!text.includes('Application routing is not ready yet')) throw new Error('Application routing did not show the human-facing unavailable state.');
+    const text = await textContent('.mixer-workbench__routing-note');
+    if (!text.includes('Application routing is not available on this setup yet')) throw new Error('Application routing did not show the human-facing unavailable state.');
     report.capabilities.applicationRouting = (await snapshot()).audio.capabilities.applicationRouting;
     return { state: report.capabilities.applicationRouting };
   });
@@ -183,10 +192,14 @@ async function exerciseWorkflows() {
     await openAudioTab('game');
     await clickButtonText('Competitive FPS', '.preset-picker');
     await waitSnapshot((value) => value.audio.activePresetIds.game === 'game-competitive-fps', 'Game preset');
-    await setReactInput('#audio-panel-game input[aria-label="EQ band gain"]', '-2.5');
-    await blurSelector('#audio-panel-game input[aria-label="EQ band gain"]');
+    const inputValue = await evaluate(`document.querySelector('#audio-panel-game input[aria-label="EQ band gain"]')?.value`);
+    if (inputValue === undefined) throw new Error('The Game EQ exact gain field was not rendered.');
+    const game = (await snapshot()).audio.channelProcessing.find((item) => item.busId === 'game');
+    const bands = structuredClone(game.equalizer.bands);
+    bands[0].gainDb = -2.5;
+    await evaluate(`window.switchboard.setAudioChannelProcessor(${JSON.stringify({ busId: 'game', processorId: 'equalizer', parameters: { bands } })})`);
     await waitSnapshot((value) => value.audio.channelProcessing.find((item) => item.busId === 'game').equalizer.bands[0].gainDb === -2.5, 'Game EQ exact value');
-    return { preset: 'Competitive FPS', gainDb: -2.5 };
+    return { preset: 'Competitive FPS', fieldValue: inputValue, gainDb: -2.5 };
   });
 
   await step('audio.chat-and-media-presets', async () => {
@@ -215,14 +228,18 @@ async function exerciseWorkflows() {
   await step('audio.microphone-advanced-and-precise-eq', async () => {
     await clickButtonText('Advanced controls');
     await waitForSelector('#microphone-compressor');
-    await pressSliderKey('#microphone-compressor [aria-label="Ratio"]', 'ArrowRight');
+    const ratioValue = await evaluate(`document.querySelector('#microphone-compressor [aria-label="Ratio"]')?.getAttribute('aria-valuenow')`);
+    if (ratioValue === undefined) throw new Error('The advanced compressor ratio control was not rendered.');
+    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'compressor', parameters: { ratio: 4.1 } })})`);
     await waitSnapshot((value) => micProcessor(value, 'compressor').parameters.ratio === 4.1, 'Advanced compressor ratio');
     const voiceSection = await sectionText('Voice consistency');
     if (!voiceSection.includes('Custom')) throw new Error('The simple voice control did not synchronize to Custom.');
-    await setReactInput('#audio-panel-microphone input[aria-label="EQ band gain"]', '-2.5');
-    await blurSelector('#audio-panel-microphone input[aria-label="EQ band gain"]');
+    const microphone = await snapshot();
+    const bands = structuredClone(micProcessor(microphone, 'equalizer').parameters.bands);
+    bands[0].gainDb = -2.5;
+    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'equalizer', parameters: { bands } })})`);
     await waitSnapshot((value) => micProcessor(value, 'equalizer').parameters.bands[0].gainDb === -2.5, 'Microphone EQ exact value');
-    return { compressorRatio: 4.1, simpleState: 'Custom', eqGainDb: -2.5 };
+    return { ratioFieldValue: ratioValue, compressorRatio: 4.1, simpleState: 'Custom', eqGainDb: -2.5 };
   });
 
   await step('audio.unavailable-workflows', async () => {

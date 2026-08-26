@@ -146,7 +146,7 @@ await waitFor("!document.querySelector('#clip-editor-title')");
 
 await clickButton('More');
 await waitFor("document.querySelector('button[aria-label=Encoder]')");
-results.more = await evaluate("['Encoder','Codec','Save replay shortcut','Game audio','Microphone','Capture cursor'].every((label) => document.querySelector('[aria-label=\\\"' + label + '\\\"]'))");
+results.more = await evaluate("['Encoder','Codec','Game audio','Microphone','Capture cursor'].every((label) => document.querySelector('[aria-label=\\\"' + label + '\\\"]')) && Boolean(document.querySelector('[aria-label^=\\\"Save replay shortcut:\\\"]'))");
 await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
 
 const replaySwitch = "document.querySelector('[role=switch][aria-label=\\\"Instant Replay\\\"]')";

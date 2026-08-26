@@ -126,7 +126,7 @@
   ],
   "devices": [
     {
-      "id": "logitech:979048580",
+      "id": "logitech:receiver-c547",
       "moduleId": "device.logitech-hidpp",
       "displayName": "G502 X Plus",
       "kind": "mouse",
@@ -135,37 +135,34 @@
         "manufacturer": "Logitech",
         "productFamily": "G502",
         "model": "G502 X Plus",
-        "variant": "white",
-        "colorway": "White",
+        "variant": "default",
         "connection": "wireless",
         "connectionLabel": "LIGHTSPEED",
-        "hardwareRevision": "27.0.16",
+        "hardwareRevision": "0402",
         "vendorId": 1133,
         "productId": 16537,
         "transportProductId": 50503,
-        "serialNumber": "979048580",
-        "productString": "G502 X PLUS"
+        "productString": "USB Receiver"
       },
       "variantResolution": {
-        "confidence": "hardware",
-        "source": "Logitech DEVIO extended model",
-        "evidence": "extendedModel 1"
+        "confidence": "fallback",
+        "source": "No cosmetic SKU reported by hardware"
       },
       "asset": {
-        "key": "logitech-g502-x-plus-white",
-        "matchedBy": "exact-variant",
+        "key": "logitech-g502-x-plus-black",
+        "matchedBy": "exact-model",
         "source": "bundled-official"
       },
       "capabilities": {
         "battery": {
-          "percentage": 76,
+          "percentage": 81,
           "charging": true,
           "fullyCharged": false,
-          "estimatedMinutesRemaining": 6254,
-          "updatedAt": 1787729853304
+          "estimatedMinutesRemaining": 6665,
+          "updatedAt": 1787730089314
         },
         "dpi": {
-          "writable": true,
+          "writable": false,
           "min": 100,
           "max": 25600,
           "step": 50,
@@ -180,10 +177,11 @@
           "defaultDpi": 700,
           "shiftDpi": 700,
           "maxStages": 5,
-          "profileMode": "software"
+          "profileMode": "software",
+          "unavailableReason": "Configuration is unavailable while the local Logitech device service is not responding."
         },
         "reportRate": {
-          "writable": true,
+          "writable": false,
           "value": 1000,
           "supportedRates": [
             125,
@@ -191,10 +189,11 @@
             500,
             1000
           ],
-          "profileMode": "software"
+          "profileMode": "software",
+          "unavailableReason": "Configuration is unavailable while the local Logitech device service is not responding."
         },
         "buttonAssignments": {
-          "writable": true,
+          "writable": false,
           "profileMode": "software",
           "bindings": [
             {
@@ -373,10 +372,11 @@
               ],
               "selectable": true
             }
-          ]
+          ],
+          "unavailableReason": "Configuration is unavailable while the local Logitech device service is not responding."
         },
         "lighting": {
-          "writable": true,
+          "writable": false,
           "enabled": false,
           "activeEffectId": "solid",
           "availableEffects": [
@@ -385,14 +385,15 @@
               "label": "Static"
             }
           ],
-          "colorWritable": true,
+          "colorWritable": false,
           "brightness": 100,
-          "brightnessWritable": true,
+          "brightnessWritable": false,
           "profileMode": "software",
-          "source": "firmware"
+          "source": "firmware",
+          "unavailableReason": "Configuration is unavailable while the local Logitech device service is not responding."
         },
         "onboardMemory": {
-          "writable": true,
+          "writable": false,
           "enabled": false,
           "activeProfile": "PROFILE_1"
         }
@@ -465,12 +466,12 @@
     {
       "kind": "audio",
       "state": "running",
-      "pid": 61588,
-      "cpuPercent": 0.4,
-      "memoryMb": 100.4,
-      "uptimeSeconds": 160.2,
+      "pid": 66320,
+      "cpuPercent": 0.5,
+      "memoryMb": 73.2,
+      "uptimeSeconds": 205.3,
       "message": "48 kHz float32 graph simulation active · ChatMix 0.21",
-      "updatedAt": "2026-08-26T07:38:12.941Z"
+      "updatedAt": "2026-08-26T07:41:54.093Z"
     },
     {
       "kind": "capture",
@@ -478,7 +479,7 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-08-26T07:36:15.533Z"
+      "updatedAt": "2026-08-26T07:38:28.376Z"
     }
   ],
   "audio": {
@@ -639,51 +640,51 @@
           "enabled": true,
           "bands": [
             {
-              "id": "flat-1",
+              "id": "game-immersive-1",
               "enabled": true,
               "type": "low-shelf",
-              "frequency": 80,
-              "gainDb": 0,
+              "frequency": 70,
+              "gainDb": 3,
               "q": 0.7
             },
             {
-              "id": "flat-2",
+              "id": "game-immersive-2",
               "enabled": true,
               "type": "bell",
               "frequency": 180,
-              "gainDb": 0,
+              "gainDb": 1.5,
               "q": 1
             },
             {
-              "id": "flat-3",
+              "id": "game-immersive-3",
               "enabled": true,
               "type": "bell",
               "frequency": 700,
-              "gainDb": 0,
+              "gainDb": -0.5,
               "q": 1
             },
             {
-              "id": "flat-4",
+              "id": "game-immersive-4",
               "enabled": true,
               "type": "bell",
               "frequency": 2500,
-              "gainDb": 0,
+              "gainDb": 1,
               "q": 1
             },
             {
-              "id": "flat-5",
+              "id": "game-immersive-5",
               "enabled": true,
               "type": "bell",
               "frequency": 6000,
-              "gainDb": 0,
+              "gainDb": 1.5,
               "q": 1
             },
             {
-              "id": "flat-6",
+              "id": "game-immersive-6",
               "enabled": true,
               "type": "high-shelf",
-              "frequency": 10000,
-              "gainDb": 0,
+              "frequency": 11000,
+              "gainDb": 2,
               "q": 0.7
             }
           ]
@@ -2123,7 +2124,7 @@
       }
     ],
     "activePresetIds": {
-      "game": "game-flat",
+      "game": "game-immersive",
       "chat": "chat-natural",
       "media": "media-flat",
       "microphone": "mic-natural-voice"
@@ -2153,19 +2154,19 @@
       "segmentCount": 0,
       "replayCacheBytes": 0,
       "observedBitrateBps": 0,
-      "encoderLabel": "NVIDIA NVENC AV1",
+      "encoderLabel": "Not selected",
       "backendLabel": "Windows Graphics Capture",
       "droppedFrames": 0,
-      "encodedFrames": 965,
+      "encodedFrames": 0,
       "audioSyncCorrections": 0,
       "activeSource": null,
       "saveQueueDepth": 0,
-      "shortcutRegistered": false
+      "shortcutRegistered": true
     },
     "storage": {
       "clipsDirectory": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
       "cacheDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\runtime-profile-capture\\cache\\replay",
-      "availableBytes": 2727170224128,
+      "availableBytes": 2727041425408,
       "clipsBytes": 12566633,
       "replayCacheBytes": 0,
       "lowSpace": false,
@@ -2193,148 +2194,7 @@
       "microphoneAudio": true,
       "exclusiveFullscreen": false
     },
-    "sources": [
-      {
-        "id": "automatic-game",
-        "type": "automatic-game",
-        "name": "Automatic game",
-        "available": true
-      },
-      {
-        "id": "display:0",
-        "type": "display",
-        "name": "Display 1",
-        "displayId": "0",
-        "available": true
-      },
-      {
-        "id": "display:1",
-        "type": "display",
-        "name": "Display 2",
-        "displayId": "1",
-        "available": true
-      },
-      {
-        "id": "window:328296",
-        "type": "window",
-        "name": "(1) Theo - t3.gg on X: \"@anshnanda @t3dotcodes 1, 2, and 5 kind of come with orchestrator v2 Custom system prompt per platform is an interesting idea, I’ll play with it. Plumbing to enable it was just added. In app browser like the desktop one that the agent can control? Not sure if Apple will allow In app image/video\" / X - Helium",
-        "processId": 29624,
-        "windowHandle": "328296",
-        "available": true
-      },
-      {
-        "id": "window:6164168",
-        "type": "window",
-        "name": "(42) Casually Explained: Moving Out - YouTube - Helium",
-        "processId": 29624,
-        "windowHandle": "6164168",
-        "available": true
-      },
-      {
-        "id": "window:5505282",
-        "type": "window",
-        "name": "(42) Germany's Deadly Flying Tank - YouTube - Helium",
-        "processId": 29624,
-        "windowHandle": "5505282",
-        "available": true
-      },
-      {
-        "id": "window:21693612",
-        "type": "window",
-        "name": "JuicyMemes (D:\\JuicyMemes) - File Pilot v0.8.2",
-        "processId": 38788,
-        "windowHandle": "21693612",
-        "available": true
-      },
-      {
-        "id": "window:65952",
-        "type": "window",
-        "name": "Program Manager",
-        "processId": 9556,
-        "windowHandle": "65952",
-        "available": true
-      },
-      {
-        "id": "window:263096",
-        "type": "window",
-        "name": "Raycast",
-        "processId": 22680,
-        "windowHandle": "263096",
-        "available": true
-      },
-      {
-        "id": "window:787412",
-        "type": "window",
-        "name": "Raycast",
-        "processId": 22680,
-        "windowHandle": "787412",
-        "available": true
-      },
-      {
-        "id": "window:263152",
-        "type": "window",
-        "name": "RaycastNodeGracefulShutdownWindow",
-        "processId": 6180,
-        "windowHandle": "263152",
-        "available": true
-      },
-      {
-        "id": "window:67440",
-        "type": "window",
-        "name": "RzMonitorForegroundWindow",
-        "processId": 22664,
-        "windowHandle": "67440",
-        "available": true
-      },
-      {
-        "id": "window:5574510",
-        "type": "window",
-        "name": "Settings",
-        "processId": 49244,
-        "windowHandle": "5574510",
-        "available": true
-      },
-      {
-        "id": "window:27723884",
-        "type": "window",
-        "name": "Settings",
-        "processId": 8160,
-        "windowHandle": "27723884",
-        "available": true
-      },
-      {
-        "id": "window:395084",
-        "type": "window",
-        "name": "Steam",
-        "processId": 27504,
-        "windowHandle": "395084",
-        "available": true
-      },
-      {
-        "id": "window:32376022",
-        "type": "window",
-        "name": "SteelSeries GG",
-        "processId": 17092,
-        "windowHandle": "32376022",
-        "available": true
-      },
-      {
-        "id": "window:525686",
-        "type": "window",
-        "name": "T3 Code (Nightly)",
-        "processId": 32116,
-        "windowHandle": "525686",
-        "available": true
-      },
-      {
-        "id": "window:132096",
-        "type": "window",
-        "name": "Windows Input Experience",
-        "processId": 17680,
-        "windowHandle": "132096",
-        "available": true
-      }
-    ]
+    "sources": []
   },
   "clips": [
     {
@@ -2404,10 +2264,10 @@
   ],
   "performance": {
     "coreMemoryMb": 44,
-    "rendererMemoryMb": 0,
-    "totalMemoryMb": 144.4,
-    "totalCpuPercent": 0.5,
-    "activeProcesses": 2,
+    "rendererMemoryMb": 92,
+    "totalMemoryMb": 209.2,
+    "totalCpuPercent": 0.8,
+    "activeProcesses": 3,
     "budgetMemoryMb": 240,
     "budgetCpuPercent": 2
   },

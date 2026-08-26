@@ -73,7 +73,7 @@ export const LevelMeter = memo(function LevelMeter({
   }, [active, busId]);
 
   return (
-    <div className="flex min-w-14 flex-col items-center gap-2">
+    <div className="flex min-w-12 flex-col items-center gap-2">
       <ClipIndicator ref={clipRef} label={`${label} clipping indicator`} />
       <div className="flex min-h-0 flex-1 items-stretch gap-1.5">
         <div

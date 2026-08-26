@@ -46,7 +46,8 @@ const api: SwitchboardApi = {
   deleteClip: (id) => ipcRenderer.invoke(ipcChannels.deleteClip, id),
   renameClip: (input) => ipcRenderer.invoke(ipcChannels.renameClip, input),
   setClipFavorite: (input) => ipcRenderer.invoke(ipcChannels.setClipFavorite, input),
-  exportClip: (id) => ipcRenderer.invoke(ipcChannels.exportClip, id),
+  setClipTrim: (input) => ipcRenderer.invoke(ipcChannels.setClipTrim, input),
+  exportClip: (input) => ipcRenderer.invoke(ipcChannels.exportClip, input),
   subscribe: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, snapshot: SystemSnapshot) => listener(snapshot);
     ipcRenderer.on(ipcChannels.snapshotUpdated, handler);
