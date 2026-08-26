@@ -225,7 +225,7 @@ export class EngineSupervisor {
     const environment = { ...process.env };
     delete environment.ELECTRON_RUN_AS_NODE;
     return spawn(resolved.command, resolved.arguments, {
-      cwd: app.getAppPath(),
+      cwd: app.isPackaged ? join(process.resourcesPath, 'capture-host') : app.getAppPath(),
       env: environment,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],

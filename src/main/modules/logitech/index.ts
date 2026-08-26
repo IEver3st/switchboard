@@ -53,7 +53,9 @@ export class LogitechDeviceModule implements DeviceModule {
     const agentDeviceId = this.agentIds.get(device.id);
     if (!agentDeviceId) throw new Error('Logitech configuration requires the local G HUB device service.');
     await writeG502Control(agentDeviceId, device, change);
-    this.capabilityCache.delete(agentDeviceId);
+    for (const key of this.capabilityCache.keys()) {
+      if (key.startsWith(`${agentDeviceId}:`)) this.capabilityCache.delete(key);
+    }
   }
 
   private async createG502XPlus(
@@ -90,7 +92,7 @@ export class LogitechDeviceModule implements DeviceModule {
     this.agentIds.set(id, metadata.id);
 
     const [capabilities, battery] = await Promise.all([
-      this.readCapabilities(metadata.id, previous),
+      this.readCapabilities(metadata.id, previous, identity.connection),
       this.readBattery(metadata.id, previous?.capabilities.battery),
     ]);
 
@@ -139,13 +141,18 @@ export class LogitechDeviceModule implements DeviceModule {
     };
   }
 
-  private async readCapabilities(agentDeviceId: string, previous: Device | undefined): Promise<DeviceCapabilities> {
-    const cached = this.capabilityCache.get(agentDeviceId);
+  private async readCapabilities(
+    agentDeviceId: string,
+    previous: Device | undefined,
+    connection: DeviceIdentity['connection'],
+  ): Promise<DeviceCapabilities> {
+    const cacheKey = `${agentDeviceId}:${connection ?? 'unknown'}`;
+    const cached = this.capabilityCache.get(cacheKey);
     if (cached && Date.now() - cached.updatedAt < capabilityCacheDurationMs) return structuredClone(cached.value);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const value = await readG502Capabilities(agentDeviceId, previous);
-        this.capabilityCache.set(agentDeviceId, { value, updatedAt: Date.now() });
+        const value = await readG502Capabilities(agentDeviceId, previous, connection);
+        this.capabilityCache.set(cacheKey, { value, updatedAt: Date.now() });
         return structuredClone(value);
       } catch (error) {
         if (attempt < 2 && isTransientAgentError(error)) {

@@ -26,12 +26,7 @@ export function ProcessorSection({
   return (
     <section id={id} aria-labelledby={`${id}-heading`} className={cn('scroll-mt-28 border-t border-border pt-4', compact && 'pt-3')}>
       <header className="mb-3 flex min-w-0 items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 id={`${id}-heading`} className="m-0 text-[12px] font-semibold text-foreground">{title}</h2>
-          {unavailable ? (
-            <p className="m-0 mt-0.5 text-[8px] text-muted-foreground">Unavailable until the native audio path is connected.</p>
-          ) : null}
-        </div>
+        <h2 id={`${id}-heading`} className="m-0 min-w-0 text-[12px] font-semibold text-foreground">{title}</h2>
         <label className="flex shrink-0 items-center gap-2 text-[9px] text-muted-foreground">
           {enabled ? 'Enabled' : 'Bypassed'}
           <Switch

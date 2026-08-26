@@ -71,13 +71,12 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
                     {device.capabilities.battery ? (
                       <BatteryStatus
                         battery={device.capabilities.battery}
-                        connectionLabel={connectionLabel(device)}
+                        connectionLabel={device.identity.connection === 'wireless' ? 'Wireless' : connectionLabel(device)}
                         connected={device.connected}
                       />
                     ) : (
                       <span className="device-gallery__status">{device.connected ? connectionLabel(device) : 'Disconnected'}</span>
                     )}
-                    <span className="device-gallery__secondary">{secondaryDeviceSummary(device)}</span>
                   </span>
                 </button>
               </li>
@@ -157,19 +156,6 @@ function RuntimeStatus({ snapshot }: { snapshot: SystemSnapshot }) {
       <span className="tabular-nums">{formatMb(snapshot.performance.totalMemoryMb)} · {snapshot.performance.totalCpuPercent.toFixed(1)}% CPU</span>
     </footer>
   );
-}
-
-function secondaryDeviceSummary(device: Device): string {
-  if (device.kind === 'mouse') {
-    const activeDpi = device.capabilities.dpi?.activeDpi;
-    const reportRate = device.capabilities.reportRate?.value;
-    return [
-      activeDpi ? `${activeDpi.toLocaleString()} DPI` : undefined,
-      reportRate ? `${reportRate.toLocaleString()} Hz` : undefined,
-    ].filter(Boolean).join(' · ') || 'Open mouse controls';
-  }
-  if (device.kind === 'microphone') return `Gain ${asNumber(device.settings.gain, 58)}%`;
-  return connectionLabel(device);
 }
 
 function connectionLabel(device: Device): string {

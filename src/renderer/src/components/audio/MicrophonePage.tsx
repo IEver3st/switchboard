@@ -70,6 +70,13 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
             <h2 className="m-0 text-sm font-semibold text-foreground">Microphone</h2>
             <span className="truncate text-[9px] text-muted-foreground">{snapshot.audio.microphoneDevice}</span>
           </div>
+          {support !== 'available' ? (
+            <p className="m-0 mt-1 text-[8px] leading-3 text-muted-foreground">
+              {support === 'simulation'
+                ? 'Processing preview · parameters persist, but Audio.Host is not connected to the live microphone stream.'
+                : 'Native microphone processing is unavailable in this build.'}
+            </p>
+          ) : null}
           <div className="mt-3 max-w-md border-y border-border py-1">
             <AudioDevicePicker
               value={micBus.deviceId}

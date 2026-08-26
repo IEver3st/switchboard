@@ -1,4 +1,4 @@
-import { Battery, BatteryCharging, BatteryFull, BatteryLow, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import type { BatteryCapability } from '../../../../shared/contracts';
 import { cn } from '@/lib/cn';
 
@@ -19,13 +19,7 @@ export function BatteryStatus({
 }: BatteryStatusProps) {
   const roundedPercentage = Math.round(battery.percentage);
   const severity = roundedPercentage <= 5 ? 'critical' : roundedPercentage <= 15 ? 'low' : 'normal';
-  const Icon = battery.charging
-    ? BatteryCharging
-    : battery.fullyCharged
-      ? BatteryFull
-      : severity === 'normal'
-        ? Battery
-        : BatteryLow;
+  const isCharging = Boolean(battery.charging && !battery.fullyCharged);
   const stateLabel = battery.fullyCharged
     ? 'Fully charged'
     : battery.charging
@@ -41,8 +35,13 @@ export function BatteryStatus({
 
   if (variant === 'header') {
     return (
-      <div className={cn('battery-status battery-status--header', className)} data-severity={severity} aria-label={accessible}>
-        <Icon aria-hidden className="battery-status__icon" />
+      <div
+        className={cn('battery-status battery-status--header', className)}
+        data-charging={isCharging || undefined}
+        data-severity={severity}
+        aria-label={accessible}
+      >
+        <BatteryLevelIcon percentage={battery.percentage} fullyCharged={battery.fullyCharged} />
         <div className="battery-status__header-copy">
           <div className="battery-status__value">
             {battery.fullyCharged ? 'Full' : `${roundedPercentage}%`}
@@ -60,12 +59,45 @@ export function BatteryStatus({
   }
 
   return (
-    <span className={cn('battery-status battery-status--compact', className)} data-severity={severity} aria-label={accessible}>
-      <Icon aria-hidden className="battery-status__icon" />
+    <span
+      className={cn('battery-status battery-status--compact', className)}
+      data-charging={isCharging || undefined}
+      data-severity={severity}
+      aria-label={accessible}
+    >
+      <BatteryLevelIcon percentage={battery.percentage} fullyCharged={battery.fullyCharged} />
       <strong className="tabular-nums">{battery.fullyCharged ? 'Full' : `${roundedPercentage}%`}</strong>
       <span aria-hidden>·</span>
       <span>{!connected ? 'Disconnected' : stateLabel || 'Battery'}</span>
     </span>
+  );
+}
+
+function BatteryLevelIcon({ percentage, fullyCharged }: { percentage: number; fullyCharged?: boolean }) {
+  const normalizedPercentage = fullyCharged ? 100 : Math.min(100, Math.max(0, percentage));
+  const fillWidth = 12 * normalizedPercentage / 100;
+
+  return (
+    <svg
+      aria-hidden
+      className="battery-status__icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect x="2.25" y="6.25" width="16" height="11.5" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M21.75 10v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      {fillWidth > 0 ? (
+        <rect
+          className="battery-status__icon-fill"
+          x="4.25"
+          y="8.25"
+          width={fillWidth}
+          height="7.5"
+          rx={Math.min(0.75, fillWidth / 2)}
+        />
+      ) : null}
+    </svg>
   );
 }
 

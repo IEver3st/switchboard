@@ -41,6 +41,13 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
             <h2 className="m-0 text-sm font-semibold text-foreground">{descriptions[busId]}</h2>
             <span className="truncate text-[9px] text-muted-foreground">{bus.endpoint}</span>
           </div>
+          {support !== 'available' ? (
+            <p className="m-0 mt-1 text-[8px] leading-3 text-muted-foreground">
+              {support === 'simulation'
+                ? 'Processing preview · parameters persist, but Audio.Host is not connected to this live signal path.'
+                : 'Native processing is unavailable for this signal path.'}
+            </p>
+          ) : null}
           <div className="mt-3 max-w-md border-y border-border py-1">
             <AudioDevicePicker
               value={bus.deviceId}

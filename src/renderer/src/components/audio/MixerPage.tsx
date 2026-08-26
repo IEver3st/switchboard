@@ -36,7 +36,10 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
           <SlidersHorizontal className="size-4 text-muted-foreground" aria-hidden="true" />
           <h2 className="m-0 text-sm font-semibold text-foreground">Mixer</h2>
         </div>
-        <span className="text-[9px] tabular-nums text-muted-foreground">Four signal paths · {snapshot.audio.sampleRate / 1_000} kHz</span>
+        <span className="text-[9px] tabular-nums text-muted-foreground">
+          Four signal paths · {snapshot.audio.sampleRate / 1_000} kHz
+          {snapshot.audio.capabilities.realtimeMetering === 'simulation' ? ' · simulated meters' : ''}
+        </span>
       </div>
 
       <div className="grid grid-cols-4 gap-px border border-border bg-border max-[1040px]:grid-cols-2 max-[620px]:grid-cols-1" data-testid="mixer-grid">

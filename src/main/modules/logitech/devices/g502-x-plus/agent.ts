@@ -4,6 +4,7 @@ import type {
   Device,
   DeviceCapabilities,
   DeviceControlChange,
+  DeviceIdentity,
   MouseAction,
 } from '../../../../../shared/contracts';
 import {
@@ -113,6 +114,7 @@ interface SoftwareProfileBundle {
 export async function readG502Capabilities(
   agentDeviceId: string,
   previous: Device | undefined,
+  connection: DeviceIdentity['connection'],
 ): Promise<DeviceCapabilities> {
   // The local Logitech agent intermittently starves profile requests when a
   // fresh connection fans out several calls at once. These are low-frequency
@@ -144,7 +146,7 @@ export async function readG502Capabilities(
   const firmwareColor = firmwareEffect?.id === 'FIXED' ? firmwareEffect.fixedParams?.color.hex : undefined;
   const previousColor = previous?.capabilities.lighting?.color;
   const onboardEffect = activeOnboard?.lighting?.effects[0];
-  const supportedRates = mouseInfo.reportRates.wirelessRates.length > 0
+  const supportedRates = connection === 'wireless' && mouseInfo.reportRates.wirelessRates.length > 0
     ? mouseInfo.reportRates.wirelessRates
     : mouseInfo.reportRates.rates;
 
@@ -242,9 +244,14 @@ export async function writeG502Control(
   if (change.type === 'dpi') {
     validateDpi(device, change.value);
     await writeMouseSettings((settings) => {
+      const previousActiveDpi = settings.dpiTable.activeDpi;
       settings.dpiTable.activeDpi = change.value;
       if (!settings.dpiTable.levels.includes(change.value)) {
-        settings.dpiTable.levels = [...settings.dpiTable.levels, change.value].sort((a, b) => a - b);
+        const activeStageIndex = settings.dpiTable.levels.indexOf(previousActiveDpi);
+        if (activeStageIndex >= 0) settings.dpiTable.levels[activeStageIndex] = change.value;
+        else settings.dpiTable.levels[settings.dpiTable.levels.length - 1] = change.value;
+        settings.dpiTable.levels = [...new Set(settings.dpiTable.levels)].sort((a, b) => a - b);
+        if (settings.dpiTable.defaultDpi === previousActiveDpi) settings.dpiTable.defaultDpi = change.value;
       }
     });
     return;

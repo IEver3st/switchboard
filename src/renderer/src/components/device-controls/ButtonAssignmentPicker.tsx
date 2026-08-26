@@ -1,5 +1,5 @@
 import { Check, Search } from 'lucide-react';
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
 import type { MouseAction } from '../../../../shared/contracts';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,6 +27,7 @@ export function ButtonAssignmentPicker({
 }: ButtonAssignmentPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return availableActions;
@@ -48,7 +49,7 @@ export function ButtonAssignmentPicker({
         align={currentAction.category === 'mouse' ? 'center' : 'start'}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[data-assignment-search]')?.focus());
+          requestAnimationFrame(() => searchRef.current?.focus());
         }}
       >
         <div className="assignment-picker__heading">
@@ -59,6 +60,7 @@ export function ButtonAssignmentPicker({
         <div className="assignment-picker__search">
           <Search aria-hidden className="size-3.5" />
           <Input
+            ref={searchRef}
             data-assignment-search
             value={query}
             onChange={(event) => setQuery(event.target.value)}
