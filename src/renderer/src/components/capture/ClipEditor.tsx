@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { ArrowLeft, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { ArrowLeft, Clapperboard, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
 import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { channelColor } from '@/components/audio/channel-identity';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatDuration, formatVideoQuality } from '@/lib/format';
 import { ClipTimeline } from './ClipTimeline';
+import { MontageTimeline } from './MontageTimeline';
 import { ShareClipDialog } from './ShareClipDialog';
+import {
+  normalizeClipProject,
+  segmentDurationMs,
+  updateProjectSegment,
+  type MontageClipEditorProject,
+} from './clip-project-model';
 
 const channelLabels: Record<ClipAudioChannel, string> = {
   game: 'Game',
@@ -26,7 +34,7 @@ const canvasSizes: Array<{ id: ClipCanvasSize; label: string }> = [
   { id: '9:16', label: '9:16' },
 ];
 
-export function ClipEditor({ clip, exportPending, trimPending, canvasPending, inspectorOpen, onClose, onFavorite, onRename, onReveal, onInspectorOpenChange, onCanvasSizeChange, onSaveTrim, onAudioTrackLevelChange, onExport, onDelete }: {
+type SingleClipEditorProps = {
   clip: Clip;
   exportPending: boolean;
   trimPending: boolean;
@@ -40,9 +48,27 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
   onCanvasSizeChange: (canvasSize: ClipCanvasSize) => void;
   onSaveTrim: (startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => Promise<void>;
   onAudioTrackLevelChange: (trackIndex: number, level: number) => Promise<void>;
-  onExport: (preset: ClipExportPreset, startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => Promise<boolean>;
+  onExport: (preset: ClipExportPreset, startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => Promise<boolean>;
+  onCancelExport: (exportId: string) => Promise<void>;
   onDelete: () => void;
-}) {
+};
+
+type MontageClipEditorProps = {
+  project: MontageClipEditorProject;
+  exportPending: boolean;
+  inspectorOpen: boolean;
+  onClose: () => void;
+  onReveal: (clip: Clip) => void;
+  onInspectorOpenChange: (open: boolean) => void;
+  onExport: (preset: ClipExportPreset, project: MontageClipEditorProject, exportId: string) => Promise<boolean>;
+  onCancelExport: (exportId: string) => Promise<void>;
+};
+
+export function ClipEditor(props: SingleClipEditorProps | MontageClipEditorProps) {
+  return 'project' in props ? <MontageClipEditor {...props} /> : <SingleClipEditor {...props} />;
+}
+
+function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, inspectorOpen, onClose, onFavorite, onRename, onReveal, onInspectorOpenChange, onCanvasSizeChange, onSaveTrim, onAudioTrackLevelChange, onExport, onCancelExport, onDelete }: SingleClipEditorProps) {
   const backRef = useRef<HTMLButtonElement>(null);
   const editorRef = useRef<HTMLElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -190,7 +216,7 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
             </TooltipTrigger>
             <TooltipContent>{inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'}</TooltipContent>
           </Tooltip>
-          <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs, audioTrackTrims)} />
+          <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset, exportId) => onExport(preset, startMs, endMs, audioTrackTrims, exportId)} onCancelExport={onCancelExport} />
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -320,6 +346,256 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
                 )}
               </section>
 
+            </div>
+          </ScrollArea>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function MontageClipEditor({ project: initialProject, exportPending, inspectorOpen, onClose, onReveal, onInspectorOpenChange, onExport, onCancelExport }: MontageClipEditorProps) {
+  const backRef = useRef<HTMLButtonElement>(null);
+  const editorRef = useRef<HTMLElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const cropGuideRef = useRef<HTMLDivElement>(null);
+  const videoARef = useRef<HTMLVideoElement>(null);
+  const videoBRef = useRef<HTMLVideoElement>(null);
+  const montageVideoRefs = useMemo(() => [videoARef, videoBRef] as const, []);
+  const [project, setProject] = useState(() => normalizeClipProject(initialProject));
+  const [selectedSegmentId, setSelectedSegmentId] = useState(initialProject.segments[0]?.id ?? '');
+  const [previewState, setPreviewState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [activeVideoSlot, setActiveVideoSlot] = useState<0 | 1>(0);
+  const [viewerFullscreen, setViewerFullscreen] = useState(false);
+  const selectedSegment = project.segments.find((segment) => segment.id === selectedSegmentId) ?? project.segments[0];
+  const selectedClip = selectedSegment?.source ?? initialProject.segments[0]!.source;
+  const proportionalBytes = project.segments.reduce((total, segment) => (
+    total + segment.source.fileSize * segmentDurationMs(segment) / Math.max(1, segment.source.durationMs)
+  ), 0);
+
+  useEffect(() => {
+    backRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    setProject((current) => normalizeClipProject({
+      ...current,
+      segments: current.segments.map((segment) => {
+        const latest = initialProject.segments.find((candidate) => candidate.source.id === segment.source.id);
+        return latest ? { ...segment, source: latest.source, unavailableReason: latest.unavailableReason } : segment;
+      }),
+    }));
+  }, [initialProject.segments]);
+
+  useEffect(() => {
+    if (!viewerFullscreen) return;
+    const exitFocusedViewer = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setViewerFullscreen(false);
+    };
+    window.addEventListener('keydown', exitFocusedViewer, { capture: true });
+    return () => window.removeEventListener('keydown', exitFocusedViewer, { capture: true });
+  }, [viewerFullscreen]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const guide = cropGuideRef.current;
+    if (!viewer || !guide || project.canvasSize !== '9:16') return;
+    const updateCropGuide = () => {
+      const width = viewer.clientWidth;
+      const height = viewer.clientHeight;
+      const sourceAspect = selectedClip.width > 0 && selectedClip.height > 0 ? selectedClip.width / selectedClip.height : 16 / 9;
+      const viewerAspect = width / Math.max(1, height);
+      const videoWidth = viewerAspect > sourceAspect ? height * sourceAspect : width;
+      const videoHeight = viewerAspect > sourceAspect ? height : width / sourceAspect;
+      const targetAspect = 9 / 16;
+      const cropWidth = sourceAspect >= targetAspect ? videoHeight * targetAspect : videoWidth;
+      const cropHeight = sourceAspect >= targetAspect ? videoHeight : videoWidth / targetAspect;
+      guide.style.left = `${(width - cropWidth) / 2}px`;
+      guide.style.top = `${(height - cropHeight) / 2}px`;
+      guide.style.width = `${cropWidth}px`;
+      guide.style.height = `${cropHeight}px`;
+    };
+    const observer = new ResizeObserver(updateCropGuide);
+    observer.observe(viewer);
+    updateCropGuide();
+    return () => observer.disconnect();
+  }, [project.canvasSize, selectedClip.height, selectedClip.width, viewerFullscreen]);
+
+  const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape' && viewerFullscreen) return;
+    if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[data-radix-popper-content-wrapper], [data-share-clip-dialog][data-state="open"]')) {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const controls = focusableElements(editorRef.current);
+    if (controls.length === 0) return;
+    const current = controls.indexOf(document.activeElement as HTMLElement);
+    if (event.shiftKey && current <= 0) {
+      event.preventDefault();
+      controls.at(-1)?.focus();
+    } else if (!event.shiftKey && current === controls.length - 1) {
+      event.preventDefault();
+      controls[0]?.focus();
+    }
+  };
+
+  const updateProject = (nextProject: MontageClipEditorProject) => {
+    setProject(normalizeClipProject(nextProject));
+  };
+
+  const updateSelectedAudioLevel = (trackIndex: number, level: number) => {
+    if (!selectedSegment) return;
+    updateProject(updateProjectSegment(project, selectedSegment.id, (segment) => {
+      const levels = [...segment.audioTrackLevels];
+      while (levels.length <= trackIndex) levels.push(100);
+      levels[trackIndex] = level;
+      return { ...segment, audioTrackLevels: levels };
+    }));
+  };
+
+  return (
+    <section ref={editorRef} className="clip-editor-shell" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" data-project-type="montage" onKeyDown={keepFocusInside}>
+      <header className="clip-editor-header no-drag">
+        <Button ref={backRef} type="button" variant="ghost" size="sm" className="no-drag px-2" onClick={onClose}>
+          <ArrowLeft className="size-4" /> Back to clips
+        </Button>
+        <div className="clip-editor-header__identity clip-editor-header__identity--montage">
+          <Clapperboard className="size-4 shrink-0 text-primary" aria-hidden="true" />
+          <h2 id="clip-editor-title" title={project.name}>{project.name}</h2>
+          <span>{project.segments.length} {project.segments.length === 1 ? 'clip' : 'clips'}</span>
+        </div>
+        <dl className="clip-editor-metadata no-drag" aria-label="Montage details">
+          <Metadata label="Duration" value={formatDuration(project.durationMs / 1_000)} />
+          <Metadata label="Output" value={project.canvasSize === '9:16' ? '9:16 vertical' : formatVideoQuality(project.segments[0]?.source.width ?? 0, project.segments[0]?.source.height ?? 0, project.segments[0]?.source.fps ?? 0)} />
+          <Metadata label="Selected" value={selectedClip.name} />
+          <div className="clip-editor-metadata__location">
+            <dt>Source</dt>
+            <dd>
+              <button type="button" className="clip-editor-metadata__path" title={selectedClip.path} aria-label={`Show ${selectedClip.path} in File Explorer`} onClick={() => onReveal(selectedClip)}>
+                <FolderOpen aria-hidden="true" /><span>{selectedClip.path}</span>
+              </button>
+            </dd>
+          </div>
+        </dl>
+        <div className="clip-editor-header__actions">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="no-drag" aria-label={inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'} aria-pressed={inspectorOpen} onClick={() => onInspectorOpenChange(!inspectorOpen)}>
+                {inspectorOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'}</TooltipContent>
+          </Tooltip>
+          <ShareClipDialog
+            clip={project.segments[0]!.source}
+            startMs={0}
+            endMs={project.durationMs}
+            selectedDurationMs={project.durationMs}
+            sourceBytes={proportionalBytes}
+            projectType="montage"
+            segmentCount={project.segments.length}
+            exportPending={exportPending}
+            disabled={project.durationMs < 100 || project.segments.length === 0 || project.segments.some((segment) => Boolean(segment.unavailableReason))}
+            onExport={(preset, exportId) => onExport(preset, project, exportId)}
+            onCancelExport={onCancelExport}
+          />
+        </div>
+      </header>
+
+      <div className="clip-editor-layout" data-inspector={inspectorOpen ? 'open' : 'closed'}>
+        <main className="clip-editor-workspace">
+          <div ref={viewerRef} className="clip-editor-preview clip-editor-preview--montage" data-state={previewState} data-canvas-size={project.canvasSize} data-fullscreen={viewerFullscreen ? 'true' : 'false'} data-active-slot={activeVideoSlot}>
+            <video ref={videoARef} preload="metadata" data-preview-slot="0" aria-label={`Montage preview, ${selectedClip.name}`} />
+            <video ref={videoBRef} preload="metadata" data-preview-slot="1" aria-hidden={activeVideoSlot !== 1} />
+            {project.canvasSize === '9:16' ? <div ref={cropGuideRef} className="clip-editor-crop-guide" aria-hidden="true" /> : null}
+            <div className="clip-editor-preview__controls no-drag">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="clip-editor-preview__fullscreen" aria-label={viewerFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={() => setViewerFullscreen((current) => !current)}>
+                    {viewerFullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{viewerFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</TooltipContent>
+              </Tooltip>
+            </div>
+            {previewState !== 'ready' ? (
+              <div className="clip-editor-preview__status" role={previewState === 'error' ? 'alert' : 'status'}>
+                <strong>{previewState === 'error' ? 'Preview unavailable' : 'Loading montage preview'}</strong>
+                <span>{previewState === 'error' ? 'A source clip is missing, inaccessible, or could not be decoded.' : 'Preparing the current clip and the next boundary…'}</span>
+              </div>
+            ) : null}
+          </div>
+          <MontageTimeline
+            key={initialProject.id}
+            project={project}
+            selectedSegmentId={selectedSegmentId}
+            videoRefs={montageVideoRefs}
+            activeVideoSlot={activeVideoSlot}
+            onActiveVideoSlotChange={setActiveVideoSlot}
+            onPreviewStateChange={setPreviewState}
+            onSelectedSegmentChange={setSelectedSegmentId}
+            onProjectChange={updateProject}
+          />
+        </main>
+
+        <aside className="clip-editor-inspector" aria-label="Montage inspector" aria-hidden={!inspectorOpen || undefined} inert={!inspectorOpen ? true : undefined}>
+          <ScrollArea className="h-full">
+            <div className="clip-editor-inspector__content">
+              <div className="clip-editor-inspector__heading">
+                <div><span>Montage inspector</span><h3>{selectedClip.name}</h3></div>
+              </div>
+
+              <section className="clip-editor-inspector__section clip-editor-canvas" aria-labelledby="montage-canvas-size-heading">
+                <div className="clip-editor-section-heading">
+                  <h3 id="montage-canvas-size-heading">Canvas size</h3>
+                  <span>{project.canvasSize === '9:16' ? 'Vertical' : 'Source'}</span>
+                </div>
+                <RadioGroup className="clip-editor-canvas__options" aria-label="Montage canvas size" value={project.canvasSize} onValueChange={(value) => updateProject({ ...project, canvasSize: value as ClipCanvasSize })}>
+                  {canvasSizes.map((option) => {
+                    const selected = project.canvasSize === option.id;
+                    const id = `montage-canvas-${option.id.replace(':', '-')}`;
+                    return (
+                      <label key={option.id} htmlFor={id} className="clip-editor-canvas__option" data-state={selected ? 'checked' : 'unchecked'}>
+                        <RadioGroupItem id={id} value={option.id} className="sr-only" aria-label={option.label} />
+                        <span className="clip-editor-canvas__glyph" data-shape={option.id} aria-hidden="true"><i /></span>
+                        <span>{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </RadioGroup>
+                <p>Every segment is normalized to this canvas during export.</p>
+              </section>
+
+              <Separator />
+              <dl className="clip-editor-details">
+                <Detail label="Position" value={`${Math.max(0, project.segments.findIndex((segment) => segment.id === selectedSegmentId)) + 1} of ${project.segments.length}`} />
+                <Detail label="Trimmed duration" value={formatDuration(selectedSegment ? segmentDurationMs(selectedSegment) / 1_000 : 0)} />
+                <Detail label="Source" value={formatVideoQuality(selectedClip.width, selectedClip.height, selectedClip.fps)} />
+              </dl>
+
+              <Separator />
+              <section className="clip-editor-inspector__section" aria-labelledby="montage-audio-heading">
+                <h3 id="montage-audio-heading"><Volume2 className="size-3.5" aria-hidden="true" /> Segment audio</h3>
+                {selectedClip.audioChannels && selectedClip.audioChannels.length > 0 ? (
+                  <div className="montage-audio-controls">
+                    {selectedClip.audioChannels.map((channel, trackIndex) => {
+                      const level = selectedSegment?.audioTrackLevels[trackIndex] ?? 100;
+                      return (
+                        <div key={`${channel}-${trackIndex}`} style={{ '--track-color': channelColor(channel) } as CSSProperties}>
+                          <span><i aria-hidden="true" />{channelLabels[channel]}</span>
+                          <output>{level}%</output>
+                          <Slider min={0} max={100} step={1} value={[level]} aria-label={`${channelLabels[channel]} level for ${selectedClip.name}`} onValueChange={([next]) => { if (typeof next === 'number') updateSelectedAudioLevel(trackIndex, next); }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : <p>This source has no separate audio-channel metadata. Any decodable audio is still included in export.</p>}
+              </section>
             </div>
           </ScrollArea>
         </aside>

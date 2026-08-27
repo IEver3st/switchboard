@@ -1,0 +1,105 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "metrics": {
+      "viewport": {
+        "width": 1080,
+        "height": 722
+      },
+      "startup": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 722,
+        "top": 0,
+        "right": 1080,
+        "bottom": 722,
+        "left": 0
+      },
+      "sequence": {
+        "x": 300,
+        "y": 235.625,
+        "width": 480,
+        "height": 250.75,
+        "top": 235.625,
+        "right": 780,
+        "bottom": 486.375,
+        "left": 300
+      },
+      "mark": {
+        "x": 402,
+        "y": 235.625,
+        "width": 276,
+        "height": 184,
+        "top": 235.625,
+        "right": 678,
+        "bottom": 419.625,
+        "left": 402
+      },
+      "markLayerCount": 4,
+      "status": "SwitchboardInitializing control plane",
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "controlPlaneVisible": true
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-startup.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "startup": null,
+      "sequence": null,
+      "mark": null,
+      "markLayerCount": 0,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "controlPlaneVisible": true
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-startup.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "metrics": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "startup": null,
+      "sequence": null,
+      "mark": null,
+      "markLayerCount": 0,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "controlPlaneVisible": true
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-startup.png"
+  }
+]

@@ -103,6 +103,79 @@ describe('Logitech battery discovery', () => {
     expect(batteryReads).toBe(2);
   });
 
+  test('derives a G502 runtime estimate when the active backend only reports percentage', async () => {
+    const dependencies: LogitechDeviceModuleDependencies = {
+      readAgentDevices: async () => [agentDevice],
+      readCapabilities: async () => ({
+        lighting: {
+          writable: true,
+          enabled: true,
+          activeEffectId: 'solid',
+          availableEffects: [{ id: 'solid', label: 'Static' }],
+          color: '#3366ff',
+          colorWritable: true,
+          brightnessWritable: false,
+          speedWritable: false,
+          profiles: [],
+          muteLinked: false,
+          muteLinkedWritable: false,
+          physicalEffectVerified: false,
+          profileMode: 'software',
+          source: 'firmware',
+        },
+      }),
+      readBattery: async () => ({ percentage: 64, charging: false, fullyCharged: false }),
+      writeControl: async () => undefined,
+    };
+    const module = new LogitechDeviceModule(dependencies);
+
+    const [device] = await module.discover({
+      hidDevices: [receiver],
+      previousDevices: [],
+      appearanceOverrides: {},
+    });
+
+    expect(device?.capabilities.battery?.estimatedMinutesRemaining).toBe(1_421);
+  });
+
+  test('rereads lighting so external mouse profile changes cannot leave the active color stale', async () => {
+    let capabilityReads = 0;
+    const dependencies: LogitechDeviceModuleDependencies = {
+      readAgentDevices: async () => [agentDevice],
+      readCapabilities: async () => {
+        capabilityReads += 1;
+        return {
+          lighting: {
+            writable: true,
+            enabled: true,
+            activeEffectId: 'solid',
+            availableEffects: [{ id: 'solid', label: 'Static' }],
+            color: capabilityReads === 1 ? '#ff0000' : '#00ff00',
+            colorWritable: true,
+            brightnessWritable: false,
+            speedWritable: false,
+            profiles: [],
+            muteLinked: false,
+            muteLinkedWritable: false,
+            physicalEffectVerified: false,
+            profileMode: 'software',
+            source: 'firmware',
+          },
+        };
+      },
+      readBattery: async () => ({ percentage: 64, charging: false, fullyCharged: false }),
+      writeControl: async () => undefined,
+    };
+    const module = new LogitechDeviceModule(dependencies);
+
+    const first = await module.discover({ hidDevices: [receiver], previousDevices: [], appearanceOverrides: {} });
+    const second = await module.discover({ hidDevices: [receiver], previousDevices: first, appearanceOverrides: {} });
+
+    expect(first[0]?.capabilities.lighting?.color).toBe('#ff0000');
+    expect(second[0]?.capabilities.lighting?.color).toBe('#00ff00');
+    expect(capabilityReads).toBe(2);
+  });
+
   test('keeps the known white variant and drops stale charging state when the agent disappears', async () => {
     let agentAvailable = true;
     const dependencies: LogitechDeviceModuleDependencies = {

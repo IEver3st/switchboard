@@ -40,12 +40,14 @@ export function DpiControl({ capability, reportRateControl, onChange, onStagesCh
     setDraft(value);
     setDraftText(formatDpi(value));
   };
-  const commitDraft = () => {
-    if (!draftIsValid) {
+  const commitDraft = (value = draftText) => {
+    const next = parseDpi(value);
+    if (!validDpi(capability, next)) {
       setDraftValue(capability.activeDpi);
       return;
     }
-    if (draft !== capability.activeDpi) void onChange(draft);
+    setDraftValue(next);
+    if (next !== capability.activeDpi) void onChange(next);
   };
 
   return (
@@ -68,7 +70,7 @@ export function DpiControl({ capability, reportRateControl, onChange, onStagesCh
               setDraftText(nextText);
               if (Number.isFinite(next)) setDraft(next);
             }}
-            onBlur={commitDraft}
+            onBlur={(event) => commitDraft(event.currentTarget.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') event.currentTarget.blur();
               if (event.key === 'Escape') {

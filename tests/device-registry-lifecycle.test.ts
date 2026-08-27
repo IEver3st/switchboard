@@ -1,9 +1,45 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
 import type { DeviceModule } from '../src/main/modules/device-module';
-import { DeviceRegistry } from '../src/main/services/device-registry';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 
+mock.module('electron', () => ({
+  app: {
+    isPackaged: false,
+    getAppPath: () => process.cwd(),
+  },
+}));
+
+const { DeviceRegistry } = await import('../src/main/services/device-registry');
+
 describe('device registry lifecycle', () => {
+  test('bounds a stalled HID enumeration without starting overlapping native scans', async () => {
+    let releaseFirst!: (devices: []) => void;
+    const stalledEnumeration = new Promise<[]>((resolve) => { releaseFirst = resolve; });
+    let enumerationCount = 0;
+    const registry = new DeviceRegistry(
+      createDefaultSnapshot,
+      () => undefined,
+      {
+        modules: [],
+        enumerationTimeoutMs: 5,
+        listHidDevices: async () => {
+          enumerationCount += 1;
+          return enumerationCount === 1 ? stalledEnumeration : [];
+        },
+      },
+    );
+
+    await registry.refresh();
+    await registry.refresh();
+    expect(enumerationCount).toBe(1);
+
+    releaseFirst([]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await registry.refresh();
+    expect(enumerationCount).toBe(2);
+    await registry.dispose();
+  });
+
   test('publishes device-confirmed lighting readback instead of the requested value', async () => {
     let confirmedBrightness = 90;
     const fakeModule: DeviceModule = {
@@ -18,6 +54,9 @@ describe('device registry lifecycle', () => {
       async setControl(_device, change) {
         if (change.type !== 'lighting-brightness') throw new Error('Unexpected control in test.');
         confirmedBrightness = 61;
+        return {
+          confirmedChanges: [{ type: 'lighting-brightness', brightness: confirmedBrightness }],
+        };
       },
     };
     let snapshot = createDefaultSnapshot();

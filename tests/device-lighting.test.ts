@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { applyLighting } from '../src/renderer/src/components/shared/device-lighting';
+import { applyLighting, matteDarkProductBackdrop } from '../src/renderer/src/components/shared/device-lighting';
 
 describe('device render lighting masks', () => {
   test('recolors each saturated G502 source zone from canonical lighting color', () => {
@@ -71,5 +71,40 @@ describe('device render lighting masks', () => {
     expect(diffuserCore[2]).toBeGreaterThan(diffuserCore[0]! * 2);
     expect(spillChroma).toBeLessThan(coreChroma / 3);
     expect(shellSpill[0]).toBeGreaterThan(180);
+  });
+
+  test('fully neutralizes photographic RGB spill when lighting is off', () => {
+    const pixels = new Uint8ClampedArray([42, 34, 37, 255]);
+
+    applyLighting(pixels, 'photographic-rgb', false, '#44aaff');
+
+    expect(Math.max(...pixels.slice(0, 3)) - Math.min(...pixels.slice(0, 3))).toBeLessThanOrEqual(1);
+    expect(pixels[0]).toBeLessThan(12);
+    expect(pixels[3]).toBeLessThan(64);
+  });
+
+  test('recolors photographic RGB spill instead of retaining the source hue', () => {
+    const pixels = new Uint8ClampedArray([90, 38, 54, 255]);
+
+    applyLighting(pixels, 'photographic-rgb', true, '#44aaff', 100);
+
+    expect(pixels[2]).toBeGreaterThan(pixels[0]! * 1.4);
+    expect(pixels[1]).toBeGreaterThan(pixels[0]!);
+  });
+});
+
+describe('dark product backdrop matte', () => {
+  test('removes dark neutral backdrop without erasing colored lighting or highlights', () => {
+    const pixels = new Uint8ClampedArray([
+      17, 17, 18, 255,
+      18, 80, 150, 255,
+      74, 76, 78, 255,
+    ]);
+
+    matteDarkProductBackdrop(pixels);
+
+    expect(pixels[3]).toBeLessThan(12);
+    expect(pixels[7]).toBeGreaterThan(240);
+    expect(pixels[11]).toBe(255);
   });
 });

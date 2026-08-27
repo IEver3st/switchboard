@@ -1,4 +1,4 @@
-export type LightingMask = 'red-dominant' | 'g502-rgb';
+export type LightingMask = 'red-dominant' | 'g502-rgb' | 'photographic-rgb';
 
 interface RgbColor {
   red: number;
@@ -16,6 +16,10 @@ export function applyLighting(
   const target = parseHexColor(color);
   if (mask === 'g502-rgb') {
     applyG502Lighting(data, target, enabled ? clamp(brightness, 0, 100) / 100 : 0);
+    return;
+  }
+  if (mask === 'photographic-rgb') {
+    applyPhotographicLighting(data, target, enabled ? clamp(brightness, 0, 100) / 100 : 0);
     return;
   }
 
@@ -45,6 +49,51 @@ export function applyLighting(
     data[offset] = Math.round(neutral + (target.red / targetMaximum) * litRange);
     data[offset + 1] = Math.round(neutral + (target.green / targetMaximum) * litRange);
     data[offset + 2] = Math.round(neutral + (target.blue / targetMaximum) * litRange);
+  }
+}
+
+function applyPhotographicLighting(data: Uint8ClampedArray, target: RgbColor, intensity: number): void {
+  const targetHsl = rgbToHsl(target);
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    if ((data[offset + 3] ?? 0) <= 0) continue;
+
+    const source = {
+      red: data[offset] ?? 0,
+      green: data[offset + 1] ?? 0,
+      blue: data[offset + 2] ?? 0,
+    };
+    const maximum = Math.max(source.red, source.green, source.blue);
+    const minimum = Math.min(source.red, source.green, source.blue);
+    const chroma = maximum - minimum;
+    if (maximum <= 0 || chroma <= 1) continue;
+
+    // Product photography contains soft colored spill beyond the bright LED
+    // core. Capture that low-chroma falloff so an off state is truly neutral
+    // and a static color does not retain the source rainbow at its edges.
+    const saturation = chroma / maximum;
+    const maskStrength = smoothstep(1, 9, chroma) * smoothstep(0.008, 0.06, saturation);
+    if (maskStrength <= 0) continue;
+
+    const sourceHsl = rgbToHsl(source);
+    const colorized = hslToRgb({
+      hue: targetHsl.hue,
+      saturation: targetHsl.saturation,
+      lightness: sourceHsl.lightness,
+    });
+    const neutralValue = relativeLuminance(source) * 0.14;
+    const neutral = { red: neutralValue, green: neutralValue, blue: neutralValue };
+    const lit = mixColor(neutral, colorized, intensity);
+    const output = mixColor(source, lit, maskStrength);
+
+    data[offset] = Math.round(output.red);
+    data[offset + 1] = Math.round(output.green);
+    data[offset + 2] = Math.round(output.blue);
+    if (intensity === 0) {
+      // A photographic glow remains opaque even after its RGB is neutralized.
+      // Fade those emitted-light pixels instead of leaving a dark halo behind.
+      data[offset + 3] = Math.round((data[offset + 3] ?? 0) * (1 - maskStrength * 0.88));
+    }
   }
 }
 
@@ -118,6 +167,30 @@ export function adaptBlackHardwareForDarkSurface(data: Uint8ClampedArray): void 
     data[offset] = Math.min(255, red + lift);
     data[offset + 1] = Math.min(255, green + lift);
     data[offset + 2] = Math.min(255, blue + lift);
+  }
+}
+
+/**
+ * Builds a soft transparency matte for product photography shot against a
+ * nearly black backdrop. Saturated lighting and material highlights remain
+ * intact while dark, neutral backdrop pixels fall into Switchboard's stage.
+ */
+export function matteDarkProductBackdrop(data: Uint8ClampedArray): void {
+  for (let offset = 0; offset < data.length; offset += 4) {
+    const alpha = data[offset + 3] ?? 0;
+    if (alpha <= 0) continue;
+
+    const red = data[offset] ?? 0;
+    const green = data[offset + 1] ?? 0;
+    const blue = data[offset + 2] ?? 0;
+    const maximum = Math.max(red, green, blue);
+    const minimum = Math.min(red, green, blue);
+    const saturation = maximum > 0 ? (maximum - minimum) / maximum : 0;
+    const neutralWeight = 1 - smoothstep(0.07, 0.22, saturation);
+    const darkness = 1 - smoothstep(16, 52, maximum);
+    const matteStrength = neutralWeight * darkness;
+
+    data[offset + 3] = Math.round(alpha * (1 - matteStrength));
   }
 }
 

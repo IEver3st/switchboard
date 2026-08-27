@@ -5,7 +5,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const outputDirectory = join(projectRoot, '.impeccable', 'review', 'startup');
+const outputDirectory = process.env.SWITCHBOARD_STARTUP_REVIEW_DIR
+  ? resolve(process.env.SWITCHBOARD_STARTUP_REVIEW_DIR)
+  : join(projectRoot, '.impeccable', 'review', 'startup');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-startup-review-'));
 const viewports = [
   { name: '1080x720', width: 1080, height: 720 },
@@ -54,10 +56,9 @@ async function runReview() {
       await waitForSelector(window, '.startup-screen');
       const motionState = await window.webContents.executeJavaScript(`
         (() => ({
-          controlsAnimation: getComputedStyle(document.querySelector('.startup-console__controls')).animationName,
-          faderAnimation: getComputedStyle(document.querySelector('.startup-console__fader')).animationName,
-          routeAnimation: getComputedStyle(document.querySelector('.startup-console__route')).animationName,
-          signalPulseVisible: Boolean(document.querySelector('.startup-console__pulse')),
+          markLayerCount: document.querySelectorAll('.startup-mark__layer').length,
+          markAnimations: [...document.querySelectorAll('.startup-mark__layer')]
+            .map((layer) => getComputedStyle(layer).animationName),
         }))()
       `);
       const image = await window.webContents.capturePage();
@@ -73,19 +74,20 @@ async function runReview() {
       continue;
     }
     await waitForSelector(window, '.startup-screen');
-    await delay(300);
+    await window.webContents.executeJavaScript(`new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
 
     const metrics = await window.webContents.executeJavaScript(`
       (() => {
         const startup = document.querySelector('.startup-screen');
         const sequence = document.querySelector('.startup-sequence');
-        const consoleGraphic = document.querySelector('.startup-console');
+        const mark = document.querySelector('.startup-mark');
         const bounds = (element) => element ? element.getBoundingClientRect().toJSON() : null;
         return {
           viewport: { width: innerWidth, height: innerHeight },
           startup: bounds(startup),
           sequence: bounds(sequence),
-          consoleGraphic: bounds(consoleGraphic),
+          mark: bounds(mark),
+          markLayerCount: document.querySelectorAll('.startup-mark__layer').length,
           status: startup?.textContent?.replace(/\\s+/g, ' ').trim(),
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
           verticalOverflow: document.documentElement.scrollHeight > innerHeight,

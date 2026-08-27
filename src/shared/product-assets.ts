@@ -12,6 +12,8 @@ const productAssets: ProductAssetDefinition[] = [
     ['black', 'Black'],
     ['platinum-silver', 'Platinum Silver'],
     ['midnight-blue', 'Midnight Blue'],
+    ['sand-pink', 'Sand Pink'],
+    ['sandstone', 'Sandstone'],
     ['olive-gray', 'Olive Gray'],
   ].map(([variant, colorway]) => ({
     key: `sony-wh1000xm6-${variant}`,

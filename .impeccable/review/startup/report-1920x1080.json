@@ -22,24 +22,25 @@
       },
       "sequence": {
         "x": 720,
-        "y": 394.44793701171875,
+        "y": 414.625,
         "width": 480,
-        "height": 291.09375,
-        "top": 394.44793701171875,
+        "height": 250.75,
+        "top": 414.625,
         "right": 1200,
-        "bottom": 685.5416870117188,
+        "bottom": 665.375,
         "left": 720
       },
-      "consoleGraphic": {
-        "x": 740,
-        "y": 394.44793701171875,
-        "width": 440,
-        "height": 234.34375,
-        "top": 394.44793701171875,
-        "right": 1180,
-        "bottom": 628.7916870117188,
-        "left": 740
+      "mark": {
+        "x": 822,
+        "y": 414.625,
+        "width": 276,
+        "height": 184,
+        "top": 414.625,
+        "right": 1098,
+        "bottom": 598.625,
+        "left": 822
       },
+      "markLayerCount": 4,
       "status": "SwitchboardInitializing control plane",
       "horizontalOverflow": false,
       "verticalOverflow": false,

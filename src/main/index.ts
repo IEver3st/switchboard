@@ -37,10 +37,10 @@ function isTrustedNavigation(url: string): boolean {
   }
 }
 
-function getBrandIconPath(): string {
+function getBrandIconPath(extension: 'ico' | 'png' = 'png'): string {
   return app.isPackaged
-    ? join(process.resourcesPath, 'branding', 'switchboard-icon.png')
-    : join(app.getAppPath(), 'resources', 'branding', 'switchboard-icon.png');
+    ? join(process.resourcesPath, 'branding', `switchboard-icon.${extension}`)
+    : join(app.getAppPath(), 'resources', 'branding', `switchboard-icon.${extension}`);
 }
 
 function createWindow(): BrowserWindow {
@@ -50,7 +50,7 @@ function createWindow(): BrowserWindow {
     minWidth: 1080,
     minHeight: 720,
     show: false,
-    icon: getBrandIconPath(),
+    icon: getBrandIconPath(process.platform === 'win32' ? 'ico' : 'png'),
     backgroundColor: '#0d1015',
     title: 'Switchboard',
     titleBarStyle: 'hidden',

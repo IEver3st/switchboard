@@ -4,13 +4,13 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32.SafeHandles;
+using System.Collections.Concurrent;
 
-const int AfBluetooth = 32;
-const int BluetoothProtocolRfcomm = 3;
 var sonyMdrService = new Guid("956C7B26-D49A-4BA8-B03F-B17D393CB6E2");
 var json = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 var devices = new Dictionary<string, BluetoothDevice>();
-var sessions = new Dictionary<string, Socket>();
+var sessions = new ConcurrentDictionary<string, Socket>();
 var outputLock = new SemaphoreSlim(1, 1);
 var lifetime = new CancellationTokenSource();
 
@@ -41,7 +41,21 @@ async Task Receive(string token, Socket socket)
     }
     finally
     {
-        if (sessions.Remove(token, out var active)) active.Dispose();
+        if (sessions.TryGetValue(token, out var active) && ReferenceEquals(active, socket)) {
+            sessions.TryRemove(token, out _);
+            active.Dispose();
+        }
+    }
+}
+
+async Task SendAll(Socket socket, byte[] payload)
+{
+    var offset = 0;
+    while (offset < payload.Length)
+    {
+        var written = await socket.SendAsync(payload.AsMemory(offset), SocketFlags.None, lifetime.Token);
+        if (written == 0) throw new IOException("Bluetooth socket closed during send.");
+        offset += written;
     }
 }
 
@@ -88,10 +102,8 @@ while (!lifetime.IsCancellationRequested)
             case "connect":
                 if (command.Token is null || !devices.TryGetValue(command.Token, out var target))
                     throw new InvalidOperationException("unknown-device");
-                if (sessions.Remove(command.Token, out var prior)) prior.Dispose();
-                var socket = new Socket((AddressFamily)AfBluetooth, SocketType.Stream, (ProtocolType)BluetoothProtocolRfcomm);
-                using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8)))
-                    await socket.ConnectAsync(new BluetoothEndPoint(target.Address, sonyMdrService), timeout.Token);
+                if (sessions.TryRemove(command.Token, out var prior)) prior.Dispose();
+                var socket = BluetoothSocket.Connect(target.Address, sonyMdrService, 8_000);
                 sessions[command.Token] = socket;
                 _ = Receive(command.Token, socket);
                 await Emit(new { type = "response", command.RequestId, ok = true });
@@ -101,11 +113,11 @@ while (!lifetime.IsCancellationRequested)
                 if (command.Token is null || !sessions.TryGetValue(command.Token, out var activeSocket))
                     throw new InvalidOperationException("not-connected");
                 var payload = Convert.FromBase64String(command.Bytes ?? string.Empty);
-                await activeSocket.SendAsync(payload, SocketFlags.None, lifetime.Token);
+                await SendAll(activeSocket, payload);
                 await Emit(new { type = "response", command.RequestId, ok = true });
                 break;
             case "disconnect":
-                if (command.Token is not null && sessions.Remove(command.Token, out var connected)) connected.Dispose();
+                if (command.Token is not null && sessions.TryRemove(command.Token, out var connected)) connected.Dispose();
                 await Emit(new { type = "response", command.RequestId, ok = true });
                 break;
             case "shutdown":
@@ -129,23 +141,78 @@ foreach (var socket in sessions.Values) socket.Dispose();
 sealed record HostCommand(string? Type, string? RequestId, string? Token, string? Bytes);
 sealed record BluetoothDevice(ulong Address, string Name, bool Connected, bool Remembered, bool Authenticated);
 
-sealed class BluetoothEndPoint(ulong address, Guid service) : EndPoint
+static class BluetoothSocket
 {
-    const int BluetoothAddressFamily = 32;
-    public override AddressFamily AddressFamily => (AddressFamily)BluetoothAddressFamily;
-    public override SocketAddress Serialize()
+    const int AfBluetooth = 32;
+    const int SocketStream = 1;
+    const int ProtocolRfcomm = 3;
+    static readonly object StartupLock = new();
+    static bool winsockStarted;
+
+    public static Socket Connect(ulong address, Guid service, int timeoutMilliseconds)
     {
-        var result = new SocketAddress(AddressFamily, 32);
-        Write(result, 2, BitConverter.GetBytes(address));
-        Write(result, 10, service.ToByteArray());
-        Write(result, 26, BitConverter.GetBytes(0u));
-        return result;
+        EnsureWinsock();
+        var handle = socket(AfBluetooth, SocketStream, ProtocolRfcomm);
+        if (handle == new IntPtr(-1)) throw new SocketException(WSAGetLastError());
+        var endpoint = new SockAddrBth { AddressFamily = AfBluetooth, Address = address, ServiceClassId = service, Port = uint.MaxValue };
+        uint nonblocking = 1;
+        if (ioctlsocket(handle, unchecked((int)0x8004667e), ref nonblocking) != 0) return Fail(handle, WSAGetLastError());
+        var result = connect(handle, ref endpoint, Marshal.SizeOf<SockAddrBth>());
+        if (result != 0)
+        {
+            var error = WSAGetLastError();
+            if (error is not (10035 or 10036 or 10022)) return Fail(handle, error);
+            var descriptor = new WsaPollFd { Socket = handle, Events = 0x0010 };
+            if (WSAPoll(ref descriptor, 1, timeoutMilliseconds) <= 0 || (descriptor.ReturnedEvents & 0x0007) != 0)
+                return Fail(handle, 10060);
+            var socketError = 0;
+            var socketErrorLength = sizeof(int);
+            if (getsockopt(handle, 0xffff, 0x1007, ref socketError, ref socketErrorLength) != 0 || socketError != 0)
+                return Fail(handle, socketError == 0 ? WSAGetLastError() : socketError);
+        }
+        uint blocking = 0;
+        if (ioctlsocket(handle, unchecked((int)0x8004667e), ref blocking) != 0) return Fail(handle, WSAGetLastError());
+        return new Socket(new SafeSocketHandle(handle, ownsHandle: true));
     }
-    public override EndPoint Create(SocketAddress socketAddress) => this;
-    static void Write(SocketAddress target, int offset, byte[] source)
+
+    static Socket Fail(IntPtr handle, int error) { closesocket(handle); throw new SocketException(error); }
+
+    static void EnsureWinsock()
     {
-        for (var i = 0; i < source.Length; i++) target[offset + i] = source[i];
+        lock (StartupLock)
+        {
+            if (winsockStarted) return;
+            var data = Marshal.AllocHGlobal(512);
+            try
+            {
+                var result = WSAStartup(0x0202, data);
+                if (result != 0) throw new SocketException(result);
+                winsockStarted = true;
+            }
+            finally { Marshal.FreeHGlobal(data); }
+        }
     }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct SockAddrBth
+    {
+        public ushort AddressFamily;
+        public ulong Address;
+        public Guid ServiceClassId;
+        public uint Port;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct WsaPollFd { public IntPtr Socket; public short Events; public short ReturnedEvents; }
+
+    [DllImport("Ws2_32.dll", SetLastError = true)] static extern IntPtr socket(int addressFamily, int socketType, int protocol);
+    [DllImport("Ws2_32.dll", SetLastError = true)] static extern int connect(IntPtr socket, ref SockAddrBth name, int nameLength);
+    [DllImport("Ws2_32.dll")] static extern int ioctlsocket(IntPtr socket, int command, ref uint argument);
+    [DllImport("Ws2_32.dll")] static extern int WSAPoll(ref WsaPollFd descriptors, uint count, int timeoutMilliseconds);
+    [DllImport("Ws2_32.dll")] static extern int getsockopt(IntPtr socket, int level, int option, ref int value, ref int valueLength);
+    [DllImport("Ws2_32.dll")] static extern int closesocket(IntPtr socket);
+    [DllImport("Ws2_32.dll")] static extern int WSAGetLastError();
+    [DllImport("Ws2_32.dll")] static extern int WSAStartup(ushort requestedVersion, IntPtr data);
 }
 
 static class BluetoothDiscovery

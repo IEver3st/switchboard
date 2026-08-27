@@ -58,9 +58,13 @@ const nativeHidIo: RazerHidIo = {
 const responseDelayMs = 35;
 const retryDelayMs = 45;
 const maximumAttempts = 3;
+const defaultOperationTimeoutMs = 2_000;
 
 export class HuntsmanV2AnalogTransport {
-  public constructor(private readonly hidIo: RazerHidIo = nativeHidIo) {}
+  public constructor(
+    private readonly hidIo: RazerHidIo = nativeHidIo,
+    private readonly operationTimeoutMs = defaultOperationTimeoutMs,
+  ) {}
 
   public async probe(path: string): Promise<HuntsmanProbe> {
     return this.withHandle(path, async (handle) => {
@@ -124,30 +128,55 @@ export class HuntsmanV2AnalogTransport {
   }
 
   private async withHandle<T>(path: string, operation: (handle: RazerHidHandle) => Promise<T>): Promise<T> {
-    const handle = await this.hidIo.open(path);
+    const pendingHandle = this.hidIo.open(path);
+    let handle: RazerHidHandle;
+    try {
+      handle = await withTimeout(pendingHandle, this.operationTimeoutMs, 'Opening the Razer control endpoint timed out.');
+    } catch (error) {
+      void pendingHandle.then((lateHandle) => lateHandle.close()).catch(() => undefined);
+      throw error;
+    }
     try {
       return await operation(handle);
     } finally {
-      await handle.close();
+      await withTimeout(handle.close(), this.operationTimeoutMs, 'Closing the Razer control endpoint timed out.')
+        .catch(() => undefined);
     }
   }
 
   private async request(handle: RazerHidHandle, command: RazerCommand): Promise<RazerResponse> {
     const report = buildRazerReport(command);
+    let lastResponseError: Error | undefined;
     for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
-      const written = await handle.sendFeatureReport(report);
+      const written = await withTimeout(
+        handle.sendFeatureReport(report),
+        this.operationTimeoutMs,
+        'Sending the Razer feature report timed out.',
+      );
       if (written !== report.byteLength && written !== report.byteLength - 1) {
         throw new Error(`HIDAPI reported ${written} of ${report.byteLength} Razer command bytes.`);
       }
       await delay(responseDelayMs);
-      const response = parseRazerResponse(await handle.getFeatureReport(0, razerReportLength), command);
+      let response: RazerResponse;
+      try {
+        response = parseRazerResponse(await withTimeout(
+          handle.getFeatureReport(0, razerReportLength),
+          this.operationTimeoutMs,
+          'Reading the Razer feature response timed out.',
+        ), command);
+      } catch (error) {
+        lastResponseError = error instanceof Error ? error : new Error(String(error));
+        if (attempt === maximumAttempts) throw lastResponseError;
+        await delay(retryDelayMs * attempt);
+        continue;
+      }
       if (response.status === 0x02) return response;
       if (response.status !== 0x01 || attempt === maximumAttempts) {
         throw new RazerCommandStatusError(response.status);
       }
       await delay(retryDelayMs * attempt);
     }
-    throw new Error('The keyboard did not complete the Razer HID command.');
+    throw lastResponseError ?? new Error('The keyboard did not complete the Razer HID command.');
   }
 
 }
@@ -172,4 +201,14 @@ function razerStatusMessage(status: number): string {
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function withTimeout<T>(operation: Promise<T>, milliseconds: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), milliseconds);
+  });
+  return Promise.race([operation, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }

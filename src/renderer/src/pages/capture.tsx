@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Clip, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
+import type { Clip, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, ExportMontageInput, SystemSnapshot } from '../../../shared/contracts';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
 import { DeleteClipDialog, RenameClipDialog } from '@/components/capture/ClipDialogs';
 import { ClipEditor } from '@/components/capture/ClipEditor';
 import { ClipLibrary } from '@/components/capture/ClipLibrary';
+import { createMontageProject, type MontageClipEditorProject } from '@/components/capture/clip-project-model';
 import type { ClipActions } from '@/components/capture/types';
 import { formatBytes, formatDuration } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
@@ -15,11 +16,14 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const deleteClip = useSystemStore((state) => state.deleteClip);
   const renameClip = useSystemStore((state) => state.renameClip);
   const exportClip = useSystemStore((state) => state.exportClip);
+  const exportMontage = useSystemStore((state) => state.exportMontage);
+  const cancelClipExport = useSystemStore((state) => state.cancelClipExport);
   const setClipCanvasSize = useSystemStore((state) => state.setClipCanvasSize);
   const setClipTrim = useSystemStore((state) => state.setClipTrim);
   const setClipAudioTrackLevel = useSystemStore((state) => state.setClipAudioTrackLevel);
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const [editorClipId, setEditorClipId] = useState<string | null>(null);
+  const [montageProject, setMontageProject] = useState<MontageClipEditorProject | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Clip | null>(null);
   const [renameTarget, setRenameTarget] = useState<Clip | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -27,6 +31,7 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const previousSavedClipId = useRef(snapshot.clips[0]?.id);
   const restoreFocusClipId = useRef<string | null>(null);
   const editorClip = snapshot.clips.find((clip) => clip.id === editorClipId) ?? null;
+  const editorOpen = Boolean(editorClip || montageProject);
   const dialogOpen = Boolean(deleteTarget || renameTarget);
 
   const runClipAction = useCallback(async <T,>(key: string, action: () => Promise<T>): Promise<T> => {
@@ -45,6 +50,7 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const closeEditor = useCallback(() => {
     restoreFocusClipId.current = editorClipId;
     setEditorClipId(null);
+    setMontageProject(null);
   }, [editorClipId]);
 
   useEffect(() => {
@@ -61,6 +67,20 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   }, [editorClip, editorClipId]);
 
   useEffect(() => {
+    if (!montageProject) return;
+    const clipsById = new Map(snapshot.clips.map((clip) => [clip.id, clip]));
+    setMontageProject((current) => current ? {
+      ...current,
+      segments: current.segments.map((segment) => {
+        const source = clipsById.get(segment.source.id);
+        return source
+          ? { ...segment, source, unavailableReason: undefined }
+          : { ...segment, unavailableReason: 'The source clip is no longer in the library.' };
+      }),
+    } : current);
+  }, [snapshot.clips]);
+
+  useEffect(() => {
     const latest = snapshot.clips[0];
     if (!latest || latest.id === previousSavedClipId.current) return;
     previousSavedClipId.current = latest.id;
@@ -69,7 +89,7 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   }, [snapshot.capture.runtime.lastSavedAt, snapshot.clips]);
 
   const actions = useMemo<ClipActions>(() => ({
-    open: (clip) => setEditorClipId(clip.id),
+    open: (clip) => { setMontageProject(null); setEditorClipId(clip.id); },
     favorite: (clip, favorite) => void setClipFavorite({ id: clip.id, favorite }),
     rename: (clip) => setRenameTarget(clip),
     reveal: (clip) => void revealClip(clip.id),
@@ -86,11 +106,20 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
     <div className="relative flex min-h-full flex-1 flex-col" data-testid="capture-library">
       <div
         className="flex min-h-full flex-1 flex-col"
-        aria-hidden={editorClip || dialogOpen ? true : undefined}
-        inert={editorClip || dialogOpen ? true : undefined}
+        aria-hidden={editorOpen || dialogOpen ? true : undefined}
+        inert={editorOpen || dialogOpen ? true : undefined}
       >
         <CaptureHeader snapshot={snapshot} />
-        <ClipLibrary clips={snapshot.clips} actions={actions} replayEnabled={snapshot.capture.config.enabled} hotkey={snapshot.capture.config.hotkey} />
+        <ClipLibrary
+          clips={snapshot.clips}
+          actions={actions}
+          replayEnabled={snapshot.capture.config.enabled}
+          hotkey={snapshot.capture.config.hotkey}
+          onCreateMontage={(clips) => {
+            setEditorClipId(null);
+            setMontageProject(createMontageProject(clips));
+          }}
+        />
       </div>
 
       {editorClip ? (
@@ -113,11 +142,58 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
               showTransientToast('Timeline edits saved', setToast);
             })}
             onAudioTrackLevelChange={(trackIndex, level) => setClipAudioTrackLevel({ id: editorClip.id, trackIndex, level })}
-            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => runClipAction(`clip:${editorClip.id}:export`, () => exportClip({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims })).then((exported) => {
+            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => runClipAction(`clip:${editorClip.id}:export`, () => exportClip({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims, exportId })).then((exported) => {
               if (exported) showTransientToast('Share file created', setToast);
               return exported;
             })}
+            onCancelExport={async (exportId) => {
+              await cancelClipExport(exportId);
+              showTransientToast('Export cancelled', setToast);
+            }}
             onDelete={() => setDeleteTarget(editorClip)}
+          />
+        </div>
+      ) : null}
+
+      {montageProject ? (
+        <div className="contents" aria-hidden={dialogOpen ? true : undefined} inert={dialogOpen ? true : undefined}>
+          <ClipEditor
+            project={montageProject}
+            exportPending={pendingClipActions.has(`montage:${montageProject.id}:export`)}
+            inspectorOpen={snapshot.settings.clipEditorInspectorOpen}
+            onClose={closeEditor}
+            onReveal={(clip) => void revealClip(clip.id)}
+            onInspectorOpenChange={(open) => void updateSettings({ clipEditorInspectorOpen: open })}
+            onExport={(preset: ClipExportPreset, project: MontageClipEditorProject, exportId: string) => {
+              const input: ExportMontageInput = {
+                exportId,
+                preset,
+                project: {
+                  type: 'montage',
+                  id: project.id,
+                  name: project.name,
+                  durationMs: project.durationMs,
+                  canvasSize: project.canvasSize,
+                  segments: project.segments.map((segment) => ({
+                    id: segment.id,
+                    clipId: segment.source.id,
+                    sourceDurationMs: segment.source.durationMs,
+                    trimStartMs: segment.trimStartMs,
+                    trimEndMs: segment.trimEndMs,
+                    ...(segment.audioTrackLevels.length > 0 ? { audioTrackLevels: segment.audioTrackLevels } : {}),
+                    ...(segment.audioTrackTrims.length > 0 ? { audioTrackTrims: segment.audioTrackTrims } : {}),
+                  })),
+                },
+              };
+              return runClipAction(`montage:${project.id}:export`, () => exportMontage(input)).then((exported) => {
+                if (exported) showTransientToast('Montage share file created', setToast);
+                return exported;
+              });
+            }}
+            onCancelExport={async (exportId) => {
+              await cancelClipExport(exportId);
+              showTransientToast('Montage export cancelled', setToast);
+            }}
           />
         </div>
       ) : null}

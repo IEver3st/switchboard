@@ -6,6 +6,11 @@ import { fileURLToPath } from 'node:url';
 
 const count = Number(process.argv[2]);
 if (![0, 1, 20, 240].includes(count)) throw new Error('Clip count must be 0, 1, 20, or 240.');
+const requestedWidth = Number(process.argv[3] ?? 1420);
+const requestedHeight = Number(process.argv[4] ?? 900);
+if (!Number.isFinite(requestedWidth) || !Number.isFinite(requestedHeight) || requestedWidth < 1080 || requestedHeight < 720) {
+  throw new Error('Viewport must be at least 1080x720.');
+}
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = join(projectRoot, 'design-qa', 'scale');
@@ -42,6 +47,7 @@ for (let index = 0; index < count; index += 1) {
   });
 }
 state.capture.config.enabled = false;
+state.audio.enabled = false;
 state.capture.config.clipsDirectory = join(isolatedUserData, 'Clips');
 state.capture.runtime = {
   ...state.capture.runtime,
@@ -67,6 +73,7 @@ app.setName('switchboard-capture-scale-review');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
+process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 process.stdout.write(`scale ${count}: importing main\n`);
 await import('../out/main/index.js');
 process.stdout.write(`scale ${count}: waiting for ready\n`);
@@ -82,7 +89,7 @@ async function runReview() {
   if (window.webContents.isLoading()) {
     await new Promise((resolveLoad) => window.webContents.once('did-finish-load', resolveLoad));
   }
-  window.setContentSize(1420, 900, false);
+  window.setContentSize(requestedWidth, requestedHeight, false);
   await waitForApp(window);
   await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Capture')?.click()");
   await waitForLibrary(window, count);
@@ -94,11 +101,17 @@ const metricsExpression = [
   "const grid = document.querySelector('.capture-clip-grid');",
   "const cards = [...document.querySelectorAll('.capture-clip-card')];",
   "const images = [...document.querySelectorAll('.capture-clip-card img')];",
+  "const library = document.querySelector('.capture-library');",
+  "const tools = document.querySelector('.capture-library__tools');",
   'return {',
+  'viewport: { width: window.innerWidth, height: window.innerHeight },',
   'requestedClips: ' + count + ',',
   'cards: cards.length,',
   "rows: document.querySelectorAll('tbody tr').length,",
   "columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0,",
+  "cardWidths: cards.length ? { minimum: Math.min(...cards.map((card) => card.getBoundingClientRect().width)), maximum: Math.max(...cards.map((card) => card.getBoundingClientRect().width)) } : null,",
+  "libraryBounds: library ? { left: library.getBoundingClientRect().left, right: library.getBoundingClientRect().right, width: library.getBoundingClientRect().width } : null,",
+  "toolbarBounds: tools ? { left: tools.getBoundingClientRect().left, right: tools.getBoundingClientRect().right, width: tools.getBoundingClientRect().width } : null,",
   "emptyState: document.body.textContent.includes('No clips yet'),",
   "dateGroups: [...document.querySelectorAll('[id^=clip-group-]')].map((node) => node.textContent.trim()),",
   "lazyImages: images.filter((image) => image.loading === 'lazy').length,",
@@ -109,12 +122,109 @@ const metricsExpression = [
 ].join('\n');
   const metrics = await window.webContents.executeJavaScript(metricsExpression);
   const image = await window.webContents.capturePage();
-  const imagePath = join(outputDirectory, 'capture-' + count + '-clips.png');
+  const viewportSuffix = process.argv[3] ? '-' + requestedWidth + 'x' + requestedHeight : '';
+  const imagePath = join(outputDirectory, 'capture-' + count + '-clips' + viewportSuffix + '.png');
   await writeFile(imagePath, image.toPNG());
-  const report = { ...metrics, imagePath, imageSize: image.getSize() };
-  await writeFile(join(outputDirectory, 'capture-' + count + '-clips.json'), JSON.stringify(report, null, 2) + '\n');
+  const interactions = count > 1 ? await verifyLibraryInteractions(window, count) : null;
+  const resizeTransitions = process.argv[5] === 'resize-sequence' ? await verifyResizeTransitions(window) : null;
+  const report = { ...metrics, interactions, resizeTransitions, imagePath, imageSize: image.getSize() };
+  await writeFile(join(outputDirectory, 'capture-' + count + '-clips' + viewportSuffix + '.json'), JSON.stringify(report, null, 2) + '\n');
   process.stdout.write(JSON.stringify(report) + '\n');
   app.quit();
+}
+
+async function verifyResizeTransitions(window) {
+  const results = [];
+  window.webContents.debugger.attach('1.3');
+  try {
+    for (const [width, height] of [[1280, 720], [1440, 900], [1920, 1080], [2560, 1440], [3440, 1440], [3840, 2160], [1440, 900]]) {
+      await window.webContents.debugger.sendCommand('Emulation.setDeviceMetricsOverride', {
+        width,
+        height,
+        deviceScaleFactor: 1,
+        mobile: false,
+        screenWidth: width,
+        screenHeight: height,
+      });
+      await waitFor(window, `innerWidth === ${width} && innerHeight === ${height}`);
+      await delay(80);
+      results.push(await window.webContents.executeJavaScript(`(() => {
+        const grid = document.querySelector('.capture-clip-grid');
+        return {
+          viewport: { width: innerWidth, height: innerHeight },
+          columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0,
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        };
+      })()`));
+    }
+    await window.webContents.debugger.sendCommand('Emulation.clearDeviceMetricsOverride');
+  } finally {
+    if (window.webContents.debugger.isAttached()) window.webContents.debugger.detach();
+  }
+  return results;
+}
+
+async function verifyLibraryInteractions(window, expectedCount) {
+  const searchFocused = await window.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('input[placeholder="Search clips"]');
+    input?.focus();
+    return document.activeElement === input;
+  })()`);
+
+  await setSearch(window, 'Battlefield 6');
+  await waitFor(window, `document.querySelectorAll('.capture-clip-card').length > 0 && document.querySelectorAll('.capture-clip-card').length < ${expectedCount}`);
+  const searchMatches = await window.webContents.executeJavaScript("document.querySelectorAll('.capture-clip-card').length");
+  await setSearch(window, '');
+  await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
+
+  await clickButton(window, 'Favorites');
+  await waitFor(window, `document.querySelectorAll('.capture-clip-card').length > 0 && document.querySelectorAll('.capture-clip-card').length < ${expectedCount}`);
+  const favoriteMatches = await window.webContents.executeJavaScript("document.querySelectorAll('.capture-clip-card').length");
+  await clickButton(window, 'Favorites');
+  await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
+
+  await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"List view\"]')?.click()");
+  await waitFor(window, `document.querySelectorAll('.capture-clip-list__item').length === ${expectedCount}`);
+  const listItems = await window.webContents.executeJavaScript("document.querySelectorAll('.capture-clip-list__item').length");
+  await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"Grid view\"]')?.click()");
+  await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
+
+  await window.webContents.executeJavaScript("document.querySelector('.capture-more-trigger')?.click()");
+  await waitFor(window, "Boolean(document.querySelector('button[aria-label=\"Encoder\"]'))");
+  const moreControls = await window.webContents.executeJavaScript("['Encoder', 'Codec', 'Game audio', 'Microphone', 'Capture cursor'].filter((label) => document.querySelector('[aria-label=\"' + label + '\"]')).length");
+  await window.webContents.executeJavaScript("document.querySelector('.capture-more-trigger')?.click()");
+
+  return { searchFocused, searchMatches, favoriteMatches, listItems, moreControls };
+}
+
+async function setSearch(window, value) {
+  const changed = await window.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('input[placeholder="Search clips"]');
+    if (!input) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  if (!changed) throw new Error('Capture search input was unavailable.');
+}
+
+async function clickButton(window, label) {
+  const clicked = await window.webContents.executeJavaScript(`(() => {
+    const button = [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(label)});
+    button?.click();
+    return Boolean(button);
+  })()`);
+  if (!clicked) throw new Error(`Button was unavailable: ${label}`);
+}
+
+async function waitFor(window, expression, timeout = 8_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await window.webContents.executeJavaScript(`Boolean(${expression})`)) return;
+    await delay(40);
+  }
+  throw new Error(`Timed out waiting for ${expression}.`);
 }
 
 async function waitForWindow() {
@@ -149,7 +259,8 @@ async function waitForApp(target) {
     if (ready) return;
     await delay(50);
   }
-  throw new Error('Switchboard renderer did not finish initializing.');
+  const debug = await target.webContents.executeJavaScript("({ url: location.href, text: document.body.textContent.slice(0, 800), html: document.body.innerHTML.slice(0, 800), switchboard: typeof window.switchboard })");
+  throw new Error('Switchboard renderer did not finish initializing: ' + JSON.stringify(debug));
 }
 
 function delay(milliseconds) {

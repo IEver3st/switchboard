@@ -1,4 +1,0 @@
-{
-  "message": "Condition timed out: document.querySelector('.mouse-stage .device-render')?.dataset.lightingPreview === 'true' && document.querySelector('.mouse-stage .device-render')?.dataset.lightingColor === '#ff1774'",
-  "stack": "Error: Condition timed out: document.querySelector('.mouse-stage .device-render')?.dataset.lightingPreview === 'true' && document.querySelector('.mouse-stage .device-render')?.dataset.lightingColor === '#ff1774'\n    at waitFor (file:///C:/Users/User/Desktop/Development/Applications/switchboard/scripts/verify-mouse-device-polish-ui.mjs:374:9)\n    at async run (file:///C:/Users/User/Desktop/Development/Applications/switchboard/scripts/verify-mouse-device-polish-ui.mjs:127:3)"
-}

@@ -10,6 +10,7 @@ import { resolveDeviceVariant, type DeviceVariantCandidate } from '../../../shar
 import { resolveProductAsset } from '../../../shared/product-assets';
 import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
 import { readG502Capabilities, writeG502Control } from './devices/g502-x-plus/agent';
+import { withG502BatteryEstimate } from './devices/g502-x-plus/battery-estimate';
 import { g502XPlusDefinition, resolveG502XPlusVariant } from './devices/g502-x-plus/definition';
 import { G502NativeSession, type G502DirectSession } from './devices/g502-x-plus/sniper-dpi';
 import {
@@ -20,13 +21,6 @@ import {
 } from './ghub-metadata';
 
 const logitechVendorId = 0x046d;
-const capabilityCacheDurationMs = 12_000;
-
-interface TimedValue<T> {
-  value: T;
-  updatedAt: number;
-}
-
 export interface LogitechDeviceModuleDependencies {
   readAgentDevices(): Promise<LogitechAgentDevice[]>;
   readBattery(deviceId: string): Promise<LogitechBatteryState | undefined>;
@@ -46,7 +40,6 @@ const defaultDependencies: LogitechDeviceModuleDependencies = {
 export class LogitechDeviceModule implements DeviceModule {
   public readonly id = 'device.logitech-hidpp';
   private readonly agentIds = new Map<string, string>();
-  private readonly capabilityCache = new Map<string, TimedValue<DeviceCapabilities>>();
   private directSession: G502DirectSession | null = null;
   private directPath: string | null = null;
   private directDeviceId: string | null = null;
@@ -85,9 +78,6 @@ export class LogitechDeviceModule implements DeviceModule {
     const agentDeviceId = this.agentIds.get(device.id);
     if (!agentDeviceId) throw new Error('Logitech configuration requires the local G HUB device service.');
     await this.dependencies.writeControl(agentDeviceId, device, change);
-    for (const key of this.capabilityCache.keys()) {
-      if (key.startsWith(`${agentDeviceId}:`)) this.capabilityCache.delete(key);
-    }
   }
 
   public deactivate(): Promise<void> {
@@ -131,10 +121,11 @@ export class LogitechDeviceModule implements DeviceModule {
     const previous = findPreviousDevice(context.previousDevices, id, g502XPlusDefinition.model);
     this.agentIds.set(id, metadata.id);
 
-    const [capabilities, battery] = await Promise.all([
+    const [capabilities, batteryReading] = await Promise.all([
       this.readCapabilities(metadata.id, previous, identity.connection),
       this.readBattery(metadata.id, previous?.capabilities.battery),
     ]);
+    const battery = withG502BatteryEstimate(batteryReading, capabilities.lighting?.enabled);
 
     return {
       id,
@@ -249,13 +240,12 @@ export class LogitechDeviceModule implements DeviceModule {
     previous: Device | undefined,
     connection: DeviceIdentity['connection'],
   ): Promise<DeviceCapabilities> {
-    const cacheKey = `${agentDeviceId}:${connection ?? 'unknown'}`;
-    const cached = this.capabilityCache.get(cacheKey);
-    if (cached && Date.now() - cached.updatedAt < capabilityCacheDurationMs) return structuredClone(cached.value);
+    // Discovery already runs on the registry's five-second cycle. Reread the
+    // active profile so G HUB or an onboard profile switch cannot leave stale
+    // DPI, assignments, or lighting in the canonical device snapshot.
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         const value = await this.dependencies.readCapabilities(agentDeviceId, connection);
-        this.capabilityCache.set(cacheKey, { value, updatedAt: Date.now() });
         return structuredClone(value);
       } catch (error) {
         if (attempt < 2 && isTransientAgentError(error)) {

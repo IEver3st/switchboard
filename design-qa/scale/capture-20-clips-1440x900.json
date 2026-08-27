@@ -1,0 +1,102 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "requestedClips": 20,
+  "cards": 20,
+  "rows": 0,
+  "columns": 4,
+  "cardWidths": {
+    "minimum": 319,
+    "maximum": 319
+  },
+  "libraryBounds": {
+    "left": 68,
+    "right": 1440,
+    "width": 1372
+  },
+  "toolbarBounds": {
+    "left": 307.6770935058594,
+    "right": 1416.0000915527344,
+    "width": 1108.322998046875
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today",
+    "Yesterday"
+  ],
+  "lazyImages": 20,
+  "decodedImages": 20,
+  "horizontalOverflow": false,
+  "interactions": {
+    "searchFocused": true,
+    "searchMatches": 5,
+    "favoriteMatches": 3,
+    "listItems": 20,
+    "moreControls": 5
+  },
+  "resizeTransitions": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "columns": 3,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "columns": 4,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "columns": 5,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": {
+        "width": 2560,
+        "height": 1440
+      },
+      "columns": 7,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": {
+        "width": 3440,
+        "height": 1440
+      },
+      "columns": 9,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": {
+        "width": 3840,
+        "height": 2160
+      },
+      "columns": 11,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "columns": 4,
+      "horizontalOverflow": false
+    }
+  ],
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-20-clips-1440x900.png",
+  "imageSize": {
+    "width": 2160,
+    "height": 1350
+  }
+}

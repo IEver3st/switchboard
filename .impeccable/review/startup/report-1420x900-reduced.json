@@ -1,0 +1,23 @@
+[
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "reducedMotion": true,
+    "readyAfterMs": 258,
+    "startupVisible": false,
+    "motionState": {
+      "markLayerCount": 4,
+      "markAnimations": [
+        "none",
+        "none",
+        "none",
+        "none"
+      ],
+      "statusAnimation": "none"
+    },
+    "filename": "1420x900-startup-reduced.png"
+  }
+]

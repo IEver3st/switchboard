@@ -1,0 +1,30 @@
+{
+  "selection": {
+    "count": "3 selected",
+    "createDisabled": false,
+    "checkboxes": 3,
+    "orders": [
+      "1",
+      "2",
+      "3"
+    ]
+  },
+  "orderBefore": [
+    "Opening play",
+    "Team follow-up",
+    "Final round"
+  ],
+  "orderAfter": [
+    "Team follow-up",
+    "Final round",
+    "Opening play"
+  ],
+  "trim": {
+    "before": 1200,
+    "after": 1068
+  },
+  "scrubbedMs": 2012,
+  "boundarySwitched": true,
+  "exportBytes": 79845,
+  "singleUnaffected": true
+}

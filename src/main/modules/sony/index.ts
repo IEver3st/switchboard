@@ -37,6 +37,7 @@ export class SonyDeviceModule implements DeviceModule {
   private readonly runtimes = new Map<string, Xm6Runtime>();
   private lastContext: DeviceDiscoveryContext | null = null;
   private latestDevices: Device[] = [];
+  private nextIdleScanAt = 0;
   private disposed = false;
   private removeDisconnect: () => void;
 
@@ -54,6 +55,10 @@ export class SonyDeviceModule implements DeviceModule {
 
   public async discover(context: DeviceDiscoveryContext): Promise<Device[]> {
     this.lastContext = context;
+    if (Date.now() < this.nextIdleScanAt && ![...this.runtimes.values()].some((runtime) => runtime.hostDevice.connected)) {
+      this.latestDevices = [...this.runtimes.values()].map((runtime) => this.buildDevice(runtime, context));
+      return this.latestDevices;
+    }
     const known = (await this.host.scan()).filter((device) => normalizeModel(device.name) === normalizeModel(modelName));
     const tokens = new Set(known.map((device) => device.token));
     for (const [token, runtime] of this.runtimes) {
@@ -75,6 +80,12 @@ export class SonyDeviceModule implements DeviceModule {
     }
     await Promise.allSettled([...this.runtimes.values()].map((runtime) => runtime.connectPromise).filter(Boolean));
     this.latestDevices = [...this.runtimes.values()].map((runtime) => this.buildDevice(runtime, context));
+    if (!known.some((device) => device.connected)) {
+      this.nextIdleScanAt = Date.now() + 15_000;
+      await this.host.dispose();
+    } else {
+      this.nextIdleScanAt = 0;
+    }
     return this.latestDevices;
   }
 
@@ -132,14 +143,24 @@ export class SonyDeviceModule implements DeviceModule {
   private applyEvent(runtime: Xm6Runtime, event: Xm6Event): void {
     const headset = runtime.capability;
     if (event.type === 'battery') runtime.battery = { percentage: event.percentage, charging: event.charging, fullyCharged: event.percentage === 100, updatedAt: Date.now() };
-    else if (event.type === 'noise-control' && headset.noiseControl) Object.assign(headset.noiseControl, { mode: event.mode, ambientLevel: event.ambientLevel, focusOnVoice: event.focusOnVoice });
-    else if (event.type === 'equalizer' && headset.equalizer) {
+    else if (event.type === 'noise-control') headset.noiseControl = {
+      writable: true, mode: event.mode, ambientLevel: event.ambientLevel,
+      ambientLevelMin: 1, ambientLevelMax: 20, focusOnVoice: event.focusOnVoice,
+    };
+    else if (event.type === 'equalizer') {
+      headset.equalizer ??= createXm6EqualizerCapability();
       headset.equalizer.activePresetId = event.presetId;
       if (event.gainsDb.length === 10) headset.equalizer.bands = xm6EqualizerFrequencies.map((frequencyHz, index) => ({ frequencyHz, gainDb: event.gainsDb[index] ?? 0 }));
-    } else if (event.type === 'dsee' && headset.dseeExtreme) headset.dseeExtreme.enabled = event.enabled;
-    else if (event.type === 'speak-to-chat' && headset.speakToChat) headset.speakToChat.enabled = event.enabled;
-    else if (event.type === 'background-music') { runtime.bgmOn = event.enabled; if (event.room && headset.listeningMode) headset.listeningMode.backgroundRoom = event.room; }
-    else if (event.type === 'cinema') runtime.cinemaOn = event.enabled;
+    } else if (event.type === 'dsee') headset.dseeExtreme = { enabled: event.enabled, writable: true };
+    else if (event.type === 'speak-to-chat') headset.speakToChat = { enabled: event.enabled, writable: true };
+    else if (event.type === 'background-music') {
+      runtime.bgmOn = event.enabled;
+      headset.listeningMode ??= { writable: true, mode: null, backgroundRoom: 'my-room' };
+      if (event.room) headset.listeningMode.backgroundRoom = event.room;
+    } else if (event.type === 'cinema') {
+      runtime.cinemaOn = event.enabled;
+      headset.listeningMode ??= { writable: true, mode: null, backgroundRoom: 'my-room' };
+    }
     if (headset.listeningMode) headset.listeningMode.mode = runtime.cinemaOn ? 'cinema' : runtime.bgmOn ? 'background-music' : 'standard';
     headset.diagnostics.lastSyncAt = new Date().toISOString();
     headset.diagnostics.lastErrorCode = null;
@@ -158,7 +179,7 @@ export class SonyDeviceModule implements DeviceModule {
       identity: resolved.identity, variantResolution: resolved.resolution,
       asset: resolveProductAsset(resolved.identity, 'headset'),
       capabilities: { battery: runtime.battery ?? previous?.capabilities.battery, headset: structuredClone(runtime.capability) },
-      settings: previous?.settings ?? defaultXm6Settings(),
+      settings: { ...defaultXm6Settings(), ...previous?.settings },
     };
   }
 
@@ -180,22 +201,26 @@ function createRuntime(hostDevice: SonyHostDevice): Xm6Runtime {
     hostDevice, session: null, connectPromise: null, bgmOn: false, cinemaOn: false,
     capability: {
       platform: 'sony-mdr', model: 'wh-1000xm6', transportState: 'disconnected',
-      noiseControl: { writable: true, mode: null, ambientLevel: null, ambientLevelMin: 1, ambientLevelMax: 20, focusOnVoice: null },
-      equalizer: {
-        writable: true, activePresetId: null,
-        bands: xm6EqualizerFrequencies.map((frequencyHz) => ({ frequencyHz, gainDb: 0 })),
-        presets: xm6EqualizerPresets.map(([id, , label]) => ({ id, label, writable: true, storedOnHeadphones: true })),
-        gainMinDb: -6, gainMaxDb: 6,
-      },
-      dseeExtreme: { enabled: null, writable: true }, speakToChat: { enabled: null, writable: true },
-      listeningMode: { writable: true, mode: null, backgroundRoom: 'my-room' },
       diagnostics: { protocol: 'sony-mdr-v2', lastSyncAt: null, reconnectCount: 0, malformedFrameCount: 0, commandFailureCount: 0, lastErrorCode: null },
     },
   };
 }
 
+function createXm6EqualizerCapability(): NonNullable<SonyHeadsetCapability['equalizer']> {
+  return {
+    writable: true, activePresetId: null,
+    bands: xm6EqualizerFrequencies.map((frequencyHz) => ({ frequencyHz, gainDb: 0 })),
+    presets: xm6EqualizerPresets.map(([id, , label]) => ({ id, label, writable: true, storedOnHeadphones: true })),
+    gainMinDb: -6, gainMaxDb: 6,
+  };
+}
+
 function defaultXm6Settings(): Device['settings'] {
-  return { sonyPresetName1: 'My preset', sonyPresetBands1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  return {
+    sonyPresetName1: 'Local 1', sonyPresetBands1: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    sonyPresetName2: 'Local 2', sonyPresetBands2: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    sonyPresetName3: 'Local 3', sonyPresetBands3: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  };
 }
 function normalizeModel(value: string): string { return value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
 function sanitizedErrorCode(error: unknown): string { return error instanceof Error ? error.message.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 80) : 'unknown'; }

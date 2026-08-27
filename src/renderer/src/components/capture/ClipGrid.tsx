@@ -25,10 +25,10 @@ export function ClipGrid({ clips, actions, grouped, selectionMode, selectedClipI
     return <ul className="capture-clip-grid m-0 list-none p-0">{clips.map(card)}</ul>;
   }
   return (
-    <div className="grid gap-7">
+    <div className="capture-clip-groups">
       {groupClips(clips).map((group) => (
         <section key={group.label} aria-labelledby={`clip-group-${group.key}`}>
-          <div className="mb-2.5 flex items-baseline gap-2">
+          <div className="capture-clip-group__header flex items-baseline gap-2">
             <h3 id={`clip-group-${group.key}`} className="m-0 text-[12px] font-semibold tracking-[-0.01em] text-text-secondary">{group.label}</h3>
             <span className="text-[10px] tabular-nums text-text-muted">{group.clips.length}</span>
           </div>

@@ -99,7 +99,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
     <div className="settings-page">
       <header className="settings-header app-drag">
         <div className="settings-breadcrumb" aria-label="Breadcrumb">
-          <img src="./switchboard-icon.png" alt="" draggable={false} />
+          <img src="./switchboard-mark.png" alt="" draggable={false} />
           <span>Settings</span>
           <span aria-hidden>/</span>
           <strong>{categoryDefinition?.label ?? category}</strong>
@@ -719,6 +719,11 @@ function deviceSummary(device: Device): string {
 }
 
 function DeviceIdentityRecord({ device, settingId }: { device: Device; settingId: string }) {
+  const keyboard = device.capabilities.keyboard;
+  const keyboardDiagnostics = keyboard?.diagnostics;
+  const headset = device.capabilities.headset;
+  const headsetDiagnostics = headset?.diagnostics;
+  const failedReads = keyboardDiagnostics?.reads.filter((read) => !read.ok) ?? [];
   const fields = [
     ['Manufacturer', device.identity.manufacturer],
     ['Model', device.identity.model],
@@ -730,6 +735,19 @@ function DeviceIdentityRecord({ device, settingId }: { device: Device; settingId
     ['Serial / unit ID', device.identity.serialNumber],
     ['Variant source', `${device.variantResolution.source} · ${device.variantResolution.confidence}${device.variantResolution.evidence ? ` · ${device.variantResolution.evidence}` : ''}`],
     ['Asset result', `${device.asset.key} · ${device.asset.matchedBy} · ${device.asset.source}`],
+    ['Firmware', keyboard?.firmwareVersion],
+    ['Polling rate', keyboard?.pollingRateHz ? `${keyboard.pollingRateHz.toLocaleString()} Hz` : undefined],
+    ['Control transport', keyboardDiagnostics?.protocol],
+    ['Control endpoint', keyboardDiagnostics?.endpoint],
+    ['Last control sync', keyboardDiagnostics?.lastSyncAt],
+    ['Readback health', keyboardDiagnostics ? `${keyboardDiagnostics.reads.length - failedReads.length}/${keyboardDiagnostics.reads.length} reads available` : undefined],
+    ['Failed readbacks', failedReads.length ? failedReads.map((read) => `${read.id}: ${read.error ?? 'unavailable'}`).join(' · ') : undefined],
+    ['Last write error', keyboardDiagnostics?.lastControlError],
+    ['External capabilities', keyboard?.features.filter((feature) => feature.status !== 'native').map((feature) => feature.label).join(' · ') || undefined],
+    ['Sony transport', headset ? `${headset.transportState} · ${headsetDiagnostics?.protocol ?? 'unknown protocol'}` : undefined],
+    ['Sony last sync', headsetDiagnostics?.lastSyncAt ?? undefined],
+    ['Sony transport health', headsetDiagnostics ? `${headsetDiagnostics.commandFailureCount} command failures · ${headsetDiagnostics.malformedFrameCount} malformed frames · ${headsetDiagnostics.reconnectCount} reconnects` : undefined],
+    ['Sony last error', headsetDiagnostics?.lastErrorCode ?? undefined],
   ].filter((field): field is [string, string] => Boolean(field[1]));
 
   return (
@@ -749,7 +767,7 @@ function DeviceIdentityRecord({ device, settingId }: { device: Device; settingId
       </header>
       <dl className="settings-device-identity__fields">
         {fields.map(([label, value]) => (
-          <div key={label} data-wide={label === 'Variant source' || label === 'Asset result' || undefined}>
+          <div key={label} data-wide={['Variant source', 'Asset result', 'Failed readbacks', 'Last write error', 'External capabilities'].includes(label) || undefined}>
             <dt>{label}</dt>
             <dd>{value}</dd>
           </div>
@@ -800,7 +818,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
     <>
       <SettingsCategoryHeader title="About" description="Version, updates, runtime, and process-isolation information." />
       <div className="settings-about-intro">
-        <img src="./switchboard-icon.png" alt="" draggable={false} />
+        <img src="./switchboard-mark.png" alt="" draggable={false} />
         <div>
           <h3>Switchboard</h3>
           <p>A compact Windows utility for hardware, audio routing, and game capture.</p>

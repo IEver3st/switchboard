@@ -14,6 +14,7 @@ import {
   type OnboardProfilesInfo,
 } from './onboard-profile';
 import { LogitechRgbEffectsController } from '../../rgb-effects';
+import { withG502BatteryEstimate } from './battery-estimate';
 
 const deviceNameFeatureId = 0x0005;
 const unifiedBatteryFeatureId = 0x1004;
@@ -158,6 +159,7 @@ export class G502NativeSession implements G502DirectSession {
   private supportedReportRates: number[] = [];
   private stages: number[];
   private onboard: OnboardState | null;
+  private onboardRefreshedAt: number;
   private unsubscribe: (() => void) | null;
   private closed = false;
 
@@ -179,6 +181,7 @@ export class G502NativeSession implements G502DirectSession {
   ) {
     this.supportedDpi = supportedDpi;
     this.onboard = onboard;
+    this.onboardRefreshedAt = onboard ? Date.now() : 0;
     const shiftDpi = onboard?.profile.shiftDpi ?? selectShiftDpi(supportedDpi, currentDpi, preferredShiftDpi);
     this.stages = onboard?.profile.stages ?? selectStages(supportedDpi, currentDpi, preferredStages);
     const io: AdjustableDpiIo = {
@@ -264,6 +267,7 @@ export class G502NativeSession implements G502DirectSession {
   }
 
   public async getCapabilities(): Promise<DeviceCapabilities> {
+    await this.refreshOnboardState();
     const capabilities: DeviceCapabilities = { dpi: await this.getDpiCapability() };
     try {
       const reportRate = await this.getReportRateCapability();
@@ -294,6 +298,10 @@ export class G502NativeSession implements G502DirectSession {
     if (!capabilities.lighting && this.rgbLighting) {
       capabilities.lighting = this.rgbLighting.buildCapability(true);
     }
+    capabilities.battery = withG502BatteryEstimate(
+      capabilities.battery,
+      capabilities.lighting?.enabled,
+    );
     return capabilities;
   }
 
@@ -498,6 +506,27 @@ export class G502NativeSession implements G502DirectSession {
     const actual = response[4] === 1;
     if (actual !== enabled) throw new Error('The mouse did not acknowledge the requested onboard-memory mode.');
     if (this.onboard) this.onboard.mode = actual ? 'onboard' : 'software';
+    this.onboardRefreshedAt = Date.now();
+  }
+
+  private async refreshOnboardState(now = Date.now()): Promise<void> {
+    if (this.onboardProfilesFeatureIndex === null || now - this.onboardRefreshedAt < 1_000) return;
+    try {
+      const onboard = await readOnboardState(
+        this.transport,
+        this.deviceIndex,
+        this.onboardProfilesFeatureIndex,
+      );
+      this.onboard = onboard;
+      this.onboardRefreshedAt = now;
+      this.stages = onboard.profile.stages;
+      this.runtime.setButtonMask(onboard.profile.shiftButtonMask);
+    } catch (error) {
+      // Keep the last CRC-validated snapshot on a transient read failure. This
+      // piggybacks on the existing five-second discovery cycle and stops when
+      // the direct session closes; it adds no timer or background handle.
+      console.warn('Direct G502 X Plus onboard profile refresh is temporarily unavailable.', error);
+    }
   }
 
   private async mutateProfile(mutator: (profile: G502OnboardProfile) => void): Promise<void> {
@@ -521,6 +550,7 @@ export class G502NativeSession implements G502DirectSession {
     );
     if (!verifiedBytes.equals(intended)) throw new Error('The mouse did not verify the onboard profile write.');
     this.onboard.profile = new G502OnboardProfile(this.onboard.info, verifiedBytes);
+    this.onboardRefreshedAt = Date.now();
   }
 
   private assertOnboardWritable(): void {

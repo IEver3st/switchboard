@@ -5,11 +5,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
-export function ClipThumbnail({ clip, onOpen, className, compact = false }: {
+export function ClipThumbnail({ clip, onOpen, className, compact = false, selectionMode = false, selected = false }: {
   clip: Clip;
   onOpen: () => void;
   className?: string;
   compact?: boolean;
+  selectionMode?: boolean;
+  selected?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const hasThumbnail = Boolean(clip.thumbnailPath) && !failed;
@@ -18,7 +20,8 @@ export function ClipThumbnail({ clip, onOpen, className, compact = false }: {
       type="button"
       data-clip-id={clip.id}
       onClick={onOpen}
-      aria-label={`Open ${clip.name}`}
+      aria-label={selectionMode ? `${selected ? 'Remove' : 'Add'} ${clip.name} ${selected ? 'from' : 'to'} montage` : `Open ${clip.name}`}
+      aria-pressed={selectionMode ? selected : undefined}
       className={cn(
         'relative grid aspect-video w-full place-items-center overflow-hidden bg-background text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/65',
         className,
@@ -44,7 +47,7 @@ export function ClipThumbnail({ clip, onOpen, className, compact = false }: {
           {!compact ? <><Skeleton className="relative h-2.5 w-2/5 bg-surface-hover" /><Skeleton className="relative h-2 w-1/4 bg-surface-interactive" /></> : null}
         </span>
       )}
-      {!compact ? (
+      {!compact && !selectionMode ? (
         <span className="pointer-events-none absolute inset-0 grid place-items-center bg-black/0 opacity-0 transition-[background-color,opacity] duration-100 group-hover:bg-black/15 group-hover:opacity-100 motion-reduce:transition-none" aria-hidden="true">
           <span className="grid size-9 place-items-center rounded-md border border-white/15 bg-black/75 text-white shadow-sm"><Play className="ml-0.5 size-4 fill-current" /></span>
         </span>

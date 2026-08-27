@@ -1,0 +1,142 @@
+{
+  "captures": [
+    {
+      "viewport": {
+        "name": "1080x720",
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-workbench.png",
+      "metrics": {
+        "innerWidth": 1080,
+        "innerHeight": 722,
+        "documentWidth": 1080,
+        "viewportWidth": 1012,
+        "viewportScrollWidth": 1012,
+        "sensitivityTop": 364.5625,
+        "toolbarBottom": 515.8958358764648,
+        "callouts": 6,
+        "hotspots": 6,
+        "batteryLabel": "82 percent battery, ~47h remaining"
+      }
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-workbench.png",
+      "metrics": {
+        "innerWidth": 1420,
+        "innerHeight": 900,
+        "documentWidth": 1420,
+        "viewportWidth": 1352,
+        "viewportScrollWidth": 1352,
+        "sensitivityTop": 426.5625,
+        "toolbarBottom": 585.8958358764648,
+        "callouts": 6,
+        "hotspots": 6,
+        "batteryLabel": "82 percent battery, ~47h remaining"
+      }
+    },
+    {
+      "viewport": {
+        "name": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-workbench.png",
+      "metrics": {
+        "innerWidth": 1920,
+        "innerHeight": 1080,
+        "documentWidth": 1920,
+        "viewportWidth": 1852,
+        "viewportScrollWidth": 1852,
+        "sensitivityTop": 472.5625,
+        "toolbarBottom": 631.8958358764648,
+        "callouts": 6,
+        "hotspots": 6,
+        "batteryLabel": "82 percent battery, ~47h remaining"
+      }
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-assignment-picker.png",
+      "state": "assignment-picker"
+    },
+    {
+      "viewport": {
+        "name": "1080x720",
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-onboard-disabled.png",
+      "state": "onboard-disabled"
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-color-picker-preview.png",
+      "state": "color-picker-preview"
+    }
+  ],
+  "interactions": [
+    {
+      "name": "dpi-slider",
+      "value": 1600
+    },
+    {
+      "name": "dpi-input",
+      "value": 1200
+    },
+    {
+      "name": "dpi-presets",
+      "create": 2400,
+      "edit": 2600,
+      "deleted": true
+    },
+    {
+      "name": "polling-and-shift",
+      "pollingRate": 500,
+      "shiftDpi": 700
+    },
+    {
+      "name": "button-assignment",
+      "button": "back",
+      "action": "mouse.forward",
+      "linkedHover": true
+    },
+    {
+      "name": "onboard-memory",
+      "enabledState": {
+        "dpiDisabled": true,
+        "activeProfile": "Profile 1"
+      }
+    },
+    {
+      "name": "lighting",
+      "effect": "static",
+      "color": "#FF1774",
+      "zone": {
+        "id": "zone-1",
+        "color": "#12B8A6"
+      },
+      "previewBeforeCommit": true
+    }
+  ],
+  "persistence": {
+    "dpi": 1200,
+    "pollingRate": 500,
+    "shiftDpi": 700,
+    "lightingColor": "#ff1774",
+    "backAction": "mouse.forward"
+  }
+}

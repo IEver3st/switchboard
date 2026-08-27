@@ -19,6 +19,7 @@ import { HuntsmanV2AnalogTransport, type HuntsmanProbe } from './huntsman-v2-ana
 const probeCacheDurationMs = 15_000;
 const model = 'Huntsman V2 Analog';
 const nativeUnavailableReason = 'The dedicated Razer HID control endpoint is unavailable. Reconnect the keyboard or close another utility that owns it.';
+const userUnavailableReason = 'This setting is unavailable. Reconnect the keyboard and try again.';
 
 export const huntsmanLightingEffects: readonly LightingEffect[] = [
   { id: 'static', label: 'Static', controls: ['color', 'brightness'] },
@@ -60,10 +61,10 @@ export const huntsmanKeyboardFeatures: readonly KeyboardFeature[] = [
   },
   {
     id: 'rapid-input',
-    label: 'Rapid Trigger and Snap Tap',
-    summary: 'Synapse 4 exposes both features for this keyboard through its analog mapping stack.',
+    label: 'Snap Tap',
+    summary: 'Snap Tap is available for this keyboard through Synapse 4.',
     status: 'synapse',
-    unavailableReason: 'This V2 firmware rejects the standalone Rapid Trigger and Snap Tap commands used by newer onboard implementations.',
+    unavailableReason: 'Switchboard does not expose Snap Tap because no independent device command is verified for this model.',
   },
 ] as const;
 
@@ -100,6 +101,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
   private probeUpdatedAt = 0;
   private settings: HuntsmanSettings = normalizeSettings();
   private effectAcknowledged = false;
+  private lastControlError: string | undefined;
   private operationQueue: Promise<void> = Promise.resolve();
   private disposed = false;
 
@@ -207,7 +209,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
           gamingMode: {
             enabled: this.probe?.gamingMode ?? null,
             writable: gamingModeWritable,
-            ...(!gamingModeWritable ? { unavailableReason: diagnosticReason(this.probe, 'gaming-mode', unavailableReason) } : {}),
+            ...(!gamingModeWritable ? { unavailableReason: userUnavailableReason } : {}),
           },
           onboardProfiles: {
             activeProfileId: this.probe?.activeOnboardProfileId !== undefined ? String(this.probe.activeOnboardProfileId) : null,
@@ -216,9 +218,9 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
               label: `Profile ${index + 1}`,
             })),
             writable: profilesWritable,
-            ...(!profilesWritable ? { unavailableReason: diagnosticReason(this.probe, 'onboard-profiles', unavailableReason) } : {}),
+            ...(!profilesWritable ? { unavailableReason: userUnavailableReason } : {}),
           },
-          diagnostics: keyboardDiagnostics(this.probe, unavailableReason, this.probeUpdatedAt),
+          diagnostics: keyboardDiagnostics(this.probe, unavailableReason, this.probeUpdatedAt, this.lastControlError),
         },
         lighting: {
           writable: effectWritable,
@@ -240,15 +242,16 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
           physicalEffectVerified: false,
           profileMode: 'software',
           source: 'firmware',
-          ...(!effectWritable ? { unavailableReason: diagnosticReason(this.probe, 'lighting-effect', unavailableReason) } : {}),
+          ...(!effectWritable ? { unavailableReason: userUnavailableReason } : {}),
         },
       },
       settings: serializeSettings(this.settings),
     }];
   }
 
-  public setControl(device: Device, change: DeviceControlChange): Promise<DeviceControlResult> {
-    return this.enqueue(async () => {
+  public async setControl(device: Device, change: DeviceControlChange): Promise<DeviceControlResult> {
+    try {
+      const result = await this.enqueue(async () => {
       if (!device.connected || device.id !== this.deviceId || !this.path) throw new Error(`${device.displayName} native controls are unavailable.`);
       if (change.type === 'lighting-brightness') {
         const confirmed = await this.dependencies.transport.setBrightness(this.path, change.brightness);
@@ -309,8 +312,14 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
       if (change.type === 'keyboard-snap-tap') {
         throw new Error('Snap Tap requires Synapse 4 to remain active on this non-V3 keyboard.');
       }
-      throw new Error(`${device.displayName} does not support the requested device control.`);
-    });
+        throw new Error(`${device.displayName} does not support the requested device control.`);
+      });
+      this.lastControlError = undefined;
+      return result;
+    } catch (error) {
+      this.lastControlError = errorMessage(error, 'Unknown Razer control failure.');
+      throw new Error(controlFailureMessage(change));
+    }
   }
 
   public deactivate(): void {
@@ -343,6 +352,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
     this.probe = null;
     this.probeUpdatedAt = 0;
     this.effectAcknowledged = false;
+    this.lastControlError = undefined;
   }
 }
 
@@ -417,12 +427,18 @@ const huntsmanDiagnosticReads = [
   'active-profile',
 ] as const;
 
-function keyboardDiagnostics(probe: HuntsmanProbe | null, unavailableReason: string | undefined, updatedAt: number) {
+function keyboardDiagnostics(
+  probe: HuntsmanProbe | null,
+  unavailableReason: string | undefined,
+  updatedAt: number,
+  lastControlError?: string,
+) {
   const failures = probe?.readFailures ?? {};
   return {
     protocol: 'Razer feature reports',
     endpoint: !probe ? 'unavailable' as const : Object.keys(failures).length ? 'partial' as const : 'ready' as const,
     ...(updatedAt > 0 ? { lastSyncAt: new Date(updatedAt).toISOString() } : {}),
+    ...(lastControlError ? { lastControlError } : {}),
     reads: huntsmanDiagnosticReads.map((id) => ({
       id,
       ok: Boolean(probe) && !failures[id],
@@ -431,6 +447,9 @@ function keyboardDiagnostics(probe: HuntsmanProbe | null, unavailableReason: str
   };
 }
 
-function diagnosticReason(probe: HuntsmanProbe | null, readId: string, unavailableReason?: string): string {
-  return probe?.readFailures[readId] ?? unavailableReason ?? nativeUnavailableReason;
+function controlFailureMessage(change: DeviceControlChange): string {
+  if (change.type.startsWith('lighting-')) {
+    return 'Keyboard lighting could not be updated. Reconnect the keyboard and try again.';
+  }
+  return 'The keyboard setting could not be updated. Reconnect the keyboard and try again.';
 }

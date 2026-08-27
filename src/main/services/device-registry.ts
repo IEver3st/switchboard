@@ -13,12 +13,15 @@ type DeviceRegistryOptions = {
   modules?: DeviceModule[];
   listHidDevices?: () => Promise<HidDevice[]>;
   fixtureMode?: boolean;
+  enumerationTimeoutMs?: number;
 };
 
 export class DeviceRegistry {
   private readonly modules: DeviceModule[];
   private readonly listHidDevices: () => Promise<HidDevice[]>;
   private readonly fixtureMode: boolean;
+  private readonly enumerationTimeoutMs: number;
+  private enumerationPromise: Promise<HidDevice[]> | null = null;
   private timer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
   private disposePromise: Promise<void> | null = null;
@@ -37,6 +40,7 @@ export class DeviceRegistry {
     ];
     this.listHidDevices = options.listHidDevices ?? devicesAsync;
     this.fixtureMode = options.fixtureMode ?? process.env.SWITCHBOARD_NATIVE_FIXTURES === '1';
+    this.enumerationTimeoutMs = options.enumerationTimeoutMs ?? 3_000;
   }
 
   public async start(): Promise<void> {
@@ -172,7 +176,7 @@ export class DeviceRegistry {
   private async discover(): Promise<void> {
     if (this.disposed) return;
     const snapshot = this.getSnapshot();
-    const hidDevices = await this.listHidDevices();
+    const hidDevices = await this.enumerateHidDevices();
     if (this.disposed) return;
     const enabledModuleIds = new Set(snapshot.modules.filter((module) => module.enabled).map((module) => module.id));
     const activeModules = this.modules.filter((module) => enabledModuleIds.has(module.id));
@@ -208,6 +212,17 @@ export class DeviceRegistry {
     if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next);
   }
 
+  private enumerateHidDevices(): Promise<HidDevice[]> {
+    if (!this.enumerationPromise) {
+      const enumeration = this.listHidDevices();
+      const trackedEnumeration = enumeration.finally(() => {
+        if (this.enumerationPromise === trackedEnumeration) this.enumerationPromise = null;
+      });
+      this.enumerationPromise = trackedEnumeration;
+    }
+    return withTimeout(this.enumerationPromise, this.enumerationTimeoutMs, 'HID device enumeration timed out.');
+  }
+
   private applyModuleDevices(moduleId: string, published: Device[], persist: boolean): void {
     if (this.disposed) return;
     const snapshot = this.getSnapshot();
@@ -221,6 +236,16 @@ export class DeviceRegistry {
     });
     if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next, { persist });
   }
+}
+
+function withTimeout<T>(operation: Promise<T>, milliseconds: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), milliseconds);
+  });
+  return Promise.race([operation, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }
 
 const lightingControlTypes = new Set<DeviceControlChange['type']>([

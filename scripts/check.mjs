@@ -28,6 +28,12 @@ const requiredFiles = [
   'src/preload/index.ts',
   'src/shared/contracts.ts',
   'src/renderer/src/App.tsx',
+  'src/renderer/public/switchboard-icon.png',
+  'src/renderer/public/switchboard-mark.png',
+  'resources/branding/switchboard-icon.ico',
+  'resources/branding/switchboard-icon.png',
+  'resources/branding/switchboard-mark.png',
+  'build/icon.ico',
   'resources/engine-workers/audio-worker.cjs',
   'engines/audio-host/Audio.Host.csproj',
   'engines/capture-host/Capture.Host.csproj',
@@ -66,6 +72,28 @@ assert(mainSource.includes("setWindowOpenHandler(() => ({ action: 'deny' }))"), 
 assert(mainSource.includes("will-navigate"), 'Renderer navigation must be restricted.');
 assert(mainSource.includes("setPermissionRequestHandler"), 'Renderer permissions must be denied by default.');
 assert(mainSource.includes("before-quit"), 'Engine cleanup must participate in a graceful quit sequence.');
+assert(
+  mainSource.includes("getBrandIconPath(process.platform === 'win32' ? 'ico' : 'png')"),
+  'Windows BrowserWindow branding must use the multi-resolution ICO asset.',
+);
+
+const sidebarSource = read('src/renderer/src/components/layout/sidebar.tsx');
+const startupScreenSource = read('src/renderer/src/components/layout/startup-screen.tsx');
+assert(sidebarSource.includes('./switchboard-mark.png'), 'The in-app sidebar must use the transparent four-bar mark.');
+assert(startupScreenSource.includes('./switchboard-mark.png'), 'The startup animation must use the transparent four-bar mark.');
+
+const windowsIcon = fs.readFileSync(path.join(root, 'build/icon.ico'));
+const iconEntryCount = windowsIcon.readUInt16LE(4);
+const iconSizes = Array.from({ length: iconEntryCount }, (_, index) => {
+  const width = windowsIcon[6 + (index * 16)];
+  return width === 0 ? 256 : width;
+});
+assert(
+  windowsIcon.readUInt16LE(0) === 0
+    && windowsIcon.readUInt16LE(2) === 1
+    && [16, 20, 24, 32, 40, 48, 64, 128, 256].every((size) => iconSizes.includes(size)),
+  'build/icon.ico must remain a valid multi-resolution Windows application icon.',
+);
 
 const preloadSource = read('src/preload/index.ts');
 assert(preloadSource.includes("contextBridge.exposeInMainWorld('switchboard'"), 'Preload must expose the narrow Switchboard API.');
@@ -88,7 +116,6 @@ assert(!ipcSource.includes('Boolean(input)') && !ipcSource.includes('Number(inpu
 assert(ipcSource.includes('await controller.initialize();'), 'The initial renderer snapshot must wait for real controller initialization.');
 
 const appSource = read('src/renderer/src/App.tsx');
-const startupScreenSource = read('src/renderer/src/components/layout/startup-screen.tsx');
 assert(
   !appSource.includes('minimumStartupDuration')
     && !appSource.includes('setTimeout')

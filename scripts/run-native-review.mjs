@@ -42,6 +42,10 @@ if (command === 'capture') {
   await runElectron('scripts/verify-audio-mixer-ui.mjs');
 } else if (command === 'clip-editor') {
   await runElectron('scripts/verify-clip-editor-ui.mjs', ...commandArguments);
+} else if (command === 'montage') {
+  await runElectron('scripts/verify-montage-ui.mjs');
+} else if (command === 'capture-scale') {
+  await runElectron('scripts/capture-scale-qa.mjs', ...commandArguments);
 } else if (command === 'app-updates') {
   await runElectron('scripts/verify-app-update-ui.mjs');
 } else if (command === 'device-popovers') {

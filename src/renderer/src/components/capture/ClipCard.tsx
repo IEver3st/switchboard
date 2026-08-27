@@ -1,30 +1,44 @@
 import type { Clip } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { formatBytes, formatClipTimestamp, formatVideoQuality } from '@/lib/format';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ClipActionsMenu, ClipFavorite, ClipShare } from './ClipActions';
 import { ClipThumbnail } from './ClipThumbnail';
 import type { ClipActions } from './types';
 
-export function ClipCard({ clip, actions }: { clip: Clip; actions: ClipActions }) {
+export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggleSelection }: {
+  clip: Clip;
+  actions: ClipActions;
+  selectionMode: boolean;
+  selectedOrder: number | null;
+  onToggleSelection: (clip: Clip) => void;
+}) {
+  const selected = selectedOrder !== null;
+  const activate = () => selectionMode ? onToggleSelection(clip) : actions.open(clip);
   return (
     <li className="min-w-0">
-      <article className="capture-clip-card group overflow-hidden rounded-md border border-border bg-surface-1">
+      <article className="capture-clip-card group overflow-hidden rounded-md border border-border bg-surface-1" data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
         <div className="capture-clip-card__media relative">
-          <ClipThumbnail clip={clip} onOpen={() => actions.open(clip)} />
-          <ClipFavorite clip={clip} onChange={(favorite) => actions.favorite(clip, favorite)} className="absolute left-2 top-2" />
-          <div className="capture-clip-card__quick-actions absolute right-2 top-2">
+          <ClipThumbnail clip={clip} onOpen={activate} selectionMode={selectionMode} selected={selected} />
+          {selectionMode ? (
+            <label className="capture-clip-selection-control">
+              <Checkbox checked={selected} onCheckedChange={() => onToggleSelection(clip)} aria-label={`${selected ? 'Remove' : 'Add'} ${clip.name} ${selected ? 'from' : 'to'} montage`} />
+              {selectedOrder ? <span aria-hidden="true">{selectedOrder}</span> : null}
+            </label>
+          ) : <ClipFavorite clip={clip} onChange={(favorite) => actions.favorite(clip, favorite)} className="absolute left-2 top-2" />}
+          <div className="capture-clip-card__quick-actions absolute right-2 top-2" hidden={selectionMode}>
             <ClipShare clip={clip} onShare={() => actions.export(clip)} />
             <ClipActionsMenu clip={clip} actions={actions} />
           </div>
         </div>
-        <div className="capture-clip-card__footer min-w-0 px-3 py-2.5">
-          <h3 className="m-0 truncate text-[14px] font-semibold leading-5 text-foreground">
-            <button type="button" onClick={() => actions.open(clip)} className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:underline">
+        <div className="capture-clip-card__footer min-w-0">
+          <h3 className="m-0 truncate text-[13px] font-semibold leading-5 text-foreground">
+            <button type="button" onClick={activate} className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:underline">
               {clip.name}
             </button>
           </h3>
           <p className="m-0 mt-0.5 truncate text-[11px] font-semibold leading-4 text-text-secondary">{clipGameLabel(clip)}</p>
-          <p className="capture-clip-card__metadata m-0 mt-1.5 text-[10px] tabular-nums leading-4 text-muted-foreground">
+          <p className="capture-clip-card__metadata m-0 text-[10px] tabular-nums leading-4 text-muted-foreground">
             <span>{formatClipTimestamp(clip.createdAt)}</span>
             <span>{formatVideoQuality(clip.width, clip.height, clip.fps)}</span>
             <span>{formatBytes(clip.fileSize)}</span>

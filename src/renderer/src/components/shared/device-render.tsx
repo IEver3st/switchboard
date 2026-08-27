@@ -3,26 +3,40 @@ import type { Device } from '../../../../shared/contracts';
 import g502XPlusBlackUrl from '@/assets/device-renders/g502-x-plus.png';
 import g502XPlusWhiteUrl from '@/assets/device-renders/g502-x-plus-white.png';
 import quadCast2Url from '@/assets/device-renders/quadcast-2.png';
-import huntsmanV2AnalogUrl from '@/assets/device-renders/huntsman-v2-analog.png';
+import huntsmanV2AnalogUrl from '@/assets/device-renders/huntsman-v2-analog-official.jpg';
 import xm6BlackUrl from '@/assets/device-renders/wh1000xm6-black.png';
 import xm6MidnightBlueUrl from '@/assets/device-renders/wh1000xm6-midnight-blue.png';
 import xm6OliveGrayUrl from '@/assets/device-renders/wh1000xm6-olive-gray.png';
 import xm6PlatinumSilverUrl from '@/assets/device-renders/wh1000xm6-platinum-silver.png';
+import xm6SandPinkUrl from '@/assets/device-renders/wh1000xm6-sand-pink.webp';
+import xm6SandstoneUrl from '@/assets/device-renders/wh1000xm6-sandstone.webp';
 import { DeviceGlyph } from '@/components/shared/device-glyph';
 import {
   adaptBlackHardwareForDarkSurface,
   applyLighting,
+  matteDarkProductBackdrop,
   type LightingMask,
 } from '@/components/shared/device-lighting';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/cn';
 
 type ToneProfile = 'black-hardware-on-dark';
+type BackdropProfile = 'dark-product-photo';
+
+interface ArtworkCrop {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
 
 interface DeviceArtwork {
   src: string;
   lightingMask?: LightingMask;
   toneProfile?: ToneProfile;
+  backdropProfile?: BackdropProfile;
+  crop?: ArtworkCrop;
+  heroProcessingSize?: number;
   presentation: DevicePresentation;
 }
 
@@ -45,6 +59,8 @@ const artworkByAssetKey: Record<string, DeviceArtwork> = {
   'sony-wh1000xm6-black': { src: xm6BlackUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
   'sony-wh1000xm6-platinum-silver': { src: xm6PlatinumSilverUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
   'sony-wh1000xm6-midnight-blue': { src: xm6MidnightBlueUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
+  'sony-wh1000xm6-sand-pink': { src: xm6SandPinkUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
+  'sony-wh1000xm6-sandstone': { src: xm6SandstoneUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
   'sony-wh1000xm6-olive-gray': { src: xm6OliveGrayUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
   'logitech-g502-x-plus-black': {
     src: g502XPlusBlackUrl,
@@ -64,8 +80,10 @@ const artworkByAssetKey: Record<string, DeviceArtwork> = {
   },
   'razer-huntsman-v2-analog': {
     src: huntsmanV2AnalogUrl,
-    lightingMask: 'g502-rgb',
-    toneProfile: 'black-hardware-on-dark',
+    lightingMask: 'photographic-rgb',
+    backdropProfile: 'dark-product-photo',
+    crop: { left: 0.09, top: 0.12, right: 0.91, bottom: 0.88 },
+    heroProcessingSize: 1100,
     presentation: { orientation: 'landscape', galleryScale: 0.94, heroScale: 1.06, groundWidth: '72%' },
   },
 };
@@ -119,6 +137,7 @@ export function DeviceRender({
         {artwork ? (
           <ProductCanvas
             artwork={artwork}
+            density={density}
             label={label}
             lighting={{ enabled: lightingEnabled, color: lightingColor, brightness: lightingBrightness, preserveSourceColor }}
             fallback={<FallbackRender device={device} label={label} />}
@@ -147,11 +166,13 @@ function FallbackRender({ device, label }: { device: Device; label: string }) {
 
 function ProductCanvas({
   artwork,
+  density,
   label,
   lighting,
   fallback,
 }: {
   artwork: DeviceArtwork;
+  density: 'gallery' | 'hero';
   label: string;
   lighting: { enabled: boolean; color: string; brightness: number; preserveSourceColor: boolean };
   fallback: ReactNode;
@@ -165,6 +186,8 @@ function ProductCanvas({
       artwork.src,
       artwork.lightingMask ?? 'no-lighting',
       artwork.toneProfile ?? 'source-tone',
+      artwork.backdropProfile ?? 'transparent-source',
+      density,
       artwork.lightingMask ? (lighting.enabled ? 'on' : 'off') : 'static',
       artwork.lightingMask ? lighting.color : 'source-color',
       artwork.lightingMask ? lighting.brightness : 'source-brightness',
@@ -196,21 +219,38 @@ function ProductCanvas({
         return;
       }
 
-      // The gallery displays at at most ~330 CSS px. Processing a 520 px working
-      // copy preserves native-window sharpness without blocking the renderer on
-      // multi-megapixel background/lighting masks during startup.
-      const processingScale = Math.min(1, 520 / Math.max(image.naturalWidth, image.naturalHeight));
-      canvas.width = Math.round(image.naturalWidth * processingScale);
-      canvas.height = Math.round(image.naturalHeight * processingScale);
+      const crop = resolveArtworkCrop(image, artwork.crop);
+      // Gallery artwork stays compact. A hero render can retain a larger working
+      // surface so a wide keyboard remains sharp on high-DPI Electron windows.
+      const processingLimit = density === 'hero' ? (artwork.heroProcessingSize ?? 760) : 520;
+      const processingScale = Math.min(1, processingLimit / Math.max(crop.width, crop.height));
+      canvas.width = Math.round(crop.width * processingScale);
+      canvas.height = Math.round(crop.height * processingScale);
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = 'high';
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      context.drawImage(
+        image,
+        crop.left,
+        crop.top,
+        crop.width,
+        crop.height,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      );
 
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+        if (artwork.backdropProfile === 'dark-product-photo') {
+          matteDarkProductBackdrop(pixels.data);
+        }
         if (artwork.lightingMask && (!lighting.preserveSourceColor || !lighting.enabled)) {
           applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color, lighting.brightness);
+        }
+        if (artwork.backdropProfile === 'dark-product-photo' && !lighting.enabled) {
+          adaptBlackHardwareForDarkSurface(pixels.data);
         }
         if (artwork.toneProfile === 'black-hardware-on-dark') {
           adaptBlackHardwareForDarkSurface(pixels.data);
@@ -245,7 +285,7 @@ function ProductCanvas({
       image.onload = null;
       image.onerror = null;
     };
-  }, [artwork.lightingMask, artwork.src, artwork.toneProfile, lighting.brightness, lighting.color, lighting.enabled]);
+  }, [artwork.backdropProfile, artwork.crop, artwork.heroProcessingSize, artwork.lightingMask, artwork.src, artwork.toneProfile, density, lighting.brightness, lighting.color, lighting.enabled]);
 
   if (status === 'failed') return fallback;
   return (
@@ -260,6 +300,20 @@ function ProductCanvas({
       />
     </div>
   );
+}
+
+function resolveArtworkCrop(image: HTMLImageElement, crop?: ArtworkCrop): { left: number; top: number; width: number; height: number } {
+  if (!crop) return { left: 0, top: 0, width: image.naturalWidth, height: image.naturalHeight };
+  const left = Math.round(image.naturalWidth * crop.left);
+  const top = Math.round(image.naturalHeight * crop.top);
+  const right = Math.round(image.naturalWidth * crop.right);
+  const bottom = Math.round(image.naturalHeight * crop.bottom);
+  return {
+    left,
+    top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top),
+  };
 }
 
 function paintProcessedArtwork(canvas: HTMLCanvasElement, artwork: ProcessedArtwork): boolean {

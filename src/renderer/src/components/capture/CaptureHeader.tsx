@@ -42,7 +42,7 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <section aria-label="Capture controls" className="capture-toolbar sticky top-0 z-20 border-b border-border">
-      <div className="capture-config-grid px-5 pb-3 pt-3.5">
+      <div className="capture-config-grid">
         <CaptureControl label="Source" status={<CaptureStatus status={status} />}>
           <CaptureSourcePicker
             value={selectedSourceValue}
@@ -66,13 +66,13 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
         <CaptureMore snapshot={snapshot} />
       </div>
       <Separator className="capture-toolbar__separator" />
-      <div className="capture-toolbar__meta px-5 py-1.5 text-[10px] tabular-nums text-muted-foreground">
+      <div className="capture-toolbar__meta text-[10px] tabular-nums text-muted-foreground">
         <span>~{formatBytes(estimatedBytes)} per replay</span>
         <span aria-hidden="true">·</span>
         <span>{formatBytes(snapshot.capture.storage.availableBytes)} available</span>
         <span className="ml-auto hidden text-text-description min-[940px]:inline">{runtime.encoderLabel || 'Encoder pending'}</span>
       </div>
-      {notice ? <div className={cn('border-t border-border px-5 py-2 text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
+      {notice ? <div className={cn('capture-toolbar__notice border-t border-border py-2 text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
     </section>
   );
 }

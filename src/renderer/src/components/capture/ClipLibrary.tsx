@@ -105,7 +105,7 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, o
   };
 
   return (
-    <section aria-labelledby="clips-heading" className="capture-library min-h-0 flex-1 px-5 pb-8 pt-5">
+    <section aria-labelledby="clips-heading" className="capture-library min-h-0 flex-1">
       <div className="capture-library__header">
         <div className="capture-library__title min-w-40">
           <div className="flex items-center gap-2.5">
@@ -123,7 +123,7 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, o
         </div>
 
         <div className="capture-library__tools">
-          <label className="capture-library__search relative min-w-[220px]">
+          <label className="capture-library__search relative">
             <span className="sr-only">Search clips</span>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clips" className="h-9 pl-8 text-[12px]" />
@@ -195,7 +195,7 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, o
         </div>
       ) : null}
 
-      <div className="mt-5">
+      <div className="capture-library__content">
         {clips.length > 0 ? (
           layout === 'grid' ? (
             <ClipGrid clips={clips} actions={actions} grouped selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={toggleClipSelection} />

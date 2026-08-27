@@ -296,6 +296,7 @@ export const keyboardDiagnosticsSchema = z.object({
   protocol: z.string().min(1),
   endpoint: z.enum(['ready', 'partial', 'unavailable']),
   lastSyncAt: z.string().optional(),
+  lastControlError: z.string().optional(),
   reads: z.array(keyboardDiagnosticReadSchema),
 });
 export type KeyboardDiagnostics = z.infer<typeof keyboardDiagnosticsSchema>;

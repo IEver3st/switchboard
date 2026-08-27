@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { access, mkdir, opendir, rename, rm, stat } from 'node:fs/promises';
+import { access, mkdir, opendir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, join, parse, resolve } from 'node:path';
 import type {
@@ -260,11 +260,11 @@ export class ClipLibraryService {
         renderedSegments.push(segmentPath);
       }
 
-      await import('node:fs/promises').then(({ writeFile }) => writeFile(
+      await writeFile(
         concatPath,
         renderedSegments.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n'),
         'utf8',
-      ));
+      );
 
       const common = ['-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', concatPath];
       if (input.preset === 'original') {

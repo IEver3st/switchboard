@@ -89,6 +89,43 @@ describe('Razer Huntsman V2 Analog protocol', () => {
 });
 
 describe('Razer Huntsman V2 Analog transport', () => {
+  test('fails a stalled endpoint open within the transport deadline', async () => {
+    const transport = new HuntsmanV2AnalogTransport({
+      async open() { return new Promise(() => undefined); },
+    }, 5);
+
+    await expect(transport.setBrightness('razer-control', 50))
+      .rejects.toThrow('Opening the Razer control endpoint timed out.');
+  });
+
+  test('retries a stale or truncated feature response before reconciling a write', async () => {
+    let pending = Buffer.alloc(razerReportLength);
+    let responseCount = 0;
+    let sendCount = 0;
+    const transport = new HuntsmanV2AnalogTransport({
+      async open() {
+        return {
+          async sendFeatureReport(report) {
+            pending = Buffer.from(report);
+            sendCount += 1;
+            return report.byteLength;
+          },
+          async getFeatureReport() {
+            responseCount += 1;
+            if (responseCount === 1) return Buffer.alloc(35);
+            if (pending[7] === 0x0f && pending[8] === 0x04) return responseFromReport(pending, [1, 5, 128]);
+            if (pending[7] === 0x0f && pending[8] === 0x84) return responseFromReport(pending, [1, 5, 128]);
+            throw new Error('Unexpected command in retry test.');
+          },
+          async close() {},
+        };
+      },
+    });
+
+    expect(await transport.setBrightness('razer-control', 50)).toBe(50);
+    expect(sendCount).toBe(3);
+  });
+
   test('keeps independent controls available when one diagnostic read fails', async () => {
     let pending = Buffer.alloc(razerReportLength);
     let closed = false;
@@ -248,7 +285,7 @@ describe('Razer Huntsman V2 Analog module', () => {
   test('leaves controls present but unavailable when the probe fails', async () => {
     const transport: HuntsmanControlTransport = {
       async probe() { throw new Error('Access denied by HIDAPI.'); },
-      async setBrightness(_path, brightness) { return brightness; },
+      async setBrightness() { throw new Error('HID feature report 0x31 failed.'); },
       async setEffect(_path, effectId) { return { effectId }; },
       async setGamingMode(_path, enabled) { return enabled; },
       async setActiveOnboardProfile(_path, profileId) { return profileId; },
@@ -257,8 +294,16 @@ describe('Razer Huntsman V2 Analog module', () => {
     const [device] = await module.discover({ hidDevices: descriptors(), previousDevices: [], appearanceOverrides: {} });
     expect(device?.capabilities).toMatchObject({
       keyboard: { transport: 'unavailable' },
-      lighting: { writable: false, unavailableReason: 'Access denied by HIDAPI.' },
+      lighting: { writable: false, unavailableReason: 'This setting is unavailable. Reconnect the keyboard and try again.' },
     });
+    expect(device?.capabilities.keyboard?.diagnostics?.reads[0]).toMatchObject({
+      ok: false,
+      error: 'Access denied by HIDAPI.',
+    });
+    await expect(module.setControl(device!, { type: 'lighting-brightness', brightness: 50 }))
+      .rejects.toThrow('Keyboard lighting could not be updated. Reconnect the keyboard and try again.');
+    const [afterWriteFailure] = await module.discover({ hidDevices: descriptors(), previousDevices: [device!], appearanceOverrides: {} });
+    expect(afterWriteFailure?.capabilities.keyboard?.diagnostics?.lastControlError).toBe('HID feature report 0x31 failed.');
     await module.dispose();
   });
 

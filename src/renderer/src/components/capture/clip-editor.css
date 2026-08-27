@@ -184,6 +184,27 @@
   padding-left: 1px;
 }
 
+.clip-editor-header__identity--montage {
+  gap: 7px;
+}
+
+.clip-editor-header__identity--montage h2 {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clip-editor-header__identity--montage > span {
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .clip-editor-layout {
   display: flex;
   min-width: 0;
@@ -219,6 +240,316 @@
   height: 100%;
   object-fit: contain;
   background: #050607;
+}
+
+.clip-editor-preview--montage video {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.clip-editor-preview--montage[data-active-slot="0"] video[data-preview-slot="0"],
+.clip-editor-preview--montage[data-active-slot="1"] video[data-preview-slot="1"] {
+  opacity: 1;
+}
+
+.montage-timeline {
+  min-width: 0;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.montage-transport {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 10px;
+}
+
+.montage-timecode {
+  min-width: 76px;
+  color: var(--foreground);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.montage-duration,
+.montage-transport__summary {
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.montage-transport__summary {
+  margin-left: auto;
+}
+
+.montage-volume {
+  width: 86px;
+}
+
+.montage-timeline__surface {
+  position: relative;
+  min-width: 0;
+  height: 124px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--background) 76%, var(--surface-1));
+  padding: 10px 12px 8px;
+}
+
+.montage-segments {
+  display: flex;
+  min-width: 0;
+  height: 76px;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.montage-segment-slot {
+  display: grid;
+  min-width: 38px;
+  height: 76px;
+  grid-template-rows: 45px 27px;
+  gap: 4px;
+}
+
+.montage-segment {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 13px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  outline: none;
+  background: var(--surface-2);
+  padding: 5px 6px 5px 3px;
+  color: var(--text-secondary);
+  cursor: grab;
+}
+
+.montage-segment:active {
+  cursor: grabbing;
+}
+
+.montage-segment:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-strong));
+  background: var(--surface-hover);
+}
+
+.montage-segment:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 65%, transparent);
+  outline-offset: -2px;
+}
+
+.montage-segment[data-selected="true"] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface-2));
+  color: var(--foreground);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary) 70%, transparent);
+}
+
+.montage-segment[data-unavailable="true"] {
+  border-color: color-mix(in srgb, var(--destructive) 65%, var(--border));
+  color: var(--destructive);
+}
+
+.montage-segment > svg {
+  width: 12px;
+  height: 12px;
+  color: var(--muted-foreground);
+}
+
+.montage-segment > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.montage-segment em {
+  display: grid;
+  min-width: 15px;
+  height: 15px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  color: var(--muted-foreground);
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.montage-segment[data-selected="true"] em {
+  border-color: color-mix(in srgb, var(--primary) 54%, var(--border));
+  color: var(--primary);
+}
+
+.montage-segment small {
+  color: var(--muted-foreground);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.montage-segment-trim {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: 27px;
+  align-items: stretch;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
+.montage-segment-trim > span {
+  min-width: 0;
+  flex: 1;
+  border-inline: 1px solid color-mix(in srgb, var(--text-description) 18%, transparent);
+  background: color-mix(in srgb, var(--text-description) 8%, var(--surface-2));
+}
+
+.montage-segment-trim[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--primary) 74%, var(--border));
+}
+
+.montage-trim-handle {
+  position: relative;
+  z-index: 2;
+  width: 8px;
+  flex: 0 0 8px;
+  border: 0;
+  outline: none;
+  background: color-mix(in srgb, var(--primary) 74%, var(--surface-2));
+  cursor: ew-resize;
+}
+
+.montage-trim-handle.is-start {
+  border-radius: 2px 0 0 2px;
+}
+
+.montage-trim-handle.is-end {
+  border-radius: 0 2px 2px 0;
+}
+
+.montage-trim-handle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.montage-scrub {
+  position: absolute;
+  right: 12px;
+  bottom: 7px;
+  left: 12px;
+  height: 16px;
+  border-radius: 2px;
+  outline: none;
+  cursor: ew-resize;
+}
+
+.montage-scrub > span {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--border-strong);
+}
+
+.montage-scrub:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 65%, transparent);
+  outline-offset: 1px;
+}
+
+.montage-playhead {
+  position: absolute;
+  z-index: 8;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+.montage-timeline[data-playing="true"] .montage-playhead {
+  will-change: transform;
+}
+
+.montage-playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 9px;
+  height: 6px;
+  border-radius: 2px 2px 1px 1px;
+  background: var(--timeline-playhead, #63cbe3);
+}
+
+.montage-playhead > span {
+  position: absolute;
+  top: 5px;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--timeline-playhead, #63cbe3);
+}
+
+.montage-audio-controls {
+  display: grid;
+  gap: 9px;
+}
+
+.montage-audio-controls > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 5px 8px;
+}
+
+.montage-audio-controls span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.montage-audio-controls span i {
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--track-color);
+}
+
+.montage-audio-controls output {
+  color: var(--muted-foreground);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 9px;
+  text-align: right;
+}
+
+.montage-audio-controls [role="slider"] {
+  grid-column: 1 / -1;
 }
 
 .clip-editor-crop-guide {

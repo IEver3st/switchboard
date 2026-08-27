@@ -69,6 +69,7 @@ export function createClipProjectSegment(clip: Clip): ClipEditorSegment {
     trimEndMs: clip.trimEndMs ?? clip.durationMs,
     audioTrackLevels: [...(clip.audioTrackLevels ?? [])],
     audioTrackTrims: [...(clip.audioTrackTrims ?? [])],
+    ...(clip.durationMs < 100 ? { unavailableReason: 'The source duration is unavailable or too short to edit.' } : {}),
   };
 }
 

@@ -27,24 +27,40 @@ const sharePresets: Array<{
   { id: 'original', label: 'Original quality', description: 'Trim only, no size target' },
 ];
 
-export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled = false, onExport }: {
+export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled = false, projectType = 'single', segmentCount = 1, sourceBytes, selectedDurationMs, onExport, onCancelExport }: {
   clip: Clip;
   startMs: number;
   endMs: number;
   exportPending: boolean;
   disabled?: boolean;
-  onExport: (preset: ClipExportPreset) => Promise<boolean>;
+  projectType?: 'single' | 'montage';
+  segmentCount?: number;
+  sourceBytes?: number;
+  selectedDurationMs?: number;
+  onExport: (preset: ClipExportPreset, exportId: string) => Promise<boolean>;
+  onCancelExport?: (exportId: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<ClipExportPreset>('10mb');
-  const selectedDurationMs = endMs - startMs;
+  const [activeExportId, setActiveExportId] = useState<string | null>(null);
+  const durationMs = selectedDurationMs ?? endMs - startMs;
   const selected = sharePresets.find((candidate) => candidate.id === preset) ?? sharePresets[0]!;
-  const proportionalBytes = clip.fileSize * selectedDurationMs / Math.max(1, clip.durationMs);
+  const proportionalBytes = sourceBytes ?? clip.fileSize * durationMs / Math.max(1, clip.durationMs);
   const expectedBytes = selected.targetBytes ? Math.min(proportionalBytes, selected.targetBytes) : proportionalBytes;
 
   const createShareFile = async () => {
-    const exported = await onExport(preset);
+    const exportId = crypto.randomUUID();
+    setActiveExportId(exportId);
+    const exported = await onExport(preset, exportId);
+    setActiveExportId(null);
     if (exported) setOpen(false);
+  };
+
+  const cancelExport = async () => {
+    if (!activeExportId || !onCancelExport) return;
+    await onCancelExport(activeExportId);
+    setActiveExportId(null);
+    setOpen(false);
   };
 
   return (
@@ -57,9 +73,9 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
 
       <DialogContent className="max-w-[440px] overflow-hidden p-0 no-drag" data-share-clip-dialog>
         <DialogHeader className="px-5 pb-4 pt-5 pr-12">
-          <DialogTitle>Create share file</DialogTitle>
+          <DialogTitle>{projectType === 'montage' ? 'Export montage' : 'Create share file'}</DialogTitle>
           <DialogDescription>
-            {formatDuration(selectedDurationMs / 1_000)} selected. Switchboard adjusts video bitrate automatically and keeps the original clip unchanged.
+            {formatDuration(durationMs / 1_000)} selected{projectType === 'montage' ? ` across ${segmentCount} ${segmentCount === 1 ? 'clip' : 'clips'}` : ''}. Switchboard adjusts video bitrate automatically and keeps {projectType === 'montage' ? 'every source clip' : 'the original clip'} unchanged.
           </DialogDescription>
         </DialogHeader>
 
@@ -105,9 +121,13 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
               {selected.targetBytes ? `Up to ${selected.label}` : `About ${formatBytes(expectedBytes)}`}
             </strong>
           </div>
-          <Button type="button" variant="primary" size="sm" className="min-w-[148px]" disabled={exportPending} onClick={() => void createShareFile().catch(() => undefined)}>
-            {exportPending ? 'Compressing…' : 'Choose destination'}
-          </Button>
+          {exportPending && activeExportId && onCancelExport ? (
+            <Button type="button" variant="secondary" size="sm" className="min-w-[148px]" onClick={() => void cancelExport().catch(() => undefined)}>Cancel export</Button>
+          ) : (
+            <Button type="button" variant="primary" size="sm" className="min-w-[148px]" disabled={exportPending} onClick={() => void createShareFile().catch(() => { setActiveExportId(null); })}>
+              {exportPending ? 'Preparing…' : 'Choose destination'}
+            </Button>
+          )}
         </footer>
       </DialogContent>
     </Dialog>

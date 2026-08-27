@@ -26,7 +26,7 @@ export function Sidebar({
   return (
     <aside className="flex w-[68px] shrink-0 flex-col items-center bg-chrome py-2">
       <div className="app-drag flex h-[38px] w-full shrink-0 items-center justify-center">
-        <img src="./switchboard-icon.png" alt="" className="size-[22px] object-contain opacity-90" draggable={false} />
+        <img src="./switchboard-mark.png" alt="" className="size-[22px] object-contain opacity-90" draggable={false} />
       </div>
       <nav aria-label="Primary" className="mt-8 flex w-full flex-col items-center gap-1.5 px-1.5">
         {navigation.map(({ id, label, icon: Icon, engine }) => {

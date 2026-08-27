@@ -1,0 +1,45 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 722
+  },
+  "requestedClips": 20,
+  "cards": 20,
+  "rows": 0,
+  "columns": 3,
+  "cardWidths": {
+    "minimum": 377.3333435058594,
+    "maximum": 377.3333435058594
+  },
+  "libraryBounds": {
+    "left": 68,
+    "right": 1280,
+    "width": 1212
+  },
+  "toolbarBounds": {
+    "left": 307.6770935058594,
+    "right": 1256.0000305175781,
+    "width": 948.3229370117188
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today",
+    "Yesterday"
+  ],
+  "lazyImages": 20,
+  "decodedImages": 16,
+  "horizontalOverflow": false,
+  "interactions": {
+    "searchFocused": true,
+    "searchMatches": 5,
+    "favoriteMatches": 3,
+    "listItems": 20,
+    "moreControls": 5
+  },
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-20-clips-1280x720.png",
+  "imageSize": {
+    "width": 1920,
+    "height": 1083
+  }
+}

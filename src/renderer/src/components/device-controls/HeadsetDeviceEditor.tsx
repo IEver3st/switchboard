@@ -13,6 +13,8 @@ const colorways = [
   { variant: 'black', label: 'Black', color: '#18191a' },
   { variant: 'platinum-silver', label: 'Platinum Silver', color: '#d8d4c9' },
   { variant: 'midnight-blue', label: 'Midnight Blue', color: '#243246' },
+  { variant: 'sand-pink', label: 'Sand Pink', color: '#d8c2c2' },
+  { variant: 'sandstone', label: 'Sandstone', color: '#aaa092' },
   { variant: 'olive-gray', label: 'Olive Gray', color: '#77796f' },
 ] as const;
 
@@ -22,10 +24,13 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
   const setDeviceSetting = useSystemStore((state) => state.setDeviceSetting);
   const setAppearance = useSystemStore((state) => state.setDeviceAppearanceOverride);
   const [gains, setGains] = useState(() => headset?.equalizer?.bands.map((band) => band.gainDb) ?? []);
+  const [ambientLevel, setAmbientLevel] = useState(headset?.noiseControl?.ambientLevel ?? 10);
+  const [localSlot, setLocalSlot] = useState('1');
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => setGains(headset?.equalizer?.bands.map((band) => band.gainDb) ?? []), [headset?.equalizer?.bands]);
+  useEffect(() => setAmbientLevel(headset?.noiseControl?.ambientLevel ?? 10), [headset?.noiseControl?.ambientLevel]);
   if (!headset) return null;
   const controlsDisabled = !device.connected || headset.transportState !== 'connected';
 
@@ -105,10 +110,11 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
                 <Slider
                   id="ambient-level"
                   min={1} max={20} step={1}
-                  value={[headset.noiseControl.ambientLevel ?? 10]}
+                  value={[ambientLevel]}
                   disabled={controlsDisabled || pending !== null}
                   aria-label="Ambient sound level"
-                  aria-valuetext={`${headset.noiseControl.ambientLevel ?? 10} of 20`}
+                  aria-valuetext={`${ambientLevel} of 20`}
+                  onValueChange={([level]) => { if (level) setAmbientLevel(level); }}
                   onValueCommit={([level]) => { if (level) void send('ambient', { type: 'headset-ambient-level', level }); }}
                 />
                 <SettingRow label="Focus on Voice" detail="Prioritize speech while Ambient Sound is active.">
@@ -144,16 +150,34 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
                     aria-label={`${formatFrequency(band.frequencyHz)} equalizer band`}
                     aria-valuetext={`${gains[index] ?? band.gainDb} decibels`}
                     onValueChange={([value]) => setGains((current) => current.map((gain, bandIndex) => bandIndex === index ? (value ?? gain) : gain))}
-                    onValueCommit={() => void send('eq-bands', { type: 'headset-equalizer-bands', gainsDb: gains })}
+                    onValueCommit={([value]) => {
+                      const committed = gains.map((gain, bandIndex) => bandIndex === index ? (value ?? gain) : gain);
+                      setGains(committed);
+                      void send('eq-bands', { type: 'headset-equalizer-bands', gainsDb: committed });
+                    }}
                   />
                   <span>{formatFrequency(band.frequencyHz)}</span>
                 </label>
               ))}
             </div>
             <div className="headset-eq__actions">
-              <span>Custom adjustments select the headphone’s Custom slot.</span>
+              <span>Headphone presets and local presets are stored separately.</span>
               <Button variant="ghost" size="sm" disabled={controlsDisabled || pending !== null} onClick={() => { const flat = gains.map(() => 0); setGains(flat); void send('eq-bands', { type: 'headset-equalizer-bands', gainsDb: flat }); }}><RotateCcw aria-hidden />Reset</Button>
-              <Button variant="secondary" size="sm" onClick={() => void setDeviceSetting({ deviceId: device.id, key: 'sonyPresetBands1', value: gains })}><Save aria-hidden />Save locally</Button>
+            </div>
+            <div className="headset-eq__local">
+              <Select value={localSlot} onValueChange={setLocalSlot}>
+                <SelectTrigger aria-label="Local equalizer preset"><SelectValue /></SelectTrigger>
+                <SelectContent>{['1', '2', '3'].map((slot) => <SelectItem key={slot} value={slot}>{String(device.settings[`sonyPresetName${slot}`] ?? `Local ${slot}`)}</SelectItem>)}</SelectContent>
+              </Select>
+              <Button variant="ghost" size="sm" disabled={controlsDisabled || pending !== null} onClick={() => {
+                const stored = device.settings[`sonyPresetBands${localSlot}`];
+                if (Array.isArray(stored) && stored.length === 10 && stored.every((value) => typeof value === 'number')) {
+                  const bands = stored as number[];
+                  setGains(bands);
+                  void send('eq-bands', { type: 'headset-equalizer-bands', gainsDb: bands });
+                }
+              }}>Load</Button>
+              <Button variant="secondary" size="sm" onClick={() => void setDeviceSetting({ deviceId: device.id, key: `sonyPresetBands${localSlot}`, value: gains })}><Save aria-hidden />Save locally</Button>
             </div>
           </section>
         ) : null}

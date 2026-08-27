@@ -411,7 +411,7 @@ export const defaultDevices: Device[] = [
           { id: 'actuation', label: 'Per-key actuation', summary: 'Adjustable 1.5–3.6 mm actuation and two-stage inputs are supported by the keyboard.', status: 'synapse', unavailableReason: 'The actuation protocol is not safely documented or verified for direct writes yet.' },
           { id: 'analog', label: 'Analog input', summary: 'Selected keys can emulate joystick axes and controller triggers.', status: 'synapse', unavailableReason: 'Analog mapping remains owned by Synapse until its native profile format is verified.' },
           { id: 'mapping', label: 'Key mapping', summary: 'Remapping, macros, Hypershift, and analog controller bindings remain in Synapse.', status: 'synapse', unavailableReason: 'Switchboard does not write undocumented key maps or macro payloads.' },
-          { id: 'rapid-input', label: 'Rapid Trigger and Snap Tap', summary: 'Synapse 4 exposes both features for this keyboard through its analog mapping stack.', status: 'synapse', unavailableReason: 'This V2 firmware rejects the standalone Rapid Trigger and Snap Tap commands used by newer onboard implementations.' },
+          { id: 'rapid-input', label: 'Snap Tap', summary: 'Snap Tap is available for this keyboard through Synapse 4.', status: 'synapse', unavailableReason: 'Switchboard does not expose Snap Tap because no independent device command is verified for this model.' },
         ],
         gamingMode: { enabled: false, writable: true },
         onboardProfiles: {
@@ -432,13 +432,13 @@ export const defaultDevices: Device[] = [
         enabled: true,
         activeEffectId: 'spectrum',
         availableEffects: [
-          { id: 'static', label: 'Static' },
-          { id: 'breathing', label: 'Breathing' },
-          { id: 'spectrum', label: 'Spectrum' },
-          { id: 'reactive', label: 'Reactive' },
-          { id: 'starlight', label: 'Starlight' },
-          { id: 'wave-left', label: 'Wave left' },
-          { id: 'wave-right', label: 'Wave right' },
+          { id: 'static', label: 'Static', controls: ['color', 'brightness'] },
+          { id: 'breathing', label: 'Breathing', controls: ['color', 'brightness'] },
+          { id: 'spectrum', label: 'Spectrum', controls: ['brightness'] },
+          { id: 'reactive', label: 'Reactive', controls: ['color', 'brightness'] },
+          { id: 'starlight', label: 'Starlight', controls: ['color', 'brightness'] },
+          { id: 'wave-left', label: 'Wave left', controls: ['brightness'] },
+          { id: 'wave-right', label: 'Wave right', controls: ['brightness'] },
         ],
         color: '#44aaff',
         colorWritable: true,
@@ -493,7 +493,11 @@ export const defaultDevices: Device[] = [
         diagnostics: { protocol: 'sony-mdr-v2', lastSyncAt: now(), reconnectCount: 0, malformedFrameCount: 0, commandFailureCount: 0, lastErrorCode: null },
       },
     },
-    settings: { sonyPresetName1: 'My preset', sonyPresetBands1: [1, 2, 1, 0, -1, 0, 2, 3, 2, 1] },
+    settings: {
+      sonyPresetName1: 'Local 1', sonyPresetBands1: [1, 2, 1, 0, -1, 0, 2, 3, 2, 1],
+      sonyPresetName2: 'Local 2', sonyPresetBands2: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      sonyPresetName3: 'Local 3', sonyPresetBands3: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
   },
 ];
 

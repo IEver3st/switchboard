@@ -6,31 +6,56 @@
     "availableEffects": [
       {
         "id": "static",
-        "label": "Static"
+        "label": "Static",
+        "controls": [
+          "color",
+          "brightness"
+        ]
       },
       {
         "id": "breathing",
-        "label": "Breathing"
+        "label": "Breathing",
+        "controls": [
+          "color",
+          "brightness"
+        ]
       },
       {
         "id": "spectrum",
-        "label": "Spectrum"
+        "label": "Spectrum",
+        "controls": [
+          "brightness"
+        ]
       },
       {
         "id": "reactive",
-        "label": "Reactive"
+        "label": "Reactive",
+        "controls": [
+          "color",
+          "brightness"
+        ]
       },
       {
         "id": "starlight",
-        "label": "Starlight"
+        "label": "Starlight",
+        "controls": [
+          "color",
+          "brightness"
+        ]
       },
       {
         "id": "wave-left",
-        "label": "Wave left"
+        "label": "Wave left",
+        "controls": [
+          "brightness"
+        ]
       },
       {
         "id": "wave-right",
-        "label": "Wave right"
+        "label": "Wave right",
+        "controls": [
+          "brightness"
+        ]
       }
     ],
     "color": "#4466aa",
@@ -38,6 +63,7 @@
     "brightness": 62,
     "brightnessWritable": true,
     "speedWritable": false,
+    "directionWritable": false,
     "profiles": [],
     "activeProfileId": "custom",
     "muteLinked": false,
@@ -82,25 +108,15 @@
       },
       {
         "id": "rapid-input",
-        "label": "Rapid Trigger and Snap Tap",
-        "summary": "Synapse 4 exposes both features for this keyboard through its analog mapping stack.",
+        "label": "Snap Tap",
+        "summary": "Snap Tap is available for this keyboard through Synapse 4.",
         "status": "synapse",
-        "unavailableReason": "This V2 firmware rejects the standalone Rapid Trigger and Snap Tap commands used by newer onboard implementations."
+        "unavailableReason": "Switchboard does not expose Snap Tap because no independent device command is verified for this model."
       }
     ],
     "gamingMode": {
       "enabled": true,
       "writable": true
-    },
-    "rapidTrigger": {
-      "enabled": null,
-      "writable": false,
-      "unavailableReason": "Requires Synapse 4 on the Huntsman V2 Analog; the keyboard rejected the standalone firmware command."
-    },
-    "snapTap": {
-      "enabled": null,
-      "writable": false,
-      "unavailableReason": "Requires Synapse 4 to stay active on this non-V3 keyboard."
     },
     "onboardProfiles": {
       "activeProfileId": "2",
@@ -115,6 +131,45 @@
         }
       ],
       "writable": true
+    },
+    "diagnostics": {
+      "protocol": "Razer feature reports",
+      "endpoint": "ready",
+      "lastSyncAt": "2026-08-27T00:00:00.000Z",
+      "reads": [
+        {
+          "id": "firmware",
+          "ok": true
+        },
+        {
+          "id": "serial-number",
+          "ok": true
+        },
+        {
+          "id": "brightness",
+          "ok": true
+        },
+        {
+          "id": "lighting-effect",
+          "ok": true
+        },
+        {
+          "id": "lighting-effects",
+          "ok": true
+        },
+        {
+          "id": "gaming-mode",
+          "ok": true
+        },
+        {
+          "id": "onboard-profiles",
+          "ok": true
+        },
+        {
+          "id": "active-profile",
+          "ok": true
+        }
+      ]
     }
   },
   "persistedSettings": {
@@ -135,10 +190,11 @@
         "viewportWidth": 1080,
         "workspaceWidth": 1012,
         "workspaceScrollWidth": 1012,
-        "workbenchBottom": 728.7187728881836,
-        "routineControlsBottom": 712.0521049499512,
+        "workbenchBottom": 462.5625228881836,
+        "routineControlsBottom": 461.89585876464844,
         "innerHeight": 722
-      }
+      },
+      "offFilename": "1080x720-off.png"
     },
     {
       "viewport": {
@@ -151,10 +207,11 @@
         "viewportWidth": 1420,
         "workspaceWidth": 1352,
         "workspaceScrollWidth": 1352,
-        "workbenchBottom": 912.4479598999023,
-        "routineControlsBottom": 895.7812919616699,
+        "workbenchBottom": 630.5625228881836,
+        "routineControlsBottom": 629.8958587646484,
         "innerHeight": 900
-      }
+      },
+      "offFilename": "1420x900-off.png"
     },
     {
       "viewport": {
@@ -167,10 +224,11 @@
         "viewportWidth": 1920,
         "workspaceWidth": 1852,
         "workspaceScrollWidth": 1852,
-        "workbenchBottom": 940.4479598999023,
-        "routineControlsBottom": 923.7812919616699,
+        "workbenchBottom": 661.5625228881836,
+        "routineControlsBottom": 660.8958587646484,
         "innerHeight": 1080
-      }
+      },
+      "offFilename": "1920x1080-off.png"
     }
   ]
 }
