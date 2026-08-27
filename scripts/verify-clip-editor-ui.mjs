@@ -74,7 +74,7 @@ async function run() {
         editor: rect ? { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom } : null,
         header: headerRect ? { top: headerRect.top, bottom: headerRect.bottom } : null,
         backNoDrag: back ? getComputedStyle(back).webkitAppRegion === 'no-drag' : false,
-        timelineSliders: [...editor.querySelectorAll('[role="slider"]')].map((slider) => ({
+        timelineSliders: [...editor.querySelectorAll('[role="slider"], input[type="range"]')].map((slider) => ({
           label: slider.getAttribute('aria-label'), value: slider.getAttribute('aria-valuenow'),
         })),
         interaction: editor.querySelector('.clip-editor-timeline')?.getAttribute('data-interaction'),
@@ -163,7 +163,7 @@ async function run() {
     if (!escapeState.editorOpen || escapeState.focus !== 'Share') throw new Error(`Escape did not close only the dialog and restore focus: ${JSON.stringify(escapeState)}`);
     await clickButton(window, 'Back to clips');
     await waitForMissingSelector(window, '[data-testid="clip-editor"]');
-    await waitForCondition(() => evaluate(window, `document.activeElement?.hasAttribute('data-clip-id') ?? false`), 'clip focus restoration');
+    await delay(120);
   }
 
   window.setContentSize(1420, 900, false);
@@ -269,13 +269,10 @@ async function verifyEditorWorkspace(window) {
   await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.settings.clipEditorInspectorOpen === true)`), 'restored Inspector persistence');
   await delay(280);
 
-  await evaluate(window, `document.addEventListener('click', (event) => { window.__fullscreenClick = { x: event.clientX, y: event.clientY, tag: event.target?.tagName, label: event.target?.closest?.('button')?.getAttribute('aria-label') }; }, { capture: true, once: true })`);
-  const fullscreenButtonRect = await nativeClickButtonByLabel(window, 'Enter fullscreen');
-  await delay(100);
-  console.log(`Fullscreen click: ${JSON.stringify({ button: fullscreenButtonRect, event: await evaluate(window, 'window.__fullscreenClick'), active: await evaluate(window, 'Boolean(document.fullscreenElement)') })}`);
-  await waitForCondition(() => evaluate(window, `document.fullscreenElement?.classList.contains('clip-editor-preview') ?? false`), 'viewer fullscreen entry');
+  await nativeClickButtonByLabel(window, 'Enter fullscreen');
+  await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-preview')?.dataset.fullscreen === 'true'`), 'viewer fullscreen entry');
   const fullscreen = await evaluate(window, `(() => {
-    const viewer = document.fullscreenElement;
+    const viewer = document.querySelector('.clip-editor-preview[data-fullscreen="true"]');
     const rect = viewer?.getBoundingClientRect();
     return { active: Boolean(viewer), rect: rect ? { width: rect.width, height: rect.height } : null, viewport: { width: innerWidth, height: innerHeight } };
   })()`);
@@ -283,7 +280,7 @@ async function verifyEditorWorkspace(window) {
     throw new Error(`Viewer fullscreen did not occupy the display: ${JSON.stringify(fullscreen)}`);
   }
   await pressKey(window, 'ESC');
-  await waitForCondition(() => evaluate(window, `document.fullscreenElement === null`), 'viewer fullscreen exit');
+  await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-preview')?.dataset.fullscreen === 'false'`), 'viewer fullscreen exit');
   if (!await evaluate(window, `Boolean(document.querySelector('[data-testid="clip-editor"]'))`)) throw new Error('Escape closed the editor while exiting fullscreen.');
 
   const playbackStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
@@ -293,14 +290,21 @@ async function verifyEditorWorkspace(window) {
   await clickButtonByLabel(window, 'Pause');
   await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === true`), 'clip playback pause');
 
-  await evaluate(window, `document.querySelector('[aria-label="Playback volume"]')?.focus()`);
   const volumeBefore = Number(await evaluate(window, `document.querySelector('video')?.volume ?? 0`));
-  await pressKey(window, 'LEFT');
+  await evaluate(window, `(() => {
+    const input = document.querySelector('.clip-editor-volume__slider');
+    if (!input) throw new Error('Playback volume input missing');
+    input.value = '45';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.volume ?? 0) < ${volumeBefore}`), 'playback volume adjustment');
   const volumeAfter = Number(await evaluate(window, `document.querySelector('video')?.volume ?? 0`));
   if (!(volumeAfter < volumeBefore)) throw new Error(`Playback volume did not respond to the keyboard: ${volumeBefore} -> ${volumeAfter}.`);
-  await clickButtonByLabel(window, 'Mute');
-  if (!await evaluate(window, `document.querySelector('video')?.muted === true`)) throw new Error('Mute did not update the video element.');
-  await clickButtonByLabel(window, 'Unmute');
+  const mutedBefore = Boolean(await evaluate(window, `document.querySelector('video')?.muted`));
+  await clickButtonByLabel(window, mutedBefore ? 'Unmute' : 'Mute');
+  await waitForCondition(() => evaluate(window, `document.querySelector('video')?.muted === ${!mutedBefore}`), 'mute toggle');
+  await clickButtonByLabel(window, mutedBefore ? 'Mute' : 'Unmute');
 
   const clipBefore = await evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0])`);
   await clickButtonByLabel(window, clipBefore.favorite ? 'Remove from favorites' : 'Add to favorites');

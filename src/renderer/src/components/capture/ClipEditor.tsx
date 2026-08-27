@@ -57,13 +57,19 @@ export function ClipEditor({ clip, exportPending, trimPending, inspectorOpen, on
   }, []);
 
   useEffect(() => {
-    const updateFullscreenState = () => setViewerFullscreen(document.fullscreenElement === viewerRef.current);
-    document.addEventListener('fullscreenchange', updateFullscreenState);
-    return () => document.removeEventListener('fullscreenchange', updateFullscreenState);
-  }, []);
+    if (!viewerFullscreen) return;
+    const exitFocusedViewer = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setViewerFullscreen(false);
+    };
+    window.addEventListener('keydown', exitFocusedViewer, { capture: true });
+    return () => window.removeEventListener('keydown', exitFocusedViewer, { capture: true });
+  }, [viewerFullscreen]);
 
   const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape' && document.fullscreenElement) return;
+    if (event.key === 'Escape' && viewerFullscreen) return;
     if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[data-radix-popper-content-wrapper], [data-share-clip-dialog][data-state="open"]')) {
       event.preventDefault();
       onClose();
@@ -87,13 +93,7 @@ export function ClipEditor({ clip, exportPending, trimPending, inspectorOpen, on
     setEndMs(nextEndMs);
   };
 
-  const toggleViewerFullscreen = () => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-      return;
-    }
-    void viewerRef.current?.requestFullscreen();
-  };
+  const toggleViewerFullscreen = () => setViewerFullscreen((current) => !current);
 
   return (
     <section ref={editorRef} className="clip-editor-shell" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" onKeyDown={keepFocusInside}>

@@ -11,7 +11,6 @@ import {
 import { FastForward, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   applyPlayheadKeyboard,
@@ -219,10 +218,11 @@ export function ClipTimeline({
     video.muted = !video.muted;
   };
 
-  const updateVolume = (values: number[]) => {
+  const updateVolume = (nextValue: number) => {
     const video = videoRef.current;
-    const nextVolume = Math.min(1, Math.max(0, values[0] ?? 0));
+    const nextVolume = Math.min(1, Math.max(0, nextValue));
     if (!video) return;
+    setVolume(nextVolume);
     video.volume = nextVolume;
     video.muted = nextVolume === 0;
   };
@@ -364,15 +364,16 @@ export function ClipTimeline({
         <div className="clip-editor-transport__utilities">
           <div className="clip-editor-volume" role="group" aria-label="Playback volume">
             <TransportButton label={muted ? 'Unmute' : 'Mute'} icon={muted ? VolumeX : Volume2} pressed={muted} onClick={toggleMute} />
-            <Slider
+            <input
+              type="range"
               className="clip-editor-volume__slider"
               min={0}
-              max={1}
-              step={0.01}
-              value={[volume]}
-              thumbLabels={['Playback volume']}
-              thumbValueText={[`${Math.round(volume * 100)} percent`]}
-              onValueChange={updateVolume}
+              max={100}
+              step={1}
+              value={Math.round(volume * 100)}
+              aria-label="Playback volume"
+              aria-valuetext={`${Math.round(volume * 100)} percent`}
+              onChange={(event) => updateVolume(Number(event.currentTarget.value) / 100)}
             />
           </div>
           <Separator orientation="vertical" className="h-5" />
