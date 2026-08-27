@@ -23,20 +23,33 @@ const child = spawn(executable, [`--remote-debugging-port=${port}`, `--user-data
   cwd: dirname(executable),
   env: environment,
   windowsHide: true,
-  stdio: 'ignore',
+  stdio: ['ignore', 'pipe', 'pipe'],
 });
+const applicationOutput = [];
+for (const stream of [child.stdout, child.stderr]) {
+  stream.on('data', (chunk) => {
+    applicationOutput.push(String(chunk));
+    if (applicationOutput.length > 200) applicationOutput.shift();
+  });
+}
 
 let socket;
 let packagedAudioPid;
 try {
   const target = await waitForTarget(port);
   socket = await connect(target.webSocketDebuggerUrl);
-  const ready = await waitForSnapshot(socket, (snapshot) => (
-    snapshot.audio.enabled
-    && snapshot.audio.host?.running
-    && snapshot.audio.host.noiseSuppression.state === 'ready'
-    && snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'running'
-  ));
+  let ready;
+  try {
+    ready = await waitForSnapshot(socket, (snapshot) => (
+      snapshot.audio.enabled
+      && snapshot.audio.host?.running
+      && snapshot.audio.host.noiseSuppression.state === 'ready'
+      && snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'running'
+    ));
+  } catch (error) {
+    const output = applicationOutput.join('').trim();
+    throw new Error(`${error.message}${output ? `\nPackaged application output:\n${output}` : ''}`, { cause: error });
+  }
   packagedAudioPid = ready.engines.find((engine) => engine.kind === 'audio')?.pid;
   if (!packagedAudioPid) throw new Error('The packaged Audio.Host did not report a process ID.');
 
