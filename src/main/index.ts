@@ -52,7 +52,7 @@ function createWindow(): BrowserWindow {
     title: 'Switchboard',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#0d1015',
+      color: '#00000000',
       symbolColor: '#a1aab7',
       height: 38,
     },

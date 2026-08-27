@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import type { AudioBus, AudioMixId, AudioPathId, SystemSnapshot } from '../../../../shared/contracts';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { AudioWorkspaceTab } from './AudioTabs';
 import { ChatMixSlider } from './ChatMixSlider';
 import { channelIcons, mixerChannelOrder, type MixerChannelId } from './channel-identity';
@@ -8,8 +6,7 @@ import { MixerChannelStrip } from './MixerChannelStrip';
 import { MixerMasterStrip } from './MixerMasterStrip';
 import { useSystemStore } from '@/stores/use-system-store';
 
-export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; onNavigate: (tab: AudioWorkspaceTab) => void }) {
-  const [selectedMixId, setSelectedMixId] = useState<AudioMixId>('personal');
+export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: SystemSnapshot; selectedMixId: AudioMixId; onNavigate: (tab: AudioWorkspaceTab) => void }) {
   const setAudioBusGain = useSystemStore((state) => state.setAudioBusGain);
   const setAudioBusEnabled = useSystemStore((state) => state.setAudioBusEnabled);
   const setAudioMasterGain = useSystemStore((state) => state.setAudioMasterGain);
@@ -37,25 +34,6 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
 
   return (
     <div className="mixer-workbench">
-      <div className="mixer-mix-toolbar">
-        <div className="mixer-mix-picker" role="group" aria-label="Mixer destination">
-          <span className="mixer-mix-picker__label">Mix</span>
-          <ToggleGroup
-            type="single"
-            value={selectedMixId}
-            onValueChange={(value) => value && setSelectedMixId(value as AudioMixId)}
-            aria-label="Select mixer destination"
-          >
-            {snapshot.audio.mixes.map((mix) => (
-              <ToggleGroupItem key={mix.id} value={mix.id} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
-        {snapshot.audio.capabilities.realtimeMetering === 'simulation'
-          ? <p className="mixer-workbench__note" role="status">Live levels are unavailable on this setup.</p>
-          : null}
-      </div>
-
       <div className="mixer-grid" data-testid="mixer-grid">
         <MixerMasterStrip
           master={selectedMix.master}

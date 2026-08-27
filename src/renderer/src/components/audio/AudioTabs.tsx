@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 export const audioWorkspaceTabs = ['mixer', 'game', 'chat', 'media', 'microphone'] as const;
@@ -12,7 +12,7 @@ const labels: Record<AudioWorkspaceTab, string> = {
   microphone: 'Microphone',
 };
 
-export function AudioTabs({ value, onChange }: { value: AudioWorkspaceTab; onChange: (tab: AudioWorkspaceTab) => void }) {
+export function AudioTabs({ value, onChange, tools }: { value: AudioWorkspaceTab; onChange: (tab: AudioWorkspaceTab) => void; tools?: ReactNode }) {
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const currentIndex = audioWorkspaceTabs.indexOf(value);
     let nextIndex = currentIndex;
@@ -29,28 +29,31 @@ export function AudioTabs({ value, onChange }: { value: AudioWorkspaceTab; onCha
   };
 
   return (
-    <div
-      role="tablist"
-      aria-label="Audio workspace"
-      onKeyDown={onKeyDown}
-      className="audio-tabs"
-    >
-      <div className="audio-tabs__inner">
-        {audioWorkspaceTabs.map((tab) => (
-          <button
-            key={tab}
-            id={`audio-tab-${tab}`}
-            type="button"
-            role="tab"
-            aria-selected={value === tab}
-            aria-controls={`audio-panel-${tab}`}
-            tabIndex={value === tab ? 0 : -1}
-            onClick={() => onChange(tab)}
-            className={cn('audio-tabs__tab', value === tab && 'is-active')}
-          >
-            {labels[tab]}
-          </button>
-        ))}
+    <div className="audio-tabs">
+      <div className="audio-tabs__row">
+        <div
+          role="tablist"
+          aria-label="Audio workspace"
+          onKeyDown={onKeyDown}
+          className="audio-tabs__inner"
+        >
+          {audioWorkspaceTabs.map((tab) => (
+            <button
+              key={tab}
+              id={`audio-tab-${tab}`}
+              type="button"
+              role="tab"
+              aria-selected={value === tab}
+              aria-controls={`audio-panel-${tab}`}
+              tabIndex={value === tab ? 0 : -1}
+              onClick={() => onChange(tab)}
+              className={cn('audio-tabs__tab', value === tab && 'is-active')}
+            >
+              {labels[tab]}
+            </button>
+          ))}
+        </div>
+        {tools ? <div className="audio-tabs__tools">{tools}</div> : null}
       </div>
     </div>
   );

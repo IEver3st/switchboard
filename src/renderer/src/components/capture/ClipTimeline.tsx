@@ -9,11 +9,12 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
-import { FastForward, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX } from 'lucide-react';
-import type { ClipAudioChannel, ClipAudioWaveformTrack } from '../../../../shared/contracts';
+import { FastForward, Film, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX } from 'lucide-react';
+import type { ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveformTrack } from '../../../../shared/contracts';
 import { channelColor } from '@/components/audio/channel-identity';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { switchboardApi } from '@/lib/demo-api';
 import {
@@ -35,11 +36,14 @@ export function ClipTimeline({
   fps,
   audioChannels,
   audioTrackLevels,
+  audioTrackTrims,
   startMs,
   endMs,
   dirty,
   savePending,
   onChange,
+  onAudioTrackTrimChange,
+  onResetTrims,
   onAudioTrackLevelChange,
   onSave,
 }: {
@@ -49,17 +53,21 @@ export function ClipTimeline({
   fps: number;
   audioChannels?: ClipAudioChannel[];
   audioTrackLevels?: number[];
+  audioTrackTrims?: Array<ClipAudioTrackTrim | null>;
   startMs: number;
   endMs: number;
   dirty: boolean;
   savePending: boolean;
   onChange: (startMs: number, endMs: number) => void;
+  onAudioTrackTrimChange: (trackIndex: number, startMs: number, endMs: number) => void;
+  onResetTrims: () => void;
   onAudioTrackLevelChange: (trackIndex: number, level: number) => Promise<void>;
   onSave: () => void;
 }) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const currentMsRef = useRef(startMs);
   const interactionRef = useRef<TimelineInteraction>('idle');
+  const activeTrimTrackRef = useRef<'clip' | number | null>(null);
   const pendingSeekMsRef = useRef<number | null>(null);
   const resumeAfterScrubRef = useRef(false);
   const playbackModeRef = useRef<'selection' | 'free'>('selection');
@@ -121,14 +129,25 @@ export function ClipTimeline({
     setPlayhead(next.currentMs);
   };
 
-  const trimStartToPointer = (clientX: number) => {
-    const next = applyTimelineInteraction('dragging-trim-start', timeAtPointer(clientX), values());
-    onChange(next.startMs, next.endMs);
+  const trimValues = (track: 'clip' | number): TimelineValues => {
+    if (track === 'clip') return values();
+    const trackTrim = audioTrackTrims?.[track];
+    return {
+      currentMs: currentMsRef.current,
+      startMs: trackTrim?.startMs ?? 0,
+      endMs: trackTrim?.endMs ?? durationMs,
+      durationMs,
+    };
   };
 
-  const trimEndToPointer = (clientX: number) => {
-    const next = applyTimelineInteraction('dragging-trim-end', timeAtPointer(clientX), values());
-    onChange(next.startMs, next.endMs);
+  const trimToPointer = (
+    kind: 'dragging-trim-start' | 'dragging-trim-end',
+    track: 'clip' | number,
+    clientX: number,
+  ) => {
+    const next = applyTimelineInteraction(kind, timeAtPointer(clientX), trimValues(track));
+    if (track === 'clip') onChange(next.startMs, next.endMs);
+    else onAudioTrackTrimChange(track, next.startMs, next.endMs);
   };
 
   const beginScrubbing = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -157,60 +176,57 @@ export function ClipTimeline({
     resumeAfterScrubRef.current = false;
   };
 
-  const beginTrimStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const beginTrim = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    kind: 'dragging-trim-start' | 'dragging-trim-end',
+    track: 'clip' | number,
+  ) => {
     if (event.button > 0 || event.isPrimary === false) return;
     event.preventDefault();
     event.stopPropagation();
-    setInteraction('dragging-trim-start');
+    activeTrimTrackRef.current = track;
+    setInteraction(kind);
     capturePointer(event.currentTarget, event.pointerId);
   };
 
-  const continueTrimStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (interactionRef.current !== 'dragging-trim-start') return;
-    trimStartToPointer(event.clientX);
+  const continueTrim = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    kind: 'dragging-trim-start' | 'dragging-trim-end',
+    track: 'clip' | number,
+  ) => {
+    if (interactionRef.current !== kind || activeTrimTrackRef.current !== track) return;
+    trimToPointer(kind, track, event.clientX);
   };
 
-  const finishTrimStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (interactionRef.current !== 'dragging-trim-start') return;
-    trimStartToPointer(event.clientX);
+  const finishTrim = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    kind: 'dragging-trim-start' | 'dragging-trim-end',
+    track: 'clip' | number,
+  ) => {
+    if (interactionRef.current !== kind || activeTrimTrackRef.current !== track) return;
+    trimToPointer(kind, track, event.clientX);
     releasePointer(event.currentTarget, event.pointerId);
-    setInteraction('idle');
-  };
-
-  const beginTrimEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button > 0 || event.isPrimary === false) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setInteraction('dragging-trim-end');
-    capturePointer(event.currentTarget, event.pointerId);
-  };
-
-  const continueTrimEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (interactionRef.current !== 'dragging-trim-end') return;
-    trimEndToPointer(event.clientX);
-  };
-
-  const finishTrimEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (interactionRef.current !== 'dragging-trim-end') return;
-    trimEndToPointer(event.clientX);
-    releasePointer(event.currentTarget, event.pointerId);
+    activeTrimTrackRef.current = null;
     setInteraction('idle');
   };
 
   const cancelPointerInteraction = () => {
     resumeAfterScrubRef.current = false;
+    activeTrimTrackRef.current = null;
     setInteraction('idle');
   };
 
   const updateTrimFromKeyboard = (
     event: ReactKeyboardEvent<HTMLDivElement>,
     kind: 'dragging-trim-start' | 'dragging-trim-end',
+    track: 'clip' | number,
   ) => {
-    const next = applyTrimKeyboard(kind, event.key, values(), 100);
+    const next = applyTrimKeyboard(kind, event.key, trimValues(track), 100);
     if (!next) return;
     event.preventDefault();
     event.stopPropagation();
-    onChange(next.startMs, next.endMs);
+    if (track === 'clip') onChange(next.startMs, next.endMs);
+    else onAudioTrackTrimChange(track, next.startMs, next.endMs);
   };
 
   const updatePlayheadFromKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -270,6 +286,7 @@ export function ClipTimeline({
     const clearStalePointerState = () => {
       if (interactionRef.current === 'idle') return;
       interactionRef.current = 'idle';
+      activeTrimTrackRef.current = null;
       resumeAfterScrubRef.current = false;
       setInteractionState('idle');
     };
@@ -368,10 +385,7 @@ export function ClipTimeline({
     );
   }
 
-  const startPercent = startMs / durationMs * 100;
-  const endPercent = endMs / durationMs * 100;
   const currentPercent = Math.min(100, Math.max(0, currentMs / durationMs * 100));
-  const selectedPercent = Math.max(0, endPercent - startPercent);
   const fallbackTracks: ClipAudioWaveformTrack[] = (audioChannels ?? []).map((channel, trackIndex) => ({
     trackIndex,
     channel,
@@ -380,6 +394,7 @@ export function ClipTimeline({
   }));
   const displayTracks = waveformState === 'ready' ? waveformTracks : (waveformTracks.length > 0 ? waveformTracks : fallbackTracks);
   const timelineStyle = { '--audio-track-count': Math.max(1, displayTracks.length) } as CSSProperties;
+  const hasAudioTrackTrims = audioTrackTrims?.some(Boolean) ?? false;
 
   return (
     <section className="clip-editor-timeline" aria-label="Clip timeline" data-interaction={interaction}>
@@ -413,19 +428,23 @@ export function ClipTimeline({
             />
           </div>
           <Separator orientation="vertical" className="h-5" />
-          <TransportButton label="Reset trim" icon={Undo2} disabled={startMs === 0 && endMs === durationMs} onClick={() => onChange(0, durationMs)} />
+          <TransportButton label="Reset timeline edits" icon={Undo2} disabled={startMs === 0 && endMs === durationMs && !hasAudioTrackTrims} onClick={onResetTrims} />
           <Button type="button" variant="secondary" size="sm" className="h-7 px-2.5 text-[10px]" disabled={!dirty || savePending} onClick={onSave}>
-            <Save className="size-3.5" aria-hidden="true" /> {savePending ? 'Saving…' : dirty ? 'Save trim' : 'Saved'}
+            <Save className="size-3.5" aria-hidden="true" /> {savePending ? 'Saving…' : dirty ? 'Save edits' : 'Saved'}
           </Button>
         </div>
       </div>
 
       <div className="clip-editor-timeline__desk" style={timelineStyle} data-waveform-state={waveformState}>
-        <div className="clip-editor-track-controls" aria-label="Export audio mix">
-          <div className="clip-editor-track-controls__heading" title="Track levels are auto-saved and applied to created share files.">
-            <span>Export mix</span><em>Auto-saved</em>
+        <div className="clip-editor-track-controls" aria-label="Timeline track controls">
+          <div className="clip-editor-track-controls__heading" title="Track levels auto-save. Timeline ranges are saved with the clip edits.">
+            <span>Tracks</span><em>Levels auto-save</em>
           </div>
           <div className="clip-editor-track-controls__lanes">
+            <div className="clip-editor-clip-control">
+              <span><Film aria-hidden="true" /> Clip range</span>
+              <output>{formatRulerTime(endMs - startMs)}</output>
+            </div>
             {displayTracks.length > 0 ? displayTracks.map((track) => (
               <AudioTrackControl
                 key={track.trackIndex}
@@ -450,27 +469,57 @@ export function ClipTimeline({
             ))}
           </div>
 
-          <div className="clip-editor-timeline__tracks" aria-hidden="true">
+          <div className="clip-editor-timeline__tracks">
+            <div className="clip-editor-timeline__clip-track" role="group" aria-label="Clip range">
+              <span className="clip-editor-timeline__clip-fill" aria-hidden="true" />
+              <TimelineLaneTrim
+                startMs={startMs}
+                endMs={endMs}
+                durationMs={durationMs}
+                startLabel="Trim start"
+                endLabel="Trim end"
+                startTestId="clip-trim-start"
+                endTestId="clip-trim-end"
+                onKeyDown={(event, kind) => updateTrimFromKeyboard(event, kind, 'clip')}
+                onPointerDown={(event, kind) => beginTrim(event, kind, 'clip')}
+                onPointerMove={(event, kind) => continueTrim(event, kind, 'clip')}
+                onPointerUp={(event, kind) => finishTrim(event, kind, 'clip')}
+                onPointerCancel={cancelPointerInteraction}
+              />
+            </div>
             {displayTracks.length > 0 ? displayTracks.map((track) => (
               <div
                 key={track.trackIndex}
                 className="clip-editor-timeline__audio-track"
                 data-muted={(audioTrackLevels?.[track.trackIndex] ?? 100) === 0 ? 'true' : undefined}
                 style={{ '--track-color': track.channel ? channelColor(track.channel) : 'var(--text-description)' } as CSSProperties}
+                role="group"
+                aria-label={`${track.channel ? channelLabel(track.channel) : track.label} timeline`}
               >
                 {track.samples.length > 0 ? (
-                  <svg viewBox={`0 0 ${track.samples.length} 1`} preserveAspectRatio="none" focusable="false">
+                  <svg viewBox={`0 0 ${track.samples.length} 1`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
                     <path d={waveformPath(track.samples)} vectorEffect="non-scaling-stroke" />
                   </svg>
                 ) : <span>{waveformState === 'loading' ? 'Analyzing…' : waveformState === 'error' ? 'Waveform unavailable' : 'No audible activity'}</span>}
+                <TimelineLaneTrim
+                  startMs={audioTrackTrims?.[track.trackIndex]?.startMs ?? 0}
+                  endMs={audioTrackTrims?.[track.trackIndex]?.endMs ?? durationMs}
+                  durationMs={durationMs}
+                  startLabel={`${track.channel ? channelLabel(track.channel) : track.label} trim start`}
+                  endLabel={`${track.channel ? channelLabel(track.channel) : track.label} trim end`}
+                  startTestId={`clip-track-${track.trackIndex}-trim-start`}
+                  endTestId={`clip-track-${track.trackIndex}-trim-end`}
+                  onKeyDown={(event, kind) => updateTrimFromKeyboard(event, kind, track.trackIndex)}
+                  onPointerDown={(event, kind) => beginTrim(event, kind, track.trackIndex)}
+                  onPointerMove={(event, kind) => continueTrim(event, kind, track.trackIndex)}
+                  onPointerUp={(event, kind) => finishTrim(event, kind, track.trackIndex)}
+                  onPointerCancel={cancelPointerInteraction}
+                />
               </div>
             )) : (
               <div className="clip-editor-timeline__audio-track is-empty"><span>{waveformState === 'loading' ? 'Reading track data…' : waveformState === 'error' ? 'Waveform unavailable' : 'This clip has no audio streams'}</span></div>
             )}
           </div>
-          <span className="clip-editor-timeline__selection" style={{ left: `${startPercent}%`, width: `${selectedPercent}%` }} aria-hidden="true" />
-          <span className="clip-editor-timeline__inactive is-before" style={{ width: `${startPercent}%` }} aria-hidden="true" />
-          <span className="clip-editor-timeline__inactive is-after" style={{ left: `${endPercent}%`, width: `${100 - endPercent}%` }} aria-hidden="true" />
 
           <div
             role="slider"
@@ -495,47 +544,6 @@ export function ClipTimeline({
             <span className="clip-editor-playhead__line" />
           </div>
 
-          <div
-            role="slider"
-            tabIndex={0}
-            aria-label="Trim start"
-            aria-valuemin={0}
-            aria-valuemax={Math.max(0, endMs - minimumClipDurationMs)}
-            aria-valuenow={Math.round(startMs)}
-            aria-valuetext={formatTimelineTime(startMs)}
-            aria-orientation="horizontal"
-            className="clip-editor-trim-handle is-start"
-            style={{ left: `${startPercent}%` }}
-            data-testid="clip-trim-start"
-            onKeyDown={(event) => updateTrimFromKeyboard(event, 'dragging-trim-start')}
-            onPointerDown={beginTrimStart}
-            onPointerMove={continueTrimStart}
-            onPointerUp={finishTrimStart}
-            onPointerCancel={cancelPointerInteraction}
-          >
-            <span aria-hidden="true"><i /><i /><i /></span>
-          </div>
-
-          <div
-            role="slider"
-            tabIndex={0}
-            aria-label="Trim end"
-            aria-valuemin={Math.min(durationMs, startMs + minimumClipDurationMs)}
-            aria-valuemax={durationMs}
-            aria-valuenow={Math.round(endMs)}
-            aria-valuetext={formatTimelineTime(endMs)}
-            aria-orientation="horizontal"
-            className="clip-editor-trim-handle is-end"
-            style={{ left: `${endPercent}%` }}
-            data-testid="clip-trim-end"
-            onKeyDown={(event) => updateTrimFromKeyboard(event, 'dragging-trim-end')}
-            onPointerDown={beginTrimEnd}
-            onPointerMove={continueTrimEnd}
-            onPointerUp={finishTrimEnd}
-            onPointerCancel={cancelPointerInteraction}
-          >
-            <span aria-hidden="true"><i /><i /><i /></span>
-          </div>
         </div>
       </div>
 

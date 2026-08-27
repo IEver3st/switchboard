@@ -90,6 +90,23 @@ describe('application update lifecycle', () => {
     service.dispose();
   });
 
+  it('can activate the development update presentation after initialization', async () => {
+    const service = new AppUpdateService({
+      currentVersion: '0.1.0',
+      isPackaged: false,
+      platform: 'win32',
+      onStateChanged: () => undefined,
+    });
+
+    expect((await service.initialize(true)).status).toBe('unavailable');
+    expect(service.enableDemoUpdate()).toMatchObject({
+      capability: 'available',
+      status: 'available',
+      availableVersion: '0.2.0',
+    });
+    service.dispose();
+  });
+
   it('publishes check, download, and restart-ready state through the canonical contract', async () => {
     const updater = new FakeUpdater();
     const states: AppUpdateState[] = [];
