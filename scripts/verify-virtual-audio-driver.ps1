@@ -6,7 +6,9 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $repoRoot 'drivers\virtual-audio\endpoint-manifest.json'
 $projectPath = Join-Path $repoRoot 'engines\audio-host\Audio.Host.csproj'
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-$json = & dotnet run --project $projectPath --no-launch-profile -- --list-endpoints
+& dotnet build $projectPath --configuration Release --nologo | Out-Host
+if ($LASTEXITCODE -ne 0) { throw "Audio.Host build failed with exit code $LASTEXITCODE." }
+$json = & dotnet run --configuration Release --project $projectPath --no-build --no-launch-profile -- --list-endpoints
 if ($LASTEXITCODE -ne 0) { throw "Audio.Host endpoint discovery failed with exit code $LASTEXITCODE." }
 $discovered = $json | ConvertFrom-Json
 $missing = [System.Collections.Generic.List[string]]::new()

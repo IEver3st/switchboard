@@ -98,15 +98,21 @@ internal sealed class SilentSampleProvider : ISampleProvider
 
 internal sealed class CaptureFanOut : IDisposable
 {
-    private readonly WasapiCapture capture;
+    private readonly WasapiRecorder capture;
     private readonly SpscFloatRing[] destinations;
     private int stopping;
 
     public CaptureFanOut(MMDevice device, bool loopback, params SpscFloatRing[] destinations)
     {
         this.destinations = destinations;
-        capture = loopback ? new WasapiLoopbackCapture(device) : new WasapiCapture(device, true, AudioConstants.LatencyMilliseconds);
-        capture.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.SampleRate, AudioConstants.Channels);
+        var builder = new WasapiRecorderBuilder()
+            .WithDevice(device)
+            .WithSharedMode()
+            .WithEventSync()
+            .WithBufferLength(AudioConstants.LatencyMilliseconds)
+            .WithFormat(WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.SampleRate, AudioConstants.Channels));
+        if (loopback) builder.WithLoopbackCapture();
+        capture = builder.Build();
         capture.DataAvailable += OnDataAvailable;
         capture.RecordingStopped += OnRecordingStopped;
     }
@@ -251,12 +257,17 @@ internal sealed class RealtimeMeter
 
 internal sealed class AudioOutput : IDisposable
 {
-    private readonly WasapiOut output;
+    private readonly WasapiPlayer output;
     private int disposed;
 
     public AudioOutput(MMDevice endpoint, ISampleProvider source)
     {
-        output = new WasapiOut(endpoint, AudioClientShareMode.Shared, true, AudioConstants.LatencyMilliseconds);
+        output = new WasapiPlayerBuilder()
+            .WithDevice(endpoint)
+            .WithSharedMode()
+            .WithEventSync()
+            .WithLatency(AudioConstants.LatencyMilliseconds)
+            .Build();
         output.Init(new FloatWaveProvider(source));
         output.PlaybackStopped += OnPlaybackStopped;
     }

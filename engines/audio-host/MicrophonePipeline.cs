@@ -23,14 +23,14 @@ internal sealed class MicrophonePipeline : IDisposable
     private readonly FrameTimingMetrics frameTimings = new();
     private readonly FrameTimingMetrics callbackTimings = new();
     private readonly MMDeviceEnumerator enumerator = new();
-    private readonly WasapiCapture capture;
+    private readonly WasapiRecorder capture;
     private readonly CaptureSampleConverter converter;
     private readonly float[] frame;
     private readonly float[] dryFrame;
     private readonly float[] testSamples = new float[TestSampleCount];
     private readonly Thread processingThread;
     private MicrophoneDspConfiguration configuration;
-    private WasapiOut? monitorOutput;
+    private WasapiPlayer? monitorOutput;
     private ProcessedWaveProvider? monitorProvider;
     private volatile bool stopping;
     private volatile bool captureStopped;
@@ -70,7 +70,12 @@ internal sealed class MicrophonePipeline : IDisposable
         InputDeviceId = inputId;
         var inputDevice = enumerator.GetDevice(inputId);
         if (inputDevice.State != DeviceState.Active) throw new InvalidOperationException("The selected microphone is not available.");
-        capture = new WasapiCapture(inputDevice, useEventSync: true, audioBufferMillisecondsLength: 20);
+        capture = new WasapiRecorderBuilder()
+            .WithDevice(inputDevice)
+            .WithSharedMode()
+            .WithEventSync()
+            .WithBufferLength(20)
+            .Build();
         converter = new CaptureSampleConverter(capture.WaveFormat);
         InputFormat = converter.Description;
         InputSampleRate = converter.InputSampleRate;
@@ -145,7 +150,12 @@ internal sealed class MicrophonePipeline : IDisposable
                 throw new InvalidOperationException("Choose a physical output for microphone testing.");
 
             var provider = new RecordedWaveProvider(testSamples, TestSampleCount, Volatile.Read(ref testOutputVolume));
-            using var output = new WasapiOut(outputDevice, AudioClientShareMode.Shared, true, 20);
+            using var output = new WasapiPlayerBuilder()
+                .WithDevice(outputDevice)
+                .WithSharedMode()
+                .WithEventSync()
+                .WithLatency(20)
+                .Build();
             output.Init(provider);
             output.Play();
             while (!provider.Completed)
@@ -291,7 +301,12 @@ internal sealed class MicrophonePipeline : IDisposable
         processedSamples.Clear();
         var provider = new ProcessedWaveProvider(processedSamples);
         provider.SetVolume(settings.Monitoring);
-        var output = new WasapiOut(outputDevice, AudioClientShareMode.Shared, true, 20);
+        var output = new WasapiPlayerBuilder()
+            .WithDevice(outputDevice)
+            .WithSharedMode()
+            .WithEventSync()
+            .WithLatency(20)
+            .Build();
         output.Init(provider);
         monitorProvider = provider;
         monitorOutput = output;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StateStore } from '../src/main/services/state-store';
@@ -95,5 +95,29 @@ describe('audio workspace persistence', () => {
     expect(audio.capabilities.applicationRouting).toBe('unavailable');
     expect(audio.applications).toEqual([]);
     expect(audio.buses.every((bus) => bus.appCount === 0)).toBeTrue();
+  });
+
+  test('discards stale host runtime data without discarding persisted mix settings', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-audio-host-migration-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const first = new StateStore(filePath);
+    await first.load();
+    first.update((draft) => {
+      draft.audio.enabled = true;
+      draft.audio.mixes.find((mix) => mix.id === 'personal')!.master.gain = 1.19;
+    });
+    await first.flush();
+
+    const persisted = JSON.parse(await readFile(filePath, 'utf8'));
+    persisted.audio.host = { running: true, sampleRate: 48_000 };
+    await writeFile(filePath, JSON.stringify(persisted), 'utf8');
+
+    const restarted = new StateStore(filePath);
+    await restarted.load();
+    const audio = restarted.get().audio;
+    expect(audio.enabled).toBeTrue();
+    expect(audio.mixes.find((mix) => mix.id === 'personal')?.master.gain).toBe(1.19);
+    expect(audio.host).toBeNull();
   });
 });

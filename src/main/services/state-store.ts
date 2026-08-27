@@ -279,8 +279,12 @@ function migrateLegacyCaptureState(value: unknown): unknown {
 }
 
 function migrateAudioMixState(value: unknown): unknown {
-  if (!isRecord(value) || !isRecord(value.audio) || Array.isArray(value.audio.mixes)) return value;
+  if (!isRecord(value) || !isRecord(value.audio)) return value;
   const defaults = createDefaultSnapshot();
+  if (Array.isArray(value.audio.mixes)) {
+    return { ...value, audio: { ...value.audio, host: null } };
+  }
+
   const legacyBuses = Array.isArray(value.audio.buses) ? value.audio.buses : [];
   const legacyMaster = isRecord(value.audio.master) ? value.audio.master : {};
   const mixes = structuredClone(defaults.audio.mixes);
@@ -297,7 +301,7 @@ function migrateAudioMixState(value: unknown): unknown {
       else if (typeof candidate.muted === 'boolean') bus.enabled = !candidate.muted;
     }
   }
-  return { ...value, audio: { ...value.audio, mixes } };
+  return { ...value, audio: { ...value.audio, mixes, host: null } };
 }
 
 function migrateGameDetectionState(value: unknown): unknown {

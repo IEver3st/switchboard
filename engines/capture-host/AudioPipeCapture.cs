@@ -81,7 +81,12 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
 
     public static AudioPipeCapture CreateSystemLoopback()
     {
-        var capture = new WasapiLoopbackCapture();
+        var capture = new WasapiRecorderBuilder()
+            .WithSharedMode()
+            .WithEventSync()
+            .WithBufferLength(50)
+            .WithLoopbackCapture()
+            .Build();
         return new AudioPipeCapture(capture, "System audio");
     }
 
@@ -89,7 +94,12 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     {
         using var enumerator = new MMDeviceEnumerator();
         var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
-        var capture = new WasapiCapture(endpoint, useEventSync: true, audioBufferMillisecondsLength: 50);
+        var capture = new WasapiRecorderBuilder()
+            .WithDevice(endpoint)
+            .WithSharedMode()
+            .WithEventSync()
+            .WithBufferLength(50)
+            .Build();
         return new AudioPipeCapture(capture, "Microphone", endpoint);
     }
 
@@ -99,7 +109,12 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         var endpoint = enumerator.GetDevice(endpointId);
         try
         {
-            var capture = new WasapiCapture(endpoint, useEventSync: true, audioBufferMillisecondsLength: 50);
+            var capture = new WasapiRecorderBuilder()
+                .WithDevice(endpoint)
+                .WithSharedMode()
+                .WithEventSync()
+                .WithBufferLength(50)
+                .Build();
             return new AudioPipeCapture(capture, label, endpoint);
         }
         catch
