@@ -21,26 +21,17 @@
         "left": 0
       },
       "sequence": {
-        "x": 400,
-        "y": 272,
-        "width": 280,
-        "height": 178,
-        "top": 272,
-        "right": 680,
-        "bottom": 450,
-        "left": 400
+        "x": 340,
+        "y": 234.625,
+        "width": 400,
+        "height": 252.75,
+        "top": 234.625,
+        "right": 740,
+        "bottom": 487.375,
+        "left": 340
       },
-      "route": {
-        "x": 430,
-        "y": 346,
-        "width": 220,
-        "height": 52,
-        "top": 346,
-        "right": 650,
-        "bottom": 398,
-        "left": 430
-      },
-      "status": "SwitchboardStarting control plane",
+      "route": null,
+      "status": "SwitchboardInitializing control plane",
       "horizontalOverflow": false,
       "verticalOverflow": false,
       "controlPlaneVisible": true

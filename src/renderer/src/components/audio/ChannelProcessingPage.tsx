@@ -1,11 +1,9 @@
 import type { ChannelAudioBusId, SystemSnapshot } from '../../../../shared/contracts';
-import { AdvancedDisclosure, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
-import { AudioWorkbenchHeader } from './AudioWorkbenchHeader';
+import { SettingToggle } from '@/components/shared/human-controls';
+import { EqualizerHeader } from './EqualizerHeader';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
-import { ProcessorSection } from './processors/ProcessorSection';
-import { channelLeveling, matchChannelLeveling, type SemanticStrength } from './semantic-mapping';
 import { useSystemStore } from '@/stores/use-system-store';
 
 const labels: Record<ChannelAudioBusId, string> = {
@@ -14,23 +12,11 @@ const labels: Record<ChannelAudioBusId, string> = {
   media: 'Media',
 };
 
-const levelingCopy: Record<ChannelAudioBusId, { title: string; description: string }> = {
-  game: { title: 'Volume leveling', description: 'Keeps quiet and loud moments closer together.' },
-  chat: { title: 'Voice leveling', description: 'Keeps people at a more consistent volume.' },
-  media: { title: 'Volume leveling', description: 'Smooths large volume changes between songs, videos, and apps.' },
+const normalizationCopy: Record<ChannelAudioBusId, { title: string; description: string }> = {
+  game: { title: 'Volume leveling', description: 'Lifts quiet moments toward a consistent target.' },
+  chat: { title: 'Voice leveling', description: 'Brings quieter people closer to a consistent level.' },
+  media: { title: 'Volume leveling', description: 'Balances loudness changes between songs, videos, and apps.' },
 };
-
-const pageCopy: Record<ChannelAudioBusId, { title: string; subtitle: string }> = {
-  game: { title: 'Game', subtitle: 'Equalizer, leveling, and output safety for game audio.' },
-  chat: { title: 'Chat', subtitle: 'Equalizer, leveling, and output safety for voice chat.' },
-  media: { title: 'Media', subtitle: 'Equalizer, leveling, and output safety for music and video.' },
-};
-
-const strengthOptions = [
-  { value: 'light', label: 'Natural' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'strong', label: 'Strong' },
-] satisfies Array<{ value: SemanticStrength; label: string }>;
 
 export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSnapshot; busId: ChannelAudioBusId }) {
   const setAudioChannelProcessor = useSystemStore((state) => state.setAudioChannelProcessor);
@@ -52,54 +38,8 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
     return <div className="px-6 py-8 text-sm text-destructive">{labels[busId]} sound settings are unavailable.</div>;
   }
 
-  const levelingEnabled = processing.normalization.enabled || processing.compressor.enabled;
-  const levelingStrength = matchChannelLeveling(processing);
-
-  const setLevelingEnabled = async (enabled: boolean) => {
-    await setAudioChannelProcessor({ busId, processorId: 'normalization', enabled });
-    await setAudioChannelProcessor({ busId, processorId: 'compressor', enabled });
-  };
-
-  const setLevelingStrength = async (strength: SemanticStrength) => {
-    const next = channelLeveling[strength];
-    await setAudioChannelProcessor({
-      busId,
-      processorId: 'normalization',
-      enabled: true,
-      parameters: { targetLufs: next.targetLufs, maxGainDb: next.maxGainDb },
-    });
-    await setAudioChannelProcessor({
-      busId,
-      processorId: 'compressor',
-      enabled: true,
-      parameters: next.compressor,
-    });
-  };
-
   return (
     <div className="audio-workbench" data-channel={busId}>
-      <AudioWorkbenchHeader
-        title={pageCopy[busId].title}
-        subtitle={pageCopy[busId].subtitle}
-        tools={(
-          <PresetPicker
-            kind={busId}
-            label="Sound"
-            presets={snapshot.audio.pathPresets}
-            activeId={snapshot.audio.activePresetIds[busId]}
-            pending={pendingId?.startsWith('audio:preset') ?? false}
-            desktopFeatures={Boolean(window.switchboard)}
-            onApply={(presetId) => void applyAudioPreset({ presetId })}
-            onCreate={(name) => void createAudioPreset({ kind: busId, name })}
-            onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
-            onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
-            onDelete={(presetId) => void deleteAudioPreset({ presetId })}
-            onImport={() => void importAudioPreset()}
-            onExport={(presetId) => void exportAudioPreset({ presetId })}
-          />
-        )}
-      />
-
       {support !== 'available' ? (
         <p className="audio-workbench__availability" role="status">
           {support === 'simulation'
@@ -110,13 +50,29 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
 
       <div className="audio-main-grid">
         <section className="audio-primary-section" aria-labelledby={`${busId}-equalizer-heading`}>
-          <SettingToggle
-            title="Equalizer"
-            description="Shape the sound by dragging a band, then fine-tune the selected point below."
+          <EqualizerHeader
+            headingId={`${busId}-equalizer-heading`}
             checked={processing.equalizer.enabled}
             disabled={unavailable}
             pending={pending}
             onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', enabled })}
+            tools={(
+              <PresetPicker
+                kind={busId}
+                label="Sound preset"
+                presets={snapshot.audio.pathPresets}
+                activeId={snapshot.audio.activePresetIds[busId]}
+                pending={pendingId?.startsWith('audio:preset') ?? false}
+                desktopFeatures={Boolean(window.switchboard)}
+                onApply={(presetId) => void applyAudioPreset({ presetId })}
+                onCreate={(name) => void createAudioPreset({ kind: busId, name })}
+                onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
+                onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
+                onDelete={(presetId) => void deleteAudioPreset({ presetId })}
+                onImport={() => void importAudioPreset()}
+                onExport={(presetId) => void exportAudioPreset({ presetId })}
+              />
+            )}
           />
           <ParametricEq
             bands={processing.equalizer.bands}
@@ -133,21 +89,37 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
 
           <div className="audio-simple-section">
             <SettingToggle
-              title={levelingCopy[busId].title}
-              description={levelingCopy[busId].description}
-              checked={levelingEnabled}
+              title={normalizationCopy[busId].title}
+              description={normalizationCopy[busId].description}
+              checked={processing.normalization.enabled}
               disabled={unavailable}
               pending={pending}
-              technicalName="Normalization + compressor"
-              onCheckedChange={(enabled) => void setLevelingEnabled(enabled)}
+              technicalName="Normalization"
+              onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'normalization', enabled })}
             />
-            <SemanticChoice
-              label={`${levelingCopy[busId].title} strength`}
-              value={levelingStrength}
-              options={strengthOptions}
-              disabled={unavailable || !levelingEnabled || pending}
-              onChange={(strength) => void setLevelingStrength(strength)}
+            <div className="audio-processor-parameters">
+              <ParameterControl label="Target loudness" value={processing.normalization.targetLufs} min={-30} max={-10} step={0.5} unit=" LUFS" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(targetLufs) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { targetLufs } })} />
+              <ParameterControl label="Maximum lift" value={processing.normalization.maxGainDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(maxGainDb) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { maxGainDb } })} />
+            </div>
+          </div>
+
+          <div className="audio-simple-section">
+            <SettingToggle
+              title="Dynamic control"
+              description="Keeps loud peaks closer to the rest of the mix."
+              checked={processing.compressor.enabled}
+              disabled={unavailable}
+              pending={pending}
+              technicalName="Compressor"
+              onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'compressor', enabled })}
             />
+            <div className="audio-processor-parameters">
+              <ParameterControl label="Threshold" value={processing.compressor.thresholdDb} min={-60} max={0} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { thresholdDb } })} />
+              <ParameterControl label="Ratio" value={processing.compressor.ratio} min={1} max={20} step={0.1} unit=":1" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(ratio) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { ratio } })} />
+              <ParameterControl label="Attack" value={processing.compressor.attackMs} min={0.1} max={200} step={0.5} unit=" ms" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(attackMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { attackMs } })} />
+              <ParameterControl label="Release" value={processing.compressor.releaseMs} min={10} max={2_000} step={5} unit=" ms" disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { releaseMs } })} />
+              <ParameterControl label="Makeup gain" value={processing.compressor.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(makeupDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { makeupDb } })} />
+            </div>
           </div>
 
           <div className="audio-simple-section">
@@ -160,52 +132,13 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
               technicalName="Limiter"
               onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'limiter', enabled })}
             />
+            <div className="audio-processor-parameters">
+              <ParameterControl label="Ceiling" value={processing.limiter.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { thresholdDb } })} />
+              <ParameterControl label="Release" value={processing.limiter.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { releaseMs } })} />
+            </div>
           </div>
         </section>
       </div>
-
-      <AdvancedDisclosure>
-        <div className="advanced-processor-grid">
-          <ProcessorSection
-            id={`${busId}-normalization`}
-            title="Volume normalization"
-            enabled={processing.normalization.enabled}
-            pending={pending}
-            support={support}
-            onEnabledChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'normalization', enabled })}
-          >
-            <ParameterControl label="Target loudness" value={processing.normalization.targetLufs} min={-30} max={-10} step={0.5} unit=" LUFS" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(targetLufs) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { targetLufs } })} />
-            <ParameterControl label="Maximum lift" value={processing.normalization.maxGainDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(maxGainDb) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { maxGainDb } })} />
-          </ProcessorSection>
-
-          <ProcessorSection
-            id={`${busId}-compressor`}
-            title="Compressor"
-            enabled={processing.compressor.enabled}
-            pending={pending}
-            support={support}
-            onEnabledChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'compressor', enabled })}
-          >
-            <ParameterControl label="Threshold" value={processing.compressor.thresholdDb} min={-60} max={0} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { thresholdDb } })} />
-            <ParameterControl label="Ratio" value={processing.compressor.ratio} min={1} max={20} step={0.1} unit=":1" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(ratio) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { ratio } })} />
-            <ParameterControl label="Attack" value={processing.compressor.attackMs} min={0.1} max={200} step={0.5} unit=" ms" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(attackMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { attackMs } })} />
-            <ParameterControl label="Release" value={processing.compressor.releaseMs} min={10} max={2_000} step={5} unit=" ms" disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { releaseMs } })} />
-            <ParameterControl label="Makeup gain" value={processing.compressor.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(makeupDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { makeupDb } })} />
-          </ProcessorSection>
-
-          <ProcessorSection
-            id={`${busId}-limiter`}
-            title="Limiter"
-            enabled={processing.limiter.enabled}
-            pending={pending}
-            support={support}
-            onEnabledChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'limiter', enabled })}
-          >
-            <ParameterControl label="Ceiling" value={processing.limiter.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { thresholdDb } })} />
-            <ParameterControl label="Release" value={processing.limiter.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { releaseMs } })} />
-          </ProcessorSection>
-        </div>
-      </AdvancedDisclosure>
     </div>
   );
 }

@@ -39,7 +39,6 @@ export function SettingToggle({
         {description ? <p>{description}</p> : null}
       </div>
       <label className="human-setting__state">
-        <span>{checked ? 'On' : 'Off'}</span>
         <Switch
           checked={checked}
           disabled={disabled || pending}
@@ -125,6 +124,7 @@ export function PrimarySlider({
         <output>{formatValue(current, step)}<small>{unit}</small></output>
       </div>
       <Slider
+        variant="fader"
         min={min}
         max={max}
         step={step}

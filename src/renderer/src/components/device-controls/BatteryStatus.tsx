@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
-import { formatBatteryRuntime } from './battery-status-format';
+import { batteryRuntimeLabel } from './battery-status-format';
 
 interface BatteryStatusProps {
   battery?: BatteryCapability;
@@ -54,6 +54,35 @@ export function BatteryStatus({
         ? 'Disconnected'
         : 'On battery';
 
+  if (variant === 'compact') {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className={cn('battery-status battery-status--compact text-muted-foreground', className)}
+            data-charging={isCharging || undefined}
+            data-severity={severity}
+            data-state={state}
+            role="group"
+            aria-label={accessible}
+          >
+            <BatteryLevelIcon percentage={battery.percentage} fullyCharged={battery.fullyCharged} charging={isCharging} />
+            <strong className="battery-status__value tabular-nums">{roundedPercentage}%</strong>
+            <span className="battery-status__separator" aria-hidden>·</span>
+            <span className="battery-status__runtime text-muted-foreground">{runtimeLabel}</span>
+          </div>
+        </TooltipTrigger>
+        <BatteryStatusTooltip
+          percentage={roundedPercentage}
+          state={tooltipState}
+          runtime={runtimeLabel}
+          updatedAt={battery.updatedAt}
+          connectionLabel={connectionLabel}
+        />
+      </Tooltip>
+    );
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -88,13 +117,40 @@ export function BatteryStatus({
           </div>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="bottom" align={variant === 'header' ? 'end' : 'center'} className="battery-status__tooltip">
-        <strong>{roundedPercentage}% · {tooltipState}</strong>
-        <span>{runtimeLabel}</span>
-        <span>Updated {formatUpdatedTime(battery.updatedAt)}</span>
-        {connectionLabel && connectionLabel !== 'Battery' ? <span>{connectionLabel}</span> : null}
-      </TooltipContent>
+      <BatteryStatusTooltip
+        percentage={roundedPercentage}
+        state={tooltipState}
+        runtime={runtimeLabel}
+        updatedAt={battery.updatedAt}
+        connectionLabel={connectionLabel}
+        align="end"
+      />
     </Tooltip>
+  );
+}
+
+function BatteryStatusTooltip({
+  percentage,
+  state,
+  runtime,
+  updatedAt,
+  connectionLabel,
+  align = 'center',
+}: {
+  percentage: number;
+  state: string;
+  runtime: string;
+  updatedAt: number;
+  connectionLabel?: string;
+  align?: 'center' | 'end';
+}) {
+  return (
+    <TooltipContent side="bottom" align={align} className="battery-status__tooltip">
+      <strong>{percentage}% · {state}</strong>
+      <span>{runtime}</span>
+      <span>Updated {formatUpdatedTime(updatedAt)}</span>
+      {connectionLabel && connectionLabel !== 'Battery' ? <span>{connectionLabel}</span> : null}
+    </TooltipContent>
   );
 }
 
@@ -132,6 +188,15 @@ function BatteryLevelIcon({
 }
 
 function BatteryStatusSkeleton({ variant, className }: { variant: 'compact' | 'header'; className?: string }) {
+  if (variant === 'compact') {
+    return (
+      <div className={cn('battery-status battery-status--compact battery-status--loading', className)} role="status" aria-label="Loading battery information">
+        <Skeleton className="battery-status__icon-skeleton" />
+        <Skeleton className="battery-status__summary-skeleton" />
+      </div>
+    );
+  }
+
   return (
     <div className={cn('battery-status battery-status--loading', `battery-status--${variant}`, className)} role="status" aria-label="Loading battery information">
       <Skeleton className="battery-status__icon-skeleton" />
@@ -143,15 +208,6 @@ function BatteryStatusSkeleton({ variant, className }: { variant: 'compact' | 'h
       </div>
     </div>
   );
-}
-
-function batteryRuntimeLabel(battery: BatteryCapability, connected: boolean): string {
-  if (!connected) return 'Remaining time unavailable';
-  if (battery.fullyCharged) return 'Fully charged';
-  if (battery.charging) return 'Estimating after charge';
-  return battery.estimatedMinutesRemaining === undefined
-    ? 'Remaining time unavailable'
-    : formatBatteryRuntime(battery.estimatedMinutesRemaining);
 }
 
 function badgeVariant(state: string): 'success' | 'warning' | 'destructive' {

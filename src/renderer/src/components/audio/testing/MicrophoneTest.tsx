@@ -2,7 +2,7 @@ import { Circle } from 'lucide-react';
 import type { AudioSupportLevel } from '../../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 
-export function MicrophoneTest({ support, pending = false, onRecord }: { support: AudioSupportLevel; pending?: boolean; onRecord?: () => void }) {
+export function MicrophoneTest({ support, pending = false, compact = false, onRecord }: { support: AudioSupportLevel; pending?: boolean; compact?: boolean; onRecord?: () => void }) {
   const recordable = support === 'available' && Boolean(onRecord);
   const unavailableMessage = support === 'unavailable'
     ? 'Microphone testing is not available with the current audio setup.'
@@ -20,7 +20,7 @@ export function MicrophoneTest({ support, pending = false, onRecord }: { support
       >
         <Circle className="size-3.5 fill-current" /> Test microphone
       </Button>
-      <p id="microphone-test-status">
+      <p id="microphone-test-status" className={compact ? 'sr-only' : undefined}>
         {pending ? 'Recording and playing your processed microphone sample…' : recordable ? 'Record a short sample and hear your current processing.' : unavailableMessage}
       </p>
     </div>

@@ -2,94 +2,93 @@ import { m, useReducedMotion } from 'motion/react';
 
 interface StartupScreenProps {
   error: string | null;
-  exiting: boolean;
-  onExitComplete(): void;
 }
 
-const routePaths = [
-  'M8 10 H72 L88 26 H212',
-  'M8 26 H212',
-  'M8 42 H72 L88 26',
-] as const;
-
-export function StartupScreen({ error, exiting, onExitComplete }: StartupScreenProps) {
+export function StartupScreen({ error }: StartupScreenProps) {
   const reduceMotion = useReducedMotion();
   const isUnavailable = Boolean(error);
 
   return (
     <m.div
       className="startup-screen"
-      initial={reduceMotion ? false : { opacity: 0 }}
-      animate={{ opacity: exiting ? 0 : 1 }}
+      data-state={isUnavailable ? 'unavailable' : 'initializing'}
+      initial={false}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, pointerEvents: 'none' }}
       transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
-      onAnimationComplete={() => {
-        if (exiting) onExitComplete();
-      }}
       role={isUnavailable ? 'alert' : 'status'}
       aria-live="polite"
       aria-busy={!isUnavailable}
     >
       <div className="startup-sequence">
-        <m.img
-          src="./switchboard-icon.png"
-          alt=""
-          className="startup-sequence__mark"
-          draggable={false}
-          initial={reduceMotion ? false : { opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
-        />
+        <svg className="startup-console" viewBox="0 0 368 196" aria-hidden="true">
+          <g className="startup-console__controls">
+            <path className="startup-console__tick" d="M84 34 H92 M84 54 H92 M84 74 H92 M84 94 H92 M84 114 H92" />
+            <path className="startup-console__tick" d="M160 34 H168 M160 54 H168 M160 74 H168 M160 94 H168 M160 114 H168" />
+            <path className="startup-console__tick" d="M236 34 H244 M236 54 H244 M236 74 H244 M236 94 H244 M236 114 H244" />
 
-        <svg className="startup-route" viewBox="0 0 220 52" aria-hidden="true">
-          {routePaths.map((path) => (
-            <path key={`track-${path}`} className="startup-route__track" d={path} pathLength="1" />
-          ))}
-          {!isUnavailable ? routePaths.map((path, index) => (
-            <m.path
-              key={`signal-${path}`}
-              className="startup-route__signal"
-              d={path}
-              initial={reduceMotion ? { pathLength: 1, opacity: 0.72 } : { pathLength: 0, opacity: 0 }}
-              animate={reduceMotion ? { pathLength: 1, opacity: 0.72 } : {
-                pathLength: [0, 1, 1],
-                opacity: [0.25, 1, 0.25],
-              }}
-              transition={reduceMotion ? { duration: 0 } : {
-                duration: 1.18,
-                delay: index * 0.08,
-                ease: 'easeInOut',
-                repeat: Infinity,
-                repeatDelay: 0.16,
-                times: [0, 0.68, 1],
-              }}
-            />
-          )) : null}
-          <circle className="startup-route__source" cx="8" cy="10" r="2.5" />
-          <circle className="startup-route__source" cx="8" cy="26" r="2.5" />
-          <circle className="startup-route__source" cx="8" cy="42" r="2.5" />
-          <m.circle
-            className={isUnavailable ? 'startup-route__destination is-unavailable' : 'startup-route__destination'}
-            cx="212"
-            cy="26"
-            r="3"
-            initial={reduceMotion ? false : { opacity: 0.35, scale: 0.82 }}
-            animate={reduceMotion || isUnavailable ? { opacity: 1, scale: 1 } : {
-              opacity: [0.35, 1, 0.35],
-              scale: [0.82, 1, 0.82],
-            }}
-            transition={reduceMotion || isUnavailable ? { duration: 0 } : {
-              duration: 1.18,
-              delay: 0.36,
-              ease: 'easeInOut',
-              repeat: Infinity,
-              repeatDelay: 0.16,
-            }}
-          />
+            <line className="startup-console__rail" x1="104" y1="28" x2="104" y2="124" />
+            <line className="startup-console__rail" x1="180" y1="28" x2="180" y2="124" />
+            <line className="startup-console__rail" x1="256" y1="28" x2="256" y2="124" />
+
+            <g className="startup-console__fader startup-console__fader--one">
+              <rect className="startup-console__knob" x="91" y="47" width="26" height="18" rx="4" />
+              <line className="startup-console__knob-mark" x1="98" y1="56" x2="110" y2="56" />
+            </g>
+            <g className="startup-console__fader startup-console__fader--two">
+              <rect className="startup-console__knob" x="167" y="78" width="26" height="18" rx="4" />
+              <line className="startup-console__knob-mark" x1="174" y1="87" x2="186" y2="87" />
+            </g>
+            <g className="startup-console__fader startup-console__fader--three">
+              <rect className="startup-console__knob" x="243" y="59" width="26" height="18" rx="4" />
+              <line className="startup-console__knob-mark" x1="250" y1="68" x2="262" y2="68" />
+            </g>
+          </g>
+
+          <g className="startup-console__routes">
+            <path className="startup-console__route-bed" d="M104 136 V150 H166" />
+            <path className="startup-console__route-bed" d="M180 136 V164 H226" />
+            <path className="startup-console__route-bed" d="M256 136 V150 H298 Q316 150 316 132 V106 H342" />
+            <path className="startup-console__route-bed" d="M166 150 H298" />
+            <path className="startup-console__route-bed" d="M226 164 H306 Q328 164 328 142 V106" />
+
+            <path className="startup-console__route startup-console__route--one" pathLength="1" d="M104 136 V150 H298" />
+            <path className="startup-console__route startup-console__route--two" pathLength="1" d="M180 136 V164 H306 Q328 164 328 142 V106" />
+            <path className="startup-console__route startup-console__route--three" pathLength="1" d="M256 136 V150 H298 Q316 150 316 132 V106 H342" />
+
+            <circle className="startup-console__port" cx="104" cy="136" r="3" />
+            <circle className="startup-console__port" cx="180" cy="136" r="3" />
+            <circle className="startup-console__port" cx="256" cy="136" r="3" />
+            <circle className="startup-console__output" cx="342" cy="106" r="4" />
+
+            {!isUnavailable && !reduceMotion ? (
+              <circle className="startup-console__pulse" r="3" cx="0" cy="0">
+                <animateMotion
+                  dur="2.8s"
+                  repeatCount="indefinite"
+                  path="M104 136 V150 H298 Q316 150 316 132 V106 H342"
+                  keyPoints="0;0;0;1;1"
+                  keyTimes="0;0.51;0.54;0.82;1"
+                  calcMode="linear"
+                />
+                <animate
+                  attributeName="opacity"
+                  dur="2.8s"
+                  repeatCount="indefinite"
+                  values="0;0;1;1;0;0"
+                  keyTimes="0;0.51;0.54;0.77;0.82;1"
+                />
+              </circle>
+            ) : null}
+          </g>
         </svg>
 
         <div className="startup-sequence__copy">
           <strong>Switchboard</strong>
-          <span>{isUnavailable ? 'Control plane unavailable' : 'Starting control plane'}</span>
+          <span className="startup-sequence__status">
+            <i aria-hidden="true" />
+            {isUnavailable ? 'Control plane unavailable' : 'Initializing control plane'}
+          </span>
         </div>
 
         {isUnavailable ? <p className="startup-sequence__error">{error}</p> : null}

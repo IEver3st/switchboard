@@ -27,8 +27,7 @@ export function ProcessorSection({
     <section id={id} aria-labelledby={`${id}-heading`} className={cn('advanced-processor scroll-mt-28', compact && 'advanced-processor--compact')}>
       <header className="mb-3 flex min-w-0 items-center justify-between gap-3">
         <h2 id={`${id}-heading`} className="m-0 min-w-0 text-[13px] font-semibold text-foreground">{title}</h2>
-        <label className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground">
-          {enabled ? 'On' : 'Off'}
+        <label className="flex shrink-0 items-center text-[11px] text-muted-foreground">
           <Switch
             checked={enabled}
             disabled={pending || unavailable}

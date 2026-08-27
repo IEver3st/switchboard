@@ -59,8 +59,9 @@ function handle<TInput, TResult>(
 }
 
 export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null): () => void {
-  ipcMain.handle(ipcChannels.getSnapshot, (event) => {
+  ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow);
+    await controller.initialize();
     return controller.getSnapshot();
   });
 

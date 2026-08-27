@@ -1,87 +1,17 @@
 import type { MicProcessor, MicProcessorId, SystemSnapshot } from '../../../../shared/contracts';
-import { AdvancedDisclosure, PrimarySlider } from '@/components/shared/human-controls';
+import { PrimarySlider } from '@/components/shared/human-controls';
 import { Switch } from '@/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/cn';
-import { AudioWorkbenchHeader } from './AudioWorkbenchHeader';
 import { AudioDevicePicker } from './AudioDevicePicker';
+import { EqualizerHeader } from './EqualizerHeader';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
-import { ProcessorSection } from './processors/ProcessorSection';
-import {
-  gateThresholds,
-  matchGate,
-  matchNoiseRemoval,
-  matchVoiceConsistency,
-  noiseRemovalAmounts,
-  voiceConsistency,
-  type GateStrength,
-  type SemanticStrength,
-  type VoiceStyle,
-} from './semantic-mapping';
 import { MicrophoneTest } from './testing/MicrophoneTest';
 import { useSystemStore } from '@/stores/use-system-store';
 
 function getProcessor<T extends MicProcessorId>(processors: MicProcessor[], id: T): Extract<MicProcessor, { id: T }> | null {
   return (processors.find((processor) => processor.id === id) as Extract<MicProcessor, { id: T }> | undefined) ?? null;
-}
-
-const noiseOptions = [
-  { value: 'light', label: 'Light' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'strong', label: 'Strong' },
-] satisfies Array<{ value: SemanticStrength; label: string }>;
-
-const gateOptions = [
-  { value: 'low', label: 'Low' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'high', label: 'High' },
-] satisfies Array<{ value: GateStrength; label: string }>;
-
-const voiceOptions = [
-  { value: 'natural', label: 'Natural' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'broadcast', label: 'Broadcast' },
-] satisfies Array<{ value: VoiceStyle; label: string }>;
-
-interface ChainStage {
-  targetId: string;
-  label: string;
-  enabled: boolean;
-  unavailable?: boolean;
-}
-
-function MicrophoneChain({ stages }: { stages: ChainStage[] }) {
-  const goTo = (targetId: string) => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.getElementById(targetId)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
-  };
-
-  return (
-    <nav className="mic-chain" aria-label="Microphone signal chain">
-      <span className="mic-chain__label">Signal chain</span>
-      <ol className="mic-chain__stages">
-        {stages.map((stage, index) => (
-          <li key={stage.targetId} className="mic-chain__stage">
-            {index > 0 ? <span className="mic-chain__link" aria-hidden="true" /> : null}
-            <button
-              type="button"
-              aria-label={`${stage.label}, ${stage.unavailable ? 'unavailable' : stage.enabled ? 'on' : 'off'}`}
-              onClick={() => goTo(stage.targetId)}
-            >
-              <span
-                className="mic-chain__dot"
-                data-state={stage.unavailable ? 'unavailable' : stage.enabled ? 'on' : 'off'}
-                aria-hidden="true"
-              />
-              {stage.label}
-            </button>
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
 }
 
 function MicSetting({
@@ -118,7 +48,6 @@ function MicSetting({
       </div>
       {children ? <div className="mic-setting__control">{children}</div> : null}
       <label className="mic-setting__state">
-        <span>{checked ? 'On' : 'Off'}</span>
         <Switch
           checked={checked}
           disabled={disabled || pending}
@@ -126,38 +55,6 @@ function MicSetting({
           onCheckedChange={onCheckedChange}
         />
       </label>
-    </div>
-  );
-}
-
-function MicStrength<T extends string>({
-  label,
-  value,
-  options,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: T | 'custom';
-  options: Array<{ value: T; label: string }>;
-  disabled?: boolean;
-  onChange: (value: T) => void;
-}) {
-  const custom = value === 'custom';
-  return (
-    <div className="mic-strength">
-      <ToggleGroup
-        type="single"
-        value={custom ? '' : value}
-        disabled={disabled}
-        aria-label={label}
-        onValueChange={(next) => next && onChange(next as T)}
-      >
-        {options.map((option) => (
-          <ToggleGroupItem key={option.value} value={option.value}>{option.label}</ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-      {custom ? <span className="mic-strength__custom">Custom</span> : null}
     </div>
   );
 }
@@ -194,46 +91,8 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
     return <div className="px-6 py-8 text-sm text-destructive">Microphone sound settings are unavailable.</div>;
   }
 
-  const chainStages: ChainStage[] = [
-    { targetId: 'microphone-input-section', label: 'Input volume', enabled: gain.enabled },
-    { targetId: 'microphone-gate-section', label: 'Noise gate', enabled: gate.enabled },
-    { targetId: 'microphone-removal-section', label: 'Noise removal', enabled: suppression.enabled && !suppressionUnavailable, unavailable: suppressionUnavailable },
-    { targetId: 'microphone-equalizer-section', label: 'Voice EQ', enabled: equalizer.enabled },
-    { targetId: 'microphone-consistency-section', label: 'Voice consistency', enabled: compressor.enabled },
-    { targetId: 'microphone-safety-section', label: 'Output safety', enabled: limiter.enabled },
-  ];
-
   return (
     <div className="audio-workbench microphone-workbench" data-channel="microphone">
-      <AudioWorkbenchHeader
-        title="Microphone"
-        subtitle="Input volume, noise control, voice EQ, and monitoring."
-        tools={(
-          <>
-            <PresetPicker
-              kind="microphone"
-              label="Voice preset"
-              presets={snapshot.audio.pathPresets}
-              activeId={snapshot.audio.activePresetIds.microphone}
-              pending={actionPending?.startsWith('audio:preset') ?? false}
-              desktopFeatures={Boolean(window.switchboard)}
-              onApply={(presetId) => void applyAudioPreset({ presetId })}
-              onCreate={(name) => void createAudioPreset({ kind: 'microphone', name })}
-              onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
-              onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
-              onDelete={(presetId) => void deleteAudioPreset({ presetId })}
-              onImport={() => void importAudioPreset()}
-              onExport={(presetId) => void exportAudioPreset({ presetId })}
-            />
-            <MicrophoneTest
-              support={snapshot.audio.capabilities.microphoneTest}
-              pending={actionPending === 'audio:microphone-test'}
-              onRecord={() => void testMicrophone()}
-            />
-          </>
-        )}
-      />
-
       {support !== 'available' ? (
         <p className="audio-workbench__availability" role="status">
           {support === 'simulation'
@@ -242,19 +101,39 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         </p>
       ) : null}
 
-      <MicrophoneChain stages={chainStages} />
-
       <div className="audio-main-grid microphone-main-grid">
         <section id="microphone-equalizer-section" className="mic-section mic-section--equalizer audio-primary-section" aria-labelledby="microphone-equalizer-heading">
-          <MicSetting
+          <EqualizerHeader
             headingId="microphone-equalizer-heading"
-            title="Voice EQ"
-            description="Shape your voice by dragging a band, then fine-tune the selected point below."
-            technicalName="Parametric equalizer"
             checked={equalizer.enabled}
             disabled={unavailable}
             pending={processingPending}
             onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'equalizer', enabled })}
+            tools={(
+              <>
+                <PresetPicker
+                  kind="microphone"
+                  label="Voice preset"
+                  presets={snapshot.audio.pathPresets}
+                  activeId={snapshot.audio.activePresetIds.microphone}
+                  pending={actionPending?.startsWith('audio:preset') ?? false}
+                  desktopFeatures={Boolean(window.switchboard)}
+                  onApply={(presetId) => void applyAudioPreset({ presetId })}
+                  onCreate={(name) => void createAudioPreset({ kind: 'microphone', name })}
+                  onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
+                  onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
+                  onDelete={(presetId) => void deleteAudioPreset({ presetId })}
+                  onImport={() => void importAudioPreset()}
+                  onExport={(presetId) => void exportAudioPreset({ presetId })}
+                />
+                <MicrophoneTest
+                  compact
+                  support={snapshot.audio.capabilities.microphoneTest}
+                  pending={actionPending === 'audio:microphone-test'}
+                  onRecord={() => void testMicrophone()}
+                />
+              </>
+            )}
           />
           <ParametricEq
             bands={equalizer.parameters.bands}
@@ -294,13 +173,20 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 pending={processingPending}
                 onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}
               >
-                <MicStrength
-                  label="Noise gate strength"
-                  value={matchGate(gate.parameters.thresholdDb)}
-                  options={gateOptions}
-                  disabled={unavailable || !gate.enabled || processingPending}
-                  onChange={(strength) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: gateThresholds[strength] } })}
-                />
+                <div className="mic-parameter-stack">
+                  <PrimarySlider
+                    label="Gate threshold"
+                    value={gate.parameters.thresholdDb}
+                    min={-80}
+                    max={-10}
+                    step={0.5}
+                    unit="dB"
+                    disabled={unavailable || !gate.enabled || processingPending}
+                    onCommit={(thresholdDb) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb } })}
+                  />
+                  <ParameterControl label="Attack" value={gate.parameters.attackMs} min={0.1} max={100} step={0.5} unit=" ms" precision={1} disabled={unavailable || !gate.enabled || processingPending} onCommit={(attackMs) => void setMicProcessor({ processorId: 'noise-gate', parameters: { attackMs } })} />
+                  <ParameterControl label="Release" value={gate.parameters.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !gate.enabled || processingPending} onCommit={(releaseMs) => void setMicProcessor({ processorId: 'noise-gate', parameters: { releaseMs } })} />
+                </div>
               </MicSetting>
             </div>
 
@@ -316,12 +202,15 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 pending={processingPending}
                 onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}
               >
-                <MicStrength
-                  label="Noise removal strength"
-                  value={matchNoiseRemoval(suppression.parameters.amount)}
-                  options={noiseOptions}
+                <PrimarySlider
+                  label="Removal strength"
+                  value={suppression.parameters.amount}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
                   disabled={suppressionUnavailable || !suppression.enabled || processingPending}
-                  onChange={(strength) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: noiseRemovalAmounts[strength] } })}
+                  onCommit={(amount) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount } })}
                 />
               </MicSetting>
             </div>
@@ -336,13 +225,22 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 pending={processingPending}
                 onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'compressor', enabled })}
               >
-                <MicStrength
-                  label="Voice consistency style"
-                  value={matchVoiceConsistency(compressor.parameters)}
-                  options={voiceOptions}
-                  disabled={unavailable || !compressor.enabled || processingPending}
-                  onChange={(style) => void setMicProcessor({ processorId: 'compressor', enabled: true, parameters: voiceConsistency[style] })}
-                />
+                <div className="mic-parameter-stack">
+                  <PrimarySlider
+                    label="Compression ratio"
+                    value={compressor.parameters.ratio}
+                    min={1}
+                    max={20}
+                    step={0.1}
+                    unit=":1"
+                    disabled={unavailable || !compressor.enabled || processingPending}
+                    onCommit={(ratio) => void setMicProcessor({ processorId: 'compressor', enabled: true, parameters: { ratio } })}
+                  />
+                  <ParameterControl label="Threshold" value={compressor.parameters.thresholdDb} min={-60} max={0} step={0.5} unit=" dB" precision={1} disabled={unavailable || !compressor.enabled || processingPending} onCommit={(thresholdDb) => void setMicProcessor({ processorId: 'compressor', parameters: { thresholdDb } })} />
+                  <ParameterControl label="Attack" value={compressor.parameters.attackMs} min={0.1} max={200} step={0.5} unit=" ms" precision={1} disabled={unavailable || !compressor.enabled || processingPending} onCommit={(attackMs) => void setMicProcessor({ processorId: 'compressor', parameters: { attackMs } })} />
+                  <ParameterControl label="Release" value={compressor.parameters.releaseMs} min={10} max={2_000} step={5} unit=" ms" disabled={unavailable || !compressor.enabled || processingPending} onCommit={(releaseMs) => void setMicProcessor({ processorId: 'compressor', parameters: { releaseMs } })} />
+                  <ParameterControl label="Makeup gain" value={compressor.parameters.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !compressor.enabled || processingPending} onCommit={(makeupDb) => void setMicProcessor({ processorId: 'compressor', parameters: { makeupDb } })} />
+                </div>
               </MicSetting>
             </div>
 
@@ -355,7 +253,12 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 disabled={unavailable}
                 pending={processingPending}
                 onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'limiter', enabled })}
-              />
+              >
+                <div className="mic-parameter-stack">
+                  <ParameterControl label="Ceiling" value={limiter.parameters.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !limiter.enabled || processingPending} onCommit={(thresholdDb) => void setMicProcessor({ processorId: 'limiter', parameters: { thresholdDb } })} />
+                  <ParameterControl label="Release" value={limiter.parameters.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !limiter.enabled || processingPending} onCommit={(releaseMs) => void setMicProcessor({ processorId: 'limiter', parameters: { releaseMs } })} />
+                </div>
+              </MicSetting>
             </div>
           </section>
         </section>

@@ -68,7 +68,9 @@ function createWindow(): BrowserWindow {
 
   controller?.setRendererActive(true);
   window.once('ready-to-show', () => window.show());
-  window.on('focus', () => { void controller?.refreshAudioDevices(); });
+  window.on('focus', () => {
+    void controller?.initialize().then(() => controller?.refreshAudioDevices());
+  });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event, url) => {
     if (!isTrustedNavigation(url)) event.preventDefault();
@@ -110,7 +112,7 @@ function createWindow(): BrowserWindow {
 function showWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow();
   else mainWindow.show();
-  void controller?.refreshAudioDevices();
+  void controller?.initialize().then(() => controller?.refreshAudioDevices());
   mainWindow.focus();
 }
 
@@ -156,7 +158,7 @@ if (hasSingleInstanceLock) {
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController();
-    await controller.initialize();
+    const initialization = controller.initialize();
     await protocol.handle('switchboard-media', async (request) => {
       const url = new URL(request.url);
       const id = decodeURIComponent(url.pathname.replace(/^\//, ''));
@@ -179,6 +181,7 @@ if (hasSingleInstanceLock) {
     cleanupIpc = registerIpc(controller, () => mainWindow);
     tray = createTray();
     showWindow();
+    await initialization;
 
     app.on('activate', showWindow);
   }).catch((error) => {

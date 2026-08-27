@@ -102,6 +102,7 @@ export class AppController {
   private captureSourceThumbnailRefresh: Promise<void> | null = null;
   private captureSourceThumbnailsRefreshedAt = 0;
   private gameScan: Promise<SystemSnapshot> | null = null;
+  private initialization: Promise<void> | null = null;
   private disposed = false;
 
   public constructor() {
@@ -130,7 +131,12 @@ export class AppController {
     );
   }
 
-  public async initialize(): Promise<void> {
+  public initialize(): Promise<void> {
+    this.initialization ??= this.initializeOnce();
+    return this.initialization;
+  }
+
+  private async initializeOnce(): Promise<void> {
     await this.store.load();
     await this.refreshAudioDevices(true);
     // Native UI review uses canonical fixture devices so automated interaction

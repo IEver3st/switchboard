@@ -66,13 +66,13 @@ async function runReview() {
       (() => {
         const startup = document.querySelector('.startup-screen');
         const sequence = document.querySelector('.startup-sequence');
-        const route = document.querySelector('.startup-route');
+        const consoleGraphic = document.querySelector('.startup-console');
         const bounds = (element) => element ? element.getBoundingClientRect().toJSON() : null;
         return {
           viewport: { width: innerWidth, height: innerHeight },
           startup: bounds(startup),
           sequence: bounds(sequence),
-          route: bounds(route),
+          consoleGraphic: bounds(consoleGraphic),
           status: startup?.textContent?.replace(/\\s+/g, ' ').trim(),
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
           verticalOverflow: document.documentElement.scrollHeight > innerHeight,
@@ -137,7 +137,7 @@ async function waitForSelector(window, selector) {
 }
 
 async function waitForSelectorGone(window, selector) {
-  const deadline = Date.now() + 3_000;
+  const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     if (!await window.webContents.executeJavaScript(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)) return;
     await delay(20);
