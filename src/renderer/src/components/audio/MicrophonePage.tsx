@@ -1,5 +1,8 @@
 import type { MicProcessor, MicProcessorId, SystemSnapshot } from '../../../../shared/contracts';
-import { AdvancedDisclosure, PrimarySlider, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
+import { AdvancedDisclosure, PrimarySlider } from '@/components/shared/human-controls';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/cn';
 import { AudioDevicePicker } from './AudioDevicePicker';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
@@ -77,6 +80,84 @@ function MicrophoneChain({ stages }: { stages: ChainStage[] }) {
         ))}
       </ol>
     </nav>
+  );
+}
+
+function MicSetting({
+  headingId,
+  title,
+  description,
+  technicalName,
+  checked,
+  disabled,
+  pending,
+  onCheckedChange,
+  children,
+  className,
+}: {
+  headingId: string;
+  title: string;
+  description?: string;
+  technicalName?: string;
+  checked: boolean;
+  disabled?: boolean;
+  pending?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('mic-setting', !children && 'mic-setting--bare', className)}>
+      <div className="mic-setting__copy">
+        <div className="mic-setting__title">
+          <h3 id={headingId}>{title}</h3>
+          {technicalName ? <span>{technicalName}</span> : null}
+        </div>
+        {description ? <p>{description}</p> : null}
+      </div>
+      {children ? <div className="mic-setting__control">{children}</div> : null}
+      <label className="mic-setting__state">
+        <span>{checked ? 'On' : 'Off'}</span>
+        <Switch
+          checked={checked}
+          disabled={disabled || pending}
+          aria-label={title}
+          onCheckedChange={onCheckedChange}
+        />
+      </label>
+    </div>
+  );
+}
+
+function MicStrength<T extends string>({
+  label,
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: T | 'custom';
+  options: Array<{ value: T; label: string }>;
+  disabled?: boolean;
+  onChange: (value: T) => void;
+}) {
+  const custom = value === 'custom';
+  return (
+    <div className="mic-strength">
+      <ToggleGroup
+        type="single"
+        value={custom ? '' : value}
+        disabled={disabled}
+        aria-label={label}
+        onValueChange={(next) => next && onChange(next as T)}
+      >
+        {options.map((option) => (
+          <ToggleGroupItem key={option.value} value={option.value}>{option.label}</ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      {custom ? <span className="mic-strength__custom">Custom</span> : null}
+    </div>
   );
 }
 
@@ -158,14 +239,15 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
       <MicrophoneChain stages={chainStages} />
 
-      <section id="microphone-equalizer-section" className="audio-primary-section" aria-labelledby="microphone-equalizer-heading">
-        <SettingToggle
+      <section id="microphone-equalizer-section" className="mic-section mic-section--equalizer" aria-labelledby="microphone-equalizer-heading">
+        <MicSetting
+          headingId="microphone-equalizer-heading"
           title="Voice EQ"
           description="Shape your voice by dragging a band, or enter an exact value below."
+          technicalName="Parametric equalizer"
           checked={equalizer.enabled}
           disabled={unavailable}
           pending={processingPending}
-          technicalName="Parametric equalizer"
           onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'equalizer', enabled })}
         />
         <ParametricEq
@@ -175,7 +257,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         />
       </section>
 
-      <section id="microphone-input-section" className="audio-simple-section microphone-input-volume">
+      <section id="microphone-input-section" className="mic-section mic-section--volume">
         <PrimarySlider
           label="Input volume"
           description="Adjusts your voice after the microphone's hardware level."
@@ -189,80 +271,88 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         />
       </section>
 
-      <section className="audio-simple-grid microphone-controls-grid" aria-label="Microphone processors">
-        <div id="microphone-gate-section" className="audio-simple-section">
-          <SettingToggle
+      <section className="mic-panel" aria-label="Microphone processors">
+        <div id="microphone-gate-section" className="mic-panel__row">
+          <MicSetting
+            headingId="microphone-gate-heading"
             title="Noise gate"
             description="Stops background sound while you are not speaking."
             checked={gate.enabled}
             disabled={unavailable}
             pending={processingPending}
             onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}
-          />
-          <SemanticChoice
-            label="Noise gate strength"
-            value={matchGate(gate.parameters.thresholdDb)}
-            options={gateOptions}
-            disabled={unavailable || !gate.enabled || processingPending}
-            onChange={(strength) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: gateThresholds[strength] } })}
-          />
+          >
+            <MicStrength
+              label="Noise gate strength"
+              value={matchGate(gate.parameters.thresholdDb)}
+              options={gateOptions}
+              disabled={unavailable || !gate.enabled || processingPending}
+              onChange={(strength) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: gateThresholds[strength] } })}
+            />
+          </MicSetting>
         </div>
 
-        <div id="microphone-removal-section" className="audio-simple-section">
-          <SettingToggle
+        <div id="microphone-removal-section" className="mic-panel__row">
+          <MicSetting
+            headingId="microphone-removal-heading"
             title="Noise removal"
             description={suppressionUnavailable
               ? suppressionError ?? 'Noise removal is unavailable with the current audio setup.'
               : 'Reduces fans, keyboard noise, and background sound.'}
+            technicalName="Noise suppression"
             checked={suppression.enabled && !suppressionUnavailable}
             disabled={suppressionUnavailable}
             pending={processingPending}
-            technicalName="Noise suppression"
             onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}
-          />
-          <SemanticChoice
-            label="Noise removal strength"
-            value={matchNoiseRemoval(suppression.parameters.amount)}
-            options={noiseOptions}
-            disabled={suppressionUnavailable || !suppression.enabled || processingPending}
-            onChange={(strength) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: noiseRemovalAmounts[strength] } })}
-          />
+          >
+            <MicStrength
+              label="Noise removal strength"
+              value={matchNoiseRemoval(suppression.parameters.amount)}
+              options={noiseOptions}
+              disabled={suppressionUnavailable || !suppression.enabled || processingPending}
+              onChange={(strength) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: noiseRemovalAmounts[strength] } })}
+            />
+          </MicSetting>
         </div>
 
-        <div id="microphone-consistency-section" className="audio-simple-section">
-          <SettingToggle
+        <div id="microphone-consistency-section" className="mic-panel__row">
+          <MicSetting
+            headingId="microphone-consistency-heading"
             title="Voice consistency"
             description="Keeps quiet and loud speech at a similar level."
+            technicalName="Compressor"
             checked={compressor.enabled}
             disabled={unavailable}
             pending={processingPending}
-            technicalName="Compressor"
             onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'compressor', enabled })}
-          />
-          <SemanticChoice
-            label="Voice consistency style"
-            value={matchVoiceConsistency(compressor.parameters)}
-            options={voiceOptions}
-            disabled={unavailable || !compressor.enabled || processingPending}
-            onChange={(style) => void setMicProcessor({ processorId: 'compressor', enabled: true, parameters: voiceConsistency[style] })}
-          />
+          >
+            <MicStrength
+              label="Voice consistency style"
+              value={matchVoiceConsistency(compressor.parameters)}
+              options={voiceOptions}
+              disabled={unavailable || !compressor.enabled || processingPending}
+              onChange={(style) => void setMicProcessor({ processorId: 'compressor', enabled: true, parameters: voiceConsistency[style] })}
+            />
+          </MicSetting>
         </div>
 
-        <div id="microphone-safety-section" className="audio-simple-section">
-          <SettingToggle
+        <div id="microphone-safety-section" className="mic-panel__row">
+          <MicSetting
+            headingId="microphone-safety-heading"
             title="Output safety"
             description="Prevents sudden clipping and excessive peaks."
+            technicalName="Limiter"
             checked={limiter.enabled}
             disabled={unavailable}
             pending={processingPending}
-            technicalName="Limiter"
             onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'limiter', enabled })}
           />
         </div>
       </section>
 
-      <section id="microphone-monitoring-section" className="monitoring-section" aria-labelledby="microphone-monitoring-heading">
-        <SettingToggle
+      <section id="microphone-monitoring-section" className="mic-section mic-section--monitoring" aria-labelledby="microphone-monitoring-heading">
+        <MicSetting
+          headingId="microphone-monitoring-heading"
           title="Monitoring"
           description={monitoringUnavailable ? 'Monitoring is not available with the current audio setup.' : 'Hear your microphone through the selected output.'}
           checked={snapshot.audio.monitoringEnabled}
@@ -270,7 +360,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           pending={actionPending === 'audio:monitoring'}
           onCheckedChange={(enabled) => void setAudioMonitoring({ enabled })}
         />
-        <div className="monitoring-section__controls">
+        <div className="mic-monitoring__controls">
           <label>
             <span>Hear your microphone through</span>
             <AudioDevicePicker

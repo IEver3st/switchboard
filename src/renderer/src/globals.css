@@ -3997,6 +3997,174 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+/* Microphone page: one flowing workbench, no boxed sections. */
+.microphone-workbench .audio-workbench__header {
+  min-height: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.microphone-workbench .parametric-eq__graph {
+  border-color: color-mix(in srgb, var(--border) 55%, transparent);
+  border-radius: 6px;
+}
+
+.mic-section {
+  min-width: 0;
+  margin-top: 14px;
+  scroll-margin-top: 14px;
+}
+
+.mic-section--volume {
+  margin-top: 2px;
+}
+
+.mic-section--monitoring {
+  margin-top: 22px;
+}
+
+.mic-section--equalizer .mic-setting {
+  padding: 10px 0 6px;
+}
+
+.mic-setting {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, 460px) auto;
+  align-items: center;
+  gap: 12px 28px;
+  padding: 14px 0;
+}
+
+.mic-setting__copy {
+  min-width: 0;
+}
+
+.mic-setting__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mic-setting__title h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.mic-setting__title span {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 520;
+}
+
+.mic-setting__copy > p {
+  max-width: 52ch;
+  margin: 3px 0 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mic-setting__control {
+  min-width: 0;
+}
+
+.mic-setting--bare {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.mic-setting__state {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Amber stays identity-only here: quiet neutral tracks, amber thumb. */
+.microphone-workbench [role="switch"][data-state="checked"] {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.mic-strength {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.mic-strength [role="group"] {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-interactive) 72%, transparent);
+}
+
+.mic-strength [role="group"] > button {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  border: 0;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.mic-strength [role="group"] > button[data-state="on"] {
+  background: var(--surface-hover);
+  color: var(--foreground);
+  box-shadow: inset 0 -2px var(--channel-accent);
+}
+
+.mic-strength__custom {
+  flex: none;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.mic-panel {
+  margin-top: 18px;
+  border-radius: 8px;
+  background: var(--surface-1);
+  padding: 4px 20px;
+}
+
+.mic-panel__row {
+  min-width: 0;
+  scroll-margin-top: 14px;
+}
+
+.mic-panel__row + .mic-panel__row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 38%, transparent);
+}
+
+.mic-monitoring__controls {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(280px, 1.1fr);
+  gap: 28px;
+  margin-top: 2px;
+}
+
+.mic-monitoring__controls > label {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 6px;
+  padding: 10px 0;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .microphone-workbench__preset {
   display: flex;
   width: 100%;
@@ -4010,10 +4178,7 @@ select {
   min-width: 0;
   align-items: center;
   gap: 10px;
-  margin-top: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  padding: 7px 12px;
+  margin-top: 16px;
 }
 
 .mic-chain__label {
@@ -4091,10 +4256,6 @@ select {
   background: var(--border-strong);
 }
 
-.microphone-input-volume {
-  margin-top: 20px;
-}
-
 .microphone-test {
   display: flex;
   align-items: center;
@@ -4107,39 +4268,6 @@ select {
   color: var(--muted-foreground);
   font-size: 10px;
   line-height: 1.4;
-}
-
-.microphone-controls-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.monitoring-section {
-  margin-top: 20px;
-  border-top: 1px solid var(--border);
-  padding: 4px 0 14px;
-}
-
-.audio-primary-section,
-.audio-simple-section,
-.monitoring-section {
-  scroll-margin-top: 14px;
-}
-
-.monitoring-section__controls {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(280px, 1.2fr);
-  gap: 28px;
-  margin-top: 4px;
-}
-
-.monitoring-section__controls > label {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  padding: 10px 0;
-  color: var(--foreground);
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .device-workbench[data-device-kind="microphone"] .device-workbench__hero {
@@ -4483,14 +4611,21 @@ select {
     flex-direction: column;
   }
 
+  .mic-setting {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mic-setting__control {
+    grid-column: 1 / -1;
+  }
+
   .audio-simple-grid,
-  .microphone-controls-grid,
   .advanced-processor-grid,
   .advanced-processor-grid--microphone,
   .microphone-hardware__primary,
   .microphone-hardware__lighting-topline,
   .microphone-hardware__lighting-sliders,
-  .monitoring-section__controls {
+  .mic-monitoring__controls {
     grid-template-columns: 1fr;
   }
 
@@ -4604,7 +4739,6 @@ select {
 
   .mic-chain {
     gap: 6px;
-    padding: 6px 8px;
   }
 
   .mic-chain__link {
