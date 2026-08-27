@@ -27,11 +27,10 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
   const deleteAudioPreset = useSystemStore((state) => state.deleteAudioPreset);
   const importAudioPreset = useSystemStore((state) => state.importAudioPreset);
   const exportAudioPreset = useSystemStore((state) => state.exportAudioPreset);
-  const pendingId = useSystemStore((state) => state.actionPending);
   const processing = snapshot.audio.channelProcessing.find((candidate) => candidate.busId === busId);
   const bus = snapshot.audio.buses.find((candidate) => candidate.id === busId);
   const support = snapshot.audio.capabilities.channelDsp;
-  const pending = pendingId?.startsWith(`audio:${busId}:processor`) ?? false;
+  const pending = false;
   const unavailable = support === 'unavailable';
 
   if (!processing || !bus) {
@@ -62,7 +61,7 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
                 label="Sound preset"
                 presets={snapshot.audio.pathPresets}
                 activeId={snapshot.audio.activePresetIds[busId]}
-                pending={pendingId?.startsWith('audio:preset') ?? false}
+                pending={false}
                 desktopFeatures={Boolean(window.switchboard)}
                 onApply={(presetId) => void applyAudioPreset({ presetId })}
                 onCreate={(name) => void createAudioPreset({ kind: busId, name })}

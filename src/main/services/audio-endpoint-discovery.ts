@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import {
@@ -62,6 +63,14 @@ export class AudioEndpointDiscovery {
         arguments: ['--list-endpoints'],
         cwd: directory,
       };
+    }
+
+    if (process.env.SWITCHBOARD_NATIVE_REVIEW === '1') {
+      const directory = join(this.options.appPath, 'engines', 'audio-host', 'bin', 'Debug', 'net10.0-windows');
+      const executable = join(directory, 'Audio.Host.exe');
+      if (existsSync(executable)) {
+        return { command: executable, arguments: ['--list-endpoints'], cwd: directory };
+      }
     }
 
     return {

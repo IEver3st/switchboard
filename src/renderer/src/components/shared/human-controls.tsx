@@ -1,5 +1,4 @@
-import { ChevronDown } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -143,32 +142,6 @@ export function PrimarySlider({
         }}
       />
     </div>
-  );
-}
-
-export function AdvancedDisclosure({
-  children,
-  label = 'Advanced controls',
-  className,
-}: {
-  children: ReactNode;
-  label?: string;
-  className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <section className={cn('advanced-disclosure', className)}>
-      <button
-        type="button"
-        className="advanced-disclosure__trigger"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span>{label}</span>
-        <ChevronDown aria-hidden className={cn('size-4', open && 'rotate-180')} />
-      </button>
-      {open ? <div className="advanced-disclosure__content">{children}</div> : null}
-    </section>
   );
 }
 

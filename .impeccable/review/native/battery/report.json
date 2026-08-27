@@ -1,0 +1,452 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "devices",
+    "filename": "1080x720-devices.png",
+    "metrics": {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "horizontalOverflow": false,
+      "selector": ".battery-status--compact",
+      "text": "82%·~47h remaining",
+      "rect": {
+        "x": 267.7395935058594,
+        "y": 516.7708740234375,
+        "width": 128.11459350585938,
+        "height": 16
+      },
+      "icon": {
+        "rect": {
+          "x": 267.7395935058594,
+          "y": 517.7708740234375,
+          "width": 14,
+          "height": 14
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        }
+      },
+      "value": {
+        "rect": {
+          "x": 285.7395935058594,
+          "y": 517.625,
+          "width": 22.197917938232422,
+          "height": 14.291666984558105
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "650",
+          "color": "rgb(242, 244, 247)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "82%"
+      },
+      "runtime": {
+        "rect": {
+          "x": 318.32293701171875,
+          "y": 517.625,
+          "width": 77.53125,
+          "height": 14.291666984558105
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "~47h remaining"
+      }
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1080
+    }
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "g502-x-plus",
+    "filename": "1080x720-g502-x-plus.png",
+    "metrics": {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "horizontalOverflow": false,
+      "selector": ".battery-status--header",
+      "text": "82%~47h remaining",
+      "rect": {
+        "x": 888.8021240234375,
+        "y": 53.01041793823242,
+        "width": 148,
+        "height": 35.875
+      },
+      "icon": {
+        "rect": {
+          "x": 888.8021240234375,
+          "y": 53.01041793823242,
+          "width": 22,
+          "height": 22
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "normal"
+        }
+      },
+      "value": {
+        "rect": {
+          "x": 918.8021240234375,
+          "y": 53.01041793823242,
+          "width": 38.26041793823242,
+          "height": 20
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "20px",
+          "fontWeight": "690",
+          "color": "rgb(242, 244, 247)",
+          "whiteSpace": "normal"
+        },
+        "text": "82%"
+      },
+      "runtime": {
+        "rect": {
+          "x": 918.8021240234375,
+          "y": 77.01042175292969,
+          "width": 66.95833587646484,
+          "height": 11.875
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "9.5px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "~47h remaining"
+      }
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1080
+    }
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "devices",
+    "filename": "1420x900-devices.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "horizontalOverflow": false,
+      "selector": ".battery-status--compact",
+      "text": "82%·~47h remaining",
+      "rect": {
+        "x": 403.9375,
+        "y": 638.875,
+        "width": 128.11459350585938,
+        "height": 16
+      },
+      "icon": {
+        "rect": {
+          "x": 403.9375,
+          "y": 639.875,
+          "width": 14,
+          "height": 14
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        }
+      },
+      "value": {
+        "rect": {
+          "x": 421.9375,
+          "y": 639.7291870117188,
+          "width": 22.197917938232422,
+          "height": 14.291666984558105
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "650",
+          "color": "rgb(242, 244, 247)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "82%"
+      },
+      "runtime": {
+        "rect": {
+          "x": 454.5208435058594,
+          "y": 639.7291870117188,
+          "width": 77.53125,
+          "height": 14.291666984558105
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "~47h remaining"
+      }
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    }
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "g502-x-plus",
+    "filename": "1420x900-g502-x-plus.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "horizontalOverflow": false,
+      "selector": ".battery-status--header",
+      "text": "82%~47h remaining",
+      "rect": {
+        "x": 1196,
+        "y": 61.01041793823242,
+        "width": 148,
+        "height": 35.875
+      },
+      "icon": {
+        "rect": {
+          "x": 1196,
+          "y": 61.01041793823242,
+          "width": 22,
+          "height": 22
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "normal"
+        }
+      },
+      "value": {
+        "rect": {
+          "x": 1226,
+          "y": 61.01041793823242,
+          "width": 38.26041793823242,
+          "height": 20
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "20px",
+          "fontWeight": "690",
+          "color": "rgb(242, 244, 247)",
+          "whiteSpace": "normal"
+        },
+        "text": "82%"
+      },
+      "runtime": {
+        "rect": {
+          "x": 1226,
+          "y": 85.01042175292969,
+          "width": 66.95833587646484,
+          "height": 11.875
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "9.5px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "~47h remaining"
+      }
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    }
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "devices",
+    "filename": "1920x1080-devices.png",
+    "metrics": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "horizontalOverflow": false,
+      "selector": ".battery-status--compact",
+      "text": "82%·~47h remaining",
+      "rect": {
+        "x": 607.4375,
+        "y": 789.1666870117188,
+        "width": 128.11459350585938,
+        "height": 16
+      },
+      "icon": {
+        "rect": {
+          "x": 607.4375,
+          "y": 790.1666870117188,
+          "width": 14,
+          "height": 14
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        }
+      },
+      "value": {
+        "rect": {
+          "x": 625.4375,
+          "y": 790.0208740234375,
+          "width": 22.197917938232422,
+          "height": 14.291666984558105
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "650",
+          "color": "rgb(242, 244, 247)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "82%"
+      },
+      "runtime": {
+        "rect": {
+          "x": 658.0208740234375,
+          "y": 790.0208740234375,
+          "width": 77.53125,
+          "height": 14.291666984558105
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "11px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "~47h remaining"
+      }
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    }
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "g502-x-plus",
+    "filename": "1920x1080-g502-x-plus.png",
+    "metrics": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "horizontalOverflow": false,
+      "selector": ".battery-status--header",
+      "text": "82%~47h remaining",
+      "rect": {
+        "x": 1626,
+        "y": 61.01041793823242,
+        "width": 148,
+        "height": 35.875
+      },
+      "icon": {
+        "rect": {
+          "x": 1626,
+          "y": 61.01041793823242,
+          "width": 22,
+          "height": 22
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "normal"
+        }
+      },
+      "value": {
+        "rect": {
+          "x": 1656,
+          "y": 61.01041793823242,
+          "width": 38.26041793823242,
+          "height": 20
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "20px",
+          "fontWeight": "690",
+          "color": "rgb(242, 244, 247)",
+          "whiteSpace": "normal"
+        },
+        "text": "82%"
+      },
+      "runtime": {
+        "rect": {
+          "x": 1656,
+          "y": 85.01042175292969,
+          "width": 66.95833587646484,
+          "height": 11.875
+        },
+        "style": {
+          "display": "block",
+          "fontSize": "9.5px",
+          "fontWeight": "400",
+          "color": "rgb(125, 135, 149)",
+          "whiteSpace": "nowrap"
+        },
+        "text": "~47h remaining"
+      }
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    }
+  }
+]

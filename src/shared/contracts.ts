@@ -785,6 +785,7 @@ export const appSettingsSchema = z.object({
   diagnosticsRetentionDays: z.number().int().min(1).max(30),
   telemetry: z.literal(false),
   scanGamesAutomatically: z.boolean(),
+  clipEditorInspectorOpen: z.boolean(),
   deviceAppearanceOverrides: z.record(z.string(), deviceAppearanceOverrideSchema).default({}),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;

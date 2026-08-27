@@ -138,13 +138,17 @@ export class AppController {
 
   private async initializeOnce(): Promise<void> {
     await this.store.load();
+    if (this.disposed) return;
     await this.refreshAudioDevices(true);
+    if (this.disposed) return;
     // Native UI review uses canonical fixture devices so automated interaction
     // checks never issue writes to connected physical hardware.
     if (process.env.SWITCHBOARD_NATIVE_FIXTURES !== '1') await this.devices.start();
+    if (this.disposed) return;
     const snapshot = this.store.get();
     this.applyLoginItemSetting(snapshot.settings.launchAtStartup);
     await this.initializeCaptureStorage();
+    if (this.disposed) return;
     this.registerCaptureShortcut(snapshot.capture.config.hotkey, false);
     void this.reconcileClipLibrary();
 
@@ -158,6 +162,7 @@ export class AppController {
     for (const result of results) {
       if (result.status === 'rejected') console.error('Failed to restore an enabled engine.', result.reason);
     }
+    if (this.disposed) return;
     if (snapshot.settings.scanGamesAutomatically) {
       void this.scanGames().catch((error) => console.warn('Automatic game scan failed.', error));
     }
@@ -893,6 +898,7 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    await this.initialization?.catch(() => undefined);
     if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
     this.audioRestartTimer = null;
     if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);

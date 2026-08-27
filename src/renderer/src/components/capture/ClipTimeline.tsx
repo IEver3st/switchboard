@@ -10,8 +10,9 @@ import {
 } from 'react';
 import { FastForward, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatDuration } from '@/lib/format';
 import {
   applyPlayheadKeyboard,
   applyTimelineInteraction,
@@ -54,6 +55,7 @@ export function ClipTimeline({
   const [currentMs, setCurrentMs] = useState(startMs);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
   const [interaction, setInteractionState] = useState<TimelineInteraction>('idle');
   const [timelineWidth, setTimelineWidth] = useState(720);
   const frameMs = Math.max(1, 1_000 / Math.max(1, fps));
@@ -212,7 +214,17 @@ export function ClipTimeline({
 
   const toggleMute = () => {
     const video = videoRef.current;
-    if (video) video.muted = !video.muted;
+    if (!video) return;
+    if (video.volume === 0) video.volume = 0.5;
+    video.muted = !video.muted;
+  };
+
+  const updateVolume = (values: number[]) => {
+    const video = videoRef.current;
+    const nextVolume = Math.min(1, Math.max(0, values[0] ?? 0));
+    if (!video) return;
+    video.volume = nextVolume;
+    video.muted = nextVolume === 0;
   };
 
   useEffect(() => {
@@ -263,22 +275,25 @@ export function ClipTimeline({
       setCurrentMs(nextMs);
     };
     const updatePlayback = () => setPlaying(!video.paused);
-    const updateVolume = () => setMuted(video.muted || video.volume === 0);
+    const updateVolumeState = () => {
+      setMuted(video.muted || video.volume === 0);
+      setVolume(video.volume);
+    };
     video.addEventListener('timeupdate', updateTime);
     video.addEventListener('seeked', updateTime);
     video.addEventListener('play', updatePlayback);
     video.addEventListener('pause', updatePlayback);
     video.addEventListener('ended', updatePlayback);
-    video.addEventListener('volumechange', updateVolume);
+    video.addEventListener('volumechange', updateVolumeState);
     updatePlayback();
-    updateVolume();
+    updateVolumeState();
     return () => {
       video.removeEventListener('timeupdate', updateTime);
       video.removeEventListener('seeked', updateTime);
       video.removeEventListener('play', updatePlayback);
       video.removeEventListener('pause', updatePlayback);
       video.removeEventListener('ended', updatePlayback);
-      video.removeEventListener('volumechange', updateVolume);
+      video.removeEventListener('volumechange', updateVolumeState);
     };
   }, [durationMs, endMs, frameMs, setPlayhead, videoRef]);
 
@@ -328,20 +343,44 @@ export function ClipTimeline({
   const endPercent = endMs / durationMs * 100;
   const currentPercent = Math.min(100, Math.max(0, currentMs / durationMs * 100));
   const selectedPercent = Math.max(0, endPercent - startPercent);
-  const playheadEdge = currentPercent < 8 ? 'start' : currentPercent > 92 ? 'end' : 'middle';
   const frameCount = Math.max(10, Math.min(30, Math.round(timelineWidth / 44)));
 
   return (
-    <section className="clip-editor-timeline" aria-labelledby="trim-heading" data-interaction={interaction}>
-      <div className="clip-editor-timeline__heading">
-        <div className="min-w-0">
-          <h3 id="trim-heading">Timeline</h3>
-          <p>Drag the cyan playhead to scrub. Drag only the edge handles to trim.</p>
-        </div>
+    <section className="clip-editor-timeline" aria-label="Clip timeline" data-interaction={interaction}>
+      <div className="clip-editor-transport-bar">
         <output className="clip-editor-timeline__timecode" aria-label={`Current time ${formatTimelineTime(currentMs)}`}>
           {formatTimelineTime(currentMs)}
           <span aria-hidden="true"> / {formatTimelineTime(durationMs)}</span>
         </output>
+
+        <div className="clip-editor-transport" role="group" aria-label="Playback controls">
+          <TransportButton label="Previous frame" icon={SkipBack} onClick={() => seekBy(-frameMs)} />
+          <TransportButton label="Back 5 seconds" icon={Rewind} onClick={() => seekBy(-5_000)} />
+          <TransportButton label={playing ? 'Pause' : 'Play selection'} icon={playing ? Pause : Play} primary onClick={togglePlayback} />
+          <TransportButton label="Forward 5 seconds" icon={FastForward} onClick={() => seekBy(5_000)} />
+          <TransportButton label="Next frame" icon={SkipForward} onClick={() => seekBy(frameMs)} />
+        </div>
+
+        <div className="clip-editor-transport__utilities">
+          <div className="clip-editor-volume" role="group" aria-label="Playback volume">
+            <TransportButton label={muted ? 'Unmute' : 'Mute'} icon={muted ? VolumeX : Volume2} pressed={muted} onClick={toggleMute} />
+            <Slider
+              className="clip-editor-volume__slider"
+              min={0}
+              max={1}
+              step={0.01}
+              value={[volume]}
+              thumbLabels={['Playback volume']}
+              thumbValueText={[`${Math.round(volume * 100)} percent`]}
+              onValueChange={updateVolume}
+            />
+          </div>
+          <Separator orientation="vertical" className="h-5" />
+          <TransportButton label="Reset trim" icon={Undo2} disabled={startMs === 0 && endMs === durationMs} onClick={() => onChange(0, durationMs)} />
+          <Button type="button" variant="secondary" size="sm" className="h-7 px-2.5 text-[10px]" disabled={!dirty || savePending} onClick={onSave}>
+            <Save className="size-3.5" aria-hidden="true" /> {savePending ? 'Saving…' : dirty ? 'Save trim' : 'Saved'}
+          </Button>
+        </div>
       </div>
 
       <div ref={timelineRef} className="clip-editor-timeline__surface" data-testid="clip-timeline-surface">
@@ -381,7 +420,6 @@ export function ClipTimeline({
         />
 
         <div className="clip-editor-playhead" style={{ left: `${currentPercent}%` }} aria-hidden="true">
-          <span className="clip-editor-playhead__time" data-edge={playheadEdge}>{formatTimelineTime(currentMs)}</span>
           <span className="clip-editor-playhead__cap" />
           <span className="clip-editor-playhead__line" />
         </div>
@@ -429,46 +467,22 @@ export function ClipTimeline({
         </div>
       </div>
 
-      <div className="clip-editor-timeline__toolbar">
-        <div className="clip-editor-timeline__selection-copy">
-          <strong>{formatDuration((endMs - startMs) / 1_000)} selected</strong>
-          <span>{formatTimelineTime(startMs)} – {formatTimelineTime(endMs)}</span>
-        </div>
-
-        <div className="clip-editor-transport" role="group" aria-label="Playback controls">
-          <TransportButton label="Previous frame" icon={SkipBack} onClick={() => seekBy(-frameMs)} />
-          <TransportButton label="Back 5 seconds" icon={Rewind} onClick={() => seekBy(-5_000)} />
-          <TransportButton label={playing ? 'Pause' : 'Play selection'} icon={playing ? Pause : Play} primary onClick={togglePlayback} />
-          <TransportButton label="Forward 5 seconds" icon={FastForward} onClick={() => seekBy(5_000)} />
-          <TransportButton label="Next frame" icon={SkipForward} onClick={() => seekBy(frameMs)} />
-          <span className="clip-editor-transport__separator" aria-hidden="true" />
-          <TransportButton label={muted ? 'Unmute' : 'Mute'} icon={muted ? VolumeX : Volume2} pressed={muted} onClick={toggleMute} />
-        </div>
-
-        <div className="clip-editor-timeline__actions">
-          <Button type="button" variant="ghost" size="sm" disabled={startMs === 0 && endMs === durationMs} onClick={() => onChange(0, durationMs)}>
-            <Undo2 className="size-3.5" aria-hidden="true" /> Reset
-          </Button>
-          <Button type="button" variant="secondary" size="sm" disabled={!dirty || savePending} onClick={onSave}>
-            <Save className="size-3.5" aria-hidden="true" /> {savePending ? 'Saving…' : dirty ? 'Save trim' : 'Saved'}
-          </Button>
-        </div>
-      </div>
     </section>
   );
 }
 
-function TransportButton({ label, icon: Icon, primary = false, pressed, onClick }: {
+function TransportButton({ label, icon: Icon, primary = false, pressed, disabled, onClick }: {
   label: string;
   icon: typeof Play;
   primary?: boolean;
   pressed?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button type="button" variant={primary ? 'primary' : 'ghost'} size="icon" className={primary ? 'size-8' : 'size-7'} aria-label={label} aria-pressed={pressed} onClick={onClick}>
+        <Button type="button" variant={primary ? 'primary' : 'ghost'} size="icon" className={primary ? 'size-8' : 'size-7'} aria-label={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
           <Icon className={primary ? 'size-4' : 'size-3.5'} aria-hidden="true" />
         </Button>
       </TooltipTrigger>

@@ -114,7 +114,6 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
           <BatteryStatus
             battery={selected.capabilities.battery}
             connected={selected.connected}
-            connectionLabel="Battery"
             variant="header"
             className="device-workbench__battery"
           />
@@ -148,14 +147,12 @@ function connectionLabel(device: Device): string {
 function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: SystemSnapshot }) {
   const setDeviceSetting = useSystemStore((state) => state.setDeviceSetting);
   const setDeviceControl = useSystemStore((state) => state.setDeviceControl);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const gain = asNumber(device.settings.gain, 58);
   const monitoring = asNumber(device.settings.monitoring, 18);
   const lighting = device.capabilities.lighting;
   const muteState = device.capabilities.muteState;
   const muted = muteState?.muted ?? null;
-  const controlsPending = actionPending?.startsWith(`device:${device.id}:`) ?? false;
-  const lightingDisabled = !device.connected || !lighting?.writable || controlsPending;
+  const lightingDisabled = !device.connected || !lighting?.writable;
   const engineRunning = snapshot.engines.find((candidate) => candidate.kind === 'audio')?.state === 'running';
   const microphoneBusEnabled = snapshot.audio.buses.find((candidate) => candidate.id === 'mic')?.enabled ?? false;
 

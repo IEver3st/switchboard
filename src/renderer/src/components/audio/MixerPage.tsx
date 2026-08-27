@@ -15,7 +15,6 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
   const setAudioMasterEnabled = useSystemStore((state) => state.setAudioMasterEnabled);
   const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const setChatMix = useSystemStore((state) => state.setChatMix);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
   const buses = mixerChannelOrder
@@ -46,7 +45,7 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
       <div className="mixer-grid" data-testid="mixer-grid">
         <MixerMasterStrip
           master={snapshot.audio.master}
-          pending={actionPending?.startsWith('audio:master') ?? false}
+          pending={false}
           onGainCommit={(gain) => void setAudioMasterGain({ gain })}
           onEnabledChange={(enabled) => void setAudioMasterEnabled({ enabled })}
         />
@@ -59,7 +58,7 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
               devices={snapshot.audio.devices}
               icon={channelIcons[channel]}
               engineRunning={engineRunning}
-              pending={actionPending?.startsWith(`audio:${bus.id}`) ?? false}
+              pending={false}
               presetName={presetNameFor(channel)}
               applications={snapshot.audio.applications.filter((application) => application.destination === bus.id)}
               routingAvailable={routingAvailable}
@@ -75,7 +74,7 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
       <ChatMixSlider
         value={snapshot.audio.chatMix}
         disabled={!gameEnabled || !chatEnabled}
-        pending={actionPending === 'audio:chatmix'}
+        pending={false}
         onCommit={(value) => void setChatMix(value)}
       />
 

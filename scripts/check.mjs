@@ -85,6 +85,21 @@ assert(ipcSource.includes('assertTrustedSender'), 'IPC handlers must validate th
 assert(ipcSource.includes('.parse('), 'IPC payloads must be schema validated.');
 assert(ipcSource.includes('event.sender.id'), 'IPC must be pinned to the current main renderer webContents.');
 assert(!ipcSource.includes('Boolean(input)') && !ipcSource.includes('Number(input)'), 'IPC must not use lossy Boolean/Number coercion.');
+assert(ipcSource.includes('await controller.initialize();'), 'The initial renderer snapshot must wait for real controller initialization.');
+
+const appSource = read('src/renderer/src/App.tsx');
+const startupScreenSource = read('src/renderer/src/components/layout/startup-screen.tsx');
+assert(
+  !appSource.includes('minimumStartupDuration')
+    && !appSource.includes('setTimeout')
+    && !startupScreenSource.includes('setTimeout'),
+  'The startup screen must not impose a minimum duration or artificial delay.',
+);
+assert(
+  mainSource.includes('const initialization = controller.initialize();')
+    && mainSource.includes('showWindow();\n    await initialization;'),
+  'The main window must be shown while real controller initialization is still running.',
+);
 
 const engineSupervisor = read('src/main/services/engine-supervisor.ts');
 assert(

@@ -43,7 +43,6 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
   const [targetSetting, setTargetSetting] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resetSettings = useSystemStore((state) => state.resetSettings);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const categoryDefinition = settingsCategories.find((candidate) => candidate.id === category);
   const resetScope = categoryResetScope(category);
 
@@ -89,7 +88,9 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
 
   const confirmReset = () => {
     if (!confirmation) return;
-    void resetSettings(confirmation).then(() => setConfirmation(null));
+    const scope = confirmation;
+    setConfirmation(null);
+    void resetSettings(scope);
   };
 
   return (
@@ -110,7 +111,6 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
         {confirmation ? (
           <ResetConfirmation
             scope={confirmation}
-            pending={actionPending === 'settings:reset'}
             onCancel={() => setConfirmation(null)}
             onConfirm={confirmReset}
           />
@@ -163,7 +163,6 @@ function SettingsCategory({
 
 function GeneralSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
-  const pending = useSystemStore((state) => state.actionPending) === 'settings:update';
 
   return (
     <>
@@ -174,7 +173,6 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           title="Start Switchboard with Windows"
           description="Launch the control plane automatically when you sign in. Optional engines keep their own saved state."
           checked={snapshot.settings.launchAtStartup}
-          disabled={pending}
           onCheckedChange={(checked) => void updateSettings({ launchAtStartup: checked })}
         />
         <SettingSwitch
@@ -182,7 +180,6 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           title="Close to tray"
           description="Keep global shortcuts, connected-device profiles, and active engines available after closing the window."
           checked={snapshot.settings.closeToTray}
-          disabled={pending}
           onCheckedChange={(checked) => void updateSettings({ closeToTray: checked })}
         />
         <SettingSwitch
@@ -190,7 +187,7 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           title="Release interface memory in tray"
           description="Destroy the Chromium renderer in tray mode. The control plane and enabled hosts remain independent."
           checked={snapshot.settings.destroyRendererInTray}
-          disabled={pending || !snapshot.settings.closeToTray}
+          disabled={!snapshot.settings.closeToTray}
           onCheckedChange={(checked) => void updateSettings({ destroyRendererInTray: checked })}
         />
       </SettingSection>
@@ -201,7 +198,6 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
 function DevicesSettings({ snapshot, onReset }: CategoryProps) {
   const setPage = useSystemStore((state) => state.setPage);
   const setDeviceAppearanceOverride = useSystemStore((state) => state.setDeviceAppearanceOverride);
-  const actionPending = useSystemStore((state) => state.actionPending);
 
   return (
     <>
@@ -231,7 +227,7 @@ function DevicesSettings({ snapshot, onReset }: CategoryProps) {
                   { value: 'white', label: 'White' },
                   { value: 'black', label: 'Black' },
                 ]}
-                disabled={hardwareResolved || actionPending === `device:${device.id}:appearance`}
+                disabled={hardwareResolved}
                 onValueChange={(value) => void setDeviceAppearanceOverride({
                   deviceId: device.id,
                   override: value === 'automatic'
@@ -258,7 +254,6 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
   const setPage = useSystemStore((state) => state.setPage);
   const setAudioEnabled = useSystemStore((state) => state.setAudioEnabled);
   const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const gameBus = snapshot.audio.buses.find((bus) => bus.id === 'game');
   const micBus = snapshot.audio.buses.find((bus) => bus.id === 'mic');
   const outputOptions = snapshot.audio.devices
@@ -280,7 +275,6 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
             ? 'Audio starts automatically at launch. Turning it off releases audio devices and background work.'
             : 'Start the isolated Audio host now and restore it on the next launch.'}
           checked={snapshot.audio.enabled}
-          disabled={actionPending === 'audio:enabled'}
           onCheckedChange={(checked) => void setAudioEnabled(checked)}
         />
         <SettingValue
@@ -298,7 +292,7 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
             description="Choose the Windows output assigned to the Game bus. The change applies immediately when the host is running."
             value={gameBus.deviceId}
             options={outputOptions}
-            disabled={actionPending === 'audio:game:device' || outputOptions.length === 0}
+            disabled={outputOptions.length === 0}
             onValueChange={(deviceId) => void setAudioBusDevice({ busId: 'game', deviceId })}
           />
         ) : null}
@@ -309,7 +303,7 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
             description="Choose the Windows input assigned to the Microphone bus. Hardware gain remains on the device page."
             value={micBus.deviceId}
             options={inputOptions}
-            disabled={actionPending === 'audio:mic:device' || inputOptions.length === 0}
+            disabled={inputOptions.length === 0}
             onValueChange={(deviceId) => void setAudioBusDevice({ busId: 'mic', deviceId })}
           />
         ) : null}
@@ -328,10 +322,8 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
 function CaptureSettings({ snapshot, onReset }: CategoryProps) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const setPage = useSystemStore((state) => state.setPage);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const config = snapshot.capture.config;
   const capabilities = snapshot.capture.capabilities;
-  const configPending = actionPending === 'capture:config';
   const codecLabels = { h264: 'H.264', hevc: 'HEVC', av1: 'AV1' } as const;
   const codecOptions = [...new Set([...capabilities.codecs, config.codec])]
     .map((codec) => ({ value: codec, label: codecLabels[codec] }));
@@ -347,14 +339,13 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           title="Capture engine"
           description={captureEngineDescription(config.enabled, engine?.state, engine?.message)}
           checked={config.enabled}
-          disabled={configPending || engine?.state === 'starting'}
+          disabled={engine?.state === 'starting'}
           onCheckedChange={(enabled) => void setCaptureConfig({ enabled })}
         />
         <SettingShortcut
           settingId="capture.shortcut"
           title="Save replay shortcut"
           value={config.hotkey}
-          disabled={configPending}
           onValueChange={(hotkey) => void setCaptureConfig({ hotkey })}
         />
       </SettingSection>
@@ -370,7 +361,6 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
             { value: 'window', label: 'Window' },
             { value: 'display', label: 'Display' },
           ]}
-          disabled={configPending}
           onValueChange={(source) => void setCaptureConfig({ source: source as CaptureConfig['source'], sourceId: null })}
         />
         <SettingSelect
@@ -381,7 +371,6 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
             : 'No hardware encoder has been reported yet. Automatic remains the only supported preference.'}
           value={config.encoder}
           options={encoderOptions}
-          disabled={configPending}
           onValueChange={(encoder) => void setCaptureConfig({ encoder: encoder as CaptureConfig['encoder'] })}
         />
         <SettingSelect
@@ -390,7 +379,7 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           description="Only codecs reported by the active capture host are available."
           value={config.codec}
           options={codecOptions}
-          disabled={configPending || codecOptions.length <= 1}
+          disabled={codecOptions.length <= 1}
           onValueChange={(codec) => void setCaptureConfig({ codec: codec as CaptureConfig['codec'] })}
         />
       </SettingSection>
@@ -402,7 +391,6 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
             title="Record microphone"
             description="Include the selected microphone as a separate replay input."
             checked={config.includeMic}
-            disabled={configPending}
             onCheckedChange={(includeMic) => void setCaptureConfig({ includeMic })}
           />
         ) : (
@@ -414,7 +402,6 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
             title="Record system audio"
             description="Include desktop audio in replay clips."
             checked={config.includeSystemAudio}
-            disabled={configPending}
             onCheckedChange={(includeSystemAudio) => void setCaptureConfig({ includeSystemAudio })}
           />
         ) : (
@@ -425,7 +412,6 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           title="Capture cursor"
           description="Include the Windows pointer in saved footage."
           checked={config.includeCursor}
-          disabled={configPending}
           onCheckedChange={(includeCursor) => void setCaptureConfig({ includeCursor })}
         />
         <SettingAction
@@ -444,12 +430,9 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
   const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const config = snapshot.capture.config;
   const capabilities = snapshot.capture.capabilities;
   const storage = snapshot.capture.storage;
-  const configPending = actionPending === 'capture:config';
-  const folderPending = actionPending === 'capture:directory';
   const clipDirectory = config.clipsDirectory || storage.clipsDirectory || 'Windows Videos\\Switchboard Clips';
   const estimate = estimateClipSize(config, snapshot.capture.runtime.observedBitrateBps);
   const totalBytes = storage.volumeTotalBytes;
@@ -483,7 +466,6 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
             label="Duration"
             value={String(config.replaySeconds)}
             options={[15, 30, 45, 60, 90, 120, 180, 300].map((seconds) => ({ value: String(seconds), label: formatClipDuration(seconds) }))}
-            disabled={configPending}
             onValueChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })}
           />
           <ClipSelectField
@@ -497,7 +479,6 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
               { value: '4', label: 'High (Default)' },
               { value: '5', label: 'Maximum' },
             ]}
-            disabled={configPending}
             onValueChange={(value) => void setCaptureConfig({ quality: Number(value) })}
           />
           <ClipSelectField
@@ -511,7 +492,6 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
               { value: '2160p', label: '2160p' },
               { value: 'native', label: 'Native source' },
             ]}
-            disabled={configPending}
             onValueChange={(resolution) => void setCaptureConfig({ resolution: resolution as CaptureConfig['resolution'] })}
           />
           <ClipSelectField
@@ -519,7 +499,6 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
             label="Frame rate"
             value={String(config.fps)}
             options={fpsOptions}
-            disabled={configPending}
             onValueChange={(fps) => void setCaptureConfig({ fps: Number(fps) as CaptureConfig['fps'] })}
           />
         </div>
@@ -562,7 +541,6 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
           settingId="capture.storage"
           title="Clip folder"
           path={clipDirectory}
-          disabled={folderPending}
           onChange={() => void chooseClipDirectory()}
           onOpen={() => void openClipsDirectory()}
           className="clip-storage-location"
@@ -605,7 +583,6 @@ function ClipSelectField({
 
 function ModulesSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
-  const pending = useSystemStore((state) => state.actionPending) === 'settings:update';
 
   return (
     <div className="settings-category--modules">
@@ -616,7 +593,6 @@ function ModulesSettings({ snapshot, onReset }: CategoryProps) {
           title="Automatic module updates"
           description="Verify signatures, install safely, and keep one rollback copy. Application updates are not configured yet."
           checked={snapshot.settings.automaticModuleUpdates}
-          disabled={pending}
           onCheckedChange={(automaticModuleUpdates) => void updateSettings({ automaticModuleUpdates })}
         />
       </SettingSection>
@@ -627,7 +603,6 @@ function ModulesSettings({ snapshot, onReset }: CategoryProps) {
 
 function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
-  const pending = useSystemStore((state) => state.actionPending) === 'settings:update';
   const audioEngine = snapshot.engines.find((engine) => engine.kind === 'audio');
   const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
   const capturePreset = getEncodingPreset(snapshot.capture.config);
@@ -650,7 +625,6 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
           description="Retain engine crashes, process samples, and module load failures for local troubleshooting."
           value={String(snapshot.settings.diagnosticsRetentionDays)}
           options={[1, 3, 7, 14, 30].map((days) => ({ value: String(days), label: days === 1 ? '1 day' : `${days} days` }))}
-          disabled={pending}
           onValueChange={(days) => void updateSettings({ diagnosticsRetentionDays: Number(days) })}
         />
         <SettingSwitch
@@ -658,7 +632,6 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
           title="Performance guard"
           description="Warn when sustained resource use crosses the memory or idle CPU budget."
           checked={snapshot.settings.performanceGuard}
-          disabled={pending}
           onCheckedChange={(performanceGuard) => void updateSettings({ performanceGuard })}
         />
       </SettingSection>
@@ -804,12 +777,10 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
 
 function ResetConfirmation({
   scope,
-  pending,
   onCancel,
   onConfirm,
 }: {
   scope: SettingsResetScope;
-  pending: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -845,10 +816,8 @@ function ResetConfirmation({
         <p id="reset-settings-description">This resets {label}. Installed modules, device profiles, and saved clips are not removed.</p>
       </div>
       <div className="settings-reset-confirmation__actions">
-        <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={onCancel}>Cancel</Button>
-        <Button ref={confirmRef} type="button" variant="danger" size="sm" disabled={pending} onClick={onConfirm}>
-          {pending ? 'Resetting…' : 'Restore'}
-        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button ref={confirmRef} type="button" variant="danger" size="sm" onClick={onConfirm}>Restore</Button>
       </div>
     </div>
   );

@@ -439,6 +439,7 @@ export const defaultSettings: AppSettings = {
   diagnosticsRetentionDays: 7,
   telemetry: false,
   scanGamesAutomatically: true,
+  clipEditorInspectorOpen: true,
   deviceAppearanceOverrides: {},
 };
 

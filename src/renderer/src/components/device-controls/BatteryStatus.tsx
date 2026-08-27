@@ -1,7 +1,5 @@
 import { Zap } from 'lucide-react';
 import type { BatteryCapability } from '../../../../shared/contracts';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
@@ -37,15 +35,8 @@ export function BatteryStatus({
       : isCharging
         ? 'charging'
         : severity;
-  const statusLabel = state === 'charging'
-    ? 'Charging'
-    : state === 'critical'
-      ? 'Critical'
-      : state === 'low'
-        ? 'Low'
-        : null;
   const runtimeLabel = batteryRuntimeLabel(battery, connected);
-  const accessible = `${roundedPercentage} percent battery, ${runtimeLabel.toLocaleLowerCase()}${statusLabel ? `, ${statusLabel.toLocaleLowerCase()}` : ''}`;
+  const accessible = `${roundedPercentage} percent battery${isCharging ? ', charging' : ''}, ${runtimeLabel.toLocaleLowerCase()}`;
   const tooltipState = state === 'full'
     ? 'Fully charged'
     : state === 'charging'
@@ -99,21 +90,14 @@ export function BatteryStatus({
           <div className="battery-status__copy">
             <div className="battery-status__topline">
               <strong className="battery-status__value tabular-nums">{roundedPercentage}%</strong>
-              {statusLabel ? (
-                <Badge variant={badgeVariant(state)} className="battery-status__badge">
-                  {state === 'charging' ? <Zap aria-hidden className="size-2.5" /> : null}
-                  {statusLabel}
-                </Badge>
+              {isCharging ? (
+                <span className="battery-status__charging">
+                  <span aria-hidden>·</span>
+                  Charging
+                </span>
               ) : null}
             </div>
-            <span className="battery-status__label">Battery</span>
             <span className="battery-status__runtime">{runtimeLabel}</span>
-            <Progress
-              value={roundedPercentage}
-              aria-label={`${roundedPercentage} percent charge`}
-              className="battery-status__progress"
-              indicatorClassName="battery-status__progress-indicator"
-            />
           </div>
         </div>
       </TooltipTrigger>
@@ -202,18 +186,10 @@ function BatteryStatusSkeleton({ variant, className }: { variant: 'compact' | 'h
       <Skeleton className="battery-status__icon-skeleton" />
       <div className="battery-status__copy">
         <Skeleton className="battery-status__value-skeleton" />
-        <Skeleton className="battery-status__label-skeleton" />
         <Skeleton className="battery-status__runtime-skeleton" />
-        <Skeleton className="battery-status__progress-skeleton" />
       </div>
     </div>
   );
-}
-
-function badgeVariant(state: string): 'success' | 'warning' | 'destructive' {
-  if (state === 'charging') return 'success';
-  if (state === 'critical') return 'destructive';
-  return 'warning';
 }
 
 function formatUpdatedTime(updatedAt: number): string {

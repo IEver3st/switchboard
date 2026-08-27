@@ -14,7 +14,6 @@ const kindLabels: Record<ModuleKind, string> = {
 
 export function ModuleManagement({ snapshot }: { snapshot: SystemSnapshot }) {
   const setModuleState = useSystemStore((state) => state.setModuleState);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const installed = snapshot.modules.filter((module) => module.installed);
   const available = snapshot.modules.filter((module) => !module.installed);
 
@@ -32,7 +31,6 @@ export function ModuleManagement({ snapshot }: { snapshot: SystemSnapshot }) {
             key={module.id}
             module={module}
             settingId={index === 0 ? 'modules.installed' : `modules.installed.${module.id}`}
-            pending={actionPending === `module:${module.id}`}
             onToggle={(enabled) => void setModuleState({ moduleId: module.id, enabled })}
           />
         ))}
@@ -50,7 +48,6 @@ export function ModuleManagement({ snapshot }: { snapshot: SystemSnapshot }) {
             key={module.id}
             module={module}
             settingId={index === 0 ? 'modules.available' : `modules.available.${module.id}`}
-            pending={actionPending === `module:${module.id}`}
             onInstall={() => void setModuleState({ moduleId: module.id, enabled: true })}
           />
         ))}
@@ -62,12 +59,10 @@ export function ModuleManagement({ snapshot }: { snapshot: SystemSnapshot }) {
 function InstalledModuleRow({
   module,
   settingId,
-  pending,
   onToggle,
 }: {
   module: ModuleManifest;
   settingId: string;
-  pending: boolean;
   onToggle: (enabled: boolean) => void;
 }) {
   return (
@@ -79,11 +74,10 @@ function InstalledModuleRow({
       controlClassName="settings-row__control--actions settings-module-control"
     >
       <span className="settings-module-status" aria-live="polite">
-        {pending ? 'Applying…' : module.enabled ? 'Enabled' : 'Off'}
+        {module.enabled ? 'Enabled' : 'Off'}
       </span>
       <Switch
         checked={module.enabled}
-        disabled={pending}
         aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}
         onCheckedChange={onToggle}
         className="no-drag"
@@ -95,12 +89,10 @@ function InstalledModuleRow({
 function AvailableModuleRow({
   module,
   settingId,
-  pending,
   onInstall,
 }: {
   module: ModuleManifest;
   settingId: string;
-  pending: boolean;
   onInstall: () => void;
 }) {
   return (
@@ -114,13 +106,12 @@ function AvailableModuleRow({
         type="button"
         size="sm"
         variant="primary"
-        disabled={pending}
         onClick={onInstall}
         aria-label={`Install ${module.name}`}
         className="h-7 min-w-[88px] gap-1.5 px-3 text-[11px] no-drag"
       >
         <Download className="size-3.5" aria-hidden />
-        {pending ? 'Installing…' : 'Install'}
+        Install
       </Button>
     </SettingRow>
   );

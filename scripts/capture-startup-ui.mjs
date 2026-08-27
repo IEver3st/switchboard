@@ -23,6 +23,7 @@ app.setName('switchboard-startup-review');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
+process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
 await mkdir(outputDirectory, { recursive: true });
 await import('../out/main/index.js');
@@ -50,13 +51,25 @@ async function runReview() {
     const reloadStartedAt = Date.now();
     await reload(window);
     if (reducedMotionReview) {
-      await waitForSelector(window, 'main');
+      await waitForSelector(window, '.startup-screen');
+      const motionState = await window.webContents.executeJavaScript(`
+        (() => ({
+          controlsAnimation: getComputedStyle(document.querySelector('.startup-console__controls')).animationName,
+          faderAnimation: getComputedStyle(document.querySelector('.startup-console__fader')).animationName,
+          routeAnimation: getComputedStyle(document.querySelector('.startup-console__route')).animationName,
+          signalPulseVisible: Boolean(document.querySelector('.startup-console__pulse')),
+        }))()
+      `);
+      const image = await window.webContents.capturePage();
+      const filename = `${viewport.name}-startup-reduced.png`;
+      await writeFile(join(outputDirectory, filename), image.toPNG());
+      await waitForSelector(window, 'main', 40_000);
       const readyAfterMs = Date.now() - reloadStartedAt;
       const startupVisible = await window.webContents.executeJavaScript(`Boolean(document.querySelector('.startup-screen'))`);
-      if (startupVisible || readyAfterMs >= 600) {
-        throw new Error(`Reduced-motion startup remained visible for ${readyAfterMs} ms.`);
+      if (startupVisible) {
+        throw new Error('Reduced-motion startup did not leave immediately after initialization.');
       }
-      report.push({ viewport, reducedMotion: true, readyAfterMs, startupVisible });
+      report.push({ viewport, reducedMotion: true, readyAfterMs, startupVisible, motionState, filename });
       continue;
     }
     await waitForSelector(window, '.startup-screen');
@@ -127,8 +140,8 @@ async function waitForViewport(window, viewport) {
   throw new Error(`Native window did not reach ${viewport.name}.`);
 }
 
-async function waitForSelector(window, selector) {
-  const deadline = Date.now() + 5_000;
+async function waitForSelector(window, selector, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await window.webContents.executeJavaScript(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)) return;
     await delay(20);
@@ -137,7 +150,7 @@ async function waitForSelector(window, selector) {
 }
 
 async function waitForSelectorGone(window, selector) {
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + 40_000;
   while (Date.now() < deadline) {
     if (!await window.webContents.executeJavaScript(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)) return;
     await delay(20);

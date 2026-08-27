@@ -181,14 +181,14 @@ select {
 
 .startup-sequence {
   display: flex;
-  width: min(400px, calc(100vw - 64px));
+  width: min(480px, calc(100vw - 64px));
   flex-direction: column;
   align-items: center;
 }
 
 .startup-console {
   display: block;
-  width: min(368px, 100%);
+  width: min(clamp(368px, 30vw, 440px), 100%);
   height: auto;
   overflow: visible;
 }
@@ -1078,7 +1078,7 @@ select {
 .battery-status {
   display: grid;
   min-width: 0;
-  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr);
   align-items: start;
   gap: 8px;
   outline: 0;
@@ -1093,15 +1093,14 @@ select {
 .battery-status__icon-wrap {
   position: relative;
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   place-items: center;
-  margin-top: 2px;
 }
 
 .battery-status__icon {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
 }
 
 .battery-status__icon-fill {
@@ -1111,10 +1110,10 @@ select {
 
 .battery-status__icon-bolt {
   position: absolute;
-  right: -2px;
-  bottom: -1px;
-  width: 11px;
-  height: 11px;
+  right: -3px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
   padding: 1px;
   border-radius: 2px;
   background: var(--background);
@@ -1131,75 +1130,41 @@ select {
 .battery-status__copy {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 6px;
+  justify-items: start;
 }
 
 .battery-status__topline {
   display: flex;
   min-width: 0;
-  grid-column: 1 / -1;
   align-items: center;
   gap: 6px;
 }
 
 .battery-status__value {
   color: var(--foreground);
-  font-size: 22px;
-  font-weight: 720;
-  letter-spacing: -0.045em;
+  font-size: 20px;
+  font-weight: 690;
+  letter-spacing: -0.035em;
   line-height: 1;
 }
 
-.battery-status__badge {
-  padding: 1px 5px;
-  font-size: 8px;
+.battery-status__charging {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--success);
+  font-size: 9.5px;
+  font-weight: 650;
   line-height: 1.25;
-}
-
-.battery-status__label,
-.battery-status__runtime {
-  grid-column: 1 / -1;
-  line-height: 1.25;
-}
-
-.battery-status__label {
-  margin-top: 3px;
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.battery-status__runtime {
-  margin-top: 1px;
-  color: var(--text-description);
-  font-size: 9px;
   white-space: nowrap;
 }
 
-.battery-status__progress {
-  height: 2px;
-  grid-column: 1 / -1;
-  margin-top: 5px;
-  background: color-mix(in srgb, var(--foreground) 10%, transparent);
-}
-
-.battery-status__progress-indicator {
-  background: color-mix(in srgb, var(--foreground) 58%, transparent);
-}
-
-.battery-status[data-charging="true"] .battery-status__progress-indicator,
-.battery-status[data-state="full"] .battery-status__progress-indicator {
-  background: var(--success);
-}
-
-.battery-status[data-state="low"] .battery-status__progress-indicator {
-  background: var(--warning);
-}
-
-.battery-status[data-state="critical"] .battery-status__progress-indicator {
-  background: var(--destructive);
+.battery-status__runtime {
+  margin-top: 4px;
+  color: var(--text-description);
+  font-size: 9.5px;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .battery-status[data-state="low"] .battery-status__icon-wrap {
@@ -1258,6 +1223,15 @@ select {
   width: 8px;
   height: 8px;
   padding: 0;
+  background: var(--surface-1);
+}
+
+.battery-status--compact[data-state="low"] .battery-status__icon-wrap {
+  color: var(--warning);
+}
+
+.battery-status--compact[data-state="critical"] .battery-status__icon-wrap {
+  color: var(--destructive);
 }
 
 .battery-status--compact .battery-status__value {
@@ -1280,7 +1254,8 @@ select {
 }
 
 .battery-status--header {
-  width: 174px;
+  width: max-content;
+  min-width: 148px;
 }
 
 .battery-status--loading {
@@ -1288,9 +1263,9 @@ select {
 }
 
 .battery-status__icon-skeleton {
-  width: 24px;
-  height: 14px;
-  margin-top: 7px;
+  width: 20px;
+  height: 12px;
+  margin-top: 4px;
 }
 
 .battery-status--compact .battery-status__icon-skeleton {
@@ -1307,29 +1282,13 @@ select {
 
 .battery-status__value-skeleton {
   width: 48px;
-  height: 19px;
-  grid-column: 1 / -1;
-}
-
-.battery-status__label-skeleton {
-  width: 38px;
-  height: 8px;
-  grid-column: 1 / -1;
-  margin-top: 4px;
+  height: 18px;
 }
 
 .battery-status__runtime-skeleton {
   width: 92px;
   height: 7px;
-  grid-column: 1 / -1;
-  margin-top: 2px;
-}
-
-.battery-status__progress-skeleton {
-  width: 100%;
-  height: 2px;
-  grid-column: 1 / -1;
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .mouse-stage {
@@ -5156,6 +5115,146 @@ select {
 
   .parametric-eq__inspector {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+}
+
+/* Final audio-workbench sizing wins over the earlier compact-console layer. */
+.audio-workbench .mic-control-rail .primary-slider__heading output,
+.audio-workbench .mic-monitoring__controls .primary-slider__heading output {
+  min-width: 68px;
+  height: 27px;
+  padding: 0 7px;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.audio-workbench .mic-control-rail .primary-slider__heading output small,
+.audio-workbench .mic-monitoring__controls .primary-slider__heading output small {
+  font-size: 10px;
+}
+
+/* Horizontal processor controls inherit the mixer's physical fader grammar. */
+.ui-slider--fader[data-orientation='horizontal'] {
+  height: 30px;
+}
+
+.ui-slider--fader .ui-slider__track {
+  height: 5px;
+  overflow: visible;
+  border-radius: 2px;
+}
+
+.ui-slider--fader .ui-slider__range {
+  border-radius: 2px;
+}
+
+.ui-slider--fader .ui-slider__thumb {
+  position: relative;
+  width: 23px;
+  height: 17px;
+  border: 1px solid #c7ced8;
+  border-radius: 3px;
+  outline: 0;
+  background: #f3f5f8;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 38%);
+  cursor: ew-resize;
+}
+
+.ui-slider--fader .ui-slider__thumb::after {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  background: var(--control-accent);
+  content: '';
+}
+
+.ui-slider--fader .ui-slider__thumb:hover {
+  border-color: #fff;
+}
+
+.ui-slider--fader .ui-slider__thumb:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 38%);
+}
+
+.ui-slider--fader[data-disabled] .ui-slider__thumb {
+  cursor: default;
+}
+
+.primary-slider__heading output,
+.parameter-control output {
+  display: inline-flex;
+  min-width: 68px;
+  height: 27px;
+  align-items: center;
+  justify-content: flex-end;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input);
+  padding: 0 7px;
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: 0;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.primary-slider__heading output small {
+  margin-left: 3px;
+  font-size: 10px;
+}
+
+.audio-processor-parameters,
+.mic-parameter-stack {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  padding-top: 7px;
+}
+
+.audio-control-rail,
+.mic-control-rail {
+  align-items: start;
+}
+
+.audio-simple-section {
+  min-height: 0;
+}
+
+.audio-processor-parameters .parameter-control,
+.mic-parameter-stack .parameter-control {
+  min-height: 42px;
+}
+
+.mic-parameter-stack > .primary-slider {
+  padding: 0 0 5px;
+}
+
+.mic-parameter-stack > .primary-slider .primary-slider__heading {
+  min-height: 33px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.mic-control-rail .mic-setting {
+  min-height: 0;
+}
+
+.mic-control-rail .mic-setting__control {
+  align-self: stretch;
+}
+
+@media (max-width: 1180px) {
+  .parameter-control {
+    grid-template-columns: 98px minmax(90px, 1fr) 70px;
+    gap: 9px;
   }
 }
 

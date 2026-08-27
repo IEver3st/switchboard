@@ -11,39 +11,74 @@
 
 .clip-editor-header {
   display: flex;
-  min-height: 50px;
+  min-height: 46px;
   flex: 0 0 auto;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   border-bottom: 1px solid var(--border);
   background: var(--card);
-  padding: 0 12px;
+  padding: 0 10px;
 }
 
 .clip-editor-header__identity {
-  min-width: 0;
+  display: flex;
+  min-width: 80px;
   flex: 1;
+  align-items: center;
+  gap: 3px;
 }
 
-.clip-editor-header__identity h2,
-.clip-editor-header__identity p {
-  overflow: hidden;
+.clip-editor-header__identity h2 {
+  min-width: 0;
   margin: 0;
+}
+
+.clip-editor-header__rename {
+  display: flex;
+  min-width: 0;
+  max-width: min(42vw, 560px);
+  height: 28px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 6px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+
+.clip-editor-header__rename span {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.clip-editor-header__identity h2 {
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+.clip-editor-header__rename svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  color: var(--text-description);
+  opacity: 0;
+  transition: opacity 120ms ease-out;
 }
 
-.clip-editor-header__identity p {
-  margin-top: 1px;
-  color: var(--muted-foreground);
-  font-size: 9.5px;
+.clip-editor-header__rename:hover {
+  background: var(--accent);
+}
+
+.clip-editor-header__rename:hover svg,
+.clip-editor-header__rename:focus-visible svg {
+  opacity: 1;
+}
+
+.clip-editor-header__rename:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 72%, transparent);
+  outline-offset: 1px;
 }
 
 .clip-editor-layout {
@@ -51,7 +86,12 @@
   min-width: 0;
   min-height: 0;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) 270px;
+  grid-template-columns: minmax(0, 1fr) 272px;
+  transition: grid-template-columns 220ms ease-out;
+}
+
+.clip-editor-layout[data-inspector="closed"] {
+  grid-template-columns: minmax(0, 1fr) 0;
 }
 
 .clip-editor-workspace {
@@ -59,19 +99,19 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px 12px;
+  gap: 8px;
+  padding: 12px 14px 10px;
 }
 
 .clip-editor-preview {
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 220px;
+  min-height: 230px;
   flex: 1;
   place-items: center;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, black);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, black);
   background: #050607;
 }
 
@@ -83,8 +123,47 @@
   background: #050607;
 }
 
+.clip-editor-preview__controls {
+  position: absolute;
+  z-index: 4;
+  right: 8px;
+  bottom: 8px;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 140ms ease-out;
+}
+
+.clip-editor-preview:hover .clip-editor-preview__controls,
+.clip-editor-preview:focus-within .clip-editor-preview__controls,
+.clip-editor-preview[data-fullscreen="true"] .clip-editor-preview__controls {
+  opacity: 1;
+}
+
+.clip-editor-preview__fullscreen {
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(8 9 11 / 78%);
+  color: rgb(255 255 255 / 82%);
+}
+
+.clip-editor-preview__fullscreen:hover {
+  background: rgb(8 9 11 / 92%);
+  color: white;
+}
+
+.clip-editor-preview:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  background: black;
+}
+
+.clip-editor-preview:fullscreen video {
+  background: black;
+}
+
 .clip-editor-preview__status {
   position: absolute;
+  z-index: 2;
   inset: 0;
   display: grid;
   place-content: center;
@@ -104,18 +183,35 @@
 .clip-editor-inspector {
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
   border-left: 1px solid var(--border);
   background: var(--card);
+  opacity: 1;
+  transition: opacity 140ms ease-out;
+}
+
+.clip-editor-layout[data-inspector="closed"] .clip-editor-inspector {
+  border-left-color: transparent;
+  opacity: 0;
+  visibility: hidden;
 }
 
 .clip-editor-inspector__content {
   display: flex;
+  width: 271px;
   min-height: 100%;
   flex-direction: column;
-  padding: 16px 15px;
+  padding: 15px;
 }
 
-.clip-editor-inspector__heading > span {
+.clip-editor-inspector__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.clip-editor-inspector__heading span {
   display: block;
   color: var(--text-description);
   font-size: 9px;
@@ -127,21 +223,21 @@
 .clip-editor-inspector__heading h3 {
   margin: 4px 0 0;
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 680;
   letter-spacing: -0.02em;
 }
 
 .clip-editor-details {
   display: grid;
-  margin: 10px 0 14px;
+  margin: 11px 0 14px;
   font-size: 10.5px;
 }
 
 .clip-editor-details > div {
   display: grid;
   min-width: 0;
-  grid-template-columns: 68px minmax(0, 1fr);
+  grid-template-columns: 70px minmax(0, 1fr);
   gap: 8px;
   padding: 6px 0;
 }
@@ -181,7 +277,6 @@
 
 .clip-editor-audio-tracks {
   display: grid;
-  gap: 0;
   margin: 7px 0 0;
   padding: 0;
   list-style: none;
@@ -207,73 +302,76 @@
   flex: 0 0 auto;
 }
 
-.clip-editor-inspector__actions {
-  display: grid;
-  gap: 2px;
-}
-
-.clip-editor-inspector__actions h3 {
-  margin-bottom: 4px;
-}
-
-.clip-editor-inspector__actions [data-slot="button"],
-.clip-editor-inspector__actions button {
-  justify-content: flex-start;
-  padding-inline: 8px;
-}
-
 .clip-editor-timeline {
   --timeline-playhead: #63cbe3;
   --timeline-selection: #8b98a9;
   min-width: 0;
   flex: 0 0 auto;
   border-top: 1px solid var(--border);
-  padding-top: 10px;
+  padding-top: 7px;
 }
 
-.clip-editor-timeline__heading {
-  display: flex;
+.clip-editor-transport-bar {
+  display: grid;
   min-width: 0;
-  align-items: start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.clip-editor-timeline__heading h3,
-.clip-editor-timeline--unavailable h3 {
-  margin: 0;
-  color: var(--foreground);
-  font-size: 11px;
-  font-weight: 680;
-}
-
-.clip-editor-timeline__heading p,
-.clip-editor-timeline--unavailable p {
-  margin: 2px 0 0;
-  color: var(--muted-foreground);
-  font-size: 9.5px;
+  grid-template-columns: minmax(126px, 1fr) auto minmax(210px, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
 }
 
 .clip-editor-timeline__timecode {
+  overflow: hidden;
   color: var(--foreground);
   font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
-  font-size: 12px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .clip-editor-timeline__timecode span {
   color: var(--text-description);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 500;
+}
+
+.clip-editor-transport,
+.clip-editor-transport__utilities,
+.clip-editor-volume {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.clip-editor-transport {
+  gap: 1px;
+}
+
+.clip-editor-transport__utilities {
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.clip-editor-volume {
+  gap: 3px;
+}
+
+.clip-editor-volume__slider {
+  width: 64px !important;
+}
+
+.clip-editor-volume__slider .ui-slider__thumb {
+  width: 10px;
+  height: 10px;
 }
 
 .clip-editor-timeline__surface {
   position: relative;
-  height: 86px;
+  height: 84px;
   min-width: 0;
-  margin-top: 5px;
+  margin-top: 2px;
   touch-action: none;
   user-select: none;
 }
@@ -281,27 +379,26 @@
 .clip-editor-timeline__ruler {
   position: absolute;
   inset: 0 0 auto;
-  height: 24px;
+  height: 22px;
   overflow: visible;
 }
 
 .clip-editor-timeline__ruler > span {
   position: absolute;
-  top: 15px;
+  bottom: 1px;
   width: 1px;
   height: 4px;
   background: color-mix(in srgb, var(--border-strong) 62%, transparent);
 }
 
 .clip-editor-timeline__ruler > span.is-major {
-  top: 10px;
   height: 9px;
   background: var(--border-strong);
 }
 
 .clip-editor-timeline__ruler em {
   position: absolute;
-  top: -11px;
+  bottom: 9px;
   left: 4px;
   color: var(--text-description);
   font-family: "Cascadia Mono", Consolas, monospace;
@@ -313,15 +410,16 @@
 
 .clip-editor-timeline__track {
   position: absolute;
-  inset: 24px 0 7px;
+  inset: 22px 0 3px;
   overflow: hidden;
   border: 1px solid var(--border-strong);
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--surface-2);
+  transition: border-color 120ms ease-out;
 }
 
 .clip-editor-timeline__surface:hover .clip-editor-timeline__track {
-  border-color: color-mix(in srgb, var(--border-strong) 76%, var(--foreground));
+  border-color: color-mix(in srgb, var(--border-strong) 72%, var(--foreground));
 }
 
 .clip-editor-timeline__frame {
@@ -339,25 +437,25 @@
 
 .clip-editor-timeline__selection {
   border-block: 2px solid color-mix(in srgb, var(--timeline-selection) 72%, var(--border-strong));
-  background: color-mix(in srgb, var(--timeline-selection) 11%, transparent);
+  background: color-mix(in srgb, var(--timeline-selection) 12%, transparent);
 }
 
 .clip-editor-timeline__inactive {
   z-index: 1;
-  background: color-mix(in srgb, #050607 72%, transparent);
+  background: color-mix(in srgb, #050607 74%, transparent);
 }
 
 .clip-editor-timeline__scrub-target {
   position: absolute;
   z-index: 2;
-  inset: 20px 0 3px;
-  cursor: text;
+  inset: 20px 0 1px;
+  cursor: pointer;
   outline: 0;
 }
 
 .clip-editor-timeline__scrub-target:focus-visible {
   border: 1px solid var(--ring);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 30%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ring) 34%, transparent);
 }
 
 .clip-editor-timeline[data-interaction="scrubbing"] .clip-editor-timeline__scrub-target {
@@ -367,15 +465,15 @@
 .clip-editor-playhead {
   position: absolute;
   z-index: 4;
-  top: 21px;
-  bottom: 4px;
+  top: 19px;
+  bottom: 2px;
   width: 0;
   pointer-events: none;
 }
 
 .clip-editor-playhead__line {
   position: absolute;
-  top: 6px;
+  top: 7px;
   bottom: 0;
   left: -1px;
   width: 2px;
@@ -387,42 +485,21 @@
   top: 0;
   left: -4px;
   width: 8px;
-  height: 7px;
-  border-radius: 2px 2px 1px 1px;
+  height: 8px;
+  border-radius: 1px 1px 2px 2px;
   background: var(--timeline-playhead);
 }
 
 .clip-editor-playhead__time {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  transform: translateX(-50%);
-  border: 1px solid color-mix(in srgb, var(--timeline-playhead) 62%, var(--border));
-  border-radius: 3px;
-  background: var(--popover);
-  padding: 2px 4px;
-  color: var(--foreground);
-  font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 8px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.clip-editor-playhead__time[data-edge="start"] {
-  transform: none;
-}
-
-.clip-editor-playhead__time[data-edge="end"] {
-  transform: translateX(-100%);
+  display: none;
 }
 
 .clip-editor-trim-handle {
   position: absolute;
   z-index: 5;
-  top: 21px;
-  width: 28px;
-  height: 64px;
+  top: 19px;
+  width: 30px;
+  height: 65px;
   transform: translateX(-50%);
   cursor: ew-resize;
   outline: 0;
@@ -432,15 +509,16 @@
 .clip-editor-trim-handle > span {
   position: absolute;
   top: 3px;
-  bottom: 4px;
+  bottom: 3px;
   left: 10px;
   display: grid;
-  width: 8px;
+  width: 10px;
   place-content: center;
   gap: 3px;
-  border: 1px solid var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--foreground) 78%, var(--border));
   border-radius: 2px;
   background: var(--surface-interactive);
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
 }
 
 .clip-editor-trim-handle i {
@@ -456,57 +534,7 @@
 .clip-editor-timeline[data-interaction="dragging-trim-start"] .clip-editor-trim-handle.is-start > span,
 .clip-editor-timeline[data-interaction="dragging-trim-end"] .clip-editor-trim-handle.is-end > span {
   border-color: var(--timeline-playhead);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 34%, transparent);
-}
-
-.clip-editor-timeline__toolbar {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(130px, 1fr) auto minmax(150px, 1fr);
-  align-items: center;
-  gap: 10px;
-  margin-top: 2px;
-}
-
-.clip-editor-timeline__selection-copy {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-}
-
-.clip-editor-timeline__selection-copy strong {
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.clip-editor-timeline__selection-copy span {
-  overflow: hidden;
-  color: var(--text-description);
-  font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 8.5px;
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.clip-editor-transport,
-.clip-editor-timeline__actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.clip-editor-transport__separator {
-  width: 1px;
-  height: 18px;
-  margin: 0 3px;
-  background: var(--border);
-}
-
-.clip-editor-timeline__actions {
-  justify-content: flex-end;
-  gap: 4px;
+  background: color-mix(in srgb, var(--surface-interactive) 84%, var(--timeline-playhead));
 }
 
 .clip-editor-timeline--unavailable {
@@ -517,43 +545,45 @@
   color: var(--muted-foreground);
 }
 
+.clip-editor-timeline--unavailable h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.clip-editor-timeline--unavailable p {
+  margin: 2px 0 0;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+}
+
 @media (max-width: 1180px) {
   .clip-editor-layout {
-    grid-template-columns: minmax(0, 1fr) 244px;
+    grid-template-columns: minmax(0, 1fr) 248px;
+  }
+
+  .clip-editor-layout[data-inspector="closed"] {
+    grid-template-columns: minmax(0, 1fr) 0;
+  }
+
+  .clip-editor-inspector__content {
+    width: 247px;
   }
 
   .clip-editor-workspace {
-    padding-inline: 12px;
+    padding-inline: 11px;
   }
 
-  .clip-editor-timeline__heading p {
-    display: none;
-  }
-
-  .clip-editor-timeline__toolbar {
-    grid-template-columns: minmax(100px, 1fr) auto;
-  }
-
-  .clip-editor-timeline__selection-copy {
-    display: none;
+  .clip-editor-volume__slider {
+    width: 48px !important;
   }
 }
 
-@media (max-width: 900px) {
-  .clip-editor-layout {
-    display: flex;
-    overflow-y: auto;
-    flex-direction: column;
-  }
-
-  .clip-editor-workspace {
-    min-height: 610px;
-  }
-
-  .clip-editor-inspector {
-    min-height: 320px;
-    border-top: 1px solid var(--border);
-    border-left: 0;
+@media (hover: none) {
+  .clip-editor-preview__controls,
+  .clip-editor-header__rename svg {
+    opacity: 1;
   }
 }
 

@@ -16,10 +16,8 @@ const qualityLabels: Record<number, string> = { 1: 'Economy', 2: 'Balanced', 3: 
 
 export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const config = snapshot.capture.config;
   const runtime = snapshot.capture.runtime;
-  const configPending = actionPending === 'capture:config';
   const sourceOptions = sourceChoices(config, snapshot.capture.sources);
   const selectedSourceValue = config.source === 'automatic-game'
     ? 'automatic-game'
@@ -47,23 +45,22 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
           <CaptureSourcePicker
             value={selectedSourceValue}
             options={sourceOptions}
-            disabled={configPending}
             onChange={changeSource}
           />
         </CaptureControl>
         <CaptureControl label="Length">
-          <CompactSelect value={String(config.replaySeconds)} onChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })} ariaLabel="Replay length" disabled={configPending} options={durationOptions.map((seconds) => ({ value: String(seconds), label: formatReplayLength(seconds) }))} />
+          <CompactSelect value={String(config.replaySeconds)} onChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })} ariaLabel="Replay length" options={durationOptions.map((seconds) => ({ value: String(seconds), label: formatReplayLength(seconds) }))} />
         </CaptureControl>
         <CaptureControl label="Quality">
-          <CompactSelect value={String(config.quality)} onChange={(value) => void setCaptureConfig({ quality: Number(value) })} ariaLabel="Capture quality" disabled={configPending} options={[1, 2, 3, 4, 5].map((quality) => ({ value: String(quality), label: qualityLabels[quality]! }))} />
+          <CompactSelect value={String(config.quality)} onChange={(value) => void setCaptureConfig({ quality: Number(value) })} ariaLabel="Capture quality" options={[1, 2, 3, 4, 5].map((quality) => ({ value: String(quality), label: qualityLabels[quality]! }))} />
         </CaptureControl>
         <CaptureControl label="Resolution">
-          <CompactSelect value={config.resolution} onChange={(value) => void setCaptureConfig({ resolution: value as CaptureConfig['resolution'] })} ariaLabel="Capture resolution" disabled={configPending} options={['720p', '1080p', '1440p', '2160p', 'native'].map((value) => ({ value, label: value === 'native' ? 'Native' : value }))} />
+          <CompactSelect value={config.resolution} onChange={(value) => void setCaptureConfig({ resolution: value as CaptureConfig['resolution'] })} ariaLabel="Capture resolution" options={['720p', '1080p', '1440p', '2160p', 'native'].map((value) => ({ value, label: value === 'native' ? 'Native' : value }))} />
         </CaptureControl>
         <CaptureControl label="Frame rate">
-          <CompactSelect value={String(config.fps)} onChange={(value) => void setCaptureConfig({ fps: Number(value) as CaptureConfig['fps'] })} ariaLabel="Capture frame rate" disabled={configPending} options={supportedFps.map((fps) => ({ value: String(fps), label: `${fps} FPS` }))} />
+          <CompactSelect value={String(config.fps)} onChange={(value) => void setCaptureConfig({ fps: Number(value) as CaptureConfig['fps'] })} ariaLabel="Capture frame rate" options={supportedFps.map((fps) => ({ value: String(fps), label: `${fps} FPS` }))} />
         </CaptureControl>
-        <CaptureMore snapshot={snapshot} configPending={configPending} />
+        <CaptureMore snapshot={snapshot} />
       </div>
       <div className="flex min-h-8 items-center gap-2 border-t border-border px-5 py-1.5 text-[10px] tabular-nums text-muted-foreground"><span>~{formatBytes(estimatedBytes)} per replay</span><span aria-hidden="true">·</span><span>{formatBytes(snapshot.capture.storage.availableBytes)} available</span></div>
       {notice ? <div className={cn('border-t border-border px-5 py-2 text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
@@ -71,12 +68,12 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
   );
 }
 
-function CaptureMore({ snapshot, configPending }: { snapshot: SystemSnapshot; configPending: boolean }) {
+function CaptureMore({ snapshot }: { snapshot: SystemSnapshot }) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
   const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
-  const actionPending = useSystemStore((state) => state.actionPending);
+  const [refreshPending, setRefreshPending] = useState(false);
   const config = snapshot.capture.config;
   const codecOptions = (snapshot.capture.capabilities.codecs.length > 0 ? snapshot.capture.capabilities.codecs : [config.codec]).map((value) => ({ value, label: value === 'h264' ? 'H.264' : value === 'hevc' ? 'HEVC' : 'AV1' }));
   const encoderOptions = encoderChoices(snapshot);
@@ -88,10 +85,10 @@ function CaptureMore({ snapshot, configPending }: { snapshot: SystemSnapshot; co
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[520px] max-w-[calc(100vw-110px)] p-4">
         <div className="grid grid-cols-2 gap-3">
-          <CaptureControl label="Encoder"><CompactSelect value={config.encoder} onChange={(value) => void setCaptureConfig({ encoder: value as CaptureConfig['encoder'] })} ariaLabel="Encoder" disabled={configPending} options={encoderOptions} /></CaptureControl>
-          <CaptureControl label="Codec"><CompactSelect value={config.codec} onChange={(value) => void setCaptureConfig({ codec: value as CaptureConfig['codec'] })} ariaLabel="Codec" disabled={configPending} options={codecOptions} /></CaptureControl>
-          <CaptureControl label="Save shortcut"><ShortcutRecorderButton value={config.hotkey} disabled={configPending} label="Save replay shortcut" className="h-9 px-2.5 text-[12px]" onValueChange={(hotkey) => void setCaptureConfig({ hotkey })} /></CaptureControl>
-          <div className="flex items-end"><Button type="button" variant="secondary" size="sm" className="h-9" disabled={actionPending === 'capture:sources'} onClick={() => void refreshCaptureSources()}><RefreshCw className={cn('size-3.5', actionPending === 'capture:sources' && 'animate-spin motion-reduce:animate-none')} /> Refresh sources</Button></div>
+          <CaptureControl label="Encoder"><CompactSelect value={config.encoder} onChange={(value) => void setCaptureConfig({ encoder: value as CaptureConfig['encoder'] })} ariaLabel="Encoder" options={encoderOptions} /></CaptureControl>
+          <CaptureControl label="Codec"><CompactSelect value={config.codec} onChange={(value) => void setCaptureConfig({ codec: value as CaptureConfig['codec'] })} ariaLabel="Codec" options={codecOptions} /></CaptureControl>
+          <CaptureControl label="Save shortcut"><ShortcutRecorderButton value={config.hotkey} label="Save replay shortcut" className="h-9 px-2.5 text-[12px]" onValueChange={(hotkey) => void setCaptureConfig({ hotkey })} /></CaptureControl>
+          <div className="flex items-end"><Button type="button" variant="secondary" size="sm" className="h-9" disabled={refreshPending} onClick={() => { setRefreshPending(true); void refreshCaptureSources().finally(() => setRefreshPending(false)); }}><RefreshCw className={cn('size-3.5', refreshPending && 'animate-spin motion-reduce:animate-none')} /> Refresh sources</Button></div>
         </div>
 
         <div className="mt-4 border-y border-border">
@@ -99,7 +96,7 @@ function CaptureMore({ snapshot, configPending }: { snapshot: SystemSnapshot; co
             label="Game audio"
             color="var(--channel-game)"
             checked={snapshot.capture.capabilities.systemAudio && config.includeSystemAudio}
-            disabled={configPending || !snapshot.capture.capabilities.systemAudio}
+            disabled={!snapshot.capture.capabilities.systemAudio}
             unavailableReason={!snapshot.capture.capabilities.systemAudio ? 'Unavailable for this capture setup' : undefined}
             onChange={(checked) => void setCaptureConfig({ includeSystemAudio: checked })}
           />
@@ -107,11 +104,11 @@ function CaptureMore({ snapshot, configPending }: { snapshot: SystemSnapshot; co
             label="Microphone"
             color="var(--channel-microphone)"
             checked={snapshot.capture.capabilities.microphoneAudio && config.includeMic}
-            disabled={configPending || !snapshot.capture.capabilities.microphoneAudio}
+            disabled={!snapshot.capture.capabilities.microphoneAudio}
             unavailableReason={!snapshot.capture.capabilities.microphoneAudio ? 'Unavailable for this capture setup' : undefined}
             onChange={(checked) => void setCaptureConfig({ includeMic: checked })}
           />
-          <CaptureToggle label="Capture cursor" checked={config.includeCursor} disabled={configPending} onChange={(checked) => void setCaptureConfig({ includeCursor: checked })} />
+          <CaptureToggle label="Capture cursor" checked={config.includeCursor} disabled={false} onChange={(checked) => void setCaptureConfig({ includeCursor: checked })} />
         </div>
 
         <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
@@ -139,30 +136,32 @@ type CaptureSourceOption = Pick<CaptureSource, 'type' | 'available'> & {
 function CaptureSourcePicker({
   value,
   options,
-  disabled,
   onChange,
 }: {
   value: string;
   options: CaptureSourceOption[];
-  disabled: boolean;
   onChange: (value: string) => void;
 }) {
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const [open, setOpen] = useState(false);
   const [previewRevision, setPreviewRevision] = useState(0);
+  const [refreshPending, setRefreshPending] = useState(false);
   const selected = options.find((option) => option.value === value);
   const currentType: CaptureSourceOption['type'] = selected?.type ?? (value === 'automatic-game' ? 'automatic-game' : 'display');
   const currentLabel = selected?.label ?? (value === 'automatic-game' ? 'Automatic game' : 'Choose a display');
   const discoveredCount = options.length;
-  const refreshPending = actionPending === 'capture:sources';
   const selectSource = (nextValue: string) => {
     onChange(nextValue);
     setOpen(false);
   };
   const refresh = async () => {
-    await refreshCaptureSources();
-    setPreviewRevision((revision) => revision + 1);
+    setRefreshPending(true);
+    try {
+      await refreshCaptureSources();
+      setPreviewRevision((revision) => revision + 1);
+    } finally {
+      setRefreshPending(false);
+    }
   };
 
   return (
@@ -172,7 +171,6 @@ function CaptureSourcePicker({
           type="button"
           className="capture-source-trigger"
           aria-label={`Capture source: ${currentLabel}`}
-          disabled={disabled}
         >
           <SourceIcon type={currentType} />
           <span className="min-w-0 flex-1 truncate text-left">{currentLabel}</span>
@@ -185,7 +183,7 @@ function CaptureSourcePicker({
             <div className="text-[12px] font-semibold text-foreground">Capture source</div>
             <p className="mt-0.5 text-[10px] text-muted-foreground">Choose what Instant Replay records. Preview images stay on this PC.</p>
           </div>
-          <Button type="button" variant="secondary" size="sm" disabled={refreshPending || disabled} onClick={() => void refresh()}>
+          <Button type="button" variant="secondary" size="sm" disabled={refreshPending} onClick={() => void refresh()}>
             <RefreshCw className={cn('size-3.5', refreshPending && 'animate-spin motion-reduce:animate-none')} />
             {refreshPending ? 'Refreshing…' : 'Refresh'}
           </Button>

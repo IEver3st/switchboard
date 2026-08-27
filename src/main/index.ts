@@ -52,7 +52,7 @@ function createWindow(): BrowserWindow {
     title: 'Switchboard',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#10141a',
+      color: '#0d1015',
       symbolColor: '#a1aab7',
       height: 38,
     },
@@ -69,7 +69,7 @@ function createWindow(): BrowserWindow {
   controller?.setRendererActive(true);
   window.once('ready-to-show', () => window.show());
   window.on('focus', () => {
-    void controller?.initialize().then(() => controller?.refreshAudioDevices());
+    void controller?.initialize().then(() => controller?.refreshAudioDevices()).catch(() => undefined);
   });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event, url) => {
@@ -112,7 +112,7 @@ function createWindow(): BrowserWindow {
 function showWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow();
   else mainWindow.show();
-  void controller?.initialize().then(() => controller?.refreshAudioDevices());
+  void controller?.initialize().then(() => controller?.refreshAudioDevices()).catch(() => undefined);
   mainWindow.focus();
 }
 

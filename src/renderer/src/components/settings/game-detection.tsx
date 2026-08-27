@@ -1,4 +1,5 @@
 import { Gamepad2, LoaderCircle, Plus, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import type { DetectedGameSource, SystemSnapshot } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import { useSystemStore } from '@/stores/use-system-store';
@@ -18,10 +19,9 @@ export function GameDetectionSettings({
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const scanGames = useSystemStore((state) => state.scanGames);
   const addGame = useSystemStore((state) => state.addGame);
-  const actionPending = useSystemStore((state) => state.actionPending);
+  const [isAdding, setIsAdding] = useState(false);
   const gameDetection = snapshot.gameDetection;
-  const isScanning = gameDetection.scanState === 'scanning' || actionPending === 'games:scan';
-  const isAdding = actionPending === 'games:add';
+  const isScanning = gameDetection.scanState === 'scanning';
   const isPreview = gameDetection.capability === 'simulation';
 
   return (
@@ -40,7 +40,7 @@ export function GameDetectionSettings({
           title="Automatically scan for games"
           description="Run one launcher-library scan when Switchboard starts. No background polling process is kept alive."
           checked={snapshot.settings.scanGamesAutomatically}
-          disabled={actionPending === 'settings:update' || isScanning}
+          disabled={isScanning}
           onCheckedChange={(scanGamesAutomatically) => void updateSettings({ scanGamesAutomatically })}
         />
       </SettingSection>
@@ -72,7 +72,10 @@ export function GameDetectionSettings({
               variant="primary"
               disabled={isScanning || isAdding || isPreview}
               title={isPreview ? 'Manual executable selection is available in the desktop application.' : undefined}
-              onClick={() => void addGame()}
+              onClick={() => {
+                setIsAdding(true);
+                void addGame().finally(() => setIsAdding(false));
+              }}
             >
               <Plus className="size-3.5" aria-hidden />
               {isAdding ? 'Choosing…' : 'Add game'}

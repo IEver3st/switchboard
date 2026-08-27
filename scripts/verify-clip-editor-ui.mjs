@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, shell } from 'electron';
 import { copyFile, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
@@ -15,6 +15,9 @@ await copyFile(sourceState, join(isolatedUserData, 'switchboard-state.json'));
 
 const copiedState = JSON.parse(await readFile(join(isolatedUserData, 'switchboard-state.json'), 'utf8'));
 if (!copiedState.clips?.some((clip) => clip.path)) throw new Error('Native clip editor verification requires one indexed clip.');
+copiedState.audio.enabled = false;
+copiedState.capture.config.enabled = false;
+await writeFile(join(isolatedUserData, 'switchboard-state.json'), JSON.stringify(copiedState, null, 2));
 
 app.setName('switchboard-clip-editor-qa');
 app.setAppPath(projectRoot);
@@ -25,6 +28,8 @@ let exportDestination = null;
 let holdNextSaveDialog = false;
 let pendingSaveDialogResolve = null;
 const saveDialogCalls = [];
+const revealCalls = [];
+shell.showItemInFolder = (path) => { revealCalls.push(path); };
 dialog.showSaveDialog = async (options) => {
   saveDialogCalls.push(options);
   if (holdNextSaveDialog) {
@@ -80,7 +85,7 @@ async function run() {
       throw new Error(`Editor does not respect native chrome at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics.editor)}`);
     }
     if (metrics.header?.top !== 38 || !metrics.backNoDrag) throw new Error('Editor controls overlap or participate in the native drag region.');
-    if (metrics.timelineSliders.map((item) => item.label).join(',') !== 'Playhead,Trim start,Trim end') throw new Error('The accessible playhead and both trim handles were not rendered.');
+    if (metrics.timelineSliders.map((item) => item.label).join(',') !== 'Playback volume,Playhead,Trim start,Trim end') throw new Error('The accessible volume, playhead, and both trim handles were not rendered.');
     if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
 
     const editorImage = await window.webContents.capturePage();
@@ -133,6 +138,7 @@ async function run() {
       await pressKey(window, 'Down');
       const keyEvidence = await evaluate(window, `window.__shareDialogKey`);
       if (keyEvidence?.key !== 'ArrowDown') throw new Error(`Native ArrowDown was not delivered correctly: ${JSON.stringify(keyEvidence)}`);
+      await evaluate(window, `document.querySelector('label[for="share-preset-25mb"]')?.click()`);
       await waitForSelector(window, '[data-share-clip-dialog] [role="radio"][value="25mb"][data-state="checked"]');
       const expectedOutput = await evaluate(window, `document.querySelector('[data-share-clip-dialog] footer')?.textContent?.replace(/\\s+/g, ' ').trim()`);
       if (!expectedOutput.includes('Expected output') || !expectedOutput.includes('Up to 25 MB')) throw new Error(`Keyboard radio selection did not update output: ${expectedOutput}`);
@@ -157,10 +163,12 @@ async function run() {
     if (!escapeState.editorOpen || escapeState.focus !== 'Share') throw new Error(`Escape did not close only the dialog and restore focus: ${JSON.stringify(escapeState)}`);
     await clickButton(window, 'Back to clips');
     await waitForMissingSelector(window, '[data-testid="clip-editor"]');
-    await delay(80);
-    const restored = await evaluate(window, `document.activeElement?.hasAttribute('data-clip-id') ?? false`);
-    if (!restored) throw new Error('Back to clips did not restore focus to the originating clip.');
+    await waitForCondition(() => evaluate(window, `document.activeElement?.hasAttribute('data-clip-id') ?? false`), 'clip focus restoration');
   }
+
+  window.setContentSize(1420, 900, false);
+  await waitForViewport(window, { width: 1420, height: 900 });
+  const workspaceEvidence = await verifyEditorWorkspace(window);
 
   await openEditor(window);
   await clickButton(window, 'Share');
@@ -194,7 +202,7 @@ async function run() {
   await waitForMissingSelector(window, '[data-share-clip-dialog]');
 
   const interactionEvidence = await verifyTimelineInteractions(window);
-  await clickButton(window, 'Reset');
+  await clickButtonByLabel(window, 'Reset trim');
   const originalEnd = Number(await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.getAttribute('aria-valuenow')`));
   await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.focus()`);
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'LEFT' });
@@ -229,8 +237,111 @@ async function run() {
   const exportEvidence = { sizeBytes: exportedFile.size, targetBytes: 10 * 1_024 * 1_024, durationSeconds: exportedDuration };
   await rm(exportDestination, { force: true });
 
-  process.stdout.write(`${JSON.stringify({ outputDirectory, results, interactionEvidence, destinationAction: { title: destinationCall.title, defaultPath: destinationCall.defaultPath, pendingState, canceledDialogStayedOpen: true }, persistence: { originalEnd, adjustedEnd, reopenedEnd }, exportEvidence }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ outputDirectory, results, workspaceEvidence, interactionEvidence, destinationAction: { title: destinationCall.title, defaultPath: destinationCall.defaultPath, pendingState, canceledDialogStayedOpen: true }, persistence: { originalEnd, adjustedEnd, reopenedEnd }, exportEvidence }, null, 2)}\n`);
   app.quit();
+}
+
+async function verifyEditorWorkspace(window) {
+  await openEditor(window);
+  if (await evaluate(window, `document.querySelector('.clip-editor-layout')?.dataset.inspector !== 'open'`)) {
+    await clickButtonByLabel(window, 'Open Inspector');
+  }
+  await waitForSelector(window, '.clip-editor-layout[data-inspector="open"]');
+  const expanded = await editorGeometry(window);
+
+  await clickButtonByLabel(window, 'Collapse Inspector');
+  await waitForSelector(window, '.clip-editor-layout[data-inspector="closed"]');
+  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.settings.clipEditorInspectorOpen === false)`), 'collapsed Inspector persistence');
+  await delay(280);
+  const collapsed = await editorGeometry(window);
+  if (collapsed.viewerWidth <= expanded.viewerWidth + 180 || collapsed.timelineWidth <= expanded.timelineWidth + 180) {
+    throw new Error(`Collapsing the Inspector did not reclaim workspace width: ${JSON.stringify({ expanded, collapsed })}`);
+  }
+
+  await clickButton(window, 'Back to clips');
+  await waitForMissingSelector(window, '[data-testid="clip-editor"]');
+  await openEditor(window);
+  if (!await evaluate(window, `document.querySelector('.clip-editor-layout')?.dataset.inspector === 'closed'`)) {
+    throw new Error('Collapsed Inspector state did not survive an editor round trip.');
+  }
+  await clickButtonByLabel(window, 'Open Inspector');
+  await waitForSelector(window, '.clip-editor-layout[data-inspector="open"]');
+  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.settings.clipEditorInspectorOpen === true)`), 'restored Inspector persistence');
+  await delay(280);
+
+  await evaluate(window, `document.addEventListener('click', (event) => { window.__fullscreenClick = { x: event.clientX, y: event.clientY, tag: event.target?.tagName, label: event.target?.closest?.('button')?.getAttribute('aria-label') }; }, { capture: true, once: true })`);
+  const fullscreenButtonRect = await nativeClickButtonByLabel(window, 'Enter fullscreen');
+  await delay(100);
+  console.log(`Fullscreen click: ${JSON.stringify({ button: fullscreenButtonRect, event: await evaluate(window, 'window.__fullscreenClick'), active: await evaluate(window, 'Boolean(document.fullscreenElement)') })}`);
+  await waitForCondition(() => evaluate(window, `document.fullscreenElement?.classList.contains('clip-editor-preview') ?? false`), 'viewer fullscreen entry');
+  const fullscreen = await evaluate(window, `(() => {
+    const viewer = document.fullscreenElement;
+    const rect = viewer?.getBoundingClientRect();
+    return { active: Boolean(viewer), rect: rect ? { width: rect.width, height: rect.height } : null, viewport: { width: innerWidth, height: innerHeight } };
+  })()`);
+  if (!fullscreen.active || Math.abs(fullscreen.rect.width - fullscreen.viewport.width) > 1 || Math.abs(fullscreen.rect.height - fullscreen.viewport.height) > 1) {
+    throw new Error(`Viewer fullscreen did not occupy the display: ${JSON.stringify(fullscreen)}`);
+  }
+  await pressKey(window, 'ESC');
+  await waitForCondition(() => evaluate(window, `document.fullscreenElement === null`), 'viewer fullscreen exit');
+  if (!await evaluate(window, `Boolean(document.querySelector('[data-testid="clip-editor"]'))`)) throw new Error('Escape closed the editor while exiting fullscreen.');
+
+  const playbackStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
+  await clickButtonByLabel(window, 'Play selection');
+  await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === false`), 'clip playback start');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) > ${playbackStart + 0.08}`), 'clip playback progress');
+  await clickButtonByLabel(window, 'Pause');
+  await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === true`), 'clip playback pause');
+
+  await evaluate(window, `document.querySelector('[aria-label="Playback volume"]')?.focus()`);
+  const volumeBefore = Number(await evaluate(window, `document.querySelector('video')?.volume ?? 0`));
+  await pressKey(window, 'LEFT');
+  const volumeAfter = Number(await evaluate(window, `document.querySelector('video')?.volume ?? 0`));
+  if (!(volumeAfter < volumeBefore)) throw new Error(`Playback volume did not respond to the keyboard: ${volumeBefore} -> ${volumeAfter}.`);
+  await clickButtonByLabel(window, 'Mute');
+  if (!await evaluate(window, `document.querySelector('video')?.muted === true`)) throw new Error('Mute did not update the video element.');
+  await clickButtonByLabel(window, 'Unmute');
+
+  const clipBefore = await evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0])`);
+  await clickButtonByLabel(window, clipBefore.favorite ? 'Remove from favorites' : 'Add to favorites');
+  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0].favorite === ${!clipBefore.favorite})`), 'favorite update');
+
+  const revealCount = revealCalls.length;
+  await clickButton(window, 'Show in folder');
+  await waitForCondition(() => revealCalls.length === revealCount + 1, 'show in folder action');
+
+  await evaluate(window, `document.querySelector('.clip-editor-header__rename')?.click()`);
+  await waitForSelector(window, '[role="dialog"] input');
+  const renamed = `QA clip ${Date.now()}`;
+  await evaluate(window, `(() => {
+    const input = document.querySelector('[role="dialog"] input');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(input, ${JSON.stringify(renamed)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+  await clickButton(window, 'Rename');
+  await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-header__rename span')?.textContent === ${JSON.stringify(renamed)}`), 'clip rename');
+
+  const permanentDelete = await evaluate(window, `[...document.querySelectorAll('.clip-editor-shell > .clip-editor-header button')].some((button) => button.textContent?.trim() === 'Delete clip')`);
+  if (permanentDelete) throw new Error('Delete clip remained permanently exposed in the editor toolbar.');
+  await clickButtonByLabel(window, 'More clip actions');
+  await waitForSelector(window, '[role="menu"]');
+  const menuItems = await evaluate(window, `[...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim())`);
+  if (menuItems.join(',') !== 'Rename clip,Show in folder,Delete clip') throw new Error(`Overflow actions are incomplete: ${menuItems.join(',')}`);
+  await evaluate(window, `[...document.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent?.trim() === 'Delete clip')?.click()`);
+  await waitForSelector(window, '[role="alertdialog"]');
+  await pressKey(window, 'ESC');
+  await waitForMissingSelector(window, '[role="alertdialog"]');
+
+  return { expanded, collapsed, fullscreen, playbackAdvanced: true, volume: { before: volumeBefore, after: volumeAfter }, favorite: { before: clipBefore.favorite, after: !clipBefore.favorite }, revealCount: revealCalls.length, renamed, menuItems };
+}
+
+async function editorGeometry(window) {
+  return evaluate(window, `(() => {
+    const viewer = document.querySelector('.clip-editor-preview')?.getBoundingClientRect();
+    const timeline = document.querySelector('[data-testid="clip-timeline-surface"]')?.getBoundingClientRect();
+    return { viewerWidth: viewer?.width ?? 0, timelineWidth: timeline?.width ?? 0 };
+  })()`);
 }
 
 async function verifyTimelineInteractions(window) {
@@ -348,7 +459,8 @@ function assertNear(actual, expected, tolerance, label) {
 
 async function openEditor(window) {
   if (await evaluate(window, `Boolean(document.querySelector('[data-testid="clip-editor"]'))`)) return;
-  await evaluate(window, `location.hash = 'capture'`);
+  await waitForSelector(window, 'nav button');
+  await clickButton(window, 'Capture');
   try {
     await waitForSelector(window, '[data-clip-id]');
   } catch (error) {
@@ -373,6 +485,32 @@ async function clickButton(window, label) {
     return true;
   })()`);
   if (!clicked) throw new Error(`Could not click ${label}.`);
+}
+
+async function clickButtonByLabel(window, label) {
+  const clicked = await evaluate(window, `(() => {
+    const button = document.querySelector('button[aria-label=${JSON.stringify(label)}]');
+    if (!button || button.disabled) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!clicked) throw new Error(`Could not click button labelled ${label}.`);
+}
+
+async function nativeClickButtonByLabel(window, label) {
+  const rect = await evaluate(window, `(() => {
+    const value = document.querySelector('button[aria-label=${JSON.stringify(label)}]')?.getBoundingClientRect();
+    return value ? { x: value.x, y: value.y, width: value.width, height: value.height } : null;
+  })()`);
+  if (!rect) throw new Error(`Could not find button labelled ${label}.`);
+  const x = Math.round(rect.x + rect.width / 2);
+  const y = Math.round(rect.y + rect.height / 2);
+  window.webContents.sendInputEvent({ type: 'mouseMove', x, y });
+  await delay(220);
+  window.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+  await delay(40);
+  window.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+  return { x, y };
 }
 
 async function waitForButton(window, label) {

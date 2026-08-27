@@ -55,7 +55,6 @@ interface SystemStore {
   page: PageId;
   selectedDeviceId: string | null;
   loading: boolean;
-  actionPending: string | null;
   error: string | null;
   initialize(): Promise<() => void>;
   setPage(page: PageId): void;
@@ -102,15 +101,13 @@ interface SystemStore {
 }
 
 export const useSystemStore = create<SystemStore>((set, get) => {
-  const run = async (label: string, action: AsyncAction): Promise<void> => {
-    set({ actionPending: label, error: null });
+  const run = async (action: AsyncAction): Promise<void> => {
+    set({ error: null });
     try {
       const snapshot = await action();
       set({ snapshot });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) });
-    } finally {
-      set({ actionPending: null });
     }
   };
 
@@ -119,7 +116,6 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     page: pageFromHash(),
     selectedDeviceId: null,
     loading: true,
-    actionPending: null,
     error: null,
     async initialize() {
       try {
@@ -156,68 +152,62 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     selectDevice: (selectedDeviceId) => set({ selectedDeviceId, page: 'devices' }),
     clearDeviceSelection: () => set({ selectedDeviceId: null }),
     clearError: () => set({ error: null }),
-    setModuleState: (input) => run(`module:${input.moduleId}`, () => switchboardApi.setModuleState(input)),
-    setDeviceControl: (input) => run(`device:${input.deviceId}:${input.change.type}`, () => switchboardApi.setDeviceControl(input)),
-    setDeviceSetting: (input) => run(`device:${input.deviceId}:${input.key}`, () => switchboardApi.setDeviceSetting(input)),
-    setDeviceAppearanceOverride: (input) => run(`device:${input.deviceId}:appearance`, () => switchboardApi.setDeviceAppearanceOverride(input)),
-    setAudioEnabled: (enabled) => run('audio:enabled', () => switchboardApi.setAudioEnabled(enabled)),
-    setAudioMasterGain: (input) => run('audio:master', () => switchboardApi.setAudioMasterGain(input)),
-    setAudioMasterEnabled: (input) => run('audio:master:enabled', () => switchboardApi.setAudioMasterEnabled(input)),
-    setAudioBusGain: (input) => run(`audio:${input.busId}`, () => switchboardApi.setAudioBusGain(input)),
-    setAudioBusEnabled: (input) => run(`audio:${input.busId}:enabled`, () => switchboardApi.setAudioBusEnabled(input)),
-    setAudioBusDevice: (input) => run(`audio:${input.busId}:device`, () => switchboardApi.setAudioBusDevice(input)),
-    applyAudioPreset: (input) => run('audio:preset', () => switchboardApi.applyAudioPreset(input)),
-    createAudioPreset: (input) => run('audio:preset:create', () => switchboardApi.createAudioPreset(input)),
-    renameAudioPreset: (input) => run('audio:preset:rename', () => switchboardApi.renameAudioPreset(input)),
-    duplicateAudioPreset: (input) => run('audio:preset:duplicate', () => switchboardApi.duplicateAudioPreset(input)),
-    deleteAudioPreset: (input) => run('audio:preset:delete', () => switchboardApi.deleteAudioPreset(input)),
-    importAudioPreset: () => run('audio:preset:import', () => switchboardApi.importAudioPreset()),
+    setModuleState: (input) => run(() => switchboardApi.setModuleState(input)),
+    setDeviceControl: (input) => run(() => switchboardApi.setDeviceControl(input)),
+    setDeviceSetting: (input) => run(() => switchboardApi.setDeviceSetting(input)),
+    setDeviceAppearanceOverride: (input) => run(() => switchboardApi.setDeviceAppearanceOverride(input)),
+    setAudioEnabled: (enabled) => run(() => switchboardApi.setAudioEnabled(enabled)),
+    setAudioMasterGain: (input) => run(() => switchboardApi.setAudioMasterGain(input)),
+    setAudioMasterEnabled: (input) => run(() => switchboardApi.setAudioMasterEnabled(input)),
+    setAudioBusGain: (input) => run(() => switchboardApi.setAudioBusGain(input)),
+    setAudioBusEnabled: (input) => run(() => switchboardApi.setAudioBusEnabled(input)),
+    setAudioBusDevice: (input) => run(() => switchboardApi.setAudioBusDevice(input)),
+    applyAudioPreset: (input) => run(() => switchboardApi.applyAudioPreset(input)),
+    createAudioPreset: (input) => run(() => switchboardApi.createAudioPreset(input)),
+    renameAudioPreset: (input) => run(() => switchboardApi.renameAudioPreset(input)),
+    duplicateAudioPreset: (input) => run(() => switchboardApi.duplicateAudioPreset(input)),
+    deleteAudioPreset: (input) => run(() => switchboardApi.deleteAudioPreset(input)),
+    importAudioPreset: () => run(() => switchboardApi.importAudioPreset()),
     exportAudioPreset: async (input) => {
-      set({ actionPending: 'audio:preset:export', error: null });
+      set({ error: null });
       try { await switchboardApi.exportAudioPreset(input); }
       catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
-      finally { set({ actionPending: null }); }
     },
-    setAudioChannelProcessor: (input) => run(
-      `audio:${input.busId}:processor:${input.processorId}`,
-      () => switchboardApi.setAudioChannelProcessor(input),
-    ),
-    setAudioMonitoring: (input) => run('audio:monitoring', () => switchboardApi.setAudioMonitoring(input)),
+    setAudioChannelProcessor: (input) => run(() => switchboardApi.setAudioChannelProcessor(input)),
+    setAudioMonitoring: (input) => run(() => switchboardApi.setAudioMonitoring(input)),
     testMicrophone: async () => {
-      set({ actionPending: 'audio:microphone-test', error: null });
+      set({ error: null });
       try { await switchboardApi.testMicrophone(); }
       catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
-      finally { set({ actionPending: null }); }
     },
-    setChatMix: (value) => run('audio:chatmix', () => switchboardApi.setChatMix(value)),
-    setMicProcessor: (input) => run(`audio:processor:${input.processorId}`, () => switchboardApi.setMicProcessor(input)),
-    setCaptureConfig: (input) => run('capture:config', () => switchboardApi.setCaptureConfig(input)),
-    saveReplay: () => run('capture:save', () => switchboardApi.saveReplay()),
-    chooseClipDirectory: () => run('capture:directory', () => switchboardApi.chooseClipDirectory()),
+    setChatMix: (value) => run(() => switchboardApi.setChatMix(value)),
+    setMicProcessor: (input) => run(() => switchboardApi.setMicProcessor(input)),
+    setCaptureConfig: (input) => run(() => switchboardApi.setCaptureConfig(input)),
+    saveReplay: () => run(() => switchboardApi.saveReplay()),
+    chooseClipDirectory: () => run(() => switchboardApi.chooseClipDirectory()),
     openClipsDirectory: async () => {
-      set({ actionPending: 'capture:open-directory', error: null });
+      set({ error: null });
       try { await switchboardApi.openClipsDirectory(); }
       catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
-      finally { set({ actionPending: null }); }
     },
-    refreshCaptureSources: () => run('capture:sources', () => switchboardApi.refreshCaptureSources()),
-    scanGames: () => run('games:scan', () => switchboardApi.scanGames()),
-    addGame: () => run('games:add', () => switchboardApi.addGame()),
+    refreshCaptureSources: () => run(() => switchboardApi.refreshCaptureSources()),
+    scanGames: () => run(() => switchboardApi.scanGames()),
+    addGame: () => run(() => switchboardApi.addGame()),
     deleteClip: async (id) => {
-      set({ actionPending: `clip:${id}:delete`, error: null });
+      set({ error: null });
       try { set({ snapshot: await switchboardApi.deleteClip(id) }); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;
-      } finally { set({ actionPending: null }); }
+      }
     },
     renameClip: async (input) => {
-      set({ actionPending: `clip:${input.id}:rename`, error: null });
+      set({ error: null });
       try { set({ snapshot: await switchboardApi.renameClip(input) }); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;
-      } finally { set({ actionPending: null }); }
+      }
     },
     setClipFavorite: async (input) => {
       const before = get().snapshot;
@@ -226,31 +216,31 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       const clip = optimistic.clips.find((candidate) => candidate.id === input.id);
       if (!clip) return;
       clip.favorite = input.favorite;
-      set({ snapshot: optimistic, actionPending: `clip:${input.id}:favorite`, error: null });
+      set({ snapshot: optimistic, error: null });
       try { set({ snapshot: await switchboardApi.setClipFavorite(input) }); }
       catch (error) {
         set({ snapshot: before, error: error instanceof Error ? error.message : String(error) });
         throw error;
-      } finally { set({ actionPending: null }); }
+      }
     },
     setClipTrim: async (input) => {
-      set({ actionPending: `clip:${input.id}:trim`, error: null });
+      set({ error: null });
       try { set({ snapshot: await switchboardApi.setClipTrim(input) }); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;
-      } finally { set({ actionPending: null }); }
+      }
     },
     exportClip: async (input) => {
-      set({ actionPending: `clip:${input.id}:export`, error: null });
+      set({ error: null });
       try { return await switchboardApi.exportClip(input); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;
-      } finally { set({ actionPending: null }); }
+      }
     },
-    updateSettings: (input) => run('settings:update', () => switchboardApi.updateSettings(input)),
-    resetSettings: (scope) => run('settings:reset', () => switchboardApi.resetSettings(scope)),
+    updateSettings: (input) => run(() => switchboardApi.updateSettings(input)),
+    resetSettings: (scope) => run(() => switchboardApi.resetSettings(scope)),
     revealClip: (id) => switchboardApi.revealClip(id),
   };
 });

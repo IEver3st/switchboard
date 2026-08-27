@@ -51,7 +51,20 @@ async function run() {
       const image = await window.webContents.capturePage();
       const filename = `${viewport.name}-audio-${tab}.png`;
       await writeFile(join(outputDirectory, filename), image.toPNG());
-      report.push({ viewport, tab, filename, metrics });
+      let controlsFilename = null;
+      if (viewport.name === '1420x900') {
+        await window.webContents.executeJavaScript(`
+          document.querySelector(${JSON.stringify(`#audio-panel-${tab} .audio-control-rail`)})?.scrollIntoView({ block: 'start' })
+        `);
+        await waitForPaint();
+        const controlsImage = await window.webContents.capturePage();
+        controlsFilename = `${viewport.name}-audio-${tab}-controls.png`;
+        await writeFile(join(outputDirectory, controlsFilename), controlsImage.toPNG());
+        await window.webContents.executeJavaScript(`
+          document.querySelectorAll('[data-radix-scroll-area-viewport]').forEach((element) => element.scrollTo(0, 0))
+        `);
+      }
+      report.push({ viewport, tab, filename, controlsFilename, metrics });
 
       if (viewport.name === '1420x900' && tab === 'game') {
         await clickSelector('.preset-picker [role="combobox"]');
@@ -66,7 +79,7 @@ async function run() {
   }
 
   await writeFile(join(outputDirectory, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
-  console.log(JSON.stringify({ outputDirectory, captures: report.length + 1, report }, null, 2));
+  console.log(JSON.stringify({ outputDirectory, captures: report.length + tabs.length + 1, report }, null, 2));
   app.quit();
 }
 
@@ -120,6 +133,15 @@ function layoutMetrics(tab) {
         viewportScrollHeight: viewport?.scrollHeight ?? null,
         repeatedRouteControls: panel?.querySelectorAll('.audio-workbench__device').length ?? null,
         featuredPresetControls: panel?.querySelectorAll('.preset-picker__featured').length ?? null,
+        horizontalFaders: panel?.querySelectorAll('.ui-slider--fader').length ?? null,
+        processingModules: panel?.querySelectorAll('.audio-simple-section, .mic-rail__input, .mic-rows__row').length ?? null,
+        advancedDisclosures: panel?.querySelectorAll('.advanced-disclosure').length ?? null,
+        signalChainNavigations: panel?.querySelectorAll('.mic-chain').length ?? null,
+        visibleToggleStateLabels: [...(panel?.querySelectorAll('span') ?? [])]
+          .filter((element) => ['On', 'Off'].includes(element.textContent?.trim() ?? ''))
+          .filter((element) => !element.classList.contains('sr-only'))
+          .filter((element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden')
+          .length,
         presetTrigger: rect(trigger),
         eqGraph: rect(graph),
       };

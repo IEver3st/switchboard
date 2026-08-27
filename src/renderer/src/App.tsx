@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AlertTriangle, LoaderCircle, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -26,7 +26,6 @@ export function App() {
   const page = useSystemStore((state) => state.page);
   const loading = useSystemStore((state) => state.loading);
   const error = useSystemStore((state) => state.error);
-  const actionPending = useSystemStore((state) => state.actionPending);
   const initialize = useSystemStore((state) => state.initialize);
   const setPage = useSystemStore((state) => state.setPage);
   const clearError = useSystemStore((state) => state.clearError);
@@ -65,12 +64,6 @@ export function App() {
               </div>
             </>
           )}
-
-          {actionPending ? (
-            <div className="pointer-events-none fixed bottom-4 right-4 flex items-center gap-2 rounded-md border border-border bg-popover px-3 py-2 text-[10px] text-muted-foreground shadow-xl" role="status">
-              <LoaderCircle className="size-3.5 animate-spin" /> Applying change
-            </div>
-          ) : null}
 
           {error ? (
             <div className="fixed bottom-4 left-20 flex max-w-lg items-center gap-3 rounded-lg border border-destructive/45 bg-popover px-4 py-3 text-[11px] text-destructive shadow-xl" role="alert">

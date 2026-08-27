@@ -21,26 +21,26 @@
         "left": 0
       },
       "sequence": {
-        "x": 570,
-        "y": 361,
-        "width": 280,
-        "height": 178,
-        "top": 361,
-        "right": 850,
-        "bottom": 539,
-        "left": 570
+        "x": 470,
+        "y": 308.1770935058594,
+        "width": 480,
+        "height": 283.63543701171875,
+        "top": 308.1770935058594,
+        "right": 950,
+        "bottom": 591.8125305175781,
+        "left": 470
       },
-      "route": {
-        "x": 600,
-        "y": 435,
-        "width": 220,
-        "height": 52,
-        "top": 435,
-        "right": 820,
-        "bottom": 487,
-        "left": 600
+      "consoleGraphic": {
+        "x": 497,
+        "y": 308.1770935058594,
+        "width": 426,
+        "height": 226.8854217529297,
+        "top": 308.1770935058594,
+        "right": 923,
+        "bottom": 535.0625152587891,
+        "left": 497
       },
-      "status": "SwitchboardStarting control plane",
+      "status": "SwitchboardInitializing control plane",
       "horizontalOverflow": false,
       "verticalOverflow": false,
       "controlPlaneVisible": true
