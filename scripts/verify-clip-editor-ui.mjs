@@ -91,7 +91,7 @@ async function run() {
           height: track.getBoundingClientRect().height,
           waveform: track.querySelector('path')?.getAttribute('d')?.length ?? 0,
         })),
-        audioLevelLabels: [...editor.querySelectorAll('.clip-editor-track-control input')].map((slider) => slider.getAttribute('aria-label')),
+        audioLevelLabels: [...editor.querySelectorAll('.clip-editor-track-control [role="slider"]')].map((slider) => slider.getAttribute('aria-label')),
         waveformState: editor.querySelector('.clip-editor-timeline__desk')?.getAttribute('data-waveform-state'),
         interaction: editor.querySelector('.clip-editor-timeline')?.getAttribute('data-interaction'),
       };
@@ -108,7 +108,7 @@ async function run() {
     if (metrics.waveformState !== 'ready' || metrics.audioTracks.length < 2 || metrics.audioLevelLabels.length !== metrics.audioTracks.length) {
       throw new Error(`Separate audio tracks did not load: ${JSON.stringify({ waveformState: metrics.waveformState, audioTracks: metrics.audioTracks, audioLevelLabels: metrics.audioLevelLabels })}`);
     }
-    if (metrics.audioTracks.some((track) => track.height < 38 || track.height > 42 || track.waveform < 100)) {
+    if (metrics.audioTracks.some((track) => track.height < 38 || track.height > 54 || track.waveform < 100)) {
       throw new Error(`Audio lanes are not correctly sized or waveform-backed: ${JSON.stringify(metrics.audioTracks)}`);
     }
     if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
@@ -228,7 +228,7 @@ async function run() {
   await waitForMissingSelector(window, '[data-share-clip-dialog]');
 
   const interactionEvidence = await verifyTimelineInteractions(window);
-  await clickButtonByLabel(window, 'Reset trim');
+  await clickButtonByLabel(window, 'Reset timeline edits');
   const originalEnd = Number(await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.getAttribute('aria-valuenow')`));
   await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.focus()`);
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'LEFT' });
@@ -236,14 +236,36 @@ async function run() {
   await delay(80);
   const adjustedEnd = Number(await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.getAttribute('aria-valuenow')`));
   if (!(adjustedEnd < originalEnd)) throw new Error('Keyboard trimming did not move the end handle.');
-  await clickButton(window, 'Save trim');
+  const trackStartBefore = Number(await evaluate(window, `document.querySelector('[data-testid="clip-track-0-trim-start"]')?.getAttribute('aria-valuenow')`));
+  const secondTrackStartBefore = Number(await evaluate(window, `document.querySelector('[data-testid="clip-track-1-trim-start"]')?.getAttribute('aria-valuenow')`));
+  const independentSurface = await evaluate(window, `(() => { const rect = document.querySelector('[data-testid="clip-timeline-surface"]')?.getBoundingClientRect(); return rect ? { x: rect.x, width: rect.width } : null; })()`);
+  if (!independentSurface) throw new Error('Timeline surface was not rendered for independent track trimming.');
+  const trackStartRect = await sliderRect(window, 'Game trim start');
+  await pointerDrag(
+    window,
+    trackStartRect.x + trackStartRect.width / 2,
+    trackStartRect.y + trackStartRect.height / 2,
+    independentSurface.x + independentSurface.width * 0.2,
+    trackStartRect.y + trackStartRect.height / 2,
+  );
+  const trackStartAfter = Number(await evaluate(window, `document.querySelector('[data-testid="clip-track-0-trim-start"]')?.getAttribute('aria-valuenow')`));
+  const secondTrackStartAfter = Number(await evaluate(window, `document.querySelector('[data-testid="clip-track-1-trim-start"]')?.getAttribute('aria-valuenow')`));
+  const globalEndAfterTrackTrim = Number(await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.getAttribute('aria-valuenow')`));
+  if (!(trackStartAfter > trackStartBefore) || secondTrackStartAfter !== secondTrackStartBefore || globalEndAfterTrackTrim !== adjustedEnd) {
+    throw new Error(`Audio track trims were not independent: ${JSON.stringify({ trackStartBefore, trackStartAfter, secondTrackStartBefore, secondTrackStartAfter, adjustedEnd, globalEndAfterTrackTrim })}`);
+  }
+  const independentTrackTrimScreenshot = join(outputDirectory, '1420x900-clip-editor-independent-track-trim.png');
+  await writeFile(independentTrackTrimScreenshot, (await window.webContents.capturePage()).toPNG());
+  await clickButton(window, 'Save edits');
   await waitForButton(window, 'Saved');
   await clickButton(window, 'Back to clips');
   await waitForMissingSelector(window, '[data-testid="clip-editor"]');
   await openEditor(window);
   const reopenedEnd = Number(await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.getAttribute('aria-valuenow')`));
   if (reopenedEnd !== adjustedEnd) throw new Error(`Saved trim was not restored: ${adjustedEnd} -> ${reopenedEnd}.`);
-  const reopenedAudioLevel = Number(await evaluate(window, `document.querySelector('.clip-editor-track-control input')?.value`));
+  const reopenedTrackStart = Number(await evaluate(window, `document.querySelector('[data-testid="clip-track-0-trim-start"]')?.getAttribute('aria-valuenow')`));
+  if (reopenedTrackStart !== trackStartAfter) throw new Error(`Saved audio track trim was not restored: ${trackStartAfter} -> ${reopenedTrackStart}.`);
+  const reopenedAudioLevel = Number(await evaluate(window, `document.querySelector('.clip-editor-track-control [role="slider"]')?.getAttribute('aria-valuenow')`));
   if (reopenedAudioLevel !== 37) throw new Error(`Audio track level was not restored: 37 -> ${reopenedAudioLevel}.`);
 
   const exportClip = await evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0])`);
@@ -272,7 +294,7 @@ async function run() {
   const exportEvidence = { sizeBytes: exportedFile.size, targetBytes: 10 * 1_024 * 1_024, durationSeconds: exportedDuration, width: exportedVideo.width, height: exportedVideo.height, audioStreams: exportedAudioStreams.length };
   await rm(exportDestination, { force: true });
 
-  process.stdout.write(`${JSON.stringify({ outputDirectory, results, workspaceEvidence, interactionEvidence, destinationAction: { title: destinationCall.title, defaultPath: destinationCall.defaultPath, pendingState, canceledDialogStayedOpen: true }, persistence: { originalEnd, adjustedEnd, reopenedEnd, reopenedAudioLevel }, exportEvidence }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ outputDirectory, results, workspaceEvidence, interactionEvidence, destinationAction: { title: destinationCall.title, defaultPath: destinationCall.defaultPath, pendingState, canceledDialogStayedOpen: true }, persistence: { originalEnd, adjustedEnd, reopenedEnd, trackStartAfter, reopenedTrackStart, reopenedAudioLevel, independentTrackTrimScreenshot }, exportEvidence }, null, 2)}\n`);
   app.quit();
 }
 
@@ -288,6 +310,7 @@ async function verifyEditorWorkspace(window) {
   await clickButtonByLabel(window, 'Collapse Inspector');
   await waitForSelector(window, '.clip-editor-layout[data-inspector="closed"]');
   await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.settings.clipEditorInspectorOpen === false)`), 'collapsed Inspector persistence');
+  await delay(280);
   await waitForCondition(async () => (await editorGeometry(window)).viewerWidth > expanded.viewerWidth + 180, 'collapsed Inspector reflow');
   const collapsed = await editorGeometry(window);
   if (collapsed.viewerWidth <= expanded.viewerWidth + 180 || collapsed.timelineWidth <= expanded.timelineWidth + 180) {
@@ -385,18 +408,19 @@ async function verifyEditorWorkspace(window) {
   await waitForCondition(() => evaluate(window, `document.querySelector('video')?.muted === ${!mutedBefore}`), 'mute toggle');
   await clickButtonByLabel(window, mutedBefore ? 'Mute' : 'Unmute');
 
+  await evaluate(window, `document.querySelector('.clip-editor-track-control [role="slider"]')?.focus()`);
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'HOME' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'HOME' });
+  for (let step = 0; step < 37; step += 1) {
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'RIGHT' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'RIGHT' });
+  }
+  await delay(220);
   const audioLevel = await evaluate(window, `(() => {
-    const input = document.querySelector('.clip-editor-track-control input');
-    if (!input) throw new Error('Audio track level input missing.');
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    if (!setter) throw new Error('Audio track level setter missing.');
-    setter.call(input, '37');
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    return { label: input.getAttribute('aria-label'), value: input.value };
+    const slider = document.querySelector('.clip-editor-track-control [role="slider"]');
+    slider?.blur();
+    return { label: slider?.getAttribute('aria-label'), value: slider?.getAttribute('aria-valuenow') };
   })()`);
-  await delay(80);
-  await evaluate(window, `(() => { const input = document.querySelector('.clip-editor-track-control input'); input?.focus(); input?.blur(); })()`);
   await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0].audioTrackLevels?.[0] === 37)`), 'audio track level persistence');
 
   const clipBefore = await evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0])`);

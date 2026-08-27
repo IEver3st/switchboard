@@ -38,12 +38,7 @@
   min-width: 0;
   align-items: center;
   gap: 5px;
-  border-right: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   padding: 0 12px;
-}
-
-.clip-editor-metadata > div:last-child {
-  border-right: 0;
 }
 
 .clip-editor-metadata dt {
@@ -586,11 +581,12 @@
 }
 
 .clip-editor-timeline__desk {
+  --audio-lane-height: clamp(40px, 4.8vh, 52px);
   display: grid;
-  height: calc(25px + var(--audio-track-count) * 40px + (var(--audio-track-count) - 1) * 4px);
-  min-height: 65px;
+  height: calc(53px + var(--audio-track-count) * var(--audio-lane-height) + var(--audio-track-count) * 4px);
+  min-height: 97px;
   min-width: 0;
-  grid-template-columns: 138px minmax(0, 1fr);
+  grid-template-columns: clamp(146px, 10vw, 180px) minmax(0, 1fr);
   gap: 8px;
   margin-top: 2px;
 }
@@ -630,7 +626,7 @@
 .clip-editor-timeline__tracks {
   display: grid;
   min-height: 0;
-  grid-template-rows: repeat(var(--audio-track-count), minmax(0, 1fr));
+  grid-template-rows: 28px repeat(var(--audio-track-count), minmax(var(--audio-lane-height), 1fr));
   gap: 4px;
 }
 
@@ -643,14 +639,14 @@
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 40px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: 14px 11px;
+  min-height: var(--audio-lane-height);
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-rows: 14px 26px;
   align-content: center;
-  column-gap: 5px;
+  column-gap: 4px;
   border-left: 2px solid var(--track-color);
   background: color-mix(in srgb, var(--surface-2) 78%, var(--track-color));
-  padding: 2px 6px;
+  padding: 1px 6px;
 }
 
 .clip-editor-track-control__name {
@@ -660,10 +656,11 @@
   gap: 5px;
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+  grid-column: 1 / 3;
 }
 
 .clip-editor-track-control__name i {
@@ -676,43 +673,97 @@
 .clip-editor-track-control output {
   color: var(--text-description);
   font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 7.5px;
+  font-size: 8px;
   font-variant-numeric: tabular-nums;
+  grid-column: 3;
+  text-align: right;
 }
 
-.clip-editor-track-control input {
-  width: 100%;
-  height: 11px;
-  grid-column: 1 / -1;
-  margin: 0;
-  appearance: none;
-  background: transparent;
+.clip-editor-track-control__mute {
+  display: grid;
+  width: 20px;
+  height: 22px;
+  grid-column: 1;
+  grid-row: 2;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 72%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--surface-interactive) 58%, transparent);
+  color: var(--text-description);
+  cursor: pointer;
 }
 
-.clip-editor-track-control input::-webkit-slider-runnable-track {
-  height: 2px;
-  background: color-mix(in srgb, var(--track-color) 72%, var(--border-strong));
+.clip-editor-track-control__mute svg {
+  width: 12px;
+  height: 12px;
 }
 
-.clip-editor-track-control input::-webkit-slider-thumb {
-  width: 8px;
-  height: 8px;
-  margin-top: -3px;
-  appearance: none;
-  border: 1px solid color-mix(in srgb, var(--foreground) 72%, var(--track-color));
-  border-radius: 1px;
-  background: var(--surface-interactive);
+.clip-editor-track-control__mute:hover,
+.clip-editor-track-control__mute[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--track-color) 68%, var(--border-strong));
+  background: color-mix(in srgb, var(--surface-interactive) 78%, var(--track-color));
+  color: var(--foreground);
 }
 
-.clip-editor-track-control input:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--ring) 58%, transparent);
+.clip-editor-track-control__mute:focus-visible {
+  outline: 2px solid var(--ring);
   outline-offset: 1px;
 }
 
-.clip-editor-track-control[data-muted="true"],
-.clip-editor-timeline__audio-track[data-muted="true"] {
+.clip-editor-track-control .ui-slider--fader {
+  height: 26px;
+  grid-column: 2 / 4;
+  grid-row: 2;
+}
+
+.clip-editor-track-control .ui-slider--fader .ui-slider__track {
+  background: color-mix(in srgb, var(--track-color) 24%, var(--input));
+}
+
+.clip-editor-track-control[data-muted="true"] {
   filter: saturate(0.15);
-  opacity: 0.54;
+}
+
+.clip-editor-timeline__audio-track[data-muted="true"] > svg,
+.clip-editor-timeline__audio-track[data-muted="true"] > .clip-editor-timeline__empty-label {
+  filter: saturate(0.15);
+  opacity: 0.42;
+}
+
+.clip-editor-clip-control {
+  display: flex;
+  min-width: 0;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-left: 2px solid var(--timeline-playhead);
+  background: var(--surface-2);
+  padding: 0 6px;
+}
+
+.clip-editor-clip-control > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 620;
+  white-space: nowrap;
+}
+
+.clip-editor-clip-control svg {
+  width: 11px;
+  height: 11px;
+  color: var(--timeline-playhead);
+}
+
+.clip-editor-clip-control output {
+  color: var(--text-description);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .clip-editor-track-controls__empty {
@@ -729,6 +780,7 @@
 .clip-editor-timeline__surface {
   position: relative;
   height: 100%;
+  margin-inline: 15px;
   touch-action: none;
   user-select: none;
 }
@@ -765,15 +817,37 @@
   white-space: nowrap;
 }
 
+.clip-editor-timeline__ruler > span.is-terminal em {
+  right: 4px;
+  left: auto;
+}
+
 .clip-editor-timeline__tracks {
   position: absolute;
   inset: 22px 0 3px;
 }
 
+.clip-editor-timeline__clip-track {
+  position: relative;
+  min-height: 28px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--timeline-playhead) 52%, var(--border-strong));
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
+.clip-editor-timeline__clip-fill {
+  position: absolute;
+  z-index: 1;
+  inset: 5px 7px;
+  border-block: 1px solid color-mix(in srgb, var(--timeline-playhead) 32%, var(--border-strong));
+  background: color-mix(in srgb, var(--timeline-playhead) 12%, var(--surface-2));
+}
+
 .clip-editor-timeline__audio-track {
   position: relative;
-  min-height: 40px;
-  overflow: hidden;
+  min-height: var(--audio-lane-height);
+  overflow: visible;
   border: 1px solid color-mix(in srgb, var(--track-color) 48%, var(--border-strong));
   border-radius: 2px;
   background: color-mix(in srgb, var(--surface-2) 82%, var(--track-color));
@@ -802,7 +876,7 @@
   stroke-width: 1;
 }
 
-.clip-editor-timeline__audio-track > span {
+.clip-editor-timeline__empty-label {
   position: absolute;
   z-index: 1;
   inset: 0;
@@ -819,13 +893,13 @@
 .clip-editor-timeline__selection,
 .clip-editor-timeline__inactive {
   position: absolute;
-  inset-block: 22px 3px;
+  inset-block: 0;
 }
 
 .clip-editor-timeline__selection {
   z-index: 2;
-  border-block: 2px solid color-mix(in srgb, var(--timeline-selection) 72%, var(--border-strong));
-  background: color-mix(in srgb, var(--timeline-selection) 12%, transparent);
+  border-block: 2px solid color-mix(in srgb, var(--lane-accent, var(--timeline-selection)) 72%, var(--border-strong));
+  background: color-mix(in srgb, var(--lane-accent, var(--timeline-selection)) 12%, transparent);
   pointer-events: none;
 }
 
@@ -887,8 +961,8 @@
 .clip-editor-trim-handle {
   position: absolute;
   z-index: 5;
-  top: 19px;
-  bottom: 2px;
+  top: 0;
+  bottom: 0;
   width: 30px;
   transform: translateX(-50%);
   cursor: ew-resize;
@@ -898,14 +972,14 @@
 
 .clip-editor-trim-handle > span {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
+  top: 2px;
+  bottom: 2px;
   left: 10px;
   display: grid;
   width: 10px;
   place-content: center;
   gap: 3px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 78%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--lane-accent, var(--foreground)) 82%, var(--border));
   border-radius: 2px;
   background: var(--surface-interactive);
   transition: border-color 120ms ease-out, background-color 120ms ease-out;
@@ -916,7 +990,7 @@
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: var(--foreground);
+  background: var(--lane-accent, var(--foreground));
 }
 
 .clip-editor-trim-handle:focus-visible > span,
@@ -924,7 +998,15 @@
 .clip-editor-timeline[data-interaction="dragging-trim-start"] .clip-editor-trim-handle.is-start > span,
 .clip-editor-timeline[data-interaction="dragging-trim-end"] .clip-editor-trim-handle.is-end > span {
   border-color: var(--timeline-playhead);
-  background: color-mix(in srgb, var(--surface-interactive) 84%, var(--timeline-playhead));
+  background: color-mix(in srgb, var(--surface-interactive) 78%, var(--lane-accent, var(--timeline-playhead)));
+}
+
+.clip-editor-timeline__clip-track {
+  --lane-accent: var(--timeline-playhead);
+}
+
+.clip-editor-timeline__audio-track {
+  --lane-accent: var(--track-color);
 }
 
 .clip-editor-timeline--unavailable {
@@ -966,7 +1048,7 @@
   }
 
   .clip-editor-timeline__desk {
-    grid-template-columns: 120px minmax(0, 1fr);
+    grid-template-columns: 146px minmax(0, 1fr);
     gap: 6px;
   }
 

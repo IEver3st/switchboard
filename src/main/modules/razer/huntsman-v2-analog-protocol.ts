@@ -10,9 +10,12 @@ export type HuntsmanLightingEffectId =
   | 'wave-left'
   | 'wave-right'
   | 'reactive'
-  | 'starlight'
-  | 'wheel-left'
-  | 'wheel-right';
+  | 'starlight';
+
+export interface HuntsmanLightingState {
+  effectId: HuntsmanLightingEffectId;
+  color?: string;
+}
 
 export interface RazerCommand {
   transactionId: number;
@@ -82,6 +85,24 @@ export function brightnessWriteCommand(brightness: number): RazerCommand {
   };
 }
 
+export function effectReadCommand(): RazerCommand {
+  return {
+    transactionId: lightingTransactionId,
+    commandClass: lightingCommandClass,
+    commandId: 0x82,
+    arguments: [0x01, 0x05, ...Array(78).fill(0)],
+  };
+}
+
+export function effectIdListCommand(): RazerCommand {
+  return {
+    transactionId: lightingTransactionId,
+    commandClass: lightingCommandClass,
+    commandId: 0x81,
+    arguments: [0x05, ...Array(79).fill(0)],
+  };
+}
+
 export function effectWriteCommand(effectId: HuntsmanLightingEffectId, color: string): RazerCommand {
   const [red, green, blue] = parseColor(color);
   const argumentsByEffect: Record<HuntsmanLightingEffectId, readonly number[]> = {
@@ -93,14 +114,45 @@ export function effectWriteCommand(effectId: HuntsmanLightingEffectId, color: st
     'wave-right': [0x01, 0x05, 0x04, 0x02, 0x28, 0x00],
     reactive: [0x01, 0x05, 0x05, 0x00, 0x02, 0x01, red, green, blue],
     starlight: [0x01, 0x05, 0x07, 0x00, 0x02, 0x01, red, green, blue],
-    'wheel-left': [0x01, 0x05, 0x0a, 0x01, 0x28, 0x00],
-    'wheel-right': [0x01, 0x05, 0x0a, 0x02, 0x28, 0x00],
   };
   return {
     transactionId: lightingTransactionId,
     commandClass: lightingCommandClass,
     commandId: 0x02,
     arguments: argumentsByEffect[effectId],
+  };
+}
+
+export function gamingModeReadCommand(): RazerCommand {
+  return { transactionId: generalTransactionId, commandClass: 0x03, commandId: 0x80, arguments: [0x01, 0x08, 0x00] };
+}
+
+export function gamingModeWriteCommand(enabled: boolean): RazerCommand {
+  return { transactionId: generalTransactionId, commandClass: 0x03, commandId: 0x00, arguments: [0x01, 0x08, enabled ? 1 : 0] };
+}
+
+export function onboardProfileListCommand(): RazerCommand {
+  return { transactionId: generalTransactionId, commandClass: 0x05, commandId: 0x81, arguments: Array(80).fill(0) };
+}
+
+export function activeOnboardProfileReadCommand(): RazerCommand {
+  return { transactionId: generalTransactionId, commandClass: 0x05, commandId: 0x84, arguments: [0] };
+}
+
+export function activeOnboardProfileWriteCommand(profileId: number): RazerCommand {
+  return { transactionId: generalTransactionId, commandClass: 0x05, commandId: 0x04, arguments: [profileByte(profileId)] };
+}
+
+export function rapidTriggerReadCommand(profileId: number): RazerCommand {
+  return { transactionId: generalTransactionId, commandClass: 0x02, commandId: 0xa0, arguments: [profileByte(profileId), 0] };
+}
+
+export function snapTapReadCommand(profileId: number): RazerCommand {
+  return {
+    transactionId: generalTransactionId,
+    commandClass: 0x02,
+    commandId: 0xa7,
+    arguments: [profileByte(profileId), ...Array(14).fill(0)],
   };
 }
 
@@ -119,6 +171,58 @@ export function parseBrightness(response: RazerResponse): number {
   return Math.round(((response.arguments[2] ?? 0) / 255) * 100);
 }
 
+export function parseLightingState(response: RazerResponse): HuntsmanLightingState {
+  if (response.arguments.length < 6) throw new Error('The keyboard returned an incomplete lighting effect.');
+  const effectCode = response.arguments[2] ?? -1;
+  const flags = response.arguments[3] ?? 0;
+  const effectId = effectCode === 0x00 ? 'off'
+    : effectCode === 0x01 ? 'static'
+      : effectCode === 0x02 ? 'breathing'
+        : effectCode === 0x03 ? 'spectrum'
+          : effectCode === 0x04 ? (flags === 0x02 ? 'wave-right' : 'wave-left')
+            : effectCode === 0x05 ? 'reactive'
+              : effectCode === 0x07 ? 'starlight'
+                : undefined;
+  if (!effectId) throw new Error(`The keyboard reported an unknown lighting effect (0x${effectCode.toString(16).padStart(2, '0')}).`);
+  const numberOfColors = response.arguments[5] ?? 0;
+  const color = numberOfColors > 0 && response.arguments.length >= 9
+    ? rgbToColor(response.arguments[6] ?? 0, response.arguments[7] ?? 0, response.arguments[8] ?? 0)
+    : undefined;
+  return { effectId, ...(color ? { color } : {}) };
+}
+
+export function parseLightingEffectCodes(response: RazerResponse): number[] {
+  if (response.arguments.length < 2) throw new Error('The keyboard returned an incomplete lighting effect list.');
+  return [...new Set([...response.arguments.subarray(1)].filter((effectId) => effectId >= 0 && effectId <= 0x07))];
+}
+
+export function parseGamingMode(response: RazerResponse): boolean {
+  if (response.arguments.length < 3) throw new Error('The keyboard returned an incomplete Gaming Mode state.');
+  return response.arguments[2] === 1;
+}
+
+export function parseOnboardProfileIds(response: RazerResponse): number[] {
+  const count = response.arguments[0] ?? 0;
+  if (count < 1 || response.arguments.length < count + 1) throw new Error('The keyboard returned an incomplete onboard profile list.');
+  return [...response.arguments.subarray(1, count + 1)].filter((profileId) => profileId > 0);
+}
+
+export function parseActiveOnboardProfile(response: RazerResponse): number {
+  const profileId = response.arguments[0] ?? 0;
+  if (profileId < 1) throw new Error('The keyboard returned an invalid active onboard profile.');
+  return profileId;
+}
+
+export function parseRapidTrigger(response: RazerResponse): boolean {
+  if (response.arguments.length < 2) throw new Error('The keyboard returned an incomplete Rapid Trigger state.');
+  return response.arguments[1] === 1;
+}
+
+export function parseSnapTap(response: RazerResponse): boolean {
+  if (response.arguments.length < 3) throw new Error('The keyboard returned an incomplete Snap Tap state.');
+  return response.arguments[2] === 1;
+}
+
 export function isHuntsmanLightingEffect(value: unknown): value is HuntsmanLightingEffectId {
   return typeof value === 'string' && [
     'off',
@@ -129,8 +233,6 @@ export function isHuntsmanLightingEffect(value: unknown): value is HuntsmanLight
     'wave-right',
     'reactive',
     'starlight',
-    'wheel-left',
-    'wheel-right',
   ].includes(value);
 }
 
@@ -146,6 +248,15 @@ function parseColor(color: string): [number, number, number] {
 function percentToByte(value: number): number {
   if (!Number.isFinite(value) || value < 0 || value > 100) throw new Error('Brightness must be between 0 and 100.');
   return Math.round((value / 100) * 255);
+}
+
+function profileByte(profileId: number): number {
+  if (!Number.isInteger(profileId) || profileId < 1 || profileId > 255) throw new Error('The onboard profile ID was invalid.');
+  return profileId;
+}
+
+function rgbToColor(red: number, green: number, blue: number): string {
+  return `#${[red, green, blue].map((value) => byte(value).toString(16).padStart(2, '0')).join('')}`;
 }
 
 function byte(value: number): number {

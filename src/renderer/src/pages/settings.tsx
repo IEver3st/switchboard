@@ -122,6 +122,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
       <div className="settings-shell">
         <SettingsSidebar
           category={category}
+          appUpdate={snapshot.appUpdate}
           query={query}
           searchInputRef={searchInputRef}
           onCategoryChange={changeCategory}
@@ -191,15 +192,6 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           checked={snapshot.settings.destroyRendererInTray}
           disabled={!snapshot.settings.closeToTray}
           onCheckedChange={(checked) => void updateSettings({ destroyRendererInTray: checked })}
-        />
-      </SettingSection>
-      <SettingSection title="Application updates">
-        <SettingSwitch
-          settingId="general.automaticAppUpdates"
-          title="Automatically check for updates"
-          description="Check shortly after launch and every six hours while Switchboard is running, then download available releases in the background. Installation waits for an explicit restart."
-          checked={snapshot.settings.automaticAppUpdates}
-          onCheckedChange={(automaticAppUpdates) => void updateSettings({ automaticAppUpdates })}
         />
       </SettingSection>
     </>
@@ -767,10 +759,17 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
   const electronVersion = navigator.userAgent.match(/Electron\/([\d.]+)/)?.[1];
   const platform = navigator.userAgent.includes('Windows') || navigator.platform.startsWith('Win') ? 'Windows' : navigator.platform;
   const checkAppUpdates = useSystemStore((state) => state.checkAppUpdates);
+  const downloadAppUpdate = useSystemStore((state) => state.downloadAppUpdate);
   const installAppUpdate = useSystemStore((state) => state.installAppUpdate);
+  const updateSettings = useSystemStore((state) => state.updateSettings);
   const update = snapshot.appUpdate;
-  const updateBusy = update.status === 'checking' || update.status === 'available' || update.status === 'downloading' || update.status === 'installing';
-  const updateActionLabel = appUpdateActionLabel(update);
+  const automaticDownloads = snapshot.settings.automaticAppUpdateDownloads;
+  const automaticDownloadActive = automaticDownloads && !snapshot.prototypeMode;
+  const updateBusy = update.status === 'checking'
+    || update.status === 'downloading'
+    || update.status === 'installing'
+    || (update.status === 'available' && automaticDownloadActive);
+  const updateActionLabel = appUpdateActionLabel(update, automaticDownloadActive);
 
   return (
     <>
@@ -782,16 +781,11 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           <p>A compact Windows utility for hardware, audio routing, and game capture.</p>
         </div>
       </div>
-      <SettingSection title="Build">
-        <SettingValue settingId="about.version" title="Version" description={snapshot.prototypeMode ? 'Development features are enabled.' : undefined} value={snapshot.version} />
-        <SettingValue settingId="about.runtime" title="Runtime" description={platform} value={electronVersion ? `Electron ${electronVersion}` : 'Browser preview'} />
-        <SettingValue settingId="about.isolation" title="Renderer isolation" description="Sandboxed renderer with a narrow, validated preload bridge." value="Enabled" tone="success" />
-      </SettingSection>
       <SettingSection title="Updates">
         <SettingRow
           settingId="about.updates"
           title="Switchboard updates"
-          description={<span role="status" aria-live="polite">{appUpdateDescription(update)}</span>}
+          description={<span role="status" aria-live="polite">{appUpdateDescription(update, automaticDownloads, snapshot.prototypeMode)}</span>}
         >
           {update.capability === 'available' ? (
             <Button
@@ -802,6 +796,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
               disabled={updateBusy}
               onClick={() => {
                 if (update.status === 'downloaded') void installAppUpdate();
+                else if (update.status === 'available') void downloadAppUpdate();
                 else void checkAppUpdates();
               }}
             >
@@ -812,13 +807,41 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           )}
         </SettingRow>
       </SettingSection>
+      <SettingSection title="Update preferences">
+        <SettingSwitch
+          settingId="about.automaticAppUpdates"
+          title="Always keep Switchboard up to date"
+          description="Check shortly after launch and every six hours while Switchboard is running. Manual checks remain available when this is off."
+          checked={snapshot.settings.automaticAppUpdates}
+          onCheckedChange={(automaticAppUpdates) => void updateSettings({ automaticAppUpdates })}
+        />
+        <SettingSwitch
+          settingId="about.automaticAppUpdateDownloads"
+          title="Download updates automatically"
+          description="Download a release in the background after a check finds it. Turn this off to choose when the download starts."
+          checked={snapshot.settings.automaticAppUpdateDownloads}
+          onCheckedChange={(automaticAppUpdateDownloads) => void updateSettings({ automaticAppUpdateDownloads })}
+        />
+        <SettingSwitch
+          settingId="about.installAppUpdatesOnNextStartup"
+          title="Install for the next startup"
+          description="Apply a downloaded update when Switchboard closes so the next launch starts on the new version."
+          checked={snapshot.settings.installAppUpdatesOnNextStartup}
+          onCheckedChange={(installAppUpdatesOnNextStartup) => void updateSettings({ installAppUpdatesOnNextStartup })}
+        />
+      </SettingSection>
+      <SettingSection title="Build">
+        <SettingValue settingId="about.version" title="Version" description={snapshot.prototypeMode ? 'Development features are enabled.' : undefined} value={snapshot.version} />
+        <SettingValue settingId="about.runtime" title="Runtime" description={platform} value={electronVersion ? `Electron ${electronVersion}` : 'Browser preview'} />
+        <SettingValue settingId="about.isolation" title="Renderer isolation" description="Sandboxed renderer with a narrow, validated preload bridge." value="Enabled" tone="success" />
+      </SettingSection>
     </>
   );
 }
 
-function appUpdateActionLabel(update: AppUpdateState): string {
+function appUpdateActionLabel(update: AppUpdateState, automaticDownloads: boolean): string {
   if (update.status === 'checking') return 'Checking…';
-  if (update.status === 'available') return 'Starting download…';
+  if (update.status === 'available') return automaticDownloads ? 'Preparing download…' : 'Download update';
   if (update.status === 'downloading') return `Downloading ${Math.round(update.downloadProgress ?? 0)}%`;
   if (update.status === 'downloaded') return 'Restart to update';
   if (update.status === 'installing') return 'Restarting…';
@@ -826,10 +849,13 @@ function appUpdateActionLabel(update: AppUpdateState): string {
   return 'Check now';
 }
 
-function appUpdateDescription(update: AppUpdateState): string {
+function appUpdateDescription(update: AppUpdateState, automaticDownloads: boolean, prototypeMode: boolean): string {
   if (update.status === 'unavailable') return update.unavailableReason ?? 'Application updates are unavailable in this build.';
   if (update.status === 'checking') return 'Checking the Switchboard release feed.';
-  if (update.status === 'available') return `Version ${update.availableVersion ?? 'new'} is available. The download will start automatically.`;
+  if (update.status === 'available' && prototypeMode) return `Development preview: version ${update.availableVersion ?? 'new'} is available.`;
+  if (update.status === 'available') return automaticDownloads
+    ? `Version ${update.availableVersion ?? 'new'} is available. The download will start automatically.`
+    : `Version ${update.availableVersion ?? 'new'} is available. Download it when convenient.`;
   if (update.status === 'downloading') return `Downloading version ${update.availableVersion ?? 'new'} in the background.`;
   if (update.status === 'downloaded') return `Version ${update.availableVersion ?? 'new'} is downloaded and ready. Restart when convenient to install it.`;
   if (update.status === 'installing') return 'Closing Switchboard and starting the verified installer.';

@@ -18,7 +18,7 @@ The Electron prototype includes:
 - persisted game detection with one-shot Steam/Epic manifest scans and manual executable entries.
 - tray lifecycle with optional renderer destruction.
 - explicit memory, CPU, and process budgets.
-- main-process-owned Windows update checks, background downloads, and explicit restart-to-install behavior backed by GitHub Release metadata.
+- main-process-owned Windows update checks, optional background downloads, and explicit or next-startup installation backed by GitHub Release metadata.
 - .NET 10 capture and audio hosts, including WASAPI routing, processed microphone transport, session discovery, and real meters.
 - dependency-free interactive browser preview.
 
@@ -48,7 +48,7 @@ To preview the pending application-update presentation in the development app:
 bun run dev --demo-update
 ```
 
-This is a presentation-only development flag. It shows a pending update in **Settings → About** without contacting the release feed or launching an installer; packaged builds ignore it.
+This is a presentation-only development flag. It shows the sidebar update indicator and pending state in **Settings → About** without contacting the release feed or launching an installer. It also activates an already-running development instance; packaged builds ignore it.
 
 Build the Electron bundles:
 

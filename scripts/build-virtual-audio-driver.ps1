@@ -47,7 +47,10 @@ foreach ($candidate in $vsInstalls) {
 if ($null -eq $selectedInstall) {
     throw 'The Windows Driver Kit Visual Studio component is not installed in any Visual Studio 2022 instance. Install the Windows 11 24H2 WDK, then rerun this command.'
 }
-$msbuild = Join-Path $selectedInstall 'MSBuild\Current\Bin\MSBuild.exe'
+$msbuild = Join-Path $selectedInstall 'MSBuild\Current\Bin\amd64\MSBuild.exe'
+if (-not (Test-Path -LiteralPath $msbuild)) {
+    $msbuild = Join-Path $selectedInstall 'MSBuild\Current\Bin\MSBuild.exe'
+}
 if (-not (Test-Path -LiteralPath $msbuild)) { throw "MSBuild is missing from '$selectedInstall'." }
 if ($PrerequisitesOnly) {
     Write-Host "Virtual-audio build prerequisites are available in $selectedInstall"
@@ -80,7 +83,7 @@ if (-not (Test-Path -LiteralPath $nugetPath)) {
 & $nugetPath restore (Join-Path $sourceRoot 'packages.config') -PackagesDirectory (Join-Path $sourceRoot 'packages') -NonInteractive
 if ($LASTEXITCODE -ne 0) { throw 'Unable to restore the pinned Windows SDK and WDK packages.' }
 
-& $msbuild $solutionPath /m /p:Configuration=$Configuration /p:Platform=x64 /v:minimal
+& $msbuild $solutionPath /m /nodeReuse:false /p:Configuration=$Configuration /p:Platform=x64 /v:minimal
 if ($LASTEXITCODE -ne 0) { throw "Switchboard virtual-audio driver build failed with exit code $LASTEXITCODE." }
 
 $packageDirectory = Join-Path $sourceRoot "audio\simpleaudiosample\x64\$Configuration\package"

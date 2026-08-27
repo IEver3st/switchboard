@@ -14,7 +14,6 @@ Switchboard uses `electron-updater` with the NSIS artifacts and `latest.yml` pub
 2. Run the repository validation and build gates.
 3. Push a tag such as `v0.2.0` whose version exactly matches `package.json`.
 4. The workflow builds the native hosts and Electron app, runs the source and test gates, creates the GitHub Release, and uploads the NSIS installer, block map, and `latest.yml` update metadata.
-5. Install the previous release, use **Settings → About → Check now**, and verify the new version downloads, survives closing and reopening the renderer, and installs through **Restart to update**.
+5. Install the previous release, use **Settings → About → Check now**, and verify both automatic and manual download, renderer close/reopen survival, explicit **Restart to update**, and install-for-next-startup behavior.
 
-The application checks 15 seconds after launch and every six hours while automatic application updates are enabled. Disabling the preference removes the timer; manual checks remain available. A downloaded update is never launched during an ordinary quit or Windows session shutdown. Installation begins only from the explicit restart action.
-
+The application checks 15 seconds after launch and every six hours while **Always keep Switchboard up to date** is enabled. Disabling it removes the timer; manual checks remain available. **Download updates automatically** controls background download after discovery. **Install for the next startup** applies a downloaded update when Switchboard closes so the next launch uses the new version; when disabled, installation begins only from **Restart to update**.

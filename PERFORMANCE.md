@@ -32,7 +32,7 @@ The product should surface sustained regressions, not react to one noisy sample.
 - include per-process attribution;
 - never auto-kill an engine while recording or carrying active audio without an explicit recovery plan.
 
-The application updater performs one delayed launch check and then checks every six hours while automatic updates are enabled. Disabling the preference or disposing the controller clears its timer and listeners; it has no high-frequency polling loop.
+The application updater performs one delayed launch check and then checks every six hours while automatic checks are enabled. Automatic download and install-for-next-startup change updater policy without adding timers. Disabling checks or disposing the controller clears its timer and listeners; it has no high-frequency polling loop.
 
 ## Soak tests
 

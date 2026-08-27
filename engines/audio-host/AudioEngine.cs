@@ -227,7 +227,7 @@ internal sealed class AudioEngine : IDisposable
         return settings?.Buses.Select(bus =>
         {
             var control = personal?.Buses.FirstOrDefault(candidate => candidate.Id.Equals(bus.Id, StringComparison.OrdinalIgnoreCase));
-            return new AudioBusState(bus.Id, control?.Gain ?? 1f, !(control?.Enabled ?? true), 0);
+            return new AudioBusState(bus.Id, control?.Gain ?? 1f, !bus.Enabled || !(control?.Enabled ?? true), 0);
         }).ToArray() ?? [];
     }
     public IReadOnlyCollection<ProcessorState> GetProcessors() => settings?.MicProcessors.Select(processor => new ProcessorState(processor.Id, processor.Enabled)).ToArray() ?? [];
@@ -361,7 +361,7 @@ internal sealed class AudioEngine : IDisposable
             return new AudioBusState(
                 bus.Id,
                 control?.Gain ?? 1f,
-                !(control?.Enabled ?? true),
+                !bus.Enabled || !(control?.Enabled ?? true),
                 counts.GetValueOrDefault(bus.Id));
         }).ToArray();
         var mixes = (settings?.Mixes ?? []).Select(mix => new AudioMixState(

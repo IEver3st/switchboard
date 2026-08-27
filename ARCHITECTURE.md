@@ -141,6 +141,6 @@ Automatic game capture holds a conservative, stable game-window identity and wai
 
 ## Application updates
 
-Electron main owns the application-update lifecycle through `AppUpdateService`. Installed Windows builds use the electron-builder GitHub provider and NSIS metadata; the renderer receives only the validated canonical update state plus narrow check/install intents. Automatic checks run once shortly after launch and every six hours while enabled. The timer and updater listeners are removed on disable or disposal, and the installer starts only after an explicit restart action.
+Electron main owns the application-update lifecycle through `AppUpdateService`. Installed Windows builds use the electron-builder GitHub provider and NSIS metadata; the renderer receives only the validated canonical update state plus narrow check, download, and install intents. Automatic checks run once shortly after launch and every six hours while enabled. Automatic download and install-for-next-startup are separate persisted policies applied to `electron-updater`; manual download and restart actions remain available. Timers and updater listeners are removed on disable or disposal.
 
 GitHub Release publishing and end-user delivery are separate gates. The tag workflow can publish assets to a private repository, but installed clients need an anonymously readable feed; no GitHub credential is stored in settings, preload, or the renderer.

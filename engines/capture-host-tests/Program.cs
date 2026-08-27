@@ -43,6 +43,19 @@ AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with
 AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ProcessedMicrophoneDeviceId = "processed-mic" }),
     "Switching replay microphone capture to the processed endpoint must rebuild the FFmpeg audio input.");
 
+var surroundSystemAudio = new TestAudioPipeInput(SampleRate: 96_000, Channels: 8);
+var surroundSystemAudioArguments = ReplayEngine.BuildAudioArguments(
+    validSettings,
+    Path.GetTempPath(),
+    surroundSystemAudio,
+    "system",
+    validSettings.SystemAudioBitrateBps,
+    outputChannels: 2);
+AssertSequence(
+    ValuesFollowing(surroundSystemAudioArguments, "-ac"),
+    ["8", "2"],
+    "Surround loopback capture must read every source channel and encode a stereo system-audio track.");
+
 var operations = new OperationTracker();
 operations.Track(Task.CompletedTask);
 await Task.Yield();
@@ -127,4 +140,26 @@ static void AssertThrows<T>(Action operation, string message) where T : Exceptio
     try { operation(); }
     catch (T) { return; }
     throw new InvalidOperationException(message);
+}
+
+static IEnumerable<string> ValuesFollowing(IReadOnlyList<string> arguments, string option)
+{
+    for (var index = 0; index < arguments.Count - 1; index++)
+        if (arguments[index] == option) yield return arguments[index + 1];
+}
+
+internal sealed class TestAudioPipeInput(int SampleRate, int Channels) : IAudioPipeInput
+{
+    public string Label => "Test system audio";
+    public string PipePath => @"\\.\pipe\switchboard-capture-test";
+    public int SampleRate { get; } = SampleRate;
+    public int Channels { get; } = Channels;
+    public string FfmpegSampleFormat => "f32le";
+    public long DroppedPackets => 0;
+    public long CapturedBytes => 0;
+    public long WrittenBytes => 0;
+    public int BytesPerSecond => SampleRate * Channels * sizeof(float);
+    public string? Error => null;
+    public Task ConnectAndStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

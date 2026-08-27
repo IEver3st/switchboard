@@ -18,6 +18,7 @@ import {
   setAudioApplicationRouteInputSchema,
   setAudioBusEnabledInputSchema,
   setAudioBusGainInputSchema,
+  setAudioChannelEnabledInputSchema,
   setAudioMasterEnabledInputSchema,
   setAudioMasterGainInputSchema,
   setDeviceAppearanceOverrideInputSchema,
@@ -122,6 +123,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setAudioBusEnabledInputSchema.parse(input),
     (input) => controller.setAudioBusEnabled(input),
+  );
+  handle(
+    ipcChannels.setAudioChannelEnabled,
+    getMainWindow,
+    (input) => setAudioChannelEnabledInputSchema.parse(input),
+    (input) => controller.setAudioChannelEnabled(input),
   );
   handle(
     ipcChannels.setAudioBusDevice,
@@ -236,6 +243,10 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   ipcMain.handle(ipcChannels.checkAppUpdates, (event) => {
     assertTrustedSender(event, getMainWindow);
     return controller.checkAppUpdates();
+  });
+  ipcMain.handle(ipcChannels.downloadAppUpdate, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.downloadAppUpdate();
   });
   ipcMain.handle(ipcChannels.installAppUpdate, (event) => {
     assertTrustedSender(event, getMainWindow);

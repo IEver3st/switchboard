@@ -2,6 +2,7 @@ import {
   Activity,
   ArrowLeft,
   Blocks,
+  Download,
   Film,
   Gamepad2,
   Headphones,
@@ -14,7 +15,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo, useRef, type KeyboardEvent, type RefObject } from 'react';
+import type { AppUpdateState } from '../../../../shared/contracts';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 import { FeedbackDialog } from './feedback-dialog';
 import {
@@ -39,6 +42,7 @@ export const settingsCategoryIcons: Record<SettingsCategoryId, LucideIcon> = {
 
 export function SettingsSidebar({
   category,
+  appUpdate,
   query,
   searchInputRef,
   onCategoryChange,
@@ -47,6 +51,7 @@ export function SettingsSidebar({
   onBack,
 }: {
   category: SettingsCategoryId;
+  appUpdate: AppUpdateState;
   query: string;
   searchInputRef: RefObject<HTMLInputElement | null>;
   onCategoryChange: (category: SettingsCategoryId) => void;
@@ -57,6 +62,17 @@ export function SettingsSidebar({
   const navigationRef = useRef<HTMLElement>(null);
   const results = useMemo(() => searchSettings(query), [query]);
   const hasQuery = query.trim().length > 0;
+  const pendingUpdate = ['available', 'downloading', 'downloaded'].includes(appUpdate.status);
+  const pendingUpdateLabel = appUpdate.status === 'downloaded'
+    ? `Switchboard ${appUpdate.availableVersion ?? 'update'} is ready to install`
+    : appUpdate.status === 'downloading'
+      ? `Downloading Switchboard ${appUpdate.availableVersion ?? 'update'}`
+      : `Switchboard ${appUpdate.availableVersion ?? 'update'} is available`;
+  const pendingUpdateSummary = appUpdate.status === 'downloaded'
+    ? 'Update ready'
+    : appUpdate.status === 'downloading'
+      ? 'Downloading update'
+      : 'Update available';
 
   const handleNavigationKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
@@ -144,6 +160,31 @@ export function SettingsSidebar({
       </nav>
 
       <div className="settings-sidebar__footer">
+        {pendingUpdate ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="settings-update-indicator no-drag"
+                data-settings-update-indicator
+                aria-label={`${pendingUpdateLabel}. Open update settings.`}
+                onClick={() => onCategoryChange('about')}
+              >
+                <span className="settings-update-indicator__icon" aria-hidden>
+                  <Download />
+                  <span className="settings-update-indicator__dot" />
+                </span>
+                <span className="settings-update-indicator__label">{pendingUpdateSummary}</span>
+                {appUpdate.availableVersion ? (
+                  <span className="settings-update-indicator__version">{appUpdate.availableVersion}</span>
+                ) : null}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" align="center">
+              {pendingUpdateLabel}. Open update settings.
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
         <FeedbackDialog />
         <button type="button" className="settings-back no-drag" onClick={onBack} title="Back (Esc)">
           <ArrowLeft aria-hidden />

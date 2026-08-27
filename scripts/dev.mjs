@@ -1,20 +1,11 @@
 import { spawn } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getDevLaunchOptions } from './dev-options.mjs';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cliArguments = process.argv.slice(2);
-const demoUpdate = cliArguments.includes('--demo-update');
-const forwardedArguments = cliArguments.filter((argument) => argument !== '--demo-update');
-const environment = { ...process.env };
-delete environment.ELECTRON_RUN_AS_NODE;
-
-if (demoUpdate) {
-  const existingElectronArguments = environment.ELECTRON_CLI_ARGS
-    ? JSON.parse(environment.ELECTRON_CLI_ARGS)
-    : [];
-  environment.ELECTRON_CLI_ARGS = JSON.stringify([...existingElectronArguments, '--demo-update']);
-}
+const { environment, forwardedArguments } = getDevLaunchOptions(cliArguments, process.env);
 
 const child = spawn(
   process.execPath,

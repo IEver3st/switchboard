@@ -17,6 +17,7 @@ internal sealed class RoutingControlGraph
     public void Configure(AudioHostSettings settings)
     {
         var version = Interlocked.Increment(ref configurationVersion);
+        var enabledChannels = settings.Buses.ToDictionary(bus => bus.Id, bus => bus.Enabled, StringComparer.OrdinalIgnoreCase);
         foreach (var mix in settings.Mixes)
         {
             if (!mixes.TryGetValue(mix.Id, out var mixControl)) continue;
@@ -27,7 +28,8 @@ internal sealed class RoutingControlGraph
                 var balance = mix.Id.Equals("personal", StringComparison.OrdinalIgnoreCase)
                     ? ChatMixGain(bus.Id, settings.ChatMix)
                     : 1f;
-                busControl.Set(bus.Gain * balance, bus.Enabled);
+                var channelEnabled = enabledChannels.GetValueOrDefault(bus.Id, true);
+                busControl.Set(bus.Gain * balance, bus.Enabled && channelEnabled);
             }
             foreach (var path in settings.ChannelProcessing)
             {

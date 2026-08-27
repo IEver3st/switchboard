@@ -57,6 +57,7 @@ graph.CreateProcessor("personal", "game").Process(samples);
 AssertSequence(samples, [0.25f, -0.25f], "Bus and master gains must be applied to the routed signal.");
 
 TestIndependentDestinationMixes();
+TestDisabledChannelLifecycle();
 
 TestChannelDsp();
 
@@ -201,6 +202,34 @@ static void TestIndependentDestinationMixes()
     var streamAtFullChat = new[] { 1f, -1f };
     graph.CreateProcessor("stream", "game").Process(streamAtFullChat);
     AssertSequence(streamAtFullChat, [1f, -1f], "ChatMix must not alter stream or clip destinations.");
+}
+
+static void TestDisabledChannelLifecycle()
+{
+    var graph = new RoutingControlGraph();
+    graph.Configure(new AudioHostSettings
+    {
+        Buses = [new AudioBusConfiguration { Id = "media", Enabled = false }],
+        Mixes = DefaultMixes(),
+        ChannelProcessing = DefaultChannelProcessing(),
+    });
+
+    foreach (var mixId in new[] { "personal", "stream", "clip" })
+    {
+        var samples = new[] { 0.75f, -0.75f };
+        graph.CreateProcessor(mixId, "media").Process(samples);
+        AssertSequence(samples, [0f, 0f], $"A disabled channel must be silent in the {mixId} mix.");
+    }
+
+    graph.Configure(new AudioHostSettings
+    {
+        Buses = [new AudioBusConfiguration { Id = "media", Enabled = true }],
+        Mixes = DefaultMixes(),
+        ChannelProcessing = DefaultChannelProcessing(),
+    });
+    var restored = new[] { 0.75f, -0.75f };
+    graph.CreateProcessor("personal", "media").Process(restored);
+    AssertSequence(restored, [0.75f, -0.75f], "Re-enabling a channel must restore its preserved mix controls.");
 }
 
 static void Assert(bool condition, string message)

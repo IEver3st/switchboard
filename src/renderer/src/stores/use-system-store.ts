@@ -18,6 +18,7 @@ import {
   type SetAudioApplicationRouteInput,
   type SetAudioBusEnabledInput,
   type SetAudioBusGainInput,
+  type SetAudioChannelEnabledInput,
   type SetAudioMasterEnabledInput,
   type SetAudioMasterGainInput,
   type SetDeviceAppearanceOverrideInput,
@@ -73,6 +74,7 @@ interface SystemStore {
   setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<void>;
   setAudioBusGain(input: SetAudioBusGainInput): Promise<void>;
   setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<void>;
+  setAudioChannelEnabled(input: SetAudioChannelEnabledInput): Promise<void>;
   setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<void>;
   setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<void>;
   applyAudioPreset(input: ApplyAudioPresetInput): Promise<void>;
@@ -95,6 +97,7 @@ interface SystemStore {
   scanGames(): Promise<void>;
   addGame(): Promise<void>;
   checkAppUpdates(): Promise<void>;
+  downloadAppUpdate(): Promise<void>;
   installAppUpdate(): Promise<void>;
   deleteClip(id: string): Promise<void>;
   renameClip(input: RenameClipInput): Promise<void>;
@@ -169,6 +172,7 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     setAudioMasterEnabled: (input) => run(() => switchboardApi.setAudioMasterEnabled(input)),
     setAudioBusGain: (input) => run(() => switchboardApi.setAudioBusGain(input)),
     setAudioBusEnabled: (input) => run(() => switchboardApi.setAudioBusEnabled(input)),
+    setAudioChannelEnabled: (input) => run(() => switchboardApi.setAudioChannelEnabled(input)),
     setAudioBusDevice: (input) => run(() => switchboardApi.setAudioBusDevice(input)),
     setAudioApplicationRoute: (input) => run(() => switchboardApi.setAudioApplicationRoute(input)),
     applyAudioPreset: (input) => run(() => switchboardApi.applyAudioPreset(input)),
@@ -203,6 +207,7 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     scanGames: () => run(() => switchboardApi.scanGames()),
     addGame: () => run(() => switchboardApi.addGame()),
     checkAppUpdates: () => run(() => switchboardApi.checkAppUpdates()),
+    downloadAppUpdate: () => run(() => switchboardApi.downloadAppUpdate()),
     installAppUpdate: async () => {
       set({ error: null });
       try { await switchboardApi.installAppUpdate(); }

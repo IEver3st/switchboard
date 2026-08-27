@@ -9,6 +9,7 @@ import { useSystemStore } from '@/stores/use-system-store';
 export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: SystemSnapshot; selectedMixId: AudioMixId; onNavigate: (tab: AudioWorkspaceTab) => void }) {
   const setAudioBusGain = useSystemStore((state) => state.setAudioBusGain);
   const setAudioBusEnabled = useSystemStore((state) => state.setAudioBusEnabled);
+  const setAudioChannelEnabled = useSystemStore((state) => state.setAudioChannelEnabled);
   const setAudioMasterGain = useSystemStore((state) => state.setAudioMasterGain);
   const setAudioMasterEnabled = useSystemStore((state) => state.setAudioMasterEnabled);
   const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
@@ -21,9 +22,11 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
     .filter((bus): bus is AudioBus => Boolean(bus));
   const selectedMix = snapshot.audio.mixes.find((mix) => mix.id === selectedMixId) ?? snapshot.audio.mixes[0]!;
   const personalMix = snapshot.audio.mixes.find((mix) => mix.id === 'personal');
-  const gameEnabled = personalMix?.buses.find((bus) => bus.id === 'game')?.enabled ?? false;
-  const chatEnabled = personalMix?.buses.find((bus) => bus.id === 'chat')?.enabled ?? false;
-  const routingAvailable = snapshot.audio.capabilities.applicationRouting !== 'unavailable';
+  const gameEnabled = (snapshot.audio.buses.find((bus) => bus.id === 'game')?.enabled ?? false)
+    && (personalMix?.buses.find((bus) => bus.id === 'game')?.enabled ?? false);
+  const chatEnabled = (snapshot.audio.buses.find((bus) => bus.id === 'chat')?.enabled ?? false)
+    && (personalMix?.buses.find((bus) => bus.id === 'chat')?.enabled ?? false);
+  const routingSupport = snapshot.audio.capabilities.applicationRouting;
 
   const presetNameFor = (channel: MixerChannelId): string | null => {
     if (channel === 'aux') return null;
@@ -57,10 +60,12 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
               engineRunning={engineRunning}
               pending={false}
               presetName={presetNameFor(channel)}
-              applications={snapshot.audio.applications.filter((application) => application.destination === bus.id)}
-              routingAvailable={routingAvailable}
+              applications={snapshot.audio.applications.filter((application) => application.currentDestination === bus.id)}
+              routingSupport={routingSupport}
+              routingUnavailableReason={snapshot.audio.capabilities.reason}
               onGainCommit={(gain) => void setAudioBusGain({ mixId: selectedMix.id, busId: bus.id, gain })}
               onEnabledChange={(enabled) => void setAudioBusEnabled({ mixId: selectedMix.id, busId: bus.id, enabled })}
+              onChannelEnabledChange={(enabled) => void setAudioChannelEnabled({ busId: bus.id, enabled })}
               onDeviceChange={(deviceId) => void setAudioBusDevice({ busId: bus.id, deviceId })}
               onApplicationRoute={(applicationId, destination) => void setAudioApplicationRoute({ applicationId, destination })}
               onOpen={() => bus.id !== 'aux' && onNavigate(bus.id === 'mic' ? 'microphone' : (bus.id as AudioWorkspaceTab))}

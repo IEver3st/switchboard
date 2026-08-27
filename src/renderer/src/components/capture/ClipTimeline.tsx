@@ -369,7 +369,9 @@ export function ClipTimeline({
     const minorInterval = majorInterval / 4;
     const marks: Array<{ ms: number; major: boolean }> = [];
     for (let ms = 0; ms < durationMs; ms += minorInterval) marks.push({ ms, major: Math.abs(ms % majorInterval) < 0.01 });
-    marks.push({ ms: durationMs, major: true });
+    const finalMark = marks.at(-1);
+    if (finalMark && durationMs - finalMark.ms < minorInterval / 2) marks[marks.length - 1] = { ms: durationMs, major: true };
+    else marks.push({ ms: durationMs, major: true });
     return marks;
   }, [durationMs, timelineWidth]);
 
@@ -463,7 +465,7 @@ export function ClipTimeline({
         <div ref={timelineRef} className="clip-editor-timeline__surface" data-testid="clip-timeline-surface">
           <div className="clip-editor-timeline__ruler" aria-hidden="true">
             {ruler.map((mark, index) => (
-              <span key={`${mark.ms}-${index}`} className={mark.major ? 'is-major' : undefined} style={{ left: `${mark.ms / durationMs * 100}%` }}>
+              <span key={`${mark.ms}-${index}`} className={[mark.major ? 'is-major' : '', index === ruler.length - 1 ? 'is-terminal' : ''].filter(Boolean).join(' ') || undefined} style={{ left: `${mark.ms / durationMs * 100}%` }}>
                 {mark.major ? <em>{formatRulerTime(mark.ms)}</em> : null}
               </span>
             ))}
@@ -500,7 +502,7 @@ export function ClipTimeline({
                   <svg viewBox={`0 0 ${track.samples.length} 1`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
                     <path d={waveformPath(track.samples)} vectorEffect="non-scaling-stroke" />
                   </svg>
-                ) : <span>{waveformState === 'loading' ? 'Analyzing…' : waveformState === 'error' ? 'Waveform unavailable' : 'No audible activity'}</span>}
+                ) : <span className="clip-editor-timeline__empty-label">{waveformState === 'loading' ? 'Analyzing…' : waveformState === 'error' ? 'Waveform unavailable' : 'No audible activity'}</span>}
                 <TimelineLaneTrim
                   startMs={audioTrackTrims?.[track.trackIndex]?.startMs ?? 0}
                   endMs={audioTrackTrims?.[track.trackIndex]?.endMs ?? durationMs}
@@ -517,7 +519,7 @@ export function ClipTimeline({
                 />
               </div>
             )) : (
-              <div className="clip-editor-timeline__audio-track is-empty"><span>{waveformState === 'loading' ? 'Reading track data…' : waveformState === 'error' ? 'Waveform unavailable' : 'This clip has no audio streams'}</span></div>
+              <div className="clip-editor-timeline__audio-track is-empty"><span className="clip-editor-timeline__empty-label">{waveformState === 'loading' ? 'Reading track data…' : waveformState === 'error' ? 'Waveform unavailable' : 'This clip has no audio streams'}</span></div>
             )}
           </div>
 
@@ -551,6 +553,85 @@ export function ClipTimeline({
   );
 }
 
+function TimelineLaneTrim({
+  startMs,
+  endMs,
+  durationMs,
+  startLabel,
+  endLabel,
+  startTestId,
+  endTestId,
+  onKeyDown,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+}: {
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  startLabel: string;
+  endLabel: string;
+  startTestId: string;
+  endTestId: string;
+  onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>, kind: 'dragging-trim-start' | 'dragging-trim-end') => void;
+  onPointerDown: (event: ReactPointerEvent<HTMLDivElement>, kind: 'dragging-trim-start' | 'dragging-trim-end') => void;
+  onPointerMove: (event: ReactPointerEvent<HTMLDivElement>, kind: 'dragging-trim-start' | 'dragging-trim-end') => void;
+  onPointerUp: (event: ReactPointerEvent<HTMLDivElement>, kind: 'dragging-trim-start' | 'dragging-trim-end') => void;
+  onPointerCancel: () => void;
+}) {
+  const startPercent = startMs / durationMs * 100;
+  const endPercent = endMs / durationMs * 100;
+  const selectedPercent = Math.max(0, endPercent - startPercent);
+  return (
+    <>
+      <span className="clip-editor-timeline__selection" style={{ left: `${startPercent}%`, width: `${selectedPercent}%` }} aria-hidden="true" />
+      <span className="clip-editor-timeline__inactive is-before" style={{ width: `${startPercent}%` }} aria-hidden="true" />
+      <span className="clip-editor-timeline__inactive is-after" style={{ left: `${endPercent}%`, width: `${100 - endPercent}%` }} aria-hidden="true" />
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label={startLabel}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, endMs - minimumClipDurationMs)}
+        aria-valuenow={Math.round(startMs)}
+        aria-valuetext={formatTimelineTime(startMs)}
+        aria-orientation="horizontal"
+        className="clip-editor-trim-handle is-start"
+        style={{ left: `${startPercent}%` }}
+        data-testid={startTestId}
+        onKeyDown={(event) => onKeyDown(event, 'dragging-trim-start')}
+        onPointerDown={(event) => onPointerDown(event, 'dragging-trim-start')}
+        onPointerMove={(event) => onPointerMove(event, 'dragging-trim-start')}
+        onPointerUp={(event) => onPointerUp(event, 'dragging-trim-start')}
+        onPointerCancel={onPointerCancel}
+      >
+        <span aria-hidden="true"><i /><i /><i /></span>
+      </div>
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label={endLabel}
+        aria-valuemin={Math.min(durationMs, startMs + minimumClipDurationMs)}
+        aria-valuemax={durationMs}
+        aria-valuenow={Math.round(endMs)}
+        aria-valuetext={formatTimelineTime(endMs)}
+        aria-orientation="horizontal"
+        className="clip-editor-trim-handle is-end"
+        style={{ left: `${endPercent}%` }}
+        data-testid={endTestId}
+        onKeyDown={(event) => onKeyDown(event, 'dragging-trim-end')}
+        onPointerDown={(event) => onPointerDown(event, 'dragging-trim-end')}
+        onPointerMove={(event) => onPointerMove(event, 'dragging-trim-end')}
+        onPointerUp={(event) => onPointerUp(event, 'dragging-trim-end')}
+        onPointerCancel={onPointerCancel}
+      >
+        <span aria-hidden="true"><i /><i /><i /></span>
+      </div>
+    </>
+  );
+}
+
 function AudioTrackControl({ track, level, onCommit }: {
   track: ClipAudioWaveformTrack;
   level: number;
@@ -559,11 +640,13 @@ function AudioTrackControl({ track, level, onCommit }: {
   const [draftLevel, setDraftLevel] = useState(level);
   const draftLevelRef = useRef(level);
   const committedLevelRef = useRef(level);
+  const lastAudibleLevelRef = useRef(level > 0 ? level : 100);
   const commitTimerRef = useRef<number | null>(null);
   useEffect(() => {
     setDraftLevel(level);
     draftLevelRef.current = level;
     committedLevelRef.current = level;
+    if (level > 0) lastAudibleLevelRef.current = level;
   }, [level]);
 
   useEffect(() => () => {
@@ -592,25 +675,34 @@ function AudioTrackControl({ track, level, onCommit }: {
   };
   const label = track.channel ? channelLabel(track.channel) : track.label;
   const color = track.channel ? channelColor(track.channel) : 'var(--text-description)';
+  const toggleMute = () => {
+    const nextLevel = draftLevelRef.current === 0 ? lastAudibleLevelRef.current : 0;
+    if (draftLevelRef.current > 0) lastAudibleLevelRef.current = draftLevelRef.current;
+    updateDraft(nextLevel);
+    commit();
+  };
 
   return (
-    <label className="clip-editor-track-control" data-muted={draftLevel === 0 ? 'true' : undefined} style={{ '--track-color': color } as CSSProperties}>
+    <div className="clip-editor-track-control" data-muted={draftLevel === 0 ? 'true' : undefined} style={{ '--track-color': color, '--control-accent': color } as CSSProperties}>
       <span className="clip-editor-track-control__name"><i aria-hidden="true" />{label}</span>
       <output>{draftLevel}%</output>
-      <input
-        type="range"
+      <button type="button" className="clip-editor-track-control__mute" aria-label={draftLevel === 0 ? `Unmute ${label} export track` : `Mute ${label} export track`} aria-pressed={draftLevel === 0} onClick={toggleMute}>
+        {draftLevel === 0 ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
+      </button>
+      <Slider
+        variant="fader"
         min={0}
         max={100}
         step={1}
-        value={draftLevel}
+        value={[draftLevel]}
         aria-label={`${label} export level`}
         aria-valuetext={`${draftLevel} percent in exported mix`}
-        onChange={(event) => updateDraft(Number(event.currentTarget.value))}
-        onPointerUp={commit}
+        onValueChange={([next]) => { if (typeof next === 'number') updateDraft(next); }}
+        onValueCommit={([next]) => { if (typeof next === 'number') { updateDraft(next); commit(); } }}
         onKeyUp={commit}
         onBlur={commit}
       />
-    </label>
+    </div>
   );
 }
 

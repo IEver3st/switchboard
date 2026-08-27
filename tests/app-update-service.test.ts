@@ -8,6 +8,7 @@ class FakeUpdater {
   public autoDownload = false;
   public autoInstallOnAppQuit = true;
   public checks = 0;
+  public downloads = 0;
   public installArguments: [boolean | undefined, boolean | undefined] | null = null;
   private readonly listeners = new Map<string, Set<Listener>>();
 
@@ -26,6 +27,10 @@ class FakeUpdater {
   public async checkForUpdates(): Promise<void> {
     this.checks += 1;
     this.emit('checking-for-update');
+  }
+
+  public async downloadUpdate(): Promise<void> {
+    this.downloads += 1;
   }
 
   public quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void {
@@ -56,7 +61,7 @@ describe('application update lifecycle', () => {
       },
     });
 
-    const state = await service.initialize(true);
+    const state = await service.initialize(preferences());
 
     expect(loaderCalled).toBeFalse();
     expect(state.status).toBe('unavailable');
@@ -79,7 +84,7 @@ describe('application update lifecycle', () => {
       },
     });
 
-    await expect(service.initialize(true)).resolves.toMatchObject({
+    await expect(service.initialize(preferences())).resolves.toMatchObject({
       capability: 'available',
       status: 'available',
       availableVersion: '0.2.0',
@@ -98,7 +103,7 @@ describe('application update lifecycle', () => {
       onStateChanged: () => undefined,
     });
 
-    expect((await service.initialize(true)).status).toBe('unavailable');
+    expect((await service.initialize(preferences())).status).toBe('unavailable');
     expect(service.enableDemoUpdate()).toMatchObject({
       capability: 'available',
       status: 'available',
@@ -120,7 +125,7 @@ describe('application update lifecycle', () => {
       loadUpdater: async () => updater,
     });
 
-    expect((await service.initialize(false)).status).toBe('idle');
+    expect((await service.initialize(preferences({ automaticChecks: false }))).status).toBe('idle');
     expect(updater.autoDownload).toBeTrue();
     expect(updater.autoInstallOnAppQuit).toBeFalse();
 
@@ -146,4 +151,41 @@ describe('application update lifecycle', () => {
     service.dispose();
     expect(updater.listenerCount()).toBe(0);
   });
+
+  it('applies download and next-startup preferences to the updater', async () => {
+    const updater = new FakeUpdater();
+    const service = new AppUpdateService({
+      currentVersion: '0.1.0',
+      isPackaged: true,
+      platform: 'win32',
+      onStateChanged: () => undefined,
+      loadUpdater: async () => updater,
+    });
+
+    await service.initialize(preferences({
+      automaticDownloads: false,
+      installOnNextStartup: true,
+    }));
+    expect(updater.autoDownload).toBeFalse();
+    expect(updater.autoInstallOnAppQuit).toBeTrue();
+
+    updater.emit('update-available', { version: '0.2.0' });
+    await service.downloadAvailableUpdate();
+    expect(updater.downloads).toBe(1);
+
+    service.dispose();
+  });
 });
+
+function preferences(overrides: Partial<{
+  automaticChecks: boolean;
+  automaticDownloads: boolean;
+  installOnNextStartup: boolean;
+}> = {}) {
+  return {
+    automaticChecks: true,
+    automaticDownloads: true,
+    installOnNextStartup: false,
+    ...overrides,
+  };
+}

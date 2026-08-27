@@ -3,14 +3,28 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Device as HidDevice } from 'node-hid';
-import { RazerHuntsmanV2AnalogModule, type HuntsmanControlTransport } from '../src/main/modules/razer';
 import {
+  huntsmanLightingEffects,
+  RazerHuntsmanV2AnalogModule,
+  type HuntsmanControlTransport,
+} from '../src/main/modules/razer';
+import {
+  activeOnboardProfileReadCommand,
+  activeOnboardProfileWriteCommand,
   brightnessWriteCommand,
   buildRazerReport,
+  effectReadCommand,
   effectWriteCommand,
   firmwareVersionCommand,
+  gamingModeReadCommand,
+  gamingModeWriteCommand,
+  onboardProfileListCommand,
+  parseActiveOnboardProfile,
   parseBrightness,
   parseFirmwareVersion,
+  parseGamingMode,
+  parseLightingState,
+  parseOnboardProfileIds,
   parseRazerResponse,
   razerCrc,
   razerReportLength,
@@ -35,6 +49,25 @@ describe('Razer Huntsman V2 Analog protocol', () => {
     expect(report[6]).toBe(9);
   });
 
+  test('encodes and parses firmware-backed keyboard controls', () => {
+    const gameRead = gamingModeReadCommand();
+    expect(gameRead).toMatchObject({ transactionId: 0xff, commandClass: 0x03, commandId: 0x80, arguments: [1, 8, 0] });
+    expect(gamingModeWriteCommand(true).arguments).toEqual([1, 8, 1]);
+    expect(parseGamingMode(parseRazerResponse(responseFor(gameRead, [1, 8, 1]), gameRead))).toBe(true);
+
+    const profileList = onboardProfileListCommand();
+    expect(parseOnboardProfileIds(parseRazerResponse(responseFor(profileList, [2, 1, 2]), profileList))).toEqual([1, 2]);
+    const profileRead = activeOnboardProfileReadCommand();
+    expect(parseActiveOnboardProfile(parseRazerResponse(responseFor(profileRead, [2]), profileRead))).toBe(2);
+    expect(activeOnboardProfileWriteCommand(2).arguments).toEqual([2]);
+
+    const effectRead = effectReadCommand();
+    expect(parseLightingState(parseRazerResponse(
+      responseFor(effectRead, [1, 5, 7, 0, 2, 1, 0x44, 0xaa, 0xff]),
+      effectRead,
+    ))).toEqual({ effectId: 'starlight', color: '#44aaff' });
+  });
+
   test('validates and parses device responses', () => {
     const firmwareCommand = firmwareVersionCommand();
     const firmware = responseFor(firmwareCommand, [1, 6]);
@@ -55,19 +88,45 @@ describe('Razer Huntsman V2 Analog protocol', () => {
 });
 
 describe('Razer Huntsman V2 Analog module', () => {
+  test('publishes only the firmware effects implemented by this model', () => {
+    expect(huntsmanLightingEffects.map((effect) => effect.id)).toEqual([
+      'static',
+      'breathing',
+      'spectrum',
+      'reactive',
+      'starlight',
+      'wave-left',
+      'wave-right',
+    ]);
+  });
+
   test('discovers the dedicated endpoint and publishes only verified native controls', async () => {
     const effects: Array<{ effectId: string; color: string }> = [];
     const brightnessWrites: number[] = [];
     const transport: HuntsmanControlTransport = {
       async probe(path) {
         expect(path).toBe('razer-control');
-        return { firmwareVersion: '1.06', serialNumber: 'TEST-SERIAL', brightness: 90 };
+        return {
+          firmwareVersion: '1.06',
+          serialNumber: 'TEST-SERIAL',
+          brightness: 90,
+          lightingState: { effectId: 'spectrum' },
+          lightingEffectCodes: [0, 1, 2, 3, 4, 5, 7],
+          gamingMode: false,
+          onboardProfileIds: [1, 2],
+          activeOnboardProfileId: 1,
+        };
       },
       async setBrightness(_path, brightness) {
         brightnessWrites.push(brightness);
         return 61;
       },
-      async setEffect(_path, effectId, color) { effects.push({ effectId, color }); },
+      async setEffect(_path, effectId, color) {
+        effects.push({ effectId, color });
+        return { effectId, ...(effectId !== 'off' && ['static', 'breathing', 'reactive', 'starlight'].includes(effectId) ? { color } : {}) };
+      },
+      async setGamingMode(_path, enabled) { return enabled; },
+      async setActiveOnboardProfile(_path, profileId) { return profileId; },
     };
     let clock = 1_000;
     const module = new RazerHuntsmanV2AnalogModule({ transport, now: () => clock });
@@ -83,12 +142,18 @@ describe('Razer Huntsman V2 Analog module', () => {
       kind: 'keyboard',
       capabilities: {
         keyboard: { firmwareVersion: '1.06', transport: 'native-hid', pollingRateHz: 1_000 },
-        lighting: { writable: true, brightness: 90, state: 'unknown', physicalEffectVerified: false },
+        lighting: { writable: true, brightness: 90, state: 'maintained', physicalEffectVerified: false },
       },
     });
     expect(device?.capabilities.keyboard?.features.find((feature) => feature.id === 'actuation')).toMatchObject({
       status: 'synapse',
       unavailableReason: expect.any(String),
+    });
+    expect(device?.capabilities.keyboard).toMatchObject({
+      gamingMode: { enabled: false, writable: true },
+      onboardProfiles: { activeProfileId: '1', writable: true, profiles: [{ id: '1' }, { id: '2' }] },
+      rapidTrigger: { enabled: null, writable: false },
+      snapTap: { enabled: null, writable: false },
     });
     expect(resolveProductAsset(device!.identity, 'keyboard').key).toBe('razer-huntsman-v2-analog');
 
@@ -97,6 +162,8 @@ describe('Razer Huntsman V2 Analog module', () => {
     await module.setControl(device!, { type: 'lighting-brightness', brightness: 62 });
     await module.setControl(device!, { type: 'lighting-enabled', enabled: false });
     await module.setControl(device!, { type: 'lighting-enabled', enabled: true });
+    await module.setControl(device!, { type: 'keyboard-gaming-mode', enabled: true });
+    await module.setControl(device!, { type: 'keyboard-onboard-profile', profileId: '2' });
     expect(effects).toEqual([
       { effectId: 'static', color: '#44aaff' },
       { effectId: 'static', color: '#4466aa' },
@@ -111,7 +178,11 @@ describe('Razer Huntsman V2 Analog module', () => {
       color: '#4466aa',
       brightness: 61,
       enabled: true,
-      state: 'acknowledged',
+      state: 'maintained',
+    });
+    expect(updated?.capabilities.keyboard).toMatchObject({
+      gamingMode: { enabled: true, writable: true },
+      onboardProfiles: { activeProfileId: '2' },
     });
     expect(updated?.settings).toMatchObject({
       lightingEffect: 'static',
@@ -128,7 +199,9 @@ describe('Razer Huntsman V2 Analog module', () => {
     const transport: HuntsmanControlTransport = {
       async probe() { throw new Error('Access denied by HIDAPI.'); },
       async setBrightness(_path, brightness) { return brightness; },
-      async setEffect() {},
+      async setEffect(_path, effectId) { return { effectId }; },
+      async setGamingMode(_path, enabled) { return enabled; },
+      async setActiveOnboardProfile(_path, profileId) { return profileId; },
     };
     const module = new RazerHuntsmanV2AnalogModule({ transport, now: () => 0 });
     const [device] = await module.discover({ hidDevices: descriptors(), previousDevices: [], appearanceOverrides: {} });

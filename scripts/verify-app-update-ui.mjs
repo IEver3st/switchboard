@@ -18,6 +18,7 @@ app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
+process.env.SWITCHBOARD_DEMO_UPDATE = '1';
 
 await mkdir(outputDirectory, { recursive: true });
 await import('../out/main/index.js');
@@ -37,43 +38,91 @@ async function runReview() {
     html { scroll-behavior: auto !important; }
   `);
 
-  await openSettingsCategory('General');
-  const initialAutomaticUpdates = await getAutomaticUpdateSetting();
-  await clickAutomaticUpdateSwitch();
-  await waitFor(
-    async () => (await getAutomaticUpdateSetting()) === !initialAutomaticUpdates,
-    'automatic update setting mutation',
-  );
-  await clickAutomaticUpdateSwitch();
-  await waitFor(
-    async () => (await getAutomaticUpdateSetting()) === initialAutomaticUpdates,
-    'automatic update setting round trip',
-  );
-
   const report = [];
+  await openSettingsCategory('General');
+  report.push(await captureState({ width: 1420, height: 900 }, 'general-update-rest'));
+  await focusUpdateIndicator();
+  await waitFor(
+    () => evaluate(`document.querySelector('[role="tooltip"]')?.textContent?.includes('is available') ?? false`),
+    'styled update tooltip',
+  );
+  const tooltipState = await captureState({ width: 1420, height: 900 }, 'general-update-tooltip');
+  if (tooltipState.metrics.updateIndicatorNativeTitle !== null) {
+    throw new Error('The sidebar update indicator still uses a browser-native title tooltip.');
+  }
+  if (!tooltipState.metrics.tooltipText?.includes('Open update settings.')) {
+    throw new Error('The shared update tooltip was not rendered.');
+  }
+  report.push(tooltipState);
+  await clickUpdateIndicator();
+  await waitFor(
+    () => evaluate(`document.querySelector('.settings-breadcrumb strong')?.textContent?.trim() === 'About'`),
+    'update indicator navigation',
+  );
+  await evaluate(`document.activeElement instanceof HTMLElement && document.activeElement.blur()`);
+
+  const preferenceIds = [
+    'about.automaticAppUpdates',
+    'about.automaticAppUpdateDownloads',
+    'about.installAppUpdatesOnNextStartup',
+  ];
+  const initialPreferences = await getUpdatePreferences();
+  for (const settingId of preferenceIds) {
+    await clickUpdatePreference(settingId);
+  }
+  await waitFor(async () => {
+    const current = await getUpdatePreferences();
+    return current.automaticAppUpdates !== initialPreferences.automaticAppUpdates
+      && current.automaticAppUpdateDownloads !== initialPreferences.automaticAppUpdateDownloads
+      && current.installAppUpdatesOnNextStartup !== initialPreferences.installAppUpdatesOnNextStartup;
+  }, 'update preference mutations');
+  for (const settingId of preferenceIds) {
+    await clickUpdatePreference(settingId);
+  }
+  await waitFor(
+    async () => JSON.stringify(await getUpdatePreferences()) === JSON.stringify(initialPreferences),
+    'update preference round trip',
+  );
+  await evaluate(`window.switchboard.checkAppUpdates()`);
+
   for (const viewport of viewports) {
     window.setContentSize(viewport.width, viewport.height, false);
     await waitForViewport(viewport);
 
-    await openSettingsCategory('General');
-    const general = await captureState(viewport, 'general');
-    assertLayout(general.metrics, viewport, 'General');
-    if (!general.metrics.automaticUpdateSwitch?.checked) {
-      throw new Error(`Automatic updates were not restored at ${viewport.width}x${viewport.height}.`);
-    }
-    report.push(general);
-
     await openSettingsCategory('About');
     const about = await captureState(viewport, 'about');
     assertLayout(about.metrics, viewport, 'About');
-    if (about.metrics.updateStatus !== 'Unavailable') {
-      throw new Error(`Development update capability was not truthful at ${viewport.width}x${viewport.height}.`);
+    if (about.metrics.updateAction !== 'Download update') {
+      throw new Error(`Development update action was missing at ${viewport.width}x${viewport.height}.`);
     }
-    if (!about.metrics.updateDescription?.includes('installed Windows build')) {
-      throw new Error(`Development update reason was missing at ${viewport.width}x${viewport.height}.`);
+    if (!about.metrics.updateDescription?.includes('Development preview: version') || !about.metrics.updateDescription?.endsWith('is available.')) {
+      throw new Error(`Development update description was missing at ${viewport.width}x${viewport.height}.`);
+    }
+    if (!about.metrics.updateIndicator || about.metrics.updateIndicator.width < 180 || about.metrics.updateIndicator.height !== 40) {
+      throw new Error(`Sidebar update indicator was missing at ${viewport.width}x${viewport.height}.`);
+    }
+    if (about.metrics.updateIndicatorSummary !== 'Update available' || !about.metrics.updateIndicatorVersion) {
+      throw new Error(`Sidebar update indicator content was incomplete at ${viewport.width}x${viewport.height}.`);
+    }
+    if (about.metrics.preferenceSwitches.length !== 3) {
+      throw new Error(`Update preferences were incomplete at ${viewport.width}x${viewport.height}.`);
     }
     report.push(about);
   }
+
+  window.setContentSize(1420, 900, false);
+  await waitForViewport({ width: 1420, height: 900 });
+  await clickUpdatePreference('about.automaticAppUpdateDownloads');
+  await waitFor(() => evaluate(`document.querySelector('[data-setting-id="about.updates"] button')?.textContent?.trim() === 'Download update'`), 'manual download action');
+  await evaluate(`document.querySelector('[data-setting-id="about.updates"] button')?.click()`);
+  await waitFor(() => evaluate(`document.querySelector('[data-setting-id="about.updates"] button')?.textContent?.trim() === 'Restart to update'`), 'downloaded update state');
+  const downloaded = await captureState({ width: 1420, height: 900 }, 'about-downloaded');
+  if (downloaded.metrics.updateIndicatorSummary !== 'Update ready') {
+    throw new Error('The sidebar update indicator did not communicate the restart-ready state.');
+  }
+  report.push(downloaded);
+  await evaluate(`window.switchboard.checkAppUpdates()`);
+  await clickUpdatePreference('about.automaticAppUpdateDownloads');
 
   const reportPath = join(outputDirectory, 'report.json');
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -87,7 +136,9 @@ async function captureState(viewport, category) {
   const metrics = await evaluate(`(() => {
     const content = document.querySelector('[data-settings-content-scroll]');
     const updateRow = document.querySelector('[data-setting-id="about.updates"]');
-    const updateSwitch = document.querySelector('[data-setting-id="general.automaticAppUpdates"] button[role="switch"]');
+    const updateIndicator = document.querySelector('[data-settings-update-indicator]');
+    const tooltip = document.querySelector('[role="tooltip"]');
+    const preferenceSwitches = [...document.querySelectorAll('[data-setting-id^="about."] button[role="switch"]')];
     const rect = (element) => {
       if (!element) return null;
       const value = element.getBoundingClientRect();
@@ -104,13 +155,19 @@ async function captureState(viewport, category) {
         rect: rect(content),
       } : null,
       updateRow: rect(updateRow),
-      updateStatus: updateRow?.querySelector('.settings-row__value')?.textContent?.trim() ?? null,
+      updateAction: updateRow?.querySelector('button')?.textContent?.trim() ?? null,
       updateDescription: updateRow?.querySelector('[role="status"]')?.textContent?.trim() ?? null,
-      automaticUpdateSwitch: updateSwitch ? {
-        checked: updateSwitch.getAttribute('data-state') === 'checked',
-        ariaLabel: updateSwitch.getAttribute('aria-label'),
-        rect: rect(updateSwitch),
-      } : null,
+      updateIndicator: rect(updateIndicator),
+      updateIndicatorLabel: updateIndicator?.getAttribute('aria-label') ?? null,
+      updateIndicatorSummary: updateIndicator?.querySelector('.settings-update-indicator__label')?.textContent?.trim() ?? null,
+      updateIndicatorVersion: updateIndicator?.querySelector('.settings-update-indicator__version')?.textContent?.trim() ?? null,
+      updateIndicatorNativeTitle: updateIndicator?.getAttribute('title') ?? null,
+      tooltipText: tooltip?.textContent?.trim() ?? null,
+      preferenceSwitches: preferenceSwitches.map((control) => ({
+        checked: control.getAttribute('data-state') === 'checked',
+        ariaLabel: control.getAttribute('aria-label'),
+        rect: rect(control),
+      })),
     };
   })()`);
   const filename = `${viewport.width}x${viewport.height}-${category}.png`;
@@ -136,6 +193,11 @@ function assertLayout(metrics, viewport, category) {
   )) {
     throw new Error(`The About update state is not visible without scrolling at ${viewport.width}x${viewport.height}.`);
   }
+  if (category === 'About' && metrics.preferenceSwitches.some((control) => (
+    control.rect.top < metrics.content.rect.top || control.rect.bottom > metrics.content.rect.bottom + 1
+  ))) {
+    throw new Error(`An update preference is not visible without scrolling at ${viewport.width}x${viewport.height}.`);
+  }
 }
 
 async function openSettingsCategory(label) {
@@ -160,17 +222,39 @@ async function openSettingsCategory(label) {
   );
 }
 
-async function clickAutomaticUpdateSwitch() {
+async function clickUpdateIndicator() {
   const clicked = await evaluate(`(() => {
-    const control = document.querySelector('[data-setting-id="general.automaticAppUpdates"] button[role="switch"]');
+    const control = document.querySelector('[data-settings-update-indicator]');
     control?.click();
     return Boolean(control);
   })()`);
-  if (!clicked) throw new Error('Automatic application update switch was not available.');
+  if (!clicked) throw new Error('Application update indicator was not available.');
 }
 
-function getAutomaticUpdateSetting() {
-  return evaluate(`window.switchboard.getSnapshot().then((snapshot) => snapshot.settings.automaticAppUpdates)`);
+async function focusUpdateIndicator() {
+  const focused = await evaluate(`(() => {
+    const control = document.querySelector('[data-settings-update-indicator]');
+    control?.focus();
+    return document.activeElement === control;
+  })()`);
+  if (!focused) throw new Error('Application update indicator could not receive keyboard focus.');
+}
+
+async function clickUpdatePreference(settingId) {
+  const clicked = await evaluate(`(() => {
+    const control = document.querySelector('[data-setting-id=${JSON.stringify(settingId)}] button[role="switch"]');
+    control?.click();
+    return Boolean(control);
+  })()`);
+  if (!clicked) throw new Error(`Update preference ${settingId} was not available.`);
+}
+
+function getUpdatePreferences() {
+  return evaluate(`window.switchboard.getSnapshot().then((snapshot) => ({
+    automaticAppUpdates: snapshot.settings.automaticAppUpdates,
+    automaticAppUpdateDownloads: snapshot.settings.automaticAppUpdateDownloads,
+    installAppUpdatesOnNextStartup: snapshot.settings.installAppUpdatesOnNextStartup,
+  }))`);
 }
 
 function evaluate(expression) {

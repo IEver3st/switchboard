@@ -76,7 +76,7 @@ describe('canonical clip metadata', () => {
     first.update((draft) => {
       draft.clips = [clip(1, {
         name: 'Downtown pursuit', favorite: true, titleEdited: true, trimStartMs: 1_250, trimEndMs: 9_000,
-        canvasSize: '9:16', audioTrackLevels: [100, 42],
+        canvasSize: '9:16', audioTrackLevels: [100, 42], audioTrackTrims: [null, { startMs: 2_000, endMs: 8_500 }],
       })];
     });
     await first.flush();
@@ -85,7 +85,7 @@ describe('canonical clip metadata', () => {
     await restarted.load();
     expect(restarted.get().clips[0]).toMatchObject({
       name: 'Downtown pursuit', favorite: true, titleEdited: true, trimStartMs: 1_250, trimEndMs: 9_000,
-      canvasSize: '9:16', audioTrackLevels: [100, 42],
+      canvasSize: '9:16', audioTrackLevels: [100, 42], audioTrackTrims: [null, { startMs: 2_000, endMs: 8_500 }],
     });
   });
 
@@ -94,6 +94,12 @@ describe('canonical clip metadata', () => {
       id: 'clip-1', startMs: 1_250, endMs: 9_000,
     });
     expect(() => clipTrimInputSchema.parse({ id: 'clip-1', startMs: 9_000, endMs: 1_250 })).toThrow();
+    expect(clipTrimInputSchema.parse({
+      id: 'clip-1', startMs: 1_250, endMs: 9_000, audioTrackTrims: [null, { startMs: 2_000, endMs: 8_500 }],
+    }).audioTrackTrims?.[1]).toEqual({ startMs: 2_000, endMs: 8_500 });
+    expect(() => clipTrimInputSchema.parse({
+      id: 'clip-1', startMs: 1_250, endMs: 9_000, audioTrackTrims: [{ startMs: 8_500, endMs: 2_000 }],
+    })).toThrow();
     expect(exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '10mb' }).preset).toBe('10mb');
     expect(() => exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '5mb' })).toThrow();
     expect(setClipAudioTrackLevelInputSchema.parse({ id: 'clip-1', trackIndex: 1, level: 42 })).toEqual({
@@ -112,6 +118,22 @@ describe('canonical clip metadata', () => {
     expect(filter).toContain('amix=inputs=2');
     expect(buildShareAudioArguments(2, 96, [0, 0])).toEqual(['-an']);
     expect(buildShareAudioArguments(2, 96, [0, 100])).toContain('0:a:1');
+  });
+
+  test('builds independently trimmed and timeline-aligned audio tracks', () => {
+    const mixed = buildShareAudioArguments(
+      2,
+      96,
+      [100, 75],
+      [{ startMs: 3_000, endMs: 8_000 }, { startMs: 5_000, endMs: 10_000 }],
+      2_000,
+      11_000,
+    );
+    const filter = mixed[mixed.indexOf('-filter_complex') + 1]!;
+    expect(filter).toContain('[0:a:0]atrim=start=1.000:end=6.000,asetpts=PTS-STARTPTS,adelay=1000:all=1,volume=1.00[track0]');
+    expect(filter).toContain('[0:a:1]atrim=start=3.000:end=8.000,asetpts=PTS-STARTPTS,adelay=3000:all=1,volume=0.75[track1]');
+    expect(filter).toContain('amix=inputs=2:duration=longest');
+    expect(buildShareAudioArguments(1, 96, [100], [{ startMs: 0, endMs: 1_000 }], 2_000, 3_000)).toEqual(['-an']);
   });
 });
 

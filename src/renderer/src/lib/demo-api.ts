@@ -12,6 +12,7 @@ import type {
   SetAudioApplicationRouteInput,
   SetAudioBusEnabledInput,
   SetAudioBusGainInput,
+  SetAudioChannelEnabledInput,
   SetAudioMasterEnabledInput,
   SetAudioMasterGainInput,
   SetDeviceAppearanceOverrideInput,
@@ -40,7 +41,7 @@ let snapshot = createDefaultSnapshot();
 snapshot.gameDetection.capability = 'simulation';
 snapshot.audio.capabilities = {
   virtualChannels: 'simulation',
-  applicationRouting: 'unavailable',
+  applicationRouting: 'simulation',
   channelDsp: 'simulation',
   microphoneDsp: 'simulation',
   noiseSuppression: 'unavailable',
@@ -49,6 +50,55 @@ snapshot.audio.capabilities = {
   monitoring: 'unavailable',
   spatialAudio: 'unavailable',
 };
+snapshot.audio.applications = [
+  {
+    id: 'preview-game-session',
+    name: 'Cyberpunk 2077',
+    executableName: 'Cyberpunk2077',
+    processId: 18_640,
+    destination: 'game',
+    currentDestination: 'game',
+    preferredDestination: 'game',
+    routingState: 'applied',
+    active: true,
+  },
+  {
+    id: 'preview-chat-session',
+    name: 'Discord',
+    executableName: 'Discord',
+    processId: 18_704,
+    destination: 'chat',
+    currentDestination: 'chat',
+    preferredDestination: 'chat',
+    routingState: 'applied',
+    active: true,
+  },
+  {
+    id: 'preview-game-launcher-session',
+    name: 'Steam',
+    executableName: 'steamwebhelper',
+    processId: 18_736,
+    destination: 'game',
+    currentDestination: 'game',
+    preferredDestination: 'game',
+    routingState: 'applied',
+    active: false,
+  },
+  {
+    id: 'preview-media-session',
+    name: 'Spotify',
+    executableName: 'Spotify',
+    processId: 18_768,
+    destination: 'media',
+    currentDestination: 'media',
+    preferredDestination: 'media',
+    routingState: 'applied',
+    active: false,
+  },
+];
+for (const bus of snapshot.audio.buses) {
+  bus.appCount = snapshot.audio.applications.filter((application) => application.currentDestination === bus.id).length;
+}
 const listeners = new Set<(value: SystemSnapshot) => void>();
 const audioMeterListeners = new Set<(frame: AudioMeterFrame) => void>();
 let engineTimer: number | undefined;
@@ -305,6 +355,11 @@ const demoApi: SwitchboardApi = {
     if (bus) bus.enabled = input.enabled;
     return emit();
   },
+  async setAudioChannelEnabled(input: SetAudioChannelEnabledInput) {
+    const bus = snapshot.audio.buses.find((candidate) => candidate.id === input.busId);
+    if (bus) bus.enabled = input.enabled;
+    return emit();
+  },
   async setAudioBusDevice(input: SetAudioBusDeviceInput) {
     const bus = snapshot.audio.buses.find((candidate) => candidate.id === input.busId);
     const device = snapshot.audio.devices.find((candidate) => candidate.id === input.deviceId);
@@ -453,6 +508,7 @@ const demoApi: SwitchboardApi = {
   async scanGames() { return simulateGameScan(); },
   async addGame() { throw new Error('Selecting a game executable requires the Switchboard desktop application.'); },
   async checkAppUpdates() { return emit(); },
+  async downloadAppUpdate() { throw new Error('Application updates require the Switchboard desktop application.'); },
   async installAppUpdate() { throw new Error('Application updates require an installed Switchboard build.'); },
   async updateSettings(input: UpdateSettingsInput) {
     const enableAutomaticScan = input.scanGamesAutomatically === true && !snapshot.settings.scanGamesAutomatically;
@@ -478,6 +534,8 @@ const demoApi: SwitchboardApi = {
       snapshot.settings.closeToTray = defaults.settings.closeToTray;
       snapshot.settings.destroyRendererInTray = defaults.settings.destroyRendererInTray;
       snapshot.settings.automaticAppUpdates = defaults.settings.automaticAppUpdates;
+      snapshot.settings.automaticAppUpdateDownloads = defaults.settings.automaticAppUpdateDownloads;
+      snapshot.settings.installAppUpdatesOnNextStartup = defaults.settings.installAppUpdatesOnNextStartup;
     }
     if (scope === 'devices') snapshot.settings.deviceAppearanceOverrides = {};
     if (scope === 'audio') {

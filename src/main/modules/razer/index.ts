@@ -28,8 +28,6 @@ export const huntsmanLightingEffects: readonly LightingEffect[] = [
   { id: 'starlight', label: 'Starlight' },
   { id: 'wave-left', label: 'Wave left' },
   { id: 'wave-right', label: 'Wave right' },
-  { id: 'wheel-left', label: 'Wheel left' },
-  { id: 'wheel-right', label: 'Wheel right' },
 ] as const;
 
 export const huntsmanKeyboardFeatures: readonly KeyboardFeature[] = [
@@ -55,17 +53,17 @@ export const huntsmanKeyboardFeatures: readonly KeyboardFeature[] = [
   },
   {
     id: 'mapping',
-    label: 'Key mapping and profiles',
-    summary: 'Remapping, macros, Hypershift, Gaming Mode, and profile switching are supported by Synapse.',
+    label: 'Key mapping',
+    summary: 'Remapping, macros, Hypershift, and analog controller bindings remain in Synapse.',
     status: 'synapse',
     unavailableReason: 'Switchboard does not write undocumented key maps or macro payloads.',
   },
   {
     id: 'rapid-input',
     label: 'Rapid Trigger and Snap Tap',
-    summary: 'Both panels appear for this model in the supplied current Synapse interface.',
-    status: 'observed',
-    unavailableReason: 'Availability was observed in Synapse, but the device command path has not been independently verified.',
+    summary: 'Synapse 4 exposes both features for this keyboard through its analog mapping stack.',
+    status: 'synapse',
+    unavailableReason: 'This V2 firmware rejects the standalone Rapid Trigger and Snap Tap commands used by newer onboard implementations.',
   },
 ] as const;
 
@@ -79,7 +77,9 @@ interface HuntsmanSettings {
 export interface HuntsmanControlTransport {
   probe(path: string): Promise<HuntsmanProbe>;
   setBrightness(path: string, brightness: number): Promise<number>;
-  setEffect(path: string, effectId: HuntsmanLightingEffectId, color: string): Promise<void>;
+  setEffect(path: string, effectId: HuntsmanLightingEffectId, color: string): Promise<{ effectId: HuntsmanLightingEffectId; color?: string }>;
+  setGamingMode(path: string, enabled: boolean): Promise<boolean>;
+  setActiveOnboardProfile(path: string, profileId: number): Promise<number>;
 }
 
 export interface HuntsmanModuleDependencies {
@@ -143,6 +143,13 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
       unavailableReason = nativeUnavailableReason;
     }
 
+    if (this.probe?.lightingState) {
+      const { effectId, color } = this.probe.lightingState;
+      this.settings.lightingEnabled = effectId !== 'off';
+      if (effectId !== 'off') this.settings.lightingEffect = effectId;
+      if (color) this.settings.lightingColor = color;
+    }
+
     const serialNumber = this.probe?.serialNumber ?? previous?.identity.serialNumber;
     const id = `razer:${serialNumber || huntsmanV2AnalogProductId.toString(16).padStart(4, '0')}`;
     this.deviceId = id;
@@ -163,6 +170,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
     };
     const writable = Boolean(this.path && this.probe && !unavailableReason);
     const brightness = this.probe?.brightness ?? this.settings.lightingBrightness;
+    const availableEffects = supportedLightingEffects(this.probe?.lightingEffectCodes);
     this.settings.lightingBrightness = brightness;
 
     return [{
@@ -184,12 +192,40 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
           pollingRateHz: 1_000,
           transport: writable ? 'native-hid' : 'unavailable',
           features: huntsmanKeyboardFeatures.map((feature) => ({ ...feature })),
+          gamingMode: {
+            enabled: this.probe?.gamingMode ?? null,
+            writable,
+            ...(!writable ? { unavailableReason: unavailableReason ?? nativeUnavailableReason } : {}),
+          },
+          onboardProfiles: {
+            activeProfileId: this.probe ? String(this.probe.activeOnboardProfileId) : null,
+            profiles: (this.probe?.onboardProfileIds ?? []).map((profileId, index) => ({
+              id: String(profileId),
+              label: `Profile ${index + 1}`,
+            })),
+            writable,
+            ...(!writable ? { unavailableReason: unavailableReason ?? nativeUnavailableReason } : {}),
+          },
+          rapidTrigger: {
+            enabled: this.probe?.rapidTrigger ?? null,
+            writable: writable && this.probe?.rapidTrigger !== undefined,
+            ...(this.probe?.rapidTrigger === undefined ? {
+              unavailableReason: 'Requires Synapse 4 on the Huntsman V2 Analog; the keyboard rejected the standalone firmware command.',
+            } : {}),
+          },
+          snapTap: {
+            enabled: this.probe?.snapTap ?? null,
+            writable: writable && this.probe?.snapTap !== undefined,
+            ...(this.probe?.snapTap === undefined ? {
+              unavailableReason: 'Requires Synapse 4 to stay active on this non-V3 keyboard.',
+            } : {}),
+          },
         },
         lighting: {
           writable,
           enabled: this.settings.lightingEnabled,
           activeEffectId: this.settings.lightingEffect,
-          availableEffects: huntsmanLightingEffects.map((effect) => ({ ...effect })),
+          availableEffects,
           color: this.settings.lightingColor,
           colorWritable: true,
           brightness,
@@ -198,10 +234,10 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
           profiles: [],
           muteLinked: false,
           muteLinkedWritable: false,
-          state: this.effectAcknowledged ? 'acknowledged' : 'unknown',
-          stateReason: this.effectAcknowledged
-            ? 'The keyboard acknowledged the last effect command; this protocol has no effect-state readback.'
-            : (unavailableReason ?? 'Brightness is read back from hardware; the active quick effect cannot be queried.'),
+          state: this.probe?.lightingState ? 'maintained' : (this.effectAcknowledged ? 'acknowledged' : 'unknown'),
+          stateReason: this.probe?.lightingState
+            ? 'Active effect and brightness were read back from keyboard firmware.'
+            : (unavailableReason ?? 'The keyboard has not returned an effect state yet.'),
           physicalEffectVerified: false,
           profileMode: 'software',
           source: 'firmware',
@@ -223,20 +259,20 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         return;
       }
       if (change.type === 'lighting-enabled') {
-        await this.dependencies.transport.setEffect(
+        const confirmed = await this.dependencies.transport.setEffect(
           this.path,
           change.enabled ? this.settings.lightingEffect : 'off',
           this.settings.lightingColor,
         );
-        this.settings.lightingEnabled = change.enabled;
+        this.applyLightingReadback(confirmed);
         this.effectAcknowledged = true;
         return;
       }
       if (change.type === 'lighting-effect') {
         if (!isHuntsmanLightingEffect(change.effectId) || change.effectId === 'off') throw new Error('That quick effect is not supported by this keyboard module.');
         if (!this.settings.lightingEnabled) throw new Error('Turn keyboard lighting on before changing the quick effect.');
-        await this.dependencies.transport.setEffect(this.path, change.effectId, this.settings.lightingColor);
-        this.settings.lightingEffect = change.effectId;
+        const confirmed = await this.dependencies.transport.setEffect(this.path, change.effectId, this.settings.lightingColor);
+        this.applyLightingReadback(confirmed);
         this.effectAcknowledged = true;
         return;
       }
@@ -244,10 +280,32 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         if (!this.settings.lightingEnabled || !effectUsesColor(this.settings.lightingEffect)) {
           throw new Error('The selected quick effect does not use a custom color.');
         }
-        await this.dependencies.transport.setEffect(this.path, this.settings.lightingEffect, change.color);
-        this.settings.lightingColor = change.color.toLowerCase();
+        const confirmed = await this.dependencies.transport.setEffect(this.path, this.settings.lightingEffect, change.color);
+        this.applyLightingReadback(confirmed);
         this.effectAcknowledged = true;
         return;
+      }
+      if (change.type === 'keyboard-gaming-mode') {
+        if (!this.probe) throw new Error('Gaming Mode is unavailable until the keyboard responds.');
+        const enabled = await this.dependencies.transport.setGamingMode(this.path, change.enabled);
+        this.probe = { ...this.probe, gamingMode: enabled };
+        this.probeUpdatedAt = this.dependencies.now();
+        return;
+      }
+      if (change.type === 'keyboard-onboard-profile') {
+        if (!this.probe) throw new Error('Onboard profiles are unavailable until the keyboard responds.');
+        const profileId = Number.parseInt(change.profileId, 10);
+        if (!this.probe.onboardProfileIds.includes(profileId)) throw new Error('That onboard profile is not present on this keyboard.');
+        const confirmed = await this.dependencies.transport.setActiveOnboardProfile(this.path, profileId);
+        this.probe = { ...this.probe, activeOnboardProfileId: confirmed };
+        this.probeUpdatedAt = this.dependencies.now();
+        return;
+      }
+      if (change.type === 'keyboard-rapid-trigger') {
+        throw new Error('Rapid Trigger requires Synapse 4 on this Huntsman V2 Analog firmware.');
+      }
+      if (change.type === 'keyboard-snap-tap') {
+        throw new Error('Snap Tap requires Synapse 4 to remain active on this non-V3 keyboard.');
       }
       throw new Error(`${device.displayName} does not support the requested device control.`);
     });
@@ -267,6 +325,14 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
     const result = this.operationQueue.then(operation, operation);
     this.operationQueue = result.then(() => undefined, () => undefined);
     return result;
+  }
+
+  private applyLightingReadback(state: { effectId: HuntsmanLightingEffectId; color?: string }): void {
+    this.settings.lightingEnabled = state.effectId !== 'off';
+    if (state.effectId !== 'off') this.settings.lightingEffect = state.effectId;
+    if (state.color) this.settings.lightingColor = state.color.toLowerCase();
+    if (this.probe) this.probe = { ...this.probe, lightingState: state };
+    this.probeUpdatedAt = this.dependencies.now();
   }
 
   private release(): void {
@@ -312,6 +378,22 @@ function numberSetting(value: DeviceSettingValue | undefined, fallback: number):
 
 function effectUsesColor(effectId: HuntsmanLightingEffectId): boolean {
   return ['static', 'breathing', 'reactive', 'starlight'].includes(effectId);
+}
+
+function supportedLightingEffects(effectCodes?: number[]): LightingEffect[] {
+  if (!effectCodes) return huntsmanLightingEffects.map((effect) => ({ ...effect }));
+  const codeByEffect: Partial<Record<HuntsmanLightingEffectId, number>> = {
+    static: 0x01,
+    breathing: 0x02,
+    spectrum: 0x03,
+    'wave-left': 0x04,
+    'wave-right': 0x04,
+    reactive: 0x05,
+    starlight: 0x07,
+  };
+  return huntsmanLightingEffects
+    .filter((effect) => effectCodes.includes(codeByEffect[effect.id as HuntsmanLightingEffectId] ?? -1))
+    .map((effect) => ({ ...effect }));
 }
 
 function errorMessage(error: unknown, fallback: string): string {

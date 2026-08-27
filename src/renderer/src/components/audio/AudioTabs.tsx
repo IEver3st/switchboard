@@ -12,17 +12,22 @@ const labels: Record<AudioWorkspaceTab, string> = {
   microphone: 'Microphone',
 };
 
-export function AudioTabs({ value, onChange, tools }: { value: AudioWorkspaceTab; onChange: (tab: AudioWorkspaceTab) => void; tools?: ReactNode }) {
+export function AudioTabs({ value, onChange, tools, tabs = audioWorkspaceTabs }: {
+  value: AudioWorkspaceTab;
+  onChange: (tab: AudioWorkspaceTab) => void;
+  tools?: ReactNode;
+  tabs?: readonly AudioWorkspaceTab[];
+}) {
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const currentIndex = audioWorkspaceTabs.indexOf(value);
+    const currentIndex = tabs.indexOf(value);
     let nextIndex = currentIndex;
-    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % audioWorkspaceTabs.length;
-    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + audioWorkspaceTabs.length) % audioWorkspaceTabs.length;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
     else if (event.key === 'Home') nextIndex = 0;
-    else if (event.key === 'End') nextIndex = audioWorkspaceTabs.length - 1;
+    else if (event.key === 'End') nextIndex = tabs.length - 1;
     else return;
     event.preventDefault();
-    const next = audioWorkspaceTabs[nextIndex];
+    const next = tabs[nextIndex];
     if (!next) return;
     onChange(next);
     requestAnimationFrame(() => document.getElementById(`audio-tab-${next}`)?.focus());
@@ -37,7 +42,7 @@ export function AudioTabs({ value, onChange, tools }: { value: AudioWorkspaceTab
           onKeyDown={onKeyDown}
           className="audio-tabs__inner"
         >
-          {audioWorkspaceTabs.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               id={`audio-tab-${tab}`}

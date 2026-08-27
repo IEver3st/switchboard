@@ -1,46 +1,94 @@
 [
   {
     "viewport": {
-      "width": 1080,
-      "height": 720
+      "width": 1420,
+      "height": 900
     },
-    "category": "general",
-    "filename": "1080x720-general.png",
+    "category": "general-update-rest",
+    "filename": "1420x900-general-update-rest.png",
     "metrics": {
       "viewport": {
-        "width": 1080,
-        "height": 722
+        "width": 1420,
+        "height": 902
       },
-      "documentWidth": 1080,
+      "documentWidth": 1420,
       "content": {
-        "clientWidth": 840,
-        "scrollWidth": 840,
-        "clientHeight": 662,
-        "scrollHeight": 662,
+        "clientWidth": 1150,
+        "scrollWidth": 1150,
+        "clientHeight": 842,
+        "scrollHeight": 842,
         "rect": {
           "top": 60,
-          "right": 1080,
-          "bottom": 722,
-          "left": 230,
-          "width": 850,
-          "height": 662
+          "right": 1420,
+          "bottom": 902,
+          "left": 260,
+          "width": 1160,
+          "height": 842
         }
       },
       "updateRow": null,
-      "updateStatus": null,
+      "updateAction": null,
       "updateDescription": null,
-      "automaticUpdateSwitch": {
-        "checked": true,
-        "ariaLabel": "Automatically check for updates",
+      "updateIndicator": {
+        "top": 768,
+        "right": 241.33334350585938,
+        "bottom": 808,
+        "left": 18,
+        "width": 223.33334350585938,
+        "height": 40
+      },
+      "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": []
+    }
+  },
+  {
+    "viewport": {
+      "width": 1420,
+      "height": 900
+    },
+    "category": "general-update-tooltip",
+    "filename": "1420x900-general-update-tooltip.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 902
+      },
+      "documentWidth": 1420,
+      "content": {
+        "clientWidth": 1150,
+        "scrollWidth": 1150,
+        "clientHeight": 842,
+        "scrollHeight": 842,
         "rect": {
-          "top": 553.40625,
-          "right": 1030,
-          "bottom": 577.40625,
-          "left": 988,
-          "width": 42,
-          "height": 24
+          "top": 60,
+          "right": 1420,
+          "bottom": 902,
+          "left": 260,
+          "width": 1160,
+          "height": 842
         }
-      }
+      },
+      "updateRow": null,
+      "updateAction": null,
+      "updateDescription": null,
+      "updateIndicator": {
+        "top": 768,
+        "right": 241.33334350585938,
+        "bottom": 808,
+        "left": 18,
+        "width": 223.33334350585938,
+        "height": 40
+      },
+      "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": "Switchboard 44.1.0 is available. Open update settings.",
+      "preferenceSwitches": []
     }
   },
   {
@@ -60,7 +108,7 @@
         "clientWidth": 840,
         "scrollWidth": 840,
         "clientHeight": 662,
-        "scrollHeight": 662,
+        "scrollHeight": 911,
         "rect": {
           "top": 60,
           "right": 1080,
@@ -71,60 +119,66 @@
         }
       },
       "updateRow": {
-        "top": 544.5208740234375,
+        "top": 278.26043701171875,
         "right": 1030,
-        "bottom": 616.5208740234375,
+        "bottom": 350.26043701171875,
         "left": 270,
         "width": 760,
         "height": 72
       },
-      "updateStatus": "Unavailable",
-      "updateDescription": "Application updates are available only in an installed Windows build.",
-      "automaticUpdateSwitch": null
-    }
-  },
-  {
-    "viewport": {
-      "width": 1420,
-      "height": 900
-    },
-    "category": "general",
-    "filename": "1420x900-general.png",
-    "metrics": {
-      "viewport": {
-        "width": 1420,
-        "height": 900
+      "updateAction": "Download update",
+      "updateDescription": "Development preview: version 44.1.0 is available.",
+      "updateIndicator": {
+        "top": 588.7916870117188,
+        "right": 205.33334350585938,
+        "bottom": 628.7916870117188,
+        "left": 14,
+        "width": 191.33334350585938,
+        "height": 40
       },
-      "documentWidth": 1420,
-      "content": {
-        "clientWidth": 1150,
-        "scrollWidth": 1150,
-        "clientHeight": 840,
-        "scrollHeight": 840,
-        "rect": {
-          "top": 60,
-          "right": 1420,
-          "bottom": 900,
-          "left": 260,
-          "width": 1160,
-          "height": 840
+      "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 433.21875,
+            "right": 1030,
+            "bottom": 457.21875,
+            "left": 988,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 522.6146240234375,
+            "right": 1030,
+            "bottom": 546.6146240234375,
+            "left": 988,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": false,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 612.0104370117188,
+            "right": 1030,
+            "bottom": 636.0104370117188,
+            "left": 988,
+            "width": 42,
+            "height": 24
+          }
         }
-      },
-      "updateRow": null,
-      "updateStatus": null,
-      "updateDescription": null,
-      "automaticUpdateSwitch": {
-        "checked": true,
-        "ariaLabel": "Automatically check for updates",
-        "rect": {
-          "top": 611.40625,
-          "right": 1339,
-          "bottom": 635.40625,
-          "left": 1297,
-          "width": 42,
-          "height": 24
-        }
-      }
+      ]
     }
   },
   {
@@ -144,7 +198,7 @@
         "clientWidth": 1150,
         "scrollWidth": 1150,
         "clientHeight": 840,
-        "scrollHeight": 840,
+        "scrollHeight": 1055,
         "rect": {
           "top": 60,
           "right": 1420,
@@ -155,60 +209,66 @@
         }
       },
       "updateRow": {
-        "top": 615.0208740234375,
+        "top": 306.76043701171875,
         "right": 1339,
-        "bottom": 697.0208740234375,
+        "bottom": 388.76043701171875,
         "left": 331,
         "width": 1008,
         "height": 82
       },
-      "updateStatus": "Unavailable",
-      "updateDescription": "Application updates are available only in an installed Windows build.",
-      "automaticUpdateSwitch": null
-    }
-  },
-  {
-    "viewport": {
-      "width": 1920,
-      "height": 1080
-    },
-    "category": "general",
-    "filename": "1920x1080-general.png",
-    "metrics": {
-      "viewport": {
-        "width": 1920,
-        "height": 1080
+      "updateAction": "Download update",
+      "updateDescription": "Development preview: version 44.1.0 is available.",
+      "updateIndicator": {
+        "top": 766,
+        "right": 241.33334350585938,
+        "bottom": 806,
+        "left": 18,
+        "width": 223.33334350585938,
+        "height": 40
       },
-      "documentWidth": 1920,
-      "content": {
-        "clientWidth": 1650,
-        "scrollWidth": 1650,
-        "clientHeight": 1020,
-        "scrollHeight": 1020,
-        "rect": {
-          "top": 60,
-          "right": 1920,
-          "bottom": 1080,
-          "left": 260,
-          "width": 1660,
-          "height": 1020
+      "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 487.71875,
+            "right": 1339,
+            "bottom": 511.71875,
+            "left": 1297,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 585.1146240234375,
+            "right": 1339,
+            "bottom": 609.1146240234375,
+            "left": 1297,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": false,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 682.5104370117188,
+            "right": 1339,
+            "bottom": 706.5104370117188,
+            "left": 1297,
+            "width": 42,
+            "height": 24
+          }
         }
-      },
-      "updateRow": null,
-      "updateStatus": null,
-      "updateDescription": null,
-      "automaticUpdateSwitch": {
-        "checked": true,
-        "ariaLabel": "Automatically check for updates",
-        "rect": {
-          "top": 611.40625,
-          "right": 1639,
-          "bottom": 635.40625,
-          "left": 1597,
-          "width": 42,
-          "height": 24
-        }
-      }
+      ]
     }
   },
   {
@@ -228,7 +288,7 @@
         "clientWidth": 1650,
         "scrollWidth": 1650,
         "clientHeight": 1020,
-        "scrollHeight": 1020,
+        "scrollHeight": 1055,
         "rect": {
           "top": 60,
           "right": 1920,
@@ -239,16 +299,156 @@
         }
       },
       "updateRow": {
-        "top": 615.0208740234375,
+        "top": 306.76043701171875,
         "right": 1639,
-        "bottom": 697.0208740234375,
+        "bottom": 388.76043701171875,
         "left": 531,
         "width": 1108,
         "height": 82
       },
-      "updateStatus": "Unavailable",
-      "updateDescription": "Application updates are available only in an installed Windows build.",
-      "automaticUpdateSwitch": null
+      "updateAction": "Download update",
+      "updateDescription": "Development preview: version 44.1.0 is available.",
+      "updateIndicator": {
+        "top": 946,
+        "right": 241.33334350585938,
+        "bottom": 986,
+        "left": 18,
+        "width": 223.33334350585938,
+        "height": 40
+      },
+      "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 487.71875,
+            "right": 1639,
+            "bottom": 511.71875,
+            "left": 1597,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 585.1146240234375,
+            "right": 1639,
+            "bottom": 609.1146240234375,
+            "left": 1597,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": false,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 682.5104370117188,
+            "right": 1639,
+            "bottom": 706.5104370117188,
+            "left": 1597,
+            "width": 42,
+            "height": 24
+          }
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "width": 1420,
+      "height": 900
+    },
+    "category": "about-downloaded",
+    "filename": "1420x900-about-downloaded.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "documentWidth": 1420,
+      "content": {
+        "clientWidth": 1150,
+        "scrollWidth": 1150,
+        "clientHeight": 840,
+        "scrollHeight": 1055,
+        "rect": {
+          "top": 60,
+          "right": 1420,
+          "bottom": 900,
+          "left": 260,
+          "width": 1160,
+          "height": 840
+        }
+      },
+      "updateRow": {
+        "top": 306.76043701171875,
+        "right": 1339,
+        "bottom": 388.76043701171875,
+        "left": 331,
+        "width": 1008,
+        "height": 82
+      },
+      "updateAction": "Restart to update",
+      "updateDescription": "Version 44.1.0 is downloaded and ready. Restart when convenient to install it.",
+      "updateIndicator": {
+        "top": 766,
+        "right": 241.33334350585938,
+        "bottom": 806,
+        "left": 18,
+        "width": 223.33334350585938,
+        "height": 40
+      },
+      "updateIndicatorLabel": "Switchboard 44.1.0 is ready to install. Open update settings.",
+      "updateIndicatorSummary": "Update ready",
+      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 487.71875,
+            "right": 1339,
+            "bottom": 511.71875,
+            "left": 1297,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": false,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 585.1146240234375,
+            "right": 1339,
+            "bottom": 609.1146240234375,
+            "left": 1297,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": false,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 682.5104370117188,
+            "right": 1339,
+            "bottom": 706.5104370117188,
+            "left": 1297,
+            "width": 42,
+            "height": 24
+          }
+        }
+      ]
     }
   }
 ]

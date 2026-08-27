@@ -264,11 +264,36 @@ export const keyboardFeatureSchema = z.object({
 });
 export type KeyboardFeature = z.infer<typeof keyboardFeatureSchema>;
 
+export const keyboardToggleCapabilitySchema = z.object({
+  enabled: z.boolean().nullable(),
+  writable: z.boolean(),
+  unavailableReason: z.string().optional(),
+});
+export type KeyboardToggleCapability = z.infer<typeof keyboardToggleCapabilitySchema>;
+
+export const keyboardOnboardProfileSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+});
+export type KeyboardOnboardProfile = z.infer<typeof keyboardOnboardProfileSchema>;
+
+export const keyboardOnboardProfilesCapabilitySchema = z.object({
+  activeProfileId: z.string().min(1).nullable(),
+  profiles: z.array(keyboardOnboardProfileSchema),
+  writable: z.boolean(),
+  unavailableReason: z.string().optional(),
+});
+export type KeyboardOnboardProfilesCapability = z.infer<typeof keyboardOnboardProfilesCapabilitySchema>;
+
 export const keyboardCapabilitySchema = z.object({
   firmwareVersion: z.string().min(1).optional(),
   pollingRateHz: z.number().int().positive().optional(),
   transport: z.enum(['native-hid', 'unavailable']),
   features: z.array(keyboardFeatureSchema),
+  gamingMode: keyboardToggleCapabilitySchema.optional(),
+  rapidTrigger: keyboardToggleCapabilitySchema.optional(),
+  snapTap: keyboardToggleCapabilitySchema.optional(),
+  onboardProfiles: keyboardOnboardProfilesCapabilitySchema.optional(),
 });
 export type KeyboardCapability = z.infer<typeof keyboardCapabilitySchema>;
 
@@ -351,6 +376,7 @@ export type AudioDevice = z.infer<typeof audioDeviceSchema>;
 export const audioBusSchema = z.object({
   id: audioBusIdSchema,
   label: z.string(),
+  enabled: z.boolean().default(true),
   appCount: z.number().int().min(0),
   meter: z.number().min(0).max(1),
   endpoint: z.string(),
@@ -906,6 +932,8 @@ export const appSettingsSchema = z.object({
   closeToTray: z.boolean(),
   destroyRendererInTray: z.boolean(),
   automaticAppUpdates: z.boolean(),
+  automaticAppUpdateDownloads: z.boolean(),
+  installAppUpdatesOnNextStartup: z.boolean(),
   automaticModuleUpdates: z.boolean(),
   performanceGuard: z.boolean(),
   diagnosticsRetentionDays: z.number().int().min(1).max(30),
@@ -982,6 +1010,10 @@ export const deviceControlChangeSchema = z.discriminatedUnion('type', [
     color: z.string().regex(/^#[0-9a-f]{6}$/i),
   }),
   z.object({ type: z.literal('lighting-profile'), profileId: z.string().min(1) }),
+  z.object({ type: z.literal('keyboard-gaming-mode'), enabled: z.boolean() }),
+  z.object({ type: z.literal('keyboard-rapid-trigger'), enabled: z.boolean() }),
+  z.object({ type: z.literal('keyboard-snap-tap'), enabled: z.boolean() }),
+  z.object({ type: z.literal('keyboard-onboard-profile'), profileId: z.string().min(1) }),
   z.object({ type: z.literal('microphone-mute-lighting'), enabled: z.boolean() }),
 ]);
 export type DeviceControlChange = z.infer<typeof deviceControlChangeSchema>;
@@ -1023,6 +1055,12 @@ export const setAudioBusEnabledInputSchema = z.object({
   enabled: z.boolean(),
 });
 export type SetAudioBusEnabledInput = z.infer<typeof setAudioBusEnabledInputSchema>;
+
+export const setAudioChannelEnabledInputSchema = z.object({
+  busId: audioBusIdSchema,
+  enabled: z.boolean(),
+});
+export type SetAudioChannelEnabledInput = z.infer<typeof setAudioChannelEnabledInputSchema>;
 
 export const setAudioBusDeviceInputSchema = z.object({
   busId: audioBusIdSchema,
@@ -1194,6 +1232,7 @@ export const ipcChannels = {
   setAudioMasterEnabled: 'audio:set-master-enabled',
   setAudioBusGain: 'audio:set-bus-gain',
   setAudioBusEnabled: 'audio:set-bus-enabled',
+  setAudioChannelEnabled: 'audio:set-channel-enabled',
   setAudioBusDevice: 'audio:set-bus-device',
   setAudioApplicationRoute: 'audio:set-application-route',
   applyAudioPreset: 'audio:apply-preset',
@@ -1217,6 +1256,7 @@ export const ipcChannels = {
   scanGames: 'games:scan',
   addGame: 'games:add',
   checkAppUpdates: 'updates:check',
+  downloadAppUpdate: 'updates:download',
   installAppUpdate: 'updates:install',
   updateSettings: 'settings:update',
   resetSettings: 'settings:reset',
@@ -1244,6 +1284,7 @@ export interface SwitchboardApi {
   setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<SystemSnapshot>;
   setAudioBusGain(input: SetAudioBusGainInput): Promise<SystemSnapshot>;
   setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<SystemSnapshot>;
+  setAudioChannelEnabled(input: SetAudioChannelEnabledInput): Promise<SystemSnapshot>;
   setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<SystemSnapshot>;
   setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<SystemSnapshot>;
   applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot>;
@@ -1267,6 +1308,7 @@ export interface SwitchboardApi {
   scanGames(): Promise<SystemSnapshot>;
   addGame(): Promise<SystemSnapshot>;
   checkAppUpdates(): Promise<SystemSnapshot>;
+  downloadAppUpdate(): Promise<SystemSnapshot>;
   installAppUpdate(): Promise<void>;
   updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot>;
   resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot>;

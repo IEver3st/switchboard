@@ -123,6 +123,41 @@ async function run() {
   const restoredClip = await inspect();
   assert(restoredClip.values['Microphone in clip mix'] === '44', `Clip microphone did not survive reload: ${restoredClip.values['Microphone in clip mix']}.`);
 
+  await selectMix('Personal');
+  const mediaControlsBeforeDisable = await window.webContents.executeJavaScript(`
+    window.switchboard.getSnapshot().then((snapshot) => snapshot.audio.mixes.map((mix) => ({
+      mixId: mix.id,
+      control: mix.buses.find((bus) => bus.id === 'media'),
+    })))
+  `);
+  await disableChannel('Media');
+  await waitForSnapshot((snapshot) => snapshot.audio.buses.find((bus) => bus.id === 'media')?.enabled === false);
+  await waitForSelector('button[aria-label="Enable Media channel"]');
+  const disabledMedia = await inspectChannelLifecycle();
+  assert(disabledMedia.disabledRecoveryVisible, 'The disabled Media channel did not expose its recovery action.');
+  assert(!disabledMedia.processingTabVisible, 'The disabled Media channel remained in the processing tabs.');
+  assert(disabledMedia.exactInputs === 5, `The disabled Media channel retained live fader controls: ${JSON.stringify(disabledMedia)}.`);
+  const disabledImage = await window.webContents.capturePage();
+  await writeFile(join(outputDirectory, '1420x900-audio-mixer-media-disabled.png'), disabledImage.toPNG());
+
+  window.webContents.reload();
+  await waitForLoad(window);
+  await openMixer();
+  await waitForSelector('button[aria-label="Enable Media channel"]');
+  await enableChannel('Media');
+  await waitForSnapshot((snapshot) => snapshot.audio.buses.find((bus) => bus.id === 'media')?.enabled === true);
+  await waitForSelector('#audio-tab-media');
+  const mediaControlsAfterEnable = await window.webContents.executeJavaScript(`
+    window.switchboard.getSnapshot().then((snapshot) => snapshot.audio.mixes.map((mix) => ({
+      mixId: mix.id,
+      control: mix.buses.find((bus) => bus.id === 'media'),
+    })))
+  `);
+  assert(
+    JSON.stringify(mediaControlsAfterEnable) === JSON.stringify(mediaControlsBeforeDisable),
+    'Disabling and re-enabling Media changed its per-mix controls.',
+  );
+
   const report = {
     layouts,
     dragReadout,
@@ -130,6 +165,8 @@ async function run() {
     personalRoundTrip: true,
     destinationIsolation: true,
     muteRoundTrip: true,
+    channelLifecycleRoundTrip: true,
+    disabledMedia,
   };
   await writeFile(join(outputDirectory, 'audio-mixer-interaction-report.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));
@@ -205,10 +242,13 @@ async function selectMix(label) {
   assert(clicked, `Could not select the ${label} mix.`);
   const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
-      const selected = await window.webContents.executeJavaScript(`
-      document.querySelector('.mixer-mix-picker [data-state="on"]')?.textContent?.trim() ?? null
+    const selection = await window.webContents.executeJavaScript(`
+      (() => ({
+        label: document.querySelector('.mixer-mix-picker [data-state="on"]')?.textContent?.trim() ?? null,
+        rendered: Boolean(document.querySelector(${JSON.stringify(`input[aria-label="Game in ${label.toLowerCase()} mix exact volume percentage"]`)})),
+      }))()
     `);
-    if (selected === label) return;
+    if (selection.label === label && selection.rendered) return;
     await delay(40);
   }
   throw new Error(`Timed out selecting the ${label} mix.`);
@@ -266,15 +306,47 @@ async function setExactValue(label, value) {
 }
 
 async function clickMasterMute() {
-  const clicked = await window.webContents.executeJavaScript(`
+  await waitForSelector('.mixer-channel--master button[aria-pressed]');
+  await clickPointerSelector('.mixer-channel--master button[aria-pressed]');
+}
+
+async function disableChannel(label) {
+  await clickPointerSelector(`button[aria-label="Open ${label} channel menu"]`);
+  await waitForSelector('[role="menuitem"]');
+  const menuImage = await window.webContents.capturePage();
+  await writeFile(join(outputDirectory, `1420x900-audio-mixer-${label.toLowerCase()}-menu.png`), menuImage.toPNG());
+  await clickPointerSelector('[role="menuitem"]:last-of-type');
+}
+
+async function enableChannel(label) {
+  await clickPointerSelector(`button[aria-label="Enable ${label} channel"]`);
+}
+
+async function inspectChannelLifecycle() {
+  return window.webContents.executeJavaScript(`
+    (() => ({
+      disabledRecoveryVisible: Boolean(document.querySelector(${JSON.stringify('button[aria-label="Enable Media channel"]')})),
+      processingTabVisible: Boolean(document.querySelector(${JSON.stringify('#audio-tab-media')})),
+      exactInputs: document.querySelectorAll('.mixer-fader__exact input').length,
+      channelEnabled: null,
+    }))()
+  `);
+}
+
+async function clickPointerSelector(selector) {
+  const point = await window.webContents.executeJavaScript(`
     (() => {
-      const button = document.querySelector('.mixer-channel--master button[aria-pressed]');
-      if (!button) return false;
-      button.click();
-      return true;
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return null;
+      const bounds = element.getBoundingClientRect();
+      return { x: Math.round(bounds.left + bounds.width / 2), y: Math.round(bounds.top + bounds.height / 2) };
     })()
   `);
-  assert(clicked, 'Could not find the master mute button.');
+  assert(point, `Could not find ${selector}.`);
+  window.webContents.sendInputEvent({ type: 'mouseMove', x: point.x, y: point.y });
+  window.webContents.sendInputEvent({ type: 'mouseDown', x: point.x, y: point.y, button: 'left', clickCount: 1 });
+  window.webContents.sendInputEvent({ type: 'mouseUp', x: point.x, y: point.y, button: 'left', clickCount: 1 });
+  await delay(80);
 }
 
 async function waitForSnapshot(predicate) {

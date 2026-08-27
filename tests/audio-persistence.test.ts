@@ -65,6 +65,28 @@ describe('audio workspace persistence', () => {
     expect(restarted.get().audio.mixes.map((mix) => [mix.id, mix.buses.map((bus) => [bus.id, bus.gain])])).toEqual(channelGains);
   });
 
+  test('restores disabled channels without changing their per-mix controls', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-audio-channels-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const first = new StateStore(filePath);
+    await first.load();
+    const mediaControls = first.get().audio.mixes.map((mix) => (
+      structuredClone(mix.buses.find((bus) => bus.id === 'media'))
+    ));
+
+    first.update((draft) => {
+      draft.audio.buses.find((bus) => bus.id === 'media')!.enabled = false;
+    });
+    await first.flush();
+
+    const restarted = new StateStore(filePath);
+    await restarted.load();
+    const audio = restarted.get().audio;
+    expect(audio.buses.find((bus) => bus.id === 'media')?.enabled).toBeFalse();
+    expect(audio.mixes.map((mix) => mix.buses.find((bus) => bus.id === 'media'))).toEqual(mediaControls);
+  });
+
   test('removes legacy application metadata when routing is unavailable', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'switchboard-audio-routing-'));
     temporaryDirectories.push(directory);

@@ -505,7 +505,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         sessionDirectory,
                         systemAudio,
                         "system",
-                        capture.SystemAudioBitrateBps), "system-audio encoder");
+                        capture.SystemAudioBitrateBps,
+                        outputChannels: 2), "system-audio encoder");
                     _ = DrainAsync(systemAudioFfmpeg.StandardError, lifetime.Token);
                     _ = DrainAsync(systemAudioFfmpeg.StandardOutput, lifetime.Token);
                 }
@@ -600,7 +601,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         string outputDirectory,
         IAudioPipeInput input,
         string filePrefix,
-        int bitrateBps)
+        int bitrateBps,
+        int? outputChannels = null)
     {
         var start = new ProcessStartInfo(ffmpegPath)
         {
@@ -610,7 +612,27 @@ internal sealed class ReplayEngine : IAsyncDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        var arguments = new[]
+        var arguments = BuildAudioArguments(
+            capture,
+            outputDirectory,
+            input,
+            filePrefix,
+            bitrateBps,
+            outputChannels);
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        return start;
+    }
+
+    internal static IReadOnlyList<string> BuildAudioArguments(
+        CaptureSettings capture,
+        string outputDirectory,
+        IAudioPipeInput input,
+        string filePrefix,
+        int bitrateBps,
+        int? outputChannels = null)
+    {
+        _ = outputChannels;
+        return new[]
         {
             "-hide_banner", "-loglevel", "warning", "-nostats",
             "-thread_queue_size", "512",
@@ -631,8 +653,6 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-avoid_negative_ts", "make_zero",
             Path.Combine(outputDirectory, $"{filePrefix}-%09d.mka"),
         };
-        foreach (var argument in arguments) start.ArgumentList.Add(argument);
-        return start;
     }
 
     private IEnumerable<string> BuildArguments(

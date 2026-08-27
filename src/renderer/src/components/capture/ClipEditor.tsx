@@ -153,7 +153,6 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
         <Button ref={backRef} type="button" variant="ghost" size="sm" className="no-drag px-2" onClick={onClose}>
           <ArrowLeft className="size-4" /> Back to clips
         </Button>
-        <Separator orientation="vertical" className="h-5" />
         <div className="clip-editor-header__identity">
           <h2 id="clip-editor-title">
             <button type="button" className="clip-editor-header__rename no-drag" onClick={onRename} aria-label={`Rename ${clip.name}`}>

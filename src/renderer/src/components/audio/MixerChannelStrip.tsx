@@ -1,13 +1,20 @@
 import { memo, type ComponentType, type CSSProperties } from 'react';
-import { AppWindow, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
-import type { AudioApplication, AudioBus, AudioDevice, AudioDeviceDirection, AudioMixBus, AudioMixId } from '../../../../shared/contracts';
+import { Power, PowerOff, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
+import type { AudioApplication, AudioBus, AudioDevice, AudioDeviceDirection, AudioMixBus, AudioMixId, AudioSupportLevel } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 import { AudioDevicePicker } from './AudioDevicePicker';
 import { channelColor } from './channel-identity';
 import { LevelMeter } from './LevelMeter';
+import { MixerApplications } from './MixerApplications';
 import { MixerFader } from './MixerFader';
 
 export const MixerChannelStrip = memo(function MixerChannelStrip({
@@ -20,9 +27,11 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
   pending,
   presetName,
   applications,
-  routingAvailable,
+  routingSupport,
+  routingUnavailableReason,
   onGainCommit,
   onEnabledChange,
+  onChannelEnabledChange,
   onDeviceChange,
   onApplicationRoute,
   onOpen,
@@ -36,41 +45,85 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
   pending: boolean;
   presetName: string | null;
   applications: AudioApplication[];
-  routingAvailable: boolean;
+  routingSupport: AudioSupportLevel;
+  routingUnavailableReason?: string | null;
   onGainCommit: (gain: number) => void;
   onEnabledChange: (enabled: boolean) => void;
+  onChannelEnabledChange: (enabled: boolean) => void;
   onDeviceChange: (deviceId: string) => void;
   onApplicationRoute: (applicationId: string, destination: AudioApplication['destination']) => void;
   onOpen: () => void;
 }) {
   const direction: AudioDeviceDirection = bus.id === 'mic' ? 'input' : 'output';
-  const channelActive = control.enabled;
+  const mixActive = control.enabled;
   const color = channelColor(bus.id);
   const settingsLabel = bus.id === 'mic' ? 'Voice settings' : 'Sound settings';
 
+  if (!bus.enabled) {
+    return (
+      <article
+        className="mixer-channel mixer-channel--disabled"
+        style={{ '--channel-accent': color } as CSSProperties}
+        aria-label={`${bus.label} channel disabled`}
+      >
+        <div className="mixer-channel__disabled-state">
+          <Icon className="mixer-channel__disabled-icon" style={{ color }} aria-hidden={true} />
+          <div className="mixer-channel__disabled-copy">
+            <strong>{bus.label}</strong>
+            <span>Channel disabled</span>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={pending}
+            onClick={() => onChannelEnabledChange(true)}
+            aria-label={`Enable ${bus.label} channel`}
+          >
+            <Power className="size-3.5" aria-hidden="true" />
+            Enable channel
+          </Button>
+        </div>
+      </article>
+    );
+  }
+
   return (
-    <article className={cn('mixer-channel', !channelActive && 'is-muted')} style={{ '--channel-accent': color } as CSSProperties}>
+    <article className={cn('mixer-channel', !mixActive && 'is-muted')} style={{ '--channel-accent': color } as CSSProperties}>
       <header className="mixer-channel__header">
         <div className="mixer-channel__title">
-          <Icon className={cn('mixer-channel__icon', !channelActive && 'mixer-channel__icon--muted')} style={channelActive ? { color } : undefined} aria-hidden={true} />
+          <Icon className={cn('mixer-channel__icon', !mixActive && 'mixer-channel__icon--muted')} style={mixActive ? { color } : undefined} aria-hidden={true} />
           <h3>{bus.label}</h3>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="mixer-channel__settings"
-              aria-label={`Open ${bus.label} ${settingsLabel.toLowerCase()}`}
-              disabled={bus.id === 'aux'}
-              onClick={onOpen}
+              aria-label={`Open ${bus.label} channel menu`}
+              title="Channel menu"
+              disabled={pending}
             >
-              <SlidersHorizontal className="size-3.5" />
+              <SlidersHorizontal className="size-3.5" aria-hidden="true" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>{settingsLabel}</TooltipContent>
-        </Tooltip>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="mixer-channel__menu">
+            <DropdownMenuItem disabled={bus.id === 'aux'} onSelect={onOpen}>
+              <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+              {settingsLabel}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="mixer-channel__disable-action"
+              onSelect={() => onChannelEnabledChange(false)}
+            >
+              <PowerOff className="size-3.5" aria-hidden="true" />
+              Disable channel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       <div className="mixer-channel__meta">
@@ -96,8 +149,8 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
         </div>
       </div>
 
-      <div className={cn('mixer-channel__fader', !channelActive && 'is-dimmed')}>
-        <LevelMeter busId={bus.id} active={engineRunning && channelActive} label={bus.label} accentColor={color} />
+      <div className={cn('mixer-channel__fader', !mixActive && 'is-dimmed')}>
+        <LevelMeter busId={bus.id} active={engineRunning && mixActive} label={bus.label} accentColor={color} />
         <MixerFader value={control.gain} disabled={!control.enabled || pending} label={`${bus.label} in ${mixId} mix`} accentColor={color} onCommit={onGainCommit} />
       </div>
 
@@ -109,60 +162,27 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
               variant="ghost"
               size="icon"
               disabled={pending}
-              aria-label={`${channelActive ? 'Mute' : 'Unmute'} ${bus.label}`}
-              aria-pressed={!channelActive}
+              aria-label={`${mixActive ? 'Mute' : 'Unmute'} ${bus.label}`}
+              aria-pressed={!mixActive}
               onClick={() => onEnabledChange(!control.enabled)}
-              className={cn('mixer-channel__mute-button', !channelActive && 'is-active')}
+              className={cn('mixer-channel__mute-button', !mixActive && 'is-active')}
             >
-              {channelActive ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+              {mixActive ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{channelActive ? 'Mute channel' : 'Unmute channel'}</TooltipContent>
+          <TooltipContent>{mixActive ? 'Mute channel' : 'Unmute channel'}</TooltipContent>
         </Tooltip>
       </div>
 
-      {bus.id !== 'mic' && routingAvailable ? (
-        <div className="mixer-channel__apps">
-          <span>Apps</span>
-          {applications.length === 0 ? (
-            <p>No apps playing here</p>
-          ) : (
-            <ul>
-              {applications.map((application) => (
-                <li
-                  key={application.id}
-                  className={cn(!application.active && 'is-inactive')}
-                  title={application.routingState === 'pending-restart'
-                    ? `Restart ${application.name} to finish moving it from ${application.currentDestination} to ${application.destination}.`
-                    : undefined}
-                >
-                  {application.iconDataUrl ? (
-                    <img src={application.iconDataUrl} alt="" className="size-3.5 object-contain" />
-                  ) : (
-                    <AppWindow className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                  )}
-                  <span className="mixer-channel__app-name truncate">{application.name}</span>
-                  {application.routingState === 'pending-restart' ? (
-                    <span className="mixer-channel__route-pending" aria-label="Application restart required" />
-                  ) : null}
-                  <Select
-                    value={application.destination}
-                    onValueChange={(destination) => onApplicationRoute(application.id, destination as AudioApplication['destination'])}
-                  >
-                    <SelectTrigger className="mixer-channel__route-select" aria-label={`Route ${application.name} to channel`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="game">Game</SelectItem>
-                      <SelectItem value="chat">Chat</SelectItem>
-                      <SelectItem value="media">Media</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {bus.id === 'game' || bus.id === 'chat' || bus.id === 'media' ? (
+        <MixerApplications
+          channelLabel={bus.label}
+          applications={applications}
+          routingSupport={routingSupport}
+          unavailableReason={routingUnavailableReason}
+          pending={pending}
+          onApplicationRoute={onApplicationRoute}
+        />
       ) : null}
     </article>
   );

@@ -37,6 +37,7 @@ import {
   type SetAudioApplicationRouteInput,
   type SetAudioBusEnabledInput,
   type SetAudioBusGainInput,
+  type SetAudioChannelEnabledInput,
   type SetAudioMasterEnabledInput,
   type SetAudioMasterGainInput,
   type SetDeviceSettingInput,
@@ -64,7 +65,7 @@ import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService } from './services/clip-library';
 import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
-import { AppUpdateService } from './services/app-update-service';
+import { AppUpdateService, type AppUpdatePreferences } from './services/app-update-service';
 import { DeviceRegistry } from './services/device-registry';
 import { EngineSupervisor } from './services/engine-supervisor';
 import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery';
@@ -173,7 +174,7 @@ export class AppController {
       draft.version = app.getVersion();
       draft.prototypeMode = !app.isPackaged;
     }, { persist: false });
-    await this.appUpdates.initialize(this.store.get().settings.automaticAppUpdates);
+    await this.appUpdates.initialize(appUpdatePreferences(this.store.get().settings));
     if (this.disposed) return;
     await this.refreshAudioDevices(true);
     if (this.disposed) return;
@@ -373,6 +374,16 @@ export class AppController {
       if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
       const bus = mix.buses.find((candidate) => candidate.id === input.busId);
       if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
+      bus.enabled = input.enabled;
+    });
+    this.engines.send('audio', 'configure', snapshot.audio);
+    return snapshot;
+  }
+
+  public setAudioChannelEnabled(input: SetAudioChannelEnabledInput): SystemSnapshot {
+    const snapshot = this.store.update((draft) => {
+      const bus = draft.audio.buses.find((candidate) => candidate.id === input.busId);
+      if (!bus) throw new Error(`Unknown audio channel: ${input.busId}`);
       bus.enabled = input.enabled;
     });
     this.engines.send('audio', 'configure', snapshot.audio);
@@ -813,8 +824,12 @@ export class AppController {
     if (typeof input.launchAtStartup === 'boolean') {
       this.applyLoginItemSetting(input.launchAtStartup);
     }
-    if (typeof input.automaticAppUpdates === 'boolean') {
-      this.appUpdates.setAutomaticChecksEnabled(input.automaticAppUpdates);
+    if (
+      typeof input.automaticAppUpdates === 'boolean'
+      || typeof input.automaticAppUpdateDownloads === 'boolean'
+      || typeof input.installAppUpdatesOnNextStartup === 'boolean'
+    ) {
+      this.appUpdates.setPreferences(appUpdatePreferences(snapshot.settings));
     }
     if (input.scanGamesAutomatically === true && !automaticScanWasEnabled) {
       return this.scanGames();
@@ -827,8 +842,18 @@ export class AppController {
     return this.store.get();
   }
 
+  public async downloadAppUpdate(): Promise<SystemSnapshot> {
+    await this.appUpdates.downloadAvailableUpdate();
+    return this.store.get();
+  }
+
   public installAppUpdate(): void {
     this.appUpdates.installDownloadedUpdate();
+  }
+
+  public enableDemoUpdate(): SystemSnapshot {
+    this.appUpdates.enableDemoUpdate();
+    return this.store.get();
   }
 
   public async handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult> {
@@ -901,7 +926,7 @@ export class AppController {
       }
     });
     if (scope === 'all' || scope === 'general') {
-      this.appUpdates.setAutomaticChecksEnabled(snapshot.settings.automaticAppUpdates);
+      this.appUpdates.setPreferences(appUpdatePreferences(snapshot.settings));
     }
     if (scope === 'all' || scope === 'capture') {
       this.capturePaths = await this.captureStorage.validate(defaultCaptureConfig.clipsDirectory);
@@ -1541,6 +1566,14 @@ export class AppController {
   private emitAudioMeters(frame: AudioMeterFrame): void {
     for (const listener of this.audioMeterListeners) listener(frame);
   }
+}
+
+function appUpdatePreferences(settings: SystemSnapshot['settings']): AppUpdatePreferences {
+  return {
+    automaticChecks: settings.automaticAppUpdates,
+    automaticDownloads: settings.automaticAppUpdateDownloads,
+    installOnNextStartup: settings.installAppUpdatesOnNextStartup,
+  };
 }
 
 function matchDesktopCaptureSource(

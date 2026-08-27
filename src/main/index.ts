@@ -5,6 +5,7 @@ import { extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { AppController } from './controller';
+import { requestsDemoUpdate } from './development-flags';
 import { registerIpc } from './ipc';
 import { parseByteRange } from './media-byte-range';
 
@@ -14,13 +15,15 @@ let controller: AppController | null = null;
 let cleanupIpc: (() => void) | null = null;
 let quitting = false;
 let shutdownStarted = false;
+let demoUpdateRequested = requestsDemoUpdate(process.argv, app.isPackaged);
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'switchboard-media',
   privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
 }]);
 
-const hasSingleInstanceLock = process.env.SWITCHBOARD_NATIVE_REVIEW === '1' || app.requestSingleInstanceLock();
+const hasSingleInstanceLock = process.env.SWITCHBOARD_NATIVE_REVIEW === '1'
+  || app.requestSingleInstanceLock({ demoUpdate: demoUpdateRequested });
 if (!hasSingleInstanceLock) app.quit();
 
 function isTrustedNavigation(url: string): boolean {
@@ -150,7 +153,13 @@ async function shutdown(): Promise<void> {
 }
 
 if (hasSingleInstanceLock) {
-  app.on('second-instance', showWindow);
+  app.on('second-instance', (_event, arguments_, _workingDirectory, additionalData) => {
+    if (requestsDemoUpdate(arguments_, app.isPackaged, additionalData)) {
+      demoUpdateRequested = true;
+      controller?.enableDemoUpdate();
+    }
+    showWindow();
+  });
 
   void app.whenReady().then(async () => {
     app.setAppUserModelId('dev.switchboard.prototype');
@@ -158,7 +167,7 @@ if (hasSingleInstanceLock) {
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController({
-      demoUpdate: !app.isPackaged && process.argv.includes('--demo-update'),
+      demoUpdate: demoUpdateRequested,
       onUpdateInstallRequested: (installing) => {
         quitting = installing;
       },

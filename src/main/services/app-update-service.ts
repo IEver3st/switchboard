@@ -15,8 +15,15 @@ interface AppUpdaterClient {
   on(event: UpdaterEvent, listener: (payload?: unknown) => void): unknown;
   removeListener(event: UpdaterEvent, listener: (payload?: unknown) => void): unknown;
   checkForUpdates(): Promise<unknown>;
+  downloadUpdate(): Promise<unknown>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
 }
+
+export type AppUpdatePreferences = {
+  automaticChecks: boolean;
+  automaticDownloads: boolean;
+  installOnNextStartup: boolean;
+};
 
 type AppUpdateServiceOptions = {
   currentVersion: string;
@@ -40,7 +47,12 @@ const repeatIntervalMs = 6 * 60 * 60 * 1_000;
 export class AppUpdateService {
   private state: AppUpdateState;
   private updater: AppUpdaterClient | null = null;
-  private automaticChecksEnabled = false;
+  private preferences: AppUpdatePreferences = {
+    automaticChecks: true,
+    automaticDownloads: true,
+    installOnNextStartup: false,
+  };
+  private demoUpdateEnabled: boolean;
   private initialized = false;
   private disposed = false;
   private scheduledCheck: NodeJS.Timeout | null = null;
@@ -51,6 +63,7 @@ export class AppUpdateService {
   }> = [];
 
   public constructor(private readonly options: AppUpdateServiceOptions) {
+    this.demoUpdateEnabled = options.demoUpdate === true && !options.isPackaged;
     this.state = appUpdateStateSchema.parse({
       capability: 'unavailable',
       status: 'unavailable',
@@ -63,22 +76,12 @@ export class AppUpdateService {
     });
   }
 
-  public async initialize(automaticChecksEnabled: boolean): Promise<AppUpdateState> {
-    this.automaticChecksEnabled = automaticChecksEnabled;
+  public async initialize(preferences: AppUpdatePreferences): Promise<AppUpdateState> {
+    this.preferences = structuredClone(preferences);
     if (this.initialized || this.disposed) return this.getState();
     this.initialized = true;
 
-    if (this.options.demoUpdate && !this.options.isPackaged) {
-      return this.publish({
-        capability: 'available',
-        status: 'available',
-        availableVersion: getDemoAvailableVersion(this.options.currentVersion),
-        downloadProgress: 0,
-        checkedAt: new Date().toISOString(),
-        error: null,
-        unavailableReason: null,
-      });
-    }
+    if (this.demoUpdateEnabled) return this.publishDemoUpdate();
 
     if (!this.options.isPackaged || this.options.platform !== 'win32') {
       return this.publish({
@@ -97,10 +100,7 @@ export class AppUpdateService {
         this.updater = null;
         return this.getState();
       }
-      this.updater.autoDownload = true;
-      // A downloaded update is applied only through the explicit restart action.
-      // This avoids launching an NSIS installer during Windows session shutdown.
-      this.updater.autoInstallOnAppQuit = false;
+      this.applyPreferencesToUpdater(this.updater);
       this.attachListeners(this.updater);
       const next = this.publish({
         capability: 'available',
@@ -108,7 +108,7 @@ export class AppUpdateService {
         error: null,
         unavailableReason: null,
       });
-      if (automaticChecksEnabled) this.scheduleCheck(this.options.startupDelayMs ?? startupDelayMs);
+      if (this.preferences.automaticChecks) this.scheduleCheck(this.options.startupDelayMs ?? startupDelayMs);
       return next;
     } catch (error) {
       console.error('Switchboard app updater failed to initialize.', error);
@@ -121,16 +121,30 @@ export class AppUpdateService {
     }
   }
 
-  public setAutomaticChecksEnabled(enabled: boolean): AppUpdateState {
-    this.automaticChecksEnabled = enabled;
-    if (!enabled) this.clearScheduledCheck();
+  public enableDemoUpdate(): AppUpdateState {
+    if (this.options.isPackaged || this.disposed) return this.getState();
+    this.demoUpdateEnabled = true;
+    this.clearScheduledCheck();
+    return this.publishDemoUpdate();
+  }
+
+  public setPreferences(preferences: AppUpdatePreferences): AppUpdateState {
+    const shouldStartDownload = !this.preferences.automaticDownloads
+      && preferences.automaticDownloads
+      && this.state.status === 'available';
+    this.preferences = structuredClone(preferences);
+    if (this.updater) this.applyPreferencesToUpdater(this.updater);
+
+    if (!preferences.automaticChecks) this.clearScheduledCheck();
     else if (this.updater && !this.disposed) {
       this.scheduleCheck(this.options.startupDelayMs ?? startupDelayMs);
     }
+    if (shouldStartDownload) void this.downloadAvailableUpdate();
     return this.getState();
   }
 
   public checkForUpdates(): Promise<AppUpdateState> {
+    if (this.demoUpdateEnabled) return Promise.resolve(this.publishDemoUpdate());
     if (!this.updater || this.disposed || this.state.capability !== 'available') {
       return Promise.resolve(this.getState());
     }
@@ -143,7 +157,32 @@ export class AppUpdateService {
     return check;
   }
 
+  public async downloadAvailableUpdate(): Promise<AppUpdateState> {
+    if (this.demoUpdateEnabled) {
+      if (this.state.status !== 'available') return this.getState();
+      return this.publish({ status: 'downloaded', downloadProgress: 100, error: null });
+    }
+    if (!this.updater || this.disposed || this.state.status !== 'available') {
+      throw new Error('No Switchboard update is available to download.');
+    }
+
+    this.publish({ status: 'downloading', downloadProgress: 0, error: null });
+    try {
+      await this.updater.downloadUpdate();
+    } catch (error) {
+      console.error('Switchboard app update download failed.', error);
+      this.publish({
+        status: 'error',
+        error: 'Switchboard could not download the update. Check your connection and try again.',
+      });
+    }
+    return this.getState();
+  }
+
   public installDownloadedUpdate(): void {
+    if (this.demoUpdateEnabled) {
+      throw new Error('The development update preview does not include an installer.');
+    }
     if (!this.updater || this.state.status !== 'downloaded') {
       throw new Error('No downloaded Switchboard update is ready to install.');
     }
@@ -251,6 +290,23 @@ export class AppUpdateService {
     });
   }
 
+  private applyPreferencesToUpdater(updater: AppUpdaterClient): void {
+    updater.autoDownload = this.preferences.automaticDownloads;
+    updater.autoInstallOnAppQuit = this.preferences.installOnNextStartup;
+  }
+
+  private publishDemoUpdate(): AppUpdateState {
+    return this.publish({
+      capability: 'available',
+      status: 'available',
+      availableVersion: getDemoAvailableVersion(this.options.currentVersion),
+      downloadProgress: 0,
+      checkedAt: new Date().toISOString(),
+      error: null,
+      unavailableReason: null,
+    });
+  }
+
   private listen(
     updater: AppUpdaterClient,
     event: UpdaterEvent,
@@ -270,7 +326,7 @@ export class AppUpdateService {
   }
 
   private scheduleCheck(delayMs: number): void {
-    if (!this.automaticChecksEnabled || !this.updater || this.disposed || this.scheduledCheck) return;
+    if (!this.preferences.automaticChecks || !this.updater || this.disposed || this.scheduledCheck) return;
     this.scheduledCheck = setTimeout(() => {
       this.scheduledCheck = null;
       void this.checkForUpdates().finally(() => {
