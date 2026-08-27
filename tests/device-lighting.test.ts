@@ -21,13 +21,15 @@ describe('device render lighting masks', () => {
     const pixels = new Uint8ClampedArray([
       245, 86, 188, 255,
       78, 205, 252, 255,
+      240, 225, 235, 255,
     ]);
 
     applyLighting(pixels, 'saturated-rgb', false, '#ff1744');
 
     expect([...pixels]).toEqual([
-      34, 34, 34, 255,
+      31, 31, 31, 255,
       44, 44, 44, 255,
+      55, 55, 55, 255,
     ]);
   });
 
@@ -40,5 +42,19 @@ describe('device render lighting masks', () => {
 
     expect([...neutralShell]).toEqual([222, 219, 216, 255]);
     expect([...nonRedHyperxDetail]).toEqual([52, 96, 184, 255]);
+  });
+
+  test('projects canonical brightness without losing the unlit diffuser', () => {
+    const full = new Uint8ClampedArray([245, 86, 188, 255]);
+    const dimmed = new Uint8ClampedArray(full);
+    const zero = new Uint8ClampedArray(full);
+
+    applyLighting(full, 'saturated-rgb', true, '#ff1744', 100);
+    applyLighting(dimmed, 'saturated-rgb', true, '#ff1744', 25);
+    applyLighting(zero, 'saturated-rgb', true, '#ff1744', 0);
+
+    expect(dimmed[0]).toBeLessThan(full[0]!);
+    expect(dimmed[0]).toBeGreaterThan(zero[0]!);
+    expect([...zero]).toEqual([31, 31, 31, 255]);
   });
 });

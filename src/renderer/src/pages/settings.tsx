@@ -79,6 +79,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
         searchInputRef.current?.select();
       }
       if (event.key === 'Escape') {
+        if (document.querySelector('[data-feedback-dialog]')) return;
         if (confirmation) setConfirmation(null);
         else onClose();
       }

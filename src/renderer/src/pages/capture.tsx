@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Clip, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
+import type { Clip, ClipCanvasSize, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
 import { DeleteClipDialog, RenameClipDialog } from '@/components/capture/ClipDialogs';
@@ -15,7 +15,9 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const deleteClip = useSystemStore((state) => state.deleteClip);
   const renameClip = useSystemStore((state) => state.renameClip);
   const exportClip = useSystemStore((state) => state.exportClip);
+  const setClipCanvasSize = useSystemStore((state) => state.setClipCanvasSize);
   const setClipTrim = useSystemStore((state) => state.setClipTrim);
+  const setClipAudioTrackLevel = useSystemStore((state) => state.setClipAudioTrackLevel);
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const [editorClipId, setEditorClipId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Clip | null>(null);
@@ -97,15 +99,20 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
             clip={editorClip}
             exportPending={pendingClipActions.has(`clip:${editorClip.id}:export`)}
             trimPending={pendingClipActions.has(`clip:${editorClip.id}:trim`)}
+            canvasPending={pendingClipActions.has(`clip:${editorClip.id}:canvas`)}
             inspectorOpen={snapshot.settings.clipEditorInspectorOpen}
             onClose={closeEditor}
             onFavorite={(favorite) => void setClipFavorite({ id: editorClip.id, favorite })}
             onRename={() => setRenameTarget(editorClip)}
             onReveal={() => void revealClip(editorClip.id)}
             onInspectorOpenChange={(open) => void updateSettings({ clipEditorInspectorOpen: open })}
+            onCanvasSizeChange={(canvasSize: ClipCanvasSize) => void runClipAction(`clip:${editorClip.id}:canvas`, () => setClipCanvasSize({ id: editorClip.id, canvasSize })).then(() => {
+              showTransientToast(canvasSize === '9:16' ? 'Canvas set to 9:16' : 'Canvas restored to original', setToast);
+            })}
             onSaveTrim={(startMs, endMs) => runClipAction(`clip:${editorClip.id}:trim`, () => setClipTrim({ id: editorClip.id, startMs, endMs })).then(() => {
               showTransientToast('Trim saved', setToast);
             })}
+            onAudioTrackLevelChange={(trackIndex, level) => setClipAudioTrackLevel({ id: editorClip.id, trackIndex, level })}
             onExport={(preset: ClipExportPreset, startMs, endMs) => runClipAction(`clip:${editorClip.id}:export`, () => exportClip({ id: editorClip.id, startMs, endMs, preset })).then((exported) => {
               if (exported) showTransientToast('Share file created', setToast);
               return exported;

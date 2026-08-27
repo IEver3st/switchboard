@@ -87,6 +87,13 @@ export class StateStore {
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
     const defaults = createDefaultSnapshot();
+    const modulesById = new Map(next.modules.map((module) => [module.id, module]));
+    next.modules = defaults.modules.map((fallback) => {
+      const existing = modulesById.get(fallback.id);
+      return existing
+        ? { ...structuredClone(fallback), enabled: existing.enabled }
+        : structuredClone(fallback);
+    });
     next.audio.devices = [];
     next.audio.outputDevice = '';
     next.audio.microphoneDevice = '';

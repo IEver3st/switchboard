@@ -1,7 +1,22 @@
-import { ArrowLeft, Search, X } from 'lucide-react';
+import {
+  Activity,
+  ArrowLeft,
+  Blocks,
+  Film,
+  Gamepad2,
+  Headphones,
+  Info,
+  Mouse,
+  Search,
+  Settings2,
+  Video,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { useMemo, useRef, type KeyboardEvent, type RefObject } from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
+import { FeedbackDialog } from './feedback-dialog';
 import {
   categoryLabel,
   searchSettings,
@@ -9,6 +24,18 @@ import {
   type SettingsCategoryId,
   type SettingsSearchEntry,
 } from './settings-catalog';
+
+export const settingsCategoryIcons: Record<SettingsCategoryId, LucideIcon> = {
+  general: Settings2,
+  devices: Mouse,
+  audio: Headphones,
+  capture: Video,
+  clips: Film,
+  games: Gamepad2,
+  modules: Blocks,
+  diagnostics: Activity,
+  about: Info,
+};
 
 export function SettingsSidebar({
   category,
@@ -105,24 +132,50 @@ export function SettingsSidebar({
         <div className="settings-sidebar__label">Categories</div>
         <div className="settings-categories__list">
           {settingsCategories.map((item) => (
-            <button
+            <SettingsCategoryLink
               key={item.id}
-              type="button"
-              data-settings-category={item.id}
-              aria-current={category === item.id ? 'page' : undefined}
+              id={item.id}
+              label={item.label}
+              active={category === item.id}
               onClick={() => onCategoryChange(item.id)}
-              className={cn('settings-category-link', category === item.id && 'settings-category-link--active')}
-            >
-              {item.label}
-            </button>
+            />
           ))}
         </div>
       </nav>
 
-      <button type="button" className="settings-back no-drag" onClick={onBack} title="Back (Esc)">
-        <ArrowLeft aria-hidden />
-        <span>Back</span>
-      </button>
+      <div className="settings-sidebar__footer">
+        <FeedbackDialog />
+        <button type="button" className="settings-back no-drag" onClick={onBack} title="Back (Esc)">
+          <ArrowLeft aria-hidden />
+          <span>Back</span>
+        </button>
+      </div>
     </aside>
+  );
+}
+
+function SettingsCategoryLink({
+  id,
+  label,
+  active,
+  onClick,
+}: {
+  id: SettingsCategoryId;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = settingsCategoryIcons[id];
+  return (
+    <button
+      type="button"
+      data-settings-category={id}
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+      className={cn('settings-category-link', active && 'settings-category-link--active')}
+    >
+      <Icon aria-hidden />
+      <span>{label}</span>
+    </button>
   );
 }

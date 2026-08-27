@@ -41,7 +41,8 @@
     }
 
     a { color: inherit; }
-    a:focus-visible {
+    a:focus-visible,
+    [tabindex]:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 3px;
     }
@@ -437,7 +438,7 @@
     <section class="section" id="artifact">
       <div class="section-heading">
         <div><div class="section-label">Installable artifact</div><h2>Final Windows package</h2></div>
-        <p>This artifact matches the final validated source and passed the packaged Audio.Host smoke test.</p>
+        <p>This artifact contains the audited audio implementation and passed the packaged Audio.Host smoke test. Unrelated repository work continued after the package snapshot.</p>
       </div>
       <div class="two-col">
         <article class="note-panel"><h3>Installer</h3><p><code>dist\Switchboard-0.1.0-x64.exe</code></p><ul><li>Size: <span class="mono">309,284,006 bytes</span></li><li>Format: per-user NSIS installer</li><li>Build and signing stages completed</li></ul></article>

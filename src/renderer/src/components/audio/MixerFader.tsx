@@ -134,7 +134,7 @@ export const MixerFader = memo(function MixerFader({
           disabled={disabled}
           aria-label={`${label} exact volume percentage`}
           onFocus={(event) => event.currentTarget.select()}
-          onChange={(event) => {
+          onInput={(event) => {
             if (/^\d{0,3}$/.test(event.target.value)) setDraft(event.target.value);
           }}
           onBlur={commitDraft}

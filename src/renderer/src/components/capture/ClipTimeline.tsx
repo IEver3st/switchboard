@@ -4,14 +4,18 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
 import { FastForward, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX } from 'lucide-react';
+import type { ClipAudioChannel, ClipAudioWaveformTrack } from '../../../../shared/contracts';
+import { channelColor } from '@/components/audio/channel-identity';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { switchboardApi } from '@/lib/demo-api';
 import {
   applyPlayheadKeyboard,
   applyTimelineInteraction,
@@ -25,24 +29,32 @@ import {
 import './clip-editor.css';
 
 export function ClipTimeline({
+  clipId,
   videoRef,
   durationMs,
   fps,
+  audioChannels,
+  audioTrackLevels,
   startMs,
   endMs,
   dirty,
   savePending,
   onChange,
+  onAudioTrackLevelChange,
   onSave,
 }: {
+  clipId: string;
   videoRef: RefObject<HTMLVideoElement | null>;
   durationMs: number;
   fps: number;
+  audioChannels?: ClipAudioChannel[];
+  audioTrackLevels?: number[];
   startMs: number;
   endMs: number;
   dirty: boolean;
   savePending: boolean;
   onChange: (startMs: number, endMs: number) => void;
+  onAudioTrackLevelChange: (trackIndex: number, level: number) => Promise<void>;
   onSave: () => void;
 }) {
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -57,7 +69,24 @@ export function ClipTimeline({
   const [volume, setVolume] = useState(1);
   const [interaction, setInteractionState] = useState<TimelineInteraction>('idle');
   const [timelineWidth, setTimelineWidth] = useState(720);
+  const [waveformState, setWaveformState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [waveformTracks, setWaveformTracks] = useState<ClipAudioWaveformTrack[]>([]);
   const frameMs = Math.max(1, 1_000 / Math.max(1, fps));
+
+  useEffect(() => {
+    let active = true;
+    setWaveformState('loading');
+    setWaveformTracks([]);
+    void switchboardApi.loadClipAudioWaveform(clipId).then((waveform) => {
+      if (!active) return;
+      setWaveformTracks(waveform.tracks);
+      setWaveformState('ready');
+    }).catch(() => {
+      if (!active) return;
+      setWaveformState('error');
+    });
+    return () => { active = false; };
+  }, [clipId]);
 
   const setPlayhead = useCallback((nextMs: number) => {
     const boundedMs = Math.min(durationMs, Math.max(0, Math.round(nextMs)));
@@ -343,7 +372,14 @@ export function ClipTimeline({
   const endPercent = endMs / durationMs * 100;
   const currentPercent = Math.min(100, Math.max(0, currentMs / durationMs * 100));
   const selectedPercent = Math.max(0, endPercent - startPercent);
-  const frameCount = Math.max(10, Math.min(30, Math.round(timelineWidth / 44)));
+  const fallbackTracks: ClipAudioWaveformTrack[] = (audioChannels ?? []).map((channel, trackIndex) => ({
+    trackIndex,
+    channel,
+    label: channelLabel(channel),
+    samples: [],
+  }));
+  const displayTracks = waveformState === 'ready' ? waveformTracks : (waveformTracks.length > 0 ? waveformTracks : fallbackTracks);
+  const timelineStyle = { '--audio-track-count': Math.max(1, displayTracks.length) } as CSSProperties;
 
   return (
     <section className="clip-editor-timeline" aria-label="Clip timeline" data-interaction={interaction}>
@@ -384,92 +420,202 @@ export function ClipTimeline({
         </div>
       </div>
 
-      <div ref={timelineRef} className="clip-editor-timeline__surface" data-testid="clip-timeline-surface">
-        <div className="clip-editor-timeline__ruler" aria-hidden="true">
-          {ruler.map((mark, index) => (
-            <span key={`${mark.ms}-${index}`} className={mark.major ? 'is-major' : undefined} style={{ left: `${mark.ms / durationMs * 100}%` }}>
-              {mark.major ? <em>{formatRulerTime(mark.ms)}</em> : null}
-            </span>
-          ))}
+      <div className="clip-editor-timeline__desk" style={timelineStyle} data-waveform-state={waveformState}>
+        <div className="clip-editor-track-controls" aria-label="Export audio mix">
+          <div className="clip-editor-track-controls__heading" title="Track levels are auto-saved and applied to created share files.">
+            <span>Export mix</span><em>Auto-saved</em>
+          </div>
+          <div className="clip-editor-track-controls__lanes">
+            {displayTracks.length > 0 ? displayTracks.map((track) => (
+              <AudioTrackControl
+                key={track.trackIndex}
+                track={track}
+                level={audioTrackLevels?.[track.trackIndex] ?? 100}
+                onCommit={onAudioTrackLevelChange}
+              />
+            )) : (
+              <div className="clip-editor-track-controls__empty">
+                {waveformState === 'loading' ? 'Reading audio tracks…' : waveformState === 'error' ? 'Audio analysis unavailable' : 'No audio streams'}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="clip-editor-timeline__track" aria-hidden="true">
-          {Array.from({ length: frameCount + 1 }, (_, index) => (
-            <span key={index} className="clip-editor-timeline__frame" style={{ left: `${index / frameCount * 100}%` }} />
-          ))}
-          <span className="clip-editor-timeline__selection" style={{ left: `${startPercent}%`, width: `${selectedPercent}%` }} />
-          <span className="clip-editor-timeline__inactive is-before" style={{ width: `${startPercent}%` }} />
-          <span className="clip-editor-timeline__inactive is-after" style={{ left: `${endPercent}%`, width: `${100 - endPercent}%` }} />
-        </div>
+        <div ref={timelineRef} className="clip-editor-timeline__surface" data-testid="clip-timeline-surface">
+          <div className="clip-editor-timeline__ruler" aria-hidden="true">
+            {ruler.map((mark, index) => (
+              <span key={`${mark.ms}-${index}`} className={mark.major ? 'is-major' : undefined} style={{ left: `${mark.ms / durationMs * 100}%` }}>
+                {mark.major ? <em>{formatRulerTime(mark.ms)}</em> : null}
+              </span>
+            ))}
+          </div>
 
-        <div
-          role="slider"
-          tabIndex={0}
-          aria-label="Playhead"
-          aria-valuemin={0}
-          aria-valuemax={durationMs}
-          aria-valuenow={Math.round(currentMs)}
-          aria-valuetext={formatTimelineTime(currentMs)}
-          aria-orientation="horizontal"
-          className="clip-editor-timeline__scrub-target"
-          data-testid="clip-timeline-scrub-target"
-          onKeyDown={updatePlayheadFromKeyboard}
-          onPointerDown={beginScrubbing}
-          onPointerMove={continueScrubbing}
-          onPointerUp={finishScrubbing}
-          onPointerCancel={cancelPointerInteraction}
-        />
+          <div className="clip-editor-timeline__tracks" aria-hidden="true">
+            {displayTracks.length > 0 ? displayTracks.map((track) => (
+              <div
+                key={track.trackIndex}
+                className="clip-editor-timeline__audio-track"
+                data-muted={(audioTrackLevels?.[track.trackIndex] ?? 100) === 0 ? 'true' : undefined}
+                style={{ '--track-color': track.channel ? channelColor(track.channel) : 'var(--text-description)' } as CSSProperties}
+              >
+                {track.samples.length > 0 ? (
+                  <svg viewBox={`0 0 ${track.samples.length} 1`} preserveAspectRatio="none" focusable="false">
+                    <path d={waveformPath(track.samples)} vectorEffect="non-scaling-stroke" />
+                  </svg>
+                ) : <span>{waveformState === 'loading' ? 'Analyzing…' : waveformState === 'error' ? 'Waveform unavailable' : 'No audible activity'}</span>}
+              </div>
+            )) : (
+              <div className="clip-editor-timeline__audio-track is-empty"><span>{waveformState === 'loading' ? 'Reading track data…' : waveformState === 'error' ? 'Waveform unavailable' : 'This clip has no audio streams'}</span></div>
+            )}
+          </div>
+          <span className="clip-editor-timeline__selection" style={{ left: `${startPercent}%`, width: `${selectedPercent}%` }} aria-hidden="true" />
+          <span className="clip-editor-timeline__inactive is-before" style={{ width: `${startPercent}%` }} aria-hidden="true" />
+          <span className="clip-editor-timeline__inactive is-after" style={{ left: `${endPercent}%`, width: `${100 - endPercent}%` }} aria-hidden="true" />
 
-        <div className="clip-editor-playhead" style={{ left: `${currentPercent}%` }} aria-hidden="true">
-          <span className="clip-editor-playhead__cap" />
-          <span className="clip-editor-playhead__line" />
-        </div>
+          <div
+            role="slider"
+            tabIndex={0}
+            aria-label="Playhead"
+            aria-valuemin={0}
+            aria-valuemax={durationMs}
+            aria-valuenow={Math.round(currentMs)}
+            aria-valuetext={formatTimelineTime(currentMs)}
+            aria-orientation="horizontal"
+            className="clip-editor-timeline__scrub-target"
+            data-testid="clip-timeline-scrub-target"
+            onKeyDown={updatePlayheadFromKeyboard}
+            onPointerDown={beginScrubbing}
+            onPointerMove={continueScrubbing}
+            onPointerUp={finishScrubbing}
+            onPointerCancel={cancelPointerInteraction}
+          />
 
-        <div
-          role="slider"
-          tabIndex={0}
-          aria-label="Trim start"
-          aria-valuemin={0}
-          aria-valuemax={Math.max(0, endMs - minimumClipDurationMs)}
-          aria-valuenow={Math.round(startMs)}
-          aria-valuetext={formatTimelineTime(startMs)}
-          aria-orientation="horizontal"
-          className="clip-editor-trim-handle is-start"
-          style={{ left: `${startPercent}%` }}
-          data-testid="clip-trim-start"
-          onKeyDown={(event) => updateTrimFromKeyboard(event, 'dragging-trim-start')}
-          onPointerDown={beginTrimStart}
-          onPointerMove={continueTrimStart}
-          onPointerUp={finishTrimStart}
-          onPointerCancel={cancelPointerInteraction}
-        >
-          <span aria-hidden="true"><i /><i /><i /></span>
-        </div>
+          <div className="clip-editor-playhead" style={{ left: `${currentPercent}%` }} aria-hidden="true">
+            <span className="clip-editor-playhead__cap" />
+            <span className="clip-editor-playhead__line" />
+          </div>
 
-        <div
-          role="slider"
-          tabIndex={0}
-          aria-label="Trim end"
-          aria-valuemin={Math.min(durationMs, startMs + minimumClipDurationMs)}
-          aria-valuemax={durationMs}
-          aria-valuenow={Math.round(endMs)}
-          aria-valuetext={formatTimelineTime(endMs)}
-          aria-orientation="horizontal"
-          className="clip-editor-trim-handle is-end"
-          style={{ left: `${endPercent}%` }}
-          data-testid="clip-trim-end"
-          onKeyDown={(event) => updateTrimFromKeyboard(event, 'dragging-trim-end')}
-          onPointerDown={beginTrimEnd}
-          onPointerMove={continueTrimEnd}
-          onPointerUp={finishTrimEnd}
-          onPointerCancel={cancelPointerInteraction}
-        >
-          <span aria-hidden="true"><i /><i /><i /></span>
+          <div
+            role="slider"
+            tabIndex={0}
+            aria-label="Trim start"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(0, endMs - minimumClipDurationMs)}
+            aria-valuenow={Math.round(startMs)}
+            aria-valuetext={formatTimelineTime(startMs)}
+            aria-orientation="horizontal"
+            className="clip-editor-trim-handle is-start"
+            style={{ left: `${startPercent}%` }}
+            data-testid="clip-trim-start"
+            onKeyDown={(event) => updateTrimFromKeyboard(event, 'dragging-trim-start')}
+            onPointerDown={beginTrimStart}
+            onPointerMove={continueTrimStart}
+            onPointerUp={finishTrimStart}
+            onPointerCancel={cancelPointerInteraction}
+          >
+            <span aria-hidden="true"><i /><i /><i /></span>
+          </div>
+
+          <div
+            role="slider"
+            tabIndex={0}
+            aria-label="Trim end"
+            aria-valuemin={Math.min(durationMs, startMs + minimumClipDurationMs)}
+            aria-valuemax={durationMs}
+            aria-valuenow={Math.round(endMs)}
+            aria-valuetext={formatTimelineTime(endMs)}
+            aria-orientation="horizontal"
+            className="clip-editor-trim-handle is-end"
+            style={{ left: `${endPercent}%` }}
+            data-testid="clip-trim-end"
+            onKeyDown={(event) => updateTrimFromKeyboard(event, 'dragging-trim-end')}
+            onPointerDown={beginTrimEnd}
+            onPointerMove={continueTrimEnd}
+            onPointerUp={finishTrimEnd}
+            onPointerCancel={cancelPointerInteraction}
+          >
+            <span aria-hidden="true"><i /><i /><i /></span>
+          </div>
         </div>
       </div>
 
     </section>
   );
+}
+
+function AudioTrackControl({ track, level, onCommit }: {
+  track: ClipAudioWaveformTrack;
+  level: number;
+  onCommit: (trackIndex: number, level: number) => Promise<void>;
+}) {
+  const [draftLevel, setDraftLevel] = useState(level);
+  const draftLevelRef = useRef(level);
+  const committedLevelRef = useRef(level);
+  const commitTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    setDraftLevel(level);
+    draftLevelRef.current = level;
+    committedLevelRef.current = level;
+  }, [level]);
+
+  useEffect(() => () => {
+    if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
+  }, []);
+
+  const commit = () => {
+    if (commitTimerRef.current !== null) {
+      window.clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
+    const nextLevel = draftLevelRef.current;
+    if (nextLevel === committedLevelRef.current) return;
+    committedLevelRef.current = nextLevel;
+    void onCommit(track.trackIndex, nextLevel).catch(() => {
+      committedLevelRef.current = level;
+      draftLevelRef.current = level;
+      setDraftLevel(level);
+    });
+  };
+  const updateDraft = (nextLevel: number) => {
+    draftLevelRef.current = nextLevel;
+    setDraftLevel(nextLevel);
+    if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
+    commitTimerRef.current = window.setTimeout(commit, 160);
+  };
+  const label = track.channel ? channelLabel(track.channel) : track.label;
+  const color = track.channel ? channelColor(track.channel) : 'var(--text-description)';
+
+  return (
+    <label className="clip-editor-track-control" data-muted={draftLevel === 0 ? 'true' : undefined} style={{ '--track-color': color } as CSSProperties}>
+      <span className="clip-editor-track-control__name"><i aria-hidden="true" />{label}</span>
+      <output>{draftLevel}%</output>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={draftLevel}
+        aria-label={`${label} export level`}
+        aria-valuetext={`${draftLevel} percent in exported mix`}
+        onChange={(event) => updateDraft(Number(event.currentTarget.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+      />
+    </label>
+  );
+}
+
+function channelLabel(channel: ClipAudioChannel): string {
+  if (channel === 'microphone') return 'Microphone';
+  return channel.charAt(0).toUpperCase() + channel.slice(1);
+}
+
+export function waveformPath(samples: readonly number[]): string {
+  return samples.map((sample, index) => {
+    const amplitude = Math.min(0.46, Math.max(0, sample) * 0.46);
+    return `M${index + 0.5},${0.5 - amplitude}V${0.5 + amplitude}`;
+  }).join('');
 }
 
 function TransportButton({ label, icon: Icon, primary = false, pressed, disabled, onClick }: {

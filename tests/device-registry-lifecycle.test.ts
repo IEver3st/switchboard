@@ -4,6 +4,44 @@ import { DeviceRegistry } from '../src/main/services/device-registry';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 
 describe('device registry lifecycle', () => {
+  test('does not make a confirmed control write wait for a second device discovery', async () => {
+    let releaseDiscovery!: () => void;
+    const discoveryGate = new Promise<void>((resolve) => { releaseDiscovery = resolve; });
+    let discoveryCount = 0;
+    const fakeModule: DeviceModule = {
+      id: 'device.logitech-hidpp',
+      async discover() {
+        discoveryCount += 1;
+        await discoveryGate;
+        return [];
+      },
+      async setControl() {
+        // The device write and its protocol-level acknowledgement already finished.
+      },
+    };
+    let snapshot = createDefaultSnapshot();
+    const registry = new DeviceRegistry(
+      () => snapshot,
+      (devices) => { snapshot = { ...snapshot, devices }; },
+      { modules: [fakeModule], listHidDevices: async () => [] },
+    );
+
+    const control = registry.setControl('logitech-g502x-plus-1', { type: 'lighting-enabled', enabled: false });
+    const result = await Promise.race([
+      control.then(() => 'resolved' as const),
+      new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 25)),
+    ]);
+
+    releaseDiscovery();
+    await control;
+
+    expect(result).toBe('resolved');
+    expect(discoveryCount).toBe(0);
+    expect(snapshot.devices.find((device) => device.id === 'logitech-g502x-plus-1')?.capabilities.lighting?.enabled)
+      .toBe(false);
+    await registry.dispose();
+  });
+
   test('waits for in-flight discovery and suppresses late publication before disposing modules', async () => {
     let announceDiscovery!: () => void;
     let releaseDiscovery!: () => void;

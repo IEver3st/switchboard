@@ -65,6 +65,31 @@ describe('application update lifecycle', () => {
     service.dispose();
   });
 
+  it('supports an explicit development-only pending update presentation', async () => {
+    let loaderCalled = false;
+    const service = new AppUpdateService({
+      currentVersion: '0.1.0',
+      isPackaged: false,
+      platform: 'win32',
+      demoUpdate: true,
+      onStateChanged: () => undefined,
+      loadUpdater: async () => {
+        loaderCalled = true;
+        return new FakeUpdater();
+      },
+    });
+
+    await expect(service.initialize(true)).resolves.toMatchObject({
+      capability: 'available',
+      status: 'available',
+      availableVersion: '0.2.0',
+      downloadProgress: 0,
+    });
+    expect(loaderCalled).toBeFalse();
+    await expect(service.checkForUpdates()).resolves.toMatchObject({ status: 'available' });
+    service.dispose();
+  });
+
   it('publishes check, download, and restart-ready state through the canonical contract', async () => {
     const updater = new FakeUpdater();
     const states: AppUpdateState[] = [];

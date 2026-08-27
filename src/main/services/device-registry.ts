@@ -3,9 +3,10 @@ import type { Device, DeviceControlChange, SystemSnapshot } from '../../shared/c
 import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
+import { RazerHuntsmanV2AnalogModule } from '../modules/razer';
 
 const discoveryIntervalMs = 5_000;
-const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1']);
+const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1', 'razer-huntsman-v2-analog-1']);
 
 type DeviceRegistryOptions = {
   modules?: DeviceModule[];
@@ -28,6 +29,7 @@ export class DeviceRegistry {
     options: DeviceRegistryOptions = {},
   ) {
     this.modules = options.modules ?? [
+      new RazerHuntsmanV2AnalogModule(),
       new LogitechDeviceModule(),
       new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
     ];
@@ -64,6 +66,7 @@ export class DeviceRegistry {
     const module = this.modules.find((candidate) => candidate.id === device.moduleId);
     if (!module?.setControl) throw new Error(`${device.displayName} does not expose writable device controls.`);
     await module.setControl(device, change);
+    if (applyConfirmedLightingControl(this.getSnapshot(), deviceId, change, this.applyDevices)) return;
     // A scheduled discovery may still be publishing the state from before the
     // write. Let it finish, then perform a fresh read so the renderer observes
     // device-confirmed state instead of optimistic React state.
@@ -85,6 +88,7 @@ export class DeviceRegistry {
   }
 
   private setFixtureControl(deviceId: string, change: DeviceControlChange): void {
+    if (applyConfirmedLightingControl(this.getSnapshot(), deviceId, change, this.applyDevices)) return;
     const devices = structuredClone(this.getSnapshot().devices);
     const device = devices.find((candidate) => candidate.id === deviceId);
     if (!device) throw new Error('Fixture device not found.');
@@ -100,28 +104,6 @@ export class DeviceRegistry {
     if (change.type === 'onboard-memory' && device.capabilities.onboardMemory) {
       device.capabilities.onboardMemory.enabled = change.enabled;
     }
-    if (change.type === 'lighting-enabled' && device.capabilities.lighting) device.capabilities.lighting.enabled = change.enabled;
-    if (change.type === 'lighting-color' && device.capabilities.lighting) {
-      device.capabilities.lighting.color = change.color;
-      device.capabilities.lighting.enabled = true;
-    }
-    if (change.type === 'lighting-brightness' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { brightness: change.brightness, activeProfileId: 'custom' });
-    if (change.type === 'lighting-effect' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { activeEffectId: change.effectId, activeProfileId: 'custom' });
-    if (change.type === 'lighting-speed' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { speed: change.speed, activeProfileId: 'custom' });
-    if (change.type === 'lighting-profile' && device.capabilities.lighting) {
-      const profile = device.capabilities.lighting.profiles.find((candidate) => candidate.id === change.profileId);
-      if (profile) Object.assign(device.capabilities.lighting, {
-        activeProfileId: profile.id,
-        activeEffectId: profile.effectId,
-        brightness: profile.brightness,
-        speed: profile.speed,
-      });
-    }
-    if (change.type === 'microphone-mute-lighting' && device.capabilities.lighting) {
-      device.capabilities.lighting.muteLinked = change.enabled;
-      if (Object.hasOwn(device.settings, 'muteLed')) device.settings.muteLed = change.enabled;
-    }
-
     this.applyDevices(devices);
   }
 
@@ -177,6 +159,93 @@ export class DeviceRegistry {
     });
     if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next, { persist });
   }
+}
+
+const lightingControlTypes = new Set<DeviceControlChange['type']>([
+  'lighting-enabled',
+  'lighting-color',
+  'lighting-brightness',
+  'lighting-effect',
+  'lighting-speed',
+  'lighting-direction',
+  'lighting-zone-color',
+  'lighting-profile',
+  'microphone-mute-lighting',
+]);
+
+function applyConfirmedLightingControl(
+  snapshot: SystemSnapshot,
+  deviceId: string,
+  change: DeviceControlChange,
+  applyDevices: (devices: Device[], options?: { persist?: boolean }) => void,
+): boolean {
+  if (!lightingControlTypes.has(change.type)) return false;
+  const devices = structuredClone(snapshot.devices);
+  const device = devices.find((candidate) => candidate.id === deviceId);
+  if (!device) throw new Error('Device not found after the control write completed.');
+  const lighting = device.capabilities.lighting;
+  if (!lighting) throw new Error(`${device.displayName} no longer exposes lighting controls.`);
+
+  if (change.type === 'lighting-enabled') {
+    lighting.enabled = change.enabled;
+    setExistingSetting(device, 'lightingEnabled', change.enabled);
+  } else if (change.type === 'lighting-color') {
+    lighting.color = change.color.toLowerCase();
+    lighting.enabled = true;
+    lighting.activeProfileId = 'custom';
+    setExistingSetting(device, 'lightingColor', lighting.color);
+  } else if (change.type === 'lighting-brightness') {
+    lighting.brightness = Math.round(change.brightness);
+    lighting.activeProfileId = 'custom';
+    setExistingSetting(device, 'lightingBrightness', lighting.brightness);
+  } else if (change.type === 'lighting-effect') {
+    lighting.activeEffectId = change.effectId;
+    lighting.enabled = true;
+    lighting.activeProfileId = 'custom';
+    setExistingSetting(device, 'lightingEffect', change.effectId);
+  } else if (change.type === 'lighting-speed') {
+    lighting.speed = Math.round(change.speed);
+    lighting.activeProfileId = 'custom';
+    setExistingSetting(device, 'lightingSpeed', lighting.speed);
+  } else if (change.type === 'lighting-direction') {
+    lighting.direction = change.direction;
+    lighting.enabled = true;
+  } else if (change.type === 'lighting-zone-color') {
+    const zone = lighting.zones?.find((candidate) => candidate.id === change.zoneId);
+    if (!zone) throw new Error('The confirmed lighting zone is no longer available.');
+    zone.color = change.color.toLowerCase();
+    lighting.activeEffectId = lighting.availableEffects.some((effect) => effect.id === 'static')
+      ? 'static'
+      : lighting.activeEffectId;
+    lighting.enabled = true;
+  } else if (change.type === 'lighting-profile') {
+    const profile = lighting.profiles.find((candidate) => candidate.id === change.profileId);
+    if (!profile) throw new Error('The confirmed lighting profile is no longer available.');
+    Object.assign(lighting, {
+      activeProfileId: profile.id,
+      activeEffectId: profile.effectId,
+      brightness: profile.brightness,
+      speed: profile.speed,
+    });
+    setExistingSetting(device, 'lightingProfileId', profile.id);
+    setExistingSetting(device, 'lightingEffect', profile.effectId);
+    setExistingSetting(device, 'lightingBrightness', profile.brightness);
+    setExistingSetting(device, 'lightingSpeed', profile.speed);
+  } else if (change.type === 'microphone-mute-lighting') {
+    lighting.muteLinked = change.enabled;
+    setExistingSetting(device, 'muteLed', change.enabled);
+  }
+
+  if (lighting.state !== 'maintained') {
+    lighting.state = 'acknowledged';
+    lighting.stateReason = 'The device acknowledged the requested lighting change.';
+  }
+  applyDevices(devices);
+  return true;
+}
+
+function setExistingSetting(device: Device, key: string, value: Device['settings'][string]): void {
+  if (Object.hasOwn(device.settings, key)) device.settings[key] = value;
 }
 
 function mergeDeviceSettings(device: Device, previousDevices: Device[]): Device {

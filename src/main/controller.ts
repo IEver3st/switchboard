@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
-import { app, desktopCapturer, dialog, globalShortcut, screen, shell, type DesktopCapturerSource, type Display } from 'electron';
+import { app, clipboard, desktopCapturer, dialog, globalShortcut, screen, shell, type DesktopCapturerSource, type Display } from 'electron';
 import { z } from 'zod';
 import {
   captureConfigSchema,
@@ -22,10 +22,14 @@ import {
   type CaptureSource,
   type Clip,
   type ExportClipInput,
+  type FeedbackHandoffResult,
+  type FeedbackReportInput,
   type EngineStatus,
   type CreateAudioPresetInput,
   type RenameAudioPresetInput,
   type RenameClipInput,
+  type SetClipCanvasSizeInput,
+  type SetClipAudioTrackLevelInput,
   type SetClipFavoriteInput,
   type SetClipTrimInput,
   type SetAudioChannelProcessorInput,
@@ -55,6 +59,7 @@ import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
 import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-presets';
 import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
+import { buildFeedbackClipboardText, buildFeedbackIssueUrl, type FeedbackEnvironment } from '../shared/feedback-report';
 import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService } from './services/clip-library';
@@ -84,6 +89,7 @@ const audioEndpointRefreshMinimumIntervalMs = 10_000;
 const captureSourceThumbnailRefreshMinimumIntervalMs = 10_000;
 
 type AppControllerOptions = {
+  demoUpdate?: boolean;
   onUpdateInstallRequested?: (installing: boolean) => void;
 };
 
@@ -120,6 +126,7 @@ export class AppController {
       currentVersion: app.getVersion(),
       isPackaged: app.isPackaged,
       platform: process.platform,
+      demoUpdate: options.demoUpdate,
       onStateChanged: (appUpdate) => {
         this.store.update((draft) => { draft.appUpdate = appUpdate; }, { persist: false });
       },
@@ -698,6 +705,7 @@ export class AppController {
       ...(result.thumbnailPath ? { thumbnailPath: result.thumbnailPath } : {}),
       favorite: false,
       titleEdited: false,
+      canvasSize: 'original',
     };
     const updated = this.store.update((draft) => {
       draft.capture.runtime.lastSavedAt = new Date(result.createdAt).toISOString();
@@ -823,6 +831,28 @@ export class AppController {
     this.appUpdates.installDownloadedUpdate();
   }
 
+  public async handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult> {
+    const environment: FeedbackEnvironment = {
+      version: this.store.get().version,
+      runtime: `Electron ${process.versions.electron ?? 'unknown'}`,
+      platform: `${process.platform} ${process.arch}`,
+      prototypeMode: this.store.get().prototypeMode,
+    };
+    let copied = true;
+    try {
+      clipboard.writeText(buildFeedbackClipboardText(input, environment));
+    } catch {
+      copied = false;
+    }
+    let opened = true;
+    try {
+      await shell.openExternal(buildFeedbackIssueUrl(input, environment));
+    } catch {
+      opened = false;
+    }
+    return { copied, opened };
+  }
+
   public async resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot> {
     if (scope === 'all' || scope === 'audio') await this.engines.stop('audio');
     if (scope === 'all' || scope === 'capture') await this.engines.stop('capture');
@@ -946,6 +976,36 @@ export class AppController {
     });
   }
 
+  public setClipCanvasSize(input: SetClipCanvasSizeInput): SystemSnapshot {
+    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    if (!clip) throw new Error('The clip no longer exists in the library.');
+    return this.store.update((draft) => {
+      const current = draft.clips.find((candidate) => candidate.id === input.id);
+      if (current) current.canvasSize = input.canvasSize;
+    });
+  }
+
+  public setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): SystemSnapshot {
+    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    if (!clip) throw new Error('The clip no longer exists in the library.');
+    return this.store.update((draft) => {
+      const current = draft.clips.find((candidate) => candidate.id === input.id);
+      if (!current) return;
+      const levels = [...(current.audioTrackLevels ?? [])];
+      while (levels.length <= input.trackIndex) levels.push(100);
+      levels[input.trackIndex] = input.level;
+      while (levels.at(-1) === 100) levels.pop();
+      current.audioTrackLevels = levels.length > 0 ? levels : undefined;
+    });
+  }
+
+  public async loadClipAudioWaveform(id: string) {
+    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+    if (!clip) throw new Error('The clip no longer exists in the library.');
+    if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
+    return this.clipLibrary.loadAudioWaveform(clip);
+  }
+
   public async exportClip(input: ExportClipInput): Promise<boolean> {
     const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
@@ -953,12 +1013,16 @@ export class AppController {
     if (input.endMs > clip.durationMs) throw new Error('The export range exceeds the clip duration.');
     if (input.endMs - input.startMs < 100) throw new Error('Keep at least 0.1 seconds in the export range.');
     const fullRange = input.startMs === 0 && input.endMs === clip.durationMs;
-    const canCopyOriginal = input.preset === 'original' && fullRange;
+    const audioMixChanged = clip.audioTrackLevels?.some((level) => level !== 100) ?? false;
+    const canCopyOriginal = input.preset === 'original' && fullRange && clip.canvasSize === 'original' && !audioMixChanged;
     const extension = canCopyOriginal ? extname(clip.path) || '.mp4' : '.mp4';
-    const presetSuffix = input.preset === 'original' ? (fullRange ? '' : '-trimmed') : `-${input.preset}`;
+    const presetSuffix = input.preset === 'original'
+      ? (fullRange ? (audioMixChanged ? '-mixed' : '') : '-trimmed')
+      : `-${input.preset}`;
+    const canvasSuffix = clip.canvasSize === '9:16' ? '-9x16' : '';
     const selection = await dialog.showSaveDialog({
       title: 'Create share file',
-      defaultPath: join(app.getPath('videos'), `${sanitizeClipBaseName(clip.name)}${presetSuffix}${extension}`),
+      defaultPath: join(app.getPath('videos'), `${sanitizeClipBaseName(clip.name)}${canvasSuffix}${presetSuffix}${extension}`),
       filters: [{ name: 'Video', extensions: [extension.replace(/^\./, '')] }],
     });
     if (selection.canceled || !selection.filePath) return false;

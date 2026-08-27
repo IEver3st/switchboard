@@ -190,8 +190,30 @@ export type ButtonAssignmentsCapability = z.infer<typeof buttonAssignmentsCapabi
 export const lightingEffectSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
+  controls: z.array(z.enum(['color', 'zones', 'brightness', 'speed', 'direction'])).optional(),
 });
 export type LightingEffect = z.infer<typeof lightingEffectSchema>;
+
+export const lightingDirectionSchema = z.enum([
+  'cycle',
+  'left',
+  'right',
+  'up',
+  'down',
+  'in',
+  'out',
+  'center-in',
+  'center-out',
+]);
+export type LightingDirection = z.infer<typeof lightingDirectionSchema>;
+
+export const lightingZoneSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  colorWritable: z.boolean(),
+});
+export type LightingZone = z.infer<typeof lightingZoneSchema>;
 
 export const lightingProfileSchema = z.object({
   id: z.string().min(1),
@@ -213,6 +235,10 @@ export const lightingCapabilitySchema = z.object({
   brightnessWritable: z.boolean().default(false),
   speed: z.number().min(1).max(100).optional(),
   speedWritable: z.boolean().default(false),
+  direction: lightingDirectionSchema.optional(),
+  availableDirections: z.array(lightingDirectionSchema).optional(),
+  directionWritable: z.boolean().optional(),
+  zones: z.array(lightingZoneSchema).optional(),
   profiles: z.array(lightingProfileSchema).default([]),
   activeProfileId: z.string().min(1).optional(),
   muteLinked: z.boolean().default(false),
@@ -787,6 +813,23 @@ export type CaptureHostSnapshot = z.infer<typeof captureHostSnapshotSchema>;
 export const clipAudioChannelSchema = z.enum(['game', 'chat', 'microphone', 'media']);
 export type ClipAudioChannel = z.infer<typeof clipAudioChannelSchema>;
 
+export const clipCanvasSizeSchema = z.enum(['original', '9:16']);
+export type ClipCanvasSize = z.infer<typeof clipCanvasSizeSchema>;
+
+export const clipAudioWaveformTrackSchema = z.object({
+  trackIndex: z.number().int().min(0).max(7),
+  label: z.string().trim().min(1).max(80),
+  channel: clipAudioChannelSchema.optional(),
+  samples: z.array(z.number().min(0).max(1)).max(256),
+});
+export type ClipAudioWaveformTrack = z.infer<typeof clipAudioWaveformTrackSchema>;
+
+export const clipAudioWaveformSchema = z.object({
+  clipId: z.string().min(1),
+  tracks: z.array(clipAudioWaveformTrackSchema).max(8),
+});
+export type ClipAudioWaveform = z.infer<typeof clipAudioWaveformSchema>;
+
 export const clipSchema = z.object({
   id: z.string().min(1),
   path: z.string().min(1),
@@ -804,7 +847,9 @@ export const clipSchema = z.object({
   titleEdited: z.boolean().default(false),
   trimStartMs: z.number().int().nonnegative().optional(),
   trimEndMs: z.number().int().positive().optional(),
+  canvasSize: clipCanvasSizeSchema.default('original'),
   audioChannels: z.array(clipAudioChannelSchema).max(4).optional(),
+  audioTrackLevels: z.array(z.number().int().min(0).max(100)).max(8).optional(),
 });
 export type Clip = z.infer<typeof clipSchema>;
 
@@ -918,6 +963,12 @@ export const deviceControlChangeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('lighting-brightness'), brightness: z.number().min(0).max(100) }),
   z.object({ type: z.literal('lighting-effect'), effectId: z.string().min(1) }),
   z.object({ type: z.literal('lighting-speed'), speed: z.number().min(1).max(100) }),
+  z.object({ type: z.literal('lighting-direction'), direction: lightingDirectionSchema }),
+  z.object({
+    type: z.literal('lighting-zone-color'),
+    zoneId: z.string().min(1),
+    color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  }),
   z.object({ type: z.literal('lighting-profile'), profileId: z.string().min(1) }),
   z.object({ type: z.literal('microphone-mute-lighting'), enabled: z.boolean() }),
 ]);
@@ -1102,6 +1153,24 @@ export const settingsResetScopeSchema = z.enum([
 ]);
 export type SettingsResetScope = z.infer<typeof settingsResetScopeSchema>;
 
+export const feedbackReportKindSchema = z.enum(['bug', 'feature']);
+export type FeedbackReportKind = z.infer<typeof feedbackReportKindSchema>;
+
+export const feedbackReportInputSchema = z.object({
+  kind: feedbackReportKindSchema,
+  title: z.string().trim().min(5).max(120),
+  description: z.string().trim().min(10).max(2_000),
+  supportingDetails: z.string().trim().max(1_200).optional(),
+  includeDiagnostics: z.boolean(),
+});
+export type FeedbackReportInput = z.infer<typeof feedbackReportInputSchema>;
+
+export const feedbackHandoffResultSchema = z.object({
+  copied: z.boolean(),
+  opened: z.boolean(),
+});
+export type FeedbackHandoffResult = z.infer<typeof feedbackHandoffResultSchema>;
+
 export const ipcChannels = {
   getSnapshot: 'system:get-snapshot',
   setModuleState: 'modules:set-state',
@@ -1139,11 +1208,15 @@ export const ipcChannels = {
   installAppUpdate: 'updates:install',
   updateSettings: 'settings:update',
   resetSettings: 'settings:reset',
+  handoffFeedbackReport: 'feedback:handoff-report',
   revealClip: 'clips:reveal',
   deleteClip: 'clips:delete',
   renameClip: 'clips:rename',
   setClipFavorite: 'clips:set-favorite',
   setClipTrim: 'clips:set-trim',
+  setClipCanvasSize: 'clips:set-canvas-size',
+  setClipAudioTrackLevel: 'clips:set-audio-track-level',
+  loadClipAudioWaveform: 'clips:load-audio-waveform',
   exportClip: 'clips:export',
   snapshotUpdated: 'system:snapshot-updated',
 } as const;
@@ -1185,11 +1258,15 @@ export interface SwitchboardApi {
   installAppUpdate(): Promise<void>;
   updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot>;
   resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot>;
+  handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult>;
   revealClip(id: string): Promise<void>;
   deleteClip(id: string): Promise<SystemSnapshot>;
   renameClip(input: RenameClipInput): Promise<SystemSnapshot>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<SystemSnapshot>;
   setClipTrim(input: SetClipTrimInput): Promise<SystemSnapshot>;
+  setClipCanvasSize(input: SetClipCanvasSizeInput): Promise<SystemSnapshot>;
+  setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): Promise<SystemSnapshot>;
+  loadClipAudioWaveform(id: string): Promise<ClipAudioWaveform>;
   exportClip(input: ExportClipInput): Promise<boolean>;
   subscribe(listener: (snapshot: SystemSnapshot) => void): () => void;
 }
@@ -1205,6 +1282,19 @@ export const setClipFavoriteInputSchema = z.object({
   favorite: z.boolean(),
 });
 export type SetClipFavoriteInput = z.infer<typeof setClipFavoriteInputSchema>;
+
+export const setClipCanvasSizeInputSchema = z.object({
+  id: z.string().min(1).max(256),
+  canvasSize: clipCanvasSizeSchema,
+});
+export type SetClipCanvasSizeInput = z.infer<typeof setClipCanvasSizeInputSchema>;
+
+export const setClipAudioTrackLevelInputSchema = z.object({
+  id: z.string().min(1).max(256),
+  trackIndex: z.number().int().min(0).max(7),
+  level: z.number().int().min(0).max(100),
+});
+export type SetClipAudioTrackLevelInput = z.infer<typeof setClipAudioTrackLevelInputSchema>;
 
 const clipTrimInputShape = {
   id: z.string().min(1).max(256),

@@ -13,11 +13,14 @@ import {
   parseProfileDirectory,
   type OnboardProfilesInfo,
 } from './onboard-profile';
+import { LogitechRgbEffectsController } from './rgb-effects';
 
 const deviceNameFeatureId = 0x0005;
 const unifiedBatteryFeatureId = 0x1004;
 const adjustableDpiFeatureId = 0x2201;
 const adjustableReportRateFeatureId = 0x8060;
+const rgbEffectsFeatureId = 0x8071;
+const perKeyLightingV2FeatureId = 0x8081;
 const onboardProfilesFeatureId = 0x8100;
 const mouseButtonSpyFeatureId = 0x8110;
 const g502XSniperButtonMask = 0x0010;
@@ -165,7 +168,9 @@ export class G502NativeSession implements G502DirectSession {
     private readonly buttonSpyFeatureIndex: number,
     private readonly batteryFeatureIndex: number | null,
     private readonly reportRateFeatureIndex: number | null,
+    private readonly rgbEffectsFeatureIndex: number | null,
     private readonly onboardProfilesFeatureIndex: number | null,
+    private readonly rgbLighting: LogitechRgbEffectsController | null,
     supportedDpi: number[],
     currentDpi: number,
     preferredShiftDpi: number | undefined,
@@ -198,6 +203,8 @@ export class G502NativeSession implements G502DirectSession {
       const buttonSpyFeatureIndex = await transport.getFeatureIndex(deviceIndex, mouseButtonSpyFeatureId);
       const batteryFeatureIndex = await transport.getFeatureIndex(deviceIndex, unifiedBatteryFeatureId);
       const reportRateFeatureIndex = await transport.getFeatureIndex(deviceIndex, adjustableReportRateFeatureId);
+      const rgbEffectsFeatureIndex = await transport.getFeatureIndex(deviceIndex, rgbEffectsFeatureId);
+      const perKeyLightingFeatureIndex = await transport.getFeatureIndex(deviceIndex, perKeyLightingV2FeatureId);
       const onboardProfilesFeatureIndex = await transport.getFeatureIndex(deviceIndex, onboardProfilesFeatureId);
       if (dpiFeatureIndex === null || buttonSpyFeatureIndex === null) {
         throw new Error('The connected G502 X Plus does not expose live DPI Shift support.');
@@ -218,6 +225,18 @@ export class G502NativeSession implements G502DirectSession {
           console.warn('Direct G502 X Plus onboard profile is temporarily unavailable.', error);
         }
       }
+      let rgbLighting: LogitechRgbEffectsController | null = null;
+      try {
+        rgbLighting = await LogitechRgbEffectsController.probe(
+          transport,
+          deviceIndex,
+          rgbEffectsFeatureIndex,
+          perKeyLightingFeatureIndex,
+          previous?.lighting,
+        );
+      } catch (error) {
+        console.warn('Direct G502 X Plus LIGHTSYNC discovery is temporarily unavailable.', error);
+      }
       return new G502NativeSession(
         transport,
         deviceIndex,
@@ -225,7 +244,9 @@ export class G502NativeSession implements G502DirectSession {
         buttonSpyFeatureIndex,
         batteryFeatureIndex,
         reportRateFeatureIndex,
+        rgbEffectsFeatureIndex,
         onboardProfilesFeatureIndex,
+        rgbLighting,
         supportedDpi,
         currentDpi,
         previous?.dpi?.shiftDpi,
@@ -257,16 +278,21 @@ export class G502NativeSession implements G502DirectSession {
       console.warn('Direct G502 X Plus battery state is temporarily unavailable.', error);
     }
     if (this.onboard) {
-      const writable = this.onboard.mode === 'onboard';
-      capabilities.buttonAssignments = this.onboard.profile.buildButtonAssignments(this.onboard.mode, writable);
-      capabilities.lighting = this.onboard.profile.buildLighting(this.onboard.mode, writable);
+      const onboardWritable = this.onboard.mode === 'onboard';
+      capabilities.buttonAssignments = this.onboard.profile.buildButtonAssignments(this.onboard.mode, onboardWritable);
+      capabilities.lighting = onboardWritable || !this.rgbLighting
+        ? this.onboard.profile.buildLighting(this.onboard.mode, onboardWritable)
+        : this.rgbLighting.buildCapability(true);
       capabilities.onboardMemory = {
         writable: true,
-        enabled: writable,
+        enabled: onboardWritable,
         activeProfile: `Profile ${this.onboard.activeSector}`,
       };
     } else if (this.onboardProfilesFeatureIndex !== null) {
       capabilities.onboardMemory = { writable: true, enabled: false };
+    }
+    if (!capabilities.lighting && this.rgbLighting) {
+      capabilities.lighting = this.rgbLighting.buildCapability(true);
     }
     return capabilities;
   }
@@ -315,19 +341,57 @@ export class G502NativeSession implements G502DirectSession {
       return;
     }
     if (change.type === 'lighting-enabled') {
+      if (this.usesLiveLighting) {
+        await this.rgbLighting!.setEnabled(change.enabled);
+        return;
+      }
       this.assertOnboardWritable();
-      await this.mutateProfile((profile) => profile.setLightingEnabled(change.enabled));
+      await applyG502LightingEnabled(
+        this.transport,
+        this.deviceIndex,
+        this.rgbEffectsFeatureIndex,
+        change.enabled,
+        () => this.mutateProfile((profile) => profile.setLightingEnabled(change.enabled)),
+      );
       return;
     }
     if (change.type === 'lighting-color') {
+      if (this.usesLiveLighting) {
+        await this.rgbLighting!.setColor(change.color);
+        return;
+      }
       this.assertOnboardWritable();
       await this.mutateProfile((profile) => profile.setLightingColor(change.color));
       return;
     }
     if (change.type === 'lighting-effect') {
+      if (this.usesLiveLighting) {
+        await this.rgbLighting!.setEffect(change.effectId);
+        return;
+      }
       this.assertOnboardWritable();
       if (change.effectId !== 'solid') throw new Error('Choose Static before replacing the stored onboard effect.');
       await this.mutateProfile((profile) => profile.setLightingColor(profile.lightingColor ?? '#ff1744'));
+      return;
+    }
+    if (change.type === 'lighting-brightness') {
+      this.assertLiveLighting();
+      await this.rgbLighting!.setBrightness(change.brightness);
+      return;
+    }
+    if (change.type === 'lighting-speed') {
+      this.assertLiveLighting();
+      await this.rgbLighting!.setSpeed(change.speed);
+      return;
+    }
+    if (change.type === 'lighting-direction') {
+      this.assertLiveLighting();
+      await this.rgbLighting!.setDirection(change.direction);
+      return;
+    }
+    if (change.type === 'lighting-zone-color') {
+      this.assertLiveLighting();
+      await this.rgbLighting!.setZoneColor(change.zoneId, change.color);
       return;
     }
     throw new Error('That control is not supported by the G502 X Plus native HID++ backend.');
@@ -384,6 +448,7 @@ export class G502NativeSession implements G502DirectSession {
     this.unsubscribe?.();
     this.unsubscribe = null;
     await this.runtime.dispose();
+    await this.rgbLighting?.release();
     try {
       await this.transport.request(this.deviceIndex, this.buttonSpyFeatureIndex, 2, [], 300);
     } catch {
@@ -427,6 +492,7 @@ export class G502NativeSession implements G502DirectSession {
 
   private async setOnboardMode(enabled: boolean): Promise<void> {
     if (this.onboardProfilesFeatureIndex === null) throw new Error('This mouse does not expose onboard profile mode.');
+    if (enabled) await this.rgbLighting?.release();
     await this.transport.request(this.deviceIndex, this.onboardProfilesFeatureIndex, 1, [enabled ? 1 : 2, 0, 0]);
     const response = await this.transport.request(this.deviceIndex, this.onboardProfilesFeatureIndex, 2);
     const actual = response[4] === 1;
@@ -463,6 +529,16 @@ export class G502NativeSession implements G502DirectSession {
     }
   }
 
+  private get usesLiveLighting(): boolean {
+    return this.onboard?.mode !== 'onboard' && this.rgbLighting !== null;
+  }
+
+  private assertLiveLighting(): void {
+    if (!this.usesLiveLighting) {
+      throw new Error('Turn off onboard memory to use live LIGHTSYNC effects and zone colors.');
+    }
+  }
+
   private assertStages(values: number[]): void {
     const stages = [...new Set(values)];
     if (stages.length === 0 || stages.length > 5 || stages.some((value) => !this.supportedDpi.includes(value))) {
@@ -472,6 +548,79 @@ export class G502NativeSession implements G502DirectSession {
 
   private assertSupported(value: number): void {
     if (!this.supportedDpi.includes(value)) throw new Error(`${value.toLocaleString()} DPI is not supported by this mouse.`);
+  }
+}
+
+interface G502LightingTransport {
+  request(
+    deviceIndex: number,
+    featureIndex: number,
+    functionId: number,
+    parameters?: readonly number[],
+    timeoutMs?: number,
+  ): Promise<Buffer>;
+}
+
+/**
+ * Applies the runtime power transition before persisting the same value to the
+ * onboard profile. RGB Effects 0x8071 is capability-discovered; devices that do
+ * not advertise it keep the existing verified profile-only path.
+ */
+export async function applyG502LightingEnabled(
+  transport: G502LightingTransport,
+  deviceIndex: number,
+  rgbEffectsFeatureIndex: number | null,
+  enabled: boolean,
+  persist: () => Promise<void>,
+): Promise<void> {
+  if (rgbEffectsFeatureIndex !== null) {
+    try {
+      await setRgbLightingPower(transport, deviceIndex, rgbEffectsFeatureIndex, enabled);
+    } catch (error) {
+      if (error instanceof RgbOwnershipReleaseError) throw error;
+      // The verified onboard profile path remains authoritative and durable if
+      // a receiver/firmware revision advertises RGB Effects but rejects runtime
+      // power ownership.
+      console.warn('Immediate G502 X Plus lighting transition was unavailable; using onboard persistence.', error);
+    }
+  }
+  await persist();
+}
+
+async function setRgbLightingPower(
+  transport: G502LightingTransport,
+  deviceIndex: number,
+  featureIndex: number,
+  enabled: boolean,
+): Promise<void> {
+  const requestedMode = enabled ? 1 : 3;
+  // manageSwControl: set, claim power modes only, no RGB event subscription.
+  await transport.request(deviceIndex, featureIndex, 5, [1, 2, 0]);
+  let transitionError: unknown;
+  try {
+    await transport.request(deviceIndex, featureIndex, 8, [1, requestedMode, 0]);
+    const readback = await transport.request(deviceIndex, featureIndex, 8, [0, 0, 0]);
+    if (readback[5] !== requestedMode) {
+      throw new Error('The mouse did not acknowledge the requested RGB power mode.');
+    }
+  } catch (error) {
+    transitionError = error;
+  } finally {
+    try {
+      // Hand control back to firmware before touching the onboard profile.
+      // Keeping RGB ownership while writing 0x8100 makes this firmware alter
+      // the sector during commit and invalidates the byte-for-byte readback.
+      await transport.request(deviceIndex, featureIndex, 5, [1, 0, 0]);
+    } catch (error) {
+      throw new RgbOwnershipReleaseError(error);
+    }
+  }
+  if (transitionError) throw transitionError;
+}
+
+class RgbOwnershipReleaseError extends Error {
+  public constructor(cause: unknown) {
+    super('The mouse did not release RGB software control; onboard persistence was skipped to protect profile integrity.', { cause });
   }
 }
 

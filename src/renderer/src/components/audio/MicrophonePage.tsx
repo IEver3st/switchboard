@@ -11,7 +11,6 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { AudioDevicePicker } from './AudioDevicePicker';
 import { EqualizerHeader } from './EqualizerHeader';
-import { MicrophoneSignalStrip } from './MicrophoneSignalStrip';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
@@ -69,8 +68,6 @@ function MicSetting({
 }
 
 export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
-  const setAudioEnabled = useSystemStore((state) => state.setAudioEnabled);
-  const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const setMicProcessor = useSystemStore((state) => state.setMicProcessor);
   const setAudioMonitoring = useSystemStore((state) => state.setAudioMonitoring);
   const testMicrophone = useSystemStore((state) => state.testMicrophone);
@@ -134,15 +131,6 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <div className="audio-workbench microphone-workbench" data-channel="microphone">
-      <MicrophoneSignalStrip
-        snapshot={snapshot}
-        desktopFeatures={desktopFeatures}
-        enginePending={Boolean(pendingOperations.engine)}
-        inputPending={Boolean(pendingOperations.input)}
-        onEngineChange={(enabled) => runPending('engine', () => setAudioEnabled(enabled))}
-        onInputChange={(deviceId) => runPending('input', () => setAudioBusDevice({ busId: 'mic', deviceId }))}
-      />
-
       {snapshot.audio.enabled && support !== 'available' ? (
         <p className="audio-workbench__availability" role="status">
           {support === 'simulation'

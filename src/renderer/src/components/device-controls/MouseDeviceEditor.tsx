@@ -134,6 +134,12 @@ function MouseControls({ device }: { device: Device }) {
               onColorChange={(color) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-color', color } })}
               onBrightnessChange={(brightness) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } })}
               onEffectChange={(effectId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-effect', effectId } })}
+              onSpeedChange={(speed) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-speed', speed } })}
+              onDirectionChange={(direction) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-direction', direction } })}
+              onZoneColorChange={(zoneId, color) => void setDeviceControl({
+                deviceId: device.id,
+                change: { type: 'lighting-zone-color', zoneId, color },
+              })}
             />
           </div>
         ) : null}

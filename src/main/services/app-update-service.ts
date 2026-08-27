@@ -22,6 +22,7 @@ type AppUpdateServiceOptions = {
   currentVersion: string;
   isPackaged: boolean;
   platform: NodeJS.Platform;
+  demoUpdate?: boolean;
   onStateChanged: (state: AppUpdateState) => void;
   onInstallRequested?: (installing: boolean) => void;
   loadUpdater?: () => Promise<AppUpdaterClient>;
@@ -66,6 +67,18 @@ export class AppUpdateService {
     this.automaticChecksEnabled = automaticChecksEnabled;
     if (this.initialized || this.disposed) return this.getState();
     this.initialized = true;
+
+    if (this.options.demoUpdate && !this.options.isPackaged) {
+      return this.publish({
+        capability: 'available',
+        status: 'available',
+        availableVersion: getDemoAvailableVersion(this.options.currentVersion),
+        downloadProgress: 0,
+        checkedAt: new Date().toISOString(),
+        error: null,
+        unavailableReason: null,
+      });
+    }
 
     if (!this.options.isPackaged || this.options.platform !== 'win32') {
       return this.publish({
@@ -278,6 +291,12 @@ export class AppUpdateService {
     this.options.onStateChanged(snapshot);
     return snapshot;
   }
+}
+
+function getDemoAvailableVersion(currentVersion: string): string {
+  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(currentVersion);
+  if (!match) return '0.2.0';
+  return `${match[1]}.${Number(match[2]) + 1}.0`;
 }
 
 async function defaultUpdaterLoader(): Promise<AppUpdaterClient> {

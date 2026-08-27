@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "node ./scripts/dev.mjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "review:native": "bun run build && bun ./scripts/run-native-review.mjs capture",

@@ -12,7 +12,7 @@ The Electron prototype includes:
 - persisted module, device, audio, capture, and lifecycle state.
 - capability-driven Logitech mouse and HyperX microphone workbenches.
 - event-driven QuadCast 2 physical mute state plus maintained fixed-red lighting, brightness, breathing/pulse timing, and hardware-backed lighting profiles.
-- G502 X Plus control without G HUB: DPI stages and hold-to-lower-DPI, report rate, primary button assignments, onboard mode, battery, and static/off lighting through direct HID++ with CRC-checked profile readback.
+- G502 X Plus control without G HUB: DPI stages and hold-to-lower-DPI, report rate, primary button assignments, onboard mode, battery, and static/off lighting through direct HID++; lighting power changes use acknowledged runtime control before CRC-checked profile persistence.
 - optional native audio and capture hosts that exist only while enabled.
 - audio buses, ChatMix, microphone processing, replay buffer, and clip library surfaces.
 - persisted game detection with one-shot Steam/Epic manifest scans and manual executable entries.
@@ -41,6 +41,14 @@ Windows with Bun:
 bun install
 bun run dev
 ```
+
+To preview the pending application-update presentation in the development app:
+
+```powershell
+bun run dev --demo-update
+```
+
+This is a presentation-only development flag. It shows a pending update in **Settings → About** without contacting the release feed or launching an installer; packaged builds ignore it.
 
 Build the Electron bundles:
 

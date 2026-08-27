@@ -158,6 +158,7 @@ if (hasSingleInstanceLock) {
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController({
+      demoUpdate: !app.isPackaged && process.argv.includes('--demo-update'),
       onUpdateInstallRequested: (installing) => {
         quitting = installing;
       },

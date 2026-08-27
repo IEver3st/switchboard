@@ -8,6 +8,8 @@ import {
   type ExportClipInput,
   type PageId,
   type RenameClipInput,
+  type SetClipCanvasSizeInput,
+  type SetClipAudioTrackLevelInput,
   type SetClipFavoriteInput,
   type SetClipTrimInput,
   type RenameAudioPresetInput,
@@ -98,6 +100,8 @@ interface SystemStore {
   renameClip(input: RenameClipInput): Promise<void>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<void>;
   setClipTrim(input: SetClipTrimInput): Promise<void>;
+  setClipCanvasSize(input: SetClipCanvasSizeInput): Promise<void>;
+  setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): Promise<void>;
   exportClip(input: ExportClipInput): Promise<boolean>;
   updateSettings(input: UpdateSettingsInput): Promise<void>;
   resetSettings(scope: SettingsResetScope): Promise<void>;
@@ -239,6 +243,38 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       try { set({ snapshot: await switchboardApi.setClipTrim(input) }); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      }
+    },
+    setClipCanvasSize: async (input) => {
+      const before = get().snapshot;
+      if (!before) return;
+      const optimistic = structuredClone(before);
+      const clip = optimistic.clips.find((candidate) => candidate.id === input.id);
+      if (!clip) return;
+      clip.canvasSize = input.canvasSize;
+      set({ snapshot: optimistic, error: null });
+      try { set({ snapshot: await switchboardApi.setClipCanvasSize(input) }); }
+      catch (error) {
+        set({ snapshot: before, error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      }
+    },
+    setClipAudioTrackLevel: async (input) => {
+      const before = get().snapshot;
+      if (!before) return;
+      const optimistic = structuredClone(before);
+      const clip = optimistic.clips.find((candidate) => candidate.id === input.id);
+      if (!clip) return;
+      const levels = [...(clip.audioTrackLevels ?? [])];
+      while (levels.length <= input.trackIndex) levels.push(100);
+      levels[input.trackIndex] = input.level;
+      while (levels.at(-1) === 100) levels.pop();
+      clip.audioTrackLevels = levels.length > 0 ? levels : undefined;
+      set({ snapshot: optimistic, error: null });
+      try { set({ snapshot: await switchboardApi.setClipAudioTrackLevel(input) }); }
+      catch (error) {
+        set({ snapshot: before, error: error instanceof Error ? error.message : String(error) });
         throw error;
       }
     },

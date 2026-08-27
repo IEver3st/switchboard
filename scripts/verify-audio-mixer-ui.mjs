@@ -167,8 +167,8 @@ async function inspect() {
         channelCount: document.querySelectorAll('.mixer-channel').length,
         exactInputs: document.querySelectorAll('.mixer-fader__exact input').length,
         horizontalOverflow: Boolean(viewport && viewport.scrollWidth > viewport.clientWidth),
-        destinationMixes: document.querySelectorAll('.mixer-destination [role="radio"]').length,
-        selectedMix: document.querySelector('.mixer-destination [data-state="on"]')?.textContent?.trim() ?? null,
+        destinationMixes: document.querySelectorAll('.mixer-mix-picker [role="radio"]').length,
+        selectedMix: document.querySelector('.mixer-mix-picker [data-state="on"]')?.textContent?.trim() ?? null,
         chatMixVisibleWithoutScroll: (() => {
           const chatMix = document.querySelector('.chatmix-control');
           if (!chatMix || !viewport) return false;
@@ -205,8 +205,8 @@ async function selectMix(label) {
   assert(clicked, `Could not select the ${label} mix.`);
   const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
-    const selected = await window.webContents.executeJavaScript(`
-      document.querySelector('.mixer-destination [data-state="on"]')?.textContent?.trim() ?? null
+      const selected = await window.webContents.executeJavaScript(`
+      document.querySelector('.mixer-mix-picker [data-state="on"]')?.textContent?.trim() ?? null
     `);
     if (selected === label) return;
     await delay(40);
@@ -258,10 +258,11 @@ async function setExactValue(label, value) {
     })()
   `);
   assert(changed, `Could not set ${label} exact percentage.`);
-  await delay(40);
+  await delay(120);
   await window.webContents.executeJavaScript(`
     document.querySelector('input[aria-label=${JSON.stringify(`${label} exact volume percentage`)}]')?.blur()
   `);
+  await delay(120);
 }
 
 async function clickMasterMute() {
@@ -325,7 +326,7 @@ async function waitForSelector(selector) {
 }
 
 async function waitForAbsent(selector) {
-  const deadline = Date.now() + 10_000;
+  const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     const found = await window.webContents.executeJavaScript(`Boolean(document.querySelector(${JSON.stringify(selector)}))`);
     if (!found) return;

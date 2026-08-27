@@ -39,6 +39,7 @@ const screens = [
   { name: 'devices', prepare: () => openDeviceGallery() },
   { name: 'g502-x-plus', prepare: () => openDevice('G502 X Plus') },
   { name: 'quadcast-2', prepare: () => openDevice('QuadCast 2') },
+  { name: 'huntsman-v2-analog', prepare: () => openDevice('Huntsman V2 Analog') },
   { name: 'audio-mixer', prepare: () => openAudioTab('mixer') },
   { name: 'audio-game', prepare: () => openAudioTab('game') },
   { name: 'audio-chat', prepare: () => openAudioTab('chat') },

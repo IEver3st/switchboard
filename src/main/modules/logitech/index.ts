@@ -305,6 +305,9 @@ function disableControls(
     writable: false,
     colorWritable: false,
     brightnessWritable: false,
+    speedWritable: false,
+    directionWritable: false,
+    zones: next.lighting.zones?.map((zone) => ({ ...zone, colorWritable: false })),
     unavailableReason: reason,
   });
   if (next.onboardMemory) next.onboardMemory.writable = false;

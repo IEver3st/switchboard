@@ -13,7 +13,7 @@ export const DialogContent = forwardRef<
 >(function DialogContent({ className, children, ...props }, ref) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" data-dialog-overlay />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-black/55" data-dialog-overlay />
       <DialogPrimitive.Content
         ref={ref}
         aria-modal="true"

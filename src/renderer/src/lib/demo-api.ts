@@ -5,6 +5,7 @@ import type {
   CaptureConfig,
   CreateAudioPresetInput,
   DetectedGame,
+  FeedbackReportInput,
   RenameAudioPresetInput,
   SetAudioChannelProcessorInput,
   SetAudioBusDeviceInput,
@@ -33,6 +34,7 @@ import {
 import { resolveDeviceVariant } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
 import { createDefaultSnapshot } from '../../../shared/defaults';
+import { buildFeedbackClipboardText, buildFeedbackIssueUrl } from '../../../shared/feedback-report';
 
 let snapshot = createDefaultSnapshot();
 snapshot.gameDetection.capability = 'simulation';
@@ -501,6 +503,24 @@ const demoApi: SwitchboardApi = {
     }
     return emit();
   },
+  async handoffFeedbackReport(input: FeedbackReportInput) {
+    const environment = {
+      version: snapshot.version,
+      runtime: 'Browser preview',
+      platform: navigator.platform || 'Browser',
+      prototypeMode: snapshot.prototypeMode,
+    };
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(buildFeedbackClipboardText(input, environment));
+      copied = true;
+    } catch {
+      // Clipboard access can be unavailable for a local or permission-restricted preview.
+    }
+    const issueWindow = window.open(buildFeedbackIssueUrl(input, environment), '_blank');
+    if (issueWindow) issueWindow.opener = null;
+    return { copied, opened: Boolean(issueWindow) };
+  },
   async revealClip() {},
   async deleteClip() { return emit(); },
   async renameClip(input) {
@@ -524,6 +544,22 @@ const demoApi: SwitchboardApi = {
     }
     return emit();
   },
+  async setClipCanvasSize(input) {
+    const clip = snapshot.clips.find((candidate) => candidate.id === input.id);
+    if (clip) clip.canvasSize = input.canvasSize;
+    return emit();
+  },
+  async setClipAudioTrackLevel(input) {
+    const clip = snapshot.clips.find((candidate) => candidate.id === input.id);
+    if (clip) {
+      const levels = [...(clip.audioTrackLevels ?? [])];
+      while (levels.length <= input.trackIndex) levels.push(100);
+      levels[input.trackIndex] = input.level;
+      clip.audioTrackLevels = levels;
+    }
+    return emit();
+  },
+  async loadClipAudioWaveform(id) { return { clipId: id, tracks: [] }; },
   async exportClip() { return false; },
   subscribe(listener) {
     listeners.add(listener);

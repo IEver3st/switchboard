@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
   audioMeterFrameSchema,
+  feedbackHandoffResultSchema,
   ipcChannels,
   type SwitchboardApi,
   type SystemSnapshot,
@@ -50,11 +51,17 @@ const api: SwitchboardApi = {
   installAppUpdate: () => ipcRenderer.invoke(ipcChannels.installAppUpdate),
   updateSettings: (input) => ipcRenderer.invoke(ipcChannels.updateSettings, input),
   resetSettings: (scope) => ipcRenderer.invoke(ipcChannels.resetSettings, scope),
+  handoffFeedbackReport: async (input) => feedbackHandoffResultSchema.parse(
+    await ipcRenderer.invoke(ipcChannels.handoffFeedbackReport, input),
+  ),
   revealClip: (id) => ipcRenderer.invoke(ipcChannels.revealClip, id),
   deleteClip: (id) => ipcRenderer.invoke(ipcChannels.deleteClip, id),
   renameClip: (input) => ipcRenderer.invoke(ipcChannels.renameClip, input),
   setClipFavorite: (input) => ipcRenderer.invoke(ipcChannels.setClipFavorite, input),
   setClipTrim: (input) => ipcRenderer.invoke(ipcChannels.setClipTrim, input),
+  setClipCanvasSize: (input) => ipcRenderer.invoke(ipcChannels.setClipCanvasSize, input),
+  setClipAudioTrackLevel: (input) => ipcRenderer.invoke(ipcChannels.setClipAudioTrackLevel, input),
+  loadClipAudioWaveform: (id) => ipcRenderer.invoke(ipcChannels.loadClipAudioWaveform, id),
   exportClip: (input) => ipcRenderer.invoke(ipcChannels.exportClip, input),
   subscribe: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, snapshot: SystemSnapshot) => listener(snapshot);

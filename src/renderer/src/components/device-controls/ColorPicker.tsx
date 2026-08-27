@@ -3,11 +3,12 @@ import { Input } from '@/components/ui/input';
 
 interface ColorPickerProps {
   value: string;
+  disabled?: boolean;
   onChange?: (value: string) => void;
   onCommit: (value: string) => void;
 }
 
-export function ColorPicker({ value, onChange, onCommit }: ColorPickerProps) {
+export function ColorPicker({ value, disabled, onChange, onCommit }: ColorPickerProps) {
   const [hex, setHex] = useState(value.toUpperCase());
   useEffect(() => {
     setHex(value.toUpperCase());
@@ -24,6 +25,7 @@ export function ColorPicker({ value, onChange, onCommit }: ColorPickerProps) {
           className="color-picker__native"
           type="color"
           value={validColor(hex) ?? value}
+          disabled={disabled}
           aria-label="Choose color"
           onInput={(event) => {
             const next = event.currentTarget.value.toUpperCase();
@@ -40,6 +42,7 @@ export function ColorPicker({ value, onChange, onCommit }: ColorPickerProps) {
           maxLength={7}
           aria-label="HEX color"
           spellCheck={false}
+          disabled={disabled}
           onChange={(event) => setHex(event.target.value.toUpperCase())}
           onBlur={() => commitHex(hex, setHex, onChange, onCommit)}
           onKeyDown={(event) => {

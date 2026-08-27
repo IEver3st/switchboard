@@ -3,13 +3,21 @@ import type { Device } from '../../../../shared/contracts';
 import g502XPlusBlackUrl from '@/assets/device-renders/g502-x-plus.png';
 import g502XPlusWhiteUrl from '@/assets/device-renders/g502-x-plus-white.png';
 import quadCast2Url from '@/assets/device-renders/quadcast-2.png';
+import huntsmanV2AnalogUrl from '@/assets/device-renders/huntsman-v2-analog.png';
 import { DeviceGlyph } from '@/components/shared/device-glyph';
-import { applyLighting, type LightingMask } from '@/components/shared/device-lighting';
+import {
+  adaptBlackHardwareForDarkSurface,
+  applyLighting,
+  type LightingMask,
+} from '@/components/shared/device-lighting';
 import { cn } from '@/lib/cn';
+
+type ToneProfile = 'black-hardware-on-dark';
 
 interface DeviceArtwork {
   src: string;
   lightingMask?: LightingMask;
+  toneProfile?: ToneProfile;
 }
 
 interface ProcessedArtwork {
@@ -23,7 +31,12 @@ const maximumCachedArtwork = 6;
 const artworkByAssetKey: Record<string, DeviceArtwork> = {
   'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl, lightingMask: 'saturated-rgb' },
   'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl, lightingMask: 'saturated-rgb' },
-  'hyperx-quadcast-2': { src: quadCast2Url, lightingMask: 'red-dominant' },
+  'hyperx-quadcast-2': {
+    src: quadCast2Url,
+    lightingMask: 'red-dominant',
+    toneProfile: 'black-hardware-on-dark',
+  },
+  'razer-huntsman-v2-analog': { src: huntsmanV2AnalogUrl },
 };
 
 export function DeviceRender({
@@ -42,6 +55,7 @@ export function DeviceRender({
     && !(lighting.muteLinked && device.capabilities.muteState?.muted === true),
   );
   const lightingColor = asColor(lighting?.color, device.kind === 'microphone' ? '#e51937' : '#ff658a');
+  const lightingBrightness = lighting?.brightness ?? 100;
   const label = [device.identity.manufacturer, device.displayName].filter(Boolean).join(' ');
 
   return (
@@ -53,12 +67,13 @@ export function DeviceRender({
       data-variant-source={device.variantResolution.source}
       data-lighting-enabled={lightingEnabled}
       data-lighting-color={lightingColor}
+      data-lighting-brightness={lightingBrightness}
     >
       {artwork ? (
         <ProductCanvas
           artwork={artwork}
           label={label}
-          lighting={{ enabled: lightingEnabled, color: lightingColor }}
+          lighting={{ enabled: lightingEnabled, color: lightingColor, brightness: lightingBrightness }}
           fallback={<FallbackRender device={device} label={label} />}
         />
       ) : (
@@ -84,7 +99,7 @@ function ProductCanvas({
 }: {
   artwork: DeviceArtwork;
   label: string;
-  lighting: { enabled: boolean; color: string };
+  lighting: { enabled: boolean; color: string; brightness: number };
   fallback: ReactNode;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -95,8 +110,10 @@ function ProductCanvas({
     const cacheKey = [
       artwork.src,
       artwork.lightingMask ?? 'no-lighting',
+      artwork.toneProfile ?? 'source-tone',
       artwork.lightingMask ? (lighting.enabled ? 'on' : 'off') : 'static',
       artwork.lightingMask ? lighting.color : 'source-color',
+      artwork.lightingMask ? lighting.brightness : 'source-brightness',
     ].join('|');
     const cached = processedArtworkCache.get(cacheKey);
     if (cached && canvasRef.current && paintProcessedArtwork(canvasRef.current, cached)) {
@@ -138,7 +155,10 @@ function ProductCanvas({
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
         if (artwork.lightingMask) {
-          applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color);
+          applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color, lighting.brightness);
+        }
+        if (artwork.toneProfile === 'black-hardware-on-dark') {
+          adaptBlackHardwareForDarkSurface(pixels.data);
         }
 
         const bounds = findVisibleBounds(pixels.data, canvas.width, canvas.height);
@@ -170,7 +190,7 @@ function ProductCanvas({
       image.onload = null;
       image.onerror = null;
     };
-  }, [artwork.lightingMask, artwork.src, lighting.color, lighting.enabled]);
+  }, [artwork.lightingMask, artwork.src, artwork.toneProfile, lighting.brightness, lighting.color, lighting.enabled]);
 
   if (status === 'failed') return fallback;
   return (

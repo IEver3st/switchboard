@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
 import { BatteryStatus } from '@/components/device-controls/BatteryStatus';
 import { MouseDeviceEditor } from '@/components/device-controls/MouseDeviceEditor';
+import { KeyboardDeviceEditor } from '@/components/device-controls/KeyboardDeviceEditor';
 import { HorizontalLevelMeter } from '@/components/audio/HorizontalLevelMeter';
 import { PrimarySlider, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
 import { DeviceRender } from '@/components/shared/device-render';
@@ -122,6 +123,8 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
 
       {selected.kind === 'mouse' ? (
         <MouseDeviceEditor device={selected} />
+      ) : selected.kind === 'keyboard' ? (
+        <KeyboardDeviceEditor device={selected} />
       ) : (
         <>
           <div className="device-workbench__hero">

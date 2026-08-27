@@ -8,6 +8,7 @@ import {
   clipTrimInputSchema,
   createAudioPresetInputSchema,
   exportClipInputSchema,
+  feedbackReportInputSchema,
   ipcChannels,
   renameClipInputSchema,
   renameAudioPresetInputSchema,
@@ -24,6 +25,8 @@ import {
   setDeviceSettingInputSchema,
   setMicProcessorInputSchema,
   setClipFavoriteInputSchema,
+  setClipCanvasSizeInputSchema,
+  setClipAudioTrackLevelInputSchema,
   setModuleStateInputSchema,
   settingsResetScopeSchema,
 } from '../shared/contracts';
@@ -251,6 +254,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (scope) => controller.resetSettings(scope),
   );
   handle(
+    ipcChannels.handoffFeedbackReport,
+    getMainWindow,
+    (input) => feedbackReportInputSchema.parse(input),
+    (input) => controller.handoffFeedbackReport(input),
+  );
+  handle(
     ipcChannels.revealClip,
     getMainWindow,
     (input) => z.string().min(1).max(4_096).parse(input),
@@ -279,6 +288,24 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => clipTrimInputSchema.parse(input),
     (input) => controller.setClipTrim(input),
+  );
+  handle(
+    ipcChannels.setClipCanvasSize,
+    getMainWindow,
+    (input) => setClipCanvasSizeInputSchema.parse(input),
+    (input) => controller.setClipCanvasSize(input),
+  );
+  handle(
+    ipcChannels.setClipAudioTrackLevel,
+    getMainWindow,
+    (input) => setClipAudioTrackLevelInputSchema.parse(input),
+    (input) => controller.setClipAudioTrackLevel(input),
+  );
+  handle(
+    ipcChannels.loadClipAudioWaveform,
+    getMainWindow,
+    (input) => z.string().min(1).max(256).parse(input),
+    (id) => controller.loadClipAudioWaveform(id),
   );
   handle(
     ipcChannels.exportClip,

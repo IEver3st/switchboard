@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AppWindow } from 'lucide-react';
 import type { AudioBus, AudioMixId, AudioPathId, SystemSnapshot } from '../../../../shared/contracts';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { AudioWorkspaceTab } from './AudioTabs';
@@ -29,9 +28,6 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
   const gameEnabled = personalMix?.buses.find((bus) => bus.id === 'game')?.enabled ?? false;
   const chatEnabled = personalMix?.buses.find((bus) => bus.id === 'chat')?.enabled ?? false;
   const routingAvailable = snapshot.audio.capabilities.applicationRouting !== 'unavailable';
-  const routingMessage = snapshot.audio.host?.driver.state !== 'ready'
-    ? snapshot.audio.host?.driver.message
-    : snapshot.audio.host?.error;
 
   const presetNameFor = (channel: MixerChannelId): string | null => {
     if (channel === 'aux') return null;
@@ -47,31 +43,27 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
         subtitle={engineRunning
           ? 'Channel levels, output devices, and ChatMix.'
           : 'Channel levels, output devices, and ChatMix. The audio engine is not running.'}
-        tools={snapshot.audio.capabilities.realtimeMetering === 'simulation'
-          ? <p className="mixer-workbench__note" role="status">Live levels are unavailable on this setup.</p>
-          : undefined}
+        tools={(
+          <>
+            <div className="mixer-mix-picker" role="group" aria-label="Mixer destination">
+              <span className="mixer-mix-picker__label">Mix</span>
+              <ToggleGroup
+                type="single"
+                value={selectedMixId}
+                onValueChange={(value) => value && setSelectedMixId(value as AudioMixId)}
+                aria-label="Select mixer destination"
+              >
+                {snapshot.audio.mixes.map((mix) => (
+                  <ToggleGroupItem key={mix.id} value={mix.id} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            {snapshot.audio.capabilities.realtimeMetering === 'simulation'
+              ? <p className="mixer-workbench__note" role="status">Live levels are unavailable on this setup.</p>
+              : null}
+          </>
+        )}
       />
-
-      <div className="mixer-destination" aria-label="Mixer destination">
-        <div>
-          <span>Destination mix</span>
-          <p>{selectedMixId === 'personal'
-            ? 'Physical listening output and processed virtual microphone.'
-            : selectedMixId === 'stream'
-              ? 'Broadcast transport exposed through Switchboard Stream.'
-              : 'Replay track delivered directly to Capture.Host.'}</p>
-        </div>
-        <ToggleGroup
-          type="single"
-          value={selectedMixId}
-          onValueChange={(value) => value && setSelectedMixId(value as AudioMixId)}
-          aria-label="Select mixer destination"
-        >
-          {snapshot.audio.mixes.map((mix) => (
-            <ToggleGroupItem key={mix.id} value={mix.id} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
 
       <div className="mixer-grid" data-testid="mixer-grid">
         <MixerMasterStrip
@@ -115,12 +107,6 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
         onCommit={(value) => void setChatMix(value)}
       />
 
-      {!routingAvailable ? (
-        <p className="mixer-workbench__routing-note" role="status">
-          <AppWindow className="size-3.5" aria-hidden="true" />
-          {routingMessage ?? 'Application routing is not available on this setup yet.'}
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -247,6 +247,10 @@ export async function writeG502Control(
     'lighting-enabled',
     'lighting-color',
     'lighting-effect',
+    'lighting-brightness',
+    'lighting-speed',
+    'lighting-direction',
+    'lighting-zone-color',
   ]);
   if (softwareOnly.has(change.type)) await assertSoftwareMode(agentDeviceId);
 
@@ -343,7 +347,9 @@ export async function writeG502Control(
     assertLightingWritable(device);
     if (change.effectId !== 'solid') throw new Error('That lighting effect is not supported by this device.');
     await setFirmwareLightingSolid(device.capabilities.lighting?.color ?? '#ff1744');
+    return;
   }
+  throw new Error('That control is not supported by the local G HUB integration.');
 }
 
 function buildSoftwareBindings(profile: LogitechProfile): ButtonAssignmentBinding[] {

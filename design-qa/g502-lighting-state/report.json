@@ -1,0 +1,165 @@
+{
+  "gallery": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-gallery-off.png",
+      "metrics": {
+        "viewport": {
+          "width": 1080,
+          "height": 722
+        },
+        "documentWidth": 1080,
+        "viewportWidth": 1012,
+        "viewportScrollWidth": 1012,
+        "scopeVisible": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-gallery-off.png",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "documentWidth": 1420,
+        "viewportWidth": 1352,
+        "viewportScrollWidth": 1352,
+        "scopeVisible": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-gallery-off.png",
+      "metrics": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "documentWidth": 1920,
+        "viewportWidth": 1852,
+        "viewportScrollWidth": 1852,
+        "scopeVisible": true
+      }
+    }
+  ],
+  "states": [
+    {
+      "name": "off",
+      "enabled": false,
+      "color": "#ff1744",
+      "brightness": 75,
+      "filename": "1420x900-workbench-off.png",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "documentWidth": 1420,
+        "viewportWidth": 1352,
+        "viewportScrollWidth": 1352,
+        "scopeVisible": true
+      },
+      "pixels": {
+        "width": 204,
+        "height": 306,
+        "visible": 46984,
+        "saturated": 0,
+        "redDominant": 0,
+        "greenDominant": 0,
+        "redMeanMaximum": 0,
+        "greenMeanMaximum": 0
+      }
+    },
+    {
+      "name": "red",
+      "enabled": true,
+      "color": "#ff1744",
+      "brightness": 100,
+      "filename": "1420x900-workbench-red.png",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "documentWidth": 1420,
+        "viewportWidth": 1352,
+        "viewportScrollWidth": 1352,
+        "scopeVisible": true
+      },
+      "pixels": {
+        "width": 204,
+        "height": 306,
+        "visible": 46995,
+        "saturated": 2504,
+        "redDominant": 2504,
+        "greenDominant": 0,
+        "redMeanMaximum": 218.75958466453673,
+        "greenMeanMaximum": 0
+      }
+    },
+    {
+      "name": "red-dim",
+      "enabled": true,
+      "color": "#ff1744",
+      "brightness": 25,
+      "filename": "1420x900-workbench-red-dim.png",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "documentWidth": 1420,
+        "viewportWidth": 1352,
+        "viewportScrollWidth": 1352,
+        "scopeVisible": true
+      },
+      "pixels": {
+        "width": 204,
+        "height": 306,
+        "visible": 46995,
+        "saturated": 2458,
+        "redDominant": 2021,
+        "greenDominant": 0,
+        "redMeanMaximum": 94.12963879267689,
+        "greenMeanMaximum": 0
+      }
+    },
+    {
+      "name": "green",
+      "enabled": true,
+      "color": "#42d392",
+      "brightness": 75,
+      "filename": "1420x900-workbench-green.png",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "documentWidth": 1420,
+        "viewportWidth": 1352,
+        "viewportScrollWidth": 1352,
+        "scopeVisible": true
+      },
+      "pixels": {
+        "width": 204,
+        "height": 306,
+        "visible": 46995,
+        "saturated": 2504,
+        "redDominant": 0,
+        "greenDominant": 2452,
+        "redMeanMaximum": 0,
+        "greenMeanMaximum": 177.3115823817292
+      }
+    }
+  ]
+}

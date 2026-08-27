@@ -40,6 +40,13 @@ const productAssets: ProductAssetDefinition[] = [
     matchedBy: 'exact-model',
     source: 'bundled-official',
   },
+  {
+    key: 'razer-huntsman-v2-analog',
+    manufacturer: 'razer',
+    model: 'huntsman v2 analog',
+    matchedBy: 'exact-model',
+    source: 'bundled-official',
+  },
 ];
 
 export function resolveProductAsset(identity: DeviceIdentity, kind: DeviceKind): ProductAssetResolution {

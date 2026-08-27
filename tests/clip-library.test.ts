@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Clip } from '../src/shared/contracts';
-import { clipSchema, clipTrimInputSchema, exportClipInputSchema } from '../src/shared/contracts';
+import { clipSchema, clipTrimInputSchema, exportClipInputSchema, setClipAudioTrackLevelInputSchema, setClipCanvasSizeInputSchema } from '../src/shared/contracts';
 import {
   clipGameLabel,
   createDefaultClipTitle,
@@ -12,6 +12,7 @@ import {
   normalizeClipRecord,
 } from '../src/shared/clip-library';
 import { StateStore } from '../src/main/services/state-store';
+import { buildClipVideoFilter, buildShareAudioArguments } from '../src/main/services/clip-library';
 
 const temporaryDirectories: string[] = [];
 
@@ -34,6 +35,7 @@ function clip(index: number, overrides: Partial<Clip> = {}): Clip {
     codec: 'h264',
     favorite: index % 5 === 0,
     titleEdited: false,
+    canvasSize: 'original',
     ...overrides,
   };
 }
@@ -46,7 +48,15 @@ describe('canonical clip metadata', () => {
     });
     expect(parsed.favorite).toBeFalse();
     expect(parsed.titleEdited).toBeFalse();
+    expect(parsed.canvasSize).toBe('original');
     expect(normalizeClipRecord(parsed).name).toBe('Desktop clip');
+  });
+
+  test('validates canvas size changes and builds a centered vertical export crop', () => {
+    expect(setClipCanvasSizeInputSchema.parse({ id: 'clip-1', canvasSize: '9:16' }).canvasSize).toBe('9:16');
+    expect(() => setClipCanvasSizeInputSchema.parse({ id: 'clip-1', canvasSize: 'square' })).toThrow();
+    expect(buildClipVideoFilter('original')).toBe('scale=trunc(iw/2)*2:trunc(ih/2)*2');
+    expect(buildClipVideoFilter('9:16')).toContain("crop='if(gte(iw/ih,0.5625)");
   });
 
   test('keeps custom names and infers generated game identity without exposing filenames', () => {
@@ -66,6 +76,7 @@ describe('canonical clip metadata', () => {
     first.update((draft) => {
       draft.clips = [clip(1, {
         name: 'Downtown pursuit', favorite: true, titleEdited: true, trimStartMs: 1_250, trimEndMs: 9_000,
+        canvasSize: '9:16', audioTrackLevels: [100, 42],
       })];
     });
     await first.flush();
@@ -74,6 +85,7 @@ describe('canonical clip metadata', () => {
     await restarted.load();
     expect(restarted.get().clips[0]).toMatchObject({
       name: 'Downtown pursuit', favorite: true, titleEdited: true, trimStartMs: 1_250, trimEndMs: 9_000,
+      canvasSize: '9:16', audioTrackLevels: [100, 42],
     });
   });
 
@@ -84,6 +96,22 @@ describe('canonical clip metadata', () => {
     expect(() => clipTrimInputSchema.parse({ id: 'clip-1', startMs: 9_000, endMs: 1_250 })).toThrow();
     expect(exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '10mb' }).preset).toBe('10mb');
     expect(() => exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '5mb' })).toThrow();
+    expect(setClipAudioTrackLevelInputSchema.parse({ id: 'clip-1', trackIndex: 1, level: 42 })).toEqual({
+      id: 'clip-1', trackIndex: 1, level: 42,
+    });
+    expect(() => setClipAudioTrackLevelInputSchema.parse({ id: 'clip-1', trackIndex: 8, level: 42 })).toThrow();
+    expect(() => setClipAudioTrackLevelInputSchema.parse({ id: 'clip-1', trackIndex: 1, level: 101 })).toThrow();
+  });
+
+  test('builds an explicit gain-aware share mix and drops muted tracks', () => {
+    const mixed = buildShareAudioArguments(3, 96, [100, 42, 0]);
+    const filter = mixed[mixed.indexOf('-filter_complex') + 1]!;
+    expect(filter).toContain('[0:a:0]volume=1.00[track0]');
+    expect(filter).toContain('[0:a:1]volume=0.42[track1]');
+    expect(filter).not.toContain('0:a:2');
+    expect(filter).toContain('amix=inputs=2');
+    expect(buildShareAudioArguments(2, 96, [0, 0])).toEqual(['-an']);
+    expect(buildShareAudioArguments(2, 96, [0, 100])).toContain('0:a:1');
   });
 });
 
