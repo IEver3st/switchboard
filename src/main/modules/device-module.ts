@@ -11,10 +11,14 @@ export interface DeviceDiscoveryContext {
   appearanceOverrides: Record<string, DeviceAppearanceOverride>;
 }
 
+export interface DeviceControlResult {
+  confirmedChanges: DeviceControlChange[];
+}
+
 export interface DeviceModule {
   id: string;
   discover(context: DeviceDiscoveryContext): Promise<Device[]>;
-  setControl?(device: Device, change: DeviceControlChange): Promise<void>;
+  setControl?(device: Device, change: DeviceControlChange): Promise<DeviceControlResult | void>;
   deactivate?(): Promise<void> | void;
   dispose?(): Promise<void> | void;
 }

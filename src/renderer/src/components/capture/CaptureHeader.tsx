@@ -6,6 +6,7 @@ import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButt
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatReplayLength } from '@/lib/format';
@@ -32,6 +33,7 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
   const estimate = estimateClipSize(config, runtime.observedBitrateBps || undefined);
   const estimatedBytes = Math.round((estimate.lowerBoundBytes + estimate.upperBoundBytes) / 2);
   const notice = captureNotice(snapshot);
+  const status = captureStatus(snapshot);
   const changeSource = (value: string) => {
     if (value === 'automatic-game') void setCaptureConfig({ source: 'automatic-game', sourceId: null });
     else if (value.startsWith('display:')) void setCaptureConfig({ source: 'display', sourceId: value, displayIndex: Number(value.split(':')[1] ?? 0) });
@@ -39,12 +41,13 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
   };
 
   return (
-    <section aria-label="Capture controls" className="sticky top-0 z-20 border-b border-border bg-card">
-      <div className="capture-config-grid px-5 py-2.5">
-        <CaptureControl label="Source">
+    <section aria-label="Capture controls" className="capture-toolbar sticky top-0 z-20 border-b border-border">
+      <div className="capture-config-grid px-5 pb-3 pt-3.5">
+        <CaptureControl label="Source" status={<CaptureStatus status={status} />}>
           <CaptureSourcePicker
             value={selectedSourceValue}
             options={sourceOptions}
+            active={config.enabled}
             onChange={changeSource}
           />
         </CaptureControl>
@@ -62,7 +65,13 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
         </CaptureControl>
         <CaptureMore snapshot={snapshot} />
       </div>
-      <div className="flex min-h-8 items-center gap-2 border-t border-border px-5 py-1.5 text-[10px] tabular-nums text-muted-foreground"><span>~{formatBytes(estimatedBytes)} per replay</span><span aria-hidden="true">·</span><span>{formatBytes(snapshot.capture.storage.availableBytes)} available</span></div>
+      <Separator className="capture-toolbar__separator" />
+      <div className="capture-toolbar__meta px-5 py-1.5 text-[10px] tabular-nums text-muted-foreground">
+        <span>~{formatBytes(estimatedBytes)} per replay</span>
+        <span aria-hidden="true">·</span>
+        <span>{formatBytes(snapshot.capture.storage.availableBytes)} available</span>
+        <span className="ml-auto hidden text-text-description min-[940px]:inline">{runtime.encoderLabel || 'Encoder pending'}</span>
+      </div>
       {notice ? <div className={cn('border-t border-border px-5 py-2 text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
     </section>
   );
@@ -81,7 +90,7 @@ function CaptureMore({ snapshot }: { snapshot: SystemSnapshot }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="secondary" size="sm" className="mt-[18px] h-9 justify-between px-2.5"><span className="flex items-center gap-1.5"><SlidersHorizontal className="size-3.5" /> More</span><ChevronDown className="size-3.5" /></Button>
+        <Button type="button" variant="ghost" size="sm" title="Encoder, audio, shortcut, and storage" className="capture-more-trigger mt-[18px] h-9 justify-between px-2.5"><span className="flex items-center gap-1.5"><SlidersHorizontal className="size-3.5" /> More</span><ChevronDown className="size-3.5" /></Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[520px] max-w-[calc(100vw-110px)] p-4">
         <div className="grid grid-cols-2 gap-3">
@@ -120,8 +129,17 @@ function CaptureMore({ snapshot }: { snapshot: SystemSnapshot }) {
   );
 }
 
-function CaptureControl({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="min-w-0"><span className="mb-1 block text-[10px] font-medium text-muted-foreground">{label}</span>{children}</div>;
+function CaptureControl({ label, status, children }: { label: string; status?: React.ReactNode; children: React.ReactNode }) {
+  return <div className="min-w-0"><span className="capture-control-label mb-1 flex min-h-3.5 items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground"><span>{label}</span>{status}</span>{children}</div>;
+}
+
+function CaptureStatus({ status }: { status: ReturnType<typeof captureStatus> }) {
+  return (
+    <span className="capture-runtime-status" data-tone={status.tone} title={status.description}>
+      <span className="capture-runtime-status__dot" aria-hidden="true" />
+      {status.label}
+    </span>
+  );
 }
 
 function CompactSelect({ value, options, onChange, ariaLabel, disabled }: { value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void; ariaLabel: string; disabled?: boolean }) {
@@ -136,10 +154,12 @@ type CaptureSourceOption = Pick<CaptureSource, 'type' | 'available'> & {
 function CaptureSourcePicker({
   value,
   options,
+  active,
   onChange,
 }: {
   value: string;
   options: CaptureSourceOption[];
+  active: boolean;
   onChange: (value: string) => void;
 }) {
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
@@ -170,6 +190,7 @@ function CaptureSourcePicker({
         <button
           type="button"
           className="capture-source-trigger"
+          data-active={active ? 'true' : 'false'}
           aria-label={`Capture source: ${currentLabel}`}
         >
           <SourceIcon type={currentType} />
@@ -312,4 +333,23 @@ function captureNotice(snapshot: SystemSnapshot): { message: string; tone: 'dang
   if (snapshot.capture.storage.lowSpace) return { message: 'Storage is running low. Choose another clip folder soon.', tone: 'warning' };
   if (snapshot.capture.runtime.warning) return { message: 'Instant Replay is recovering. Check Diagnostics if this continues.', tone: 'warning' };
   return null;
+}
+
+function captureStatus(snapshot: SystemSnapshot): { label: string; description: string; tone: 'ready' | 'warning' | 'danger' | 'neutral' } {
+  if (!snapshot.capture.config.enabled || snapshot.capture.runtime.state === 'stopped') {
+    return { label: 'Off', description: 'Instant Replay is turned off in Capture Settings.', tone: 'neutral' };
+  }
+  if (snapshot.capture.runtime.error || snapshot.capture.runtime.state === 'error') {
+    return { label: 'Error', description: 'Instant Replay could not start.', tone: 'danger' };
+  }
+  if (snapshot.capture.runtime.warning || snapshot.capture.runtime.state === 'recovering' || snapshot.capture.runtime.state === 'starting') {
+    return { label: 'Recovering', description: 'Instant Replay is preparing the capture source.', tone: 'warning' };
+  }
+  if (snapshot.capture.runtime.state === 'waiting') {
+    return { label: 'Waiting', description: 'Instant Replay is waiting for an eligible source.', tone: 'warning' };
+  }
+  if (snapshot.capture.runtime.state === 'saving') {
+    return { label: 'Saving', description: 'Instant Replay is saving a clip.', tone: 'ready' };
+  }
+  return { label: 'Ready', description: 'Instant Replay is buffering this source.', tone: 'ready' };
 }

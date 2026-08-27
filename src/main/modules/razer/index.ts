@@ -7,7 +7,7 @@ import type {
   LightingEffect,
 } from '../../../shared/contracts';
 import { resolveProductAsset } from '../../../shared/product-assets';
-import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
+import type { DeviceControlResult, DeviceDiscoveryContext, DeviceModule } from '../device-module';
 import {
   huntsmanV2AnalogProductId,
   isHuntsmanLightingEffect,
@@ -21,13 +21,13 @@ const model = 'Huntsman V2 Analog';
 const nativeUnavailableReason = 'The dedicated Razer HID control endpoint is unavailable. Reconnect the keyboard or close another utility that owns it.';
 
 export const huntsmanLightingEffects: readonly LightingEffect[] = [
-  { id: 'static', label: 'Static' },
-  { id: 'breathing', label: 'Breathing' },
-  { id: 'spectrum', label: 'Spectrum' },
-  { id: 'reactive', label: 'Reactive' },
-  { id: 'starlight', label: 'Starlight' },
-  { id: 'wave-left', label: 'Wave left' },
-  { id: 'wave-right', label: 'Wave right' },
+  { id: 'static', label: 'Static', controls: ['color', 'brightness'] },
+  { id: 'breathing', label: 'Breathing', controls: ['color', 'brightness'] },
+  { id: 'spectrum', label: 'Spectrum', controls: ['brightness'] },
+  { id: 'reactive', label: 'Reactive', controls: ['color', 'brightness'] },
+  { id: 'starlight', label: 'Starlight', controls: ['color', 'brightness'] },
+  { id: 'wave-left', label: 'Wave left', controls: ['brightness'] },
+  { id: 'wave-right', label: 'Wave right', controls: ['brightness'] },
 ] as const;
 
 export const huntsmanKeyboardFeatures: readonly KeyboardFeature[] = [
@@ -105,7 +105,11 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
 
   public constructor(private readonly dependencies: HuntsmanModuleDependencies = defaultDependencies) {}
 
-  public async discover(context: DeviceDiscoveryContext): Promise<Device[]> {
+  public discover(context: DeviceDiscoveryContext): Promise<Device[]> {
+    return this.enqueue(() => this.discoverNow(context));
+  }
+
+  private async discoverNow(context: DeviceDiscoveryContext): Promise<Device[]> {
     if (this.disposed) return [];
     const descriptors = context.hidDevices.filter((descriptor) => (
       descriptor.vendorId === razerVendorId && descriptor.productId === huntsmanV2AnalogProductId
@@ -168,10 +172,18 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
       serialNumber,
       productString: primary?.product ?? descriptors.find((descriptor) => descriptor.product)?.product,
     };
-    const writable = Boolean(this.path && this.probe && !unavailableReason);
-    const brightness = this.probe?.brightness ?? this.settings.lightingBrightness;
+    const nativeReady = Boolean(this.path && this.probe && !unavailableReason);
+    const brightness = this.probe?.brightness;
     const availableEffects = supportedLightingEffects(this.probe?.lightingEffectCodes);
-    this.settings.lightingBrightness = brightness;
+    if (brightness !== undefined) this.settings.lightingBrightness = brightness;
+    const effectWritable = Boolean(nativeReady && this.probe?.lightingState && this.probe?.lightingEffectCodes?.length && availableEffects.length);
+    const brightnessWritable = Boolean(nativeReady && brightness !== undefined);
+    const gamingModeWritable = Boolean(nativeReady && this.probe?.gamingMode !== undefined);
+    const profilesWritable = Boolean(
+      nativeReady
+      && this.probe?.activeOnboardProfileId !== undefined
+      && this.probe.onboardProfileIds?.includes(this.probe.activeOnboardProfileId),
+    );
 
     return [{
       id,
@@ -190,46 +202,33 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         keyboard: {
           ...(this.probe?.firmwareVersion ? { firmwareVersion: this.probe.firmwareVersion } : {}),
           pollingRateHz: 1_000,
-          transport: writable ? 'native-hid' : 'unavailable',
+          transport: nativeReady ? 'native-hid' : 'unavailable',
           features: huntsmanKeyboardFeatures.map((feature) => ({ ...feature })),
           gamingMode: {
             enabled: this.probe?.gamingMode ?? null,
-            writable,
-            ...(!writable ? { unavailableReason: unavailableReason ?? nativeUnavailableReason } : {}),
+            writable: gamingModeWritable,
+            ...(!gamingModeWritable ? { unavailableReason: diagnosticReason(this.probe, 'gaming-mode', unavailableReason) } : {}),
           },
           onboardProfiles: {
-            activeProfileId: this.probe ? String(this.probe.activeOnboardProfileId) : null,
+            activeProfileId: this.probe?.activeOnboardProfileId !== undefined ? String(this.probe.activeOnboardProfileId) : null,
             profiles: (this.probe?.onboardProfileIds ?? []).map((profileId, index) => ({
               id: String(profileId),
               label: `Profile ${index + 1}`,
             })),
-            writable,
-            ...(!writable ? { unavailableReason: unavailableReason ?? nativeUnavailableReason } : {}),
+            writable: profilesWritable,
+            ...(!profilesWritable ? { unavailableReason: diagnosticReason(this.probe, 'onboard-profiles', unavailableReason) } : {}),
           },
-          rapidTrigger: {
-            enabled: this.probe?.rapidTrigger ?? null,
-            writable: writable && this.probe?.rapidTrigger !== undefined,
-            ...(this.probe?.rapidTrigger === undefined ? {
-              unavailableReason: 'Requires Synapse 4 on the Huntsman V2 Analog; the keyboard rejected the standalone firmware command.',
-            } : {}),
-          },
-          snapTap: {
-            enabled: this.probe?.snapTap ?? null,
-            writable: writable && this.probe?.snapTap !== undefined,
-            ...(this.probe?.snapTap === undefined ? {
-              unavailableReason: 'Requires Synapse 4 to stay active on this non-V3 keyboard.',
-            } : {}),
-          },
+          diagnostics: keyboardDiagnostics(this.probe, unavailableReason, this.probeUpdatedAt),
         },
         lighting: {
-          writable,
+          writable: effectWritable,
           enabled: this.settings.lightingEnabled,
           activeEffectId: this.settings.lightingEffect,
           availableEffects,
           color: this.settings.lightingColor,
-          colorWritable: true,
-          brightness,
-          brightnessWritable: writable,
+          colorWritable: effectWritable,
+          ...(brightness !== undefined ? { brightness } : {}),
+          brightnessWritable,
           speedWritable: false,
           profiles: [],
           muteLinked: false,
@@ -241,14 +240,14 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
           physicalEffectVerified: false,
           profileMode: 'software',
           source: 'firmware',
-          ...(unavailableReason ? { unavailableReason } : {}),
+          ...(!effectWritable ? { unavailableReason: diagnosticReason(this.probe, 'lighting-effect', unavailableReason) } : {}),
         },
       },
       settings: serializeSettings(this.settings),
     }];
   }
 
-  public setControl(device: Device, change: DeviceControlChange): Promise<void> {
+  public setControl(device: Device, change: DeviceControlChange): Promise<DeviceControlResult> {
     return this.enqueue(async () => {
       if (!device.connected || device.id !== this.deviceId || !this.path) throw new Error(`${device.displayName} native controls are unavailable.`);
       if (change.type === 'lighting-brightness') {
@@ -256,7 +255,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         this.settings.lightingBrightness = confirmed;
         if (this.probe) this.probe = { ...this.probe, brightness: confirmed };
         this.probeUpdatedAt = this.dependencies.now();
-        return;
+        return confirmedControl({ type: 'lighting-brightness', brightness: confirmed });
       }
       if (change.type === 'lighting-enabled') {
         const confirmed = await this.dependencies.transport.setEffect(
@@ -266,7 +265,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         );
         this.applyLightingReadback(confirmed);
         this.effectAcknowledged = true;
-        return;
+        return confirmedControl({ type: 'lighting-enabled', enabled: confirmed.effectId !== 'off' });
       }
       if (change.type === 'lighting-effect') {
         if (!isHuntsmanLightingEffect(change.effectId) || change.effectId === 'off') throw new Error('That quick effect is not supported by this keyboard module.');
@@ -274,7 +273,9 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         const confirmed = await this.dependencies.transport.setEffect(this.path, change.effectId, this.settings.lightingColor);
         this.applyLightingReadback(confirmed);
         this.effectAcknowledged = true;
-        return;
+        return confirmed.effectId === 'off'
+          ? confirmedControl({ type: 'lighting-enabled', enabled: false })
+          : confirmedControl({ type: 'lighting-effect', effectId: confirmed.effectId });
       }
       if (change.type === 'lighting-color') {
         if (!this.settings.lightingEnabled || !effectUsesColor(this.settings.lightingEffect)) {
@@ -283,23 +284,24 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         const confirmed = await this.dependencies.transport.setEffect(this.path, this.settings.lightingEffect, change.color);
         this.applyLightingReadback(confirmed);
         this.effectAcknowledged = true;
-        return;
+        if (!confirmed.color) throw new Error('The keyboard did not return the applied lighting color.');
+        return confirmedControl({ type: 'lighting-color', color: confirmed.color });
       }
       if (change.type === 'keyboard-gaming-mode') {
         if (!this.probe) throw new Error('Gaming Mode is unavailable until the keyboard responds.');
         const enabled = await this.dependencies.transport.setGamingMode(this.path, change.enabled);
         this.probe = { ...this.probe, gamingMode: enabled };
         this.probeUpdatedAt = this.dependencies.now();
-        return;
+        return confirmedControl({ type: 'keyboard-gaming-mode', enabled });
       }
       if (change.type === 'keyboard-onboard-profile') {
         if (!this.probe) throw new Error('Onboard profiles are unavailable until the keyboard responds.');
         const profileId = Number.parseInt(change.profileId, 10);
-        if (!this.probe.onboardProfileIds.includes(profileId)) throw new Error('That onboard profile is not present on this keyboard.');
+        if (!this.probe.onboardProfileIds?.includes(profileId)) throw new Error('That onboard profile is not present on this keyboard.');
         const confirmed = await this.dependencies.transport.setActiveOnboardProfile(this.path, profileId);
         this.probe = { ...this.probe, activeOnboardProfileId: confirmed };
         this.probeUpdatedAt = this.dependencies.now();
-        return;
+        return confirmedControl({ type: 'keyboard-onboard-profile', profileId: String(confirmed) });
       }
       if (change.type === 'keyboard-rapid-trigger') {
         throw new Error('Rapid Trigger requires Synapse 4 on this Huntsman V2 Analog firmware.');
@@ -321,7 +323,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
     await this.operationQueue;
   }
 
-  private enqueue(operation: () => Promise<void>): Promise<void> {
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.operationQueue.then(operation, operation);
     this.operationQueue = result.then(() => undefined, () => undefined);
     return result;
@@ -342,6 +344,10 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
     this.probeUpdatedAt = 0;
     this.effectAcknowledged = false;
   }
+}
+
+function confirmedControl(change: DeviceControlChange): DeviceControlResult {
+  return { confirmedChanges: [change] };
 }
 
 function findControlEndpoint(descriptors: HidDevice[]): HidDevice | undefined {
@@ -398,4 +404,33 @@ function supportedLightingEffects(effectCodes?: number[]): LightingEffect[] {
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+const huntsmanDiagnosticReads = [
+  'firmware',
+  'serial-number',
+  'brightness',
+  'lighting-effect',
+  'lighting-effects',
+  'gaming-mode',
+  'onboard-profiles',
+  'active-profile',
+] as const;
+
+function keyboardDiagnostics(probe: HuntsmanProbe | null, unavailableReason: string | undefined, updatedAt: number) {
+  const failures = probe?.readFailures ?? {};
+  return {
+    protocol: 'Razer feature reports',
+    endpoint: !probe ? 'unavailable' as const : Object.keys(failures).length ? 'partial' as const : 'ready' as const,
+    ...(updatedAt > 0 ? { lastSyncAt: new Date(updatedAt).toISOString() } : {}),
+    reads: huntsmanDiagnosticReads.map((id) => ({
+      id,
+      ok: Boolean(probe) && !failures[id],
+      ...(failures[id] ? { error: failures[id] } : unavailableReason ? { error: unavailableReason } : {}),
+    })),
+  };
+}
+
+function diagnosticReason(probe: HuntsmanProbe | null, readId: string, unavailableReason?: string): string {
+  return probe?.readFailures[readId] ?? unavailableReason ?? nativeUnavailableReason;
 }

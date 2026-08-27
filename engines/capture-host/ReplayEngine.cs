@@ -631,8 +631,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         int bitrateBps,
         int? outputChannels = null)
     {
-        _ = outputChannels;
-        return new[]
+        if (outputChannels is <= 0) throw new ArgumentOutOfRangeException(nameof(outputChannels));
+        var arguments = new List<string>
         {
             "-hide_banner", "-loglevel", "warning", "-nostats",
             "-thread_queue_size", "512",
@@ -644,6 +644,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-c:a", "aac",
             "-ar", "48000",
             "-filter:a:0", "aresample=async=1000:first_pts=0",
+        };
+        if (outputChannels is int channels)
+            arguments.AddRange(["-ac", channels.ToString(CultureInfo.InvariantCulture)]);
+        arguments.AddRange([
             "-b:a", bitrateBps.ToString(CultureInfo.InvariantCulture),
             "-metadata:s:a:0", $"title={input.Label}",
             "-f", "segment",
@@ -652,7 +656,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-reset_timestamps", "1",
             "-avoid_negative_ts", "make_zero",
             Path.Combine(outputDirectory, $"{filePrefix}-%09d.mka"),
-        };
+        ]);
+        return arguments;
     }
 
     private IEnumerable<string> BuildArguments(

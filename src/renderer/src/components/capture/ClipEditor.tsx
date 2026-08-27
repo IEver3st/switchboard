@@ -168,50 +168,51 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
             <TooltipContent>{clip.favorite ? 'Remove from favorites' : 'Add to favorites'}</TooltipContent>
           </Tooltip>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="no-drag" aria-label={inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'} aria-pressed={inspectorOpen} onClick={() => onInspectorOpenChange(!inspectorOpen)}>
-              {inspectorOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'}</TooltipContent>
-        </Tooltip>
-        <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs, audioTrackTrims)} />
-        <DropdownMenu>
+        <dl className="clip-editor-metadata no-drag" aria-label="Clip file details">
+          <Metadata label="Created" value={new Date(clip.createdAt).toLocaleString()} />
+          <Metadata label="Video quality" value={formatVideoQuality(clip.width, clip.height, clip.fps)} />
+          <Metadata label="Size" value={formatBytes(clip.fileSize)} />
+          <div className="clip-editor-metadata__location">
+            <dt>Location</dt>
+            <dd>
+              <button type="button" className="clip-editor-metadata__path" title={clip.path} aria-label={`Show ${clip.path} in File Explorer`} onClick={onReveal}>
+                <FolderOpen aria-hidden="true" /><span>{clip.path}</span>
+              </button>
+            </dd>
+          </div>
+        </dl>
+        <div className="clip-editor-header__actions">
           <Tooltip>
             <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="no-drag" aria-label="More clip actions">
-                  <MoreVertical className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
+              <Button type="button" variant="ghost" size="icon" className="no-drag" aria-label={inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'} aria-pressed={inspectorOpen} onClick={() => onInspectorOpenChange(!inspectorOpen)}>
+                {inspectorOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+              </Button>
             </TooltipTrigger>
-            <TooltipContent>More clip actions</TooltipContent>
+            <TooltipContent>{inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'}</TooltipContent>
           </Tooltip>
-          <DropdownMenuContent align="end" className="no-drag">
-            <DropdownMenuItem onSelect={onRename}><Pencil className="size-3.5" /> Rename clip</DropdownMenuItem>
-            <DropdownMenuItem onSelect={onReveal}><FolderOpen className="size-3.5" /> Show in folder</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={onDelete}>
-              <Trash2 className="size-3.5" /> Delete clip
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
-
-      <dl className="clip-editor-metadata no-drag" aria-label="Clip file details">
-        <Metadata label="Created" value={new Date(clip.createdAt).toLocaleString()} />
-        <Metadata label="Video quality" value={formatVideoQuality(clip.width, clip.height, clip.fps)} />
-        <Metadata label="Size" value={formatBytes(clip.fileSize)} />
-        <div className="clip-editor-metadata__location">
-          <dt>Location</dt>
-          <dd>
-            <button type="button" className="clip-editor-metadata__path" title={clip.path} aria-label={`Show ${clip.path} in File Explorer`} onClick={onReveal}>
-              <FolderOpen aria-hidden="true" /><span>{clip.path}</span>
-            </button>
-          </dd>
+          <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs, audioTrackTrims)} />
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="no-drag" aria-label="More clip actions">
+                    <MoreVertical className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>More clip actions</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="no-drag">
+              <DropdownMenuItem onSelect={onRename}><Pencil className="size-3.5" /> Rename clip</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onReveal}><FolderOpen className="size-3.5" /> Show in folder</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={onDelete}>
+                <Trash2 className="size-3.5" /> Delete clip
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </dl>
+      </header>
 
       <div className="clip-editor-layout" data-inspector={inspectorOpen ? 'open' : 'closed'}>
         <main className="clip-editor-workspace">
@@ -345,7 +346,7 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 function Metadata({ label, value }: { label: string; value: string }) {
-  return <div><dt>{label}</dt><dd>{value}</dd></div>;
+  return <div><dt>{label}</dt><dd title={value}>{value}</dd></div>;
 }
 
 function focusableElements(root: HTMLElement | null): HTMLElement[] {

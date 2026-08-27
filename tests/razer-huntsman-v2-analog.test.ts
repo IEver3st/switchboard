@@ -29,6 +29,7 @@ import {
   razerCrc,
   razerReportLength,
 } from '../src/main/modules/razer/huntsman-v2-analog-protocol';
+import { HuntsmanV2AnalogTransport } from '../src/main/modules/razer/huntsman-v2-analog-transport';
 import { resolveProductAsset } from '../src/shared/product-assets';
 import { StateStore } from '../src/main/services/state-store';
 
@@ -87,6 +88,51 @@ describe('Razer Huntsman V2 Analog protocol', () => {
   });
 });
 
+describe('Razer Huntsman V2 Analog transport', () => {
+  test('keeps independent controls available when one diagnostic read fails', async () => {
+    let pending = Buffer.alloc(razerReportLength);
+    let closed = false;
+    const transport = new HuntsmanV2AnalogTransport({
+      async open() {
+        return {
+          async sendFeatureReport(report) {
+            pending = Buffer.from(report);
+            return report.byteLength;
+          },
+          async getFeatureReport() {
+            const commandClass = pending[7];
+            const commandId = pending[8];
+            if (commandClass === 0x00 && commandId === 0x81) return responseFromReport(pending, [], 0x05);
+            if (commandClass === 0x00 && commandId === 0x82) return responseFromReport(pending, [...Buffer.from('TEST-SERIAL')]);
+            if (commandClass === 0x0f && commandId === 0x84) return responseFromReport(pending, [1, 5, 230]);
+            if (commandClass === 0x0f && commandId === 0x82) return responseFromReport(pending, [1, 5, 1, 0, 0, 1, 0x44, 0xaa, 0xff]);
+            if (commandClass === 0x0f && commandId === 0x81) return responseFromReport(pending, [7, 0, 1, 2, 3, 4, 5, 7]);
+            if (commandClass === 0x03 && commandId === 0x80) return responseFromReport(pending, [1, 8, 0]);
+            if (commandClass === 0x05 && commandId === 0x81) return responseFromReport(pending, [2, 1, 2]);
+            if (commandClass === 0x05 && commandId === 0x84) return responseFromReport(pending, [1]);
+            throw new Error('Unexpected command in transport test.');
+          },
+          async close() { closed = true; },
+        };
+      },
+    });
+
+    const probe = await transport.probe('razer-control');
+
+    expect(probe.firmwareVersion).toBeUndefined();
+    expect(probe.readFailures.firmware).toContain('unsupported command');
+    expect(probe).toMatchObject({
+      serialNumber: 'TEST-SERIAL',
+      brightness: 90,
+      lightingState: { effectId: 'static', color: '#44aaff' },
+      gamingMode: false,
+      onboardProfileIds: [1, 2],
+      activeOnboardProfileId: 1,
+    });
+    expect(closed).toBe(true);
+  });
+});
+
 describe('Razer Huntsman V2 Analog module', () => {
   test('publishes only the firmware effects implemented by this model', () => {
     expect(huntsmanLightingEffects.map((effect) => effect.id)).toEqual([
@@ -115,6 +161,7 @@ describe('Razer Huntsman V2 Analog module', () => {
           gamingMode: false,
           onboardProfileIds: [1, 2],
           activeOnboardProfileId: 1,
+          readFailures: {},
         };
       },
       async setBrightness(_path, brightness) {
@@ -152,14 +199,17 @@ describe('Razer Huntsman V2 Analog module', () => {
     expect(device?.capabilities.keyboard).toMatchObject({
       gamingMode: { enabled: false, writable: true },
       onboardProfiles: { activeProfileId: '1', writable: true, profiles: [{ id: '1' }, { id: '2' }] },
-      rapidTrigger: { enabled: null, writable: false },
-      snapTap: { enabled: null, writable: false },
     });
+    expect(device?.capabilities.keyboard?.rapidTrigger).toBeUndefined();
+    expect(device?.capabilities.keyboard?.snapTap).toBeUndefined();
     expect(resolveProductAsset(device!.identity, 'keyboard').key).toBe('razer-huntsman-v2-analog');
 
     await module.setControl(device!, { type: 'lighting-effect', effectId: 'static' });
     await module.setControl(device!, { type: 'lighting-color', color: '#4466aa' });
-    await module.setControl(device!, { type: 'lighting-brightness', brightness: 62 });
+    const brightnessResult = await module.setControl(device!, { type: 'lighting-brightness', brightness: 62 });
+    expect(brightnessResult).toEqual({
+      confirmedChanges: [{ type: 'lighting-brightness', brightness: 61 }],
+    });
     await module.setControl(device!, { type: 'lighting-enabled', enabled: false });
     await module.setControl(device!, { type: 'lighting-enabled', enabled: true });
     await module.setControl(device!, { type: 'keyboard-gaming-mode', enabled: true });
@@ -239,6 +289,18 @@ function responseFor(
   report[1] = 0x02;
   report[89] = razerCrc(report);
   return report;
+}
+
+function responseFromReport(request: Buffer, responseArguments: readonly number[], status = 0x02): Buffer {
+  const response = Buffer.alloc(razerReportLength);
+  response[1] = status;
+  response[2] = request[2] ?? 0;
+  response[6] = responseArguments.length;
+  response[7] = request[7] ?? 0;
+  response[8] = request[8] ?? 0;
+  response.set(responseArguments, 9);
+  response[89] = razerCrc(response);
+  return response;
 }
 
 function descriptors(): HidDevice[] {

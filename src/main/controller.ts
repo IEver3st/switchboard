@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
+import { dirname, extname, join, resolve } from 'node:path';
 import { app, clipboard, desktopCapturer, dialog, globalShortcut, screen, shell, type DesktopCapturerSource, type Display } from 'electron';
 import { z } from 'zod';
 import {
@@ -22,6 +22,7 @@ import {
   type CaptureSource,
   type Clip,
   type ExportClipInput,
+  type ExportMontageInput,
   type FeedbackHandoffResult,
   type FeedbackReportInput,
   type EngineStatus,
@@ -118,6 +119,7 @@ export class AppController {
   private captureSourceThumbnailRefresh: Promise<void> | null = null;
   private captureSourceThumbnailsRefreshedAt = 0;
   private gameScan: Promise<SystemSnapshot> | null = null;
+  private readonly activeClipExports = new Map<string, AbortController>();
   private initialization: Promise<void> | null = null;
   private disposed = false;
 
@@ -280,6 +282,11 @@ export class AppController {
 
   public async setDeviceControl(input: SetDeviceControlInput): Promise<SystemSnapshot> {
     await this.devices.setControl(input.deviceId, input.change);
+    return this.store.get();
+  }
+
+  public async refreshDevices(): Promise<SystemSnapshot> {
+    await this.devices.refresh();
     return this.store.get();
   }
 
@@ -1071,16 +1078,94 @@ export class AppController {
     }
     if (canCopyOriginal) {
       if (destinationIsSource) return true;
+      await ensureExportDiskSpace(selection.filePath, clip.fileSize + 64 * 1_024 * 1_024);
       await copyFile(clip.path, selection.filePath);
       return true;
     }
+    const expectedBytes = input.preset === 'original'
+      ? Math.ceil(clip.fileSize * (input.endMs - input.startMs) / Math.max(1, clip.durationMs))
+      : exportPresetTargetBytes(input.preset);
+    await ensureExportDiskSpace(selection.filePath, expectedBytes + 64 * 1_024 * 1_024);
+    const controller = input.exportId ? new AbortController() : null;
+    if (input.exportId && controller) this.activeClipExports.set(input.exportId, controller);
     try {
-      await this.clipLibrary.renderExport(clip, selection.filePath, input);
+      await this.clipLibrary.renderExport(clip, selection.filePath, input, controller?.signal);
     } catch (error) {
       await rm(selection.filePath, { force: true });
+      if (controller?.signal.aborted) return false;
       throw error;
+    } finally {
+      if (input.exportId) this.activeClipExports.delete(input.exportId);
     }
     return true;
+  }
+
+  public async exportMontage(input: ExportMontageInput): Promise<boolean> {
+    const snapshot = this.store.get();
+    const clipsById = new Map(snapshot.clips.map((clip) => [clip.id, clip]));
+    const entries = input.project.segments.map((segment) => ({ segment, clip: clipsById.get(segment.clipId) }));
+    const missing = entries.filter((entry) => !entry.clip || !existsSync(entry.clip.path));
+    if (missing.length > 0) {
+      const names = missing.slice(0, 3).map((entry) => entry.clip?.name ?? entry.segment.clipId).join(', ');
+      throw new Error(`Montage source unavailable: ${names}${missing.length > 3 ? ` and ${missing.length - 3} more` : ''}. Remove or restore the missing clip before exporting.`);
+    }
+
+    for (const entry of entries) {
+      const clip = entry.clip!;
+      const segment = entry.segment;
+      if (segment.sourceDurationMs !== clip.durationMs) throw new Error(`${clip.name} changed after this montage was opened. Reopen the montage to refresh its media metadata.`);
+      if (segment.trimEndMs > clip.durationMs || segment.trimEndMs - segment.trimStartMs < 100) {
+        throw new Error(`The trim range for ${clip.name} is invalid.`);
+      }
+      for (const trim of segment.audioTrackTrims ?? []) {
+        if (!trim) continue;
+        if (trim.endMs > clip.durationMs || trim.endMs - trim.startMs < 100) {
+          throw new Error(`An audio trim for ${clip.name} is invalid.`);
+        }
+      }
+    }
+
+    const suffix = input.preset === 'original' ? '' : `-${input.preset}`;
+    const canvasSuffix = input.project.canvasSize === '9:16' ? '-9x16' : '';
+    const selection = await dialog.showSaveDialog({
+      title: 'Create montage share file',
+      defaultPath: join(app.getPath('videos'), `${sanitizeClipBaseName(input.project.name)}${canvasSuffix}${suffix}.mp4`),
+      filters: [{ name: 'Video', extensions: ['mp4'] }],
+    });
+    if (selection.canceled || !selection.filePath) return false;
+    const resolvedDestination = resolve(selection.filePath).toLocaleLowerCase();
+    if (entries.some((entry) => resolve(entry.clip!.path).toLocaleLowerCase() === resolvedDestination)) {
+      throw new Error('Choose a different file name so every source clip stays intact.');
+    }
+
+    const proportionalSourceBytes = entries.reduce((total, entry) => {
+      const duration = entry.segment.trimEndMs - entry.segment.trimStartMs;
+      return total + entry.clip!.fileSize * duration / Math.max(1, entry.clip!.durationMs);
+    }, 0);
+    const finalBytes = input.preset === 'original' ? proportionalSourceBytes : exportPresetTargetBytes(input.preset);
+    await ensureExportDiskSpace(selection.filePath, Math.ceil(proportionalSourceBytes + finalBytes + 128 * 1_024 * 1_024));
+
+    const controller = new AbortController();
+    this.activeClipExports.set(input.exportId, controller);
+    try {
+      await this.clipLibrary.renderMontageExport(
+        entries.map((entry) => ({ clip: entry.clip!, segment: entry.segment })),
+        selection.filePath,
+        input,
+        controller.signal,
+      );
+    } catch (error) {
+      await rm(selection.filePath, { force: true });
+      if (controller.signal.aborted) return false;
+      throw error;
+    } finally {
+      this.activeClipExports.delete(input.exportId);
+    }
+    return true;
+  }
+
+  public cancelClipExport(exportId: string): void {
+    this.activeClipExports.get(exportId)?.abort();
   }
 
   public getClipPath(id: string, thumbnail: boolean): string | null {
@@ -1099,6 +1184,8 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    for (const controller of this.activeClipExports.values()) controller.abort();
+    this.activeClipExports.clear();
     this.appUpdates.dispose();
     await this.initialization?.catch(() => undefined);
     if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
@@ -1565,6 +1652,26 @@ export class AppController {
 
   private emitAudioMeters(frame: AudioMeterFrame): void {
     for (const listener of this.audioMeterListeners) listener(frame);
+  }
+}
+
+function exportPresetTargetBytes(preset: ExportClipInput['preset']): number {
+  if (preset === '10mb') return 10 * 1_024 * 1_024;
+  if (preset === '25mb') return 25 * 1_024 * 1_024;
+  if (preset === '50mb') return 50 * 1_024 * 1_024;
+  return 0;
+}
+
+async function ensureExportDiskSpace(destination: string, requiredBytes: number): Promise<void> {
+  try {
+    const storage = await statfs(dirname(destination), { bigint: true });
+    const availableBytes = storage.bavail * storage.bsize;
+    if (availableBytes < BigInt(Math.max(0, Math.ceil(requiredBytes)))) {
+      throw new Error('There is not enough free disk space to create this export. Choose another destination or shorten the project.');
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('not enough free disk space')) throw error;
+    // Some network and virtual filesystems do not expose capacity through statfs.
   }
 }
 

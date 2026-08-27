@@ -3,16 +3,36 @@ import { formatClipDateGroup } from '@/lib/format';
 import { ClipCard } from './ClipCard';
 import type { ClipActions } from './types';
 
-export function ClipGrid({ clips, actions, grouped }: { clips: Clip[]; actions: ClipActions; grouped: boolean }) {
+export function ClipGrid({ clips, actions, grouped, selectionMode, selectedClipIds, onToggleSelection }: {
+  clips: Clip[];
+  actions: ClipActions;
+  grouped: boolean;
+  selectionMode: boolean;
+  selectedClipIds: string[];
+  onToggleSelection: (clip: Clip) => void;
+}) {
+  const card = (clip: Clip) => (
+    <ClipCard
+      key={clip.id}
+      clip={clip}
+      actions={actions}
+      selectionMode={selectionMode}
+      selectedOrder={selectedClipIds.includes(clip.id) ? selectedClipIds.indexOf(clip.id) + 1 : null}
+      onToggleSelection={onToggleSelection}
+    />
+  );
   if (!grouped) {
-    return <ul className="capture-clip-grid m-0 list-none p-0">{clips.map((clip) => <ClipCard key={clip.id} clip={clip} actions={actions} />)}</ul>;
+    return <ul className="capture-clip-grid m-0 list-none p-0">{clips.map(card)}</ul>;
   }
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-7">
       {groupClips(clips).map((group) => (
         <section key={group.label} aria-labelledby={`clip-group-${group.key}`}>
-          <h3 id={`clip-group-${group.key}`} className="m-0 mb-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{group.label}</h3>
-          <ul className="capture-clip-grid m-0 list-none p-0">{group.clips.map((clip) => <ClipCard key={clip.id} clip={clip} actions={actions} />)}</ul>
+          <div className="mb-2.5 flex items-baseline gap-2">
+            <h3 id={`clip-group-${group.key}`} className="m-0 text-[12px] font-semibold tracking-[-0.01em] text-text-secondary">{group.label}</h3>
+            <span className="text-[10px] tabular-nums text-text-muted">{group.clips.length}</span>
+          </div>
+          <ul className="capture-clip-grid m-0 list-none p-0">{group.clips.map(card)}</ul>
         </section>
       ))}
     </div>

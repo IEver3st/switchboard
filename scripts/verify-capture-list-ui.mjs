@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-capture-list-qa-'));
-const outputDirectory = join(projectRoot, '.impeccable', 'review', 'capture-list');
+const outputDirectory = process.env.SWITCHBOARD_REVIEW_OUTPUT
+  ? resolve(projectRoot, process.env.SWITCHBOARD_REVIEW_OUTPUT)
+  : join(projectRoot, '.impeccable', 'review', 'capture-list');
 const sourceState = process.env.APPDATA ? join(process.env.APPDATA, 'switchboard-prototype', 'switchboard-state.json') : null;
 if (!sourceState) throw new Error('APPDATA is required for native capture-list verification.');
 
@@ -59,7 +61,10 @@ async function run() {
           viewport: { width: innerWidth, height: innerHeight },
           document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth },
           main: main ? { scrollWidth: main.scrollWidth, clientWidth: main.clientWidth } : null,
-          listSelected: document.querySelector('[aria-label="List view"]')?.getAttribute('aria-pressed'),
+          listSelected: (() => {
+            const item = document.querySelector('[aria-label="List view"]');
+            return item?.getAttribute('aria-pressed') ?? item?.getAttribute('aria-checked') ?? item?.getAttribute('data-state');
+          })(),
           rowCount: rows.length,
           row: rowRect ? { width: rowRect.width, height: rowRect.height } : null,
           thumbnail: thumbnailRect ? { width: thumbnailRect.width, height: thumbnailRect.height } : null,
@@ -74,7 +79,7 @@ async function run() {
     if (metrics.document.scrollWidth !== metrics.document.clientWidth || (metrics.main && metrics.main.scrollWidth !== metrics.main.clientWidth)) {
       throw new Error(`Horizontal overflow at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics)}`);
     }
-    if (metrics.listSelected !== 'true' || !metrics.rowCount || !metrics.source || !metrics.duration) {
+    if (!['true', 'on'].includes(metrics.listSelected) || !metrics.rowCount || !metrics.source || !metrics.duration) {
       throw new Error(`Capture-list content was incomplete at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics)}`);
     }
     if (!metrics.metadata?.includes('Video quality:') || !metrics.metadata.includes('Size:') || !metrics.metadata.includes('ago')) {

@@ -1,7 +1,7 @@
 import type { Clip } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { formatBytes, formatRelativeTime, formatVideoQuality } from '@/lib/format';
-import { ClipActionsMenu, ClipFavorite } from './ClipActions';
+import { ClipActionsMenu, ClipFavorite, ClipShare } from './ClipActions';
 import { ClipThumbnail } from './ClipThumbnail';
 import type { ClipActions } from './types';
 
@@ -44,6 +44,7 @@ export function ClipList({ clips, actions }: { clips: Clip[]; actions: ClipActio
           </div>
 
           <div className="capture-clip-list__actions">
+            <ClipShare clip={clip} onShare={() => actions.export(clip)} className="border-0 bg-transparent text-muted-foreground opacity-100 hover:bg-accent hover:text-foreground" />
             <ClipActionsMenu
               clip={clip}
               actions={actions}

@@ -1,4 +1,3 @@
-import { Lightbulb } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { LightingCapability, LightingDirection } from '../../../../shared/contracts';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -11,6 +10,7 @@ import { ColorPicker } from './ColorPicker';
 interface LightingControlProps {
   capability: LightingCapability;
   onEnabledChange: (enabled: boolean) => void;
+  onColorPreview?: (color: string | null) => void;
   onColorChange: (color: string) => void;
   onBrightnessChange: (brightness: number) => void;
   onEffectChange: (effectId: string) => void;
@@ -22,6 +22,7 @@ interface LightingControlProps {
 export function LightingControl({
   capability,
   onEnabledChange,
+  onColorPreview,
   onColorChange,
   onBrightnessChange,
   onEffectChange,
@@ -44,60 +45,55 @@ export function LightingControl({
   const zonesVisible = (capability.zones?.length ?? 0) > 0 && (!hasExplicitControls || controls.has('zones'));
   const controlsDisabled = !capability.enabled || !capability.writable;
 
-  useEffect(() => setColor(capability.color ?? '#ff1744'), [capability.color]);
+  useEffect(() => {
+    setColor(capability.color ?? '#ff1744');
+    onColorPreview?.(null);
+  }, [capability.color]);
   useEffect(() => setBrightness(capability.brightness ?? 100), [capability.brightness]);
   useEffect(() => setSpeed(capability.speed ?? 50), [capability.speed]);
 
   return (
-    <div className="lighting-studio">
-      <div className="device-setting-row lighting-studio__master">
-        <Lightbulb aria-hidden className="device-setting-row__icon" />
-        <div className="device-setting-row__copy">
-          <span>Lighting control</span>
+    <div className="lighting-editor">
+      <div className="lighting-editor__heading">
+        <div>
+          <span>Lighting</span>
           <p>{lightingModeCopy(capability)}</p>
         </div>
-        <div className="lighting-studio__status" data-state={capability.state ?? 'unknown'}>
-          <span aria-hidden />
-          {lightingStateLabel(capability)}
+        <div className="lighting-editor__heading-actions">
+          <span className="lighting-editor__status" data-state={capability.state ?? 'unknown'}>
+            <i aria-hidden /> {lightingStateLabel(capability)}
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Switch
+                  checked={capability.enabled}
+                  disabled={!capability.writable}
+                  onCheckedChange={onEnabledChange}
+                  aria-label="Mouse lighting"
+                />
+              </span>
+            </TooltipTrigger>
+            {!capability.writable && capability.unavailableReason ? <TooltipContent>{capability.unavailableReason}</TooltipContent> : null}
+          </Tooltip>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Switch
-                checked={capability.enabled}
-                disabled={!capability.writable}
-                onCheckedChange={onEnabledChange}
-                aria-label="Device lighting"
-              />
-            </span>
-          </TooltipTrigger>
-          {!capability.writable && capability.unavailableReason
-            ? <TooltipContent>{capability.unavailableReason}</TooltipContent>
-            : null}
-        </Tooltip>
       </div>
 
-      <div className="lighting-studio__body" data-disabled={controlsDisabled || undefined}>
-        <section className="lighting-studio__effects" aria-labelledby="lighting-effects-label">
-          <div className="lighting-studio__section-label" id="lighting-effects-label">Effect</div>
-          <div className="lighting-effect-list" role="group" aria-label="Lighting effect">
-            {capability.availableEffects.map((effect) => (
-              <button
-                key={effect.id}
-                type="button"
-                className="lighting-effect-option"
-                data-active={effect.id === capability.activeEffectId || undefined}
-                aria-pressed={effect.id === capability.activeEffectId}
-                disabled={controlsDisabled}
-                onClick={() => onEffectChange(effect.id)}
-              >
-                {effect.label}
-              </button>
-            ))}
-          </div>
-        </section>
+      <div className="lighting-editor__body" data-disabled={controlsDisabled || undefined}>
+        <div className="lighting-editor__primary">
+          <ControlField label="Effect">
+            <Select value={capability.activeEffectId} disabled={controlsDisabled} onValueChange={onEffectChange}>
+              <SelectTrigger aria-label="Lighting effect">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {capability.availableEffects.map((effect) => (
+                  <SelectItem key={effect.id} value={effect.id}>{effect.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ControlField>
 
-        <div className="lighting-studio__controls">
           {colorVisible ? (
             <ControlField label="Color">
               <Popover>
@@ -112,88 +108,88 @@ export function LightingControl({
                     <strong>{color.toUpperCase()}</strong>
                   </button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-72">
+                <PopoverContent align="start" className="lighting-color-popover">
                   <div className="popover-heading">Lighting color</div>
-                  <ColorPicker value={color} onChange={setColor} onCommit={onColorChange} />
+                  <p className="popover-description">Preview on the mouse, then apply to the active hardware profile.</p>
+                  <ColorPicker
+                    value={color}
+                    onChange={(next) => {
+                      setColor(next);
+                      onColorPreview?.(next);
+                    }}
+                    onCommit={onColorChange}
+                  />
                 </PopoverContent>
               </Popover>
             </ControlField>
           ) : null}
-
-          {brightnessVisible ? (
-            <ControlField label="Brightness" value={`${brightness}%`} wide>
-              <Slider
-                min={0}
-                max={100}
-                step={1}
-                value={[brightness]}
-                disabled={controlsDisabled || !capability.brightnessWritable}
-                aria-label="Lighting brightness"
-                aria-valuetext={`${brightness}%`}
-                onValueChange={([value]) => typeof value === 'number' && setBrightness(value)}
-                onValueCommit={([value]) => typeof value === 'number' && onBrightnessChange(value)}
-              />
-            </ControlField>
-          ) : null}
-
-          {speedVisible ? (
-            <ControlField label="Speed" value={`${speed}%`} wide>
-              <Slider
-                min={1}
-                max={100}
-                step={1}
-                value={[speed]}
-                disabled={controlsDisabled || !capability.speedWritable}
-                aria-label="Lighting effect speed"
-                aria-valuetext={`${speed}%`}
-                onValueChange={([value]) => typeof value === 'number' && setSpeed(value)}
-                onValueCommit={([value]) => typeof value === 'number' && onSpeedChange(value)}
-              />
-            </ControlField>
-          ) : null}
-
-          {directionVisible ? (
-            <ControlField label="Direction">
-              <Select
-                value={capability.direction}
-                disabled={controlsDisabled || !capability.directionWritable}
-                onValueChange={(value) => onDirectionChange(value as LightingDirection)}
-              >
-                <SelectTrigger aria-label="Lighting effect direction">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {capability.availableDirections?.map((direction) => (
-                    <SelectItem key={direction} value={direction}>{directionLabel(direction)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </ControlField>
-          ) : null}
         </div>
+
+        {(brightnessVisible || speedVisible || directionVisible) ? (
+          <div className="lighting-editor__parameters">
+            {brightnessVisible ? (
+              <ControlField label="Brightness" value={`${brightness}%`} wide>
+                <Slider
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[brightness]}
+                  disabled={controlsDisabled || !capability.brightnessWritable}
+                  aria-label="Lighting brightness"
+                  aria-valuetext={`${brightness}%`}
+                  onValueChange={([value]) => typeof value === 'number' && setBrightness(value)}
+                  onValueCommit={([value]) => typeof value === 'number' && onBrightnessChange(value)}
+                />
+              </ControlField>
+            ) : null}
+            {speedVisible ? (
+              <ControlField label="Speed" value={`${speed}%`} wide>
+                <Slider
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={[speed]}
+                  disabled={controlsDisabled || !capability.speedWritable}
+                  aria-label="Lighting effect speed"
+                  aria-valuetext={`${speed}%`}
+                  onValueChange={([value]) => typeof value === 'number' && setSpeed(value)}
+                  onValueCommit={([value]) => typeof value === 'number' && onSpeedChange(value)}
+                />
+              </ControlField>
+            ) : null}
+            {directionVisible ? (
+              <ControlField label="Direction">
+                <Select value={capability.direction} disabled={controlsDisabled || !capability.directionWritable} onValueChange={(value) => onDirectionChange(value as LightingDirection)}>
+                  <SelectTrigger aria-label="Lighting effect direction"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {capability.availableDirections?.map((direction) => (
+                      <SelectItem key={direction} value={direction}>{directionLabel(direction)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </ControlField>
+            ) : null}
+          </div>
+        ) : null}
 
         {zonesVisible ? (
           <section className="lighting-zones" aria-labelledby="lighting-zones-label">
             <div>
-              <div className="lighting-studio__section-label" id="lighting-zones-label">Device zones</div>
-              <p>Set each addressable zone independently. Zone changes use Static.</p>
+              <div className="lighting-editor__section-label" id="lighting-zones-label">Device zones</div>
+              <p>Static color can be set per addressable zone.</p>
             </div>
             <div className="lighting-zones__list">
               {capability.zones?.map((zone) => (
                 <Popover key={zone.id}>
                   <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="lighting-zone"
-                      disabled={controlsDisabled || !zone.colorWritable}
-                      aria-label={`${zone.label} color ${zone.color}`}
-                    >
+                    <button type="button" className="lighting-zone" disabled={controlsDisabled || !zone.colorWritable} aria-label={`${zone.label} color ${zone.color}`}>
                       <span style={{ backgroundColor: zone.color }} aria-hidden />
                       <small>{zone.label.replace(/^Zone\s+/i, '')}</small>
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent align="center" className="w-72">
+                  <PopoverContent align="center" className="lighting-color-popover">
                     <div className="popover-heading">{zone.label}</div>
+                    <p className="popover-description">Applies Static to this reported lighting zone.</p>
                     <ColorPicker value={zone.color} onCommit={(next) => onZoneColorChange(zone.id, next)} />
                   </PopoverContent>
                 </Popover>
@@ -202,23 +198,13 @@ export function LightingControl({
           </section>
         ) : null}
 
-        {capability.stateReason ? <p className="lighting-studio__state-reason">{capability.stateReason}</p> : null}
+        {capability.stateReason ? <p className="lighting-editor__state-reason" role="status">{capability.stateReason}</p> : null}
       </div>
     </div>
   );
 }
 
-function ControlField({
-  label,
-  value,
-  wide,
-  children,
-}: {
-  label: string;
-  value?: string;
-  wide?: boolean;
-  children: ReactNode;
-}) {
+function ControlField({ label, value, wide, children }: { label: string; value?: string; wide?: boolean; children: ReactNode }) {
   return (
     <div className="lighting-field" data-wide={wide || undefined}>
       <div className="lighting-field__label">
@@ -239,7 +225,7 @@ function lightingModeCopy(capability: LightingCapability): string {
 function lightingStateLabel(capability: LightingCapability): string {
   if (capability.state === 'maintained') return 'Read back';
   if (capability.state === 'acknowledged') return 'Acknowledged';
-  return capability.source === 'firmware' ? 'Stored effect' : 'Ready to apply';
+  return capability.source === 'firmware' ? 'Stored effect' : 'Ready';
 }
 
 function directionLabel(direction: LightingDirection): string {

@@ -175,9 +175,6 @@ export function SettingsSidebar({
                   <span className="settings-update-indicator__dot" />
                 </span>
                 <span className="settings-update-indicator__label">{pendingUpdateSummary}</span>
-                {appUpdate.availableVersion ? (
-                  <span className="settings-update-indicator__version">{appUpdate.availableVersion}</span>
-                ) : null}
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" align="center">

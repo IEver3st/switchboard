@@ -15,6 +15,10 @@
         "fixedRed": true,
         "muteState": true,
         "maintainedState": true,
+        "statusDetailVisible": false,
+        "redundantCopyVisible": false,
+        "heroBackground": "rgba(0, 0, 0, 0)",
+        "solidSpeedVisible": false,
         "colorInputs": 0,
         "profiles": [
           "Broadcast",
@@ -40,6 +44,10 @@
         "fixedRed": true,
         "muteState": true,
         "maintainedState": true,
+        "statusDetailVisible": false,
+        "redundantCopyVisible": false,
+        "heroBackground": "rgba(0, 0, 0, 0)",
+        "solidSpeedVisible": false,
         "colorInputs": 0,
         "profiles": [
           "Broadcast",
@@ -65,6 +73,10 @@
         "fixedRed": true,
         "muteState": true,
         "maintainedState": true,
+        "statusDetailVisible": false,
+        "redundantCopyVisible": false,
+        "heroBackground": "rgba(0, 0, 0, 0)",
+        "solidSpeedVisible": false,
         "colorInputs": 0,
         "profiles": [
           "Broadcast",
@@ -77,15 +89,23 @@
     }
   ],
   "interactions": {
+    "fixedRedTooltip": "The QuadCast 2 lighting LEDs are red; color writes are not supported.",
     "breathe": {
       "profile": "Breathe",
       "pattern": "Breathing",
-      "brightness": "55"
+      "brightness": "55",
+      "speedVisible": true
     },
     "custom": {
       "profile": "Custom",
       "pattern": "Pulse",
+      "speedVisible": true,
       "speedDisabled": null
+    },
+    "disabledState": {
+      "brightness": true,
+      "speed": true,
+      "patterns": true
     },
     "persistedOff": true
   }

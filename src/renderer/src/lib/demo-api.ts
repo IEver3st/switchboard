@@ -289,6 +289,14 @@ const demoApi: SwitchboardApi = {
     if (change.type === 'lighting-brightness' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { brightness: change.brightness, activeProfileId: 'custom' });
     if (change.type === 'lighting-effect' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { activeEffectId: change.effectId, activeProfileId: 'custom' });
     if (change.type === 'lighting-speed' && device.capabilities.lighting) Object.assign(device.capabilities.lighting, { speed: change.speed, activeProfileId: 'custom' });
+    if (change.type === 'lighting-direction' && device.capabilities.lighting) {
+      Object.assign(device.capabilities.lighting, { direction: change.direction, activeProfileId: 'custom' });
+    }
+    if (change.type === 'lighting-zone-color' && device.capabilities.lighting) {
+      const zone = device.capabilities.lighting.zones?.find((candidate) => candidate.id === change.zoneId);
+      if (zone) Object.assign(zone, { color: change.color });
+      Object.assign(device.capabilities.lighting, { activeEffectId: 'static', activeProfileId: 'custom' });
+    }
     if (change.type === 'lighting-profile' && device.capabilities.lighting) {
       const profile = device.capabilities.lighting.profiles.find((candidate) => candidate.id === change.profileId);
       if (profile) Object.assign(device.capabilities.lighting, {
@@ -298,9 +306,37 @@ const demoApi: SwitchboardApi = {
         speed: profile.speed,
       });
     }
+    if (change.type === 'keyboard-gaming-mode' && device.capabilities.keyboard?.gamingMode) {
+      device.capabilities.keyboard.gamingMode.enabled = change.enabled;
+    }
+    if (change.type === 'keyboard-onboard-profile' && device.capabilities.keyboard?.onboardProfiles) {
+      const profile = device.capabilities.keyboard.onboardProfiles.profiles.find((candidate) => candidate.id === change.profileId);
+      if (profile) device.capabilities.keyboard.onboardProfiles.activeProfileId = profile.id;
+    }
+    if (change.type === 'keyboard-rapid-trigger' && device.capabilities.keyboard?.rapidTrigger?.writable) {
+      device.capabilities.keyboard.rapidTrigger.enabled = change.enabled;
+    }
+    if (change.type === 'keyboard-snap-tap' && device.capabilities.keyboard?.snapTap?.writable) {
+      device.capabilities.keyboard.snapTap.enabled = change.enabled;
+    }
     if (change.type === 'microphone-mute-lighting' && device.capabilities.lighting) {
       device.capabilities.lighting.muteLinked = change.enabled;
     }
+    const headset = device.capabilities.headset;
+    if (change.type === 'headset-noise-control' && headset?.noiseControl) headset.noiseControl.mode = change.mode;
+    if (change.type === 'headset-ambient-level' && headset?.noiseControl) Object.assign(headset.noiseControl, { mode: 'ambient', ambientLevel: change.level });
+    if (change.type === 'headset-focus-on-voice' && headset?.noiseControl) Object.assign(headset.noiseControl, { mode: 'ambient', focusOnVoice: change.enabled });
+    if (change.type === 'headset-equalizer-preset' && headset?.equalizer) headset.equalizer.activePresetId = change.presetId;
+    if (change.type === 'headset-equalizer-bands' && headset?.equalizer) {
+      headset.equalizer.activePresetId = 'custom';
+      headset.equalizer.bands.forEach((band, index) => { band.gainDb = change.gainsDb[index] ?? band.gainDb; });
+    }
+    if (change.type === 'headset-dsee-extreme' && headset?.dseeExtreme) headset.dseeExtreme.enabled = change.enabled;
+    if (change.type === 'headset-speak-to-chat' && headset?.speakToChat) headset.speakToChat.enabled = change.enabled;
+    if (change.type === 'headset-listening-mode' && headset?.listeningMode) Object.assign(headset.listeningMode, { mode: change.mode, backgroundRoom: change.backgroundRoom ?? headset.listeningMode.backgroundRoom });
+    return emit();
+  },
+  async refreshDevices() {
     return emit();
   },
   async setDeviceSetting(input: SetDeviceSettingInput) {
@@ -622,6 +658,8 @@ const demoApi: SwitchboardApi = {
   },
   async loadClipAudioWaveform(id) { return { clipId: id, tracks: [] }; },
   async exportClip() { return false; },
+  async exportMontage() { return false; },
+  async cancelClipExport() {},
   subscribe(listener) {
     listeners.add(listener);
     return () => listeners.delete(listener);

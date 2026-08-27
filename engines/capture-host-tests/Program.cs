@@ -55,6 +55,10 @@ AssertSequence(
     ValuesFollowing(surroundSystemAudioArguments, "-ac"),
     ["8", "2"],
     "Surround loopback capture must read every source channel and encode a stereo system-audio track.");
+AssertEqual(
+    validSettings.SystemAudioBitrateBps.ToString(),
+    ValuesFollowing(surroundSystemAudioArguments, "-b:a").Single(),
+    "Stereo system audio must retain the configured AAC bitrate.");
 
 var operations = new OperationTracker();
 operations.Track(Task.CompletedTask);

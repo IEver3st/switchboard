@@ -31,14 +31,6 @@
       {
         "id": "wave-right",
         "label": "Wave right"
-      },
-      {
-        "id": "wheel-left",
-        "label": "Wheel left"
-      },
-      {
-        "id": "wheel-right",
-        "label": "Wheel right"
       }
     ],
     "color": "#4466aa",
@@ -50,11 +42,80 @@
     "activeProfileId": "custom",
     "muteLinked": false,
     "muteLinkedWritable": false,
-    "state": "acknowledged",
-    "stateReason": "The device acknowledged the requested lighting change.",
+    "state": "maintained",
+    "stateReason": "Fixture: active effect and brightness were read back from keyboard firmware.",
     "physicalEffectVerified": false,
     "profileMode": "software",
     "source": "firmware"
+  },
+  "finalKeyboard": {
+    "firmwareVersion": "1.06",
+    "pollingRateHz": 1000,
+    "transport": "native-hid",
+    "features": [
+      {
+        "id": "lighting",
+        "label": "Quick lighting",
+        "summary": "Brightness and device-firmware quick effects use the native HID control endpoint.",
+        "status": "native"
+      },
+      {
+        "id": "actuation",
+        "label": "Per-key actuation",
+        "summary": "Adjustable 1.5–3.6 mm actuation and two-stage inputs are supported by the keyboard.",
+        "status": "synapse",
+        "unavailableReason": "The actuation protocol is not safely documented or verified for direct writes yet."
+      },
+      {
+        "id": "analog",
+        "label": "Analog input",
+        "summary": "Selected keys can emulate joystick axes and controller triggers.",
+        "status": "synapse",
+        "unavailableReason": "Analog mapping remains owned by Synapse until its native profile format is verified."
+      },
+      {
+        "id": "mapping",
+        "label": "Key mapping",
+        "summary": "Remapping, macros, Hypershift, and analog controller bindings remain in Synapse.",
+        "status": "synapse",
+        "unavailableReason": "Switchboard does not write undocumented key maps or macro payloads."
+      },
+      {
+        "id": "rapid-input",
+        "label": "Rapid Trigger and Snap Tap",
+        "summary": "Synapse 4 exposes both features for this keyboard through its analog mapping stack.",
+        "status": "synapse",
+        "unavailableReason": "This V2 firmware rejects the standalone Rapid Trigger and Snap Tap commands used by newer onboard implementations."
+      }
+    ],
+    "gamingMode": {
+      "enabled": true,
+      "writable": true
+    },
+    "rapidTrigger": {
+      "enabled": null,
+      "writable": false,
+      "unavailableReason": "Requires Synapse 4 on the Huntsman V2 Analog; the keyboard rejected the standalone firmware command."
+    },
+    "snapTap": {
+      "enabled": null,
+      "writable": false,
+      "unavailableReason": "Requires Synapse 4 to stay active on this non-V3 keyboard."
+    },
+    "onboardProfiles": {
+      "activeProfileId": "2",
+      "profiles": [
+        {
+          "id": "1",
+          "label": "Profile 1"
+        },
+        {
+          "id": "2",
+          "label": "Profile 2"
+        }
+      ],
+      "writable": true
+    }
   },
   "persistedSettings": {
     "lightingEnabled": true,
@@ -74,7 +135,8 @@
         "viewportWidth": 1080,
         "workspaceWidth": 1012,
         "workspaceScrollWidth": 1012,
-        "consoleBottom": 673.4479370117188,
+        "workbenchBottom": 728.7187728881836,
+        "routineControlsBottom": 712.0521049499512,
         "innerHeight": 722
       }
     },
@@ -89,7 +151,8 @@
         "viewportWidth": 1420,
         "workspaceWidth": 1352,
         "workspaceScrollWidth": 1352,
-        "consoleBottom": 780.6145935058594,
+        "workbenchBottom": 912.4479598999023,
+        "routineControlsBottom": 895.7812919616699,
         "innerHeight": 900
       }
     },
@@ -104,7 +167,8 @@
         "viewportWidth": 1920,
         "workspaceWidth": 1852,
         "workspaceScrollWidth": 1852,
-        "consoleBottom": 780.6145935058594,
+        "workbenchBottom": 940.4479598999023,
+        "routineControlsBottom": 923.7812919616699,
         "innerHeight": 1080
       }
     }

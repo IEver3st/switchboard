@@ -1,4 +1,3 @@
-import { HardDrive, Info } from 'lucide-react';
 import type { OnboardMemoryCapability } from '../../../../shared/contracts';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -11,33 +10,37 @@ export function OnboardMemoryControl({
   onChange: (enabled: boolean) => void;
 }) {
   return (
-    <div className="device-setting-row">
-      <HardDrive aria-hidden className="device-setting-row__icon" />
-      <div className="device-setting-row__copy">
+    <div className="onboard-memory-control">
+      <div className="onboard-memory-control__heading">
         <div>
           <span>Onboard memory</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" className="control-info" aria-label="About onboard memory">
-                <Info aria-hidden className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Stores compatible settings directly on the mouse.</TooltipContent>
-          </Tooltip>
+          <p>Use settings stored directly on the mouse.</p>
         </div>
-        <p>{capability.enabled ? `Using ${formatProfile(capability.activeProfile)}` : 'Store compatible settings directly on the mouse.'}</p>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Switch
+                checked={capability.enabled}
+                disabled={!capability.writable}
+                onCheckedChange={onChange}
+                aria-label="Onboard memory"
+              />
+            </span>
+          </TooltipTrigger>
+          {!capability.writable ? <TooltipContent>Onboard memory mode is unavailable for this connection.</TooltipContent> : null}
+        </Tooltip>
       </div>
-      <Switch
-        checked={capability.enabled}
-        disabled={!capability.writable}
-        onCheckedChange={onChange}
-        aria-label="Onboard memory"
-      />
+      {capability.enabled && capability.activeProfile ? (
+        <div className="onboard-memory-control__profile">
+          <span>Profile</span>
+          <strong>{formatProfile(capability.activeProfile)}</strong>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function formatProfile(value: string | undefined): string {
-  if (!value) return 'an onboard profile.';
-  return `${value.toLowerCase().replace('_', ' ')}.`;
+  if (!value) return 'Active profile';
+  return value.replace(/^profile[_\s-]*/i, 'Profile ').replaceAll('_', ' ');
 }

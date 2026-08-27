@@ -65,6 +65,8 @@ export function ClipTimeline({
   onSave: () => void;
 }) {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const playheadRef = useRef<HTMLDivElement>(null);
+  const timelineWidthRef = useRef(720);
   const currentMsRef = useRef(startMs);
   const interactionRef = useRef<TimelineInteraction>('idle');
   const activeTrimTrackRef = useRef<'clip' | number | null>(null);
@@ -80,6 +82,14 @@ export function ClipTimeline({
   const [waveformState, setWaveformState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [waveformTracks, setWaveformTracks] = useState<ClipAudioWaveformTrack[]>([]);
   const frameMs = Math.max(1, 1_000 / Math.max(1, fps));
+
+  const positionPlayhead = useCallback((nextMs: number) => {
+    const playhead = playheadRef.current;
+    if (!playhead) return;
+    const boundedMs = Math.min(durationMs, Math.max(0, nextMs));
+    const offset = durationMs > 0 ? boundedMs / durationMs * timelineWidthRef.current : 0;
+    playhead.style.transform = `translate3d(${offset}px, 0, 0)`;
+  }, [durationMs]);
 
   useEffect(() => {
     let active = true;
@@ -100,12 +110,13 @@ export function ClipTimeline({
     const boundedMs = Math.min(durationMs, Math.max(0, Math.round(nextMs)));
     currentMsRef.current = boundedMs;
     setCurrentMs(boundedMs);
+    positionPlayhead(boundedMs);
     const video = videoRef.current;
     if (video) {
       pendingSeekMsRef.current = boundedMs;
       video.currentTime = boundedMs / 1_000;
     }
-  }, [durationMs, videoRef]);
+  }, [durationMs, positionPlayhead, videoRef]);
 
   const setInteraction = (next: TimelineInteraction) => {
     interactionRef.current = next;
@@ -275,12 +286,17 @@ export function ClipTimeline({
   useEffect(() => {
     const timeline = timelineRef.current;
     if (!timeline) return;
-    const updateWidth = () => setTimelineWidth(timeline.getBoundingClientRect().width);
+    const updateWidth = () => {
+      const width = timeline.getBoundingClientRect().width;
+      timelineWidthRef.current = width;
+      setTimelineWidth(width);
+      positionPlayhead(currentMsRef.current);
+    };
     updateWidth();
     const observer = new ResizeObserver(updateWidth);
     observer.observe(timeline);
     return () => observer.disconnect();
-  }, []);
+  }, [positionPlayhead]);
 
   useEffect(() => {
     const clearStalePointerState = () => {
@@ -303,6 +319,39 @@ export function ClipTimeline({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    let playbackFrame: number | null = null;
+    let positionedMs = -1;
+    const positionPlaybackFrame = (nextMs: number) => {
+      if (Math.abs(nextMs - positionedMs) < 0.1) return;
+      positionedMs = nextMs;
+      positionPlayhead(nextMs);
+    };
+    const stopPlaybackFrames = () => {
+      if (playbackFrame === null) return;
+      window.cancelAnimationFrame(playbackFrame);
+      playbackFrame = null;
+    };
+    const syncPlaybackFrame = () => {
+      playbackFrame = null;
+      if (video.paused || video.ended) return;
+      const nextMs = Math.min(durationMs, Math.max(0, video.currentTime * 1_000));
+      const pendingSeekMs = pendingSeekMsRef.current;
+      if (pendingSeekMs !== null && Math.abs(nextMs - pendingSeekMs) > Math.max(80, frameMs * 2)) {
+        positionPlaybackFrame(pendingSeekMs);
+      } else {
+        pendingSeekMsRef.current = null;
+        if (playbackModeRef.current === 'selection' && nextMs >= endMs) {
+          video.pause();
+          setPlayhead(endMs);
+          return;
+        }
+        positionPlaybackFrame(nextMs);
+      }
+      playbackFrame = window.requestAnimationFrame(syncPlaybackFrame);
+    };
+    const startPlaybackFrames = () => {
+      if (playbackFrame === null) playbackFrame = window.requestAnimationFrame(syncPlaybackFrame);
+    };
     const updateTime = () => {
       const nextMs = Math.min(durationMs, Math.max(0, video.currentTime * 1_000));
       const pendingSeekMs = pendingSeekMsRef.current;
@@ -320,7 +369,12 @@ export function ClipTimeline({
       currentMsRef.current = nextMs;
       setCurrentMs(nextMs);
     };
-    const updatePlayback = () => setPlaying(!video.paused);
+    const updatePlayback = () => {
+      const isPlaying = !video.paused && !video.ended;
+      setPlaying(isPlaying);
+      if (isPlaying) startPlaybackFrames();
+      else stopPlaybackFrames();
+    };
     const updateVolumeState = () => {
       setMuted(video.muted || video.volume === 0);
       setVolume(video.volume);
@@ -340,8 +394,9 @@ export function ClipTimeline({
       video.removeEventListener('pause', updatePlayback);
       video.removeEventListener('ended', updatePlayback);
       video.removeEventListener('volumechange', updateVolumeState);
+      stopPlaybackFrames();
     };
-  }, [durationMs, endMs, frameMs, setPlayhead, videoRef]);
+  }, [durationMs, endMs, frameMs, positionPlayhead, setPlayhead, videoRef]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -399,7 +454,7 @@ export function ClipTimeline({
   const hasAudioTrackTrims = audioTrackTrims?.some(Boolean) ?? false;
 
   return (
-    <section className="clip-editor-timeline" aria-label="Clip timeline" data-interaction={interaction}>
+    <section className="clip-editor-timeline" aria-label="Clip timeline" data-interaction={interaction} data-playing={playing ? 'true' : undefined}>
       <div className="clip-editor-transport-bar">
         <output className="clip-editor-timeline__timecode" aria-label={`Current time ${formatTimelineTime(currentMs)}`}>
           {formatTimelineTime(currentMs)}
@@ -493,6 +548,7 @@ export function ClipTimeline({
               <div
                 key={track.trackIndex}
                 className="clip-editor-timeline__audio-track"
+                data-channel={track.channel}
                 data-muted={(audioTrackLevels?.[track.trackIndex] ?? 100) === 0 ? 'true' : undefined}
                 style={{ '--track-color': track.channel ? channelColor(track.channel) : 'var(--text-description)' } as CSSProperties}
                 role="group"
@@ -541,7 +597,7 @@ export function ClipTimeline({
             onPointerCancel={cancelPointerInteraction}
           />
 
-          <div className="clip-editor-playhead" style={{ left: `${currentPercent}%` }} aria-hidden="true">
+          <div ref={playheadRef} className="clip-editor-playhead" style={{ transform: `translate3d(${currentPercent / 100 * timelineWidth}px, 0, 0)` }} aria-hidden="true">
             <span className="clip-editor-playhead__cap" />
             <span className="clip-editor-playhead__line" />
           </div>
@@ -712,10 +768,14 @@ function channelLabel(channel: ClipAudioChannel): string {
 }
 
 export function waveformPath(samples: readonly number[]): string {
-  return samples.map((sample, index) => {
-    const amplitude = Math.min(0.46, Math.max(0, sample) * 0.46);
-    return `M${index + 0.5},${0.5 - amplitude}V${0.5 + amplitude}`;
-  }).join('');
+  if (samples.length === 0) return '';
+  const points = samples.map((sample, index) => ({
+    x: index + 0.5,
+    amplitude: Math.min(0.15, Math.max(0, sample * 0.15)),
+  }));
+  const top = points.map(({ x, amplitude }) => `L${x},${0.5 - amplitude}`).join('');
+  const bottom = points.toReversed().map(({ x, amplitude }) => `L${x},${0.5 + amplitude}`).join('');
+  return `M0,0.5${top}L${samples.length},0.5${bottom}Z`;
 }
 
 function TransportButton({ label, icon: Icon, primary = false, pressed, disabled, onClick }: {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Download, LoaderCircle, RefreshCw, RotateCcw } from 'lucide-react';
 import type {
   AppUpdateState,
   CaptureConfig,
@@ -700,14 +700,11 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
       </SettingSection>
       <SettingSection title="Device identity">
         {snapshot.devices.map((device, index) => (
-          <SettingRow
+          <DeviceIdentityRecord
             key={device.id}
             settingId={index === 0 ? 'diagnostics.deviceIdentity' : `diagnostics.${device.id}.identity`}
-            title={device.displayName}
-            description={<DeviceIdentityDetails device={device} />}
-          >
-            <span className="settings-row__value">{device.variantResolution.confidence}</span>
-          </SettingRow>
+            device={device}
+          />
         ))}
       </SettingSection>
     </>
@@ -721,7 +718,7 @@ function deviceSummary(device: Device): string {
   return [product, appearance, connection].filter(Boolean).join(' · ') || 'Identity details are available in Diagnostics.';
 }
 
-function DeviceIdentityDetails({ device }: { device: Device }) {
+function DeviceIdentityRecord({ device, settingId }: { device: Device; settingId: string }) {
   const fields = [
     ['Manufacturer', device.identity.manufacturer],
     ['Model', device.identity.model],
@@ -736,10 +733,38 @@ function DeviceIdentityDetails({ device }: { device: Device }) {
   ].filter((field): field is [string, string] => Boolean(field[1]));
 
   return (
-    <span className="settings-device-identity__fields">
-      {fields.map(([label, value]) => <span key={label}><strong>{label}</strong>{value}</span>)}
-    </span>
+    <article
+      id={`setting-${settingId}`}
+      data-setting-id={settingId}
+      tabIndex={-1}
+      className="settings-device-identity"
+      aria-labelledby={`device-identity-${device.id}`}
+    >
+      <header className="settings-device-identity__header">
+        <h4 id={`device-identity-${device.id}`}>{device.displayName}</h4>
+        <span className="settings-device-identity__confidence">
+          <i aria-hidden />
+          {formatVariantConfidence(device.variantResolution.confidence)}
+        </span>
+      </header>
+      <dl className="settings-device-identity__fields">
+        {fields.map(([label, value]) => (
+          <div key={label} data-wide={label === 'Variant source' || label === 'Asset result' || undefined}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
   );
+}
+
+function formatVariantConfidence(confidence: Device['variantResolution']['confidence']): string {
+  if (confidence === 'hardware') return 'Hardware evidence';
+  if (confidence === 'product-id') return 'Product ID mapping';
+  if (confidence === 'module-metadata') return 'Module metadata';
+  if (confidence === 'user-override') return 'Appearance override';
+  return 'Identity fallback';
 }
 
 function formatHardwareId(value: number | undefined): string | undefined {
@@ -790,9 +815,10 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           {update.capability === 'available' ? (
             <Button
               type="button"
-              variant={update.status === 'downloaded' ? 'primary' : 'secondary'}
+              variant="secondary"
               size="sm"
-              className="w-full"
+              className={cn('settings-update-action', update.status === 'downloaded' && 'settings-update-action--ready')}
+              data-app-update-action={update.status}
               disabled={updateBusy}
               onClick={() => {
                 if (update.status === 'downloaded') void installAppUpdate();
@@ -800,6 +826,13 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
                 else void checkAppUpdates();
               }}
             >
+              {updateBusy ? (
+                <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+              ) : update.status === 'available' ? (
+                <Download className="size-3.5" aria-hidden />
+              ) : (
+                <RefreshCw className="size-3.5" aria-hidden />
+              )}
               {updateActionLabel}
             </Button>
           ) : (

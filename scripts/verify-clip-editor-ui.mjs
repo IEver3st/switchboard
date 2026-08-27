@@ -56,12 +56,16 @@ async function run() {
   await waitForLoad(window);
   await waitForMissingSelector(window, '.startup-screen');
   const results = [];
+  const timelineOnly = process.argv.includes('--timeline-only');
 
-  for (const viewport of [
-    { width: 1080, height: 720 },
-    { width: 1420, height: 900 },
-    { width: 1920, height: 1080 },
-  ]) {
+  const reviewViewports = timelineOnly
+    ? [{ width: 1420, height: 900 }]
+    : [
+        { width: 1080, height: 720 },
+        { width: 1420, height: 900 },
+        { width: 1920, height: 1080 },
+      ];
+  for (const viewport of reviewViewports) {
     console.log(`Verifying ${viewport.width}x${viewport.height}.`);
     window.setContentSize(viewport.width, viewport.height, false);
     await waitForViewport(window, viewport);
@@ -73,12 +77,22 @@ async function run() {
       const back = [...(editor?.querySelectorAll('button') ?? [])].find((button) => button.textContent?.trim() === 'Back to clips');
       const rect = editor?.getBoundingClientRect();
       const headerRect = header?.getBoundingClientRect();
+      const titleRect = editor?.querySelector('.clip-editor-header__rename')?.getBoundingClientRect();
+      const metadataRect = editor?.querySelector('.clip-editor-metadata')?.getBoundingClientRect();
+      const actionsRect = editor?.querySelector('.clip-editor-header__actions')?.getBoundingClientRect();
       return {
         viewport: { width: innerWidth, height: innerHeight },
         document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth },
         editor: rect ? { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom } : null,
         header: headerRect ? { top: headerRect.top, bottom: headerRect.bottom } : null,
+        headerSections: {
+          title: titleRect ? { left: titleRect.left, right: titleRect.right, width: titleRect.width } : null,
+          metadata: metadataRect ? { left: metadataRect.left, right: metadataRect.right, width: metadataRect.width } : null,
+          actions: actionsRect ? { left: actionsRect.left, right: actionsRect.right, width: actionsRect.width } : null,
+        },
         backNoDrag: back ? getComputedStyle(back).webkitAppRegion === 'no-drag' : false,
+        metadataInHeader: editor.querySelector('.clip-editor-header > .clip-editor-metadata') !== null,
+        workspaceTop: editor.querySelector('.clip-editor-layout')?.getBoundingClientRect().top ?? null,
         metadata: [...editor.querySelectorAll('.clip-editor-metadata > div')].map((item) => ({
           label: item.querySelector('dt')?.textContent?.trim(),
           value: item.querySelector('dd')?.textContent?.trim(),
@@ -88,7 +102,12 @@ async function run() {
           label: slider.getAttribute('aria-label'), value: slider.getAttribute('aria-valuenow'),
         })),
         audioTracks: [...editor.querySelectorAll('.clip-editor-timeline__audio-track')].map((track) => ({
+          channel: track.getAttribute('data-channel'),
           height: track.getBoundingClientRect().height,
+          backgroundColor: getComputedStyle(track).backgroundColor,
+          waveformFill: track.querySelector('path') ? getComputedStyle(track.querySelector('path')).fill : null,
+          waveformStroke: track.querySelector('path') ? getComputedStyle(track.querySelector('path')).stroke : null,
+          waveformArea: track.querySelector('path')?.getAttribute('d')?.endsWith('Z') ?? false,
           waveform: track.querySelector('path')?.getAttribute('d')?.length ?? 0,
         })),
         audioLevelLabels: [...editor.querySelectorAll('.clip-editor-track-control [role="slider"]')].map((slider) => slider.getAttribute('aria-label')),
@@ -101,6 +120,10 @@ async function run() {
       throw new Error(`Editor does not respect native chrome at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics.editor)}`);
     }
     if (metrics.header?.top !== 38 || !metrics.backNoDrag) throw new Error('Editor controls overlap or participate in the native drag region.');
+    if (!metrics.metadataInHeader || metrics.workspaceTop !== metrics.header?.bottom) throw new Error(`Clip metadata was not consolidated into the primary toolbar: ${JSON.stringify(metrics)}`);
+    if (!metrics.headerSections.title || metrics.headerSections.title.width < 100 || metrics.headerSections.title.right > metrics.headerSections.metadata?.left || metrics.headerSections.metadata?.right > metrics.headerSections.actions?.left) {
+      throw new Error(`Clip toolbar sections are clipped or overlapping: ${JSON.stringify(metrics.headerSections)}`);
+    }
     if (metrics.metadata.map((item) => item.label).join(',') !== 'Created,Video quality,Size,Location') throw new Error(`Clip metadata strip is incomplete: ${JSON.stringify(metrics.metadata)}`);
     if (metrics.metadata.some((item) => !item.value) || !metrics.locationAction?.startsWith('Show ')) throw new Error(`Clip metadata values or location action are missing: ${JSON.stringify(metrics)}`);
     const timelineLabels = metrics.timelineSliders.map((item) => item.label);
@@ -110,6 +133,10 @@ async function run() {
     }
     if (metrics.audioTracks.some((track) => track.height < 38 || track.height > 54 || track.waveform < 100)) {
       throw new Error(`Audio lanes are not correctly sized or waveform-backed: ${JSON.stringify(metrics.audioTracks)}`);
+    }
+    const expectedTimelineColors = { game: 'rgb(7, 143, 130)', microphone: 'rgb(168, 117, 41)' };
+    if (metrics.audioTracks.some((track) => expectedTimelineColors[track.channel] !== track.backgroundColor || track.waveformFill === 'none' || track.waveformStroke !== 'none' || !track.waveformArea)) {
+      throw new Error(`Audio lanes lost their permanent channel colors or filled waveform treatment: ${JSON.stringify(metrics.audioTracks)}`);
     }
     if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
 
@@ -195,6 +222,11 @@ async function run() {
   window.setContentSize(1420, 900, false);
   await waitForViewport(window, { width: 1420, height: 900 });
   const workspaceEvidence = await verifyEditorWorkspace(window);
+  if (timelineOnly) {
+    process.stdout.write(`${JSON.stringify({ outputDirectory, workspaceEvidence }, null, 2)}\n`);
+    app.quit();
+    return;
+  }
 
   await openEditor(window);
   await clickButton(window, 'Share');
@@ -358,12 +390,45 @@ async function verifyEditorWorkspace(window) {
   await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-preview')?.dataset.fullscreen === 'false'`), 'viewer fullscreen exit');
   if (!await evaluate(window, `Boolean(document.querySelector('[data-testid="clip-editor"]'))`)) throw new Error('Escape closed the editor while exiting fullscreen.');
 
+  await evaluate(window, `(() => {
+    const video = document.querySelector('video');
+    if (!video) throw new Error('Clip preview video is missing.');
+    video.pause();
+    video.currentTime = 0;
+    video.dispatchEvent(new Event('seeked'));
+  })()`);
+  await delay(100);
   const playbackStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
   await clickButtonByLabel(window, 'Play selection');
   await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === false`), 'clip playback start');
-  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) > ${playbackStart + 0.08}`), 'clip playback progress');
+  const smoothPlayback = await evaluate(window, `new Promise((resolve) => {
+    const video = document.querySelector('video');
+    const playhead = document.querySelector('.clip-editor-playhead');
+    const samples = [];
+    const startedAt = performance.now();
+    const sample = (now) => {
+      samples.push({
+        elapsedMs: now - startedAt,
+        playheadX: playhead?.getBoundingClientRect().x ?? null,
+        videoMs: (video?.currentTime ?? 0) * 1000,
+      });
+      if (now - startedAt < 650 && video && !video.paused) requestAnimationFrame(sample);
+      else resolve(samples);
+    };
+    requestAnimationFrame(sample);
+  })`);
+  const movingSamples = smoothPlayback.filter((sample) => sample.videoMs > playbackStart * 1_000 + 30);
+  const distinctPlayheadPositions = new Set(movingSamples.map((sample) => sample.playheadX?.toFixed(2))).size;
+  if (movingSamples.length < 8 || distinctPlayheadPositions < Math.min(8, movingSamples.length)) {
+    throw new Error(`Timeline playhead did not advance smoothly during playback: ${JSON.stringify({ movingSamples: movingSamples.length, distinctPlayheadPositions, samples: smoothPlayback })}`);
+  }
+  console.log(`Smooth playhead: ${distinctPlayheadPositions} positions across ${movingSamples.length} moving samples.`);
   await clickButtonByLabel(window, 'Pause');
   await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === true`), 'clip playback pause');
+  const pausedPlayheadX = Number(await evaluate(window, `document.querySelector('.clip-editor-playhead')?.getBoundingClientRect().x`));
+  await delay(120);
+  const settledPlayheadX = Number(await evaluate(window, `document.querySelector('.clip-editor-playhead')?.getBoundingClientRect().x`));
+  if (Math.abs(settledPlayheadX - pausedPlayheadX) > 0.01) throw new Error(`Timeline playhead kept moving after pause: ${pausedPlayheadX} -> ${settledPlayheadX}.`);
 
   await evaluate(window, `document.activeElement instanceof HTMLElement && document.activeElement.blur()`);
   const keyboardStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
@@ -455,7 +520,7 @@ async function verifyEditorWorkspace(window) {
   await clickButton(window, 'Cancel');
   await waitForMissingSelector(window, '[role="alertdialog"]');
 
-  return { expanded, collapsed, cropGuide, verticalCanvasScreenshot, fullscreen, playbackAdvanced: true, keyboardShortcuts: true, transportControls: true, volume: { before: volumeBefore, after: volumeAfter }, audioLevel, favorite: { before: clipBefore.favorite, after: !clipBefore.favorite }, revealCount: revealCalls.length, renamed, menuItems };
+  return { expanded, collapsed, cropGuide, verticalCanvasScreenshot, fullscreen, playbackAdvanced: true, smoothPlayback: { movingSamples: movingSamples.length, distinctPlayheadPositions, pausedStable: true }, keyboardShortcuts: true, transportControls: true, volume: { before: volumeBefore, after: volumeAfter }, audioLevel, favorite: { before: clipBefore.favorite, after: !clipBefore.favorite }, revealCount: revealCalls.length, renamed, menuItems };
 }
 
 async function editorGeometry(window) {

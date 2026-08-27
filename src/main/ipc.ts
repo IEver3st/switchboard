@@ -8,6 +8,7 @@ import {
   clipTrimInputSchema,
   createAudioPresetInputSchema,
   exportClipInputSchema,
+  exportMontageInputSchema,
   feedbackReportInputSchema,
   ipcChannels,
   renameClipInputSchema,
@@ -68,6 +69,10 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     assertTrustedSender(event, getMainWindow);
     await controller.initialize();
     return controller.getSnapshot();
+  });
+  ipcMain.handle(ipcChannels.refreshDevices, async (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.refreshDevices();
   });
 
   handle(
@@ -323,6 +328,18 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => exportClipInputSchema.parse(input),
     (input) => controller.exportClip(input),
+  );
+  handle(
+    ipcChannels.exportMontage,
+    getMainWindow,
+    (input) => exportMontageInputSchema.parse(input),
+    (input) => controller.exportMontage(input),
+  );
+  handle(
+    ipcChannels.cancelClipExport,
+    getMainWindow,
+    (input) => z.string().uuid().parse(input),
+    (exportId) => controller.cancelClipExport(exportId),
   );
 
   const unsubscribe = controller.subscribe((snapshot) => {

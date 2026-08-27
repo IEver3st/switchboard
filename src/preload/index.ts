@@ -9,6 +9,7 @@ import {
 
 const api: SwitchboardApi = {
   getSnapshot: () => ipcRenderer.invoke(ipcChannels.getSnapshot),
+  refreshDevices: () => ipcRenderer.invoke(ipcChannels.refreshDevices),
   setModuleState: (input) => ipcRenderer.invoke(ipcChannels.setModuleState, input),
   setDeviceControl: (input) => ipcRenderer.invoke(ipcChannels.setDeviceControl, input),
   setDeviceSetting: (input) => ipcRenderer.invoke(ipcChannels.setDeviceSetting, input),
@@ -65,6 +66,8 @@ const api: SwitchboardApi = {
   setClipAudioTrackLevel: (input) => ipcRenderer.invoke(ipcChannels.setClipAudioTrackLevel, input),
   loadClipAudioWaveform: (id) => ipcRenderer.invoke(ipcChannels.loadClipAudioWaveform, id),
   exportClip: (input) => ipcRenderer.invoke(ipcChannels.exportClip, input),
+  exportMontage: (input) => ipcRenderer.invoke(ipcChannels.exportMontage, input),
+  cancelClipExport: (exportId) => ipcRenderer.invoke(ipcChannels.cancelClipExport, exportId),
   subscribe: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, snapshot: SystemSnapshot) => listener(snapshot);
     ipcRenderer.on(ipcChannels.snapshotUpdated, handler);

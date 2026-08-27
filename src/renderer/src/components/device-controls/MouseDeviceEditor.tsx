@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import type { Device, MouseAction } from '../../../../shared/contracts';
 import { DeviceRender } from '@/components/shared/device-render';
 import { Separator } from '@/components/ui/separator';
@@ -8,18 +9,22 @@ import { DpiControl } from './DpiControl';
 import { LightingControl } from './LightingControl';
 import { OnboardMemoryControl } from './OnboardMemoryControl';
 import { ReportRateControl } from './ReportRateControl';
+import './mouse-device.css';
 
 export function MouseDeviceEditor({ device }: { device: Device }) {
+  const [lightingPreview, setLightingPreview] = useState<string | null>(null);
+  const handleLightingPreview = useCallback((color: string | null) => setLightingPreview(color), []);
   return (
     <>
-      <MouseStage device={device} />
-      <MouseControls device={device} />
+      <MouseStage device={device} lightingPreview={lightingPreview} />
+      <MouseControls device={device} onLightingPreview={handleLightingPreview} />
     </>
   );
 }
 
-function MouseStage({ device }: { device: Device }) {
+function MouseStage({ device, lightingPreview }: { device: Device; lightingPreview: string | null }) {
   const setDeviceControl = useSystemStore((state) => state.setDeviceControl);
+  const [activeControlId, setActiveControlId] = useState<string | null>(null);
   const capability = device.capabilities.buttonAssignments;
   const actions = capability?.availableActions ?? [];
   const leftBindings = capability?.bindings
@@ -43,6 +48,8 @@ function MouseStage({ device }: { device: Device }) {
         availableActions={actions}
         disabled={!capability?.writable}
         unavailableReason={capability?.unavailableReason}
+        active={activeControlId === binding.hotspot.id}
+        onActiveChange={(active) => setActiveControlId((current) => active ? binding.hotspot.id : current === binding.hotspot.id ? null : current)}
         onChange={(action) => void setDeviceControl({
           deviceId: device.id,
           change: { type: 'button-assignment', buttonId: binding.buttonId, actionId: action.id },
@@ -61,8 +68,22 @@ function MouseStage({ device }: { device: Device }) {
         {leftBindings.map(renderCallout)}
       </div>
       <div className="mouse-stage__device">
-        <DeviceRender device={device} density="hero" className="mouse-stage__render" />
-        {capability?.bindings.map((binding) => <DeviceHotspot key={binding.buttonId} hotspot={binding.hotspot} />)}
+        <DeviceRender
+          device={device}
+          density="hero"
+          className="mouse-stage__render"
+          lightingPreview={lightingPreview ? { color: lightingPreview, enabled: true } : undefined}
+        />
+        {capability?.bindings.map((binding) => (
+          <DeviceHotspot
+            key={binding.buttonId}
+            hotspot={binding.hotspot}
+            disabled={!capability.writable}
+            active={activeControlId === binding.hotspot.id}
+            onActiveChange={(active) => setActiveControlId((current) => active ? binding.hotspot.id : current === binding.hotspot.id ? null : current)}
+            onActivate={() => document.querySelector<HTMLButtonElement>(`[data-callout-id="${binding.hotspot.id}"]`)?.click()}
+          />
+        ))}
       </div>
       <div className="mouse-stage__callouts mouse-stage__callouts--right">
         {rightBindings.map(renderCallout)}
@@ -71,7 +92,7 @@ function MouseStage({ device }: { device: Device }) {
   );
 }
 
-function MouseControls({ device }: { device: Device }) {
+function MouseControls({ device, onLightingPreview }: { device: Device; onLightingPreview: (color: string | null) => void }) {
   const setDeviceControl = useSystemStore((state) => state.setDeviceControl);
   const { dpi, reportRate, lighting, onboardMemory } = device.capabilities;
 
@@ -86,34 +107,34 @@ function MouseControls({ device }: { device: Device }) {
   return (
     <section className="device-controls mouse-config" aria-label="Mouse configuration">
       <div className="mouse-config__section-heading">
-        <span>Sensitivity</span>
+        <h3>Sensitivity</h3>
         <p>{dpi?.profileMode === 'onboard' ? 'Using settings stored on the mouse.' : 'Changes apply to the current profile.'}</p>
       </div>
-      <div className="mouse-config__sensitivity">
-        {dpi ? (
-          <DpiControl
-            capability={dpi}
-            onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'dpi', value } })}
-            onStagesChange={(stages) => void setDeviceControl({ deviceId: device.id, change: { type: 'dpi-stages', stages } })}
-            onShiftChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'dpi-shift', value } })}
-          />
-        ) : null}
-        {reportRate ? (
-          <ReportRateControl
-            capability={reportRate}
-            onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'report-rate', value } })}
-          />
-        ) : null}
-      </div>
+      {dpi ? (
+        <DpiControl
+          capability={dpi}
+          reportRateControl={reportRate ? (
+            <ReportRateControl
+              capability={reportRate}
+              onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'report-rate', value } })}
+            />
+          ) : null}
+          onChange={(value) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi', value } })}
+          onStagesChange={(stages) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi-stages', stages } })}
+          onShiftChange={(value) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi-shift', value } })}
+        />
+      ) : reportRate ? (
+        <ReportRateControl
+          capability={reportRate}
+          onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'report-rate', value } })}
+        />
+      ) : null}
 
       {(onboardMemory || lighting) ? <Separator className="mouse-config__separator" /> : null}
 
       <div className="mouse-config__secondary">
         {onboardMemory ? (
           <div className="mouse-config__device-group">
-            <div className="mouse-config__section-heading">
-              <span>Device</span>
-            </div>
             <OnboardMemoryControl
               capability={onboardMemory}
               onChange={(enabled) => void setDeviceControl({
@@ -125,11 +146,9 @@ function MouseControls({ device }: { device: Device }) {
         ) : null}
         {lighting ? (
           <div className="mouse-config__lighting-group">
-            <div className="mouse-config__section-heading">
-              <span>Lighting</span>
-            </div>
             <LightingControl
               capability={lighting}
+              onColorPreview={onLightingPreview}
               onEnabledChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-enabled', enabled } })}
               onColorChange={(color) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-color', color } })}
               onBrightnessChange={(brightness) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } })}

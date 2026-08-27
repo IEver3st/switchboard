@@ -4,6 +4,37 @@ import { DeviceRegistry } from '../src/main/services/device-registry';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 
 describe('device registry lifecycle', () => {
+  test('publishes device-confirmed lighting readback instead of the requested value', async () => {
+    let confirmedBrightness = 90;
+    const fakeModule: DeviceModule = {
+      id: 'device.razer-huntsman',
+      async discover({ previousDevices }) {
+        const keyboard = structuredClone(previousDevices.find((device) => device.id === 'razer-huntsman-v2-analog-1'));
+        if (!keyboard?.capabilities.lighting) return [];
+        keyboard.capabilities.lighting.brightness = confirmedBrightness;
+        keyboard.settings.lightingBrightness = confirmedBrightness;
+        return [keyboard];
+      },
+      async setControl(_device, change) {
+        if (change.type !== 'lighting-brightness') throw new Error('Unexpected control in test.');
+        confirmedBrightness = 61;
+      },
+    };
+    let snapshot = createDefaultSnapshot();
+    const registry = new DeviceRegistry(
+      () => snapshot,
+      (devices) => { snapshot = { ...snapshot, devices }; },
+      { modules: [fakeModule], listHidDevices: async () => [] },
+    );
+
+    await registry.setControl('razer-huntsman-v2-analog-1', { type: 'lighting-brightness', brightness: 62 });
+
+    const keyboard = snapshot.devices.find((device) => device.id === 'razer-huntsman-v2-analog-1');
+    expect(keyboard?.capabilities.lighting?.brightness).toBe(61);
+    expect(keyboard?.settings.lightingBrightness).toBe(61);
+    await registry.dispose();
+  });
+
   test('does not make a confirmed control write wait for a second device discovery', async () => {
     let releaseDiscovery!: () => void;
     const discoveryGate = new Promise<void>((resolve) => { releaseDiscovery = resolve; });

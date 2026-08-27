@@ -285,6 +285,21 @@ export const keyboardOnboardProfilesCapabilitySchema = z.object({
 });
 export type KeyboardOnboardProfilesCapability = z.infer<typeof keyboardOnboardProfilesCapabilitySchema>;
 
+export const keyboardDiagnosticReadSchema = z.object({
+  id: z.string().min(1),
+  ok: z.boolean(),
+  error: z.string().optional(),
+});
+export type KeyboardDiagnosticRead = z.infer<typeof keyboardDiagnosticReadSchema>;
+
+export const keyboardDiagnosticsSchema = z.object({
+  protocol: z.string().min(1),
+  endpoint: z.enum(['ready', 'partial', 'unavailable']),
+  lastSyncAt: z.string().optional(),
+  reads: z.array(keyboardDiagnosticReadSchema),
+});
+export type KeyboardDiagnostics = z.infer<typeof keyboardDiagnosticsSchema>;
+
 export const keyboardCapabilitySchema = z.object({
   firmwareVersion: z.string().min(1).optional(),
   pollingRateHz: z.number().int().positive().optional(),
@@ -294,6 +309,7 @@ export const keyboardCapabilitySchema = z.object({
   rapidTrigger: keyboardToggleCapabilitySchema.optional(),
   snapTap: keyboardToggleCapabilitySchema.optional(),
   onboardProfiles: keyboardOnboardProfilesCapabilitySchema.optional(),
+  diagnostics: keyboardDiagnosticsSchema.optional(),
 });
 export type KeyboardCapability = z.infer<typeof keyboardCapabilitySchema>;
 
@@ -312,6 +328,102 @@ export const onboardMemoryCapabilitySchema = z.object({
 });
 export type OnboardMemoryCapability = z.infer<typeof onboardMemoryCapabilitySchema>;
 
+export const headsetTransportStateSchema = z.enum([
+  'disconnected',
+  'connecting',
+  'connected',
+  'busy',
+  'unsupported',
+  'error',
+]);
+export type HeadsetTransportState = z.infer<typeof headsetTransportStateSchema>;
+
+export const headsetToggleCapabilitySchema = z.object({
+  enabled: z.boolean().nullable(),
+  writable: z.boolean(),
+  unavailableReason: z.string().optional(),
+});
+export type HeadsetToggleCapability = z.infer<typeof headsetToggleCapabilitySchema>;
+
+export const sonyNoiseControlModeSchema = z.enum(['noise-cancelling', 'ambient', 'off']);
+export type SonyNoiseControlMode = z.infer<typeof sonyNoiseControlModeSchema>;
+
+export const sonyNoiseControlCapabilitySchema = z.object({
+  writable: z.boolean(),
+  mode: sonyNoiseControlModeSchema.nullable(),
+  ambientLevel: z.number().int().min(1).max(20).nullable(),
+  ambientLevelMin: z.literal(1),
+  ambientLevelMax: z.literal(20),
+  focusOnVoice: z.boolean().nullable(),
+  unavailableReason: z.string().optional(),
+});
+export type SonyNoiseControlCapability = z.infer<typeof sonyNoiseControlCapabilitySchema>;
+
+export const sonyEqualizerBandSchema = z.object({
+  frequencyHz: z.number().int().positive(),
+  gainDb: z.number().int().min(-6).max(6),
+});
+export type SonyEqualizerBand = z.infer<typeof sonyEqualizerBandSchema>;
+
+export const sonyEqualizerPresetSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  writable: z.boolean(),
+  storedOnHeadphones: z.boolean(),
+});
+export type SonyEqualizerPreset = z.infer<typeof sonyEqualizerPresetSchema>;
+
+export const sonyEqualizerCapabilitySchema = z.object({
+  writable: z.boolean(),
+  activePresetId: z.string().min(1).nullable(),
+  bands: z.array(sonyEqualizerBandSchema).length(10),
+  presets: z.array(sonyEqualizerPresetSchema).min(1),
+  gainMinDb: z.literal(-6),
+  gainMaxDb: z.literal(6),
+  unavailableReason: z.string().optional(),
+});
+export type SonyEqualizerCapability = z.infer<typeof sonyEqualizerCapabilitySchema>;
+
+export const sonyListeningModeSchema = z.enum(['standard', 'background-music', 'cinema']);
+export type SonyListeningMode = z.infer<typeof sonyListeningModeSchema>;
+
+export const sonyBackgroundRoomSchema = z.enum(['my-room', 'living-room', 'cafe']);
+export type SonyBackgroundRoom = z.infer<typeof sonyBackgroundRoomSchema>;
+
+export const sonyListeningModeCapabilitySchema = z.object({
+  writable: z.boolean(),
+  mode: sonyListeningModeSchema.nullable(),
+  backgroundRoom: sonyBackgroundRoomSchema.nullable(),
+  unavailableReason: z.string().optional(),
+});
+export type SonyListeningModeCapability = z.infer<typeof sonyListeningModeCapabilitySchema>;
+
+export const sonyHeadsetDiagnosticsSchema = z.object({
+  protocol: z.literal('sony-mdr-v2'),
+  lastSyncAt: z.string().nullable(),
+  reconnectCount: z.number().int().nonnegative(),
+  malformedFrameCount: z.number().int().nonnegative(),
+  commandFailureCount: z.number().int().nonnegative(),
+  lastErrorCode: z.string().nullable(),
+});
+export type SonyHeadsetDiagnostics = z.infer<typeof sonyHeadsetDiagnosticsSchema>;
+
+export const sonyHeadsetCapabilitySchema = z.object({
+  platform: z.literal('sony-mdr'),
+  model: z.literal('wh-1000xm6'),
+  transportState: headsetTransportStateSchema,
+  transportMessage: z.string().optional(),
+  firmwareVersion: z.string().min(1).optional(),
+  codec: z.string().min(1).optional(),
+  noiseControl: sonyNoiseControlCapabilitySchema.optional(),
+  equalizer: sonyEqualizerCapabilitySchema.optional(),
+  dseeExtreme: headsetToggleCapabilitySchema.optional(),
+  speakToChat: headsetToggleCapabilitySchema.optional(),
+  listeningMode: sonyListeningModeCapabilitySchema.optional(),
+  diagnostics: sonyHeadsetDiagnosticsSchema,
+});
+export type SonyHeadsetCapability = z.infer<typeof sonyHeadsetCapabilitySchema>;
+
 export const deviceCapabilitiesSchema = z.object({
   battery: batteryCapabilitySchema.optional(),
   dpi: dpiCapabilitySchema.optional(),
@@ -324,6 +436,7 @@ export const deviceCapabilitiesSchema = z.object({
   mute: z.boolean().optional(),
   muteState: microphoneMuteStateCapabilitySchema.optional(),
   keyboard: keyboardCapabilitySchema.optional(),
+  headset: sonyHeadsetCapabilitySchema.optional(),
 });
 export type DeviceCapabilities = z.infer<typeof deviceCapabilitiesSchema>;
 
@@ -1015,6 +1128,18 @@ export const deviceControlChangeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('keyboard-snap-tap'), enabled: z.boolean() }),
   z.object({ type: z.literal('keyboard-onboard-profile'), profileId: z.string().min(1) }),
   z.object({ type: z.literal('microphone-mute-lighting'), enabled: z.boolean() }),
+  z.object({ type: z.literal('headset-noise-control'), mode: sonyNoiseControlModeSchema }),
+  z.object({ type: z.literal('headset-ambient-level'), level: z.number().int().min(1).max(20) }),
+  z.object({ type: z.literal('headset-focus-on-voice'), enabled: z.boolean() }),
+  z.object({ type: z.literal('headset-equalizer-preset'), presetId: z.string().min(1) }),
+  z.object({ type: z.literal('headset-equalizer-bands'), gainsDb: z.array(z.number().int().min(-6).max(6)).length(10) }),
+  z.object({ type: z.literal('headset-dsee-extreme'), enabled: z.boolean() }),
+  z.object({ type: z.literal('headset-speak-to-chat'), enabled: z.boolean() }),
+  z.object({
+    type: z.literal('headset-listening-mode'),
+    mode: sonyListeningModeSchema,
+    backgroundRoom: sonyBackgroundRoomSchema.optional(),
+  }),
 ]);
 export type DeviceControlChange = z.infer<typeof deviceControlChangeSchema>;
 
@@ -1223,6 +1348,7 @@ export type FeedbackHandoffResult = z.infer<typeof feedbackHandoffResultSchema>;
 
 export const ipcChannels = {
   getSnapshot: 'system:get-snapshot',
+  refreshDevices: 'devices:refresh',
   setModuleState: 'modules:set-state',
   setDeviceControl: 'devices:set-control',
   setDeviceSetting: 'devices:set-setting',
@@ -1270,11 +1396,14 @@ export const ipcChannels = {
   setClipAudioTrackLevel: 'clips:set-audio-track-level',
   loadClipAudioWaveform: 'clips:load-audio-waveform',
   exportClip: 'clips:export',
+  exportMontage: 'clips:export-montage',
+  cancelClipExport: 'clips:cancel-export',
   snapshotUpdated: 'system:snapshot-updated',
 } as const;
 
 export interface SwitchboardApi {
   getSnapshot(): Promise<SystemSnapshot>;
+  refreshDevices(): Promise<SystemSnapshot>;
   setModuleState(input: SetModuleStateInput): Promise<SystemSnapshot>;
   setDeviceControl(input: SetDeviceControlInput): Promise<SystemSnapshot>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<SystemSnapshot>;
@@ -1322,6 +1451,8 @@ export interface SwitchboardApi {
   setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): Promise<SystemSnapshot>;
   loadClipAudioWaveform(id: string): Promise<ClipAudioWaveform>;
   exportClip(input: ExportClipInput): Promise<boolean>;
+  exportMontage(input: ExportMontageInput): Promise<boolean>;
+  cancelClipExport(exportId: string): Promise<void>;
   subscribe(listener: (snapshot: SystemSnapshot) => void): () => void;
 }
 
@@ -1369,8 +1500,59 @@ export type ClipExportPreset = z.infer<typeof clipExportPresetSchema>;
 export const exportClipInputSchema = z.object({
   ...clipTrimInputShape,
   preset: clipExportPresetSchema,
+  exportId: z.string().uuid().optional(),
 }).refine((input) => input.endMs > input.startMs, {
   message: 'The trim end must be after the trim start.',
   path: ['endMs'],
 });
 export type ExportClipInput = z.infer<typeof exportClipInputSchema>;
+
+export const montageProjectSegmentSchema = z.object({
+  id: z.string().min(1).max(256),
+  clipId: z.string().min(1).max(256),
+  sourceDurationMs: z.number().int().positive(),
+  trimStartMs: z.number().int().nonnegative(),
+  trimEndMs: z.number().int().positive(),
+  audioTrackLevels: z.array(z.number().int().min(0).max(100)).max(8).optional(),
+  audioTrackTrims: clipAudioTrackTrimsSchema.optional(),
+}).superRefine((segment, context) => {
+  if (segment.trimEndMs <= segment.trimStartMs) {
+    context.addIssue({ code: 'custom', message: 'The segment trim end must be after its start.', path: ['trimEndMs'] });
+  }
+  if (segment.trimEndMs > segment.sourceDurationMs) {
+    context.addIssue({ code: 'custom', message: 'The segment trim exceeds its source duration.', path: ['trimEndMs'] });
+  }
+  if (segment.trimEndMs - segment.trimStartMs < 100) {
+    context.addIssue({ code: 'custom', message: 'Keep at least 0.1 seconds in each montage segment.', path: ['trimEndMs'] });
+  }
+});
+export type MontageProjectSegment = z.infer<typeof montageProjectSegmentSchema>;
+
+export const montageProjectSchema = z.object({
+  type: z.literal('montage'),
+  id: z.string().min(1).max(256),
+  name: z.string().trim().min(1).max(120),
+  durationMs: z.number().int().positive(),
+  canvasSize: clipCanvasSizeSchema,
+  segments: z.array(montageProjectSegmentSchema).min(1).max(500),
+}).superRefine((project, context) => {
+  const expectedDurationMs = project.segments.reduce((total, segment) => total + segment.trimEndMs - segment.trimStartMs, 0);
+  if (project.durationMs !== expectedDurationMs) {
+    context.addIssue({ code: 'custom', message: 'The montage duration does not match its segments.', path: ['durationMs'] });
+  }
+  const clipIds = new Set<string>();
+  project.segments.forEach((segment, index) => {
+    if (clipIds.has(segment.clipId)) {
+      context.addIssue({ code: 'custom', message: 'A clip can appear only once in a montage.', path: ['segments', index, 'clipId'] });
+    }
+    clipIds.add(segment.clipId);
+  });
+});
+export type MontageProject = z.infer<typeof montageProjectSchema>;
+
+export const exportMontageInputSchema = z.object({
+  exportId: z.string().uuid(),
+  project: montageProjectSchema,
+  preset: clipExportPresetSchema,
+});
+export type ExportMontageInput = z.infer<typeof exportMontageInputSchema>;

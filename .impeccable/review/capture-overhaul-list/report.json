@@ -1,0 +1,128 @@
+{
+  "report": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-capture-list.png",
+      "metrics": {
+        "viewport": {
+          "width": 1080,
+          "height": 722
+        },
+        "document": {
+          "scrollWidth": 1080,
+          "clientWidth": 1080
+        },
+        "main": {
+          "scrollWidth": 1012,
+          "clientWidth": 1012
+        },
+        "listSelected": "true",
+        "rowCount": 13,
+        "row": {
+          "width": 972,
+          "height": 124
+        },
+        "thumbnail": {
+          "width": 184,
+          "height": 104
+        },
+        "source": "Display 1",
+        "metadata": "11 min agoVideo quality: 1440p, 60 FPSSize: 24 MB",
+        "duration": "0:45",
+        "actionLabels": [
+          "Open Display 1 clip",
+          "Add Display 1 clip to favorites",
+          "Share Display 1 clip",
+          "Actions for Display 1 clip"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-capture-list.png",
+      "metrics": {
+        "viewport": {
+          "width": 1420,
+          "height": 900
+        },
+        "document": {
+          "scrollWidth": 1420,
+          "clientWidth": 1420
+        },
+        "main": {
+          "scrollWidth": 1352,
+          "clientWidth": 1352
+        },
+        "listSelected": "true",
+        "rowCount": 13,
+        "row": {
+          "width": 1312,
+          "height": 124
+        },
+        "thumbnail": {
+          "width": 184,
+          "height": 104
+        },
+        "source": "Display 1",
+        "metadata": "11 min agoVideo quality: 1440p, 60 FPSSize: 24 MB",
+        "duration": "0:45",
+        "actionLabels": [
+          "Open Display 1 clip",
+          "Add Display 1 clip to favorites",
+          "Share Display 1 clip",
+          "Actions for Display 1 clip"
+        ]
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-capture-list.png",
+      "metrics": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "document": {
+          "scrollWidth": 1920,
+          "clientWidth": 1920
+        },
+        "main": {
+          "scrollWidth": 1852,
+          "clientWidth": 1852
+        },
+        "listSelected": "true",
+        "rowCount": 13,
+        "row": {
+          "width": 1640,
+          "height": 124
+        },
+        "thumbnail": {
+          "width": 184,
+          "height": 104
+        },
+        "source": "Display 1",
+        "metadata": "11 min agoVideo quality: 1440p, 60 FPSSize: 24 MB",
+        "duration": "0:45",
+        "actionLabels": [
+          "Open Display 1 clip",
+          "Add Display 1 clip to favorites",
+          "Share Display 1 clip",
+          "Actions for Display 1 clip"
+        ]
+      }
+    }
+  ],
+  "favoriteRoundTrip": {
+    "before": "false",
+    "after": "true"
+  }
+}

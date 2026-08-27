@@ -28,18 +28,22 @@
       },
       "updateRow": null,
       "updateAction": null,
+      "updateActionRect": null,
+      "updateActionIcon": false,
+      "updateActionState": null,
+      "updateActionReadyStyle": false,
       "updateDescription": null,
       "updateIndicator": {
-        "top": 768,
-        "right": 241.33334350585938,
+        "top": 774,
+        "right": 233.33334350585938,
         "bottom": 808,
-        "left": 18,
+        "left": 10,
         "width": 223.33334350585938,
-        "height": 40
+        "height": 34
       },
       "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
       "updateIndicatorSummary": "Update available",
-      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorVersion": null,
       "updateIndicatorNativeTitle": null,
       "tooltipText": null,
       "preferenceSwitches": []
@@ -74,18 +78,22 @@
       },
       "updateRow": null,
       "updateAction": null,
+      "updateActionRect": null,
+      "updateActionIcon": false,
+      "updateActionState": null,
+      "updateActionReadyStyle": false,
       "updateDescription": null,
       "updateIndicator": {
-        "top": 768,
-        "right": 241.33334350585938,
+        "top": 774,
+        "right": 233.33334350585938,
         "bottom": 808,
-        "left": 18,
+        "left": 10,
         "width": 223.33334350585938,
-        "height": 40
+        "height": 34
       },
       "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
       "updateIndicatorSummary": "Update available",
-      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorVersion": null,
       "updateIndicatorNativeTitle": null,
       "tooltipText": "Switchboard 44.1.0 is available. Open update settings.",
       "preferenceSwitches": []
@@ -127,18 +135,29 @@
         "height": 72
       },
       "updateAction": "Download update",
+      "updateActionRect": {
+        "top": 298.26043701171875,
+        "right": 1030.0000305175781,
+        "bottom": 330.26043701171875,
+        "left": 856.4479370117188,
+        "width": 173.55209350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "available",
+      "updateActionReadyStyle": false,
       "updateDescription": "Development preview: version 44.1.0 is available.",
       "updateIndicator": {
-        "top": 588.7916870117188,
-        "right": 205.33334350585938,
-        "bottom": 628.7916870117188,
-        "left": 14,
-        "width": 191.33334350585938,
-        "height": 40
+        "top": 594,
+        "right": 207.33334350585938,
+        "bottom": 628,
+        "left": 6,
+        "width": 201.33334350585938,
+        "height": 34
       },
       "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
       "updateIndicatorSummary": "Update available",
-      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorVersion": null,
       "updateIndicatorNativeTitle": null,
       "tooltipText": null,
       "preferenceSwitches": [
@@ -217,18 +236,29 @@
         "height": 82
       },
       "updateAction": "Download update",
+      "updateActionRect": {
+        "top": 331.76043701171875,
+        "right": 1339.0000915527344,
+        "bottom": 363.76043701171875,
+        "left": 1165.447998046875,
+        "width": 173.55209350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "available",
+      "updateActionReadyStyle": false,
       "updateDescription": "Development preview: version 44.1.0 is available.",
       "updateIndicator": {
-        "top": 766,
-        "right": 241.33334350585938,
+        "top": 772,
+        "right": 233.33334350585938,
         "bottom": 806,
-        "left": 18,
+        "left": 10,
         "width": 223.33334350585938,
-        "height": 40
+        "height": 34
       },
       "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
       "updateIndicatorSummary": "Update available",
-      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorVersion": null,
       "updateIndicatorNativeTitle": null,
       "tooltipText": null,
       "preferenceSwitches": [
@@ -307,18 +337,29 @@
         "height": 82
       },
       "updateAction": "Download update",
+      "updateActionRect": {
+        "top": 331.76043701171875,
+        "right": 1639.0000915527344,
+        "bottom": 363.76043701171875,
+        "left": 1465.447998046875,
+        "width": 173.55209350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "available",
+      "updateActionReadyStyle": false,
       "updateDescription": "Development preview: version 44.1.0 is available.",
       "updateIndicator": {
-        "top": 946,
-        "right": 241.33334350585938,
+        "top": 952,
+        "right": 233.33334350585938,
         "bottom": 986,
-        "left": 18,
+        "left": 10,
         "width": 223.33334350585938,
-        "height": 40
+        "height": 34
       },
       "updateIndicatorLabel": "Switchboard 44.1.0 is available. Open update settings.",
       "updateIndicatorSummary": "Update available",
-      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorVersion": null,
       "updateIndicatorNativeTitle": null,
       "tooltipText": null,
       "preferenceSwitches": [
@@ -397,18 +438,29 @@
         "height": 82
       },
       "updateAction": "Restart to update",
+      "updateActionRect": {
+        "top": 331.76043701171875,
+        "right": 1339.0000915527344,
+        "bottom": 363.76043701171875,
+        "left": 1169.479248046875,
+        "width": 169.52084350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "downloaded",
+      "updateActionReadyStyle": true,
       "updateDescription": "Version 44.1.0 is downloaded and ready. Restart when convenient to install it.",
       "updateIndicator": {
-        "top": 766,
-        "right": 241.33334350585938,
+        "top": 772,
+        "right": 233.33334350585938,
         "bottom": 806,
-        "left": 18,
+        "left": 10,
         "width": 223.33334350585938,
-        "height": 40
+        "height": 34
       },
       "updateIndicatorLabel": "Switchboard 44.1.0 is ready to install. Open update settings.",
       "updateIndicatorSummary": "Update ready",
-      "updateIndicatorVersion": "44.1.0",
+      "updateIndicatorVersion": null,
       "updateIndicatorNativeTitle": null,
       "tooltipText": null,
       "preferenceSwitches": [

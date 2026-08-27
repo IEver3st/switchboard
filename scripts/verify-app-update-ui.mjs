@@ -53,6 +53,9 @@ async function runReview() {
   if (!tooltipState.metrics.tooltipText?.includes('Open update settings.')) {
     throw new Error('The shared update tooltip was not rendered.');
   }
+  if (tooltipState.metrics.updateIndicatorVersion !== null) {
+    throw new Error('The update version should remain supplemental tooltip detail in the sidebar.');
+  }
   report.push(tooltipState);
   await clickUpdateIndicator();
   await waitFor(
@@ -98,11 +101,14 @@ async function runReview() {
     if (!about.metrics.updateDescription?.includes('Development preview: version') || !about.metrics.updateDescription?.endsWith('is available.')) {
       throw new Error(`Development update description was missing at ${viewport.width}x${viewport.height}.`);
     }
-    if (!about.metrics.updateIndicator || about.metrics.updateIndicator.width < 180 || about.metrics.updateIndicator.height !== 40) {
+    if (!about.metrics.updateIndicator || about.metrics.updateIndicator.width < 180 || about.metrics.updateIndicator.height !== 34) {
       throw new Error(`Sidebar update indicator was missing at ${viewport.width}x${viewport.height}.`);
     }
-    if (about.metrics.updateIndicatorSummary !== 'Update available' || !about.metrics.updateIndicatorVersion) {
+    if (about.metrics.updateIndicatorSummary !== 'Update available' || about.metrics.updateIndicatorVersion !== null) {
       throw new Error(`Sidebar update indicator content was incomplete at ${viewport.width}x${viewport.height}.`);
+    }
+    if (!about.metrics.updateActionRect || about.metrics.updateActionRect.width > 180 || about.metrics.updateActionRect.height !== 32 || !about.metrics.updateActionIcon) {
+      throw new Error(`The update action was not compact and icon-led at ${viewport.width}x${viewport.height}.`);
     }
     if (about.metrics.preferenceSwitches.length !== 3) {
       throw new Error(`Update preferences were incomplete at ${viewport.width}x${viewport.height}.`);
@@ -120,6 +126,9 @@ async function runReview() {
   if (downloaded.metrics.updateIndicatorSummary !== 'Update ready') {
     throw new Error('The sidebar update indicator did not communicate the restart-ready state.');
   }
+  if (downloaded.metrics.updateActionState !== 'downloaded' || !downloaded.metrics.updateActionReadyStyle) {
+    throw new Error('The restart-ready action did not use its restrained ready-state treatment.');
+  }
   report.push(downloaded);
   await evaluate(`window.switchboard.checkAppUpdates()`);
   await clickUpdatePreference('about.automaticAppUpdateDownloads');
@@ -136,6 +145,7 @@ async function captureState(viewport, category) {
   const metrics = await evaluate(`(() => {
     const content = document.querySelector('[data-settings-content-scroll]');
     const updateRow = document.querySelector('[data-setting-id="about.updates"]');
+    const updateAction = updateRow?.querySelector('[data-app-update-action]');
     const updateIndicator = document.querySelector('[data-settings-update-indicator]');
     const tooltip = document.querySelector('[role="tooltip"]');
     const preferenceSwitches = [...document.querySelectorAll('[data-setting-id^="about."] button[role="switch"]')];
@@ -156,6 +166,10 @@ async function captureState(viewport, category) {
       } : null,
       updateRow: rect(updateRow),
       updateAction: updateRow?.querySelector('button')?.textContent?.trim() ?? null,
+      updateActionRect: rect(updateAction),
+      updateActionIcon: Boolean(updateAction?.querySelector('svg')),
+      updateActionState: updateAction?.getAttribute('data-app-update-action') ?? null,
+      updateActionReadyStyle: updateAction?.classList.contains('settings-update-action--ready') ?? false,
       updateDescription: updateRow?.querySelector('[role="status"]')?.textContent?.trim() ?? null,
       updateIndicator: rect(updateIndicator),
       updateIndicatorLabel: updateIndicator?.getAttribute('aria-label') ?? null,

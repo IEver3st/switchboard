@@ -47,8 +47,12 @@ async function run() {
         horizontalOverflow: root.scrollWidth > root.clientWidth || (main && main.scrollWidth > main.clientWidth),
         lightingVisible: Boolean(rect && rect.top < innerHeight && rect.bottom > 0),
         fixedRed: document.body.textContent.includes('Fixed red'),
-        muteState: document.body.textContent.includes('Microphone live'),
+        muteState: [...document.querySelectorAll('.microphone-state strong')].some((node) => node.textContent?.trim() === 'Live'),
         maintainedState: document.body.textContent.includes('Lighting maintained'),
+        statusDetailVisible: document.body.textContent.includes('Physical touch sensor') || document.body.textContent.includes('No hardware readback'),
+        redundantCopyVisible: document.body.textContent.includes('Hear your microphone without software delay.') || document.body.textContent.includes('Audio processing is configured'),
+        heroBackground: getComputedStyle(document.querySelector('.device-workbench__hero')).backgroundColor,
+        solidSpeedVisible: Boolean(document.querySelector('[role="slider"][aria-label="Effect speed"]')),
         colorInputs: document.querySelectorAll('input[type=color]').length,
         profiles: [...document.querySelectorAll('[aria-label="Lighting profile"] button')].map((node) => node.textContent.trim()),
       };
@@ -59,24 +63,63 @@ async function run() {
     report.push({ viewport, metrics, name });
   }
 
+  for (const entry of report) {
+    if (entry.metrics.horizontalOverflow) throw new Error(`Horizontal overflow at ${entry.viewport.width}x${entry.viewport.height}.`);
+    if (!entry.metrics.lightingVisible) throw new Error(`Lighting controls are outside the viewport at ${entry.viewport.width}x${entry.viewport.height}.`);
+    if (!entry.metrics.fixedRed || !entry.metrics.muteState || !entry.metrics.maintainedState) throw new Error(`Required hardware metadata is missing at ${entry.viewport.width}x${entry.viewport.height}.`);
+    if (entry.metrics.statusDetailVisible || entry.metrics.redundantCopyVisible) throw new Error(`Secondary explanation leaked into the page at ${entry.viewport.width}x${entry.viewport.height}.`);
+    if (entry.metrics.heroBackground !== 'rgba(0, 0, 0, 0)') throw new Error(`The product render still has a background panel at ${entry.viewport.width}x${entry.viewport.height}.`);
+    if (entry.metrics.solidSpeedVisible) throw new Error(`Effect speed is visible for the solid pattern at ${entry.viewport.width}x${entry.viewport.height}.`);
+  }
+
+  if (window.isMaximized()) window.unmaximize();
+  window.setContentSize(1420, 900, false);
+  await waitForViewport(window, { width: 1420, height: 900 });
+  await evaluate(window, `scrollTo(0, 0)`);
+  await evaluate(window, `document.querySelector('.microphone-hardware__color')?.focus()`);
+  await waitFor(window, `document.querySelector('[role="tooltip"]')?.textContent?.includes('color writes')`);
+  const fixedRedTooltip = await evaluate(window, `document.querySelector('[role="tooltip"]')?.textContent?.trim()`);
+  await evaluate(window, `document.querySelector('.microphone-hardware__color')?.blur()`);
+  await evaluate(window, `scrollTo(0, 0)`);
+
   await clickButton(window, 'Breathe');
   await waitFor(window, `document.querySelector('[aria-label="Lighting profile"] button[data-state="on"]')?.textContent?.trim() === 'Breathe'`);
   const breathe = await evaluate(window, `(() => ({
     profile: document.querySelector('[aria-label="Lighting profile"] button[data-state="on"]')?.textContent?.trim(),
     pattern: document.querySelector('[aria-label="Lighting pattern"] button[data-state="on"]')?.textContent?.trim(),
     brightness: document.querySelector('[role="slider"][aria-label="Brightness"]')?.getAttribute('aria-valuenow'),
+    speedVisible: Boolean(document.querySelector('[role="slider"][aria-label="Effect speed"]')),
   }))()`);
+  if (!breathe.speedVisible) throw new Error('Effect speed was not shown for Breathe.');
+  await evaluate(window, `scrollTo(0, 0)`);
+  await paint(window);
+  const breatheImage = await window.webContents.capturePage();
+  await writeFile(join(outputDirectory, '1420x900-breathe.png'), breatheImage.toPNG());
 
   await clickButton(window, 'Pulse');
   await waitFor(window, `document.querySelector('[aria-label="Lighting pattern"] button[data-state="on"]')?.textContent?.trim() === 'Pulse'`);
   const custom = await evaluate(window, `(() => ({
     profile: document.querySelector('[aria-label="Lighting profile"] button[data-state="on"]')?.textContent?.trim(),
     pattern: document.querySelector('[aria-label="Lighting pattern"] button[data-state="on"]')?.textContent?.trim(),
+    speedVisible: Boolean(document.querySelector('[role="slider"][aria-label="Effect speed"]')),
     speedDisabled: document.querySelector('[role="slider"][aria-label="Effect speed"]')?.getAttribute('aria-disabled'),
   }))()`);
+  if (!custom.speedVisible || custom.speedDisabled === 'true') throw new Error('Effect speed was not available for Pulse.');
 
   await clickSwitch(window, 'Lighting');
   await waitFor(window, `document.querySelector('[role="switch"][aria-label="Lighting"]')?.getAttribute('aria-checked') === 'false'`);
+  const disabledState = await evaluate(window, `(() => ({
+    brightness: document.querySelector('[role="slider"][aria-label="Brightness"]')?.closest('.ui-slider')?.hasAttribute('data-disabled'),
+    speed: document.querySelector('[role="slider"][aria-label="Effect speed"]')?.closest('.ui-slider')?.hasAttribute('data-disabled'),
+    patterns: [...document.querySelectorAll('[aria-label="Lighting pattern"] button')].every((button) => button.disabled),
+  }))()`);
+  if (!disabledState.brightness || !disabledState.speed || !disabledState.patterns) {
+    throw new Error(`Lighting-off controls were not disabled consistently: ${JSON.stringify(disabledState)}`);
+  }
+  await evaluate(window, `scrollTo(0, 0)`);
+  await paint(window);
+  const disabledImage = await window.webContents.capturePage();
+  await writeFile(join(outputDirectory, '1420x900-lighting-off.png'), disabledImage.toPNG());
   await window.webContents.reload();
   await waitForLoad(window);
   await openQuadCast(window);
@@ -84,7 +127,7 @@ async function run() {
   await clickSwitch(window, 'Lighting');
   await clickButton(window, 'Broadcast');
 
-  const result = { report, interactions: { breathe, custom, persistedOff } };
+  const result = { report, interactions: { fixedRedTooltip, breathe, custom, disabledState, persistedOff } };
   await writeFile(join(outputDirectory, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result, null, 2));
   app.quit();

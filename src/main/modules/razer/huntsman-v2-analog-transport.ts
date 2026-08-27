@@ -19,14 +19,10 @@ import {
   parseLightingEffectCodes,
   parseLightingState,
   parseOnboardProfileIds,
-  parseRapidTrigger,
   parseRazerResponse,
   parseSerialNumber,
-  parseSnapTap,
-  rapidTriggerReadCommand,
   razerReportLength,
   serialNumberCommand,
-  snapTapReadCommand,
   type HuntsmanLightingEffectId,
   type HuntsmanLightingState,
   type RazerCommand,
@@ -44,16 +40,15 @@ export interface RazerHidIo {
 }
 
 export interface HuntsmanProbe {
-  firmwareVersion: string;
+  firmwareVersion?: string;
   serialNumber?: string;
-  brightness: number;
-  lightingState: HuntsmanLightingState;
-  lightingEffectCodes: number[];
-  gamingMode: boolean;
-  onboardProfileIds: number[];
-  activeOnboardProfileId: number;
-  rapidTrigger?: boolean;
-  snapTap?: boolean;
+  brightness?: number;
+  lightingState?: HuntsmanLightingState;
+  lightingEffectCodes?: number[];
+  gamingMode?: boolean;
+  onboardProfileIds?: number[];
+  activeOnboardProfileId?: number;
+  readFailures: Record<string, string>;
 }
 
 const nativeHidIo: RazerHidIo = {
@@ -69,27 +64,33 @@ export class HuntsmanV2AnalogTransport {
 
   public async probe(path: string): Promise<HuntsmanProbe> {
     return this.withHandle(path, async (handle) => {
-      const firmwareVersion = parseFirmwareVersion(await this.request(handle, firmwareVersionCommand()));
-      const serialNumber = parseSerialNumber(await this.request(handle, serialNumberCommand()));
-      const brightness = parseBrightness(await this.request(handle, brightnessReadCommand()));
-      const lightingState = parseLightingState(await this.request(handle, effectReadCommand()));
-      const lightingEffectCodes = parseLightingEffectCodes(await this.request(handle, effectIdListCommand()));
-      const gamingMode = parseGamingMode(await this.request(handle, gamingModeReadCommand()));
-      const onboardProfileIds = parseOnboardProfileIds(await this.request(handle, onboardProfileListCommand()));
-      const activeOnboardProfileId = parseActiveOnboardProfile(await this.request(handle, activeOnboardProfileReadCommand()));
-      const rapidTriggerResponse = await this.requestIfSupported(handle, rapidTriggerReadCommand(activeOnboardProfileId));
-      const snapTapResponse = await this.requestIfSupported(handle, snapTapReadCommand(activeOnboardProfileId));
+      const readFailures: Record<string, string> = {};
+      const read = async <T>(id: string, operation: () => Promise<T>): Promise<T | undefined> => {
+        try {
+          return await operation();
+        } catch (error) {
+          readFailures[id] = error instanceof Error ? error.message : String(error);
+          return undefined;
+        }
+      };
+      const firmwareVersion = await read('firmware', async () => parseFirmwareVersion(await this.request(handle, firmwareVersionCommand())));
+      const serialNumber = await read('serial-number', async () => parseSerialNumber(await this.request(handle, serialNumberCommand())));
+      const brightness = await read('brightness', async () => parseBrightness(await this.request(handle, brightnessReadCommand())));
+      const lightingState = await read('lighting-effect', async () => parseLightingState(await this.request(handle, effectReadCommand())));
+      const lightingEffectCodes = await read('lighting-effects', async () => parseLightingEffectCodes(await this.request(handle, effectIdListCommand())));
+      const gamingMode = await read('gaming-mode', async () => parseGamingMode(await this.request(handle, gamingModeReadCommand())));
+      const onboardProfileIds = await read('onboard-profiles', async () => parseOnboardProfileIds(await this.request(handle, onboardProfileListCommand())));
+      const activeOnboardProfileId = await read('active-profile', async () => parseActiveOnboardProfile(await this.request(handle, activeOnboardProfileReadCommand())));
       return {
-        firmwareVersion,
-        serialNumber,
-        brightness,
-        lightingState,
-        lightingEffectCodes,
-        gamingMode,
-        onboardProfileIds,
-        activeOnboardProfileId,
-        ...(rapidTriggerResponse ? { rapidTrigger: parseRapidTrigger(rapidTriggerResponse) } : {}),
-        ...(snapTapResponse ? { snapTap: parseSnapTap(snapTapResponse) } : {}),
+        ...(firmwareVersion ? { firmwareVersion } : {}),
+        ...(serialNumber ? { serialNumber } : {}),
+        ...(brightness !== undefined ? { brightness } : {}),
+        ...(lightingState ? { lightingState } : {}),
+        ...(lightingEffectCodes ? { lightingEffectCodes } : {}),
+        ...(gamingMode !== undefined ? { gamingMode } : {}),
+        ...(onboardProfileIds ? { onboardProfileIds } : {}),
+        ...(activeOnboardProfileId !== undefined ? { activeOnboardProfileId } : {}),
+        readFailures,
       };
     });
   }
@@ -149,14 +150,6 @@ export class HuntsmanV2AnalogTransport {
     throw new Error('The keyboard did not complete the Razer HID command.');
   }
 
-  private async requestIfSupported(handle: RazerHidHandle, command: RazerCommand): Promise<RazerResponse | undefined> {
-    try {
-      return await this.request(handle, command);
-    } catch (error) {
-      if (error instanceof RazerCommandStatusError && error.status === 0x05) return undefined;
-      throw error;
-    }
-  }
 }
 
 class RazerCommandStatusError extends Error {

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const command = process.argv[2];
+const commandArguments = process.argv.slice(3);
 const cleanEnvironment = { ...process.env };
 delete cleanEnvironment.ELECTRON_RUN_AS_NODE;
 
@@ -29,6 +30,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-native-ui.mjs', '--phase=verify');
 } else if (command === 'g502') {
   await runElectron('scripts/verify-g502-fix-native.mjs');
+} else if (command === 'mouse') {
+  await runElectron('scripts/verify-mouse-device-polish-ui.mjs');
 } else if (command === 'huntsman') {
   await runElectron('scripts/verify-huntsman-ui.mjs');
 } else if (command === 'games') {
@@ -38,9 +41,11 @@ if (command === 'capture') {
 } else if (command === 'audio-mixer') {
   await runElectron('scripts/verify-audio-mixer-ui.mjs');
 } else if (command === 'clip-editor') {
-  await runElectron('scripts/verify-clip-editor-ui.mjs');
+  await runElectron('scripts/verify-clip-editor-ui.mjs', ...commandArguments);
 } else if (command === 'app-updates') {
   await runElectron('scripts/verify-app-update-ui.mjs');
+} else if (command === 'device-popovers') {
+  await runElectron('scripts/verify-logitech-lighting-studio.mjs', '--interaction-only');
 } else {
   throw new Error(`Unknown native review command: ${command ?? '(missing)'}`);
 }

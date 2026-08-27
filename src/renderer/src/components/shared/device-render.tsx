@@ -1,15 +1,20 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Device } from '../../../../shared/contracts';
 import g502XPlusBlackUrl from '@/assets/device-renders/g502-x-plus.png';
 import g502XPlusWhiteUrl from '@/assets/device-renders/g502-x-plus-white.png';
 import quadCast2Url from '@/assets/device-renders/quadcast-2.png';
 import huntsmanV2AnalogUrl from '@/assets/device-renders/huntsman-v2-analog.png';
+import xm6BlackUrl from '@/assets/device-renders/wh1000xm6-black.png';
+import xm6MidnightBlueUrl from '@/assets/device-renders/wh1000xm6-midnight-blue.png';
+import xm6OliveGrayUrl from '@/assets/device-renders/wh1000xm6-olive-gray.png';
+import xm6PlatinumSilverUrl from '@/assets/device-renders/wh1000xm6-platinum-silver.png';
 import { DeviceGlyph } from '@/components/shared/device-glyph';
 import {
   adaptBlackHardwareForDarkSurface,
   applyLighting,
   type LightingMask,
 } from '@/components/shared/device-lighting';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/cn';
 
 type ToneProfile = 'black-hardware-on-dark';
@@ -18,6 +23,14 @@ interface DeviceArtwork {
   src: string;
   lightingMask?: LightingMask;
   toneProfile?: ToneProfile;
+  presentation: DevicePresentation;
+}
+
+interface DevicePresentation {
+  orientation: 'portrait' | 'landscape';
+  galleryScale: number;
+  heroScale?: number;
+  groundWidth: string;
 }
 
 interface ProcessedArtwork {
@@ -29,58 +42,99 @@ interface ProcessedArtwork {
 const processedArtworkCache = new Map<string, ProcessedArtwork>();
 const maximumCachedArtwork = 6;
 const artworkByAssetKey: Record<string, DeviceArtwork> = {
-  'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl, lightingMask: 'g502-rgb' },
-  'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl, lightingMask: 'g502-rgb' },
+  'sony-wh1000xm6-black': { src: xm6BlackUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
+  'sony-wh1000xm6-platinum-silver': { src: xm6PlatinumSilverUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
+  'sony-wh1000xm6-midnight-blue': { src: xm6MidnightBlueUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
+  'sony-wh1000xm6-olive-gray': { src: xm6OliveGrayUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
+  'logitech-g502-x-plus-black': {
+    src: g502XPlusBlackUrl,
+    lightingMask: 'g502-rgb',
+    presentation: { orientation: 'portrait', galleryScale: 1.02, groundWidth: '46%' },
+  },
+  'logitech-g502-x-plus-white': {
+    src: g502XPlusWhiteUrl,
+    lightingMask: 'g502-rgb',
+    presentation: { orientation: 'portrait', galleryScale: 1.02, groundWidth: '46%' },
+  },
   'hyperx-quadcast-2': {
     src: quadCast2Url,
     lightingMask: 'red-dominant',
     toneProfile: 'black-hardware-on-dark',
+    presentation: { orientation: 'portrait', galleryScale: 0.96, groundWidth: '42%' },
   },
-  'razer-huntsman-v2-analog': { src: huntsmanV2AnalogUrl },
+  'razer-huntsman-v2-analog': {
+    src: huntsmanV2AnalogUrl,
+    lightingMask: 'g502-rgb',
+    toneProfile: 'black-hardware-on-dark',
+    presentation: { orientation: 'landscape', galleryScale: 0.94, heroScale: 1.06, groundWidth: '72%' },
+  },
 };
 
 export function DeviceRender({
   device,
   density,
   className,
+  lightingPreview,
 }: {
   device: Device;
   density: 'gallery' | 'hero';
   className?: string;
+  lightingPreview?: { enabled?: boolean; color?: string; brightness?: number; preserveSourceColor?: boolean };
 }) {
   const artwork = artworkByAssetKey[device.asset.key];
   const lighting = device.capabilities.lighting;
   const lightingEnabled = Boolean(
-    lighting?.enabled
-    && !(lighting.muteLinked && device.capabilities.muteState?.muted === true),
+    (lightingPreview?.enabled ?? lighting?.enabled)
+    && !(lighting?.muteLinked && device.capabilities.muteState?.muted === true),
   );
-  const lightingColor = asColor(lighting?.color, device.kind === 'microphone' ? '#e51937' : '#ff658a');
-  const lightingBrightness = lighting?.brightness ?? 100;
+  const lightingColor = asColor(lightingPreview?.color ?? lighting?.color, device.kind === 'microphone' ? '#e51937' : '#ff658a');
+  const lightingBrightness = lightingPreview?.brightness ?? lighting?.brightness ?? 100;
+  const preserveSourceColor = lightingPreview?.preserveSourceColor
+    ?? ['spectrum', 'wave-left', 'wave-right'].includes(lighting?.activeEffectId ?? '');
   const label = [device.identity.manufacturer, device.displayName].filter(Boolean).join(' ');
+  const presentation = artwork?.presentation ?? fallbackPresentation(device);
+  const opticalScale = density === 'gallery' ? presentation.galleryScale : (presentation.heroScale ?? 1);
+  const presentationStyle = {
+    '--device-optical-scale': opticalScale,
+    '--device-ground-width': presentation.groundWidth,
+    '--device-accent': lightingEnabled ? lightingColor : 'var(--border-strong)',
+  } as CSSProperties;
 
   return (
     <div
       className={cn('device-render', `device-render--${density}`, className)}
+      style={presentationStyle}
       data-asset-key={device.asset.key}
       data-asset-match={device.asset.matchedBy}
       data-colorway={device.identity.colorway ?? 'unknown'}
       data-variant-source={device.variantResolution.source}
+      data-orientation={presentation.orientation}
       data-lighting-enabled={lightingEnabled}
       data-lighting-color={lightingColor}
       data-lighting-brightness={lightingBrightness}
+      data-lighting-preview={lightingPreview ? 'true' : undefined}
     >
-      {artwork ? (
-        <ProductCanvas
-          artwork={artwork}
-          label={label}
-          lighting={{ enabled: lightingEnabled, color: lightingColor, brightness: lightingBrightness }}
-          fallback={<FallbackRender device={device} label={label} />}
-        />
-      ) : (
-        <FallbackRender device={device} label={label} />
-      )}
+      <span className="device-render__ground" aria-hidden />
+      <div className="device-render__artwork">
+        {artwork ? (
+          <ProductCanvas
+            artwork={artwork}
+            label={label}
+            lighting={{ enabled: lightingEnabled, color: lightingColor, brightness: lightingBrightness, preserveSourceColor }}
+            fallback={<FallbackRender device={device} label={label} />}
+          />
+        ) : (
+          <FallbackRender device={device} label={label} />
+        )}
+      </div>
     </div>
   );
+}
+
+function fallbackPresentation(device: Device): DevicePresentation {
+  return device.kind === 'keyboard'
+    ? { orientation: 'landscape', galleryScale: 0.96, groundWidth: '72%' }
+    : { orientation: 'portrait', galleryScale: 0.82, groundWidth: '48%' };
 }
 
 function FallbackRender({ device, label }: { device: Device; label: string }) {
@@ -99,7 +153,7 @@ function ProductCanvas({
 }: {
   artwork: DeviceArtwork;
   label: string;
-  lighting: { enabled: boolean; color: string; brightness: number };
+  lighting: { enabled: boolean; color: string; brightness: number; preserveSourceColor: boolean };
   fallback: ReactNode;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -114,6 +168,7 @@ function ProductCanvas({
       artwork.lightingMask ? (lighting.enabled ? 'on' : 'off') : 'static',
       artwork.lightingMask ? lighting.color : 'source-color',
       artwork.lightingMask ? lighting.brightness : 'source-brightness',
+      artwork.lightingMask ? lighting.preserveSourceColor : 'source-mode',
     ].join('|');
     const cached = processedArtworkCache.get(cacheKey);
     if (cached && canvasRef.current && paintProcessedArtwork(canvasRef.current, cached)) {
@@ -154,7 +209,7 @@ function ProductCanvas({
 
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-        if (artwork.lightingMask) {
+        if (artwork.lightingMask && (!lighting.preserveSourceColor || !lighting.enabled)) {
           applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color, lighting.brightness);
         }
         if (artwork.toneProfile === 'black-hardware-on-dark') {
@@ -194,13 +249,16 @@ function ProductCanvas({
 
   if (status === 'failed') return fallback;
   return (
-    <canvas
-      ref={canvasRef}
-      role="img"
-      aria-label={label}
-      aria-busy={status === 'loading'}
-      data-render-state={status}
-    />
+    <div className="device-render__media" data-render-state={status}>
+      {status === 'loading' ? <Skeleton className="device-render__skeleton" aria-hidden /> : null}
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={label}
+        aria-busy={status === 'loading'}
+        data-render-state={status}
+      />
+    </div>
   );
 }
 

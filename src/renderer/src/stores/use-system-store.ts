@@ -6,6 +6,7 @@ import {
   type CaptureConfig,
   type CreateAudioPresetInput,
   type ExportClipInput,
+  type ExportMontageInput,
   type PageId,
   type RenameClipInput,
   type SetClipCanvasSizeInput,
@@ -60,11 +61,13 @@ interface SystemStore {
   selectedDeviceId: string | null;
   loading: boolean;
   error: string | null;
+  pendingDeviceIds: string[];
   initialize(): Promise<() => void>;
   setPage(page: PageId): void;
   selectDevice(id: string): void;
   clearDeviceSelection(): void;
   clearError(): void;
+  refreshDevices(): Promise<void>;
   setModuleState(input: SetModuleStateInput): Promise<void>;
   setDeviceControl(input: SetDeviceControlInput): Promise<void>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<void>;
@@ -106,6 +109,8 @@ interface SystemStore {
   setClipCanvasSize(input: SetClipCanvasSizeInput): Promise<void>;
   setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): Promise<void>;
   exportClip(input: ExportClipInput): Promise<boolean>;
+  exportMontage(input: ExportMontageInput): Promise<boolean>;
+  cancelClipExport(exportId: string): Promise<void>;
   updateSettings(input: UpdateSettingsInput): Promise<void>;
   resetSettings(scope: SettingsResetScope): Promise<void>;
   revealClip(path: string): Promise<void>;
@@ -128,6 +133,7 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     selectedDeviceId: null,
     loading: true,
     error: null,
+    pendingDeviceIds: [],
     async initialize() {
       try {
         const snapshot = await switchboardApi.getSnapshot();
@@ -163,8 +169,24 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     selectDevice: (selectedDeviceId) => set({ selectedDeviceId, page: 'devices' }),
     clearDeviceSelection: () => set({ selectedDeviceId: null }),
     clearError: () => set({ error: null }),
+    refreshDevices: () => run(() => switchboardApi.refreshDevices()),
     setModuleState: (input) => run(() => switchboardApi.setModuleState(input)),
-    setDeviceControl: (input) => run(() => switchboardApi.setDeviceControl(input)),
+    setDeviceControl: async (input) => {
+      set((state) => ({
+        error: null,
+        pendingDeviceIds: state.pendingDeviceIds.includes(input.deviceId)
+          ? state.pendingDeviceIds
+          : [...state.pendingDeviceIds, input.deviceId],
+      }));
+      try {
+        const snapshot = await switchboardApi.setDeviceControl(input);
+        set({ snapshot });
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) });
+      } finally {
+        set((state) => ({ pendingDeviceIds: state.pendingDeviceIds.filter((id) => id !== input.deviceId) }));
+      }
+    },
     setDeviceSetting: (input) => run(() => switchboardApi.setDeviceSetting(input)),
     setDeviceAppearanceOverride: (input) => run(() => switchboardApi.setDeviceAppearanceOverride(input)),
     setAudioEnabled: (enabled) => run(() => switchboardApi.setAudioEnabled(enabled)),
@@ -286,6 +308,21 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     exportClip: async (input) => {
       set({ error: null });
       try { return await switchboardApi.exportClip(input); }
+      catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      }
+    },
+    exportMontage: async (input) => {
+      set({ error: null });
+      try { return await switchboardApi.exportMontage(input); }
+      catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      }
+    },
+    cancelClipExport: async (exportId) => {
+      try { await switchboardApi.cancelClipExport(exportId); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;

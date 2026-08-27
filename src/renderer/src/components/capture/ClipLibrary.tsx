@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { CalendarDays, Grid2X2, List, Search, SlidersHorizontal, Star, Video } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Check, Clapperboard, Grid2X2, List, Search, SlidersHorizontal, Star, Video } from 'lucide-react';
 import type { Clip } from '../../../../shared/contracts';
 import {
   clipGameLabel,
@@ -8,9 +8,11 @@ import {
   type ClipSort,
 } from '../../../../shared/clip-library';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/cn';
 import { formatBytes } from '@/lib/format';
 import { ClipGrid } from './ClipGrid';
@@ -36,11 +38,12 @@ const dateOptions: Array<{ value: ClipDateFilter; label: string }> = [
   { value: 'last-30-days', label: 'Last 30 days' },
 ];
 
-export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey }: {
+export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, onCreateMontage }: {
   clips: Clip[];
   actions: ClipActions;
   replayEnabled: boolean;
   hotkey: string;
+  onCreateMontage: (clips: Clip[]) => void;
 }) {
   const [query, setQuery] = useState('');
   const [game, setGame] = useState('all');
@@ -48,10 +51,51 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey }:
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sort, setSort] = useState<ClipSort>('newest');
   const [layout, setLayout] = useState<ClipLayout>('grid');
+  const [montageSelectionMode, setMontageSelectionMode] = useState(false);
+  const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
   const games = useMemo(() => [...new Set(allClips.map(clipGameLabel))].sort((left, right) => left.localeCompare(right)), [allClips]);
   const clips = useMemo(() => filterAndSortClips(allClips, { query, game, date, favoritesOnly, sort }), [allClips, date, favoritesOnly, game, query, sort]);
   const hasFilters = query.trim().length > 0 || game !== 'all' || date !== 'any' || favoritesOnly;
   const visibleBytes = clips.reduce((total, clip) => total + clip.fileSize, 0);
+  const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
+
+  useEffect(() => {
+    const available = new Set(allClips.map((clip) => clip.id));
+    setSelectedClipIds((current) => current.filter((id) => available.has(id)));
+  }, [allClips]);
+
+  useEffect(() => {
+    if (!montageSelectionMode) return;
+    const cancelOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (document.querySelector('[data-radix-popper-content-wrapper], [role="dialog"]')) return;
+      event.preventDefault();
+      setMontageSelectionMode(false);
+      setSelectedClipIds([]);
+    };
+    window.addEventListener('keydown', cancelOnEscape);
+    return () => window.removeEventListener('keydown', cancelOnEscape);
+  }, [montageSelectionMode]);
+
+  const toggleClipSelection = (clip: Clip) => {
+    setSelectedClipIds((current) => current.includes(clip.id)
+      ? current.filter((id) => id !== clip.id)
+      : [...current, clip.id]);
+  };
+
+  const cancelMontageSelection = () => {
+    setMontageSelectionMode(false);
+    setSelectedClipIds([]);
+  };
+
+  const createMontage = () => {
+    if (selectedClipIds.length < 2) return;
+    const byId = new Map(allClips.map((clip) => [clip.id, clip]));
+    const selected = selectedClipIds.map((id) => byId.get(id)).filter((clip): clip is Clip => Boolean(clip));
+    if (selected.length < 2) return;
+    onCreateMontage(selected);
+    cancelMontageSelection();
+  };
 
   const clearFilters = () => {
     setQuery('');
@@ -61,18 +105,25 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey }:
   };
 
   return (
-    <section aria-labelledby="clips-heading" className="min-h-0 flex-1 px-5 pb-8 pt-5">
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <div className="mr-auto min-w-40">
-          <h2 id="clips-heading" className="m-0 text-[16px] font-semibold tracking-[-0.01em] text-foreground">Clips</h2>
+    <section aria-labelledby="clips-heading" className="capture-library min-h-0 flex-1 px-5 pb-8 pt-5">
+      <div className="capture-library__header">
+        <div className="capture-library__title min-w-40">
+          <div className="flex items-center gap-2.5">
+            <h2 id="clips-heading" className="m-0 text-[16px] font-semibold tracking-[-0.01em] text-foreground">Clips</h2>
+            {!montageSelectionMode ? (
+              <Button type="button" variant="secondary" size="sm" className="h-7 gap-1.5 px-2.5 text-[11px]" disabled={allClips.length < 2} onClick={() => setMontageSelectionMode(true)}>
+                <Clapperboard className="size-3.5" aria-hidden="true" /> Create Montage
+              </Button>
+            ) : null}
+          </div>
           <p className="m-0 mt-0.5 text-[11px] tabular-nums text-muted-foreground" aria-live="polite">
             {hasFilters ? `${clips.length} of ${allClips.length} clips` : `${allClips.length} ${allClips.length === 1 ? 'clip' : 'clips'}`}
             {clips.length > 0 ? <span> <span aria-hidden="true">·</span> {formatBytes(visibleBytes)}</span> : null}
           </p>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-          <label className="relative min-w-[220px] flex-1 xl:max-w-[340px]">
+        <div className="capture-library__tools">
+          <label className="capture-library__search relative min-w-[220px]">
             <span className="sr-only">Search clips</span>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clips" className="h-9 pl-8 text-[12px]" />
@@ -82,16 +133,16 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey }:
             type="button"
             variant="secondary"
             size="sm"
-            className={cn('h-9 gap-1.5 px-2.5', favoritesOnly && 'border-primary/50 bg-primary/10 text-foreground')}
+            className={cn('h-9 gap-1.5 px-2.5', favoritesOnly && 'capture-filter-active')}
             aria-pressed={favoritesOnly}
             onClick={() => setFavoritesOnly((current) => !current)}
           >
-            <Star className={cn('size-3.5', favoritesOnly && 'fill-primary text-primary')} /> Favorites
+            <Star className={cn('size-3.5', favoritesOnly && 'fill-warning text-warning')} /> Favorites
           </Button>
 
           <div className="w-36 shrink-0">
             <Select value={game} onValueChange={setGame}>
-              <SelectTrigger aria-label="Filter clips by game" className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Filter clips by game" className={cn('h-9', game !== 'all' && 'capture-filter-active')}><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="all">All games</SelectItem>{games.map((label) => <SelectItem key={label} value={label}>{label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -100,21 +151,57 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey }:
 
           <div className="w-32 shrink-0">
             <Select value={sort} onValueChange={(value) => setSort(value as ClipSort)}>
-              <SelectTrigger aria-label="Sort clips" className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-9"><SelectValue /></SelectTrigger>
               <SelectContent>{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
-          <div className="flex h-9 shrink-0 overflow-hidden rounded-md border border-input bg-secondary" role="group" aria-label="Clip view">
-            <button type="button" className={cn('grid w-9 place-items-center text-muted-foreground hover:text-foreground', layout === 'grid' && 'bg-accent text-primary')} aria-label="Grid view" aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}><Grid2X2 className="size-4" /></button>
-            <button type="button" className={cn('grid w-9 place-items-center border-l border-input text-muted-foreground hover:text-foreground', layout === 'list' && 'bg-accent text-primary')} aria-label="List view" aria-pressed={layout === 'list'} onClick={() => setLayout('list')}><List className="size-4" /></button>
-          </div>
+          <ToggleGroup type="single" value={layout} onValueChange={(value) => { if (value) setLayout(value as ClipLayout); }} aria-label="Clip view" className="h-9 shrink-0 bg-surface-1">
+            <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid view" className="h-9 min-w-9 px-0"><Grid2X2 className="size-4" /></ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" title="List view" className="h-9 min-w-9 px-0"><List className="size-4" /></ToggleGroupItem>
+          </ToggleGroup>
         </div>
       </div>
 
-      <div className="mt-4">
+      {montageSelectionMode ? (
+        <div className="capture-montage-selection" role="region" aria-label="Montage selection" data-testid="montage-selection-toolbar">
+          <div className="min-w-0">
+            <strong>Select 2 or more clips to create a montage</strong>
+            <span aria-live="polite">{selectedClipIds.length} selected</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-[11px]"
+              disabled={clips.length === 0 || clips.every((clip) => selectedClipIdSet.has(clip.id))}
+              onClick={() => setSelectedClipIds((current) => {
+                const next = [...current];
+                const known = new Set(current);
+                for (const clip of clips) if (!known.has(clip.id)) next.push(clip.id);
+                return next;
+              })}
+            >
+              Select all{hasFilters ? ' shown' : ''}
+            </Button>
+            <Separator orientation="vertical" className="h-5" />
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" onClick={cancelMontageSelection}>Cancel</Button>
+            <Button type="button" variant="primary" size="sm" className="h-7 px-2.5 text-[11px]" disabled={selectedClipIds.length < 2} onClick={createMontage}>
+              <Clapperboard className="size-3.5" aria-hidden="true" />
+              {selectedClipIds.length >= 2 ? `Create Montage · ${selectedClipIds.length} clips` : 'Create Montage'}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-5">
         {clips.length > 0 ? (
-          layout === 'grid' ? <ClipGrid clips={clips} actions={actions} grouped={clips.length >= 8} /> : <ClipList clips={clips} actions={actions} />
+          layout === 'grid' ? (
+            <ClipGrid clips={clips} actions={actions} grouped selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={toggleClipSelection} />
+          ) : (
+            <ClipList clips={clips} actions={actions} selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={toggleClipSelection} />
+          )
         ) : allClips.length === 0 ? (
           <EmptyLibrary replayEnabled={replayEnabled} hotkey={hotkey} />
         ) : (
@@ -133,32 +220,29 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey }:
 }
 
 function DateFilter({ value, onChange }: { value: ClipDateFilter; onChange: (value: ClipDateFilter) => void }) {
-  const [open, setOpen] = useState(false);
   const active = value !== 'any';
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="secondary" size="sm" className={cn('h-9 gap-1.5 px-2.5', active && 'border-primary/50 bg-primary/10 text-foreground')}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="secondary" size="sm" className={cn('h-9 gap-1.5 px-2.5', active && 'capture-filter-active')}>
           {active ? <CalendarDays className="size-3.5 text-primary" /> : <SlidersHorizontal className="size-3.5" />}
           {active ? dateOptions.find((option) => option.value === value)?.label : 'Filter'}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-48 p-2">
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48 p-1.5">
         <div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">Date</div>
         {dateOptions.map((option) => (
-          <button
+          <DropdownMenuItem
             key={option.value}
-            type="button"
-            aria-pressed={value === option.value}
-            onClick={() => { onChange(option.value); setOpen(false); }}
-            className={cn('flex h-8 w-full items-center justify-between rounded-sm px-2 text-left text-xs text-foreground hover:bg-accent', value === option.value && 'bg-accent')}
+            onSelect={() => onChange(option.value)}
+            className={cn('justify-between text-xs', value === option.value && 'bg-accent text-foreground')}
           >
             {option.label}
-            {value === option.value ? <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
-          </button>
+            {value === option.value ? <Check className="size-3.5 text-primary" aria-hidden="true" /> : null}
+          </DropdownMenuItem>
         ))}
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

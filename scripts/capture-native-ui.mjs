@@ -5,7 +5,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const outputDirectory = join(projectRoot, '.impeccable', 'review', 'native');
+const outputDirectory = process.env.SWITCHBOARD_REVIEW_OUTPUT
+  ? resolve(projectRoot, process.env.SWITCHBOARD_REVIEW_OUTPUT)
+  : join(projectRoot, '.impeccable', 'review', 'native');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-native-review-'));
 const reviewStatePath = join(isolatedUserData, 'switchboard-state.json');
 const currentStatePath = process.env.APPDATA ? join(process.env.APPDATA, 'switchboard-prototype', 'switchboard-state.json') : null;

@@ -1,13 +1,17 @@
-import { ArrowLeft, Usb } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Usb } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
 import { BatteryStatus } from '@/components/device-controls/BatteryStatus';
 import { MouseDeviceEditor } from '@/components/device-controls/MouseDeviceEditor';
 import { KeyboardDeviceEditor } from '@/components/device-controls/KeyboardDeviceEditor';
+import { HeadsetDeviceEditor } from '@/components/device-controls/HeadsetDeviceEditor';
 import { HorizontalLevelMeter } from '@/components/audio/HorizontalLevelMeter';
-import { PrimarySlider, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
+import { PrimarySlider, SemanticChoice } from '@/components/shared/human-controls';
 import { DeviceRender } from '@/components/shared/device-render';
 import { StatusDot } from '@/components/shared/surface';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSystemStore } from '@/stores/use-system-store';
 
 export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
@@ -31,25 +35,30 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
       returnFocusDeviceId.current = null;
     });
     return () => cancelAnimationFrame(frame);
-  }, [selected]);
+  }, [selected?.id]);
 
   if (snapshot.devices.length === 0) {
     return (
-      <div className="grid min-h-full place-items-center p-6">
-        <div className="text-center">
-          <Usb className="mx-auto size-6 text-muted-foreground" />
-          <p className="mt-3 text-sm font-medium text-foreground">No supported devices detected</p>
-          <p className="mt-1 text-xs text-muted-foreground">Install a device module and connect hardware to see it here.</p>
+      <div className="device-gallery-page" data-state="empty">
+        <DeviceGalleryHeader connectedCount={0} />
+        <div className="device-gallery-empty">
+          <div className="text-center">
+            <Usb className="mx-auto size-6 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium text-foreground">No supported devices detected</p>
+            <p className="mt-1 text-xs text-muted-foreground">Install a device module and connect hardware to see it here.</p>
+          </div>
         </div>
       </div>
     );
   }
 
   if (!selected) {
+    const connectedCount = snapshot.devices.filter((device) => device.connected).length;
     return (
       <div className="device-gallery-page">
+        <DeviceGalleryHeader connectedCount={connectedCount} />
         <div className="device-gallery-stage">
-          <ul className="device-gallery" aria-label="Switchboard devices">
+          <ul className="device-gallery" aria-label="Switchboard devices" data-device-count={snapshot.devices.length}>
             {snapshot.devices.map((device) => (
               <li key={device.id} className="device-gallery__entry" data-connected={device.connected} data-kind={device.kind}>
                 <button
@@ -67,16 +76,32 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
                 >
                   <DeviceRender device={device} density="gallery" />
                   <span className="device-gallery__copy">
-                    <span className="device-gallery__name">{device.displayName}</span>
+                    <span className="device-gallery__title-row">
+                      <span className="device-gallery__name">{device.displayName}</span>
+                      {device.connected && (device.capabilities.battery?.percentage ?? 100) <= 15 ? (
+                        <Badge variant="warning">Low battery</Badge>
+                      ) : null}
+                    </span>
+                    <span className="device-gallery__status">
+                      <StatusDot active={device.connected} />
+                      <span>{device.connected ? 'Connected' : 'Disconnected'}</span>
+                      {device.connected ? (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span>{connectionLabel(device)}</span>
+                        </>
+                      ) : null}
+                    </span>
                     {device.capabilities.battery ? (
                       <BatteryStatus
                         battery={device.capabilities.battery}
                         connectionLabel={device.identity.connection === 'wireless' ? 'Wireless' : connectionLabel(device)}
                         connected={device.connected}
                       />
-                    ) : (
-                      <span className="device-gallery__status">{device.connected ? connectionLabel(device) : 'Disconnected'}</span>
-                    )}
+                    ) : null}
+                    <span className="device-gallery__configure" aria-hidden>
+                      Configure <ArrowRight />
+                    </span>
                   </span>
                 </button>
               </li>
@@ -125,6 +150,8 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
         <MouseDeviceEditor device={selected} />
       ) : selected.kind === 'keyboard' ? (
         <KeyboardDeviceEditor device={selected} />
+      ) : selected.kind === 'headset' && selected.capabilities.headset ? (
+        <HeadsetDeviceEditor device={selected} />
       ) : (
         <>
           <div className="device-workbench__hero">
@@ -138,6 +165,21 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
         </>
       )}
     </div>
+  );
+}
+
+function DeviceGalleryHeader({ connectedCount }: { connectedCount: number }) {
+  return (
+    <header className="device-gallery-header">
+      <div>
+        <h2>Devices</h2>
+        <p>Your connected hardware</p>
+      </div>
+      <span className="device-gallery-header__status" aria-live="polite">
+        <StatusDot active={connectedCount > 0} />
+        {connectedCount} connected
+      </span>
+    </header>
   );
 }
 
@@ -156,27 +198,25 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
   const muteState = device.capabilities.muteState;
   const muted = muteState?.muted ?? null;
   const lightingDisabled = !device.connected || !lighting?.writable;
+  const lightingSupportsSpeed = Boolean(lighting?.speedWritable && lighting.activeEffectId !== 'solid');
   const engineRunning = snapshot.engines.find((candidate) => candidate.kind === 'audio')?.state === 'running';
   const microphoneBusEnabled = snapshot.audio.mixes.find((mix) => mix.id === 'personal')?.buses.find((candidate) => candidate.id === 'mic')?.enabled ?? false;
 
   return (
     <section className="device-controls microphone-hardware" aria-labelledby="microphone-hardware-heading">
       <header className="microphone-hardware__heading">
-        <div>
-          <h3 id="microphone-hardware-heading">Microphone controls</h3>
-          <p>Audio processing is configured in Audio &gt; Microphone.</p>
-        </div>
+        <h3 id="microphone-hardware-heading">Microphone controls</h3>
         <div className="microphone-hardware__state" aria-live="polite">
           <HardwareState
             tone={muted === null ? 'unknown' : muted ? 'muted' : 'live'}
-            label={muted === null ? 'Mute state unknown' : muted ? 'Muted' : 'Microphone live'}
+            label={muted === null ? 'Mute unknown' : muted ? 'Muted' : 'Live'}
             detail={muteState?.unavailableReason ?? 'Physical touch sensor'}
           />
           {lighting ? (
             <HardwareState
-              tone={lighting.state === 'maintained' ? 'live' : 'unknown'}
-              label={lighting.state === 'maintained' ? 'Lighting maintained' : 'Lighting state unknown'}
-              detail={lighting.state === 'maintained' ? 'No hardware readback' : (lighting.stateReason ?? 'Waiting for hardware')}
+              tone={lighting.enabled && lighting.state === 'maintained' ? 'live' : 'unknown'}
+              label={!lighting.enabled ? 'Lighting off' : lighting.state === 'maintained' ? 'Lighting maintained' : 'Lighting unknown'}
+              detail={!lighting.enabled ? 'Maintained lighting is disabled' : lighting.state === 'maintained' ? 'No hardware readback' : (lighting.stateReason ?? 'Waiting for hardware')}
             />
           ) : null}
         </div>
@@ -197,7 +237,6 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
         {device.capabilities.monitoring ? (
           <PrimarySlider
             label="Direct monitoring"
-            description="Hear your microphone without software delay."
             value={monitoring}
             min={0}
             max={100}
@@ -209,47 +248,60 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
       </div>
 
       {lighting ? (
-        <div className="microphone-hardware__lighting">
+        <section className="microphone-hardware__lighting" aria-labelledby="microphone-lighting-heading">
           <div className="microphone-hardware__lighting-topline">
-            <SettingToggle
-              title="Lighting"
-              description="Maintains the microphone's fixed-red status light."
-              checked={lighting.enabled}
-              disabled={lightingDisabled}
-              onCheckedChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-enabled', enabled } })}
-            />
-            <div className="microphone-hardware__color">
-              <span>Color</span>
-              <strong><i style={{ backgroundColor: '#f20000' }} aria-hidden /> Fixed red</strong>
+            <div className="microphone-hardware__lighting-identity">
+              <h3 id="microphone-lighting-heading">Lighting</h3>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="microphone-hardware__color" tabIndex={0} aria-label="Fixed red lighting color">
+                    <i style={{ backgroundColor: '#f20000' }} aria-hidden />
+                    <span>Fixed red</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>The QuadCast 2 lighting LEDs are red; color writes are not supported.</TooltipContent>
+              </Tooltip>
             </div>
-          </div>
-
-          {lighting.profiles.length > 0 ? (
-            <div className="microphone-hardware__choice-row">
-              <span>Profile</span>
-              <SemanticChoice
-                label="Lighting profile"
-                value={lighting.activeProfileId ?? 'custom'}
-                options={lighting.profiles.map((profile) => ({ value: profile.id, label: profile.label }))}
-                customIsOption
+            <div className="microphone-switch-state">
+              <span>{lighting.enabled ? 'On' : 'Off'}</span>
+              <Switch
+                id={`lighting-${device.id}`}
+                checked={lighting.enabled}
                 disabled={lightingDisabled}
-                onChange={(profileId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-profile', profileId } })}
+                aria-label="Lighting"
+                onCheckedChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-enabled', enabled } })}
               />
             </div>
-          ) : null}
-
-          <div className="microphone-hardware__choice-row">
-            <span>Pattern</span>
-            <SemanticChoice
-              label="Lighting pattern"
-              value={lighting.activeEffectId}
-              options={lighting.availableEffects.map((effect) => ({ value: effect.id, label: effect.label }))}
-              disabled={lightingDisabled || !lighting.enabled}
-              onChange={(effectId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-effect', effectId } })}
-            />
           </div>
 
-          <div className="microphone-hardware__lighting-sliders">
+          <div className="microphone-hardware__choices">
+            {lighting.profiles.length > 0 ? (
+              <div className="microphone-hardware__choice-row">
+                <span>Profile</span>
+                <SemanticChoice
+                  label="Lighting profile"
+                  value={lighting.activeProfileId ?? 'custom'}
+                  options={lighting.profiles.map((profile) => ({ value: profile.id, label: profile.label }))}
+                  customIsOption
+                  disabled={lightingDisabled}
+                  onChange={(profileId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-profile', profileId } })}
+                />
+              </div>
+            ) : null}
+
+            <div className="microphone-hardware__choice-row">
+              <span>Pattern</span>
+              <SemanticChoice
+                label="Lighting pattern"
+                value={lighting.activeEffectId}
+                options={lighting.availableEffects.map((effect) => ({ value: effect.id, label: effect.label }))}
+                disabled={lightingDisabled || !lighting.enabled}
+                onChange={(effectId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-effect', effectId } })}
+              />
+            </div>
+          </div>
+
+          <div className="microphone-hardware__lighting-sliders" data-single={!lightingSupportsSpeed}>
             <PrimarySlider
               label="Brightness"
               value={lighting.brightness ?? 72}
@@ -260,39 +312,44 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
               disabled={lightingDisabled || !lighting.enabled || !lighting.brightnessWritable}
               onCommit={(brightness) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } })}
             />
-            <PrimarySlider
-              label="Effect speed"
-              value={lighting.speed ?? 50}
-              min={1}
-              max={100}
-              step={1}
-              unit="%"
-              disabled={lightingDisabled || !lighting.enabled || !lighting.speedWritable || lighting.activeEffectId === 'solid'}
-              onCommit={(speed) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-speed', speed } })}
-            />
+            {lightingSupportsSpeed ? (
+              <PrimarySlider
+                label="Effect speed"
+                value={lighting.speed ?? 50}
+                min={1}
+                max={100}
+                step={1}
+                unit="%"
+                disabled={lightingDisabled || !lighting.enabled}
+                onCommit={(speed) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-speed', speed } })}
+              />
+            ) : null}
           </div>
-
-          {device.capabilities.mute && lighting.muteLinkedWritable ? (
-            <SettingToggle
-              title="Follow physical mute"
-              description="Turns the maintained red light off when the touch sensor reports muted."
-              checked={lighting.muteLinked}
-              disabled={lightingDisabled}
-              onCheckedChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'microphone-mute-lighting', enabled } })}
-            />
-          ) : null}
           {lighting.state === 'unknown' && lighting.stateReason ? (
             <p className="microphone-hardware__lighting-error" role="status">{lighting.stateReason}</p>
           ) : null}
-        </div>
+        </section>
       ) : null}
 
-      <HorizontalLevelMeter
-        busId="mic"
-        active={Boolean(engineRunning && microphoneBusEnabled && snapshot.audio.capabilities.realtimeMetering === 'available')}
-        inactiveLabel={snapshot.audio.capabilities.realtimeMetering === 'simulation' ? 'Live level unavailable' : 'Audio off'}
-        label="Input level"
-      />
+      <section className="microphone-hardware__advanced" aria-labelledby="microphone-advanced-heading">
+        <h3 id="microphone-advanced-heading">Advanced</h3>
+        {device.capabilities.mute && lighting?.muteLinkedWritable ? (
+          <MicrophoneSwitchRow
+            id={`follow-mute-${device.id}`}
+            label="Follow physical mute"
+            detail="Turns the maintained red light off while the touch sensor reports muted."
+            checked={lighting.muteLinked}
+            disabled={lightingDisabled || !lighting.enabled}
+            onCheckedChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'microphone-mute-lighting', enabled } })}
+          />
+        ) : null}
+        <HorizontalLevelMeter
+          busId="mic"
+          active={Boolean(engineRunning && microphoneBusEnabled && snapshot.audio.capabilities.realtimeMetering === 'available')}
+          inactiveLabel={snapshot.audio.capabilities.realtimeMetering === 'simulation' ? 'Live level unavailable' : 'Audio off'}
+          label="Input level"
+        />
+      </section>
     </section>
   );
 }
@@ -307,9 +364,51 @@ function HardwareState({
   detail: string;
 }) {
   return (
-    <div className="microphone-state">
-      <i className="microphone-state__dot" data-tone={tone} aria-hidden />
-      <span><strong>{label}</strong><small>{detail}</small></span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="microphone-state" tabIndex={0} aria-label={`${label}. ${detail}`}>
+          <i className="microphone-state__dot" data-tone={tone} aria-hidden />
+          <strong>{label}</strong>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{detail}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function MicrophoneSwitchRow({
+  id,
+  label,
+  detail,
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  id: string;
+  label: string;
+  detail: string;
+  checked: boolean;
+  disabled: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="microphone-switch-row">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <label htmlFor={id} tabIndex={0}>{label}</label>
+        </TooltipTrigger>
+        <TooltipContent>{detail}</TooltipContent>
+      </Tooltip>
+      <div className="microphone-switch-state">
+        <span>{checked ? 'On' : 'Off'}</span>
+        <Switch
+          id={id}
+          checked={checked}
+          disabled={disabled}
+          aria-label={label}
+          onCheckedChange={onCheckedChange}
+        />
+      </div>
     </div>
   );
 }

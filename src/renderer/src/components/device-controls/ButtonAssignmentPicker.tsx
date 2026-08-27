@@ -1,7 +1,14 @@
-import { Check, Search } from 'lucide-react';
-import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { Check } from 'lucide-react';
+import { useMemo, useState, type ReactElement } from 'react';
 import type { MouseAction } from '../../../../shared/contracts';
-import { Input } from '@/components/ui/input';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/cn';
 
@@ -11,6 +18,7 @@ export interface ButtonAssignmentPickerProps {
   currentAction: MouseAction;
   availableActions: MouseAction[];
   onChange: (action: MouseAction) => void;
+  onOpenChange?: (open: boolean) => void;
   trigger: ReactElement;
   disabled?: boolean;
   unavailableReason?: string;
@@ -21,88 +29,72 @@ export function ButtonAssignmentPicker({
   currentAction,
   availableActions,
   onChange,
+  onOpenChange,
   trigger,
   disabled,
   unavailableReason,
 }: ButtonAssignmentPickerProps) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const searchRef = useRef<HTMLInputElement>(null);
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return availableActions;
-    return availableActions.filter((action) => (
-      `${action.label} ${action.searchTerms.join(' ')}`.toLowerCase().includes(needle)
-    ));
-  }, [availableActions, query]);
-  const groups = ['mouse', 'system'] as const;
+  const groups = useMemo(() => groupActions(availableActions), [availableActions]);
+  const searchable = availableActions.length >= 7;
 
   return (
     <Popover open={open} onOpenChange={(next) => {
       if (disabled) return;
       setOpen(next);
-      if (!next) setQuery('');
+      onOpenChange?.(next);
     }}>
       <PopoverTrigger asChild disabled={disabled}>{trigger}</PopoverTrigger>
-      <PopoverContent
-        className="assignment-picker"
-        align={currentAction.category === 'mouse' ? 'center' : 'start'}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          requestAnimationFrame(() => searchRef.current?.focus());
-        }}
-      >
+      <PopoverContent className="assignment-picker" align="center">
         <div className="assignment-picker__heading">
           <span>{label}</span>
           <strong>{currentAction.label}</strong>
         </div>
         {unavailableReason ? <p className="assignment-picker__reason">{unavailableReason}</p> : null}
-        <div className="assignment-picker__search">
-          <Search aria-hidden className="size-3.5" />
-          <Input
-            ref={searchRef}
-            data-assignment-search
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search actions…"
-            aria-label={`Search assignments for ${label}`}
-          />
-        </div>
-        <div className="assignment-picker__results" role="listbox" aria-label="Available button actions">
-          {groups.map((group) => {
-            const actions = filtered.filter((action) => action.category === group);
-            if (actions.length === 0) return null;
-            return (
-              <div key={group} className="assignment-picker__group">
-                <div className="assignment-picker__group-label">{group}</div>
-                {actions.map((action) => {
+        <Command>
+          {searchable ? <CommandInput placeholder="Search supported actions…" aria-label={`Search assignments for ${label}`} /> : null}
+          <CommandList>
+            <CommandEmpty>No matching supported actions.</CommandEmpty>
+            {groups.map((group) => (
+              <CommandGroup key={group.id} heading={group.label}>
+                {group.actions.map((action) => {
                   const selected = action.id === currentAction.id;
                   const selectable = action.selectable !== false;
                   return (
-                    <button
+                    <CommandItem
                       key={action.id}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
+                      value={`${action.label} ${action.searchTerms.join(' ')}`}
+                      keywords={action.searchTerms}
                       disabled={!selectable}
-                      className={cn('assignment-picker__option', selected && 'is-selected')}
-                      onClick={() => {
+                      className={cn(selected && 'is-selected')}
+                      onSelect={() => {
                         if (!selectable) return;
                         onChange(action);
                         setOpen(false);
+                        onOpenChange?.(false);
                       }}
                     >
                       <span>{action.label}</span>
-                      {selected ? <Check aria-hidden className="size-3.5" /> : null}
-                    </button>
+                      {selected ? <Check aria-hidden className="ml-auto size-3.5" /> : null}
+                    </CommandItem>
                   );
                 })}
-              </div>
-            );
-          })}
-          {filtered.length === 0 ? <p className="assignment-picker__empty">No matching supported actions.</p> : null}
-        </div>
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );
+}
+
+function groupActions(actions: MouseAction[]) {
+  const definitions = [
+    { id: 'mouse', label: 'Mouse', match: (action: MouseAction) => action.category === 'mouse' && !action.id.startsWith('mouse.dpi-') },
+    { id: 'device', label: 'Device', match: (action: MouseAction) => action.id.startsWith('mouse.dpi-') },
+    { id: 'system', label: 'Existing assignment', match: (action: MouseAction) => action.category === 'system' },
+  ];
+  return definitions
+    .map((definition) => ({ ...definition, actions: actions.filter(definition.match) }))
+    .filter((definition) => definition.actions.length > 0);
 }

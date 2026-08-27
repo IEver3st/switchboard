@@ -143,19 +143,6 @@ export function activeOnboardProfileWriteCommand(profileId: number): RazerComman
   return { transactionId: generalTransactionId, commandClass: 0x05, commandId: 0x04, arguments: [profileByte(profileId)] };
 }
 
-export function rapidTriggerReadCommand(profileId: number): RazerCommand {
-  return { transactionId: generalTransactionId, commandClass: 0x02, commandId: 0xa0, arguments: [profileByte(profileId), 0] };
-}
-
-export function snapTapReadCommand(profileId: number): RazerCommand {
-  return {
-    transactionId: generalTransactionId,
-    commandClass: 0x02,
-    commandId: 0xa7,
-    arguments: [profileByte(profileId), ...Array(14).fill(0)],
-  };
-}
-
 export function parseFirmwareVersion(response: RazerResponse): string {
   if (response.arguments.length < 2) throw new Error('The keyboard returned an incomplete firmware version.');
   return `${response.arguments[0]}.${String(response.arguments[1]).padStart(2, '0')}`;
@@ -211,16 +198,6 @@ export function parseActiveOnboardProfile(response: RazerResponse): number {
   const profileId = response.arguments[0] ?? 0;
   if (profileId < 1) throw new Error('The keyboard returned an invalid active onboard profile.');
   return profileId;
-}
-
-export function parseRapidTrigger(response: RazerResponse): boolean {
-  if (response.arguments.length < 2) throw new Error('The keyboard returned an incomplete Rapid Trigger state.');
-  return response.arguments[1] === 1;
-}
-
-export function parseSnapTap(response: RazerResponse): boolean {
-  if (response.arguments.length < 3) throw new Error('The keyboard returned an incomplete Snap Tap state.');
-  return response.arguments[2] === 1;
 }
 
 export function isHuntsmanLightingEffect(value: unknown): value is HuntsmanLightingEffectId {

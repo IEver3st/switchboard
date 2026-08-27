@@ -29,9 +29,24 @@ async function run() {
   await openKeyboard(window);
 
   const keyboard = await keyboardSnapshot(window);
-  await setControl(window, keyboard.id, { type: 'lighting-effect', effectId: 'static' });
+  await click(window, `document.querySelector('button[aria-label="Gaming Mode"]')`);
+  await waitForKeyboard(window, { gamingMode: { enabled: true } });
+
+  await click(window, `document.querySelector('button[aria-label="Active onboard keyboard profile"]')`);
+  await waitFor(window, `[...document.querySelectorAll('[role="option"]')].some((option) => option.textContent?.trim() === 'Profile 2')`);
+  await click(window, `[...document.querySelectorAll('[role="option"]')].find((option) => option.textContent?.trim() === 'Profile 2')`);
+  await waitForKeyboard(window, { onboardProfiles: { activeProfileId: '2' } });
+
+  const unavailableInputControls = await evaluate(window, `({
+    rapidTriggerDisabled: document.querySelector('button[aria-label="Rapid Trigger"]')?.disabled,
+    snapTapDisabled: document.querySelector('button[aria-label="Snap Tap"]')?.disabled,
+  })`);
+  if (!unavailableInputControls.rapidTriggerDisabled || !unavailableInputControls.snapTapDisabled) {
+    throw new Error('Synapse-owned input controls must remain visibly unavailable on the V2 firmware fixture.');
+  }
+
+  await click(window, `[...document.querySelectorAll('.keyboard-effect-option')].find((button) => button.textContent?.trim() === 'Static')`);
   await waitForLighting(window, { activeEffectId: 'static' });
-  await waitFor(window, `[...document.querySelectorAll('.keyboard-lighting input')].every((input) => !input.disabled)`);
 
   await setControl(window, keyboard.id, { type: 'lighting-color', color: '#4466aa' });
   await setControl(window, keyboard.id, { type: 'lighting-brightness', brightness: 62 });
@@ -45,6 +60,7 @@ async function run() {
   await waitFor(window, `!document.querySelector('.startup-screen')`);
   await openKeyboard(window);
   await waitForLighting(window, { enabled: true, color: '#4466aa', brightness: 62, activeEffectId: 'static' });
+  await waitForKeyboard(window, { gamingMode: { enabled: true }, onboardProfiles: { activeProfileId: '2' } });
 
   const captures = [];
   for (const viewport of [
@@ -58,18 +74,23 @@ async function run() {
     await paint(window);
     const metrics = await evaluate(window, `(() => {
       const workspace = document.querySelector('[data-radix-scroll-area-viewport]');
-      const console = document.querySelector('.keyboard-console');
+      const workbench = document.querySelector('.keyboard-workbench');
+      const routineControls = document.querySelector('.keyboard-lighting__truth');
       return {
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: innerWidth,
         workspaceWidth: workspace?.clientWidth ?? null,
         workspaceScrollWidth: workspace?.scrollWidth ?? null,
-        consoleBottom: console?.getBoundingClientRect().bottom ?? null,
+        workbenchBottom: workbench?.getBoundingClientRect().bottom ?? null,
+        routineControlsBottom: routineControls?.getBoundingClientRect().bottom ?? null,
         innerHeight,
       };
     })()`);
     if (metrics.documentWidth > metrics.viewportWidth || metrics.workspaceScrollWidth > metrics.workspaceWidth) {
       throw new Error(`${viewport.width}x${viewport.height} has horizontal overflow.`);
+    }
+    if (metrics.routineControlsBottom > metrics.innerHeight) {
+      throw new Error(`Routine keyboard controls require scrolling at ${viewport.width}x${viewport.height}.`);
     }
     const filename = `${viewport.width}x${viewport.height}-static.png`;
     const image = await window.webContents.capturePage();
@@ -80,6 +101,7 @@ async function run() {
   const finalDevice = await keyboardSnapshot(window);
   const report = {
     finalLighting: finalDevice.capabilities.lighting,
+    finalKeyboard: finalDevice.capabilities.keyboard,
     persistedSettings: finalDevice.settings,
     captures,
   };
@@ -119,6 +141,29 @@ async function waitForLighting(window, expected) {
     const lighting = snapshot.devices.find((device) => device.displayName === 'Huntsman V2 Analog')?.capabilities.lighting;
     return ${JSON.stringify(expected)} && Object.entries(${JSON.stringify(expected)}).every(([key, value]) => lighting?.[key] === value);
   })()`);
+}
+
+async function waitForKeyboard(window, expected) {
+  await waitFor(window, `(async () => {
+    const snapshot = await window.switchboard.getSnapshot();
+    const keyboard = snapshot.devices.find((device) => device.displayName === 'Huntsman V2 Analog')?.capabilities.keyboard;
+    const expected = ${JSON.stringify(expected)};
+    return Object.entries(expected).every(([key, value]) => (
+      typeof value === 'object'
+        ? Object.entries(value).every(([childKey, childValue]) => keyboard?.[key]?.[childKey] === childValue)
+        : keyboard?.[key] === value
+    ));
+  })()`);
+}
+
+async function click(window, source) {
+  const clicked = await evaluate(window, `(() => {
+    const target = ${source};
+    target?.click();
+    return Boolean(target);
+  })()`);
+  if (!clicked) throw new Error(`Could not click: ${source}`);
+  await paint(window);
 }
 
 function evaluate(window, source) {

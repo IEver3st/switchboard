@@ -32,6 +32,20 @@ async function run() {
 
   await setControl(window, { type: 'lighting-enabled', enabled: true });
   await setControl(window, { type: 'lighting-effect', effectId: 'static' });
+  if (process.argv.includes('--interaction-only')) {
+    for (const viewport of [
+      { width: 1080, height: 720 },
+      { width: 1420, height: 900 },
+      { width: 1920, height: 1080 },
+    ]) {
+      await setViewport(window, viewport);
+      await revealStudio(window);
+      await verifyColorPopoverPersistence(window);
+    }
+    console.log('Device popover interaction verification passed.');
+    app.quit();
+    return;
+  }
   for (const viewport of [
     { width: 1080, height: 720 },
     { width: 1420, height: 900 },
@@ -101,6 +115,41 @@ async function run() {
   await writeFile(join(outputDirectory, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify({ outputDirectory, ...report }, null, 2));
   app.quit();
+}
+
+async function verifyColorPopoverPersistence(window) {
+  await waitFor(window, `Boolean(document.querySelector('.lighting-color-trigger:not(:disabled)'))`);
+  await delay(150);
+  await evaluate(window, `document.querySelector('.lighting-color-trigger').click()`);
+  await waitFor(window, `Boolean(document.querySelector('.color-picker input[aria-label="HEX color"]'))`);
+
+  const mouse = await mouseSnapshot(window);
+  const nextColor = mouse.capabilities.lighting?.color?.toLowerCase() === '#12abef' ? '#f472b6' : '#12abef';
+  await evaluate(window, `(() => {
+    const input = document.querySelector('.color-picker input[aria-label="HEX color"]');
+    input.focus();
+    input.select();
+  })()`);
+  window.webContents.insertText(nextColor);
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+  await waitFor(window, `(async () => {
+    const snapshot = await window.switchboard.getSnapshot();
+    return snapshot.devices.find((device) => device.displayName === 'G502 X Plus')
+      ?.capabilities.lighting?.color === ${JSON.stringify(nextColor)};
+  })()`);
+  await delay(100);
+
+  const result = await evaluate(window, `({
+    popoverOpen: Boolean(document.querySelector('.color-picker')),
+    focusOnBackButton: document.activeElement?.classList.contains('device-workbench__back') ?? false,
+  })`);
+  if (!result.popoverOpen || result.focusOnBackButton) {
+    throw new Error(`The lighting color popover did not survive its canonical state update: ${JSON.stringify(result)}`);
+  }
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await waitFor(window, `!document.querySelector('.color-picker')`);
 }
 
 async function setControl(window, change) {

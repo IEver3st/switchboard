@@ -10,6 +10,8 @@ files:
   - out/**
   - package.json
 extraResources:
+  - from: .switchboard/build/sony-headphones-host
+    to: sony-headphones-host
   - from: resources/branding
     to: branding
   - from: .switchboard/build/capture-host

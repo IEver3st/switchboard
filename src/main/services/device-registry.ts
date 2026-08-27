@@ -4,9 +4,10 @@ import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
 import { RazerHuntsmanV2AnalogModule } from '../modules/razer';
+import { SonyDeviceModule } from '../modules/sony';
 
 const discoveryIntervalMs = 5_000;
-const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1', 'razer-huntsman-v2-analog-1']);
+const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1', 'razer-huntsman-v2-analog-1', 'sony-wh1000xm6-1']);
 
 type DeviceRegistryOptions = {
   modules?: DeviceModule[];
@@ -32,6 +33,7 @@ export class DeviceRegistry {
       new RazerHuntsmanV2AnalogModule(),
       new LogitechDeviceModule(),
       new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
+      new SonyDeviceModule((devices, persist) => this.applyModuleDevices('device.sony-mdr', devices, persist)),
     ];
     this.listHidDevices = options.listHidDevices ?? devicesAsync;
     this.fixtureMode = options.fixtureMode ?? process.env.SWITCHBOARD_NATIVE_FIXTURES === '1';
@@ -65,7 +67,15 @@ export class DeviceRegistry {
     if (!device) throw new Error('Device not found.');
     const module = this.modules.find((candidate) => candidate.id === device.moduleId);
     if (!module?.setControl) throw new Error(`${device.displayName} does not expose writable device controls.`);
-    await module.setControl(device, change);
+    const result = await module.setControl(device, change);
+    if (result?.confirmedChanges.length) {
+      for (const confirmed of result.confirmedChanges) {
+        if (applyConfirmedLightingControl(this.getSnapshot(), deviceId, confirmed, this.applyDevices)) continue;
+        if (applyConfirmedKeyboardControl(this.getSnapshot(), deviceId, confirmed, this.applyDevices)) continue;
+        throw new Error(`${device.displayName} returned an unsupported confirmed control state.`);
+      }
+      return;
+    }
     if (applyConfirmedLightingControl(this.getSnapshot(), deviceId, change, this.applyDevices)) return;
     // A scheduled discovery may still be publishing the state from before the
     // write. Let it finish, then perform a fresh read so the renderer observes
@@ -103,6 +113,58 @@ export class DeviceRegistry {
     }
     if (change.type === 'onboard-memory' && device.capabilities.onboardMemory) {
       device.capabilities.onboardMemory.enabled = change.enabled;
+      const profileMode = change.enabled ? 'onboard' : 'software';
+      const unavailableReason = change.enabled
+        ? 'Stored onboard profiles are active. Turn off onboard memory to edit the software profile.'
+        : undefined;
+      if (device.capabilities.dpi) Object.assign(device.capabilities.dpi, { profileMode, writable: !change.enabled, unavailableReason });
+      if (device.capabilities.reportRate) Object.assign(device.capabilities.reportRate, { profileMode, writable: !change.enabled, unavailableReason });
+      if (device.capabilities.buttonAssignments) Object.assign(device.capabilities.buttonAssignments, { profileMode, writable: !change.enabled, unavailableReason });
+      if (device.capabilities.lighting) Object.assign(device.capabilities.lighting, {
+        profileMode,
+        writable: !change.enabled,
+        colorWritable: !change.enabled,
+        brightnessWritable: !change.enabled,
+        speedWritable: !change.enabled,
+        directionWritable: !change.enabled && device.capabilities.lighting.directionWritable,
+        zones: device.capabilities.lighting.zones?.map((zone) => ({ ...zone, colorWritable: !change.enabled })),
+        unavailableReason,
+      });
+    }
+    if (change.type === 'keyboard-gaming-mode' && device.capabilities.keyboard?.gamingMode) {
+      device.capabilities.keyboard.gamingMode.enabled = change.enabled;
+    }
+    if (change.type === 'keyboard-onboard-profile' && device.capabilities.keyboard?.onboardProfiles) {
+      const profile = device.capabilities.keyboard.onboardProfiles.profiles.find((candidate) => candidate.id === change.profileId);
+      if (!profile) throw new Error('Fixture onboard profile not found.');
+      device.capabilities.keyboard.onboardProfiles.activeProfileId = profile.id;
+    }
+    if (change.type === 'keyboard-rapid-trigger' && device.capabilities.keyboard?.rapidTrigger?.writable) {
+      device.capabilities.keyboard.rapidTrigger.enabled = change.enabled;
+    }
+    if (change.type === 'keyboard-snap-tap' && device.capabilities.keyboard?.snapTap?.writable) {
+      device.capabilities.keyboard.snapTap.enabled = change.enabled;
+    }
+    const headset = device.capabilities.headset;
+    if (change.type === 'headset-noise-control' && headset?.noiseControl) headset.noiseControl.mode = change.mode;
+    if (change.type === 'headset-ambient-level' && headset?.noiseControl) {
+      headset.noiseControl.mode = 'ambient';
+      headset.noiseControl.ambientLevel = change.level;
+    }
+    if (change.type === 'headset-focus-on-voice' && headset?.noiseControl) {
+      headset.noiseControl.mode = 'ambient';
+      headset.noiseControl.focusOnVoice = change.enabled;
+    }
+    if (change.type === 'headset-equalizer-preset' && headset?.equalizer) headset.equalizer.activePresetId = change.presetId;
+    if (change.type === 'headset-equalizer-bands' && headset?.equalizer) {
+      headset.equalizer.activePresetId = 'custom';
+      headset.equalizer.bands.forEach((band, index) => { band.gainDb = change.gainsDb[index] ?? band.gainDb; });
+    }
+    if (change.type === 'headset-dsee-extreme' && headset?.dseeExtreme) headset.dseeExtreme.enabled = change.enabled;
+    if (change.type === 'headset-speak-to-chat' && headset?.speakToChat) headset.speakToChat.enabled = change.enabled;
+    if (change.type === 'headset-listening-mode' && headset?.listeningMode) {
+      headset.listeningMode.mode = change.mode;
+      if (change.backgroundRoom) headset.listeningMode.backgroundRoom = change.backgroundRoom;
     }
     this.applyDevices(devices);
   }
@@ -246,6 +308,43 @@ function applyConfirmedLightingControl(
     lighting.state = 'acknowledged';
     lighting.stateReason = 'The device acknowledged the requested lighting change.';
   }
+  applyDevices(devices);
+  return true;
+}
+
+function applyConfirmedKeyboardControl(
+  snapshot: SystemSnapshot,
+  deviceId: string,
+  change: DeviceControlChange,
+  applyDevices: (devices: Device[], options?: { persist?: boolean }) => void,
+): boolean {
+  if (![
+    'keyboard-gaming-mode',
+    'keyboard-onboard-profile',
+    'keyboard-rapid-trigger',
+    'keyboard-snap-tap',
+  ].includes(change.type)) return false;
+
+  const devices = structuredClone(snapshot.devices);
+  const device = devices.find((candidate) => candidate.id === deviceId);
+  if (!device?.capabilities.keyboard) throw new Error('Keyboard state is no longer available after the control write completed.');
+  const keyboard = device.capabilities.keyboard;
+
+  if (change.type === 'keyboard-gaming-mode' && keyboard.gamingMode) {
+    keyboard.gamingMode.enabled = change.enabled;
+  } else if (change.type === 'keyboard-onboard-profile' && keyboard.onboardProfiles) {
+    if (!keyboard.onboardProfiles.profiles.some((profile) => profile.id === change.profileId)) {
+      throw new Error('The confirmed onboard profile is no longer reported by this keyboard.');
+    }
+    keyboard.onboardProfiles.activeProfileId = change.profileId;
+  } else if (change.type === 'keyboard-rapid-trigger' && keyboard.rapidTrigger?.writable) {
+    keyboard.rapidTrigger.enabled = change.enabled;
+  } else if (change.type === 'keyboard-snap-tap' && keyboard.snapTap?.writable) {
+    keyboard.snapTap.enabled = change.enabled;
+  } else {
+    throw new Error('The confirmed keyboard control is no longer available.');
+  }
+
   applyDevices(devices);
   return true;
 }

@@ -4,7 +4,17 @@ import { existsSync } from 'node:fs';
 import { access, mkdir, opendir, rename, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, join, parse, resolve } from 'node:path';
-import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveform, ClipAudioWaveformTrack, ClipCanvasSize, ExportClipInput } from '../../shared/contracts';
+import type {
+  Clip,
+  ClipAudioChannel,
+  ClipAudioTrackTrim,
+  ClipAudioWaveform,
+  ClipAudioWaveformTrack,
+  ClipCanvasSize,
+  ExportClipInput,
+  ExportMontageInput,
+  MontageProjectSegment,
+} from '../../shared/contracts';
 import { createDefaultClipTitle, inferClipGame, normalizeClipRecord } from '../../shared/clip-library';
 
 const supportedExtensions = new Set(['.mp4', '.mkv', '.webm', '.mov']);
@@ -159,7 +169,7 @@ export class ClipLibraryService {
     };
   }
 
-  public async renderExport(clip: Clip, destination: string, input: ExportClipInput): Promise<void> {
+  public async renderExport(clip: Clip, destination: string, input: ExportClipInput, signal?: AbortSignal): Promise<void> {
     const startMs = Math.max(0, Math.min(input.startMs, clip.durationMs - 1));
     const endMs = Math.max(startMs + 1, Math.min(input.endMs, clip.durationMs));
     const durationSeconds = (endMs - startMs) / 1_000;
@@ -179,7 +189,7 @@ export class ClipLibraryService {
       await run(executable, [
         ...common, '-map', '0:a?', ...video, '-crf', '18', '-c:a', 'aac', '-b:a', '160k',
         '-movflags', '+faststart', '-y', destination,
-      ]);
+      ], signal);
       return;
     }
 
@@ -189,7 +199,7 @@ export class ClipLibraryService {
       await run(executable, [
         ...common, ...audioArguments, ...video, '-crf', '18',
         '-movflags', '+faststart', '-y', destination,
-      ]);
+      ], signal);
       return;
     }
 
@@ -210,20 +220,114 @@ export class ClipLibraryService {
       await run(executable, [
         ...common, ...video, '-b:v', `${videoKbps}k`, '-pass', '1', '-passlogfile', passLog,
         '-an', '-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null',
-      ]);
+      ], signal);
 
       const audioStreams = await this.getAudioStreams(clip.path);
       const audioArguments = buildShareAudioArguments(audioStreams.length, audioKbps, audioLevels, audioTrackTrims, startMs, endMs);
       await run(executable, [
         ...common, ...audioArguments, ...video, '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passLog,
         '-movflags', '+faststart', '-y', destination,
-      ]);
+      ], signal);
     } finally {
       await Promise.all([
         rm(`${passLog}-0.log`, { force: true }),
         rm(`${passLog}-0.log.mbtree`, { force: true }),
       ]);
     }
+  }
+
+  public async renderMontageExport(
+    entries: readonly { clip: Clip; segment: MontageProjectSegment }[],
+    destination: string,
+    input: ExportMontageInput,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const first = entries[0];
+    if (!first) throw new Error('Add at least one clip before exporting the montage.');
+    const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
+    const target = montageVideoTarget(first.clip, input.project.canvasSize);
+    const temporaryDirectory = join(tmpdir(), `switchboard-montage-${randomUUID()}`);
+    const concatPath = join(temporaryDirectory, 'segments.txt');
+    await mkdir(temporaryDirectory, { recursive: true });
+
+    try {
+      const renderedSegments: string[] = [];
+      for (let index = 0; index < entries.length; index += 1) {
+        if (signal?.aborted) throw abortError();
+        const entry = entries[index]!;
+        const segmentPath = join(temporaryDirectory, `segment-${String(index).padStart(4, '0')}.mp4`);
+        await this.renderMontageSegment(executable, entry.clip, entry.segment, segmentPath, target, signal);
+        renderedSegments.push(segmentPath);
+      }
+
+      await import('node:fs/promises').then(({ writeFile }) => writeFile(
+        concatPath,
+        renderedSegments.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n'),
+        'utf8',
+      ));
+
+      const common = ['-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', concatPath];
+      if (input.preset === 'original') {
+        await run(executable, [...common, '-c', 'copy', '-movflags', '+faststart', '-y', destination], signal);
+        return;
+      }
+
+      const durationSeconds = input.project.durationMs / 1_000;
+      const targetBytes = exportPresetBytes[input.preset];
+      const budgetKbps = targetBytes * 8 * 0.94 / durationSeconds / 1_000;
+      const audioKbps = budgetKbps >= 420 ? 96 : 64;
+      const videoKbps = Math.floor(Math.max(120, budgetKbps - audioKbps));
+      if (budgetKbps < audioKbps + 120) {
+        throw new Error('This montage is too long for the selected file size. Choose a larger share preset or shorten the sequence.');
+      }
+      const passLog = join(temporaryDirectory, 'montage-pass');
+      await run(executable, [
+        ...common, '-map', '0:v:0', '-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p',
+        '-b:v', `${videoKbps}k`, '-pass', '1', '-passlogfile', passLog,
+        '-an', '-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null',
+      ], signal);
+      await run(executable, [
+        ...common, '-map', '0:v:0', '-map', '0:a:0', '-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p',
+        '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passLog,
+        '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-movflags', '+faststart', '-y', destination,
+      ], signal);
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
+  }
+
+  private async renderMontageSegment(
+    executable: string,
+    clip: Clip,
+    segment: MontageProjectSegment,
+    destination: string,
+    target: MontageVideoTarget,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const streams = await this.getAudioStreams(clip.path);
+    const durationSeconds = (segment.trimEndMs - segment.trimStartMs) / 1_000;
+    const videoFilter = buildMontageVideoFilter(segment, target);
+    const audio = buildMontageSegmentAudioFilter(streams.length, segment);
+    const inputArguments = ['-i', clip.path];
+    let filter: string;
+    let audioMap: string;
+
+    if (audio) {
+      filter = `${videoFilter};${audio.filter}`;
+      audioMap = '[aout]';
+    } else {
+      inputArguments.push('-f', 'lavfi', '-t', durationSeconds.toFixed(3), '-i', 'anullsrc=r=48000:cl=stereo');
+      filter = videoFilter;
+      audioMap = '1:a:0';
+    }
+
+    await run(executable, [
+      '-hide_banner', '-loglevel', 'error', ...inputArguments,
+      '-filter_complex', filter, '-map', '[vout]', '-map', audioMap,
+      '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '160k', '-ar', '48000', '-ac', '2',
+      '-t', durationSeconds.toFixed(3), '-movflags', '+faststart', '-y', destination,
+    ], signal);
   }
 
   private async probe(path: string): Promise<ProbeResult> {
@@ -316,6 +420,67 @@ const exportPresetBytes = {
   '25mb': 25 * 1_024 * 1_024,
   '50mb': 50 * 1_024 * 1_024,
 } as const;
+
+type MontageVideoTarget = {
+  width: number;
+  height: number;
+  fps: number;
+  canvasSize: ClipCanvasSize;
+};
+
+function montageVideoTarget(clip: Clip, canvasSize: ClipCanvasSize): MontageVideoTarget {
+  if (clip.width <= 0 || clip.height <= 0) throw new Error(`Video dimensions are unavailable for ${clip.name}.`);
+  const sourceWidth = Math.max(2, Math.floor(clip.width / 2) * 2);
+  const sourceHeight = Math.max(2, Math.floor(clip.height / 2) * 2);
+  if (canvasSize === '9:16') {
+    return {
+      width: Math.max(2, Math.floor(sourceHeight * 9 / 16 / 2) * 2),
+      height: sourceHeight,
+      fps: Math.max(1, clip.fps || 30),
+      canvasSize,
+    };
+  }
+  return { width: sourceWidth, height: sourceHeight, fps: Math.max(1, clip.fps || 30), canvasSize };
+}
+
+export function buildMontageVideoFilter(segment: MontageProjectSegment, target: MontageVideoTarget): string {
+  const start = (segment.trimStartMs / 1_000).toFixed(3);
+  const end = (segment.trimEndMs / 1_000).toFixed(3);
+  const normalize = target.canvasSize === '9:16'
+    ? `crop='if(gte(iw/ih,0.5625),trunc(ih*0.5625/2)*2,iw)':'if(gte(iw/ih,0.5625),ih,trunc(iw/0.5625/2)*2)',scale=${target.width}:${target.height}:flags=lanczos`
+    : `scale=${target.width}:${target.height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${target.width}:${target.height}:(ow-iw)/2:(oh-ih)/2:color=black`;
+  return `[0:v:0]trim=start=${start}:end=${end},setpts=PTS-STARTPTS,${normalize},setsar=1,fps=${target.fps.toFixed(3)},format=yuv420p[vout]`;
+}
+
+export function buildMontageSegmentAudioFilter(
+  streamCount: number,
+  segment: MontageProjectSegment,
+): { filter: string } | null {
+  const active = Array.from({ length: streamCount }, (_, trackIndex) => ({
+    trackIndex,
+    level: Math.min(100, Math.max(0, segment.audioTrackLevels?.[trackIndex] ?? 100)),
+    startMs: Math.max(segment.trimStartMs, segment.audioTrackTrims?.[trackIndex]?.startMs ?? segment.trimStartMs),
+    endMs: Math.min(segment.trimEndMs, segment.audioTrackTrims?.[trackIndex]?.endMs ?? segment.trimEndMs),
+  })).filter((track) => track.level > 0 && track.endMs > track.startMs);
+  if (active.length === 0) return null;
+  const segmentDurationSeconds = (segment.trimEndMs - segment.trimStartMs) / 1_000;
+  const filters = active.map((track, index) => {
+    const delayMs = track.startMs - segment.trimStartMs;
+    const chain = [
+      `atrim=start=${(track.startMs / 1_000).toFixed(3)}:end=${(track.endMs / 1_000).toFixed(3)}`,
+      'asetpts=PTS-STARTPTS',
+    ];
+    if (delayMs > 0) chain.push(`adelay=${delayMs}:all=1`);
+    chain.push(`volume=${(track.level / 100).toFixed(2)}`);
+    return `[0:a:${track.trackIndex}]${chain.join(',')}[montage-track-${index}]`;
+  });
+  const inputs = active.map((_track, index) => `[montage-track-${index}]`).join('');
+  filters.push(active.length > 1
+    ? `${inputs}amix=inputs=${active.length}:duration=longest:dropout_transition=0:normalize=1[montage-mix]`
+    : `${inputs}anull[montage-mix]`);
+  filters.push(`[montage-mix]apad=whole_dur=${segmentDurationSeconds.toFixed(3)},atrim=duration=${segmentDurationSeconds.toFixed(3)},aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[aout]`);
+  return { filter: filters.join(';') };
+}
 
 export function buildShareAudioArguments(
   streamCount: number,
@@ -449,9 +614,13 @@ function findExecutable(environmentName: string, baseName: string): string {
   return executable;
 }
 
-function run(executable: string, arguments_: string[]): Promise<string> {
+function run(executable: string, arguments_: string[], signal?: AbortSignal): Promise<string> {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(executable, arguments_, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+    const child = spawn(executable, arguments_, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], signal });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8');
@@ -464,4 +633,10 @@ function run(executable: string, arguments_: string[]): Promise<string> {
       else reject(new Error(stderr.trim() || `${executable} exited with code ${code}`));
     });
   });
+}
+
+function abortError(): Error {
+  const error = new Error('Export cancelled.');
+  error.name = 'AbortError';
+  return error;
 }
