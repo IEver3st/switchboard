@@ -71,15 +71,19 @@ async function run() {
 }
 
 async function openAudio() {
-  const clicked = await window.webContents.executeJavaScript(`
-    (() => {
-      const button = [...document.querySelectorAll('button')]
-        .find((candidate) => candidate.textContent?.trim() === 'Audio');
-      button?.click();
-      return Boolean(button);
-    })()
-  `);
-  if (!clicked) throw new Error('Could not open Audio.');
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    const clicked = await window.webContents.executeJavaScript(`
+      (() => {
+        const button = [...document.querySelectorAll('button')]
+          .find((candidate) => candidate.textContent?.trim() === 'Audio');
+        button?.click();
+        return Boolean(button);
+      })()
+    `);
+    if (clicked) break;
+    await delay(100);
+  }
   await waitForSelector('[data-testid="audio-console"]');
 }
 

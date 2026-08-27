@@ -14,7 +14,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 847,
+      "viewportScrollHeight": 856,
       "repeatedRouteControls": 0,
       "featuredPresetControls": 0,
       "presetTrigger": {
@@ -31,10 +31,10 @@
         "x": 96.1,
         "y": 245.5,
         "width": 955.9,
-        "height": 220,
+        "height": 230,
         "top": 245.5,
         "right": 1051.9,
-        "bottom": 465.5,
+        "bottom": 475.5,
         "left": 96.1
       }
     }
@@ -54,7 +54,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 847,
+      "viewportScrollHeight": 856,
       "repeatedRouteControls": 0,
       "featuredPresetControls": 0,
       "presetTrigger": {
@@ -71,10 +71,10 @@
         "x": 96.1,
         "y": 245.5,
         "width": 955.9,
-        "height": 220,
+        "height": 230,
         "top": 245.5,
         "right": 1051.9,
-        "bottom": 465.5,
+        "bottom": 475.5,
         "left": 96.1
       }
     }
@@ -94,7 +94,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 847,
+      "viewportScrollHeight": 856,
       "repeatedRouteControls": 0,
       "featuredPresetControls": 0,
       "presetTrigger": {
@@ -111,10 +111,10 @@
         "x": 96.1,
         "y": 245.5,
         "width": 955.9,
-        "height": 220,
+        "height": 230,
         "top": 245.5,
         "right": 1051.9,
-        "bottom": 465.5,
+        "bottom": 475.5,
         "left": 96.1
       }
     }
@@ -134,7 +134,7 @@
       "viewportWidth": 1012,
       "viewportScrollWidth": 1012,
       "viewportHeight": 684,
-      "viewportScrollHeight": 1190,
+      "viewportScrollHeight": 1305,
       "repeatedRouteControls": 0,
       "featuredPresetControls": 0,
       "presetTrigger": {
@@ -149,12 +149,12 @@
       },
       "eqGraph": {
         "x": 96.1,
-        "y": 249.5,
+        "y": 302.6,
         "width": 955.9,
-        "height": 190,
-        "top": 249.5,
+        "height": 200,
+        "top": 302.6,
         "right": 1051.9,
-        "bottom": 439.5,
+        "bottom": 502.6,
         "left": 96.1
       }
     }
@@ -191,10 +191,10 @@
         "x": 104,
         "y": 245.5,
         "width": 1280,
-        "height": 270,
+        "height": 279,
         "top": 245.5,
         "right": 1384,
-        "bottom": 515.5,
+        "bottom": 524.5,
         "left": 104
       }
     }
@@ -231,10 +231,10 @@
         "x": 104,
         "y": 245.5,
         "width": 1280,
-        "height": 270,
+        "height": 279,
         "top": 245.5,
         "right": 1384,
-        "bottom": 515.5,
+        "bottom": 524.5,
         "left": 104
       }
     }
@@ -271,10 +271,10 @@
         "x": 104,
         "y": 245.5,
         "width": 1280,
-        "height": 270,
+        "height": 279,
         "top": 245.5,
         "right": 1384,
-        "bottom": 515.5,
+        "bottom": 524.5,
         "left": 104
       }
     }
@@ -294,7 +294,7 @@
       "viewportWidth": 1352,
       "viewportScrollWidth": 1352,
       "viewportHeight": 862,
-      "viewportScrollHeight": 1148,
+      "viewportScrollHeight": 1262,
       "repeatedRouteControls": 0,
       "featuredPresetControls": 0,
       "presetTrigger": {
@@ -309,12 +309,12 @@
       },
       "eqGraph": {
         "x": 104,
-        "y": 249.5,
+        "y": 302.6,
         "width": 1280,
-        "height": 216,
-        "top": 249.5,
+        "height": 225,
+        "top": 302.6,
         "right": 1384,
-        "bottom": 465.5,
+        "bottom": 527.6,
         "left": 104
       }
     }
@@ -351,10 +351,10 @@
         "x": 170,
         "y": 245.5,
         "width": 1648,
-        "height": 334.8,
+        "height": 345.6,
         "top": 245.5,
         "right": 1818,
-        "bottom": 580.3,
+        "bottom": 591.1,
         "left": 170
       }
     }
@@ -391,10 +391,10 @@
         "x": 170,
         "y": 245.5,
         "width": 1648,
-        "height": 334.8,
+        "height": 345.6,
         "top": 245.5,
         "right": 1818,
-        "bottom": 580.3,
+        "bottom": 591.1,
         "left": 170
       }
     }
@@ -431,10 +431,10 @@
         "x": 170,
         "y": 245.5,
         "width": 1648,
-        "height": 334.8,
+        "height": 345.6,
         "top": 245.5,
         "right": 1818,
-        "bottom": 580.3,
+        "bottom": 591.1,
         "left": 170
       }
     }
@@ -454,7 +454,7 @@
       "viewportWidth": 1852,
       "viewportScrollWidth": 1852,
       "viewportHeight": 1042,
-      "viewportScrollHeight": 1256,
+      "viewportScrollHeight": 1371,
       "repeatedRouteControls": 0,
       "featuredPresetControls": 0,
       "presetTrigger": {
@@ -469,12 +469,12 @@
       },
       "eqGraph": {
         "x": 170,
-        "y": 249.5,
+        "y": 302.6,
         "width": 1648,
-        "height": 324,
-        "top": 249.5,
+        "height": 334.8,
+        "top": 302.6,
         "right": 1818,
-        "bottom": 573.5,
+        "bottom": 637.4,
         "left": 170
       }
     }

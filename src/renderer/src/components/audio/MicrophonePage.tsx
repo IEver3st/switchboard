@@ -41,6 +41,45 @@ const voiceOptions = [
   { value: 'broadcast', label: 'Broadcast' },
 ] satisfies Array<{ value: VoiceStyle; label: string }>;
 
+interface ChainStage {
+  targetId: string;
+  label: string;
+  enabled: boolean;
+  unavailable?: boolean;
+}
+
+function MicrophoneChain({ stages }: { stages: ChainStage[] }) {
+  const goTo = (targetId: string) => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById(targetId)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  };
+
+  return (
+    <nav className="mic-chain" aria-label="Microphone signal chain">
+      <span className="mic-chain__label">Signal chain</span>
+      <ol className="mic-chain__stages">
+        {stages.map((stage, index) => (
+          <li key={stage.targetId} className="mic-chain__stage">
+            {index > 0 ? <span className="mic-chain__link" aria-hidden="true" /> : null}
+            <button
+              type="button"
+              aria-label={`${stage.label}, ${stage.unavailable ? 'unavailable' : stage.enabled ? 'on' : 'off'}`}
+              onClick={() => goTo(stage.targetId)}
+            >
+              <span
+                className="mic-chain__dot"
+                data-state={stage.unavailable ? 'unavailable' : stage.enabled ? 'on' : 'off'}
+                aria-hidden="true"
+              />
+              {stage.label}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
 export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const setMicProcessor = useSystemStore((state) => state.setMicProcessor);
   const setAudioMonitoring = useSystemStore((state) => state.setAudioMonitoring);
@@ -72,6 +111,15 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   if (!micBus || !gain || !gate || !suppression || !equalizer || !compressor || !limiter) {
     return <div className="px-6 py-8 text-sm text-destructive">Microphone sound settings are unavailable.</div>;
   }
+
+  const chainStages: ChainStage[] = [
+    { targetId: 'microphone-input-section', label: 'Input volume', enabled: gain.enabled },
+    { targetId: 'microphone-gate-section', label: 'Noise gate', enabled: gate.enabled },
+    { targetId: 'microphone-removal-section', label: 'Noise removal', enabled: suppression.enabled && !suppressionUnavailable, unavailable: suppressionUnavailable },
+    { targetId: 'microphone-equalizer-section', label: 'Voice EQ', enabled: equalizer.enabled },
+    { targetId: 'microphone-consistency-section', label: 'Voice consistency', enabled: compressor.enabled },
+    { targetId: 'microphone-safety-section', label: 'Output safety', enabled: limiter.enabled },
+  ];
 
   return (
     <div className="audio-workbench microphone-workbench" data-channel="microphone">
@@ -108,7 +156,9 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         </p>
       ) : null}
 
-      <section className="audio-primary-section" aria-labelledby="microphone-equalizer-heading">
+      <MicrophoneChain stages={chainStages} />
+
+      <section id="microphone-equalizer-section" className="audio-primary-section" aria-labelledby="microphone-equalizer-heading">
         <SettingToggle
           title="Voice EQ"
           description="Shape your voice by dragging a band, or enter an exact value below."
@@ -125,8 +175,40 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         />
       </section>
 
-      <section className="audio-simple-grid microphone-controls-grid">
-        <div className="audio-simple-section">
+      <section id="microphone-input-section" className="audio-simple-section microphone-input-volume">
+        <PrimarySlider
+          label="Input volume"
+          description="Adjusts your voice after the microphone's hardware level."
+          value={gain.parameters.gainDb}
+          min={-20}
+          max={30}
+          step={0.5}
+          unit="dB"
+          disabled={unavailable || !gain.enabled || processingPending}
+          onCommit={(gainDb) => void setMicProcessor({ processorId: 'gain', enabled: true, parameters: { gainDb } })}
+        />
+      </section>
+
+      <section className="audio-simple-grid microphone-controls-grid" aria-label="Microphone processors">
+        <div id="microphone-gate-section" className="audio-simple-section">
+          <SettingToggle
+            title="Noise gate"
+            description="Stops background sound while you are not speaking."
+            checked={gate.enabled}
+            disabled={unavailable}
+            pending={processingPending}
+            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}
+          />
+          <SemanticChoice
+            label="Noise gate strength"
+            value={matchGate(gate.parameters.thresholdDb)}
+            options={gateOptions}
+            disabled={unavailable || !gate.enabled || processingPending}
+            onChange={(strength) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: gateThresholds[strength] } })}
+          />
+        </div>
+
+        <div id="microphone-removal-section" className="audio-simple-section">
           <SettingToggle
             title="Noise removal"
             description={suppressionUnavailable
@@ -147,25 +229,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           />
         </div>
 
-        <div className="audio-simple-section">
-          <SettingToggle
-            title="Noise gate"
-            description="Stops background sound while you are not speaking."
-            checked={gate.enabled}
-            disabled={unavailable}
-            pending={processingPending}
-            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}
-          />
-          <SemanticChoice
-            label="Noise gate strength"
-            value={matchGate(gate.parameters.thresholdDb)}
-            options={gateOptions}
-            disabled={unavailable || !gate.enabled || processingPending}
-            onChange={(strength) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: gateThresholds[strength] } })}
-          />
-        </div>
-
-        <div className="audio-simple-section">
+        <div id="microphone-consistency-section" className="audio-simple-section">
           <SettingToggle
             title="Voice consistency"
             description="Keeps quiet and loud speech at a similar level."
@@ -184,21 +248,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           />
         </div>
 
-        <div className="audio-simple-section microphone-input-volume">
-          <PrimarySlider
-            label="Input volume"
-            description="Adjusts your voice after the microphone's hardware level."
-            value={gain.parameters.gainDb}
-            min={-20}
-            max={30}
-            step={0.5}
-            unit="dB"
-            disabled={unavailable || !gain.enabled || processingPending}
-            onCommit={(gainDb) => void setMicProcessor({ processorId: 'gain', enabled: true, parameters: { gainDb } })}
-          />
-        </div>
-
-        <div className="audio-simple-section">
+        <div id="microphone-safety-section" className="audio-simple-section">
           <SettingToggle
             title="Output safety"
             description="Prevents sudden clipping and excessive peaks."
@@ -211,7 +261,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         </div>
       </section>
 
-      <section id="microphone-monitoring" className="monitoring-section" aria-labelledby="microphone-monitoring-heading">
+      <section id="microphone-monitoring-section" className="monitoring-section" aria-labelledby="microphone-monitoring-heading">
         <SettingToggle
           title="Monitoring"
           description={monitoringUnavailable ? 'Monitoring is not available with the current audio setup.' : 'Hear your microphone through the selected output.'}

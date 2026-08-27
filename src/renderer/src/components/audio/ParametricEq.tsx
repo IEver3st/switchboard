@@ -1,21 +1,33 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { Power, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import type { EqBand, EqFilterType } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { equalizerResponseDb } from '@/lib/eq-response';
 
-const WIDTH = 960;
-const HEIGHT = 320;
+interface EqGeometry {
+  width: number;
+  height: number;
+}
+
+const FALLBACK_GEOMETRY: EqGeometry = { width: 960, height: 344 };
 const PLOT_LEFT = 48;
 const PLOT_RIGHT = 18;
-const PLOT_TOP = 18;
-const PLOT_BOTTOM = 32;
-const PLOT_WIDTH = WIDTH - PLOT_LEFT - PLOT_RIGHT;
-const PLOT_HEIGHT = HEIGHT - PLOT_TOP - PLOT_BOTTOM;
+const PLOT_TOP = 46;
+const PLOT_BOTTOM = 34;
+const REGION_STRIP_BOTTOM = 34;
 const FREQUENCY_TICKS = [20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000];
 const GAIN_TICKS = [-12, -6, 0, 6, 12];
+const FREQUENCY_REGIONS = [
+  { label: 'Sub bass', from: 20, to: 60 },
+  { label: 'Bass', from: 60, to: 250 },
+  { label: 'Low mids', from: 250, to: 500 },
+  { label: 'Mid range', from: 500, to: 2_000 },
+  { label: 'Upper mids', from: 2_000, to: 6_000 },
+  { label: 'Highs', from: 6_000, to: 20_000 },
+];
 const FILTER_LABELS: Record<EqFilterType, string> = {
   'low-shelf': 'Low shelf',
   bell: 'Bell',
@@ -36,45 +48,75 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function frequencyToX(frequency: number): number {
-  return PLOT_LEFT + (Math.log10(frequency / 20) / 3) * PLOT_WIDTH;
+function plotWidth(geometry: EqGeometry): number {
+  return geometry.width - PLOT_LEFT - PLOT_RIGHT;
 }
 
-function xToFrequency(x: number): number {
-  return clamp(20 * 10 ** (((x - PLOT_LEFT) / PLOT_WIDTH) * 3), 20, 20_000);
+function plotHeight(geometry: EqGeometry): number {
+  return geometry.height - PLOT_TOP - PLOT_BOTTOM;
 }
 
-function gainToY(gain: number): number {
-  return PLOT_TOP + ((12 - gain) / 24) * PLOT_HEIGHT;
+function frequencyToX(frequency: number, geometry: EqGeometry): number {
+  return PLOT_LEFT + (Math.log10(frequency / 20) / 3) * plotWidth(geometry);
 }
 
-function yToGain(y: number): number {
-  return clamp(12 - ((y - PLOT_TOP) / PLOT_HEIGHT) * 24, -12, 12);
+function xToFrequency(x: number, geometry: EqGeometry): number {
+  return clamp(20 * 10 ** (((x - PLOT_LEFT) / plotWidth(geometry)) * 3), 20, 20_000);
 }
 
-function curvePath(bands: EqBand[]): string {
+function gainToY(gain: number, geometry: EqGeometry): number {
+  return PLOT_TOP + ((12 - gain) / 24) * plotHeight(geometry);
+}
+
+function yToGain(y: number, geometry: EqGeometry): number {
+  return clamp(12 - ((y - PLOT_TOP) / plotHeight(geometry)) * 24, -12, 12);
+}
+
+function curvePath(bands: EqBand[], geometry: EqGeometry): string {
   return Array.from({ length: 240 }, (_, index) => {
     const frequency = 20 * 10 ** ((index / 239) * 3);
-    return `${index === 0 ? 'M' : 'L'} ${frequencyToX(frequency).toFixed(2)} ${gainToY(equalizerResponseDb(frequency, bands)).toFixed(2)}`;
+    return `${index === 0 ? 'M' : 'L'} ${frequencyToX(frequency, geometry).toFixed(2)} ${gainToY(equalizerResponseDb(frequency, bands), geometry).toFixed(2)}`;
   }).join(' ');
 }
 
 function frequencyLabel(value: number): string {
-  return value >= 1_000 ? `${value / 1_000}k` : String(value);
+  return value >= 1_000 ? `${value / 1_000} kHz` : `${value} Hz`;
+}
+
+function frequencyReadout(frequency: number): string {
+  if (frequency >= 1_000) {
+    const kHz = frequency / 1_000;
+    return `${Number.isInteger(kHz) ? kHz : kHz.toFixed(1)} kHz`;
+  }
+  return `${frequency} Hz`;
 }
 
 export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; disabled?: boolean; onCommit: (bands: EqBand[]) => void }) {
   const [draft, setDraft] = useState(bands);
   const [selectedId, setSelectedId] = useState(bands[0]?.id ?? '');
+  const [geometry, setGeometry] = useState<EqGeometry>(FALLBACK_GEOMETRY);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const dragIdRef = useRef<string | null>(null);
 
   useEffect(() => setDraft(bands), [bands]);
   useEffect(() => {
     if (!draft.some((band) => band.id === selectedId)) setSelectedId(draft[0]?.id ?? '');
   }, [draft, selectedId]);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) setGeometry({ width: Math.round(width), height: Math.round(height) });
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
 
   const selected = draft.find((band) => band.id === selectedId) ?? draft[0];
-  const path = useMemo(() => curvePath(draft), [draft]);
+  const path = useMemo(() => curvePath(draft, geometry), [draft, geometry]);
 
   const updateBand = (id: string, update: Partial<EqBand>, commit = false) => {
     const next = draft.map((band) => band.id === id ? { ...band, ...update } : band);
@@ -86,11 +128,11 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
     const svg = event.currentTarget.ownerSVGElement;
     if (!svg) return;
     const bounds = svg.getBoundingClientRect();
-    const x = ((event.clientX - bounds.left) / bounds.width) * WIDTH;
-    const y = ((event.clientY - bounds.top) / bounds.height) * HEIGHT;
+    const x = ((event.clientX - bounds.left) / bounds.width) * geometry.width;
+    const y = ((event.clientY - bounds.top) / bounds.height) * geometry.height;
     updateBand(id, {
-      frequency: Math.round(xToFrequency(x)),
-      gainDb: Math.round(yToGain(y) * 10) / 10,
+      frequency: Math.round(xToFrequency(x, geometry)),
+      gainDb: Math.round(yToGain(y, geometry) * 10) / 10,
     }, commit);
   };
 
@@ -113,68 +155,111 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
 
   return (
     <div className={cn('parametric-eq', disabled && 'is-disabled')}>
-      <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="parametric-eq__graph"
-        aria-label="Equalizer response. Drag a band to change frequency and gain."
-      >
-        {FREQUENCY_TICKS.map((frequency) => {
-          const x = frequencyToX(frequency);
-          return (
-            <g key={frequency}>
-              <line x1={x} x2={x} y1={PLOT_TOP} y2={HEIGHT - PLOT_BOTTOM} stroke="var(--border)" strokeWidth="1" />
-              <text x={x} y={HEIGHT - 7} fill="var(--muted-foreground)" opacity="0.78" fontSize="9" textAnchor="middle">{frequencyLabel(frequency)}</text>
-            </g>
-          );
-        })}
-        {GAIN_TICKS.map((gain) => {
-          const y = gainToY(gain);
-          return (
-            <g key={gain}>
-              <line x1={PLOT_LEFT} x2={WIDTH - PLOT_RIGHT} y1={y} y2={y} stroke={gain === 0 ? 'var(--input)' : 'var(--border)'} strokeWidth={gain === 0 ? 1.5 : 1} />
-              <text x={PLOT_LEFT - 8} y={y + 3} fill="var(--muted-foreground)" opacity="0.82" fontSize="9" textAnchor="end">{gain > 0 ? '+' : ''}{gain}</text>
-            </g>
-          );
-        })}
-        <path d={path} fill="none" stroke="var(--channel-accent, var(--primary))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-        {draft.map((band, index) => (
-          <circle
-            key={band.id}
-            cx={frequencyToX(band.frequency)}
-            cy={gainToY(band.gainDb)}
-            r={band.id === selected.id ? 10 : 8}
-            fill={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--input)'}
-            stroke={band.id === selected.id ? 'var(--foreground)' : 'var(--background)'}
-            strokeWidth={band.id === selected.id ? 2.5 : 2}
-            role="slider"
-            tabIndex={disabled ? -1 : 0}
-            aria-label={`EQ band ${index + 1}`}
-            aria-valuemin={-12}
-            aria-valuemax={12}
-            aria-valuenow={band.gainDb}
-            aria-valuetext={`${Math.round(band.frequency)} hertz, ${band.gainDb > 0 ? '+' : ''}${band.gainDb} decibels, width ${band.q}`}
-            onFocus={() => setSelectedId(band.id)}
-            onPointerDown={(event) => {
-              if (disabled) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              dragIdRef.current = band.id;
-              setSelectedId(band.id);
-            }}
-            onPointerMove={(event) => {
-              if (dragIdRef.current === band.id) updateBandFromPointer(band.id, event, false);
-            }}
-            onPointerUp={(event) => {
-              if (dragIdRef.current !== band.id) return;
-              dragIdRef.current = null;
-              updateBandFromPointer(band.id, event, true);
-              event.currentTarget.releasePointerCapture(event.pointerId);
-            }}
-            onDoubleClick={() => updateBand(band.id, { gainDb: 0 }, true)}
-            onKeyDown={(event) => handleNodeKeyDown(band, event)}
-            className="parametric-eq__node"
+      <div ref={stageRef} className="parametric-eq__stage">
+        <svg
+          viewBox={`0 0 ${geometry.width} ${geometry.height}`}
+          className="parametric-eq__graph"
+          aria-label="Equalizer response. Drag a band to change frequency and gain."
+        >
+          {FREQUENCY_TICKS.map((frequency) => {
+            const x = frequencyToX(frequency, geometry);
+            return (
+              <g key={frequency}>
+                <line x1={x} x2={x} y1={PLOT_TOP} y2={geometry.height - PLOT_BOTTOM} stroke="color-mix(in srgb, var(--border) 62%, transparent)" strokeWidth="1" />
+                <text x={x} y={geometry.height - 8} fill="var(--muted-foreground)" opacity="0.78" fontSize="9" textAnchor="middle">{frequencyLabel(frequency)}</text>
+              </g>
+            );
+          })}
+          {GAIN_TICKS.map((gain) => {
+            const y = gainToY(gain, geometry);
+            return (
+              <g key={gain}>
+                <line
+                  x1={PLOT_LEFT}
+                  x2={geometry.width - PLOT_RIGHT}
+                  y1={y}
+                  y2={y}
+                  stroke={gain === 0 ? 'var(--input)' : 'color-mix(in srgb, var(--border) 62%, transparent)'}
+                  strokeWidth={gain === 0 ? 1.5 : 1}
+                />
+                <text x={PLOT_LEFT - 8} y={y + 3} fill="var(--muted-foreground)" opacity="0.82" fontSize="9" textAnchor="end">{gain > 0 ? '+' : ''}{gain} dB</text>
+              </g>
+            );
+          })}
+          {FREQUENCY_REGIONS.map((region) => {
+            const from = frequencyToX(region.from, geometry);
+            const to = frequencyToX(region.to, geometry);
+            return (
+              <g key={region.label}>
+                <text
+                  x={(from + to) / 2}
+                  y={22}
+                  fill="var(--muted-foreground)"
+                  opacity="0.72"
+                  fontSize="8.5"
+                  fontWeight="620"
+                  letterSpacing="0.09em"
+                  textAnchor="middle"
+                >
+                  {region.label.toUpperCase()}
+                </text>
+                {region.from > 20 ? <line x1={from} x2={from} y1={10} y2={REGION_STRIP_BOTTOM} stroke="var(--border)" strokeWidth="1" /> : null}
+              </g>
+            );
+          })}
+          <line x1={PLOT_LEFT} x2={geometry.width - PLOT_RIGHT} y1={REGION_STRIP_BOTTOM} y2={REGION_STRIP_BOTTOM} stroke="var(--border)" strokeWidth="1" />
+          <line
+            x1={frequencyToX(selected.frequency, geometry)}
+            x2={frequencyToX(selected.frequency, geometry)}
+            y1={PLOT_TOP}
+            y2={geometry.height - PLOT_BOTTOM}
+            stroke="var(--channel-accent, var(--primary))"
+            strokeWidth="1"
+            strokeDasharray="1 3"
+            opacity="0.45"
           />
-        ))}
-      </svg>
+          <path d={path} fill="none" stroke="var(--channel-accent, var(--primary))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+          {draft.map((band, index) => (
+            <circle
+              key={band.id}
+              cx={frequencyToX(band.frequency, geometry)}
+              cy={gainToY(band.gainDb, geometry)}
+              r={band.id === selected.id ? 10 : 8}
+              fill={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--input)'}
+              stroke={band.id === selected.id ? 'var(--foreground)' : 'var(--background)'}
+              strokeWidth={band.id === selected.id ? 2.5 : 2}
+              role="slider"
+              tabIndex={disabled ? -1 : 0}
+              aria-label={`EQ band ${index + 1}`}
+              aria-valuemin={-12}
+              aria-valuemax={12}
+              aria-valuenow={band.gainDb}
+              aria-valuetext={`${Math.round(band.frequency)} hertz, ${band.gainDb > 0 ? '+' : ''}${band.gainDb} decibels, width ${band.q}`}
+              onFocus={() => setSelectedId(band.id)}
+              onPointerDown={(event) => {
+                if (disabled) return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                dragIdRef.current = band.id;
+                setSelectedId(band.id);
+              }}
+              onPointerMove={(event) => {
+                if (dragIdRef.current === band.id) updateBandFromPointer(band.id, event, false);
+              }}
+              onPointerUp={(event) => {
+                if (dragIdRef.current !== band.id) return;
+                dragIdRef.current = null;
+                updateBandFromPointer(band.id, event, true);
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }}
+              onDoubleClick={() => updateBand(band.id, { gainDb: 0 }, true)}
+              onKeyDown={(event) => handleNodeKeyDown(band, event)}
+              className="parametric-eq__node"
+            >
+              <title>{`Band ${index + 1}: ${frequencyReadout(band.frequency)}, ${band.gainDb > 0 ? '+' : ''}${band.gainDb} dB`}</title>
+            </circle>
+          ))}
+        </svg>
+      </div>
 
       <div className="parametric-eq__bands" role="list" aria-label="Equalizer bands">
         {draft.map((band, index) => (
@@ -185,8 +270,9 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
             onClick={() => setSelectedId(band.id)}
             className={cn('parametric-eq__band', band.id === selected.id && 'is-selected')}
           >
-            <span style={band.enabled ? { backgroundColor: NODE_COLORS[index % NODE_COLORS.length] } : undefined} aria-hidden="true" />
-            Band {index + 1}
+            <span className="parametric-eq__band-dot" style={band.enabled ? { backgroundColor: NODE_COLORS[index % NODE_COLORS.length] } : undefined} aria-hidden="true" />
+            <span className="parametric-eq__band-name">Band {index + 1}</span>
+            <span className="parametric-eq__band-freq">{frequencyReadout(band.frequency)}</span>
           </button>
         ))}
       </div>
@@ -194,17 +280,15 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
       <div className="parametric-eq__inspector">
         <div className="parametric-eq__inspector-heading">
           <strong>Band {draft.indexOf(selected) + 1}</strong>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(selected.enabled && 'text-[var(--channel-accent,var(--primary))]')}
-            aria-pressed={selected.enabled}
-            disabled={disabled}
-            onClick={() => updateBand(selected.id, { enabled: !selected.enabled }, true)}
-          >
-            <Power className="size-3.5" /> {selected.enabled ? 'On' : 'Off'}
-          </Button>
+          <label className="parametric-eq__band-state">
+            <Switch
+              checked={selected.enabled}
+              disabled={disabled}
+              aria-label={`Band ${draft.indexOf(selected) + 1} enabled`}
+              onCheckedChange={(enabled) => updateBand(selected.id, { enabled }, true)}
+            />
+            <span>{selected.enabled ? 'On' : 'Off'}</span>
+          </label>
         </div>
 
         <label className="eq-value-field">

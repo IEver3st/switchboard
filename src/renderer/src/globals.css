@@ -3397,12 +3397,16 @@ select {
   opacity: 0.5;
 }
 
+.parametric-eq__stage {
+  min-width: 0;
+}
+
 .parametric-eq__graph {
   display: block;
   width: 100%;
-  height: clamp(220px, 30vh, 320px);
+  height: clamp(230px, 31vh, 330px);
   border: 1px solid var(--border);
-  background: var(--background);
+  background: var(--surface-1);
   touch-action: none;
 }
 
@@ -3439,14 +3443,27 @@ select {
   color: var(--muted-foreground);
   font-size: 10px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.parametric-eq__band > span {
+.parametric-eq__band > .parametric-eq__band-dot {
   width: 7px;
   height: 7px;
+  flex: none;
   border-radius: 50%;
   background: var(--status-neutral);
+}
+
+.parametric-eq__band-freq {
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  font-weight: 520;
+  font-variant-numeric: tabular-nums;
+}
+
+.parametric-eq__band.is-selected .parametric-eq__band-freq {
+  color: var(--foreground);
 }
 
 .parametric-eq__band.is-selected {
@@ -3476,8 +3493,13 @@ select {
   font-weight: 650;
 }
 
-.parametric-eq__inspector-heading button {
-  justify-self: start;
+.parametric-eq__band-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .eq-value-field {
@@ -3983,6 +4005,96 @@ select {
   gap: 16px;
 }
 
+.mic-chain {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  padding: 7px 12px;
+}
+
+.mic-chain__label {
+  flex: none;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.mic-chain__stages {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mic-chain__stage {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.mic-chain__stage button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 4px;
+  outline: none;
+  background: transparent;
+  padding: 4px 8px;
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  font-weight: 560;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms ease-out, background-color 120ms ease-out;
+}
+
+.mic-chain__stage button:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.mic-chain__stage button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -1px;
+}
+
+.mic-chain__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-neutral);
+}
+
+.mic-chain__dot[data-state="on"] {
+  background: var(--channel-accent);
+}
+
+.mic-chain__dot[data-state="unavailable"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+}
+
+.mic-chain__link {
+  width: 14px;
+  height: 1px;
+  flex: none;
+  background: var(--border-strong);
+}
+
+.microphone-input-volume {
+  margin-top: 20px;
+}
+
 .microphone-test {
   display: flex;
   align-items: center;
@@ -4004,8 +4116,13 @@ select {
 .monitoring-section {
   margin-top: 20px;
   border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
   padding: 4px 0 14px;
+}
+
+.audio-primary-section,
+.audio-simple-section,
+.monitoring-section {
+  scroll-margin-top: 14px;
 }
 
 .monitoring-section__controls {
@@ -4485,6 +4602,15 @@ select {
     padding-left: 18px;
   }
 
+  .mic-chain {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .mic-chain__link {
+    display: none;
+  }
+
   .preset-picker__primary {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -4502,11 +4628,11 @@ select {
     height: 250px;
   }
 
-  .parametric-eq__band {
-    font-size: 0;
+  .parametric-eq__band-freq {
+    display: none;
   }
 
-  .parametric-eq__band > span {
+  .parametric-eq__band > .parametric-eq__band-dot {
     width: 9px;
     height: 9px;
   }
@@ -4541,7 +4667,7 @@ select {
 }
 
 .microphone-workbench .parametric-eq__graph {
-  height: clamp(190px, 24vh, 280px);
+  height: clamp(200px, 25vh, 290px);
 }
 
 @media (min-width: 1600px) and (min-height: 900px) {
@@ -4594,10 +4720,10 @@ select {
   }
 
   .parametric-eq__graph {
-    height: clamp(270px, 31vh, 360px);
+    height: clamp(280px, 32vh, 380px);
   }
 
   .microphone-workbench .parametric-eq__graph {
-    height: clamp(280px, 30vh, 350px);
+    height: clamp(290px, 31vh, 370px);
   }
 }
