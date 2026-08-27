@@ -247,6 +247,7 @@ async function verifyEditorWorkspace(window) {
     await clickButtonByLabel(window, 'Open Inspector');
   }
   await waitForSelector(window, '.clip-editor-layout[data-inspector="open"]');
+  await delay(280);
   const expanded = await editorGeometry(window);
 
   await clickButtonByLabel(window, 'Collapse Inspector');
@@ -294,7 +295,9 @@ async function verifyEditorWorkspace(window) {
   await evaluate(window, `(() => {
     const input = document.querySelector('.clip-editor-volume__slider');
     if (!input) throw new Error('Playback volume input missing');
-    input.value = '45';
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setter) throw new Error('Playback volume setter missing');
+    setter.call(input, '45');
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
   })()`);
@@ -302,6 +305,7 @@ async function verifyEditorWorkspace(window) {
   const volumeAfter = Number(await evaluate(window, `document.querySelector('video')?.volume ?? 0`));
   if (!(volumeAfter < volumeBefore)) throw new Error(`Playback volume did not respond to the keyboard: ${volumeBefore} -> ${volumeAfter}.`);
   const mutedBefore = Boolean(await evaluate(window, `document.querySelector('video')?.muted`));
+  await waitForCondition(() => evaluate(window, `Boolean(document.querySelector('button[aria-label="${mutedBefore ? 'Unmute' : 'Mute'}"]'))`), 'mute control synchronization');
   await clickButtonByLabel(window, mutedBefore ? 'Unmute' : 'Mute');
   await waitForCondition(() => evaluate(window, `document.querySelector('video')?.muted === ${!mutedBefore}`), 'mute toggle');
   await clickButtonByLabel(window, mutedBefore ? 'Mute' : 'Unmute');
@@ -324,7 +328,8 @@ async function verifyEditorWorkspace(window) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
   })()`);
   await clickButton(window, 'Rename');
-  await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-header__rename span')?.textContent === ${JSON.stringify(renamed)}`), 'clip rename');
+  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips.find((clip) => clip.id === ${JSON.stringify(clipBefore.id)})?.name === ${JSON.stringify(renamed)})`), 'canonical clip rename');
+  await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-header__rename span')?.textContent === ${JSON.stringify(renamed)}`), 'renamed editor title');
 
   const permanentDelete = await evaluate(window, `[...document.querySelectorAll('.clip-editor-shell > .clip-editor-header button')].some((button) => button.textContent?.trim() === 'Delete clip')`);
   if (permanentDelete) throw new Error('Delete clip remained permanently exposed in the editor toolbar.');
@@ -342,9 +347,10 @@ async function verifyEditorWorkspace(window) {
 
 async function editorGeometry(window) {
   return evaluate(window, `(() => {
+    const layout = document.querySelector('.clip-editor-layout');
     const viewer = document.querySelector('.clip-editor-preview')?.getBoundingClientRect();
     const timeline = document.querySelector('[data-testid="clip-timeline-surface"]')?.getBoundingClientRect();
-    return { viewerWidth: viewer?.width ?? 0, timelineWidth: timeline?.width ?? 0 };
+    return { inspector: layout?.dataset.inspector, columns: layout ? getComputedStyle(layout).gridTemplateColumns : null, layoutWidth: layout?.getBoundingClientRect().width ?? 0, viewerWidth: viewer?.width ?? 0, timelineWidth: timeline?.width ?? 0 };
   })()`);
 }
 

@@ -82,22 +82,17 @@
 }
 
 .clip-editor-layout {
-  display: grid;
+  display: flex;
   min-width: 0;
   min-height: 0;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) 272px;
-  transition: grid-template-columns 220ms ease-out;
-}
-
-.clip-editor-layout[data-inspector="closed"] {
-  grid-template-columns: minmax(0, 1fr) 0;
 }
 
 .clip-editor-workspace {
   display: flex;
   min-width: 0;
   min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px 10px;
@@ -187,14 +182,16 @@
 .clip-editor-inspector {
   min-width: 0;
   min-height: 0;
+  flex: 0 0 272px;
   overflow: hidden;
   border-left: 1px solid var(--border);
   background: var(--card);
   opacity: 1;
-  transition: opacity 140ms ease-out;
+  transition: flex-basis 220ms ease-out, opacity 140ms ease-out;
 }
 
 .clip-editor-layout[data-inspector="closed"] .clip-editor-inspector {
+  flex-basis: 0;
   border-left-color: transparent;
   opacity: 0;
   visibility: hidden;
@@ -583,12 +580,8 @@
 }
 
 @media (max-width: 1180px) {
-  .clip-editor-layout {
-    grid-template-columns: minmax(0, 1fr) 248px;
-  }
-
-  .clip-editor-layout[data-inspector="closed"] {
-    grid-template-columns: minmax(0, 1fr) 0;
+  .clip-editor-inspector {
+    flex-basis: 248px;
   }
 
   .clip-editor-inspector__content {
