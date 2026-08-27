@@ -223,9 +223,24 @@ async function waitForViewport(viewport) {
 }
 
 async function setExactValue(label, value) {
+  const selector = `input[aria-label=${JSON.stringify(`${label} exact volume percentage`)}]`;
+  const deadline = Date.now() + 5_000;
+  let ready = false;
+  while (Date.now() < deadline) {
+    ready = await window.webContents.executeJavaScript(`
+      (() => {
+        const input = document.querySelector(${JSON.stringify(selector)});
+        return Boolean(input && !input.disabled);
+      })()
+    `);
+    if (ready) break;
+    await delay(40);
+  }
+  assert(ready, `${label} exact percentage remained unavailable.`);
+
   const changed = await window.webContents.executeJavaScript(`
     (() => {
-      const input = document.querySelector('input[aria-label=${JSON.stringify(`${label} exact volume percentage`)}]');
+      const input = document.querySelector(${JSON.stringify(selector)});
       if (!input) return false;
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
       input.focus();
