@@ -1,15 +1,16 @@
-import { Gamepad2, MessageCircle, Mic2, Music2, type LucideIcon } from 'lucide-react';
+import { Cable, Gamepad2, MessageCircle, Mic2, Music2, type LucideIcon } from 'lucide-react';
 import type { AudioBusId, ClipAudioChannel } from '../../../../shared/contracts';
 
-export type MixerChannelId = Exclude<AudioBusId, 'aux'>;
+export type MixerChannelId = AudioBusId;
 export type ColorCodedAudioChannel = AudioBusId | ClipAudioChannel;
 
-export const mixerChannelOrder: MixerChannelId[] = ['game', 'chat', 'media', 'mic'];
+export const mixerChannelOrder: MixerChannelId[] = ['game', 'chat', 'media', 'aux', 'mic'];
 
 export const channelIcons: Record<MixerChannelId, LucideIcon> = {
   game: Gamepad2,
   chat: MessageCircle,
   media: Music2,
+  aux: Cable,
   mic: Mic2,
 };
 

@@ -6,41 +6,70 @@ namespace Switchboard.AudioHost;
 // microphone DSP graph: the virtual driver moves samples, while Audio.Host owns policy.
 internal sealed class RoutingControlGraph
 {
-    private readonly Dictionary<string, BusControl> buses = new(StringComparer.OrdinalIgnoreCase)
+    private readonly Dictionary<string, MixControl> mixes = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["game"] = new(),
-        ["chat"] = new(),
-        ["media"] = new(),
-        ["aux"] = new(),
+        ["personal"] = new(),
+        ["stream"] = new(),
+        ["clip"] = new(),
     };
-    private float masterGain = 1f;
-    private int masterEnabled = 1;
     private long configurationVersion;
 
     public void Configure(AudioHostSettings settings)
     {
         var version = Interlocked.Increment(ref configurationVersion);
-        Volatile.Write(ref masterGain, Math.Clamp(settings.Master.Gain, 0f, 1.5f));
-        Volatile.Write(ref masterEnabled, settings.Master.Enabled ? 1 : 0);
-        foreach (var bus in settings.Buses)
+        foreach (var mix in settings.Mixes)
         {
-            if (!buses.TryGetValue(bus.Id, out var control)) continue;
-            control.Set(bus.Gain, bus.Enabled);
-        }
-        foreach (var path in settings.ChannelProcessing)
-        {
-            if (!buses.TryGetValue(path.BusId, out var control)) continue;
-            control.SetProcessing(ChannelDspConfiguration.From(path, version));
+            if (!mixes.TryGetValue(mix.Id, out var mixControl)) continue;
+            mixControl.SetMaster(mix.Master.Gain, mix.Master.Enabled);
+            foreach (var bus in mix.Buses)
+            {
+                if (!mixControl.Buses.TryGetValue(bus.Id, out var busControl)) continue;
+                var balance = mix.Id.Equals("personal", StringComparison.OrdinalIgnoreCase)
+                    ? ChatMixGain(bus.Id, settings.ChatMix)
+                    : 1f;
+                busControl.Set(bus.Gain * balance, bus.Enabled);
+            }
+            foreach (var path in settings.ChannelProcessing)
+            {
+                if (!mixControl.Buses.TryGetValue(path.BusId, out var busControl)) continue;
+                busControl.SetProcessing(ChannelDspConfiguration.From(path, version));
+            }
         }
     }
 
-    public RoutingBusProcessor CreateProcessor(string busId)
+    public RoutingBusProcessor CreateProcessor(string mixId, string busId)
     {
-        if (!buses.TryGetValue(busId, out var bus)) throw new ArgumentOutOfRangeException(nameof(busId));
-        return new RoutingBusProcessor(bus, this);
+        if (!mixes.TryGetValue(mixId, out var mix)) throw new ArgumentOutOfRangeException(nameof(mixId));
+        if (!mix.Buses.TryGetValue(busId, out var bus)) throw new ArgumentOutOfRangeException(nameof(busId));
+        return new RoutingBusProcessor(bus, mix);
     }
 
-    internal float MasterGain => Volatile.Read(ref masterEnabled) != 0 ? Volatile.Read(ref masterGain) : 0f;
+    private static float ChatMixGain(string busId, float chatMix) => busId switch
+    {
+        "game" => Math.Clamp(1f - chatMix, 0f, 1f),
+        "chat" => Math.Clamp(1f + chatMix, 0f, 1f),
+        _ => 1f,
+    };
+
+    internal sealed class MixControl
+    {
+        private float masterGain = 1f;
+        private int masterEnabled = 1;
+        public Dictionary<string, BusControl> Buses { get; } = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["game"] = new(),
+            ["chat"] = new(),
+            ["media"] = new(),
+            ["aux"] = new(),
+            ["mic"] = new(),
+        };
+        public float MasterGain => Volatile.Read(ref masterEnabled) != 0 ? Volatile.Read(ref masterGain) : 0f;
+        public void SetMaster(float gain, bool enabled)
+        {
+            Volatile.Write(ref masterGain, Math.Clamp(gain, 0f, 1.5f));
+            Volatile.Write(ref masterEnabled, enabled ? 1 : 0);
+        }
+    }
 
     internal sealed class BusControl
     {
@@ -63,7 +92,7 @@ internal sealed class RoutingControlGraph
 internal sealed class RoutingBusProcessor
 {
     private readonly RoutingControlGraph.BusControl control;
-    private readonly RoutingControlGraph master;
+    private readonly RoutingControlGraph.MixControl mix;
     private readonly StereoParametricEqualizer equalizer = new();
     private long configuredVersion = -1;
     private float normalizationEnvelope;
@@ -71,10 +100,10 @@ internal sealed class RoutingBusProcessor
     private float compressorEnvelope;
     private float limiterGain = 1f;
 
-    public RoutingBusProcessor(RoutingControlGraph.BusControl control, RoutingControlGraph master)
+    public RoutingBusProcessor(RoutingControlGraph.BusControl control, RoutingControlGraph.MixControl mix)
     {
         this.control = control;
-        this.master = master;
+        this.mix = mix;
     }
 
     public void Process(Span<float> samples)
@@ -94,7 +123,7 @@ internal sealed class RoutingBusProcessor
         if (configuration.Normalization.Enabled) ApplyNormalization(samples, configuration.Normalization);
         if (configuration.Compressor.Enabled) ApplyCompressor(samples, configuration.Compressor);
         if (configuration.Limiter.Enabled) ApplyLimiter(samples, configuration.Limiter);
-        ApplyGain(samples, (control.Enabled ? control.Gain : 0f) * master.MasterGain);
+        ApplyGain(samples, (control.Enabled ? control.Gain : 0f) * mix.MasterGain);
     }
 
     private void ApplyNormalization(Span<float> samples, ChannelNormalizationConfiguration configuration)

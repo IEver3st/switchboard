@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
@@ -63,20 +64,23 @@ internal sealed class SpscFloatRing : ISampleProvider
         if (accepted < incoming) Interlocked.Add(ref droppedSamples, incoming - accepted);
     }
 
-    public int Read(float[] buffer, int offset, int count)
+    public int Read(Span<float> buffer)
     {
+        var count = buffer.Length;
         var read = Volatile.Read(ref readSequence);
         var write = Volatile.Read(ref writeSequence);
         var available = Math.Min(count, checked((int)Math.Min(samples.Length, write - read)));
         var source = checked((int)(read % samples.Length));
         var first = Math.Min(available, samples.Length - source);
-        if (first > 0) Array.Copy(samples, source, buffer, offset, first);
+        if (first > 0) samples.AsSpan(source, first).CopyTo(buffer);
         var second = available - first;
-        if (second > 0) Array.Copy(samples, 0, buffer, offset + first, second);
-        if (available < count) Array.Clear(buffer, offset + available, count - available);
+        if (second > 0) samples.AsSpan(0, second).CopyTo(buffer[first..]);
+        if (available < count) buffer[available..].Clear();
         Volatile.Write(ref readSequence, read + available);
         return count;
     }
+
+    public int Read(float[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
 }
 
 internal sealed class SilentSampleProvider : ISampleProvider
@@ -85,10 +89,10 @@ internal sealed class SilentSampleProvider : ISampleProvider
         AudioConstants.SampleRate,
         AudioConstants.Channels);
 
-    public int Read(float[] buffer, int offset, int count)
+    public int Read(Span<float> buffer)
     {
-        Array.Clear(buffer, offset, count);
-        return count;
+        buffer.Clear();
+        return buffer.Length;
     }
 }
 
@@ -150,10 +154,10 @@ internal sealed class ProcessedSampleProvider : ISampleProvider
 
     public WaveFormat WaveFormat => source.WaveFormat;
 
-    public int Read(float[] buffer, int offset, int count)
+    public int Read(Span<float> buffer)
     {
-        var read = source.Read(buffer, offset, count);
-        var span = buffer.AsSpan(offset, read);
+        var read = source.Read(buffer);
+        var span = buffer[..read];
         processor.Process(span);
         meter?.Observe(span);
         return read;
@@ -176,16 +180,17 @@ internal sealed class FixedMixer : ISampleProvider
 
     public WaveFormat WaveFormat { get; }
 
-    public int Read(float[] buffer, int offset, int count)
+    public int Read(Span<float> buffer)
     {
+        var count = buffer.Length;
         if (count > scratch.Length) throw new InvalidOperationException("WASAPI requested an unexpectedly large audio buffer.");
-        Array.Clear(buffer, offset, count);
+        buffer.Clear();
         for (var sourceIndex = 0; sourceIndex < sources.Length; sourceIndex++)
         {
-            var read = sources[sourceIndex].Read(scratch, 0, count);
-            for (var sample = 0; sample < read; sample++) buffer[offset + sample] += scratch[sample];
+            var read = sources[sourceIndex].Read(scratch.AsSpan(0, count));
+            for (var sample = 0; sample < read; sample++) buffer[sample] += scratch[sample];
         }
-        for (var sample = 0; sample < count; sample++) buffer[offset + sample] = Math.Clamp(buffer[offset + sample], -0.999f, 0.999f);
+        for (var sample = 0; sample < count; sample++) buffer[sample] = Math.Clamp(buffer[sample], -0.999f, 0.999f);
         return count;
     }
 }
@@ -199,12 +204,13 @@ internal sealed class FloatWaveProvider : IWaveProvider
     public FloatWaveProvider(ISampleProvider source) => this.source = source;
     public WaveFormat WaveFormat => source.WaveFormat;
 
-    public int Read(byte[] buffer, int offset, int count)
+    public int Read(Span<byte> buffer)
     {
+        var count = buffer.Length;
         var requested = count / sizeof(float);
         if (requested > scratch.Length) throw new InvalidOperationException("WASAPI requested an unexpectedly large audio buffer.");
-        var read = source.Read(scratch, 0, requested);
-        Buffer.BlockCopy(scratch, 0, buffer, offset, read * sizeof(float));
+        var read = source.Read(scratch.AsSpan(0, requested));
+        MemoryMarshal.AsBytes(scratch.AsSpan(0, read)).CopyTo(buffer);
         return read * sizeof(float);
     }
 }

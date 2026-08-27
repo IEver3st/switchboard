@@ -154,7 +154,7 @@ function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: Sy
   const muted = muteState?.muted ?? null;
   const lightingDisabled = !device.connected || !lighting?.writable;
   const engineRunning = snapshot.engines.find((candidate) => candidate.kind === 'audio')?.state === 'running';
-  const microphoneBusEnabled = snapshot.audio.buses.find((candidate) => candidate.id === 'mic')?.enabled ?? false;
+  const microphoneBusEnabled = snapshot.audio.mixes.find((mix) => mix.id === 'personal')?.buses.find((candidate) => candidate.id === 'mic')?.enabled ?? false;
 
   return (
     <section className="device-controls microphone-hardware" aria-labelledby="microphone-hardware-heading">

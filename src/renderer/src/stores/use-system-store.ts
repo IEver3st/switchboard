@@ -13,6 +13,7 @@ import {
   type RenameAudioPresetInput,
   type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
+  type SetAudioApplicationRouteInput,
   type SetAudioBusEnabledInput,
   type SetAudioBusGainInput,
   type SetAudioMasterEnabledInput,
@@ -71,6 +72,7 @@ interface SystemStore {
   setAudioBusGain(input: SetAudioBusGainInput): Promise<void>;
   setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<void>;
   setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<void>;
+  setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<void>;
   applyAudioPreset(input: ApplyAudioPresetInput): Promise<void>;
   createAudioPreset(input: CreateAudioPresetInput): Promise<void>;
   renameAudioPreset(input: RenameAudioPresetInput): Promise<void>;
@@ -162,6 +164,7 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     setAudioBusGain: (input) => run(() => switchboardApi.setAudioBusGain(input)),
     setAudioBusEnabled: (input) => run(() => switchboardApi.setAudioBusEnabled(input)),
     setAudioBusDevice: (input) => run(() => switchboardApi.setAudioBusDevice(input)),
+    setAudioApplicationRoute: (input) => run(() => switchboardApi.setAudioApplicationRoute(input)),
     applyAudioPreset: (input) => run(() => switchboardApi.applyAudioPreset(input)),
     createAudioPreset: (input) => run(() => switchboardApi.createAudioPreset(input)),
     renameAudioPreset: (input) => run(() => switchboardApi.renameAudioPreset(input)),

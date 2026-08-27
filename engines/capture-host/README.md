@@ -9,7 +9,8 @@ Windows-first `.NET 10` host for Switchboard Instant Replay. It is the data plan
 - One-second, keyframe-aligned Matroska video segments plus independently encoded system-audio and microphone segment streams.
 - Duration- and byte-bounded disk ring with abandoned-session cleanup.
 - Immutable hard-link snapshots for queued saves, stream-copy MP4 assembly, fsync, and atomic final rename.
-- WASAPI loopback and microphone capture through bounded named pipes; no realtime audio or video crosses Electron IPC.
+- Direct Clip-mix capture from Audio.Host's bounded named pipe and exact processed-microphone endpoint capture; no realtime audio or video crosses Electron IPC.
+- Explicit fallback to configured loopback/default inputs only when the Switchboard audio path is unavailable, with the fallback reason exposed in status.
 - Conservative sticky automatic-game detection. It never falls back from a game to an arbitrary foreground window.
 - Explicit waiting, recovery, low-storage, encoder, source, and audio failure states.
 

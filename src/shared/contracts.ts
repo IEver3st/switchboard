@@ -304,10 +304,7 @@ export type AudioDevice = z.infer<typeof audioDeviceSchema>;
 export const audioBusSchema = z.object({
   id: audioBusIdSchema,
   label: z.string(),
-  enabled: z.boolean().default(true),
   appCount: z.number().int().min(0),
-  gain: z.number().min(0).max(1.5),
-  muted: z.boolean(),
   meter: z.number().min(0).max(1),
   endpoint: z.string(),
   deviceId: z.string().default(''),
@@ -319,6 +316,24 @@ export const audioMasterSchema = z.object({
   enabled: z.boolean(),
 });
 export type AudioMaster = z.infer<typeof audioMasterSchema>;
+
+export const audioMixIdSchema = z.enum(['personal', 'stream', 'clip']);
+export type AudioMixId = z.infer<typeof audioMixIdSchema>;
+
+export const audioMixBusSchema = z.object({
+  id: audioBusIdSchema,
+  gain: z.number().min(0).max(1.5),
+  enabled: z.boolean(),
+});
+export type AudioMixBus = z.infer<typeof audioMixBusSchema>;
+
+export const audioMixSchema = z.object({
+  id: audioMixIdSchema,
+  label: z.string().min(1),
+  master: audioMasterSchema,
+  buses: z.array(audioMixBusSchema),
+});
+export type AudioMix = z.infer<typeof audioMixSchema>;
 
 export const audioMeterValueSchema = z.object({
   busId: audioBusIdSchema,
@@ -395,9 +410,13 @@ export type VirtualDriverState = z.infer<typeof virtualDriverStateSchema>;
 export const audioApplicationSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  executableName: z.string().min(1),
   processId: z.number().int().positive(),
   iconDataUrl: z.string().startsWith('data:image/').optional(),
   destination: z.enum(['game', 'chat', 'media']),
+  currentDestination: z.enum(['game', 'chat', 'media']),
+  preferredDestination: z.enum(['game', 'chat', 'media']).nullable(),
+  routingState: z.enum(['unmanaged', 'applied', 'pending-restart']),
   active: z.boolean(),
 });
 export type AudioApplication = z.infer<typeof audioApplicationSchema>;
@@ -451,10 +470,9 @@ export const audioHostSnapshotSchema = z.object({
   applications: z.array(audioApplicationSchema),
   buses: z.array(z.object({
     id: audioBusIdSchema,
-    gain: z.number().min(0).max(1.5),
-    muted: z.boolean(),
     applicationCount: z.number().int().nonnegative(),
   })),
+  mixes: z.array(audioMixSchema),
   microphone: microphoneRuntimeSchema.nullable().default(null),
 });
 export type AudioHostSnapshot = z.infer<typeof audioHostSnapshotSchema>;
@@ -607,7 +625,7 @@ export const audioStateSchema = z.object({
   outputDevice: z.string(),
   microphoneDevice: z.string(),
   sampleRate: z.literal(48000),
-  master: audioMasterSchema.default({ gain: 1, enabled: true }),
+  mixes: z.array(audioMixSchema),
   chatMix: z.number().min(-1).max(1),
   monitoring: z.number().min(0).max(1),
   monitoringEnabled: z.boolean().default(false),
@@ -882,22 +900,26 @@ export const setDeviceAppearanceOverrideInputSchema = z.object({
 export type SetDeviceAppearanceOverrideInput = z.infer<typeof setDeviceAppearanceOverrideInputSchema>;
 
 export const setAudioBusGainInputSchema = z.object({
+  mixId: audioMixIdSchema,
   busId: audioBusIdSchema,
   gain: z.number().min(0).max(1.5),
 });
 export type SetAudioBusGainInput = z.infer<typeof setAudioBusGainInputSchema>;
 
 export const setAudioMasterGainInputSchema = z.object({
+  mixId: audioMixIdSchema,
   gain: z.number().min(0).max(1.5),
 });
 export type SetAudioMasterGainInput = z.infer<typeof setAudioMasterGainInputSchema>;
 
 export const setAudioMasterEnabledInputSchema = z.object({
+  mixId: audioMixIdSchema,
   enabled: z.boolean(),
 });
 export type SetAudioMasterEnabledInput = z.infer<typeof setAudioMasterEnabledInputSchema>;
 
 export const setAudioBusEnabledInputSchema = z.object({
+  mixId: audioMixIdSchema,
   busId: audioBusIdSchema,
   enabled: z.boolean(),
 });
@@ -908,6 +930,12 @@ export const setAudioBusDeviceInputSchema = z.object({
   deviceId: z.string().min(1),
 });
 export type SetAudioBusDeviceInput = z.infer<typeof setAudioBusDeviceInputSchema>;
+
+export const setAudioApplicationRouteInputSchema = z.object({
+  applicationId: z.string().min(1),
+  destination: z.enum(['game', 'chat', 'media']),
+});
+export type SetAudioApplicationRouteInput = z.infer<typeof setAudioApplicationRouteInputSchema>;
 
 export const applyAudioPresetInputSchema = z.object({
   presetId: z.string().min(1),
@@ -1050,6 +1078,7 @@ export const ipcChannels = {
   setAudioBusGain: 'audio:set-bus-gain',
   setAudioBusEnabled: 'audio:set-bus-enabled',
   setAudioBusDevice: 'audio:set-bus-device',
+  setAudioApplicationRoute: 'audio:set-application-route',
   applyAudioPreset: 'audio:apply-preset',
   createAudioPreset: 'audio:create-preset',
   renameAudioPreset: 'audio:rename-preset',
@@ -1093,6 +1122,7 @@ export interface SwitchboardApi {
   setAudioBusGain(input: SetAudioBusGainInput): Promise<SystemSnapshot>;
   setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<SystemSnapshot>;
   setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<SystemSnapshot>;
+  setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<SystemSnapshot>;
   applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot>;
   createAudioPreset(input: CreateAudioPresetInput): Promise<SystemSnapshot>;
   renameAudioPreset(input: RenameAudioPresetInput): Promise<SystemSnapshot>;

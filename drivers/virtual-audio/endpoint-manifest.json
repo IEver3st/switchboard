@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "deviceInterfaceName": "Switchboard Virtual Audio Device",
   "sampleRate": 48000,
-  "sampleFormat": "stereo-float32",
+  "sampleFormat": "stereo-pcm32",
   "endpoints": [
     { "name": "Switchboard Audio - Gaming", "flow": "render", "role": "application-bus", "visibility": "user" },
     { "name": "Switchboard Audio - Chat", "flow": "render", "role": "application-bus", "visibility": "user" },

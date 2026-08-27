@@ -50,18 +50,19 @@ describe('audio workspace persistence', () => {
     const filePath = join(directory, 'switchboard-state.json');
     const first = new StateStore(filePath);
     await first.load();
-    const channelGains = first.get().audio.buses.map((bus) => [bus.id, bus.gain]);
+    const channelGains = first.get().audio.mixes.map((mix) => [mix.id, mix.buses.map((bus) => [bus.id, bus.gain])]);
 
     first.update((draft) => {
-      draft.audio.master.gain = 1.27;
-      draft.audio.master.enabled = false;
+      const personal = draft.audio.mixes.find((mix) => mix.id === 'personal')!;
+      personal.master.gain = 1.27;
+      personal.master.enabled = false;
     });
     await first.flush();
 
     const restarted = new StateStore(filePath);
     await restarted.load();
-    expect(restarted.get().audio.master).toEqual({ gain: 1.27, enabled: false });
-    expect(restarted.get().audio.buses.map((bus) => [bus.id, bus.gain])).toEqual(channelGains);
+    expect(restarted.get().audio.mixes.find((mix) => mix.id === 'personal')?.master).toEqual({ gain: 1.27, enabled: false });
+    expect(restarted.get().audio.mixes.map((mix) => [mix.id, mix.buses.map((bus) => [bus.id, bus.gain])])).toEqual(channelGains);
   });
 
   test('removes legacy application metadata when routing is unavailable', async () => {
@@ -77,8 +78,12 @@ describe('audio workspace persistence', () => {
       draft.audio.applications = [{
         id: 'legacy-session',
         name: 'Legacy application',
+        executableName: 'legacy-application',
         processId: 1234,
         destination: 'game',
+        currentDestination: 'game',
+        preferredDestination: null,
+        routingState: 'unmanaged',
         active: true,
       }];
     });

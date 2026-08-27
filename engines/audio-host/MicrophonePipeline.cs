@@ -18,6 +18,7 @@ internal sealed class MicrophonePipeline : IDisposable
     private readonly BoundedFrameAdapter processedSamples;
     private readonly SpscFloatRing virtualMicrophoneSamples;
     private readonly SpscFloatRing streamMicrophoneSamples;
+    private readonly SpscFloatRing clipMicrophoneSamples;
     private readonly AutoResetEvent samplesAvailable = new(false);
     private readonly FrameTimingMetrics frameTimings = new();
     private readonly FrameTimingMetrics callbackTimings = new();
@@ -61,6 +62,7 @@ internal sealed class MicrophonePipeline : IDisposable
         processedSamples = new BoundedFrameAdapter(suppressor.FrameLength * OutputBacklogFrames);
         virtualMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels);
         streamMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels);
+        clipMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels);
         frame = new float[suppressor.FrameLength];
         dryFrame = new float[suppressor.FrameLength];
         var inputId = settings.MicrophoneBus?.DeviceId;
@@ -101,6 +103,7 @@ internal sealed class MicrophonePipeline : IDisposable
     public bool CanRunMicrophoneTest => !string.IsNullOrWhiteSpace(Volatile.Read(ref testOutputDeviceId));
     public ISampleProvider VirtualMicrophoneSource => virtualMicrophoneSamples;
     public ISampleProvider StreamMicrophoneSource => streamMicrophoneSamples;
+    public ISampleProvider ClipMicrophoneSource => clipMicrophoneSamples;
     public FrameTimingSnapshot FrameTimings => frameTimings.Snapshot();
     public FrameTimingSnapshot CallbackTimings => callbackTimings.Snapshot();
 
@@ -258,6 +261,7 @@ internal sealed class MicrophonePipeline : IDisposable
             CaptureTestFrame(frame);
             virtualMicrophoneSamples.WriteMono(frame);
             streamMicrophoneSamples.WriteMono(frame);
+            clipMicrophoneSamples.WriteMono(frame);
             if (monitorOutput is not null)
             {
                 var written = processedSamples.Write(frame);

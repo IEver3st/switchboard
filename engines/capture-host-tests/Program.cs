@@ -38,6 +38,10 @@ var validSettings = new CaptureSettings(
 _ = validSettings.Validate();
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { Fps = 59 }).Validate(), "Unsupported FPS must fail validation.");
 AssertThrows<InvalidOperationException>(() => (validSettings with { Source = "window", SourceId = null }).Validate(), "Window capture requires a target.");
+AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ClipMixPipeName = "switchboard-audio-clip-v1" }),
+    "Switching replay system audio to the Audio.Host clip mix must rebuild the FFmpeg audio input.");
+AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ProcessedMicrophoneDeviceId = "processed-mic" }),
+    "Switching replay microphone capture to the processed endpoint must rebuild the FFmpeg audio input.");
 
 var operations = new OperationTracker();
 operations.Track(Task.CompletedTask);

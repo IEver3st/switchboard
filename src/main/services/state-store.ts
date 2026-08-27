@@ -24,7 +24,7 @@ export class StateStore {
     try {
       const raw = await readFile(this.filePath, 'utf8');
       const parsed = systemSnapshotSchema.safeParse(
-        migrateGameDetectionState(migrateLegacyCaptureState(migrateLegacyDeviceState(JSON.parse(raw)))),
+        migrateGameDetectionState(migrateLegacyCaptureState(migrateAudioMixState(migrateLegacyDeviceState(JSON.parse(raw))))),
       );
       if (parsed.success) {
         this.snapshot = this.resetRuntimeState(parsed.data);
@@ -276,6 +276,28 @@ function migrateLegacyCaptureState(value: unknown): unknown {
       sources: Array.isArray(capture.sources) ? capture.sources : [],
     },
   };
+}
+
+function migrateAudioMixState(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value.audio) || Array.isArray(value.audio.mixes)) return value;
+  const defaults = createDefaultSnapshot();
+  const legacyBuses = Array.isArray(value.audio.buses) ? value.audio.buses : [];
+  const legacyMaster = isRecord(value.audio.master) ? value.audio.master : {};
+  const mixes = structuredClone(defaults.audio.mixes);
+  const personal = mixes.find((mix) => mix.id === 'personal');
+  if (personal) {
+    if (typeof legacyMaster.gain === 'number') personal.master.gain = legacyMaster.gain;
+    if (typeof legacyMaster.enabled === 'boolean') personal.master.enabled = legacyMaster.enabled;
+    for (const candidate of legacyBuses) {
+      if (!isRecord(candidate) || typeof candidate.id !== 'string') continue;
+      const bus = personal.buses.find((entry) => entry.id === candidate.id);
+      if (!bus) continue;
+      if (typeof candidate.gain === 'number') bus.gain = candidate.gain;
+      if (typeof candidate.enabled === 'boolean') bus.enabled = candidate.enabled;
+      else if (typeof candidate.muted === 'boolean') bus.enabled = !candidate.muted;
+    }
+  }
+  return { ...value, audio: { ...value.audio, mixes } };
 }
 
 function migrateGameDetectionState(value: unknown): unknown {

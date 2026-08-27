@@ -8,11 +8,13 @@ import { MixerFader } from './MixerFader';
 
 export const MixerMasterStrip = memo(function MixerMasterStrip({
   master,
+  mixLabel,
   pending,
   onGainCommit,
   onEnabledChange,
 }: {
   master: AudioMaster;
+  mixLabel: string;
   pending: boolean;
   onGainCommit: (gain: number) => void;
   onEnabledChange: (enabled: boolean) => void;
@@ -33,7 +35,7 @@ export const MixerMasterStrip = memo(function MixerMasterStrip({
       <div className="mixer-channel__meta">
         <div className="mixer-channel__meta-row">
           <span>Scope</span>
-          <strong>All outputs</strong>
+          <strong>{mixLabel} mix</strong>
         </div>
         <div className="mixer-channel__meta-row">
           <span>Unity</span>
@@ -45,7 +47,7 @@ export const MixerMasterStrip = memo(function MixerMasterStrip({
         <MixerFader
           value={master.gain}
           disabled={!master.enabled || pending}
-          label="Master"
+          label={`${mixLabel} master`}
           accentColor="var(--primary)"
           onCommit={onGainCommit}
         />
@@ -73,7 +75,7 @@ export const MixerMasterStrip = memo(function MixerMasterStrip({
 
       <div className="mixer-channel__apps mixer-channel__apps--master">
         <span>Output stage</span>
-        <p>Controls the complete mix.</p>
+        <p>Controls the complete {mixLabel.toLowerCase()} mix.</p>
       </div>
     </article>
   );

@@ -3933,9 +3933,38 @@ select {
   font-size: 11px;
 }
 
+.mixer-destination {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  padding: 8px 10px 8px 14px;
+  background: var(--surface-1);
+}
+
+.mixer-destination > div:first-child {
+  min-width: 0;
+}
+
+.mixer-destination span {
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.mixer-destination p {
+  margin: 1px 0 0;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .mixer-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px;
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   background: color-mix(in srgb, var(--border) 80%, transparent);
@@ -4309,6 +4338,26 @@ select {
 
 .mixer-channel__apps li.is-inactive {
   opacity: 0.55;
+}
+
+.mixer-channel__app-name {
+  flex: 1;
+}
+
+.mixer-channel__route-pending {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--status-warning);
+}
+
+.mixer-channel__route-select {
+  width: 54px;
+  height: 24px;
+  flex: 0 0 auto;
+  padding: 0 5px;
+  font-size: 9px;
 }
 
 .chatmix-control {
@@ -5203,6 +5252,19 @@ select {
 
   .mixer-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mixer-destination {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mixer-destination [role="group"] {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .parametric-eq__graph {
@@ -6102,7 +6164,7 @@ select {
 }
 
 .mixer-channel__fader {
-  height: clamp(218px, calc(100vh - 470px), 410px);
+  height: clamp(218px, calc(100vh - 550px), 410px);
   min-height: 218px;
   margin-top: 10px;
 }
@@ -6757,5 +6819,84 @@ select {
 
   .parametric-eq__inspector {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+}
+
+/* Keep the complete mixer desk and ChatMix reachable at the supported 720 px height. */
+@media (max-height: 760px) and (min-width: 900px) {
+  .audio-tabs__inner {
+    height: 44px;
+  }
+
+  .mixer-workbench {
+    padding-top: 9px;
+    padding-bottom: 12px;
+  }
+
+  .mixer-workbench .audio-header {
+    min-height: 42px;
+    padding-bottom: 7px;
+  }
+
+  .mixer-workbench .audio-header__identity p {
+    display: none;
+  }
+
+  .mixer-destination {
+    min-height: 44px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .mixer-channel {
+    padding: 8px 10px;
+  }
+
+  .mixer-channel__settings {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mixer-channel__meta {
+    margin-top: 4px;
+  }
+
+  .mixer-channel__meta-row {
+    min-height: 26px;
+  }
+
+  .mixer-channel__fader {
+    height: 140px;
+    min-height: 140px;
+    margin-top: 6px;
+  }
+
+  .mixer-fader {
+    gap: 5px;
+  }
+
+  .mixer-fader__exact {
+    height: 24px;
+  }
+
+  .mixer-channel__mute {
+    margin-top: 6px;
+  }
+
+  .mixer-channel__apps {
+    min-height: 40px;
+    margin-top: 6px;
+    padding-top: 5px;
+  }
+
+  .mixer-channel__apps > p,
+  .mixer-channel__apps > ul {
+    margin-top: 3px;
+  }
+
+  .chatmix-control {
+    min-height: 46px;
+    margin-top: 7px;
+    padding-top: 7px;
   }
 }

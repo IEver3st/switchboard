@@ -1,7 +1,8 @@
 import { memo, type ComponentType, type CSSProperties } from 'react';
 import { AppWindow, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
-import type { AudioApplication, AudioBus, AudioDevice, AudioDeviceDirection } from '../../../../shared/contracts';
+import type { AudioApplication, AudioBus, AudioDevice, AudioDeviceDirection, AudioMixBus, AudioMixId } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 import { AudioDevicePicker } from './AudioDevicePicker';
@@ -11,6 +12,8 @@ import { MixerFader } from './MixerFader';
 
 export const MixerChannelStrip = memo(function MixerChannelStrip({
   bus,
+  control,
+  mixId,
   devices,
   icon: Icon,
   engineRunning,
@@ -21,9 +24,12 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
   onGainCommit,
   onEnabledChange,
   onDeviceChange,
+  onApplicationRoute,
   onOpen,
 }: {
   bus: AudioBus;
+  control: AudioMixBus;
+  mixId: AudioMixId;
   devices: AudioDevice[];
   icon: ComponentType<{ className?: string; style?: CSSProperties; 'aria-hidden'?: boolean }>;
   engineRunning: boolean;
@@ -34,10 +40,11 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
   onGainCommit: (gain: number) => void;
   onEnabledChange: (enabled: boolean) => void;
   onDeviceChange: (deviceId: string) => void;
+  onApplicationRoute: (applicationId: string, destination: AudioApplication['destination']) => void;
   onOpen: () => void;
 }) {
   const direction: AudioDeviceDirection = bus.id === 'mic' ? 'input' : 'output';
-  const channelActive = bus.enabled && !bus.muted;
+  const channelActive = control.enabled;
   const color = channelColor(bus.id);
   const settingsLabel = bus.id === 'mic' ? 'Voice settings' : 'Sound settings';
 
@@ -56,6 +63,7 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
               size="icon"
               className="mixer-channel__settings"
               aria-label={`Open ${bus.label} ${settingsLabel.toLowerCase()}`}
+              disabled={bus.id === 'aux'}
               onClick={onOpen}
             >
               <SlidersHorizontal className="size-3.5" />
@@ -76,7 +84,7 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
           <strong>{presetName ?? 'Custom'}</strong>
         </button>
         <div className="mixer-channel__meta-row">
-          <span>{direction === 'input' ? 'Input' : 'Output'}</span>
+          <span>{direction === 'input' ? 'Input' : 'Personal output'}</span>
           <AudioDevicePicker
             value={bus.deviceId}
             devices={devices}
@@ -90,7 +98,7 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
 
       <div className={cn('mixer-channel__fader', !channelActive && 'is-dimmed')}>
         <LevelMeter busId={bus.id} active={engineRunning && channelActive} label={bus.label} accentColor={color} />
-        <MixerFader value={bus.gain} disabled={!bus.enabled || pending} label={bus.label} accentColor={color} onCommit={onGainCommit} />
+        <MixerFader value={control.gain} disabled={!control.enabled || pending} label={`${bus.label} in ${mixId} mix`} accentColor={color} onCommit={onGainCommit} />
       </div>
 
       <div className="mixer-channel__mute">
@@ -103,7 +111,7 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
               disabled={pending}
               aria-label={`${channelActive ? 'Mute' : 'Unmute'} ${bus.label}`}
               aria-pressed={!channelActive}
-              onClick={() => onEnabledChange(!bus.enabled)}
+              onClick={() => onEnabledChange(!control.enabled)}
               className={cn('mixer-channel__mute-button', !channelActive && 'is-active')}
             >
               {channelActive ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
@@ -121,13 +129,35 @@ export const MixerChannelStrip = memo(function MixerChannelStrip({
           ) : (
             <ul>
               {applications.map((application) => (
-                <li key={application.id} className={cn(!application.active && 'is-inactive')}>
+                <li
+                  key={application.id}
+                  className={cn(!application.active && 'is-inactive')}
+                  title={application.routingState === 'pending-restart'
+                    ? `Restart ${application.name} to finish moving it from ${application.currentDestination} to ${application.destination}.`
+                    : undefined}
+                >
                   {application.iconDataUrl ? (
                     <img src={application.iconDataUrl} alt="" className="size-3.5 object-contain" />
                   ) : (
                     <AppWindow className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   )}
-                  <span className="truncate">{application.name}</span>
+                  <span className="mixer-channel__app-name truncate">{application.name}</span>
+                  {application.routingState === 'pending-restart' ? (
+                    <span className="mixer-channel__route-pending" aria-label="Application restart required" />
+                  ) : null}
+                  <Select
+                    value={application.destination}
+                    onValueChange={(destination) => onApplicationRoute(application.id, destination as AudioApplication['destination'])}
+                  >
+                    <SelectTrigger className="mixer-channel__route-select" aria-label={`Route ${application.name} to channel`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="game">Game</SelectItem>
+                      <SelectItem value="chat">Chat</SelectItem>
+                      <SelectItem value="media">Media</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </li>
               ))}
             </ul>

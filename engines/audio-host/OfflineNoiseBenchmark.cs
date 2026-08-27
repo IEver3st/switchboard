@@ -46,7 +46,7 @@ internal static class OfflineNoiseBenchmark
         {
             while (true)
             {
-                var read = sampleProvider.Read(frame, 0, frame.Length);
+                var read = sampleProvider.Read(frame);
                 if (read == 0) break;
                 if (read < frame.Length) Array.Clear(frame, read, frame.Length - read);
                 var frameStartedAt = Stopwatch.GetTimestamp();
@@ -90,4 +90,3 @@ internal static class OfflineNoiseBenchmark
         return null;
     }
 }
-

@@ -7,23 +7,44 @@ namespace Switchboard.AudioHost;
 internal sealed class EndpointService : IDisposable
 {
     private readonly MMDeviceEnumerator enumerator = new();
+    private readonly MMDeviceNotificationClient notifications;
+    private readonly ApplicationAudioPolicy applicationPolicy = new();
+    private int disposed;
+
+    public EndpointService()
+    {
+        notifications = enumerator.CreateNotificationClient(useSynchronizationContext: false);
+        notifications.DeviceStateChanged += (_, _) => Changed?.Invoke();
+        notifications.DeviceAdded += (_, _) => Changed?.Invoke();
+        notifications.DeviceRemoved += (_, _) => Changed?.Invoke();
+        notifications.DefaultDeviceChanged += (_, _) => Changed?.Invoke();
+        notifications.PropertyValueChanged += (_, _) => Changed?.Invoke();
+    }
+
+    public event Action? Changed;
+    public bool ApplicationRoutingAvailable => applicationPolicy.Available;
 
     public IReadOnlyList<AudioEndpoint> List()
     {
-        var defaultRender = TryGetDefault(DataFlow.Render)?.ID;
-        var defaultCapture = TryGetDefault(DataFlow.Capture)?.ID;
+        using var defaultRenderDevice = TryGetDefault(DataFlow.Render);
+        using var defaultCaptureDevice = TryGetDefault(DataFlow.Capture);
+        var defaultRender = defaultRenderDevice?.ID;
+        var defaultCapture = defaultCaptureDevice?.ID;
         var endpoints = new List<AudioEndpoint>();
 
-        foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active))
+        using var devices = enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active);
+        for (var index = 0; index < devices.Count; index++)
         {
+            using var device = devices[index];
             var isDefault = string.Equals(device.ID, defaultRender, StringComparison.OrdinalIgnoreCase)
                             || string.Equals(device.ID, defaultCapture, StringComparison.OrdinalIgnoreCase);
             float volume;
             bool muted;
             try
             {
-                volume = device.AudioEndpointVolume.MasterVolumeLevelScalar;
-                muted = device.AudioEndpointVolume.Mute;
+                var endpointVolume = device.AudioEndpointVolume;
+                volume = endpointVolume.MasterVolumeLevelScalar;
+                muted = endpointVolume.Mute;
             }
             catch
             {
@@ -60,21 +81,42 @@ internal sealed class EndpointService : IDisposable
         })
         {
             using var output = Open(endpoint.Id);
-            var sessions = output.AudioSessionManager.Sessions;
+            using var sessions = output.AudioSessionManager.Sessions;
             for (var index = 0; index < sessions.Count; index++)
             {
                 using var session = sessions[index];
                 var processId = checked((int)session.GetProcessID);
                 if (processId <= 0) continue;
+                var processName = ResolveProcessName(processId);
+                string? preferredEndpointId;
+                try { preferredEndpointId = applicationPolicy.GetRenderEndpoint(processId); }
+                catch { preferredEndpointId = null; }
+                var preferredDestination = DestinationForEndpoint(virtualEndpoints, preferredEndpointId);
                 result.Add(new AudioApplicationState(
                     session.GetSessionInstanceIdentifier,
-                    ResolveProcessName(processId, session.DisplayName),
+                    string.IsNullOrWhiteSpace(session.DisplayName) ? processName : session.DisplayName,
+                    processName,
                     processId,
+                    preferredDestination ?? busId,
                     busId,
+                    preferredDestination,
+                    preferredDestination is null ? "unmanaged" : preferredDestination == busId ? "applied" : "pending-restart",
                     session.State == AudioSessionState.AudioSessionStateActive));
             }
         }
         return result;
+    }
+
+    public void RouteApplication(AudioApplicationRouteRequest request, VirtualEndpointSet virtualEndpoints)
+    {
+        request.Validate();
+        using var process = Process.GetProcessById(request.ProcessId);
+        if (process.HasExited)
+        {
+            throw new InvalidOperationException($"Process {request.ProcessId} has exited.");
+        }
+
+        applicationPolicy.SetRenderEndpoint(request.ProcessId, virtualEndpoints.ForBus(request.Destination).Id);
     }
 
     private MMDevice? TryGetDefault(DataFlow flow)
@@ -83,15 +125,23 @@ internal sealed class EndpointService : IDisposable
         catch { return null; }
     }
 
-    private static string ResolveProcessName(int processId, string displayName)
+    private static string ResolveProcessName(int processId)
     {
-        if (!string.IsNullOrWhiteSpace(displayName)) return displayName;
         try
         {
             using var process = Process.GetProcessById(processId);
             return process.ProcessName;
         }
         catch { return $"Process {processId}"; }
+    }
+
+    private static string? DestinationForEndpoint(VirtualEndpointSet endpoints, string? endpointId)
+    {
+        if (string.IsNullOrWhiteSpace(endpointId)) return null;
+        if (string.Equals(endpointId, endpoints.Game.Id, StringComparison.OrdinalIgnoreCase)) return "game";
+        if (string.Equals(endpointId, endpoints.Chat.Id, StringComparison.OrdinalIgnoreCase)) return "chat";
+        if (string.Equals(endpointId, endpoints.Media.Id, StringComparison.OrdinalIgnoreCase)) return "media";
+        return null;
     }
 
     private static string? TryGetFormFactor(MMDevice device)
@@ -121,5 +171,11 @@ internal sealed class EndpointService : IDisposable
         catch { return null; }
     }
 
-    public void Dispose() => enumerator.Dispose();
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+        notifications.Dispose();
+        applicationPolicy.Dispose();
+        enumerator.Dispose();
+    }
 }

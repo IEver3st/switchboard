@@ -144,7 +144,7 @@ export function MicrophoneSignalStrip({
 
       <HorizontalLevelMeter
         busId="mic"
-        active={engineRunning && inputLive && Boolean(micBus?.enabled)}
+        active={engineRunning && inputLive && Boolean(snapshot.audio.mixes.find((mix) => mix.id === 'personal')?.buses.find((bus) => bus.id === 'mic')?.enabled)}
         inactiveLabel={state.label}
         label="Processed input level"
       />

@@ -54,6 +54,7 @@ describe('native microphone noise suppression contract', () => {
       },
       applications: [],
       buses: [{ id: 'mic', gain: 0.92, muted: false, applicationCount: 0 }],
+      mixes: createDefaultSnapshot().audio.mixes,
       microphone: {
         configurationVersion: 7,
         requestedInputDeviceId: 'physical-mic',

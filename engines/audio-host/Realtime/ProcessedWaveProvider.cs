@@ -13,10 +13,11 @@ internal sealed class ProcessedWaveProvider(BoundedFrameAdapter source) : IWaveP
 
     public void SetVolume(float value) => Volatile.Write(ref volume, Math.Clamp(value, 0f, 1f));
 
-    public int Read(byte[] buffer, int offset, int count)
+    public int Read(Span<byte> buffer)
     {
+        var count = buffer.Length;
         var alignedCount = count - count % sizeof(float);
-        var destination = MemoryMarshal.Cast<byte, float>(buffer.AsSpan(offset, alignedCount));
+        var destination = MemoryMarshal.Cast<byte, float>(buffer[..alignedCount]);
         var read = source.Read(destination);
         var gain = Volatile.Read(ref volume);
         for (var index = 0; index < read; index++) destination[index] *= gain;
@@ -25,8 +26,7 @@ internal sealed class ProcessedWaveProvider(BoundedFrameAdapter source) : IWaveP
             destination[read..].Clear();
             Interlocked.Increment(ref underruns);
         }
-        if (alignedCount < count) buffer.AsSpan(offset + alignedCount, count - alignedCount).Clear();
+        if (alignedCount < count) buffer[alignedCount..].Clear();
         return count;
     }
 }
-

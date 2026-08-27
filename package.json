@@ -26,8 +26,8 @@
     "check": "node ./scripts/check.mjs",
     "check:source": "node ./scripts/transpile-check.mjs",
     "check:types": "tsc -p tsconfig.node.json --noEmit --pretty false && tsc -p tsconfig.web.json --noEmit --pretty false",
-    "test:audio-host": "cargo build --manifest-path ./native/noise-bridge/Cargo.toml --release && dotnet run --project ./engines/audio-host-tests/Audio.Host.Tests.csproj",
-    "test": "bun test && dotnet run --project ./engines/capture-host-tests/Capture.Host.Tests.csproj && bun run test:audio-host",
+    "test:audio-host": "cargo build --manifest-path ./native/noise-bridge/Cargo.toml --release && dotnet run --configuration Release --project ./engines/audio-host-tests/Audio.Host.Tests.csproj",
+    "test": "bun test && dotnet run --configuration Release --project ./engines/capture-host-tests/Capture.Host.Tests.csproj && bun run test:audio-host",
     "validate": "bun run check && bun run check:types && bun run build",
     "check:workers": "node ./scripts/worker-smoke.cjs"
   },

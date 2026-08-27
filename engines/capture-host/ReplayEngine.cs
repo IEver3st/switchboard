@@ -13,8 +13,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private Process? ffmpeg;
     private Process? systemAudioFfmpeg;
     private Process? microphoneFfmpeg;
-    private AudioPipeCapture? systemAudio;
-    private AudioPipeCapture? microphoneAudio;
+    private IAudioPipeInput? systemAudio;
+    private IAudioPipeInput? microphoneAudio;
     private ReplaySegmentRing? ring;
     private CaptureSettings? settings;
     private CaptureSource? activeSource;
@@ -468,9 +468,14 @@ internal sealed class ReplayEngine : IAsyncDisposable
         try
         {
             var audioWarnings = new List<string>();
+            if (!string.IsNullOrWhiteSpace(capture.AudioFallbackReason)) audioWarnings.Add(capture.AudioFallbackReason);
             try
             {
-                systemAudio = capture.IncludeSystemAudio ? AudioPipeCapture.CreateSystemLoopback() : null;
+                systemAudio = !capture.IncludeSystemAudio
+                    ? null
+                    : capture.ClipMixPipeName is { Length: > 0 } pipeName
+                        ? new AudioHostPipeInput(pipeName, "Switchboard clip mix")
+                        : AudioPipeCapture.CreateSystemLoopback();
             }
             catch (Exception systemAudioError)
             {
@@ -479,7 +484,11 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
             try
             {
-                microphoneAudio = capture.IncludeMic ? AudioPipeCapture.CreateDefaultMicrophone() : null;
+                microphoneAudio = !capture.IncludeMic
+                    ? null
+                    : capture.ProcessedMicrophoneDeviceId is { Length: > 0 } endpointId
+                        ? AudioPipeCapture.CreateEndpoint(endpointId, "Processed microphone")
+                        : AudioPipeCapture.CreateDefaultMicrophone();
             }
             catch (Exception microphoneError)
             {
@@ -589,7 +598,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private ProcessStartInfo BuildAudioStartInfo(
         CaptureSettings capture,
         string outputDirectory,
-        AudioPipeCapture input,
+        IAudioPipeInput input,
         string filePrefix,
         int bitrateBps)
     {
@@ -1015,7 +1024,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     private string? GetAudioBackpressureWarning()
     {
-        var inputs = new[] { systemAudio, microphoneAudio }.Where(input => input is not null).Cast<AudioPipeCapture>();
+        var inputs = new[] { systemAudio, microphoneAudio }.Where(input => input is not null).Cast<IAudioPipeInput>();
         var audioInputs = inputs.ToArray();
         if (audioInputs.All(input => input.DroppedPackets == 0)) return null;
         var drops = audioInputs.Sum(input => input.DroppedPackets);
@@ -1066,14 +1075,16 @@ internal sealed class ReplayEngine : IAsyncDisposable
         if (systemAudioConcatPath is not null)
         {
             arguments.AddRange(["-map", $"{audioInputIndex}:a:0"]);
-            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}", "title=Game/System"]);
+            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}",
+                settings?.ClipMixPipeName is not null ? "title=Switchboard Clip Mix" : "title=Game/System"]);
             audioInputIndex++;
             audioOutputIndex++;
         }
         if (microphoneConcatPath is not null)
         {
             arguments.AddRange(["-map", $"{audioInputIndex}:a:0"]);
-            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}", "title=Microphone"]);
+            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}",
+                settings?.ProcessedMicrophoneDeviceId is not null ? "title=Processed Microphone" : "title=Microphone"]);
         }
         arguments.AddRange([
             "-c", "copy",
@@ -1129,7 +1140,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         return cachedSources;
     }
 
-    private static bool RequiresRestart(CaptureSettings previous, CaptureSettings next) =>
+    internal static bool RequiresRestart(CaptureSettings previous, CaptureSettings next) =>
         previous.Source != next.Source
         || previous.SourceId != next.SourceId
         || previous.DisplayIndex != next.DisplayIndex
@@ -1145,6 +1156,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         || previous.MaximumVideoBitrateBps != next.MaximumVideoBitrateBps
         || previous.SystemAudioBitrateBps != next.SystemAudioBitrateBps
         || previous.MicrophoneBitrateBps != next.MicrophoneBitrateBps
+        || previous.ClipMixPipeName != next.ClipMixPipeName
+        || previous.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId
         || previous.CacheDirectory != next.CacheDirectory;
 
     private static IEnumerable<string> EncoderCandidates(string codec) => codec switch

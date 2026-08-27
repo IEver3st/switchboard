@@ -21,6 +21,21 @@ Assert(complete.Snapshot().Endpoints.Count == 8, "Every canonical endpoint must 
 var incomplete = EndpointCatalog.Inspect(expected.Take(7).ToArray());
 Assert(!incomplete.Ready, "An incomplete driver package must not be reported as ready.");
 Assert(incomplete.Missing.Single() == $"{EndpointCatalog.Stream} (capture)", "The missing endpoint must be named precisely.");
+_ = new AudioApplicationRouteRequest(42, "game").Validate();
+AssertThrows<InvalidOperationException>(() => new AudioApplicationRouteRequest(0, "game").Validate(), "Application routes must reject the system process.");
+AssertThrows<InvalidOperationException>(() => new AudioApplicationRouteRequest(42, "aux").Validate(), "Application routes must reject non-assignable destinations.");
+
+using (var endpointService = new EndpointService())
+{
+    for (var warmup = 0; warmup < 4; warmup++) _ = endpointService.List();
+    using var process = System.Diagnostics.Process.GetCurrentProcess();
+    process.Refresh();
+    var handlesBefore = process.HandleCount;
+    for (var iteration = 0; iteration < 12; iteration++) _ = endpointService.List();
+    process.Refresh();
+    var retainedHandles = process.HandleCount - handlesBefore;
+    Assert(retainedHandles <= 8, $"Repeated endpoint snapshots retained {retainedHandles} OS handles.");
+}
 
 var ring = new SpscFloatRing(16);
 ring.WriteMono([0.25f, -0.5f, 0.75f]);
@@ -34,11 +49,14 @@ graph.Configure(new AudioHostSettings
 {
     Master = new AudioMasterConfiguration { Gain = 0.5f, Enabled = true },
     Buses = [new AudioBusConfiguration { Id = "game", Gain = 0.5f, Enabled = true }],
+    Mixes = DefaultMixes(personalMaster: 0.5f, personalGame: 0.5f),
     ChannelProcessing = DefaultChannelProcessing(),
 });
 var samples = new[] { 1f, -1f };
-graph.CreateProcessor("game").Process(samples);
+graph.CreateProcessor("personal", "game").Process(samples);
 AssertSequence(samples, [0.25f, -0.25f], "Bus and master gains must be applied to the routed signal.");
+
+TestIndependentDestinationMixes();
 
 TestChannelDsp();
 
@@ -64,6 +82,31 @@ static ChannelProcessingSettings[] DefaultChannelProcessing() => [
     Channel("chat"),
     Channel("media"),
 ];
+
+static AudioMixConfiguration[] DefaultMixes(
+    float personalMaster = 1f,
+    float personalGame = 1f,
+    bool personalMicEnabled = true) =>
+[
+    Mix("personal", personalMaster, personalGame, personalMicEnabled),
+    Mix("stream", 1f, 1f, true),
+    Mix("clip", 1f, 1f, true),
+];
+
+static AudioMixConfiguration Mix(string id, float master, float game, bool micEnabled) => new()
+{
+    Id = id,
+    Label = char.ToUpperInvariant(id[0]) + id[1..],
+    Master = new AudioMasterConfiguration { Gain = master, Enabled = true },
+    Buses =
+    [
+        new AudioMixBusConfiguration { Id = "game", Gain = game, Enabled = true },
+        new AudioMixBusConfiguration { Id = "chat", Gain = 1f, Enabled = true },
+        new AudioMixBusConfiguration { Id = "media", Gain = 1f, Enabled = true },
+        new AudioMixBusConfiguration { Id = "aux", Gain = 1f, Enabled = true },
+        new AudioMixBusConfiguration { Id = "mic", Gain = 1f, Enabled = micEnabled },
+    ],
+};
 
 static ChannelProcessingSettings Channel(
     string busId,
@@ -94,26 +137,82 @@ static void TestChannelDsp()
             new AudioBusConfiguration { Id = "chat", Gain = 1, Enabled = true },
             new AudioBusConfiguration { Id = "media", Gain = 1, Enabled = true },
         ],
+        Mixes = DefaultMixes(),
         ChannelProcessing = [Channel("game"), Channel("chat", equalizer: true), Channel("media", limiter: true)],
     });
 
     var dry = Enumerable.Range(0, 960).Select(index => MathF.Sin(index * 0.11f) * 0.2f).ToArray();
     var transparent = dry.ToArray();
-    graph.CreateProcessor("game").Process(transparent);
+    graph.CreateProcessor("personal", "game").Process(transparent);
     AssertSequence(transparent, dry, "A disabled channel graph must be bit transparent.");
 
     var equalized = dry.ToArray();
-    graph.CreateProcessor("chat").Process(equalized);
+    graph.CreateProcessor("personal", "chat").Process(equalized);
     Assert(!equalized.SequenceEqual(dry), "An enabled channel equalizer must alter routed samples.");
 
     var limited = Enumerable.Repeat(1f, 960).ToArray();
-    graph.CreateProcessor("media").Process(limited);
+    graph.CreateProcessor("personal", "media").Process(limited);
     Assert(limited.All(sample => MathF.Abs(sample) <= 0.502f), "The channel limiter must enforce its configured stereo ceiling.");
+}
+
+static void TestIndependentDestinationMixes()
+{
+    var graph = new RoutingControlGraph();
+    var mixes = DefaultMixes();
+    mixes[0] = Mix("personal", 0.5f, 0.5f, false);
+    mixes[1] = Mix("stream", 1f, 0.75f, true);
+    mixes[2] = Mix("clip", 0.25f, 1f, true);
+    graph.Configure(new AudioHostSettings
+    {
+        ChatMix = 0,
+        Mixes = mixes,
+        ChannelProcessing = DefaultChannelProcessing(),
+    });
+
+    var personalGame = new[] { 1f, -1f };
+    graph.CreateProcessor("personal", "game").Process(personalGame);
+    AssertSequence(personalGame, [0.25f, -0.25f], "The personal game mix must use only its own bus and master controls.");
+
+    var streamGame = new[] { 1f, -1f };
+    graph.CreateProcessor("stream", "game").Process(streamGame);
+    AssertSequence(streamGame, [0.75f, -0.75f], "The stream game mix must remain independent from personal controls.");
+
+    var clipGame = new[] { 1f, -1f };
+    graph.CreateProcessor("clip", "game").Process(clipGame);
+    AssertSequence(clipGame, [0.25f, -0.25f], "The clip game mix must use its own master control.");
+
+    var personalMic = new[] { 0.5f, -0.5f };
+    graph.CreateProcessor("personal", "mic").Process(personalMic);
+    AssertSequence(personalMic, [0f, 0f], "Personal microphone mute must affect the virtual microphone signal.");
+
+    var streamMic = new[] { 0.5f, -0.5f };
+    graph.CreateProcessor("stream", "mic").Process(streamMic);
+    AssertSequence(streamMic, [0.5f, -0.5f], "Stream microphone controls must not inherit the personal mute.");
+
+    graph.Configure(new AudioHostSettings
+    {
+        ChatMix = 1,
+        Mixes = DefaultMixes(),
+        ChannelProcessing = DefaultChannelProcessing(),
+    });
+    var gameAtFullChat = new[] { 1f, -1f };
+    graph.CreateProcessor("personal", "game").Process(gameAtFullChat);
+    AssertSequence(gameAtFullChat, [0f, 0f], "ChatMix must attenuate the personal game path at the full-chat extreme.");
+    var streamAtFullChat = new[] { 1f, -1f };
+    graph.CreateProcessor("stream", "game").Process(streamAtFullChat);
+    AssertSequence(streamAtFullChat, [1f, -1f], "ChatMix must not alter stream or clip destinations.");
 }
 
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static void AssertThrows<T>(Action operation, string message) where T : Exception
+{
+    try { operation(); }
+    catch (T) { return; }
+    throw new InvalidOperationException(message);
 }
 
 static void AssertSequence(IReadOnlyList<float> actual, IReadOnlyList<float> expected, string message)
@@ -391,6 +490,7 @@ static void TestMicrophoneSettingsParser()
             Processor("compressor", true, new { thresholdDb = -21f, ratio = 5.5f, attackMs = 8.5f, releaseMs = 240f, makeupDb = 4f }),
             Processor("limiter", true, new { thresholdDb = -2.5f, releaseMs = 125f }),
         ],
+        Mixes = DefaultMixes(),
         ChannelProcessing = DefaultChannelProcessing(),
     };
 
@@ -413,7 +513,7 @@ static void TestMonitoringVolume()
     Assert(source.Write(samples) == samples.Length, "The monitoring source must accept the test frame.");
     provider.SetVolume(0.25f);
     var buffer = new byte[samples.Length * sizeof(float)];
-    provider.Read(buffer, 0, buffer.Length);
+    provider.Read(buffer);
     AssertClose(0.25f, BitConverter.ToSingle(buffer, 0), 0.0001f, "Monitor volume must scale positive samples.");
     AssertClose(-0.125f, BitConverter.ToSingle(buffer, sizeof(float)), 0.0001f, "Monitor volume must scale negative samples.");
 }

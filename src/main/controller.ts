@@ -30,6 +30,7 @@ import {
   type SetClipTrimInput,
   type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
+  type SetAudioApplicationRouteInput,
   type SetAudioBusEnabledInput,
   type SetAudioBusGainInput,
   type SetAudioMasterEnabledInput,
@@ -94,6 +95,8 @@ export class AppController {
   private registeredShortcut: string | null = null;
   private captureRestartTimer: NodeJS.Timeout | null = null;
   private captureRestartAttempts = 0;
+  private captureAudioIntegrationSignature: string | null = null;
+  private captureAudioIntegrationUpdate: Promise<void> | null = null;
   private audioRestartTimer: NodeJS.Timeout | null = null;
   private audioRestartAttempts = 0;
   private audioDeviceRefresh: Promise<SystemSnapshot> | null = null;
@@ -301,7 +304,9 @@ export class AppController {
 
   public setAudioBusGain(input: SetAudioBusGainInput): SystemSnapshot {
     const snapshot = this.store.update((draft) => {
-      const bus = draft.audio.buses.find((candidate) => candidate.id === input.busId);
+      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
+      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
+      const bus = mix.buses.find((candidate) => candidate.id === input.busId);
       if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
       bus.gain = input.gain;
     });
@@ -311,7 +316,9 @@ export class AppController {
 
   public setAudioMasterGain(input: SetAudioMasterGainInput): SystemSnapshot {
     const snapshot = this.store.update((draft) => {
-      draft.audio.master.gain = input.gain;
+      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
+      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
+      mix.master.gain = input.gain;
     });
     this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
@@ -319,7 +326,9 @@ export class AppController {
 
   public setAudioMasterEnabled(input: SetAudioMasterEnabledInput): SystemSnapshot {
     const snapshot = this.store.update((draft) => {
-      draft.audio.master.enabled = input.enabled;
+      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
+      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
+      mix.master.enabled = input.enabled;
     });
     this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
@@ -327,7 +336,9 @@ export class AppController {
 
   public setAudioBusEnabled(input: SetAudioBusEnabledInput): SystemSnapshot {
     const snapshot = this.store.update((draft) => {
-      const bus = draft.audio.buses.find((candidate) => candidate.id === input.busId);
+      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
+      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
+      const bus = mix.buses.find((candidate) => candidate.id === input.busId);
       if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
       bus.enabled = input.enabled;
     });
@@ -371,6 +382,21 @@ export class AppController {
       this.engines.send('audio', 'configure', before.audio);
       throw error;
     }
+  }
+
+  public async setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<SystemSnapshot> {
+    const before = this.store.get();
+    if (before.audio.capabilities.applicationRouting !== 'available') {
+      throw new Error(before.audio.capabilities.reason ?? 'Application audio routing is unavailable.');
+    }
+    const application = before.audio.applications.find((candidate) => candidate.id === input.applicationId);
+    if (!application) throw new Error('That audio session is no longer available.');
+    const hostSnapshot = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'routeApplication', {
+      processId: application.processId,
+      destination: input.destination,
+    }, 15_000));
+    this.applyAudioHostSnapshot(hostSnapshot);
+    return this.store.get();
   }
 
   public async applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot> {
@@ -535,12 +561,6 @@ export class AppController {
     const normalized = Math.max(-1, Math.min(1, value));
     const snapshot = this.store.update((draft) => {
       draft.audio.chatMix = normalized;
-      const game = draft.audio.buses.find((bus) => bus.id === 'game');
-      const chat = draft.audio.buses.find((bus) => bus.id === 'chat');
-      if (game && chat) {
-        game.gain = Math.max(0.2, Math.min(1.2, 0.85 - normalized * 0.35));
-        chat.gain = Math.max(0.2, Math.min(1.2, 0.85 + normalized * 0.35));
-      }
     });
     this.engines.send('audio', 'configure', snapshot.audio);
     return snapshot;
@@ -575,6 +595,7 @@ export class AppController {
       if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
       this.captureRestartTimer = null;
       this.captureRestartAttempts = 0;
+      this.captureAudioIntegrationSignature = null;
       this.store.update((draft) => {
         draft.capture.config = nextConfig;
         draft.capture.runtime = {
@@ -603,6 +624,7 @@ export class AppController {
         const hostSnapshot = captureHostSnapshotSchema.parse(
           await this.engines.request('capture', 'configure', this.toHostSettings(nextConfig), 45_000),
         );
+        this.captureAudioIntegrationSignature = this.getCaptureAudioIntegrationSignature(nextConfig);
         this.applyCaptureSnapshot(hostSnapshot);
       }
     } catch (operationError) {
@@ -937,6 +959,7 @@ export class AppController {
     this.audioRestartTimer = null;
     if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
     this.captureRestartTimer = null;
+    this.captureAudioIntegrationUpdate = null;
     if (this.registeredShortcut) globalShortcut.unregister(this.registeredShortcut);
     this.captureSourceThumbnails.clear();
     if (this.gameScan) await this.gameScan.catch(() => undefined);
@@ -1020,6 +1043,7 @@ export class AppController {
       const hostSnapshot = captureHostSnapshotSchema.parse(
         await this.engines.request('capture', 'start', this.toHostSettings(config), 60_000),
       );
+      this.captureAudioIntegrationSignature = this.getCaptureAudioIntegrationSignature(config);
       this.applyCaptureSnapshot(hostSnapshot);
     } catch (error) {
       await this.engines.stop('capture');
@@ -1116,6 +1140,9 @@ export class AppController {
     } else if (status.kind === 'audio' && status.state === 'error') {
       this.scheduleAudioHostRecovery(status.message);
     }
+    if (status.kind === 'audio' && (status.state === 'stopped' || status.state === 'error')) {
+      this.scheduleCaptureAudioIntegrationSync();
+    }
   }
 
   private async initializeCaptureStorage(): Promise<void> {
@@ -1175,13 +1202,69 @@ export class AppController {
   }
 
   private toHostSettings(config: CaptureConfig, paths = this.capturePaths): Record<string, unknown> {
+    const audio = this.store.get().audio;
+    const switchboardAudioReady = audio.enabled
+      && audio.host?.running === true
+      && audio.capabilities.virtualChannels === 'available';
+    const processedMicrophone = audio.host?.driver.endpoints.find((endpoint) => (
+      endpoint.flow === 'capture' && endpoint.name === 'Switchboard Audio - Microphone'
+    ));
     return {
       ...config,
       ...getEncodingPreset(config),
       cacheDirectory: paths.cacheDirectory,
       clipsDirectory: paths.clipsDirectory,
       thumbnailDirectory: paths.thumbnailDirectory,
+      clipMixPipeName: switchboardAudioReady && config.includeSystemAudio ? 'switchboard-audio-clip-v1' : null,
+      processedMicrophoneDeviceId: switchboardAudioReady && config.includeMic ? processedMicrophone?.id ?? null : null,
+      audioFallbackReason: switchboardAudioReady || (!config.includeSystemAudio && !config.includeMic)
+        ? null
+        : 'Switchboard audio routing is unavailable; replay audio is using the current Windows default devices.',
     };
+  }
+
+  private getCaptureAudioIntegrationSignature(config: CaptureConfig): string {
+    const settings = this.toHostSettings(config);
+    return JSON.stringify([
+      settings.clipMixPipeName ?? null,
+      settings.processedMicrophoneDeviceId ?? null,
+      settings.audioFallbackReason ?? null,
+    ]);
+  }
+
+  private scheduleCaptureAudioIntegrationSync(): void {
+    if (this.disposed || this.captureAudioIntegrationUpdate) return;
+    const snapshot = this.store.get();
+    if (!snapshot.capture.config.enabled) {
+      this.captureAudioIntegrationSignature = null;
+      return;
+    }
+    const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
+    if (captureEngine?.state !== 'running') return;
+    const signature = this.getCaptureAudioIntegrationSignature(snapshot.capture.config);
+    if (signature === this.captureAudioIntegrationSignature) return;
+
+    const previousSignature = this.captureAudioIntegrationSignature;
+    this.captureAudioIntegrationSignature = signature;
+    this.captureAudioIntegrationUpdate = this.engines.request(
+      'capture',
+      'configure',
+      this.toHostSettings(snapshot.capture.config),
+      45_000,
+    ).then((raw) => {
+      this.applyCaptureSnapshot(captureHostSnapshotSchema.parse(raw));
+    }).catch((integrationError) => {
+      this.captureAudioIntegrationSignature = previousSignature;
+      if (this.disposed) return;
+      this.store.update((draft) => {
+        draft.capture.runtime.warning = `Replay audio could not follow the current Switchboard route: ${integrationError instanceof Error ? integrationError.message : String(integrationError)}`;
+      }, { persist: false });
+    }).finally(() => {
+      this.captureAudioIntegrationUpdate = null;
+      if (this.getCaptureAudioIntegrationSignature(this.store.get().capture.config) !== this.captureAudioIntegrationSignature) {
+        this.scheduleCaptureAudioIntegrationSync();
+      }
+    });
   }
 
   private applyEngineEvent(kind: 'audio' | 'capture', event: string, payload: unknown): void {
@@ -1220,6 +1303,7 @@ export class AppController {
       const applicationCounts = new Map(snapshot.buses.map((bus) => [bus.id, bus.applicationCount]));
       for (const bus of draft.audio.buses) bus.appCount = applicationCounts.get(bus.id) ?? 0;
     }, { persist: false });
+    this.scheduleCaptureAudioIntegrationSync();
   }
 
   private scheduleAudioHostRecovery(reason?: string): void {

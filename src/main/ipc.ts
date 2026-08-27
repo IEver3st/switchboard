@@ -14,6 +14,7 @@ import {
   setAudioChannelProcessorInputSchema,
   setAudioMonitoringInputSchema,
   setAudioBusDeviceInputSchema,
+  setAudioApplicationRouteInputSchema,
   setAudioBusEnabledInputSchema,
   setAudioBusGainInputSchema,
   setAudioMasterEnabledInputSchema,
@@ -124,6 +125,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setAudioBusDeviceInputSchema.parse(input),
     (input) => controller.setAudioBusDevice(input),
+  );
+  handle(
+    ipcChannels.setAudioApplicationRoute,
+    getMainWindow,
+    (input) => setAudioApplicationRouteInputSchema.parse(input),
+    (input) => controller.setAudioApplicationRoute(input),
   );
   handle(
     ipcChannels.applyAudioPreset,

@@ -18,6 +18,7 @@ const api: SwitchboardApi = {
   setAudioBusGain: (input) => ipcRenderer.invoke(ipcChannels.setAudioBusGain, input),
   setAudioBusEnabled: (input) => ipcRenderer.invoke(ipcChannels.setAudioBusEnabled, input),
   setAudioBusDevice: (input) => ipcRenderer.invoke(ipcChannels.setAudioBusDevice, input),
+  setAudioApplicationRoute: (input) => ipcRenderer.invoke(ipcChannels.setAudioApplicationRoute, input),
   applyAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.applyAudioPreset, input),
   createAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.createAudioPreset, input),
   renameAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.renameAudioPreset, input),

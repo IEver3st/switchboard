@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')]
-    [string]$Configuration = 'Release'
+    [string]$Configuration = 'Release',
+    [switch]$PrerequisitesOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +32,28 @@ function Test-PatchApplication {
 
 New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
 
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+if (-not (Test-Path -LiteralPath $vswhere)) { throw 'Visual Studio 2022 with Desktop development with C++ is required.' }
+$vsInstalls = @(& $vswhere -all -products * -requires Microsoft.Component.MSBuild -property installationPath) |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+$selectedInstall = $null
+foreach ($candidate in $vsInstalls) {
+    $candidateToolset = Join-Path $candidate 'MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\WindowsKernelModeDriver10.0'
+    if (Test-Path -LiteralPath $candidateToolset) {
+        $selectedInstall = $candidate
+        break
+    }
+}
+if ($null -eq $selectedInstall) {
+    throw 'The Windows Driver Kit Visual Studio component is not installed in any Visual Studio 2022 instance. Install the Windows 11 24H2 WDK, then rerun this command.'
+}
+$msbuild = Join-Path $selectedInstall 'MSBuild\Current\Bin\MSBuild.exe'
+if (-not (Test-Path -LiteralPath $msbuild)) { throw "MSBuild is missing from '$selectedInstall'." }
+if ($PrerequisitesOnly) {
+    Write-Host "Virtual-audio build prerequisites are available in $selectedInstall"
+    return
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot '.git'))) {
     & git clone --filter=blob:none --no-checkout $sampleRemote $sourceRoot
     if ($LASTEXITCODE -ne 0) { throw 'Unable to clone Microsoft Windows-driver-samples.' }
@@ -56,16 +79,6 @@ if (-not (Test-Path -LiteralPath $nugetPath)) {
 }
 & $nugetPath restore (Join-Path $sourceRoot 'packages.config') -PackagesDirectory (Join-Path $sourceRoot 'packages') -NonInteractive
 if ($LASTEXITCODE -ne 0) { throw 'Unable to restore the pinned Windows SDK and WDK packages.' }
-
-$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-if (-not (Test-Path -LiteralPath $vswhere)) { throw 'Visual Studio 2022 with Desktop development with C++ is required.' }
-$vsInstall = (& $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath).Trim()
-if (-not $vsInstall) { throw 'Visual Studio 2022 MSBuild was not found.' }
-$msbuild = Join-Path $vsInstall 'MSBuild\Current\Bin\MSBuild.exe'
-$toolset = Join-Path $vsInstall 'MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\WindowsKernelModeDriver10.0'
-if (-not (Test-Path -LiteralPath $toolset)) {
-    throw 'The Windows Driver Kit Visual Studio component is not installed. Install the Windows 11 24H2 WDK, then rerun this command.'
-}
 
 & $msbuild $solutionPath /m /p:Configuration=$Configuration /p:Platform=x64 /v:minimal
 if ($LASTEXITCODE -ne 0) { throw "Switchboard virtual-audio driver build failed with exit code $LASTEXITCODE." }

@@ -77,6 +77,7 @@ async Task<bool> HandleLineAsync(string line)
             "status" => engine.GetSnapshot(),
             "listEndpoints" => endpoints.List(),
             "listSessions" => ListSessions(),
+            "routeApplication" => engine.RouteApplication(ParseRoute(payload)),
             "shutdown" => engine.Stop(),
             _ => throw new InvalidOperationException($"Unknown command: {command}"),
         };
@@ -96,6 +97,14 @@ async Task<bool> HandleLineAsync(string line)
             await WriteAsync(new { type = "event", @event = "audioError", payload = new { message = commandError.Message } });
     }
     return false;
+}
+
+AudioApplicationRouteRequest ParseRoute(JsonElement payload)
+{
+    if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        throw new InvalidOperationException("An application route is required.");
+    return payload.Deserialize<AudioApplicationRouteRequest>(jsonOptions)?.Validate()
+           ?? throw new InvalidOperationException("The application route could not be parsed.");
 }
 
 object ListSessions()

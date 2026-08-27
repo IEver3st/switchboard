@@ -1,16 +1,93 @@
 {
-  "initial": {
-    "channelCount": 5,
-    "exactInputs": 5,
-    "horizontalOverflow": false,
-    "values": {
-      "Master": "100",
-      "Game": "100",
-      "Chat": "76",
-      "Media": "42",
-      "Microphone": "92"
+  "layouts": [
+    {
+      "viewport": {
+        "name": "1080x720",
+        "width": 1080,
+        "height": 720
+      },
+      "metrics": {
+        "channelCount": 6,
+        "exactInputs": 6,
+        "horizontalOverflow": false,
+        "destinationMixes": 3,
+        "selectedMix": "Personal",
+        "chatMixVisibleWithoutScroll": true,
+        "verticalGeometry": {
+          "chatMixBottom": 583,
+          "viewportBottom": 722,
+          "viewportClientHeight": 684,
+          "viewportScrollHeight": 684
+        },
+        "values": {
+          "Personal master": "100",
+          "Game in personal mix": "100",
+          "Chat in personal mix": "76",
+          "Media in personal mix": "42",
+          "Aux in personal mix": "100",
+          "Microphone in personal mix": "92"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "metrics": {
+        "channelCount": 6,
+        "exactInputs": 6,
+        "horizontalOverflow": false,
+        "destinationMixes": 3,
+        "selectedMix": "Personal",
+        "chatMixVisibleWithoutScroll": true,
+        "verticalGeometry": {
+          "chatMixBottom": 890,
+          "viewportBottom": 900,
+          "viewportClientHeight": 862,
+          "viewportScrollHeight": 935
+        },
+        "values": {
+          "Personal master": "100",
+          "Game in personal mix": "100",
+          "Chat in personal mix": "76",
+          "Media in personal mix": "42",
+          "Aux in personal mix": "100",
+          "Microphone in personal mix": "92"
+        }
+      }
+    },
+    {
+      "viewport": {
+        "name": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "metrics": {
+        "channelCount": 6,
+        "exactInputs": 6,
+        "horizontalOverflow": false,
+        "destinationMixes": 3,
+        "selectedMix": "Personal",
+        "chatMixVisibleWithoutScroll": true,
+        "verticalGeometry": {
+          "chatMixBottom": 950,
+          "viewportBottom": 1080,
+          "viewportClientHeight": 1042,
+          "viewportScrollHeight": 1042
+        },
+        "values": {
+          "Personal master": "100",
+          "Game in personal mix": "100",
+          "Chat in personal mix": "76",
+          "Media in personal mix": "42",
+          "Aux in personal mix": "100",
+          "Microphone in personal mix": "92"
+        }
+      }
     }
-  },
+  ],
   "dragReadout": {
     "visible": true,
     "text": "123%",
@@ -18,18 +95,74 @@
     "opacity": "1"
   },
   "restored": {
-    "channelCount": 5,
-    "exactInputs": 5,
-    "horizontalOverflow": false,
-    "values": {
-      "Master": "127",
-      "Game": "83",
-      "Chat": "76",
-      "Media": "42",
-      "Microphone": "92"
+    "personal": {
+      "channelCount": 6,
+      "exactInputs": 6,
+      "horizontalOverflow": false,
+      "destinationMixes": 3,
+      "selectedMix": "Personal",
+      "chatMixVisibleWithoutScroll": true,
+      "verticalGeometry": {
+        "chatMixBottom": 890,
+        "viewportBottom": 900,
+        "viewportClientHeight": 862,
+        "viewportScrollHeight": 935
+      },
+      "values": {
+        "Personal master": "127",
+        "Game in personal mix": "83",
+        "Chat in personal mix": "76",
+        "Media in personal mix": "42",
+        "Aux in personal mix": "100",
+        "Microphone in personal mix": "92"
+      }
+    },
+    "stream": {
+      "channelCount": 6,
+      "exactInputs": 6,
+      "horizontalOverflow": false,
+      "destinationMixes": 3,
+      "selectedMix": "Stream",
+      "chatMixVisibleWithoutScroll": true,
+      "verticalGeometry": {
+        "chatMixBottom": 890,
+        "viewportBottom": 900,
+        "viewportClientHeight": 862,
+        "viewportScrollHeight": 935
+      },
+      "values": {
+        "Stream master": "100",
+        "Game in stream mix": "61",
+        "Chat in stream mix": "100",
+        "Media in stream mix": "80",
+        "Aux in stream mix": "0",
+        "Microphone in stream mix": "100"
+      }
+    },
+    "clip": {
+      "channelCount": 6,
+      "exactInputs": 6,
+      "horizontalOverflow": false,
+      "destinationMixes": 3,
+      "selectedMix": "Clip",
+      "chatMixVisibleWithoutScroll": true,
+      "verticalGeometry": {
+        "chatMixBottom": 890,
+        "viewportBottom": 900,
+        "viewportClientHeight": 862,
+        "viewportScrollHeight": 935
+      },
+      "values": {
+        "Clip master": "100",
+        "Game in clip mix": "100",
+        "Chat in clip mix": "55",
+        "Media in clip mix": "75",
+        "Aux in clip mix": "0",
+        "Microphone in clip mix": "44"
+      }
     }
   },
-  "masterRoundTrip": true,
-  "gameRoundTrip": true,
+  "personalRoundTrip": true,
+  "destinationIsolation": true,
   "muteRoundTrip": true
 }

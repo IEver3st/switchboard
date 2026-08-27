@@ -10,9 +10,9 @@ internal sealed class RecordedWaveProvider(float[] samples, int sampleCount, flo
     public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.ProcessingSampleRate, 1);
     public bool Completed => Volatile.Read(ref position) >= sampleCount;
 
-    public int Read(byte[] buffer, int offset, int count)
+    public int Read(Span<byte> buffer)
     {
-        var destination = MemoryMarshal.Cast<byte, float>(buffer.AsSpan(offset, count - count % sizeof(float)));
+        var destination = MemoryMarshal.Cast<byte, float>(buffer[..(buffer.Length - buffer.Length % sizeof(float))]);
         var current = Volatile.Read(ref position);
         var available = Math.Min(destination.Length, Math.Max(0, sampleCount - current));
         if (available == 0) return 0;

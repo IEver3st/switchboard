@@ -7,9 +7,12 @@
 - JSON-lines control protocol.
 - Windows endpoint and application-session discovery through NAudio/Core Audio.
 - WASAPI loopback capture for Game, Chat, Media, and Aux virtual render endpoints.
-- Grouped playback to the physical output selected for each bus.
+- Independent Personal, Stream, and Clip destination mixes with per-bus gain, mute, and master controls.
+- Grouped Personal-mix playback to the physical output selected for each bus.
 - Processed physical-microphone feed to the virtual Microphone transport.
-- Bus-plus-microphone broadcast mix to the virtual Stream transport.
+- Bus-plus-microphone broadcast mix to the virtual Stream transport and a bounded Clip named pipe consumed directly by Capture.Host.
+- Per-process render-endpoint policy assignment with immediate readback and a pending-restart state when Windows retains an existing session.
+- Event-driven endpoint recovery and deterministic Core Audio resource disposal.
 - Lock-free, preallocated transport rings and real 20 Hz meter frames.
 - Game, chat, media, and aux bus state.
 - ChatMix gain law.
@@ -52,6 +55,7 @@ Useful diagnostic commands:
 {"requestId":"2","command":"status"}
 {"requestId":"3","command":"listSessions"}
 {"requestId":"4","command":"testMicrophone"}
+{"requestId":"5","command":"routeApplication","payload":{"processId":1234,"destination":"game"}}
 ```
 
 Run the offline quality/benchmark path against any local 48 kHz mono WAV with the same production graph:

@@ -12,6 +12,8 @@ A distributable package must be built with the Windows 11 24H2 SDK/WDK, use uniq
 
 `bun run build:virtual-audio-driver` checks out Microsoft Windows-driver-samples at commit `717778a20ba4dd2440fe609f69153a1f8a64f597`, applies `patches/simpleaudiosample-switchboard.patch`, restores WDK `10.0.26100.6584`, and builds the x64 package. Visual Studio 2022 must have its **Windows Driver Kit** individual component installed; the WDK NuGet payload alone does not install the MSBuild driver toolset.
 
+For a fast local prerequisite check that does not clone or download anything, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-virtual-audio-driver.ps1 -PrerequisitesOnly`.
+
 The patch replaces the sample tone generator with fixed, nonpaged single-producer/single-consumer transport rings for the Microphone and Stream pairs. Game, Chat, Media, and Aux are ordinary WaveRT render endpoints consumed through WASAPI loopback. All endpoint formats are 48 kHz, stereo, 32-bit PCM; no DSP or product policy runs in kernel mode.
 
 Installation is intentionally separate from the build because Windows only loads an accepted kernel-driver signature. From an elevated PowerShell session, run `scripts\install-virtual-audio-driver.ps1 -PackageDirectory <built-package>`. The installer rejects an invalid catalog unless `-AllowTestSigned` is explicitly supplied on an isolated test-mode machine, and verifies all eight endpoints after Windows accepts the package.

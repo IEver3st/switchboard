@@ -22,7 +22,10 @@ internal sealed record CaptureSettings(
     int MicrophoneBitrateBps = 128_000,
     string CacheDirectory = "",
     string ClipsDirectory = "",
-    string ThumbnailDirectory = "")
+    string ThumbnailDirectory = "",
+    string? ClipMixPipeName = null,
+    string? ProcessedMicrophoneDeviceId = null,
+    string? AudioFallbackReason = null)
 {
     public int SegmentSeconds => 1;
     public int SegmentRetentionSeconds => ReplaySeconds + SegmentSeconds * 3;
@@ -49,6 +52,8 @@ internal sealed record CaptureSettings(
             throw new ArgumentOutOfRangeException(nameof(TargetVideoBitrateBps));
         if (string.IsNullOrWhiteSpace(CacheDirectory) || string.IsNullOrWhiteSpace(ClipsDirectory))
             throw new InvalidOperationException("Capture storage paths are required.");
+        if (ClipMixPipeName is not null && ClipMixPipeName != "switchboard-audio-clip-v1")
+            throw new InvalidOperationException("The clip-mix pipe identity is invalid.");
         return this;
     }
 }

@@ -23,6 +23,12 @@ internal sealed record AudioEndpoint(
     bool IsSwitchboard);
 
 internal sealed record AudioBusState(string Id, float Gain, bool Muted, int ApplicationCount);
+internal sealed record AudioMixBusState(string Id, float Gain, bool Enabled);
+internal sealed record AudioMixState(
+    string Id,
+    string Label,
+    AudioMasterConfiguration Master,
+    IReadOnlyCollection<AudioMixBusState> Buses);
 internal sealed record ProcessorState(string Id, bool Enabled);
 
 internal sealed record AudioHostStatus(
@@ -50,9 +56,24 @@ internal sealed record VirtualDriverState(
 internal sealed record AudioApplicationState(
     string Id,
     string Name,
+    string ExecutableName,
     int ProcessId,
     string Destination,
+    string CurrentDestination,
+    string? PreferredDestination,
+    string RoutingState,
     bool Active);
+
+internal sealed record AudioApplicationRouteRequest(int ProcessId, string Destination)
+{
+    public AudioApplicationRouteRequest Validate()
+    {
+        if (ProcessId <= 0) throw new InvalidOperationException("A positive application process identifier is required.");
+        if (Destination is not ("game" or "chat" or "media"))
+            throw new InvalidOperationException("The application destination must be game, chat, or media.");
+        return this;
+    }
+}
 
 internal sealed record AudioRuntimeSnapshot(
     VirtualDriverState Driver,
@@ -80,9 +101,26 @@ internal sealed class AudioMasterConfiguration
 internal sealed class AudioBusConfiguration
 {
     public string Id { get; init; } = string.Empty;
+    // Retained for the dormant compatibility graph. Canonical destination controls
+    // are supplied through AudioHostSettings.Mixes.
     public float Gain { get; init; } = 1f;
     public bool Enabled { get; init; } = true;
     public string DeviceId { get; init; } = string.Empty;
+}
+
+internal sealed class AudioMixConfiguration
+{
+    public string Id { get; init; } = string.Empty;
+    public string Label { get; init; } = string.Empty;
+    public AudioMasterConfiguration Master { get; init; } = new();
+    public IReadOnlyList<AudioMixBusConfiguration> Buses { get; init; } = [];
+}
+
+internal sealed class AudioMixBusConfiguration
+{
+    public string Id { get; init; } = string.Empty;
+    public float Gain { get; init; } = 1f;
+    public bool Enabled { get; init; } = true;
 }
 
 internal sealed class AudioProcessorConfiguration
@@ -103,6 +141,7 @@ internal sealed class AudioHostSettings
     public bool MonitoringEnabled { get; init; }
     public string MonitoringDeviceId { get; init; } = string.Empty;
     public IReadOnlyList<AudioBusConfiguration> Buses { get; init; } = [];
+    public IReadOnlyList<AudioMixConfiguration> Mixes { get; init; } = [];
     public IReadOnlyList<MicrophoneProcessorSettings> MicProcessors { get; init; } = [];
     public IReadOnlyList<ChannelProcessingSettings> ChannelProcessing { get; init; } = [];
     public AudioBusConfiguration? MicrophoneBus => Buses.FirstOrDefault(bus => bus.Id.Equals("mic", StringComparison.OrdinalIgnoreCase));
@@ -110,10 +149,27 @@ internal sealed class AudioHostSettings
     public AudioHostSettings Validate()
     {
         if (SampleRate != AudioConstants.ProcessingSampleRate) throw new InvalidOperationException("Audio.Host requires 48 kHz audio.");
-        if (Master.Gain is < 0f or > 1.5f) throw new InvalidOperationException("Master gain must be between 0 and 1.5.");
         if (Monitoring is < 0f or > 1f) throw new InvalidOperationException("Monitoring level must be between 0 and 1.");
         if (Buses.GroupBy(bus => bus.Id, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
             throw new InvalidOperationException("Audio bus identifiers must be unique.");
+        var requiredMixes = new[] { "personal", "stream", "clip" };
+        if (Mixes.Count != requiredMixes.Length
+            || requiredMixes.Any(id => Mixes.Count(mix => mix.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) != 1))
+            throw new InvalidOperationException("Personal, stream, and clip mix configurations are required.");
+        foreach (var mix in Mixes)
+        {
+            if (mix.Master.Gain is < 0f or > 1.5f)
+                throw new InvalidOperationException($"The {mix.Id} master gain must be between 0 and 1.5.");
+            if (mix.Buses.GroupBy(bus => bus.Id, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
+                throw new InvalidOperationException($"The {mix.Id} mix bus identifiers must be unique.");
+            foreach (var busId in new[] { "game", "chat", "media", "aux", "mic" })
+            {
+                var bus = mix.Buses.SingleOrDefault(candidate => candidate.Id.Equals(busId, StringComparison.OrdinalIgnoreCase))
+                          ?? throw new InvalidOperationException($"The {mix.Id} mix is missing the {busId} bus.");
+                if (bus.Gain is < 0f or > 1.5f)
+                    throw new InvalidOperationException($"The {mix.Id} {busId} gain must be between 0 and 1.5.");
+            }
+        }
         if (ChannelProcessing.GroupBy(path => path.BusId, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
             throw new InvalidOperationException("Channel processing identifiers must be unique.");
         foreach (var busId in new[] { "game", "chat", "media" })
@@ -250,4 +306,5 @@ internal sealed record AudioHostSnapshot(
     VirtualDriverState Driver,
     IReadOnlyCollection<AudioApplicationState> Applications,
     IReadOnlyCollection<AudioBusState> Buses,
+    IReadOnlyCollection<AudioMixState> Mixes,
     MicrophoneRuntime Microphone);

@@ -8,6 +8,7 @@ import type {
   RenameAudioPresetInput,
   SetAudioChannelProcessorInput,
   SetAudioBusDeviceInput,
+  SetAudioApplicationRouteInput,
   SetAudioBusEnabledInput,
   SetAudioBusGainInput,
   SetAudioMasterEnabledInput,
@@ -161,13 +162,15 @@ function syncAudioMeterTimer(): void {
 
   audioMeterTimer = window.setInterval(() => {
     meterPhase += 0.17;
+    const personalMix = snapshot.audio.mixes.find((mix) => mix.id === 'personal');
     const frame: AudioMeterFrame = {
       sequence: meterSequence++,
       timestamp: new Date().toISOString(),
       values: snapshot.audio.buses.map((bus, index) => {
         const movement = 0.52 + Math.sin(meterPhase + index * 1.31) * 0.22 + Math.sin(meterPhase * 0.43 + index) * 0.12;
-        const level = bus.enabled && !bus.muted
-          ? Math.max(0, Math.min(1, bus.meter * movement * Math.min(1.25, bus.gain + 0.18)))
+        const control = personalMix?.buses.find((candidate) => candidate.id === bus.id);
+        const level = control?.enabled
+          ? Math.max(0, Math.min(1, bus.meter * movement * Math.min(1.25, control.gain + 0.18)))
           : 0;
         const peak = Math.min(1, level + 0.055);
         return { busId: bus.id, level, peak, clipping: peak >= 0.985 };
@@ -264,16 +267,18 @@ const demoApi: SwitchboardApi = {
     return emit();
   },
   async setAudioBusGain(input: SetAudioBusGainInput) {
-    const bus = snapshot.audio.buses.find((candidate) => candidate.id === input.busId);
+    const bus = snapshot.audio.mixes.find((candidate) => candidate.id === input.mixId)?.buses.find((candidate) => candidate.id === input.busId);
     if (bus) bus.gain = input.gain;
     return emit();
   },
   async setAudioMasterGain(input: SetAudioMasterGainInput) {
-    snapshot.audio.master.gain = input.gain;
+    const mix = snapshot.audio.mixes.find((candidate) => candidate.id === input.mixId);
+    if (mix) mix.master.gain = input.gain;
     return emit();
   },
   async setAudioMasterEnabled(input: SetAudioMasterEnabledInput) {
-    snapshot.audio.master.enabled = input.enabled;
+    const mix = snapshot.audio.mixes.find((candidate) => candidate.id === input.mixId);
+    if (mix) mix.master.enabled = input.enabled;
     return emit();
   },
   async setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput) {
@@ -294,7 +299,7 @@ const demoApi: SwitchboardApi = {
     return emit();
   },
   async setAudioBusEnabled(input: SetAudioBusEnabledInput) {
-    const bus = snapshot.audio.buses.find((candidate) => candidate.id === input.busId);
+    const bus = snapshot.audio.mixes.find((candidate) => candidate.id === input.mixId)?.buses.find((candidate) => candidate.id === input.busId);
     if (bus) bus.enabled = input.enabled;
     return emit();
   },
@@ -306,6 +311,14 @@ const demoApi: SwitchboardApi = {
       if (bus.id === 'mic') snapshot.audio.microphoneDevice = device.name;
       if (bus.id === 'game') snapshot.audio.outputDevice = device.name;
     }
+    return emit();
+  },
+  async setAudioApplicationRoute(input: SetAudioApplicationRouteInput) {
+    const application = snapshot.audio.applications.find((candidate) => candidate.id === input.applicationId);
+    if (!application) throw new Error('That audio session is no longer available.');
+    application.destination = input.destination;
+    application.preferredDestination = input.destination;
+    application.routingState = application.currentDestination === input.destination ? 'applied' : 'pending-restart';
     return emit();
   },
   async applyAudioPreset(input: ApplyAudioPresetInput) {
@@ -393,12 +406,6 @@ const demoApi: SwitchboardApi = {
   },
   async setChatMix(value: number) {
     snapshot.audio.chatMix = value;
-    const game = snapshot.audio.buses.find((bus) => bus.id === 'game');
-    const chat = snapshot.audio.buses.find((bus) => bus.id === 'chat');
-    if (game && chat) {
-      game.gain = Math.max(0.2, Math.min(1.2, 0.85 - value * 0.35));
-      chat.gain = Math.max(0.2, Math.min(1.2, 0.85 + value * 0.35));
-    }
     return emit();
   },
   async setMicProcessor(input: SetMicProcessorInput) {

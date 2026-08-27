@@ -6,11 +6,27 @@ using NAudio.Wave;
 
 namespace Switchboard.CaptureHost;
 
-internal sealed class AudioPipeCapture : IAsyncDisposable
+internal interface IAudioPipeInput : IAsyncDisposable
+{
+    string Label { get; }
+    string PipePath { get; }
+    int SampleRate { get; }
+    int Channels { get; }
+    string FfmpegSampleFormat { get; }
+    long DroppedPackets { get; }
+    long CapturedBytes { get; }
+    long WrittenBytes { get; }
+    int BytesPerSecond { get; }
+    string? Error { get; }
+    Task ConnectAndStartAsync(CancellationToken cancellationToken);
+}
+
+internal sealed class AudioPipeCapture : IAudioPipeInput
 {
     private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
 
     private readonly IWaveIn capture;
+    private readonly MMDevice? heldEndpoint;
     private readonly NamedPipeServerStream pipe;
     private readonly Channel<AudioPacket> packets;
     private readonly CancellationTokenSource lifetime = new();
@@ -22,9 +38,10 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
     private long capturedBytes;
     private long writtenBytes;
 
-    private AudioPipeCapture(IWaveIn capture, string label)
+    private AudioPipeCapture(IWaveIn capture, string label, MMDevice? heldEndpoint = null)
     {
         this.capture = capture;
+        this.heldEndpoint = heldEndpoint;
         Label = label;
         PipeName = $"switchboard-capture-{Environment.ProcessId}-{Guid.NewGuid():N}";
         pipe = new NamedPipeServerStream(
@@ -73,7 +90,23 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
         using var enumerator = new MMDeviceEnumerator();
         var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
         var capture = new WasapiCapture(endpoint, useEventSync: true, audioBufferMillisecondsLength: 50);
-        return new AudioPipeCapture(capture, "Microphone");
+        return new AudioPipeCapture(capture, "Microphone", endpoint);
+    }
+
+    public static AudioPipeCapture CreateEndpoint(string endpointId, string label)
+    {
+        using var enumerator = new MMDeviceEnumerator();
+        var endpoint = enumerator.GetDevice(endpointId);
+        try
+        {
+            var capture = new WasapiCapture(endpoint, useEventSync: true, audioBufferMillisecondsLength: 50);
+            return new AudioPipeCapture(capture, label, endpoint);
+        }
+        catch
+        {
+            endpoint.Dispose();
+            throw;
+        }
     }
 
     public async Task ConnectAndStartAsync(CancellationToken cancellationToken)
@@ -101,6 +134,7 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
         capture.DataAvailable -= OnDataAvailable;
         capture.RecordingStopped -= OnRecordingStopped;
         capture.Dispose();
+        heldEndpoint?.Dispose();
         await pipe.DisposeAsync();
         lifetime.Dispose();
     }
@@ -199,4 +233,20 @@ internal sealed class AudioPipeCapture : IAsyncDisposable
     {
         public void Return() => ArrayPool<byte>.Shared.Return(Buffer);
     }
+}
+
+internal sealed class AudioHostPipeInput(string pipeName, string label) : IAudioPipeInput
+{
+    public string Label { get; } = label;
+    public string PipePath { get; } = $@"\\.\pipe\{pipeName}";
+    public int SampleRate => 48_000;
+    public int Channels => 2;
+    public string FfmpegSampleFormat => "f32le";
+    public long DroppedPackets => 0;
+    public long CapturedBytes => 0;
+    public long WrittenBytes => 0;
+    public int BytesPerSecond => SampleRate * Channels * sizeof(float);
+    public string? Error => null;
+    public Task ConnectAndStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
