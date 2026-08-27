@@ -48,18 +48,34 @@ describe('native microphone noise suppression contract', () => {
       driver: {
         state: 'not-installed',
         interfaceName: 'Switchboard Virtual Audio Device',
-        missingEndpoints: ['Switchboard - Game (render)'],
+        missingEndpoints: ['Switchboard Audio - Gaming (render)'],
         endpoints: [],
         message: 'The virtual driver is not installed.',
       },
       applications: [],
       buses: [{ id: 'mic', gain: 0.92, muted: false, applicationCount: 0 }],
+      microphone: {
+        configurationVersion: 7,
+        requestedInputDeviceId: 'physical-mic',
+        activeInputDeviceId: 'physical-mic',
+        inputFormat: '48 kHz mono float',
+        processors: [{ id: 'gain', enabled: true, parameters: { gainDb: 2.5 } }],
+        monitoring: {
+          requested: true,
+          active: true,
+          level: 0.18,
+          requestedDeviceId: 'headphones',
+          activeDeviceId: 'headphones',
+        },
+      },
     });
 
     expect(parsed.noiseSuppression.modelHash).toBeNull();
     expect(parsed.noiseSuppression.lastError).toBeNull();
     expect(parsed.inputDeviceId).toBeNull();
     expect(parsed.error).toBeNull();
+    expect(parsed.microphone?.processors[0]?.parameters.gainDb).toBe(2.5);
+    expect(parsed.microphone?.monitoring.active).toBeTrue();
   });
 
   test('migrates persisted audio capabilities created before noise suppression existed', () => {

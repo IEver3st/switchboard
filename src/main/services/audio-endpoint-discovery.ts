@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import {
   audioEndpointFormFactorSchema,
@@ -66,6 +66,14 @@ export class AudioEndpointDiscovery {
     }
 
     if (process.env.SWITCHBOARD_NATIVE_REVIEW === '1') {
+      const reviewExecutable = process.env.SWITCHBOARD_NATIVE_REVIEW_AUDIO_HOST;
+      if (reviewExecutable && existsSync(reviewExecutable)) {
+        return {
+          command: reviewExecutable,
+          arguments: ['--list-endpoints'],
+          cwd: dirname(reviewExecutable),
+        };
+      }
       const directory = join(this.options.appPath, 'engines', 'audio-host', 'bin', 'Debug', 'net10.0-windows');
       const executable = join(directory, 'Audio.Host.exe');
       if (existsSync(executable)) {

@@ -38,4 +38,28 @@ describe('audio path presets', () => {
     expect(audioPresetFileSchema.safeParse({ schemaVersion: 2, preset }).success).toBe(false);
     expect(audioPresetFileSchema.safeParse({ schemaVersion: 1, preset }).success).toBe(true);
   });
+
+  test('does not claim an imported monitoring output that is unavailable', () => {
+    const audio = structuredClone(defaultAudio);
+    audio.devices = [{
+      id: 'headphones',
+      name: 'Headphones',
+      direction: 'output',
+      isDefault: true,
+      available: true,
+      formFactor: 'headphones',
+      isVirtual: false,
+      isSwitchboard: false,
+    }];
+    audio.monitoringDeviceId = 'headphones';
+    const preset = snapshotAudioPathPreset(audio, 'microphone', 'imported-mic', 'Imported microphone');
+    if (preset.kind !== 'microphone') throw new Error('Expected a microphone preset.');
+    preset.monitoring = { enabled: true, level: 0.4, deviceId: 'missing-output' };
+
+    applyAudioPathPreset(audio, preset);
+
+    expect(audio.monitoringDeviceId).toBe('headphones');
+    expect(audio.monitoringEnabled).toBeTrue();
+    expect(audio.activePresetIds.microphone).toBeNull();
+  });
 });

@@ -79,6 +79,19 @@ internal sealed class SpscFloatRing : ISampleProvider
     }
 }
 
+internal sealed class SilentSampleProvider : ISampleProvider
+{
+    public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(
+        AudioConstants.SampleRate,
+        AudioConstants.Channels);
+
+    public int Read(float[] buffer, int offset, int count)
+    {
+        Array.Clear(buffer, offset, count);
+        return count;
+    }
+}
+
 internal sealed class CaptureFanOut : IDisposable
 {
     private readonly WasapiCapture capture;
@@ -122,19 +135,16 @@ internal sealed class CaptureFanOut : IDisposable
 internal sealed class ProcessedSampleProvider : ISampleProvider
 {
     private readonly ISampleProvider source;
-    private readonly RoutingControlGraph graph;
-    private readonly string busId;
+    private readonly RoutingBusProcessor processor;
     private readonly RealtimeMeter? meter;
 
     public ProcessedSampleProvider(
         ISampleProvider source,
-        RoutingControlGraph graph,
-        string busId,
+        RoutingBusProcessor processor,
         RealtimeMeter? meter = null)
     {
         this.source = source;
-        this.graph = graph;
-        this.busId = busId;
+        this.processor = processor;
         this.meter = meter;
     }
 
@@ -144,7 +154,7 @@ internal sealed class ProcessedSampleProvider : ISampleProvider
     {
         var read = source.Read(buffer, offset, count);
         var span = buffer.AsSpan(offset, read);
-        graph.Process(span, busId);
+        processor.Process(span);
         meter?.Observe(span);
         return read;
     }

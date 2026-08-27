@@ -402,6 +402,43 @@ export const audioApplicationSchema = z.object({
 });
 export type AudioApplication = z.infer<typeof audioApplicationSchema>;
 
+export const micProcessorIdSchema = z.enum([
+  'gain',
+  'noise-gate',
+  'noise-suppression',
+  'equalizer',
+  'compressor',
+  'limiter',
+]);
+export type MicProcessorId = z.infer<typeof micProcessorIdSchema>;
+
+export const configuredMicProcessorSchema = z.object({
+  id: micProcessorIdSchema,
+  enabled: z.boolean(),
+  parameters: z.record(z.string(), z.unknown()),
+});
+export type ConfiguredMicProcessor = z.infer<typeof configuredMicProcessorSchema>;
+
+export const microphoneMonitoringRuntimeSchema = z.object({
+  requested: z.boolean(),
+  active: z.boolean(),
+  level: z.number().min(0).max(1),
+  requestedDeviceId: z.string().nullable().default(null),
+  activeDeviceId: z.string().nullable().default(null),
+});
+export type MicrophoneMonitoringRuntime = z.infer<typeof microphoneMonitoringRuntimeSchema>;
+
+export const microphoneRuntimeSchema = z.object({
+  configurationVersion: z.number().int().nonnegative(),
+  requestedInputDeviceId: z.string().nullable().default(null),
+  activeInputDeviceId: z.string().nullable().default(null),
+  inputFormat: z.string().nullable().default(null),
+  processors: z.array(configuredMicProcessorSchema),
+  monitoring: microphoneMonitoringRuntimeSchema,
+  error: z.string().nullable().default(null),
+});
+export type MicrophoneRuntime = z.infer<typeof microphoneRuntimeSchema>;
+
 export const audioHostSnapshotSchema = z.object({
   capabilities: audioCapabilitiesSchema,
   noiseSuppression: noiseSuppressionDiagnosticsSchema,
@@ -418,18 +455,9 @@ export const audioHostSnapshotSchema = z.object({
     muted: z.boolean(),
     applicationCount: z.number().int().nonnegative(),
   })),
+  microphone: microphoneRuntimeSchema.nullable().default(null),
 });
 export type AudioHostSnapshot = z.infer<typeof audioHostSnapshotSchema>;
-
-export const micProcessorIdSchema = z.enum([
-  'gain',
-  'noise-gate',
-  'noise-suppression',
-  'equalizer',
-  'compressor',
-  'limiter',
-]);
-export type MicProcessorId = z.infer<typeof micProcessorIdSchema>;
 
 export const eqFilterTypeSchema = z.enum(['low-shelf', 'bell', 'high-shelf']);
 export type EqFilterType = z.infer<typeof eqFilterTypeSchema>;

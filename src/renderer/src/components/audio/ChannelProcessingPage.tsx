@@ -32,6 +32,9 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
   const support = snapshot.audio.capabilities.channelDsp;
   const pending = false;
   const unavailable = support === 'unavailable';
+  const unavailableMessage = snapshot.audio.host?.driver.state !== 'ready'
+    ? snapshot.audio.host?.driver.message
+    : null;
 
   if (!processing || !bus) {
     return <div className="px-6 py-8 text-sm text-destructive">{labels[busId]} sound settings are unavailable.</div>;
@@ -43,7 +46,7 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
         <p className="audio-workbench__availability" role="status">
           {support === 'simulation'
             ? 'Sound processing is not available on this setup yet. Your settings will still be saved.'
-            : 'Sound processing is unavailable for this output.'}
+            : unavailableMessage ?? 'Sound processing is unavailable for this output.'}
         </p>
       ) : null}
 
@@ -80,29 +83,43 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
           />
         </section>
 
-        <section className="audio-control-rail" aria-label={`${labels[busId]} processing controls`}>
-          <header className="audio-control-rail__header">
-            <h3>Processing</h3>
-            <p>Keep volume steady and peaks under control.</p>
-          </header>
+        <section className="audio-control-rail audio-control-rail--columns" aria-label={`${labels[busId]} processing controls`}>
+          <div className="audio-processor-column" aria-label="Level and protection">
+            <div className="audio-simple-section audio-simple-section--compact">
+              <SettingToggle
+                title={normalizationCopy[busId].title}
+                description={normalizationCopy[busId].description}
+                checked={processing.normalization.enabled}
+                disabled={unavailable}
+                pending={pending}
+                technicalName="Normalization"
+                onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'normalization', enabled })}
+              />
+              <div className="audio-processor-parameters">
+                <ParameterControl label="Target loudness" value={processing.normalization.targetLufs} min={-30} max={-10} step={0.5} unit=" LUFS" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(targetLufs) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { targetLufs } })} />
+                <ParameterControl label="Maximum lift" value={processing.normalization.maxGainDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(maxGainDb) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { maxGainDb } })} />
+              </div>
+            </div>
 
-          <div className="audio-simple-section">
-            <SettingToggle
-              title={normalizationCopy[busId].title}
-              description={normalizationCopy[busId].description}
-              checked={processing.normalization.enabled}
-              disabled={unavailable}
-              pending={pending}
-              technicalName="Normalization"
-              onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'normalization', enabled })}
-            />
-            <div className="audio-processor-parameters">
-              <ParameterControl label="Target loudness" value={processing.normalization.targetLufs} min={-30} max={-10} step={0.5} unit=" LUFS" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(targetLufs) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { targetLufs } })} />
-              <ParameterControl label="Maximum lift" value={processing.normalization.maxGainDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(maxGainDb) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { maxGainDb } })} />
+            <div className="audio-simple-section audio-simple-section--compact">
+              <SettingToggle
+                title="Output safety"
+                description="Prevents sudden clipping and excessive peaks."
+                checked={processing.limiter.enabled}
+                disabled={unavailable}
+                pending={pending}
+                technicalName="Limiter"
+                onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'limiter', enabled })}
+              />
+              <div className="audio-processor-parameters">
+                <ParameterControl label="Ceiling" value={processing.limiter.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { thresholdDb } })} />
+                <ParameterControl label="Release" value={processing.limiter.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { releaseMs } })} />
+              </div>
             </div>
           </div>
 
-          <div className="audio-simple-section">
+          <div className="audio-processor-column" aria-label="Dynamics">
+            <div className="audio-simple-section audio-simple-section--compact">
             <SettingToggle
               title="Dynamic control"
               description="Keeps loud peaks closer to the rest of the mix."
@@ -120,21 +137,6 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
               <ParameterControl label="Makeup gain" value={processing.compressor.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(makeupDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { makeupDb } })} />
             </div>
           </div>
-
-          <div className="audio-simple-section">
-            <SettingToggle
-              title="Output safety"
-              description="Prevents sudden clipping and excessive peaks."
-              checked={processing.limiter.enabled}
-              disabled={unavailable}
-              pending={pending}
-              technicalName="Limiter"
-              onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'limiter', enabled })}
-            />
-            <div className="audio-processor-parameters">
-              <ParameterControl label="Ceiling" value={processing.limiter.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { thresholdDb } })} />
-              <ParameterControl label="Release" value={processing.limiter.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { releaseMs } })} />
-            </div>
           </div>
         </section>
       </div>

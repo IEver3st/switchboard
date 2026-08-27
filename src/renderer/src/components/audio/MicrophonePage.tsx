@@ -1,10 +1,17 @@
-import type { MicProcessor, MicProcessorId, SystemSnapshot } from '../../../../shared/contracts';
+import type {
+  MicProcessor,
+  MicProcessorId,
+  SetMicProcessorInput,
+  SystemSnapshot,
+} from '../../../../shared/contracts';
+import { microphoneMonitoringApplied } from '../../../../shared/microphone-runtime';
 import { useState } from 'react';
 import { PrimarySlider } from '@/components/shared/human-controls';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { AudioDevicePicker } from './AudioDevicePicker';
 import { EqualizerHeader } from './EqualizerHeader';
+import { MicrophoneSignalStrip } from './MicrophoneSignalStrip';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
@@ -55,12 +62,15 @@ function MicSetting({
           aria-label={title}
           onCheckedChange={onCheckedChange}
         />
+        <span>{pending ? 'Applying…' : checked ? 'On' : 'Off'}</span>
       </label>
     </div>
   );
 }
 
 export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
+  const setAudioEnabled = useSystemStore((state) => state.setAudioEnabled);
+  const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const setMicProcessor = useSystemStore((state) => state.setMicProcessor);
   const setAudioMonitoring = useSystemStore((state) => state.setAudioMonitoring);
   const testMicrophone = useSystemStore((state) => state.testMicrophone);
@@ -72,6 +82,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const importAudioPreset = useSystemStore((state) => state.importAudioPreset);
   const exportAudioPreset = useSystemStore((state) => state.exportAudioPreset);
   const [microphoneTestPending, setMicrophoneTestPending] = useState(false);
+  const [pendingOperations, setPendingOperations] = useState<Record<string, number>>({});
   const micBus = snapshot.audio.buses.find((candidate) => candidate.id === 'mic');
   const gain = getProcessor(snapshot.audio.micProcessors, 'gain');
   const gate = getProcessor(snapshot.audio.micProcessors, 'noise-gate');
@@ -81,11 +92,41 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const limiter = getProcessor(snapshot.audio.micProcessors, 'limiter');
   const support = snapshot.audio.capabilities.microphoneDsp;
   const suppressionSupport = snapshot.audio.capabilities.noiseSuppression;
-  const unavailable = support === 'unavailable';
-  const suppressionUnavailable = suppressionSupport === 'unavailable';
   const suppressionError = snapshot.audio.host?.noiseSuppression.lastError
     ?? snapshot.audio.host?.capabilities.reason;
-  const monitoringUnavailable = snapshot.audio.capabilities.monitoring === 'unavailable';
+  const desktopFeatures = Boolean(window.switchboard);
+  const unavailable = support !== 'available';
+  const suppressionUnavailable = suppressionSupport !== 'available';
+  const monitoringUnavailable = snapshot.audio.capabilities.monitoring !== 'available';
+  const processorPending = Object.keys(pendingOperations).some((key) => key.startsWith('processor:'));
+  const presetPending = Boolean(pendingOperations.preset);
+  const monitoringPending = Boolean(pendingOperations.monitoring);
+  const monitoringApplied = microphoneMonitoringApplied(snapshot.audio);
+  const monitoringDescription = monitoringUnavailable
+    ? snapshot.audio.host?.microphone?.error ?? 'Monitoring is not available with the current audio setup.'
+    : monitoringPending
+      ? 'Applying the monitoring output and volume.'
+      : snapshot.audio.monitoringEnabled && !monitoringApplied
+        ? snapshot.audio.host?.microphone?.error ?? 'The selected output has not accepted the monitor stream.'
+        : snapshot.audio.monitoringEnabled
+          ? 'Processed microphone audio is live on the selected output.'
+          : 'Hear your processed microphone through the selected output.';
+
+  const runPending = (key: string, operation: () => Promise<void>) => {
+    setPendingOperations((current) => ({ ...current, [key]: (current[key] ?? 0) + 1 }));
+    void operation().finally(() => {
+      setPendingOperations((current) => {
+        const next = { ...current };
+        if ((next[key] ?? 0) <= 1) delete next[key];
+        else next[key] = (next[key] ?? 1) - 1;
+        return next;
+      });
+    });
+  };
+
+  const commitProcessor = (input: SetMicProcessorInput) => {
+    runPending(`processor:${input.processorId}`, () => setMicProcessor(input));
+  };
 
   if (!micBus || !gain || !gate || !suppression || !equalizer || !compressor || !limiter) {
     return <div className="px-6 py-8 text-sm text-destructive">Microphone sound settings are unavailable.</div>;
@@ -93,11 +134,20 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <div className="audio-workbench microphone-workbench" data-channel="microphone">
-      {support !== 'available' ? (
+      <MicrophoneSignalStrip
+        snapshot={snapshot}
+        desktopFeatures={desktopFeatures}
+        enginePending={Boolean(pendingOperations.engine)}
+        inputPending={Boolean(pendingOperations.input)}
+        onEngineChange={(enabled) => runPending('engine', () => setAudioEnabled(enabled))}
+        onInputChange={(deviceId) => runPending('input', () => setAudioBusDevice({ busId: 'mic', deviceId }))}
+      />
+
+      {snapshot.audio.enabled && support !== 'available' ? (
         <p className="audio-workbench__availability" role="status">
           {support === 'simulation'
-            ? 'Voice processing is not available on this setup yet. Your settings will still be saved.'
-            : 'Voice processing is unavailable for this microphone.'}
+            ? 'This preview does not process microphone audio. Use the desktop application and native Audio.Host.'
+            : snapshot.audio.host?.microphone?.error ?? 'Voice processing is unavailable for the selected microphone.'}
         </p>
       ) : null}
 
@@ -107,7 +157,8 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
             headingId="microphone-equalizer-heading"
             checked={equalizer.enabled}
             disabled={unavailable}
-            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'equalizer', enabled })}
+            pending={Boolean(pendingOperations['processor:equalizer'])}
+            onCheckedChange={(enabled) => commitProcessor({ processorId: 'equalizer', enabled })}
             tools={(
               <>
                 <PresetPicker
@@ -115,15 +166,15 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                   label="Voice preset"
                   presets={snapshot.audio.pathPresets}
                   activeId={snapshot.audio.activePresetIds.microphone}
-                  pending={false}
-                  desktopFeatures={Boolean(window.switchboard)}
-                  onApply={(presetId) => void applyAudioPreset({ presetId })}
-                  onCreate={(name) => void createAudioPreset({ kind: 'microphone', name })}
-                  onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
-                  onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
-                  onDelete={(presetId) => void deleteAudioPreset({ presetId })}
-                  onImport={() => void importAudioPreset()}
-                  onExport={(presetId) => void exportAudioPreset({ presetId })}
+                  pending={presetPending || unavailable}
+                  desktopFeatures={desktopFeatures}
+                  onApply={(presetId) => runPending('preset', () => applyAudioPreset({ presetId }))}
+                  onCreate={(name) => runPending('preset', () => createAudioPreset({ kind: 'microphone', name }))}
+                  onRename={(presetId, name) => runPending('preset', () => renameAudioPreset({ presetId, name }))}
+                  onDuplicate={(presetId) => runPending('preset', () => duplicateAudioPreset({ presetId }))}
+                  onDelete={(presetId) => runPending('preset', () => deleteAudioPreset({ presetId }))}
+                  onImport={() => runPending('preset', importAudioPreset)}
+                  onExport={(presetId) => runPending('preset', () => exportAudioPreset({ presetId }))}
                 />
                 <MicrophoneTest
                   compact
@@ -139,25 +190,21 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           />
           <ParametricEq
             bands={equalizer.parameters.bands}
-            disabled={unavailable || !equalizer.enabled}
-            onCommit={(bands) => void setMicProcessor({ processorId: 'equalizer', parameters: { bands } })}
+            disabled={unavailable || !equalizer.enabled || Boolean(pendingOperations['processor:equalizer'])}
+            onCommit={(bands) => commitProcessor({ processorId: 'equalizer', parameters: { bands } })}
           />
         </section>
 
-        <section className="audio-control-rail mic-control-rail" aria-label="Microphone processing controls">
-          <header className="audio-control-rail__header">
-            <h3>Voice processing</h3>
-            <p>Clean, balance, and protect your microphone.</p>
-          </header>
-
+        <section className="audio-control-rail mic-control-rail" aria-label="Microphone processing controls" aria-busy={processorPending}>
           <section id="microphone-input-section" className="mic-rail__input">
             <MicSetting
               headingId="microphone-input-heading"
               title="Input volume"
-              description="Software level before voice processing."
+              description="Software level after cleanup, before tone and dynamics."
               checked={gain.enabled}
               disabled={unavailable}
-              onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'gain', enabled })}
+              pending={Boolean(pendingOperations['processor:gain'])}
+              onCheckedChange={(enabled) => commitProcessor({ processorId: 'gain', enabled })}
             >
               <PrimarySlider
                 label="Gain"
@@ -166,13 +213,13 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 max={30}
                 step={0.5}
                 unit="dB"
-                disabled={unavailable || !gain.enabled}
-                onCommit={(gainDb) => void setMicProcessor({ processorId: 'gain', enabled: true, parameters: { gainDb } })}
+                disabled={unavailable || !gain.enabled || Boolean(pendingOperations['processor:gain'])}
+                onCommit={(gainDb) => commitProcessor({ processorId: 'gain', enabled: true, parameters: { gainDb } })}
               />
             </MicSetting>
           </section>
 
-          <section className="mic-rows" aria-label="Microphone processors">
+          <div className="mic-processor-column" role="group" aria-label="Gate and voice consistency">
             <div id="microphone-gate-section" className="mic-rows__row">
               <MicSetting
                 headingId="microphone-gate-heading"
@@ -180,7 +227,8 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 description="Mutes the room while you are not speaking."
                 checked={gate.enabled}
                 disabled={unavailable}
-                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}
+                pending={Boolean(pendingOperations['processor:noise-gate'])}
+                onCheckedChange={(enabled) => commitProcessor({ processorId: 'noise-gate', enabled })}
               >
                 <div className="mic-parameter-stack">
                   <PrimarySlider
@@ -190,36 +238,12 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                     max={-10}
                     step={0.5}
                     unit="dB"
-                    disabled={unavailable || !gate.enabled}
-                    onCommit={(thresholdDb) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb } })}
+                    disabled={unavailable || !gate.enabled || Boolean(pendingOperations['processor:noise-gate'])}
+                    onCommit={(thresholdDb) => commitProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb } })}
                   />
-                  <ParameterControl label="Attack" value={gate.parameters.attackMs} min={0.1} max={100} step={0.5} unit=" ms" precision={1} disabled={unavailable || !gate.enabled} onCommit={(attackMs) => void setMicProcessor({ processorId: 'noise-gate', parameters: { attackMs } })} />
-                  <ParameterControl label="Release" value={gate.parameters.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !gate.enabled} onCommit={(releaseMs) => void setMicProcessor({ processorId: 'noise-gate', parameters: { releaseMs } })} />
+                  <ParameterControl label="Attack" value={gate.parameters.attackMs} min={0.1} max={100} step={0.5} unit=" ms" precision={1} disabled={unavailable || !gate.enabled || Boolean(pendingOperations['processor:noise-gate'])} onCommit={(attackMs) => commitProcessor({ processorId: 'noise-gate', parameters: { attackMs } })} />
+                  <ParameterControl label="Release" value={gate.parameters.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !gate.enabled || Boolean(pendingOperations['processor:noise-gate'])} onCommit={(releaseMs) => commitProcessor({ processorId: 'noise-gate', parameters: { releaseMs } })} />
                 </div>
-              </MicSetting>
-            </div>
-
-            <div id="microphone-removal-section" className="mic-rows__row">
-              <MicSetting
-                headingId="microphone-removal-heading"
-                title="Noise removal"
-                description={suppressionUnavailable
-                  ? suppressionError ?? 'Unavailable with the current audio setup.'
-                  : 'Reduces fans, keys, and background sound.'}
-                checked={suppression.enabled && !suppressionUnavailable}
-                disabled={suppressionUnavailable}
-                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}
-              >
-                <PrimarySlider
-                  label="Removal strength"
-                  value={suppression.parameters.amount}
-                  min={0}
-                  max={100}
-                  step={1}
-                  unit="%"
-                  disabled={suppressionUnavailable || !suppression.enabled}
-                  onCommit={(amount) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount } })}
-                />
               </MicSetting>
             </div>
 
@@ -230,7 +254,8 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 description="Keeps quiet and loud speech at a similar level."
                 checked={compressor.enabled}
                 disabled={unavailable}
-                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'compressor', enabled })}
+                pending={Boolean(pendingOperations['processor:compressor'])}
+                onCheckedChange={(enabled) => commitProcessor({ processorId: 'compressor', enabled })}
               >
                 <div className="mic-parameter-stack">
                   <PrimarySlider
@@ -240,14 +265,42 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                     max={20}
                     step={0.1}
                     unit=":1"
-                    disabled={unavailable || !compressor.enabled}
-                    onCommit={(ratio) => void setMicProcessor({ processorId: 'compressor', enabled: true, parameters: { ratio } })}
+                    disabled={unavailable || !compressor.enabled || Boolean(pendingOperations['processor:compressor'])}
+                    onCommit={(ratio) => commitProcessor({ processorId: 'compressor', enabled: true, parameters: { ratio } })}
                   />
-                  <ParameterControl label="Threshold" value={compressor.parameters.thresholdDb} min={-60} max={0} step={0.5} unit=" dB" precision={1} disabled={unavailable || !compressor.enabled} onCommit={(thresholdDb) => void setMicProcessor({ processorId: 'compressor', parameters: { thresholdDb } })} />
-                  <ParameterControl label="Attack" value={compressor.parameters.attackMs} min={0.1} max={200} step={0.5} unit=" ms" precision={1} disabled={unavailable || !compressor.enabled} onCommit={(attackMs) => void setMicProcessor({ processorId: 'compressor', parameters: { attackMs } })} />
-                  <ParameterControl label="Release" value={compressor.parameters.releaseMs} min={10} max={2_000} step={5} unit=" ms" disabled={unavailable || !compressor.enabled} onCommit={(releaseMs) => void setMicProcessor({ processorId: 'compressor', parameters: { releaseMs } })} />
-                  <ParameterControl label="Makeup gain" value={compressor.parameters.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !compressor.enabled} onCommit={(makeupDb) => void setMicProcessor({ processorId: 'compressor', parameters: { makeupDb } })} />
+                  <ParameterControl label="Threshold" value={compressor.parameters.thresholdDb} min={-60} max={0} step={0.5} unit=" dB" precision={1} disabled={unavailable || !compressor.enabled || Boolean(pendingOperations['processor:compressor'])} onCommit={(thresholdDb) => commitProcessor({ processorId: 'compressor', parameters: { thresholdDb } })} />
+                  <ParameterControl label="Attack" value={compressor.parameters.attackMs} min={0.1} max={200} step={0.5} unit=" ms" precision={1} disabled={unavailable || !compressor.enabled || Boolean(pendingOperations['processor:compressor'])} onCommit={(attackMs) => commitProcessor({ processorId: 'compressor', parameters: { attackMs } })} />
+                  <ParameterControl label="Release" value={compressor.parameters.releaseMs} min={10} max={2_000} step={5} unit=" ms" disabled={unavailable || !compressor.enabled || Boolean(pendingOperations['processor:compressor'])} onCommit={(releaseMs) => commitProcessor({ processorId: 'compressor', parameters: { releaseMs } })} />
+                  <ParameterControl label="Makeup gain" value={compressor.parameters.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !compressor.enabled || Boolean(pendingOperations['processor:compressor'])} onCommit={(makeupDb) => commitProcessor({ processorId: 'compressor', parameters: { makeupDb } })} />
                 </div>
+              </MicSetting>
+            </div>
+          </div>
+
+          <div className="mic-processor-column" role="group" aria-label="Noise removal, output safety, and monitoring">
+            <div id="microphone-removal-section" className="mic-rows__row">
+              <MicSetting
+                headingId="microphone-removal-heading"
+                title="Noise removal"
+                description={suppressionUnavailable
+                  ? suppressionError ?? 'Unavailable with the current audio setup.'
+                  : 'Reduces fans, keys, and background sound.'}
+                checked={suppression.enabled && !suppressionUnavailable}
+                disabled={suppressionUnavailable}
+                pending={Boolean(pendingOperations['processor:noise-suppression'])}
+                onCheckedChange={(enabled) => commitProcessor({ processorId: 'noise-suppression', enabled })}
+                className="mic-setting--compact"
+              >
+                <PrimarySlider
+                  label="Removal strength"
+                  value={suppression.parameters.amount}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                  disabled={suppressionUnavailable || !suppression.enabled || Boolean(pendingOperations['processor:noise-suppression'])}
+                  onCommit={(amount) => commitProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount } })}
+                />
               </MicSetting>
             </div>
 
@@ -258,52 +311,55 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
                 description="Catches clipping and sudden peaks."
                 checked={limiter.enabled}
                 disabled={unavailable}
-                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'limiter', enabled })}
+                pending={Boolean(pendingOperations['processor:limiter'])}
+                onCheckedChange={(enabled) => commitProcessor({ processorId: 'limiter', enabled })}
+                className="mic-setting--compact"
               >
                 <div className="mic-parameter-stack">
-                  <ParameterControl label="Ceiling" value={limiter.parameters.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !limiter.enabled} onCommit={(thresholdDb) => void setMicProcessor({ processorId: 'limiter', parameters: { thresholdDb } })} />
-                  <ParameterControl label="Release" value={limiter.parameters.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !limiter.enabled} onCommit={(releaseMs) => void setMicProcessor({ processorId: 'limiter', parameters: { releaseMs } })} />
+                  <ParameterControl label="Ceiling" value={limiter.parameters.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !limiter.enabled || Boolean(pendingOperations['processor:limiter'])} onCommit={(thresholdDb) => commitProcessor({ processorId: 'limiter', parameters: { thresholdDb } })} />
+                  <ParameterControl label="Release" value={limiter.parameters.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !limiter.enabled || Boolean(pendingOperations['processor:limiter'])} onCommit={(releaseMs) => commitProcessor({ processorId: 'limiter', parameters: { releaseMs } })} />
                 </div>
               </MicSetting>
             </div>
-          </section>
+
+            <section id="microphone-monitoring-section" className="mic-section mic-section--monitoring" aria-labelledby="microphone-monitoring-heading">
+              <MicSetting
+                headingId="microphone-monitoring-heading"
+                title="Monitoring"
+                description={monitoringDescription}
+                checked={snapshot.audio.monitoringEnabled}
+                disabled={monitoringUnavailable}
+                pending={monitoringPending}
+                onCheckedChange={(enabled) => runPending('monitoring', () => setAudioMonitoring({ enabled }))}
+                className="mic-setting--monitoring"
+              />
+              <div className="mic-monitoring__controls">
+                <label>
+                  <span>Hear your microphone through</span>
+                  <AudioDevicePicker
+                    value={snapshot.audio.monitoringDeviceId}
+                    devices={snapshot.audio.devices}
+                    direction="output"
+                    label="Microphone monitoring device"
+                    disabled={monitoringUnavailable || monitoringPending}
+                    onChange={(deviceId) => runPending('monitoring', () => setAudioMonitoring({ deviceId }))}
+                  />
+                </label>
+                <PrimarySlider
+                  label="Monitor volume"
+                  value={snapshot.audio.monitoring * 100}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                  disabled={monitoringUnavailable || monitoringPending || !snapshot.audio.monitoringEnabled}
+                  onCommit={(level) => runPending('monitoring', () => setAudioMonitoring({ level: level / 100 }))}
+                />
+              </div>
+            </section>
+          </div>
         </section>
       </div>
-
-      <section id="microphone-monitoring-section" className="mic-section mic-section--monitoring" aria-labelledby="microphone-monitoring-heading">
-        <MicSetting
-          headingId="microphone-monitoring-heading"
-          title="Monitoring"
-          description={monitoringUnavailable ? 'Monitoring is not available with the current audio setup.' : 'Hear your microphone through the selected output.'}
-          checked={snapshot.audio.monitoringEnabled}
-          disabled={monitoringUnavailable}
-          onCheckedChange={(enabled) => void setAudioMonitoring({ enabled })}
-        />
-        <div className="mic-monitoring__controls">
-          <label>
-            <span>Hear your microphone through</span>
-            <AudioDevicePicker
-              value={snapshot.audio.monitoringDeviceId}
-              devices={snapshot.audio.devices}
-              direction="output"
-              label="Microphone monitoring device"
-              disabled={monitoringUnavailable}
-              onChange={(deviceId) => void setAudioMonitoring({ deviceId })}
-            />
-          </label>
-          <PrimarySlider
-            label="Monitor volume"
-            value={snapshot.audio.monitoring * 100}
-            min={0}
-            max={100}
-            step={1}
-            unit="%"
-            disabled={monitoringUnavailable || !snapshot.audio.monitoringEnabled}
-            onCommit={(level) => void setAudioMonitoring({ level: level / 100 })}
-          />
-        </div>
-      </section>
-
     </div>
   );
 }

@@ -23,6 +23,9 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
   const gameEnabled = buses.find((bus) => bus.id === 'game')?.enabled ?? false;
   const chatEnabled = buses.find((bus) => bus.id === 'chat')?.enabled ?? false;
   const routingAvailable = snapshot.audio.capabilities.applicationRouting !== 'unavailable';
+  const routingMessage = snapshot.audio.host?.driver.state !== 'ready'
+    ? snapshot.audio.host?.driver.message
+    : snapshot.audio.host?.error;
 
   const presetNameFor = (channel: MixerChannelId): string | null => {
     const presetKind: AudioPathId = channel === 'mic' ? 'microphone' : channel;
@@ -81,7 +84,7 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
       {!routingAvailable ? (
         <p className="mixer-workbench__routing-note" role="status">
           <AppWindow className="size-3.5" aria-hidden="true" />
-          Application routing is not available on this setup yet.
+          {routingMessage ?? 'Application routing is not available on this setup yet.'}
         </p>
       ) : null}
     </div>

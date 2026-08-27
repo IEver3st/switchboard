@@ -38,15 +38,12 @@ internal sealed class AudioEngine : IDisposable
             running = true;
             startedAt = DateTimeOffset.UtcNow;
             StartMicrophoneCore();
-            if (microphone is not null)
+            try { StartRoutingCore(); }
+            catch (Exception routeStartError)
             {
-                try { StartRoutingCore(); }
-                catch (Exception routeStartError)
-                {
-                    routing?.Dispose();
-                    routing = null;
-                    routingError = $"Virtual audio routing is unavailable: {routeStartError.Message}";
-                }
+                routing?.Dispose();
+                routing = null;
+                routingError = $"Virtual audio routing is unavailable: {routeStartError.Message}";
             }
             var snapshot = GetSnapshotCore();
             SnapshotChanged?.Invoke(snapshot);
@@ -92,7 +89,6 @@ internal sealed class AudioEngine : IDisposable
             }
             try
             {
-                if (microphone is null) throw new InvalidOperationException(error ?? "The microphone pipeline is unavailable.");
                 if (routing is null || routesChanged || inputChanged)
                 {
                     routing?.Dispose();
@@ -155,13 +151,10 @@ internal sealed class AudioEngine : IDisposable
             microphone = null;
             InitializeSuppressorCore();
             StartMicrophoneCore(recovery: true);
-            if (microphone is not null)
+            try { StartRoutingCore(); }
+            catch (Exception routeStartError)
             {
-                try { StartRoutingCore(); }
-                catch (Exception routeStartError)
-                {
-                    routingError = $"Virtual audio routing is unavailable: {routeStartError.Message}";
-                }
+                routingError = $"Virtual audio routing is unavailable: {routeStartError.Message}";
             }
             SnapshotChanged?.Invoke(GetSnapshotCore());
         }
@@ -244,13 +237,14 @@ internal sealed class AudioEngine : IDisposable
 
     private void StartRoutingCore()
     {
-        if (settings is null || microphone is null)
-            throw new InvalidOperationException(error ?? "The microphone pipeline is unavailable.");
+        if (settings is null) throw new InvalidOperationException("Audio settings are unavailable.");
+        var virtualMicrophoneSource = microphone?.VirtualMicrophoneSource ?? new SilentSampleProvider();
+        var streamMicrophoneSource = microphone?.StreamMicrophoneSource ?? new SilentSampleProvider();
         var next = RoutingEngine.Create(
             endpoints,
             settings,
-            microphone.VirtualMicrophoneSource,
-            microphone.StreamMicrophoneSource);
+            virtualMicrophoneSource,
+            streamMicrophoneSource);
         next.Failed += OnRoutingFailed;
         next.Start();
         routing = next;
@@ -290,11 +284,31 @@ internal sealed class AudioEngine : IDisposable
             bus.Gain,
             !bus.Enabled,
             counts.GetValueOrDefault(bus.Id))).ToArray();
+        var requestedInputDeviceId = settings?.MicrophoneBus?.DeviceId;
+        var requestedMonitoringDeviceId = string.IsNullOrWhiteSpace(settings?.MonitoringDeviceId)
+            ? null
+            : settings.MonitoringDeviceId;
+        var microphoneRuntime = new MicrophoneRuntime(
+            configurationVersion,
+            string.IsNullOrWhiteSpace(requestedInputDeviceId) ? null : requestedInputDeviceId,
+            pipeline?.InputDeviceId,
+            pipeline?.InputFormat,
+            (settings?.MicProcessors ?? []).Select(processor => new ConfiguredMicrophoneProcessor(
+                processor.Id,
+                processor.Enabled,
+                processor.Parameters.Clone())).ToArray(),
+            new MicrophoneMonitoringRuntime(
+                settings?.MonitoringEnabled ?? false,
+                pipeline?.MonitoringDeviceId is not null,
+                settings?.Monitoring ?? 0f,
+                requestedMonitoringDeviceId,
+                pipeline?.MonitoringDeviceId),
+            pipeline?.LastError ?? error);
         return new AudioHostSnapshot(
             new AudioHostCapabilities(
                 routingAvailable ? "available" : "unavailable",
                 routingAvailable ? "available" : "unavailable",
-                "unavailable",
+                routingAvailable ? "available" : "unavailable",
                 microphoneAvailable ? "available" : "unavailable",
                 suppressionAvailable ? "available" : "unavailable",
                 microphoneAvailable ? "available" : "unavailable",
@@ -334,7 +348,8 @@ internal sealed class AudioEngine : IDisposable
             error ?? routingError,
             driver,
             applications,
-            buses);
+            buses,
+            microphoneRuntime);
     }
 
     private void StopCore()

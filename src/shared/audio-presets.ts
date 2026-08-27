@@ -234,11 +234,31 @@ export function snapshotAudioPathPreset(
 
 export function applyAudioPathPreset(audio: AudioState, preset: AudioPathPreset): void {
   if (preset.kind === 'microphone') {
+    const currentMonitoringDeviceId = audio.monitoringDeviceId;
     audio.micProcessors = clone(preset.processors);
-    audio.monitoringEnabled = preset.monitoring.enabled;
     audio.monitoring = preset.monitoring.level;
-    audio.monitoringDeviceId = preset.monitoring.deviceId;
-    audio.activePresetIds.microphone = preset.id;
+    const monitoringDevice = audio.devices.find((device) => (
+      device.id === preset.monitoring.deviceId
+      && device.direction === 'output'
+      && device.available
+      && !device.isSwitchboard
+    )) ?? audio.devices.find((device) => (
+      device.id === currentMonitoringDeviceId
+      && device.direction === 'output'
+      && device.available
+      && !device.isSwitchboard
+    )) ?? audio.devices.find((device) => (
+      device.direction === 'output'
+      && device.available
+      && device.isDefault
+      && !device.isSwitchboard
+    ));
+    audio.monitoringDeviceId = monitoringDevice?.id ?? '';
+    audio.monitoringEnabled = preset.monitoring.enabled && Boolean(monitoringDevice);
+    audio.activePresetIds.microphone = audio.monitoringEnabled === preset.monitoring.enabled
+      && audio.monitoringDeviceId === preset.monitoring.deviceId
+      ? preset.id
+      : null;
     return;
   }
 

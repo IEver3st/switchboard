@@ -104,6 +104,7 @@ internal sealed class AudioHostSettings
     public string MonitoringDeviceId { get; init; } = string.Empty;
     public IReadOnlyList<AudioBusConfiguration> Buses { get; init; } = [];
     public IReadOnlyList<MicrophoneProcessorSettings> MicProcessors { get; init; } = [];
+    public IReadOnlyList<ChannelProcessingSettings> ChannelProcessing { get; init; } = [];
     public AudioBusConfiguration? MicrophoneBus => Buses.FirstOrDefault(bus => bus.Id.Equals("mic", StringComparison.OrdinalIgnoreCase));
 
     public AudioHostSettings Validate()
@@ -113,8 +114,63 @@ internal sealed class AudioHostSettings
         if (Monitoring is < 0f or > 1f) throw new InvalidOperationException("Monitoring level must be between 0 and 1.");
         if (Buses.GroupBy(bus => bus.Id, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
             throw new InvalidOperationException("Audio bus identifiers must be unique.");
+        if (ChannelProcessing.GroupBy(path => path.BusId, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
+            throw new InvalidOperationException("Channel processing identifiers must be unique.");
+        foreach (var busId in new[] { "game", "chat", "media" })
+        {
+            if (!ChannelProcessing.Any(path => path.BusId.Equals(busId, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"The {busId} channel processing configuration is missing.");
+        }
         return this;
     }
+}
+
+internal sealed class ChannelProcessingSettings
+{
+    public string BusId { get; init; } = string.Empty;
+    public ChannelEqualizerSettings Equalizer { get; init; } = new();
+    public ChannelNormalizationSettings Normalization { get; init; } = new();
+    public ChannelCompressorSettings Compressor { get; init; } = new();
+    public ChannelLimiterSettings Limiter { get; init; } = new();
+}
+
+internal sealed class ChannelEqualizerSettings
+{
+    public bool Enabled { get; init; }
+    public IReadOnlyList<EqualizerBandSettings> Bands { get; init; } = [];
+}
+
+internal sealed class EqualizerBandSettings
+{
+    public bool Enabled { get; init; } = true;
+    public string Type { get; init; } = "bell";
+    public float Frequency { get; init; } = 1_000f;
+    public float GainDb { get; init; }
+    public float Q { get; init; } = 1f;
+}
+
+internal sealed class ChannelNormalizationSettings
+{
+    public bool Enabled { get; init; }
+    public float TargetLufs { get; init; } = -18f;
+    public float MaxGainDb { get; init; } = 6f;
+}
+
+internal sealed class ChannelCompressorSettings
+{
+    public bool Enabled { get; init; }
+    public float ThresholdDb { get; init; } = -18f;
+    public float Ratio { get; init; } = 4f;
+    public float AttackMs { get; init; } = 12f;
+    public float ReleaseMs { get; init; } = 180f;
+    public float MakeupDb { get; init; } = 2f;
+}
+
+internal sealed class ChannelLimiterSettings
+{
+    public bool Enabled { get; init; }
+    public float ThresholdDb { get; init; } = -1f;
+    public float ReleaseMs { get; init; } = 90f;
 }
 
 internal sealed class MicrophoneProcessorSettings
@@ -123,6 +179,27 @@ internal sealed class MicrophoneProcessorSettings
     public bool Enabled { get; init; }
     public System.Text.Json.JsonElement Parameters { get; init; }
 }
+
+internal sealed record ConfiguredMicrophoneProcessor(
+    string Id,
+    bool Enabled,
+    System.Text.Json.JsonElement Parameters);
+
+internal sealed record MicrophoneMonitoringRuntime(
+    bool Requested,
+    bool Active,
+    float Level,
+    string? RequestedDeviceId,
+    string? ActiveDeviceId);
+
+internal sealed record MicrophoneRuntime(
+    long ConfigurationVersion,
+    string? RequestedInputDeviceId,
+    string? ActiveInputDeviceId,
+    string? InputFormat,
+    IReadOnlyCollection<ConfiguredMicrophoneProcessor> Processors,
+    MicrophoneMonitoringRuntime Monitoring,
+    string? Error);
 
 internal sealed record AudioHostCapabilities(
     string VirtualChannels,
@@ -172,4 +249,5 @@ internal sealed record AudioHostSnapshot(
     string? Error,
     VirtualDriverState Driver,
     IReadOnlyCollection<AudioApplicationState> Applications,
-    IReadOnlyCollection<AudioBusState> Buses);
+    IReadOnlyCollection<AudioBusState> Buses,
+    MicrophoneRuntime Microphone);

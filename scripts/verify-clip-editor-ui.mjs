@@ -88,6 +88,7 @@ async function run() {
     if (metrics.timelineSliders.map((item) => item.label).join(',') !== 'Playback volume,Playhead,Trim start,Trim end') throw new Error('The accessible volume, playhead, and both trim handles were not rendered.');
     if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
 
+    await evaluate(window, `document.activeElement instanceof HTMLElement && document.activeElement.blur()`);
     const editorImage = await window.webContents.capturePage();
     const editorPath = join(outputDirectory, `${viewport.width}x${viewport.height}-clip-editor.png`);
     await writeFile(editorPath, editorImage.toPNG());
@@ -253,7 +254,7 @@ async function verifyEditorWorkspace(window) {
   await clickButtonByLabel(window, 'Collapse Inspector');
   await waitForSelector(window, '.clip-editor-layout[data-inspector="closed"]');
   await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.settings.clipEditorInspectorOpen === false)`), 'collapsed Inspector persistence');
-  await delay(280);
+  await waitForCondition(async () => (await editorGeometry(window)).viewerWidth > expanded.viewerWidth + 180, 'collapsed Inspector reflow');
   const collapsed = await editorGeometry(window);
   if (collapsed.viewerWidth <= expanded.viewerWidth + 180 || collapsed.timelineWidth <= expanded.timelineWidth + 180) {
     throw new Error(`Collapsing the Inspector did not reclaim workspace width: ${JSON.stringify({ expanded, collapsed })}`);
@@ -268,9 +269,9 @@ async function verifyEditorWorkspace(window) {
   await clickButtonByLabel(window, 'Open Inspector');
   await waitForSelector(window, '.clip-editor-layout[data-inspector="open"]');
   await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.settings.clipEditorInspectorOpen === true)`), 'restored Inspector persistence');
-  await delay(280);
+  await waitForCondition(async () => (await editorGeometry(window)).viewerWidth < collapsed.viewerWidth - 180, 'restored Inspector reflow');
 
-  await nativeClickButtonByLabel(window, 'Enter fullscreen');
+  await clickButtonByLabel(window, 'Enter fullscreen');
   await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-preview')?.dataset.fullscreen === 'true'`), 'viewer fullscreen entry');
   const fullscreen = await evaluate(window, `(() => {
     const viewer = document.querySelector('.clip-editor-preview[data-fullscreen="true"]');
@@ -290,6 +291,30 @@ async function verifyEditorWorkspace(window) {
   await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) > ${playbackStart + 0.08}`), 'clip playback progress');
   await clickButtonByLabel(window, 'Pause');
   await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === true`), 'clip playback pause');
+
+  await evaluate(window, `document.activeElement instanceof HTMLElement && document.activeElement.blur()`);
+  const keyboardStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
+  await pressKey(window, 'SPACE');
+  await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === false`), 'Space playback start');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) > ${keyboardStart + 0.08}`), 'Space playback progress');
+  await pressKey(window, 'SPACE');
+  await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === true`), 'Space playback pause');
+  const shortcutStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
+  await pressKey(window, 'RIGHT');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) > ${shortcutStart + 4.8}`), 'ArrowRight seek');
+  await pressKey(window, 'LEFT');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) < ${shortcutStart + 0.3}`), 'ArrowLeft seek');
+
+  const transportStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
+  await clickButtonByLabel(window, 'Forward 5 seconds');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) > ${transportStart + 4.8}`), 'transport forward seek');
+  await clickButtonByLabel(window, 'Back 5 seconds');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) < ${transportStart + 0.3}`), 'transport backward seek');
+  const frameStart = Number(await evaluate(window, `document.querySelector('video')?.currentTime ?? 0`));
+  await clickButtonByLabel(window, 'Next frame');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) > ${frameStart}`), 'transport next frame');
+  await clickButtonByLabel(window, 'Previous frame');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.currentTime ?? 0) <= ${frameStart + 0.002}`), 'transport previous frame');
 
   const volumeBefore = Number(await evaluate(window, `document.querySelector('video')?.volume ?? 0`));
   await evaluate(window, `(() => {
@@ -320,29 +345,29 @@ async function verifyEditorWorkspace(window) {
 
   await evaluate(window, `document.querySelector('.clip-editor-header__rename')?.click()`);
   await waitForSelector(window, '[role="dialog"] input');
-  const renamed = `QA clip ${Date.now()}`;
-  await evaluate(window, `(() => {
-    const input = document.querySelector('[role="dialog"] input');
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    setter.call(input, ${JSON.stringify(renamed)});
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  })()`);
+  const renameSuffix = ` QA ${Date.now()}`;
+  await evaluate(window, `document.querySelector('[role="dialog"] input')?.focus()`);
+  await window.webContents.insertText(renameSuffix);
+  await delay(80);
+  const renamedInput = String(await evaluate(window, `document.querySelector('[role="dialog"] input')?.value`));
+  if (renamedInput === clipBefore.name) throw new Error('Rename input did not change.');
   await clickButton(window, 'Rename');
-  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips.find((clip) => clip.id === ${JSON.stringify(clipBefore.id)})?.name === ${JSON.stringify(renamed)})`), 'canonical clip rename');
+  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips.find((clip) => clip.id === ${JSON.stringify(clipBefore.id)})?.name !== ${JSON.stringify(clipBefore.name)})`), 'canonical clip rename');
+  const renamed = String(await evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips.find((clip) => clip.id === ${JSON.stringify(clipBefore.id)})?.name)`));
   await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-header__rename span')?.textContent === ${JSON.stringify(renamed)}`), 'renamed editor title');
 
   const permanentDelete = await evaluate(window, `[...document.querySelectorAll('.clip-editor-shell > .clip-editor-header button')].some((button) => button.textContent?.trim() === 'Delete clip')`);
   if (permanentDelete) throw new Error('Delete clip remained permanently exposed in the editor toolbar.');
-  await clickButtonByLabel(window, 'More clip actions');
+  await nativeClickButtonByLabel(window, 'More clip actions');
   await waitForSelector(window, '[role="menu"]');
   const menuItems = await evaluate(window, `[...document.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim())`);
   if (menuItems.join(',') !== 'Rename clip,Show in folder,Delete clip') throw new Error(`Overflow actions are incomplete: ${menuItems.join(',')}`);
   await evaluate(window, `[...document.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent?.trim() === 'Delete clip')?.click()`);
   await waitForSelector(window, '[role="alertdialog"]');
-  await pressKey(window, 'ESC');
+  await clickButton(window, 'Cancel');
   await waitForMissingSelector(window, '[role="alertdialog"]');
 
-  return { expanded, collapsed, fullscreen, playbackAdvanced: true, volume: { before: volumeBefore, after: volumeAfter }, favorite: { before: clipBefore.favorite, after: !clipBefore.favorite }, revealCount: revealCalls.length, renamed, menuItems };
+  return { expanded, collapsed, fullscreen, playbackAdvanced: true, keyboardShortcuts: true, transportControls: true, volume: { before: volumeBefore, after: volumeAfter }, favorite: { before: clipBefore.favorite, after: !clipBefore.favorite }, revealCount: revealCalls.length, renamed, menuItems };
 }
 
 async function editorGeometry(window) {
@@ -398,13 +423,13 @@ async function verifyTimelineInteractions(window) {
   if (scrubbed.interaction !== 'idle') throw new Error(`Scrubbing did not return to idle: ${scrubbed.interaction}`);
 
   const startRect = await sliderRect(window, 'Trim start');
-  await pointerDrag(window, startRect.x + startRect.width / 2, startRect.y + startRect.height / 2, surface.x + surface.width * 0.18, trackY);
+  await pointerDrag(window, Math.max(surface.x + 6, startRect.x + startRect.width / 2), startRect.y + startRect.height / 2, surface.x + surface.width * 0.18, trackY);
   const startTrimmed = await timelineState(window);
   if (!(startTrimmed.startMs > initial.startMs)) throw new Error(`Left trim handle did not advance: ${initial.startMs} -> ${startTrimmed.startMs}`);
   assertNear(startTrimmed.currentMs, scrubbed.currentMs, 80, 'Left trim handle unexpectedly sought');
 
   const endRect = await sliderRect(window, 'Trim end');
-  await pointerDrag(window, endRect.x + endRect.width / 2, endRect.y + endRect.height / 2, surface.x + surface.width * 0.82, trackY);
+  await pointerDrag(window, Math.min(surface.x + surface.width - 6, endRect.x + endRect.width / 2), endRect.y + endRect.height / 2, surface.x + surface.width * 0.82, trackY);
   const endTrimmed = await timelineState(window);
   if (!(endTrimmed.endMs < initial.endMs)) throw new Error(`Right trim handle did not retreat: ${initial.endMs} -> ${endTrimmed.endMs}`);
   assertNear(endTrimmed.currentMs, startTrimmed.currentMs, 80, 'Right trim handle unexpectedly sought');
@@ -412,7 +437,7 @@ async function verifyTimelineInteractions(window) {
   await writeFile(trimmedScreenshot, (await window.webContents.capturePage()).toPNG());
 
   const crossedStartRect = await sliderRect(window, 'Trim start');
-  await pointerDrag(window, crossedStartRect.x + crossedStartRect.width / 2, crossedStartRect.y + crossedStartRect.height / 2, surface.x + surface.width, trackY);
+  await pointerDrag(window, Math.max(surface.x + 6, crossedStartRect.x + crossedStartRect.width / 2), crossedStartRect.y + crossedStartRect.height / 2, surface.x + surface.width, trackY);
   const bounded = await timelineState(window);
   if (bounded.endMs - bounded.startMs < 100) throw new Error(`Trim handles crossed: ${bounded.startMs} -> ${bounded.endMs}`);
   if (bounded.interaction !== 'idle') throw new Error(`Trim drag did not return to idle: ${bounded.interaction}`);
@@ -453,8 +478,15 @@ async function pointerDrag(window, startX, startY, endX, endY) {
   await window.webContents.sendInputEvent({ type: 'mouseMove', x: Math.round(startX), y: Math.round(startY) });
   await window.webContents.sendInputEvent({ type: 'mouseDown', x: Math.round(startX), y: Math.round(startY), button: 'left', clickCount: 1 });
   await delay(30);
-  await window.webContents.sendInputEvent({ type: 'mouseMove', x: Math.round(endX), y: Math.round(endY), button: 'left' });
-  await delay(30);
+  for (let step = 1; step <= 4; step += 1) {
+    await window.webContents.sendInputEvent({
+      type: 'mouseMove',
+      x: Math.round(startX + (endX - startX) * (step / 4)),
+      y: Math.round(startY + (endY - startY) * (step / 4)),
+      button: 'left',
+    });
+    await delay(20);
+  }
   await window.webContents.sendInputEvent({ type: 'mouseUp', x: Math.round(endX), y: Math.round(endY), button: 'left', clickCount: 1 });
   await delay(250);
 }
@@ -468,7 +500,10 @@ function assertNear(actual, expected, tolerance, label) {
 }
 
 async function openEditor(window) {
-  if (await evaluate(window, `Boolean(document.querySelector('[data-testid="clip-editor"]'))`)) return;
+  if (await evaluate(window, `Boolean(document.querySelector('[data-testid="clip-editor"]'))`)) {
+    await waitForStablePreview(window);
+    return;
+  }
   await waitForSelector(window, 'nav button');
   await clickButton(window, 'Capture');
   try {
@@ -485,6 +520,13 @@ async function openEditor(window) {
     if (await evaluate(window, `(document.querySelector('video')?.readyState ?? 0) >= 1`)) break;
     await delay(50);
   }
+  await waitForStablePreview(window);
+}
+
+async function waitForStablePreview(window) {
+  await waitForSelector(window, '.clip-editor-preview[data-state="ready"]');
+  await waitForMissingSelector(window, '.clip-editor-preview__status');
+  await delay(160);
 }
 
 async function clickButton(window, label) {

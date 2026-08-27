@@ -19,7 +19,11 @@ export function AudioDevicePicker({
   className?: string;
   onChange: (deviceId: string) => void;
 }) {
-  const options = devices.filter((device) => device.direction === direction && device.available);
+  const options = devices.filter((device) => (
+    device.direction === direction
+    && device.available
+    && !device.isSwitchboard
+  ));
   const selectedValue = options.some((device) => device.id === value) ? value : undefined;
 
   return (

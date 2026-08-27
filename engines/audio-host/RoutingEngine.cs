@@ -93,8 +93,8 @@ internal sealed class RoutingEngine : IDisposable
             var meter = new RealtimeMeter();
             meters[busId] = meter;
             AddSource(physicalOutputs, physical.Id,
-                new ProcessedSampleProvider(personalRing, graph, busId, meter));
-            streamSources.Add(new ProcessedSampleProvider(streamRing, graph, busId));
+                new ProcessedSampleProvider(personalRing, graph.CreateProcessor(busId), meter));
+            streamSources.Add(new ProcessedSampleProvider(streamRing, graph.CreateProcessor(busId)));
         }
 
         var microphoneOutputDevice = Open(virtualEndpoints.MicrophoneRender.Id);

@@ -373,6 +373,12 @@ export class EngineSupervisor {
       if (!existsSync(executable)) throw new Error('The Audio.Host executable is missing from this installation.');
       return { command: executable, arguments: [] };
     }
+    if (process.env.SWITCHBOARD_NATIVE_REVIEW === '1') {
+      const reviewExecutable = process.env.SWITCHBOARD_NATIVE_REVIEW_AUDIO_HOST;
+      if (reviewExecutable && existsSync(reviewExecutable)) {
+        return { command: reviewExecutable, arguments: [] };
+      }
+    }
     const executable = join(app.getAppPath(), 'engines', 'audio-host', 'bin', 'Debug', 'net10.0-windows', 'Audio.Host.exe');
     if (existsSync(executable)) return { command: executable, arguments: [] };
     const project = join(app.getAppPath(), 'engines', 'audio-host', 'Audio.Host.csproj');

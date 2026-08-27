@@ -17,6 +17,7 @@
     "build:capture-host": "node ./scripts/publish-capture-host.mjs",
     "build:audio-host": "node ./scripts/publish-audio-host.mjs",
     "build:noise-native": "node ./scripts/build-noise-native.mjs",
+    "build:virtual-audio-driver": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-virtual-audio-driver.ps1",
     "build:deepfilternet-native": "node ./scripts/build-deepfilternet-native.mjs",
     "acquire:deepfilternet-model": "node ./scripts/acquire-deepfilternet-model.mjs",
     "measure:audio-host": "node ./scripts/measure-audio-host.mjs",

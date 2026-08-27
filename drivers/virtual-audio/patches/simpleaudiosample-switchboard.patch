@@ -1,0 +1,695 @@
+diff --git a/Directory.Build.props b/Directory.Build.props
+index 583b7f1..5d2db76 100644
+--- a/Directory.Build.props
++++ b/Directory.Build.props
+@@ -1,7 +1,5 @@
+ <Project>
+-<Import Project="packages\Microsoft.Windows.WDK.x64.10.0.28000.2526\build\native\Microsoft.Windows.WDK.x64.props" Condition="Exists('packages\Microsoft.Windows.WDK.x64.10.0.28000.2526\build\native\Microsoft.Windows.WDK.x64.props') and '$(Platform)' == 'x64'"/>
+-<Import Project="packages\Microsoft.Windows.WDK.arm64.10.0.28000.2526\build\native\Microsoft.Windows.WDK.arm64.props" Condition="Exists('packages\Microsoft.Windows.WDK.arm64.10.0.28000.2526\build\native\Microsoft.Windows.WDK.arm64.props') and '$(Platform)' == 'ARM64'"/>
+-<Import Project="packages\Microsoft.Windows.SDK.CPP.x64.10.0.28000.2526\build\native\Microsoft.Windows.SDK.cpp.x64.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.x64.10.0.28000.2526\build\native\Microsoft.Windows.SDK.cpp.x64.props') and '$(Platform)' == 'x64'"/>
+-<Import Project="packages\Microsoft.Windows.SDK.CPP.arm64.10.0.28000.2526\build\native\Microsoft.Windows.SDK.cpp.arm64.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.arm64.10.0.28000.2526\build\native\Microsoft.Windows.SDK.cpp.arm64.props') and '$(Platform)' == 'ARM64'"/>
+-<Import Project="packages\Microsoft.Windows.SDK.CPP.10.0.28000.2526\build\native\Microsoft.Windows.SDK.cpp.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.10.0.28000.2526\build\native\Microsoft.Windows.SDK.cpp.props')"/>
++<Import Project="packages\Microsoft.Windows.WDK.x64.10.0.26100.6584\build\native\Microsoft.Windows.WDK.x64.props" Condition="Exists('packages\Microsoft.Windows.WDK.x64.10.0.26100.6584\build\native\Microsoft.Windows.WDK.x64.props') and '$(Platform)' == 'x64'"/>
++<Import Project="packages\Microsoft.Windows.SDK.CPP.x64.10.0.26100.6584\build\native\Microsoft.Windows.SDK.cpp.x64.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.x64.10.0.26100.6584\build\native\Microsoft.Windows.SDK.cpp.x64.props') and '$(Platform)' == 'x64'"/>
++<Import Project="packages\Microsoft.Windows.SDK.CPP.10.0.26100.6584\build\native\Microsoft.Windows.SDK.cpp.props" Condition="Exists('packages\Microsoft.Windows.SDK.CPP.10.0.26100.6584\build\native\Microsoft.Windows.SDK.cpp.props')"/>
+ </Project>
+diff --git a/audio/simpleaudiosample/Source/Filters/micarraytopo.h b/audio/simpleaudiosample/Source/Filters/micarraytopo.h
+index 4f4a621..f307aef 100644
+--- a/audio/simpleaudiosample/Source/Filters/micarraytopo.h
++++ b/audio/simpleaudiosample/Source/Filters/micarraytopo.h
+@@ -45,7 +45,7 @@ public:
+         CMiniportTopologySimpleAudioSample(FilterDesc, DeviceMaxChannels),
+         m_DeviceType(DeviceType)
+     {
+-        ASSERT(m_DeviceType == eMicArrayDevice1);
++        ASSERT(m_DeviceType == eMicrophoneCaptureDevice || m_DeviceType == eStreamCaptureDevice);
+     }
+ 
+     ~CMicArrayMiniportTopology();
+diff --git a/audio/simpleaudiosample/Source/Filters/micarraywavtable.h b/audio/simpleaudiosample/Source/Filters/micarraywavtable.h
+index 5365603..58a2507 100644
+--- a/audio/simpleaudiosample/Source/Filters/micarraywavtable.h
++++ b/audio/simpleaudiosample/Source/Filters/micarraywavtable.h
+@@ -67,7 +67,7 @@ static
+ MODE_AND_DEFAULT_FORMAT MicArrayPinSupportedDeviceModes[] =
+ {
+     {
+-        STATIC_AUDIO_SIGNALPROCESSINGMODE_RAW,
++        STATIC_AUDIO_SIGNALPROCESSINGMODE_DEFAULT,
+         &MicArrayPinSupportedDeviceFormats[0].DataFormat
+     }
+ };
+diff --git a/audio/simpleaudiosample/Source/Filters/minipairs.h b/audio/simpleaudiosample/Source/Filters/minipairs.h
+index b7d8950..ca5278f 100644
+--- a/audio/simpleaudiosample/Source/Filters/minipairs.h
++++ b/audio/simpleaudiosample/Source/Filters/minipairs.h
+@@ -21,6 +21,7 @@ Abstract:
+ #include "micarraytopo.h"
+ #include "micarray1toptable.h"
+ #include "micarraywavtable.h"
++#include "switchboardtoptables.h"
+ 
+ 
+ NTSTATUS
+@@ -71,28 +72,21 @@ PHYSICALCONNECTIONTABLE SpeakerTopologyPhysicalConnections[] =
+     }
+ };
+ 
+-static
+-ENDPOINT_MINIPAIR SpeakerMiniports =
+-{
+-    eSpeakerDevice,
+-    L"TopologySpeaker",                                     // make sure this or the template name matches with KSNAME_TopologySpeaker in the inf's [Strings] section 
+-    NULL,                                                   // optional template name
+-    CreateMiniportTopologySimpleAudioSample,
+-    &SpeakerTopoMiniportFilterDescriptor,
+-    0, NULL,                                                // Interface properties
+-    L"WaveSpeaker",                                         // make sure this or the template name matches with KSNAME_WaveSpeaker in the inf's [Strings] section
+-    NULL,                                                   // optional template name
+-    CreateMiniportWaveRTSimpleAudioSample,
+-    &SpeakerWaveMiniportFilterDescriptor,
+-    0,                                                      // Interface properties
+-    NULL,
+-    SPEAKER_DEVICE_MAX_CHANNELS,
+-    SpeakerPinDeviceFormatsAndModes,
+-    SIZEOF_ARRAY(SpeakerPinDeviceFormatsAndModes),
+-    SpeakerTopologyPhysicalConnections,
+-    SIZEOF_ARRAY(SpeakerTopologyPhysicalConnections),
+-    ENDPOINT_NO_FLAGS,
+-};
++#define DEFINE_SWITCHBOARD_RENDER_MINIPAIR(symbol, deviceType, topologyName, waveName) \
++static ENDPOINT_MINIPAIR symbol##Miniports = \
++{ \
++    deviceType, topologyName, NULL, CreateMiniportTopologySimpleAudioSample, &symbol##TopoDescriptor, 0, NULL, \
++    waveName, NULL, CreateMiniportWaveRTSimpleAudioSample, &SpeakerWaveMiniportFilterDescriptor, 0, NULL, \
++    SPEAKER_DEVICE_MAX_CHANNELS, SpeakerPinDeviceFormatsAndModes, SIZEOF_ARRAY(SpeakerPinDeviceFormatsAndModes), \
++    SpeakerTopologyPhysicalConnections, SIZEOF_ARRAY(SpeakerTopologyPhysicalConnections), ENDPOINT_NO_FLAGS \
++}
++
++DEFINE_SWITCHBOARD_RENDER_MINIPAIR(Gaming, eGamingRenderDevice, L"TopologyGaming", L"WaveGaming");
++DEFINE_SWITCHBOARD_RENDER_MINIPAIR(Chat, eChatRenderDevice, L"TopologyChat", L"WaveChat");
++DEFINE_SWITCHBOARD_RENDER_MINIPAIR(Media, eMediaRenderDevice, L"TopologyMedia", L"WaveMedia");
++DEFINE_SWITCHBOARD_RENDER_MINIPAIR(Aux, eAuxRenderDevice, L"TopologyAux", L"WaveAux");
++DEFINE_SWITCHBOARD_RENDER_MINIPAIR(MicrophoneRender, eMicrophoneRenderDevice, L"TopologyMicrophoneRender", L"WaveMicrophoneRender");
++DEFINE_SWITCHBOARD_RENDER_MINIPAIR(StreamRender, eStreamRenderDevice, L"TopologyStreamRender", L"WaveStreamRender");
+ 
+ //
+ // Capture miniports.
+@@ -118,28 +112,17 @@ PHYSICALCONNECTIONTABLE MicArray1TopologyPhysicalConnections[] =
+     }
+ };
+ 
+-static
+-ENDPOINT_MINIPAIR MicArray1Miniports =
+-{
+-    eMicArrayDevice1,
+-    L"TopologyMicArray1",                   // make sure this or the template name matches with KSNAME_TopologyMicArray1 in the inf's [Strings] section 
+-    NULL,                                   // optional template name
+-    CreateMicArrayMiniportTopology,
+-    &MicArray1TopoMiniportFilterDescriptor,
+-    0, NULL,                                // Interface properties
+-    L"WaveMicArray1",                       // make sure this or the tempalte name matches with KSNAME_WaveMicArray1 in the inf's [Strings] section
+-    NULL,                                   // optional template name
+-    CreateMiniportWaveRTSimpleAudioSample,
+-    &MicArrayWaveMiniportFilterDescriptor,
+-    0,                                      // Interface properties
+-    NULL,
+-    MICARRAY_DEVICE_MAX_CHANNELS,
+-    MicArrayPinDeviceFormatsAndModes,
+-    SIZEOF_ARRAY(MicArrayPinDeviceFormatsAndModes),
+-    MicArray1TopologyPhysicalConnections,
+-    SIZEOF_ARRAY(MicArray1TopologyPhysicalConnections),
+-    ENDPOINT_NO_FLAGS,
+-};
++#define DEFINE_SWITCHBOARD_CAPTURE_MINIPAIR(symbol, deviceType, topologyName, waveName) \
++static ENDPOINT_MINIPAIR symbol##Miniports = \
++{ \
++    deviceType, topologyName, NULL, CreateMicArrayMiniportTopology, &symbol##TopoDescriptor, 0, NULL, \
++    waveName, NULL, CreateMiniportWaveRTSimpleAudioSample, &MicArrayWaveMiniportFilterDescriptor, 0, NULL, \
++    MICARRAY_DEVICE_MAX_CHANNELS, MicArrayPinDeviceFormatsAndModes, SIZEOF_ARRAY(MicArrayPinDeviceFormatsAndModes), \
++    MicArray1TopologyPhysicalConnections, SIZEOF_ARRAY(MicArray1TopologyPhysicalConnections), ENDPOINT_NO_FLAGS \
++}
++
++DEFINE_SWITCHBOARD_CAPTURE_MINIPAIR(MicrophoneCapture, eMicrophoneCaptureDevice, L"TopologyMicrophoneCapture", L"WaveMicrophoneCapture");
++DEFINE_SWITCHBOARD_CAPTURE_MINIPAIR(StreamCapture, eStreamCaptureDevice, L"TopologyStreamCapture", L"WaveStreamCapture");
+ 
+ 
+ //=============================================================================
+@@ -150,7 +133,12 @@ ENDPOINT_MINIPAIR MicArray1Miniports =
+ static
+ PENDPOINT_MINIPAIR  g_RenderEndpoints[] = 
+ {
+-    &SpeakerMiniports,
++    &GamingMiniports,
++    &ChatMiniports,
++    &MediaMiniports,
++    &AuxMiniports,
++    &MicrophoneRenderMiniports,
++    &StreamRenderMiniports,
+ };
+ 
+ #define g_cRenderEndpoints  (SIZEOF_ARRAY(g_RenderEndpoints))
+@@ -163,7 +151,8 @@ PENDPOINT_MINIPAIR  g_RenderEndpoints[] =
+ static
+ PENDPOINT_MINIPAIR  g_CaptureEndpoints[] =
+ {
+-    &MicArray1Miniports,
++    &MicrophoneCaptureMiniports,
++    &StreamCaptureMiniports,
+ };
+ 
+ #define g_cCaptureEndpoints (SIZEOF_ARRAY(g_CaptureEndpoints))
+diff --git a/audio/simpleaudiosample/Source/Filters/speakerwavtable.h b/audio/simpleaudiosample/Source/Filters/speakerwavtable.h
+index e67a673..c8ebc0f 100644
+--- a/audio/simpleaudiosample/Source/Filters/speakerwavtable.h
++++ b/audio/simpleaudiosample/Source/Filters/speakerwavtable.h
+@@ -19,8 +19,8 @@ Abstract:
+ #define SPEAKER_DEVICE_MAX_CHANNELS                 2       // Max Channels.
+ 
+ #define SPEAKER_HOST_MAX_CHANNELS                   2       // Max Channels.
+-#define SPEAKER_HOST_MIN_BITS_PER_SAMPLE            16      // Min Bits Per Sample
+-#define SPEAKER_HOST_MAX_BITS_PER_SAMPLE            16      // Max Bits Per Sample
++#define SPEAKER_HOST_MIN_BITS_PER_SAMPLE            32      // Min Bits Per Sample
++#define SPEAKER_HOST_MAX_BITS_PER_SAMPLE            32      // Max Bits Per Sample
+ #define SPEAKER_HOST_MIN_SAMPLE_RATE                48000   // Min Sample Rate
+ #define SPEAKER_HOST_MAX_SAMPLE_RATE                48000   // Max Sample Rate
+ 
+@@ -49,12 +49,12 @@ KSDATAFORMAT_WAVEFORMATEXTENSIBLE SpeakerHostPinSupportedDeviceFormats[] =
+                 WAVE_FORMAT_EXTENSIBLE,
+                 2,
+                 48000,
+-                192000,
+-                4,
+-                16,
++                384000,
++                8,
++                32,
+                 sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)
+             },
+-            16,
++            32,
+             KSAUDIO_SPEAKER_STEREO,
+             STATICGUIDOF(KSDATAFORMAT_SUBTYPE_PCM)
+         }
+diff --git a/audio/simpleaudiosample/Source/Inc/common.h b/audio/simpleaudiosample/Source/Inc/common.h
+index 2d2db7d..3260fad 100644
+--- a/audio/simpleaudiosample/Source/Inc/common.h
++++ b/audio/simpleaudiosample/Source/Inc/common.h
+@@ -122,8 +122,14 @@ Abstract:
+ 
+ typedef enum
+ {
+-    eSpeakerDevice = 0,
+-    eMicArrayDevice1,
++    eGamingRenderDevice = 0,
++    eChatRenderDevice,
++    eMediaRenderDevice,
++    eAuxRenderDevice,
++    eMicrophoneRenderDevice,
++    eStreamRenderDevice,
++    eMicrophoneCaptureDevice,
++    eStreamCaptureDevice,
+     eMaxDeviceType,
+ } eDeviceType;
+ 
+diff --git a/audio/simpleaudiosample/Source/Main/SimpleAudioSample.inx b/audio/simpleaudiosample/Source/Main/SimpleAudioSample.inx
+index db2b62c..202fd9f 100644
+--- a/audio/simpleaudiosample/Source/Main/SimpleAudioSample.inx
++++ b/audio/simpleaudiosample/Source/Main/SimpleAudioSample.inx
+@@ -3,12 +3,12 @@ Signature   = "$Windows NT$"
+ Class       = MEDIA
+ Provider    = %ProviderName%
+ ClassGUID   = {4d36e96c-e325-11ce-bfc1-08002be10318}
+-DriverVer   = 02/22/2016, 1.0.0.1
+-CatalogFile = SimpleAudioSample.cat
++DriverVer   = 08/26/2026, 0.1.0.0
++CatalogFile = SwitchboardVirtualAudio.cat
+ PnpLockDown = 1
+ 
+ [SourceDisksNames]
+-222="SIMPLEAUDIOSAMPLE Driver Disk","",222
++222="Switchboard Virtual Audio Driver Disk","",222
+ 
+ [SourceDisksFiles]
+ simpleaudiosample.sys=222
+@@ -58,21 +58,30 @@ HKR,Drivers\mixer\wdmaud.drv,Driver,,wdmaud.drv
+ HKR,Drivers\wave\wdmaud.drv,Description,,%SIMPLEAUDIOSAMPLE_SA.DeviceDesc%
+ HKR,Drivers\mixer\wdmaud.drv,Description,,%SIMPLEAUDIOSAMPLE_SA.DeviceDesc%
+ 
++HKR,%MEDIA_CATEGORIES%\%GamingNameGuid%,Name,,%GamingEndpointName%
++HKR,%MEDIA_CATEGORIES%\%ChatNameGuid%,Name,,%ChatEndpointName%
++HKR,%MEDIA_CATEGORIES%\%MediaNameGuid%,Name,,%MediaEndpointName%
++HKR,%MEDIA_CATEGORIES%\%AuxNameGuid%,Name,,%AuxEndpointName%
++HKR,%MEDIA_CATEGORIES%\%MicrophoneRenderNameGuid%,Name,,%MicrophoneRenderEndpointName%
++HKR,%MEDIA_CATEGORIES%\%StreamRenderNameGuid%,Name,,%StreamRenderEndpointName%
++HKR,%MEDIA_CATEGORIES%\%MicrophoneCaptureNameGuid%,Name,,%MicrophoneCaptureEndpointName%
++HKR,%MEDIA_CATEGORIES%\%StreamCaptureNameGuid%,Name,,%StreamCaptureEndpointName%
++
+ ;======================================================
+-; capture interfaces: mic array (internal: front)
++; Reusable capture interface registration.
+ ;======================================================
+-[SIMPLEAUDIOSAMPLE.I.WaveMicArray1]
+-AddReg=SIMPLEAUDIOSAMPLE.I.WaveMicArray1.AddReg
+-[SIMPLEAUDIOSAMPLE.I.WaveMicArray1.AddReg]
++[SWITCHBOARD.I.WaveCapture]
++AddReg=SWITCHBOARD.I.WaveCapture.AddReg
++[SWITCHBOARD.I.WaveCapture.AddReg]
+ HKR,,CLSID,,%Proxy.CLSID%
+-HKR,,FriendlyName,,%SIMPLEAUDIOSAMPLE.WaveMicArray1.szPname%
++HKR,,FriendlyName,,%Switchboard.WaveCaptureName%
+ 
+-[SIMPLEAUDIOSAMPLE.I.TopologyMicArray1]
+-AddReg=SIMPLEAUDIOSAMPLE.I.TopologyMicArray1.AddReg
++[SWITCHBOARD.I.TopologyCapture]
++AddReg=SWITCHBOARD.I.TopologyCapture.AddReg
+ 
+-[SIMPLEAUDIOSAMPLE.I.TopologyMicArray1.AddReg]
++[SWITCHBOARD.I.TopologyCapture.AddReg]
+ HKR,,CLSID,,%Proxy.CLSID%
+-HKR,,FriendlyName,,%SIMPLEAUDIOSAMPLE.TopologyMicArray1.szPname%
++HKR,,FriendlyName,,%Switchboard.TopologyCaptureName%
+ 
+ HKR,EP\0,%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_ANY%
+ 
+@@ -80,21 +89,21 @@ HKR,EP\0,%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_ANY%
+ HKR,EP\0,%PKEY_AudioEndpoint_Supports_EventDriven_Mode%,0x00010001,0x1
+ 
+ ;======================================================
+-; render interfaces: speaker (internal)
++; Reusable render interface registration.
+ ;======================================================
+-[SIMPLEAUDIOSAMPLE.I.WaveSpeaker]
+-AddReg=SIMPLEAUDIOSAMPLE.I.WaveSpeaker.AddReg
++[SWITCHBOARD.I.WaveRender]
++AddReg=SWITCHBOARD.I.WaveRender.AddReg
+ 
+-[SIMPLEAUDIOSAMPLE.I.WaveSpeaker.AddReg]
++[SWITCHBOARD.I.WaveRender.AddReg]
+ HKR,,CLSID,,%Proxy.CLSID%
+-HKR,,FriendlyName,,%SIMPLEAUDIOSAMPLE.WaveSpeaker.szPname%
++HKR,,FriendlyName,,%Switchboard.WaveRenderName%
+ 
+-[SIMPLEAUDIOSAMPLE.I.TopologySpeaker]
+-AddReg=SIMPLEAUDIOSAMPLE.I.TopologySpeaker.AddReg
++[SWITCHBOARD.I.TopologyRender]
++AddReg=SWITCHBOARD.I.TopologyRender.AddReg
+ 
+-[SIMPLEAUDIOSAMPLE.I.TopologySpeaker.AddReg]
++[SWITCHBOARD.I.TopologyRender.AddReg]
+ HKR,,CLSID,,%Proxy.CLSID%
+-HKR,,FriendlyName,,%SIMPLEAUDIOSAMPLE.TopologySpeaker.szPname%
++HKR,,FriendlyName,,%Switchboard.TopologyRenderName%
+ 
+ HKR,EP\0,%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_ANY%
+ 
+@@ -111,23 +120,53 @@ CopyFiles=SIMPLEAUDIOSAMPLE_SA.CopyList
+ AddReg=SIMPLEAUDIOSAMPLE_SA.AddReg
+ 
+ [SIMPLEAUDIOSAMPLE_SA.NT.Interfaces]
+-;
+-; Interfaces for speaker (internal) render endpoint.
+-;
+-AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveSpeaker%, SIMPLEAUDIOSAMPLE.I.WaveSpeaker
+-AddInterface=%KSCATEGORY_RENDER%, %KSNAME_WaveSpeaker%, SIMPLEAUDIOSAMPLE.I.WaveSpeaker
+-AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveSpeaker%, SIMPLEAUDIOSAMPLE.I.WaveSpeaker
+-AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologySpeaker%, SIMPLEAUDIOSAMPLE.I.TopologySpeaker
+-AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologySpeaker%, SIMPLEAUDIOSAMPLE.I.TopologySpeaker
+-
+-;
+-; Interfaces for microphone array 1 (internal: front) capture endpoint.
+-;
+-AddInterface=%KSCATEGORY_AUDIO%,    %KSNAME_WaveMicArray1%, SIMPLEAUDIOSAMPLE.I.WaveMicArray1
+-AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveMicArray1%, SIMPLEAUDIOSAMPLE.I.WaveMicArray1
+-AddInterface=%KSCATEGORY_CAPTURE%,  %KSNAME_WaveMicArray1%, SIMPLEAUDIOSAMPLE.I.WaveMicArray1
+-AddInterface=%KSCATEGORY_AUDIO%,    %KSNAME_TopologyMicArray1%, SIMPLEAUDIOSAMPLE.I.TopologyMicArray1
+-AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyMicArray1%, SIMPLEAUDIOSAMPLE.I.TopologyMicArray1
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveGaming%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_RENDER%, %KSNAME_WaveGaming%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveGaming%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyGaming%, SWITCHBOARD.I.TopologyRender
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyGaming%, SWITCHBOARD.I.TopologyRender
++
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveChat%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_RENDER%, %KSNAME_WaveChat%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveChat%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyChat%, SWITCHBOARD.I.TopologyRender
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyChat%, SWITCHBOARD.I.TopologyRender
++
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveMedia%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_RENDER%, %KSNAME_WaveMedia%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveMedia%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyMedia%, SWITCHBOARD.I.TopologyRender
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyMedia%, SWITCHBOARD.I.TopologyRender
++
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveAux%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_RENDER%, %KSNAME_WaveAux%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveAux%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyAux%, SWITCHBOARD.I.TopologyRender
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyAux%, SWITCHBOARD.I.TopologyRender
++
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveMicrophoneRender%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_RENDER%, %KSNAME_WaveMicrophoneRender%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveMicrophoneRender%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyMicrophoneRender%, SWITCHBOARD.I.TopologyRender
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyMicrophoneRender%, SWITCHBOARD.I.TopologyRender
++
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveStreamRender%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_RENDER%, %KSNAME_WaveStreamRender%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveStreamRender%, SWITCHBOARD.I.WaveRender
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyStreamRender%, SWITCHBOARD.I.TopologyRender
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyStreamRender%, SWITCHBOARD.I.TopologyRender
++
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveMicrophoneCapture%, SWITCHBOARD.I.WaveCapture
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveMicrophoneCapture%, SWITCHBOARD.I.WaveCapture
++AddInterface=%KSCATEGORY_CAPTURE%, %KSNAME_WaveMicrophoneCapture%, SWITCHBOARD.I.WaveCapture
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyMicrophoneCapture%, SWITCHBOARD.I.TopologyCapture
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyMicrophoneCapture%, SWITCHBOARD.I.TopologyCapture
++
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_WaveStreamCapture%, SWITCHBOARD.I.WaveCapture
++AddInterface=%KSCATEGORY_REALTIME%, %KSNAME_WaveStreamCapture%, SWITCHBOARD.I.WaveCapture
++AddInterface=%KSCATEGORY_CAPTURE%, %KSNAME_WaveStreamCapture%, SWITCHBOARD.I.WaveCapture
++AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_TopologyStreamCapture%, SWITCHBOARD.I.TopologyCapture
++AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyStreamCapture%, SWITCHBOARD.I.TopologyCapture
+ 
+ [SIMPLEAUDIOSAMPLE_SA.NT.Services]
+ AddService=SimpleAudioSample,0x00000002,SimpleAudioSample_Service_Inst
+@@ -164,11 +203,22 @@ KmdfLibraryVersion = $KMDFVERSION$
+ 
+ ;Non-localizable
+ 
+-KSNAME_WaveSpeaker="WaveSpeaker"
+-KSNAME_TopologySpeaker="TopologySpeaker"
+-
+-KSNAME_WaveMicArray1="WaveMicArray1"
+-KSNAME_TopologyMicArray1="TopologyMicArray1"
++KSNAME_WaveGaming="WaveGaming"
++KSNAME_TopologyGaming="TopologyGaming"
++KSNAME_WaveChat="WaveChat"
++KSNAME_TopologyChat="TopologyChat"
++KSNAME_WaveMedia="WaveMedia"
++KSNAME_TopologyMedia="TopologyMedia"
++KSNAME_WaveAux="WaveAux"
++KSNAME_TopologyAux="TopologyAux"
++KSNAME_WaveMicrophoneRender="WaveMicrophoneRender"
++KSNAME_TopologyMicrophoneRender="TopologyMicrophoneRender"
++KSNAME_WaveStreamRender="WaveStreamRender"
++KSNAME_TopologyStreamRender="TopologyStreamRender"
++KSNAME_WaveMicrophoneCapture="WaveMicrophoneCapture"
++KSNAME_TopologyMicrophoneCapture="TopologyMicrophoneCapture"
++KSNAME_WaveStreamCapture="WaveStreamCapture"
++KSNAME_TopologyStreamCapture="TopologyStreamCapture"
+ 
+ Proxy.CLSID="{17CCA71B-ECD7-11D0-B908-00A0C9223196}"
+ KSCATEGORY_AUDIO="{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+@@ -182,21 +232,37 @@ KSNODETYPE_ANY   = "{00000000-0000-0000-0000-000000000000}"
+ PKEY_AudioEndpoint_Association               = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},2"
+ PKEY_AudioEndpoint_Supports_EventDriven_Mode = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},7"
+ 
++MEDIA_CATEGORIES = "MediaCategories"
++GamingNameGuid = {9403A111-A279-4962-8E88-D0F435F1C3C6}
++ChatNameGuid = {DD18A818-275C-4064-8768-FE0AB83761C4}
++MediaNameGuid = {C1D0744C-93E6-44C3-B8F7-E2EE05501500}
++AuxNameGuid = {F513233A-499A-4B4F-8A4B-5D35E75CDA30}
++MicrophoneRenderNameGuid = {62CE0432-537E-4287-BBEB-0A53CAE2ABB4}
++StreamRenderNameGuid = {5EF16FCE-0C22-49DD-963B-733897EE5DB2}
++MicrophoneCaptureNameGuid = {31045751-52F8-4915-836F-DDFA5451BF99}
++StreamCaptureNameGuid = {95841B61-665C-451C-97C5-281FEBB2AF2B}
++
+ ;Localizable
+ 
+-ProviderName = "TODO-Set-Provider"
+-MfgName      = "TODO-Set-Manufacturer"
+-MsCopyRight  = "TODO-Set-Copyright"
++ProviderName = "Switchboard"
++MfgName      = "Switchboard"
++MsCopyRight  = "Copyright (c) 2026 Switchboard"
+ 
+-SIMPLEAUDIOSAMPLE_SA.DeviceDesc="Virtual Audio Device (WDM) - Simple Audio Sample"
+-SimpleAudioSample.SvcDesc="Virtual Audio Device (WDM) - Simple Audio Sample Driver"
++SIMPLEAUDIOSAMPLE_SA.DeviceDesc="Switchboard Virtual Audio Device"
++SimpleAudioSample.SvcDesc="Switchboard Virtual Audio Transport Driver"
+ 
+ ;; friendly names
+-SIMPLEAUDIOSAMPLE.WaveSpeaker.szPname="Simple Audio Sample Wave Speaker"
+-SIMPLEAUDIOSAMPLE.TopologySpeaker.szPname="Simple Audio Sample Topology Speaker"
+-
+-SIMPLEAUDIOSAMPLE.WaveMicArray1.szPname="Simple Audio Sample Wave Microphone Array - Front"
+-SIMPLEAUDIOSAMPLE.TopologyMicArray1.szPname="Simple Audio Sample Topology Microphone Array - Front"
+-
+-MicArray1CustomName= "Internal Microphone Array - Front"
++Switchboard.WaveRenderName="Switchboard Virtual Audio Device"
++Switchboard.TopologyRenderName="Switchboard Render Topology"
++Switchboard.WaveCaptureName="Switchboard Virtual Audio Device"
++Switchboard.TopologyCaptureName="Switchboard Capture Topology"
++
++GamingEndpointName="Switchboard Audio - Gaming"
++ChatEndpointName="Switchboard Audio - Chat"
++MediaEndpointName="Switchboard Audio - Media"
++AuxEndpointName="Switchboard Audio - Aux"
++MicrophoneRenderEndpointName="Switchboard Audio - Microphone"
++StreamRenderEndpointName="Switchboard Audio - Stream"
++MicrophoneCaptureEndpointName="Switchboard Audio - Microphone"
++StreamCaptureEndpointName="Switchboard Audio - Stream"
+ 
+diff --git a/audio/simpleaudiosample/Source/Main/minwavert.cpp b/audio/simpleaudiosample/Source/Main/minwavert.cpp
+index 1d92073..16a976c 100644
+--- a/audio/simpleaudiosample/Source/Main/minwavert.cpp
++++ b/audio/simpleaudiosample/Source/Main/minwavert.cpp
+@@ -223,7 +223,7 @@ Arguments:
+ 
+     //If called for the mic array pin, set ResultantFormat to be the endpoint's only supported format.
+     //Otherwise, allow the class handler to set ResultantFormat.  
+-    if ((this->m_DeviceType) == eMicArrayDevice1)
++    if (!IsRenderDevice())
+     {
+         requiredSize = sizeof(KSDATAFORMAT_WAVEFORMATEXTENSIBLE);
+ 
+diff --git a/audio/simpleaudiosample/Source/Main/minwavert.h b/audio/simpleaudiosample/Source/Main/minwavert.h
+index a5ed89f..6ec3417 100644
+--- a/audio/simpleaudiosample/Source/Main/minwavert.h
++++ b/audio/simpleaudiosample/Source/Main/minwavert.h
+@@ -228,7 +228,12 @@ protected:
+ #pragma code_seg()
+     BOOL IsRenderDevice()
+     {
+-        return m_DeviceType == eSpeakerDevice ? TRUE : FALSE;
++        return m_DeviceType <= eStreamRenderDevice ? TRUE : FALSE;
++    }
++
++    eDeviceType GetDeviceType() const
++    {
++        return m_DeviceType;
+     }
+ 
+     BOOL IsSystemRenderPin(ULONG nPinId);
+diff --git a/audio/simpleaudiosample/Source/Main/minwavertstream.cpp b/audio/simpleaudiosample/Source/Main/minwavertstream.cpp
+index c189c93..2e1a3c0 100644
+--- a/audio/simpleaudiosample/Source/Main/minwavertstream.cpp
++++ b/audio/simpleaudiosample/Source/Main/minwavertstream.cpp
+@@ -6,6 +6,73 @@
+ #include "minwavertstream.h"
+ #define MINWAVERTSTREAM_POOLTAG 'SRWM'
+ 
++#define SWITCHBOARD_TRANSPORT_CAPACITY_BYTES (38400)
++
++typedef struct _SWITCHBOARD_TRANSPORT_RING
++{
++    BYTE Buffer[SWITCHBOARD_TRANSPORT_CAPACITY_BYTES];
++    volatile LONG64 ReadSequence;
++    volatile LONG64 WriteSequence;
++} SWITCHBOARD_TRANSPORT_RING;
++
++static SWITCHBOARD_TRANSPORT_RING g_MicrophoneTransport = {};
++static SWITCHBOARD_TRANSPORT_RING g_StreamTransport = {};
++
++static SWITCHBOARD_TRANSPORT_RING* GetTransportRing(eDeviceType deviceType)
++{
++    switch (deviceType)
++    {
++    case eMicrophoneRenderDevice:
++    case eMicrophoneCaptureDevice:
++        return &g_MicrophoneTransport;
++    case eStreamRenderDevice:
++    case eStreamCaptureDevice:
++        return &g_StreamTransport;
++    default:
++        return NULL;
++    }
++}
++
++static VOID ResetTransportReader(eDeviceType deviceType)
++{
++    SWITCHBOARD_TRANSPORT_RING* ring = GetTransportRing(deviceType);
++    if (ring == NULL) return;
++    LONG64 write = InterlockedCompareExchange64(&ring->WriteSequence, 0, 0);
++    InterlockedExchange64(&ring->ReadSequence, write);
++}
++
++static ULONG WriteTransportBytes(SWITCHBOARD_TRANSPORT_RING* ring, const BYTE* source, ULONG byteCount)
++{
++    LONG64 write = InterlockedCompareExchange64(&ring->WriteSequence, 0, 0);
++    LONG64 read = InterlockedCompareExchange64(&ring->ReadSequence, 0, 0);
++    LONG64 pending = write > read ? write - read : 0;
++    ULONG used = (ULONG)min((LONG64)SWITCHBOARD_TRANSPORT_CAPACITY_BYTES, pending);
++    ULONG accepted = min(byteCount, SWITCHBOARD_TRANSPORT_CAPACITY_BYTES - used);
++    ULONG offset = (ULONG)(write % SWITCHBOARD_TRANSPORT_CAPACITY_BYTES);
++    ULONG first = min(accepted, SWITCHBOARD_TRANSPORT_CAPACITY_BYTES - offset);
++    RtlCopyMemory(ring->Buffer + offset, source, first);
++    if (accepted > first) RtlCopyMemory(ring->Buffer, source + first, accepted - first);
++    KeMemoryBarrier();
++    InterlockedExchange64(&ring->WriteSequence, write + accepted);
++    return accepted;
++}
++
++static ULONG ReadTransportBytes(SWITCHBOARD_TRANSPORT_RING* ring, BYTE* destination, ULONG byteCount)
++{
++    LONG64 read = InterlockedCompareExchange64(&ring->ReadSequence, 0, 0);
++    LONG64 write = InterlockedCompareExchange64(&ring->WriteSequence, 0, 0);
++    LONG64 pending = write > read ? write - read : 0;
++    ULONG available = (ULONG)min((LONG64)byteCount, pending);
++    ULONG offset = (ULONG)(read % SWITCHBOARD_TRANSPORT_CAPACITY_BYTES);
++    ULONG first = min(available, SWITCHBOARD_TRANSPORT_CAPACITY_BYTES - offset);
++    RtlCopyMemory(destination, ring->Buffer + offset, first);
++    if (available > first) RtlCopyMemory(destination + first, ring->Buffer, available - first);
++    if (available < byteCount) RtlZeroMemory(destination + available, byteCount - available);
++    KeMemoryBarrier();
++    InterlockedExchange64(&ring->ReadSequence, read + available);
++    return available;
++}
++
+ #pragma warning (disable : 4127)
+ 
+ //=============================================================================
+@@ -1247,6 +1314,10 @@ NTSTATUS CMiniportWaveRTStream::SetState
+             break;
+ 
+         case KSSTATE_RUN:
++            if (m_bCapture && m_KsState != KSSTATE_RUN)
++            {
++                ResetTransportReader(m_pMiniport->GetDeviceType());
++            }
+             // Start DMA
+             LARGE_INTEGER ullPerfCounterTemp;
+             ullPerfCounterTemp = KeQueryPerformanceCounter(&m_ullPerformanceCounterFrequency);
+@@ -1364,11 +1435,10 @@ VOID CMiniportWaveRTStream::UpdatePosition
+             m_bLastBufferRendered = TRUE;
+         }
+ 
+-        if (!g_DoNotCreateDataFiles)
+-        {
+-            // Read from buffer and write to a file.
+-            ReadBytes(ByteDisplacement);
+-        }
++        // Consume the render buffer. Duplex transport endpoints copy the
++        // mixed stream into their paired capture ring; ordinary buses discard
++        // here and are consumed by Audio.Host through WASAPI loopback.
++        ReadBytes(ByteDisplacement);
+     }
+     
+     // Increment the DMA position by the number of bytes displaced since the last
+@@ -1413,7 +1483,15 @@ ByteDisplacement - # of bytes to process.
+     {
+         ULONG runWrite = min(ByteDisplacement, m_ulDmaBufferSize - bufferOffset);
+         
+-        m_ToneGenerator.GenerateSine(m_pDmaBuffer + bufferOffset, runWrite);
++        SWITCHBOARD_TRANSPORT_RING* ring = GetTransportRing(m_pMiniport->GetDeviceType());
++        if (ring != NULL)
++        {
++            ReadTransportBytes(ring, m_pDmaBuffer + bufferOffset, runWrite);
++        }
++        else
++        {
++            RtlZeroMemory(m_pDmaBuffer + bufferOffset, runWrite);
++        }
+            	
+         bufferOffset = (bufferOffset + runWrite) % m_ulDmaBufferSize;
+         ByteDisplacement -= runWrite;
+@@ -1445,7 +1523,15 @@ ByteDisplacement - # of bytes to process.
+     while (ByteDisplacement > 0)
+     {
+         ULONG runWrite = min(ByteDisplacement, m_ulDmaBufferSize - bufferOffset);
+-        m_SaveData.WriteData(m_pDmaBuffer + bufferOffset, runWrite);
++        SWITCHBOARD_TRANSPORT_RING* ring = GetTransportRing(m_pMiniport->GetDeviceType());
++        if (ring != NULL)
++        {
++            WriteTransportBytes(ring, m_pDmaBuffer + bufferOffset, runWrite);
++        }
++        else if (!g_DoNotCreateDataFiles)
++        {
++            m_SaveData.WriteData(m_pDmaBuffer + bufferOffset, runWrite);
++        }
+         bufferOffset = (bufferOffset + runWrite) % m_ulDmaBufferSize;
+         ByteDisplacement -= runWrite;
+     }
+diff --git a/packages.config b/packages.config
+index 4516da4..3ac8241 100644
+--- a/packages.config
++++ b/packages.config
+@@ -1,8 +1,6 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <packages>
+-  <package id="Microsoft.Windows.SDK.CPP" version="10.0.28000.2526" targetFramework="native" />
+-  <package id="Microsoft.Windows.SDK.CPP.x64" version="10.0.28000.2526" targetFramework="native" />
+-  <package id="Microsoft.Windows.SDK.CPP.arm64" version="10.0.28000.2526" targetFramework="native" />
+-  <package id="Microsoft.Windows.WDK.x64" version="10.0.28000.2526" targetFramework="native" />
+-  <package id="Microsoft.Windows.WDK.arm64" version="10.0.28000.2526" targetFramework="native" />
++  <package id="Microsoft.Windows.SDK.CPP" version="10.0.26100.6584" targetFramework="native" />
++  <package id="Microsoft.Windows.SDK.CPP.x64" version="10.0.26100.6584" targetFramework="native" />
++  <package id="Microsoft.Windows.WDK.x64" version="10.0.26100.6584" targetFramework="native" />
+ </packages>
+diff --git a/audio/simpleaudiosample/Source/Filters/switchboardtoptables.h b/audio/simpleaudiosample/Source/Filters/switchboardtoptables.h
+new file mode 100644
+index 0000000..c618365
+--- /dev/null
++++ b/audio/simpleaudiosample/Source/Filters/switchboardtoptables.h
+@@ -0,0 +1,48 @@
++#ifndef _SWITCHBOARD_TOPTABLES_H_
++#define _SWITCHBOARD_TOPTABLES_H_
++
++DEFINE_GUID(SWITCHBOARD_GAMING_NAME, 0x9403a111, 0xa279, 0x4962, 0x8e, 0x88, 0xd0, 0xf4, 0x35, 0xf1, 0xc3, 0xc6);
++DEFINE_GUID(SWITCHBOARD_CHAT_NAME, 0xdd18a818, 0x275c, 0x4064, 0x87, 0x68, 0xfe, 0x0a, 0xb8, 0x37, 0x61, 0xc4);
++DEFINE_GUID(SWITCHBOARD_MEDIA_NAME, 0xc1d0744c, 0x93e6, 0x44c3, 0xb8, 0xf7, 0xe2, 0xee, 0x05, 0x50, 0x15, 0x00);
++DEFINE_GUID(SWITCHBOARD_AUX_NAME, 0xf513233a, 0x499a, 0x4b4f, 0x8a, 0x4b, 0x5d, 0x35, 0xe7, 0x5c, 0xda, 0x30);
++DEFINE_GUID(SWITCHBOARD_MIC_RENDER_NAME, 0x62ce0432, 0x537e, 0x4287, 0xbb, 0xeb, 0x0a, 0x53, 0xca, 0xe2, 0xab, 0xb4);
++DEFINE_GUID(SWITCHBOARD_STREAM_RENDER_NAME, 0x5ef16fce, 0x0c22, 0x49dd, 0x96, 0x3b, 0x73, 0x38, 0x97, 0xee, 0x5d, 0xb2);
++DEFINE_GUID(SWITCHBOARD_MIC_CAPTURE_NAME, 0x31045751, 0x52f8, 0x4915, 0x83, 0x6f, 0xdd, 0xfa, 0x54, 0x51, 0xbf, 0x99);
++DEFINE_GUID(SWITCHBOARD_STREAM_CAPTURE_NAME, 0x95841b61, 0x665c, 0x451c, 0x97, 0xc5, 0x28, 0x1f, 0xeb, 0xb2, 0xaf, 0x2b);
++
++#define DEFINE_SWITCHBOARD_RENDER_TOPOLOGY(symbol, endpointNameGuid) \
++static PCPIN_DESCRIPTOR symbol##TopoPins[] = \
++{ \
++    { 0, 0, 0, NULL, { 0, NULL, 0, NULL, SIZEOF_ARRAY(SpeakerTopoPinDataRangePointersBridge), SpeakerTopoPinDataRangePointersBridge, KSPIN_DATAFLOW_IN, KSPIN_COMMUNICATION_NONE, &KSCATEGORY_AUDIO, NULL, 0 } }, \
++    { 0, 0, 0, NULL, { 0, NULL, 0, NULL, SIZEOF_ARRAY(SpeakerTopoPinDataRangePointersBridge), SpeakerTopoPinDataRangePointersBridge, KSPIN_DATAFLOW_OUT, KSPIN_COMMUNICATION_NONE, &KSNODETYPE_SPEAKER, &endpointNameGuid, 0 } } \
++}; \
++static PCFILTER_DESCRIPTOR symbol##TopoDescriptor = \
++{ \
++    0, &AutomationSpeakerTopoFilter, sizeof(PCPIN_DESCRIPTOR), SIZEOF_ARRAY(symbol##TopoPins), symbol##TopoPins, \
++    sizeof(PCNODE_DESCRIPTOR), SIZEOF_ARRAY(SpeakerTopologyNodes), SpeakerTopologyNodes, \
++    SIZEOF_ARRAY(SpeakerTopoMiniportConnections), SpeakerTopoMiniportConnections, 0, NULL \
++}
++
++#define DEFINE_SWITCHBOARD_CAPTURE_TOPOLOGY(symbol, endpointNameGuid) \
++static PCPIN_DESCRIPTOR symbol##TopoPins[] = \
++{ \
++    { 0, 0, 0, NULL, { 0, NULL, 0, NULL, SIZEOF_ARRAY(MicArray1TopoPinDataRangePointersBridge), MicArray1TopoPinDataRangePointersBridge, KSPIN_DATAFLOW_IN, KSPIN_COMMUNICATION_NONE, &KSNODETYPE_MICROPHONE, &endpointNameGuid, 0 } }, \
++    { 0, 0, 0, NULL, { 0, NULL, 0, NULL, SIZEOF_ARRAY(MicArray1TopoPinDataRangePointersBridge), MicArray1TopoPinDataRangePointersBridge, KSPIN_DATAFLOW_OUT, KSPIN_COMMUNICATION_NONE, &KSCATEGORY_AUDIO, NULL, 0 } } \
++}; \
++static PCFILTER_DESCRIPTOR symbol##TopoDescriptor = \
++{ \
++    0, &AutomationMicArray1TopoFilter, sizeof(PCPIN_DESCRIPTOR), SIZEOF_ARRAY(symbol##TopoPins), symbol##TopoPins, \
++    sizeof(PCNODE_DESCRIPTOR), SIZEOF_ARRAY(MicArray1TopologyNodes), MicArray1TopologyNodes, \
++    SIZEOF_ARRAY(MicArray1TopoMiniportConnections), MicArray1TopoMiniportConnections, 0, NULL \
++}
++
++DEFINE_SWITCHBOARD_RENDER_TOPOLOGY(Gaming, SWITCHBOARD_GAMING_NAME);
++DEFINE_SWITCHBOARD_RENDER_TOPOLOGY(Chat, SWITCHBOARD_CHAT_NAME);
++DEFINE_SWITCHBOARD_RENDER_TOPOLOGY(Media, SWITCHBOARD_MEDIA_NAME);
++DEFINE_SWITCHBOARD_RENDER_TOPOLOGY(Aux, SWITCHBOARD_AUX_NAME);
++DEFINE_SWITCHBOARD_RENDER_TOPOLOGY(MicrophoneRender, SWITCHBOARD_MIC_RENDER_NAME);
++DEFINE_SWITCHBOARD_RENDER_TOPOLOGY(StreamRender, SWITCHBOARD_STREAM_RENDER_NAME);
++DEFINE_SWITCHBOARD_CAPTURE_TOPOLOGY(MicrophoneCapture, SWITCHBOARD_MIC_CAPTURE_NAME);
++DEFINE_SWITCHBOARD_CAPTURE_TOPOLOGY(StreamCapture, SWITCHBOARD_STREAM_CAPTURE_NAME);
++
++#endif
+

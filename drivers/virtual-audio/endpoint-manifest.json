@@ -4,13 +4,13 @@
   "sampleRate": 48000,
   "sampleFormat": "stereo-float32",
   "endpoints": [
-    { "name": "Switchboard - Game", "flow": "render", "role": "application-bus" },
-    { "name": "Switchboard - Chat", "flow": "render", "role": "application-bus" },
-    { "name": "Switchboard - Media", "flow": "render", "role": "application-bus" },
-    { "name": "Switchboard - Aux", "flow": "render", "role": "application-bus" },
-    { "name": "Switchboard - Microphone", "flow": "render", "role": "duplex-transport-input" },
-    { "name": "Switchboard - Stream", "flow": "render", "role": "duplex-transport-input" },
-    { "name": "Switchboard - Microphone", "flow": "capture", "role": "processed-microphone" },
-    { "name": "Switchboard - Stream", "flow": "capture", "role": "broadcast-mix" }
+    { "name": "Switchboard Audio - Gaming", "flow": "render", "role": "application-bus", "visibility": "user" },
+    { "name": "Switchboard Audio - Chat", "flow": "render", "role": "application-bus", "visibility": "user" },
+    { "name": "Switchboard Audio - Media", "flow": "render", "role": "application-bus", "visibility": "user" },
+    { "name": "Switchboard Audio - Aux", "flow": "render", "role": "application-bus", "visibility": "internal" },
+    { "name": "Switchboard Audio - Microphone", "flow": "render", "role": "duplex-transport-input", "visibility": "internal" },
+    { "name": "Switchboard Audio - Stream", "flow": "render", "role": "duplex-transport-input", "visibility": "internal" },
+    { "name": "Switchboard Audio - Microphone", "flow": "capture", "role": "processed-microphone", "visibility": "user" },
+    { "name": "Switchboard Audio - Stream", "flow": "capture", "role": "broadcast-mix", "visibility": "internal" }
   ]
 }

@@ -332,11 +332,11 @@ export const defaultAudio: AudioState = {
   monitoringEnabled: false,
   monitoringDeviceId: '',
   buses: [
-    { id: 'game', label: 'Game', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard - Game', deviceId: '' },
-    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard - Chat', deviceId: '' },
-    { id: 'media', label: 'Media', enabled: true, appCount: 0, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard - Media', deviceId: '' },
-    { id: 'aux', label: 'Aux', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0, endpoint: 'Switchboard - Aux', deviceId: '' },
-    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, gain: 0.92, muted: false, meter: 0.56, endpoint: 'Switchboard - Microphone', deviceId: '' },
+    { id: 'game', label: 'Game', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0.72, endpoint: 'Switchboard Audio - Gaming', deviceId: '' },
+    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, gain: 0.76, muted: false, meter: 0.38, endpoint: 'Switchboard Audio - Chat', deviceId: '' },
+    { id: 'media', label: 'Media', enabled: true, appCount: 0, gain: 0.42, muted: false, meter: 0.21, endpoint: 'Switchboard Audio - Media', deviceId: '' },
+    { id: 'aux', label: 'Aux', enabled: true, appCount: 0, gain: 1, muted: false, meter: 0, endpoint: 'Switchboard Audio - Aux', deviceId: '' },
+    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, gain: 0.92, muted: false, meter: 0.56, endpoint: 'Switchboard Audio - Microphone', deviceId: '' },
   ],
   micProcessors: createNaturalMicrophoneProcessors(),
   channelProcessing: [

@@ -267,21 +267,35 @@ export class AppController {
     if (current === enabled) return this.store.get();
 
     if (enabled) {
-      await this.startAudioEngine();
-    } else {
-      if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
-      this.audioRestartTimer = null;
-      this.audioRestartAttempts = 0;
-      await this.engines.stop('audio');
+      this.store.update((draft) => {
+        draft.audio.enabled = true;
+        const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
+        if (module) {
+          module.installed = true;
+          module.enabled = true;
+        }
+      });
+      try {
+        await this.startAudioEngine();
+        return this.store.get();
+      } catch (error) {
+        this.store.update((draft) => {
+          draft.audio.enabled = false;
+          const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
+          if (module) module.enabled = false;
+        });
+        throw error;
+      }
     }
 
+    if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
+    this.audioRestartTimer = null;
+    this.audioRestartAttempts = 0;
+    await this.engines.stop('audio');
     return this.store.update((draft) => {
-      draft.audio.enabled = enabled;
+      draft.audio.enabled = false;
       const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
-      if (module) {
-        module.installed = true;
-        module.enabled = enabled;
-      }
+      if (module) module.enabled = false;
     });
   }
 
@@ -321,7 +335,7 @@ export class AppController {
     return snapshot;
   }
 
-  public setAudioBusDevice(input: SetAudioBusDeviceInput): SystemSnapshot {
+  public async setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<SystemSnapshot> {
     const before = this.store.get();
     const bus = before.audio.buses.find((candidate) => candidate.id === input.busId);
     if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
@@ -334,6 +348,9 @@ export class AppController {
     if (device.direction !== requiredDirection) {
       throw new Error(`${device.name} cannot be assigned to the ${bus.label} channel.`);
     }
+    if (device.isSwitchboard) {
+      throw new Error('Choose a physical Windows audio device instead of a Switchboard transport endpoint.');
+    }
 
     const snapshot = this.store.update((draft) => {
       const target = draft.audio.buses.find((candidate) => candidate.id === input.busId);
@@ -342,8 +359,18 @@ export class AppController {
       if (target.id === 'mic') draft.audio.microphoneDevice = device.name;
       if (target.id === 'game') draft.audio.outputDevice = device.name;
     });
-    this.engines.send('audio', 'configure', snapshot.audio);
-    return snapshot;
+    try {
+      return await this.configureAudioEngine(snapshot);
+    } catch (error) {
+      this.store.update((draft) => {
+        const target = draft.audio.buses.find((candidate) => candidate.id === input.busId);
+        if (target) target.deviceId = bus.deviceId;
+        draft.audio.outputDevice = before.audio.outputDevice;
+        draft.audio.microphoneDevice = before.audio.microphoneDevice;
+      });
+      this.engines.send('audio', 'configure', before.audio);
+      throw error;
+    }
   }
 
   public async applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot> {
@@ -412,12 +439,13 @@ export class AppController {
     const source = await readFile(selection.filePaths[0], 'utf8');
     if (Buffer.byteLength(source, 'utf8') > 1_000_000) throw new Error('Audio preset files must be smaller than 1 MB.');
     const imported = audioPresetFileSchema.parse(JSON.parse(source));
-    return this.store.update((draft) => {
+    const snapshot = this.store.update((draft) => {
       const id = `user-${imported.preset.kind}-${randomUUID()}`;
       const preset = { ...structuredClone(imported.preset), id, builtIn: false };
       draft.audio.pathPresets.push(preset);
       applyAudioPathPreset(draft.audio, preset);
     });
+    return this.configureAudioEngine(snapshot);
   }
 
   public async exportAudioPreset(input: AudioPresetIdInput): Promise<void> {
@@ -475,6 +503,12 @@ export class AppController {
     const before = this.store.get();
     if (before.audio.capabilities.monitoring === 'unavailable') {
       throw new Error('Low-latency microphone monitoring is unavailable until Audio.Host owns the microphone stream.');
+    }
+    const nextDeviceId = input.deviceId ?? before.audio.monitoringDeviceId;
+    const nextEnabled = input.enabled ?? before.audio.monitoringEnabled;
+    const nextDevice = before.audio.devices.find((candidate) => candidate.id === nextDeviceId);
+    if (nextEnabled && (!nextDevice?.available || nextDevice.direction !== 'output' || nextDevice.isSwitchboard)) {
+      throw new Error('Select an available physical output before enabling microphone monitoring.');
     }
     const snapshot = this.store.update((draft) => {
       if (typeof input.enabled === 'boolean') draft.audio.monitoringEnabled = input.enabled;

@@ -4374,6 +4374,103 @@ select {
   border-color: color-mix(in srgb, var(--border) 55%, transparent);
 }
 
+.mic-signal-strip {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(210px, 1fr) minmax(190px, 0.9fr) minmax(190px, 0.82fr);
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-1);
+  padding: 12px 16px;
+}
+
+.mic-signal-strip__status,
+.mic-signal-strip__engine {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.mic-signal-strip__status > span:last-child,
+.mic-signal-strip__engine > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.mic-signal-strip__status strong,
+.mic-signal-strip__engine strong,
+.mic-signal-strip__field > span {
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.mic-signal-strip__status small,
+.mic-signal-strip__engine small {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  font-weight: 450;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mic-signal-strip__status-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-neutral);
+}
+
+.mic-signal-strip__status-dot[data-tone="live"] { background: var(--success); }
+.mic-signal-strip__status-dot[data-tone="applying"] { background: var(--status-info); }
+.mic-signal-strip__status-dot[data-tone="warning"] { background: var(--status-warning); }
+.mic-signal-strip__status-dot[data-tone="error"],
+.mic-signal-strip__status-dot[data-tone="unavailable"] { background: var(--destructive); }
+
+.mic-signal-strip__field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.mic-signal-strip__field > span {
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+
+.mic-signal-strip .horizontal-meter {
+  min-width: 0;
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.mic-signal-strip .horizontal-meter__heading {
+  font-size: 10px;
+}
+
+.mic-signal-strip .horizontal-meter__heading output {
+  max-width: 86px;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mic-signal-strip__engine {
+  justify-content: space-between;
+}
+
 .mic-section {
   min-width: 0;
   margin-top: 14px;
@@ -4932,6 +5029,10 @@ select {
 }
 
 @media (max-width: 1200px) {
+  .mic-signal-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .audio-header {
     align-items: flex-start;
     flex-direction: column;
@@ -4949,6 +5050,10 @@ select {
 }
 
 @media (max-width: 920px) {
+  .mic-signal-strip {
+    grid-template-columns: 1fr;
+  }
+
   .audio-header__tools {
     flex-wrap: wrap;
   }
@@ -6308,6 +6413,14 @@ select {
   background: transparent;
 }
 
+.audio-processor-column,
+.mic-processor-column {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 14px;
+}
+
 .audio-control-rail__header {
   min-height: 66px;
   grid-column: 1 / -1;
@@ -6327,11 +6440,11 @@ select {
 }
 
 .audio-simple-section {
-  min-height: 146px;
+  min-height: 0;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface-2);
-  padding: 13px 16px 16px;
+  padding: 11px 14px 13px;
 }
 
 .audio-simple-section + .audio-simple-section {
@@ -6340,11 +6453,19 @@ select {
 
 .audio-control-rail .human-setting {
   display: flex;
-  min-height: 64px;
+  min-height: 56px;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  padding: 5px 0 10px;
+  padding: 3px 0 8px;
+}
+
+.audio-simple-section--compact .audio-processor-parameters {
+  padding-top: 5px;
+}
+
+.audio-simple-section--compact .parameter-control {
+  min-height: 36px;
 }
 
 .audio-control-rail .human-setting__title {
@@ -6450,6 +6571,25 @@ select {
   padding: 14px 0 16px;
 }
 
+.mic-control-rail .mic-setting--compact {
+  min-height: 0;
+  gap: 6px 18px;
+  padding: 10px 0 11px;
+}
+
+.mic-control-rail .mic-setting--compact .primary-slider__heading {
+  min-height: 34px;
+  margin-bottom: 4px;
+}
+
+.mic-control-rail .mic-setting--compact .mic-parameter-stack {
+  padding-top: 5px;
+}
+
+.mic-control-rail .mic-setting--compact .parameter-control {
+  min-height: 36px;
+}
+
 .mic-control-rail .mic-setting__title h3 {
   font-size: 13px;
 }
@@ -6485,23 +6625,37 @@ select {
 }
 
 .mic-section--monitoring {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.55fr) minmax(0, 1.45fr);
+  align-items: center;
+  gap: 28px;
   margin-top: 16px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface-2);
-  padding: 6px 16px 14px;
+  padding: 10px 16px;
 }
 
 .mic-section--monitoring > .mic-setting {
-  min-height: 62px;
-  border-bottom: 1px solid var(--border);
-  padding-top: 10px;
-  padding-bottom: 10px;
+  min-height: 0;
+  border-bottom: 0;
+  padding: 0;
 }
 
 .mic-monitoring__controls {
-  gap: 48px;
-  padding-top: 7px;
+  gap: 28px;
+  padding-top: 0;
+}
+
+.mic-control-rail .mic-section--monitoring {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 0;
+}
+
+.mic-control-rail .mic-monitoring__controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .advanced-disclosure {
@@ -6562,6 +6716,16 @@ select {
   .mic-control-rail .mic-rows__row,
   .mic-control-rail .mic-rows__row + .mic-rows__row {
     border: 1px solid var(--border);
+  }
+
+  .mic-section--monitoring {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .mic-control-rail .mic-monitoring__controls {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
 }
 

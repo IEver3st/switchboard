@@ -2,12 +2,12 @@ namespace Switchboard.AudioHost;
 
 internal static class EndpointCatalog
 {
-    public const string Game = "Switchboard - Game";
-    public const string Chat = "Switchboard - Chat";
-    public const string Media = "Switchboard - Media";
-    public const string Auxiliary = "Switchboard - Aux";
-    public const string Microphone = "Switchboard - Microphone";
-    public const string Stream = "Switchboard - Stream";
+    public const string Game = "Switchboard Audio - Gaming";
+    public const string Chat = "Switchboard Audio - Chat";
+    public const string Media = "Switchboard Audio - Media";
+    public const string Auxiliary = "Switchboard Audio - Aux";
+    public const string Microphone = "Switchboard Audio - Microphone";
+    public const string Stream = "Switchboard Audio - Stream";
 
     private static readonly (string Name, string Flow)[] Expected =
     [

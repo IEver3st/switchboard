@@ -34,10 +34,13 @@ graph.Configure(new AudioHostSettings
 {
     Master = new AudioMasterConfiguration { Gain = 0.5f, Enabled = true },
     Buses = [new AudioBusConfiguration { Id = "game", Gain = 0.5f, Enabled = true }],
+    ChannelProcessing = DefaultChannelProcessing(),
 });
 var samples = new[] { 1f, -1f };
-graph.Process(samples, "game");
+graph.CreateProcessor("game").Process(samples);
 AssertSequence(samples, [0.25f, -0.25f], "Bus and master gains must be applied to the routed signal.");
+
+TestChannelDsp();
 
 TestStrengthMapping();
 TestFrameAdapter();
@@ -45,6 +48,9 @@ TestMissingAndCorruptDeepFilterModel();
 TestMissingRnnoiseLibrary();
 TestNativeRnnoiseWrapper();
 TestAudioGraphTransparencyAndOrder();
+TestEveryMicrophoneControlChangesSignal();
+TestMicrophoneSettingsParser();
+TestMonitoringVolume();
 TestAudioGraphFailureBypass();
 
 Console.WriteLine("Audio.Host deterministic tests passed.");
@@ -52,6 +58,58 @@ Console.WriteLine("Audio.Host deterministic tests passed.");
 static AudioEndpoint Endpoint(string id, string name, string flow) => new(
     id, name, flow, false, flow == "capture" ? "microphone" : "speakers",
     AudioConstants.InterfaceName, 1f, false, true);
+
+static ChannelProcessingSettings[] DefaultChannelProcessing() => [
+    Channel("game"),
+    Channel("chat"),
+    Channel("media"),
+];
+
+static ChannelProcessingSettings Channel(
+    string busId,
+    bool equalizer = false,
+    bool normalization = false,
+    bool compressor = false,
+    bool limiter = false) => new()
+{
+    BusId = busId,
+    Equalizer = new ChannelEqualizerSettings
+    {
+        Enabled = equalizer,
+        Bands = [new EqualizerBandSettings { Type = "bell", Frequency = 1_000, GainDb = 9, Q = 1 }],
+    },
+    Normalization = new ChannelNormalizationSettings { Enabled = normalization, TargetLufs = -12, MaxGainDb = 6 },
+    Compressor = new ChannelCompressorSettings { Enabled = compressor, ThresholdDb = -24, Ratio = 8, AttackMs = 0.1f, ReleaseMs = 100, MakeupDb = 0 },
+    Limiter = new ChannelLimiterSettings { Enabled = limiter, ThresholdDb = -6, ReleaseMs = 90 },
+};
+
+static void TestChannelDsp()
+{
+    var graph = new RoutingControlGraph();
+    graph.Configure(new AudioHostSettings
+    {
+        Master = new AudioMasterConfiguration { Gain = 1, Enabled = true },
+        Buses = [
+            new AudioBusConfiguration { Id = "game", Gain = 1, Enabled = true },
+            new AudioBusConfiguration { Id = "chat", Gain = 1, Enabled = true },
+            new AudioBusConfiguration { Id = "media", Gain = 1, Enabled = true },
+        ],
+        ChannelProcessing = [Channel("game"), Channel("chat", equalizer: true), Channel("media", limiter: true)],
+    });
+
+    var dry = Enumerable.Range(0, 960).Select(index => MathF.Sin(index * 0.11f) * 0.2f).ToArray();
+    var transparent = dry.ToArray();
+    graph.CreateProcessor("game").Process(transparent);
+    AssertSequence(transparent, dry, "A disabled channel graph must be bit transparent.");
+
+    var equalized = dry.ToArray();
+    graph.CreateProcessor("chat").Process(equalized);
+    Assert(!equalized.SequenceEqual(dry), "An enabled channel equalizer must alter routed samples.");
+
+    var limited = Enumerable.Repeat(1f, 960).ToArray();
+    graph.CreateProcessor("media").Process(limited);
+    Assert(limited.All(sample => MathF.Abs(sample) <= 0.502f), "The channel limiter must enforce its configured stereo ceiling.");
+}
 
 static void Assert(bool condition, string message)
 {
@@ -199,6 +257,222 @@ static void TestAudioGraphTransparencyAndOrder()
     Assert(MathF.Abs(samples[0] - previous) < 0.6f, "Suppression toggles must use a bounded crossfade.");
 }
 
+static void TestEveryMicrophoneControlChangesSignal()
+{
+    var voice = SineFrame(0.45f, 1_000f);
+    var loudVoice = SineFrame(0.9f, 1_000f);
+    var quietVoice = SineFrame(0.02f, 1_000f);
+    var disabled = Controls(version: 1);
+
+    AssertDifferent(
+        Render(disabled, [voice]),
+        Render(Controls(version: 2, gain: new GainConfiguration(true, 6f)), [voice]),
+        "The input-volume switch must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 3, gain: new GainConfiguration(true, -6f)), [voice]),
+        Render(Controls(version: 4, gain: new GainConfiguration(true, 6f)), [voice]),
+        "Input volume must change microphone samples.");
+
+    var gateFrames = Enumerable.Repeat(quietVoice, 8).ToArray();
+    AssertDifferent(
+        Render(disabled, gateFrames),
+        Render(Controls(version: 5, gate: new NoiseGateConfiguration(true, -10f, 0.1f, 10f)), gateFrames),
+        "The noise-gate switch must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 6, gate: new NoiseGateConfiguration(true, -60f, 0.1f, 10f)), gateFrames),
+        Render(Controls(version: 7, gate: new NoiseGateConfiguration(true, -10f, 0.1f, 10f)), gateFrames),
+        "Gate threshold must change microphone samples.");
+    var gateAttackFrames = Enumerable.Repeat(quietVoice, 12).Concat([voice]).ToArray();
+    AssertDifferent(
+        Render(Controls(version: 8, gate: new NoiseGateConfiguration(true, -30f, 0.1f, 10f)), gateAttackFrames),
+        Render(Controls(version: 9, gate: new NoiseGateConfiguration(true, -30f, 100f, 10f)), gateAttackFrames),
+        "Gate attack must change microphone samples.");
+    var gateReleaseFrames = new[] { voice }.Concat(Enumerable.Repeat(quietVoice, 6)).ToArray();
+    AssertDifferent(
+        Render(Controls(version: 10, gate: new NoiseGateConfiguration(true, -30f, 0.1f, 10f)), gateReleaseFrames),
+        Render(Controls(version: 11, gate: new NoiseGateConfiguration(true, -30f, 0.1f, 1_000f)), gateReleaseFrames),
+        "Gate release must change microphone samples.");
+
+    var suppressionFrames = Enumerable.Repeat(voice, 3).ToArray();
+    AssertDifferent(
+        Render(disabled, suppressionFrames),
+        Render(Controls(version: 12, suppression: new NoiseSuppressionConfiguration(true, 55f)), suppressionFrames),
+        "The noise-removal switch must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 13, suppression: new NoiseSuppressionConfiguration(true, 25f)), suppressionFrames),
+        Render(Controls(version: 14, suppression: new NoiseSuppressionConfiguration(true, 80f)), suppressionFrames),
+        "Noise-removal strength must change microphone samples.");
+
+    var eqFrames = Enumerable.Repeat(voice, 5).ToArray();
+    var activeBand = new EqualizerBandConfiguration(true, "bell", 1_000f, 9f, 1f);
+    AssertDifferent(
+        Render(disabled, eqFrames),
+        Render(Controls(version: 15, equalizer: new EqualizerConfiguration(true, [activeBand])), eqFrames),
+        "The equalizer switch must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 16, equalizer: new EqualizerConfiguration(true, [activeBand with { Enabled = false }])), eqFrames),
+        Render(Controls(version: 17, equalizer: new EqualizerConfiguration(true, [activeBand])), eqFrames),
+        "An EQ band switch must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 18, equalizer: new EqualizerConfiguration(true, [activeBand with { Type = "bell" }])), eqFrames),
+        Render(Controls(version: 19, equalizer: new EqualizerConfiguration(true, [activeBand with { Type = "high-shelf" }])), eqFrames),
+        "EQ filter type must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 20, equalizer: new EqualizerConfiguration(true, [activeBand with { Frequency = 200f }])), eqFrames),
+        Render(Controls(version: 21, equalizer: new EqualizerConfiguration(true, [activeBand with { Frequency = 1_000f }])), eqFrames),
+        "EQ frequency must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 22, equalizer: new EqualizerConfiguration(true, [activeBand with { GainDb = -9f }])), eqFrames),
+        Render(Controls(version: 23, equalizer: new EqualizerConfiguration(true, [activeBand with { GainDb = 9f }])), eqFrames),
+        "EQ gain must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 24, equalizer: new EqualizerConfiguration(true, [activeBand with { Q = 0.3f }])), eqFrames),
+        Render(Controls(version: 25, equalizer: new EqualizerConfiguration(true, [activeBand with { Q = 8f }])), eqFrames),
+        "EQ width must change microphone samples.");
+
+    var compressorFrames = Enumerable.Repeat(loudVoice, 4).ToArray();
+    var compressor = new CompressorConfiguration(true, -24f, 6f, 0.1f, 100f, 0f);
+    AssertDifferent(
+        Render(disabled, compressorFrames),
+        Render(Controls(version: 26, compressor: compressor), compressorFrames),
+        "The voice-consistency switch must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 27, compressor: compressor with { ThresholdDb = -30f }), compressorFrames),
+        Render(Controls(version: 28, compressor: compressor with { ThresholdDb = -3f }), compressorFrames),
+        "Compression threshold must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 29, compressor: compressor with { Ratio = 2f }), compressorFrames),
+        Render(Controls(version: 30, compressor: compressor with { Ratio = 12f }), compressorFrames),
+        "Compression ratio must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 31, compressor: compressor with { AttackMs = 0.1f }), compressorFrames),
+        Render(Controls(version: 32, compressor: compressor with { AttackMs = 200f }), compressorFrames),
+        "Compression attack must change microphone samples.");
+    var compressorReleaseFrames = Enumerable.Repeat(loudVoice, 5).Concat(Enumerable.Repeat(quietVoice, 5)).ToArray();
+    AssertDifferent(
+        Render(Controls(version: 33, compressor: compressor with { ReleaseMs = 10f }), compressorReleaseFrames),
+        Render(Controls(version: 34, compressor: compressor with { ReleaseMs = 2_000f }), compressorReleaseFrames),
+        "Compression release must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 35, compressor: compressor with { MakeupDb = 0f }), compressorFrames),
+        Render(Controls(version: 36, compressor: compressor with { MakeupDb = 12f }), compressorFrames),
+        "Compression makeup gain must change microphone samples.");
+
+    var limiterFrames = Enumerable.Repeat(loudVoice, 3).ToArray();
+    var limiter = new LimiterConfiguration(true, -9f, 90f);
+    AssertDifferent(
+        Render(disabled, limiterFrames),
+        Render(Controls(version: 37, limiter: limiter), limiterFrames),
+        "The output-safety switch must change microphone samples.");
+    AssertDifferent(
+        Render(Controls(version: 38, limiter: limiter with { ThresholdDb = -12f }), limiterFrames),
+        Render(Controls(version: 39, limiter: limiter with { ThresholdDb = -1f }), limiterFrames),
+        "Limiter ceiling must change microphone samples.");
+    var limiterReleaseFrames = new[] { loudVoice }.Concat(Enumerable.Repeat(quietVoice, 5)).ToArray();
+    AssertDifferent(
+        Render(Controls(version: 40, limiter: limiter with { ReleaseMs = 10f }), limiterReleaseFrames),
+        Render(Controls(version: 41, limiter: limiter with { ReleaseMs = 1_000f }), limiterReleaseFrames),
+        "Limiter release must change microphone samples.");
+}
+
+static void TestMicrophoneSettingsParser()
+{
+    var settings = new AudioHostSettings
+    {
+        MicProcessors =
+        [
+            Processor("gain", true, new { gainDb = 7.5f }),
+            Processor("noise-gate", true, new { thresholdDb = -41f, attackMs = 7.5f, releaseMs = 305f }),
+            Processor("noise-suppression", true, new { amount = 73f }),
+            Processor("equalizer", true, new
+            {
+                bands = new[] { new { enabled = true, type = "high-shelf", frequency = 8_500f, gainDb = 3.5f, q = 0.8f } },
+            }),
+            Processor("compressor", true, new { thresholdDb = -21f, ratio = 5.5f, attackMs = 8.5f, releaseMs = 240f, makeupDb = 4f }),
+            Processor("limiter", true, new { thresholdDb = -2.5f, releaseMs = 125f }),
+        ],
+        ChannelProcessing = DefaultChannelProcessing(),
+    };
+
+    var configured = MicrophoneDspConfiguration.From(settings.Validate(), 72);
+    Assert(configured.Version == 72, "The microphone configuration version must round trip.");
+    Assert(configured.Gain is { Enabled: true, GainDb: 7.5f }, "Input volume must parse from the canonical payload.");
+    Assert(configured.NoiseGate is { Enabled: true, ThresholdDb: -41f, AttackMs: 7.5f, ReleaseMs: 305f }, "Every gate setting must parse from the canonical payload.");
+    Assert(configured.NoiseSuppression is { Enabled: true, Amount: 73f }, "Noise-removal strength must parse from the canonical payload.");
+    var band = configured.Equalizer.Bands.Single();
+    Assert(band is { Enabled: true, Type: "high-shelf", Frequency: 8_500f, GainDb: 3.5f, Q: 0.8f }, "Every EQ setting must parse from the canonical payload.");
+    Assert(configured.Compressor is { Enabled: true, ThresholdDb: -21f, Ratio: 5.5f, AttackMs: 8.5f, ReleaseMs: 240f, MakeupDb: 4f }, "Every compressor setting must parse from the canonical payload.");
+    Assert(configured.Limiter is { Enabled: true, ThresholdDb: -2.5f, ReleaseMs: 125f }, "Every limiter setting must parse from the canonical payload.");
+}
+
+static void TestMonitoringVolume()
+{
+    var source = new BoundedFrameAdapter(8);
+    var provider = new ProcessedWaveProvider(source);
+    var samples = new[] { 1f, -0.5f, 0.25f, -0.125f };
+    Assert(source.Write(samples) == samples.Length, "The monitoring source must accept the test frame.");
+    provider.SetVolume(0.25f);
+    var buffer = new byte[samples.Length * sizeof(float)];
+    provider.Read(buffer, 0, buffer.Length);
+    AssertClose(0.25f, BitConverter.ToSingle(buffer, 0), 0.0001f, "Monitor volume must scale positive samples.");
+    AssertClose(-0.125f, BitConverter.ToSingle(buffer, sizeof(float)), 0.0001f, "Monitor volume must scale negative samples.");
+}
+
+static MicrophoneProcessorSettings Processor(string id, bool enabled, object parameters) => new()
+{
+    Id = id,
+    Enabled = enabled,
+    Parameters = JsonSerializer.SerializeToElement(parameters),
+};
+
+static MicrophoneDspConfiguration Controls(
+    long version,
+    NoiseSuppressionConfiguration? suppression = null,
+    NoiseGateConfiguration? gate = null,
+    GainConfiguration? gain = null,
+    EqualizerConfiguration? equalizer = null,
+    CompressorConfiguration? compressor = null,
+    LimiterConfiguration? limiter = null) => new(
+        version,
+        suppression ?? new NoiseSuppressionConfiguration(false, 55f),
+        gate ?? new NoiseGateConfiguration(false, -48f, 10f, 180f),
+        gain ?? new GainConfiguration(false, 0f),
+        equalizer ?? new EqualizerConfiguration(false, []),
+        compressor ?? new CompressorConfiguration(false, -18f, 4f, 12f, 180f, 2f),
+        limiter ?? new LimiterConfiguration(false, -1f, 90f));
+
+static float[] SineFrame(float amplitude, float frequency)
+{
+    var frame = new float[480];
+    for (var index = 0; index < frame.Length; index++)
+        frame[index] = MathF.Sin(2f * MathF.PI * frequency * index / AudioConstants.ProcessingSampleRate) * amplitude;
+    return frame;
+}
+
+static float[] Render(MicrophoneDspConfiguration configuration, IReadOnlyList<float[]> frames)
+{
+    using var suppressor = new ControlAwareSuppressor();
+    var graph = new AudioGraph(suppressor);
+    var rendered = new float[frames.Count * suppressor.FrameLength];
+    for (var frameIndex = 0; frameIndex < frames.Count; frameIndex++)
+    {
+        var frame = frames[frameIndex].ToArray();
+        graph.ProcessMicrophone(frame, configuration);
+        frame.CopyTo(rendered, frameIndex * suppressor.FrameLength);
+    }
+    return rendered;
+}
+
+static void AssertDifferent(IReadOnlyList<float> left, IReadOnlyList<float> right, string message)
+{
+    if (left.Count != right.Count) return;
+    for (var index = 0; index < left.Count; index++)
+    {
+        if (MathF.Abs(left[index] - right[index]) > 0.00001f) return;
+    }
+    throw new InvalidOperationException(message);
+}
+
 static void TestAudioGraphFailureBypass()
 {
     using var suppressor = new FailingSuppressor();
@@ -267,6 +541,32 @@ sealed class FailingSuppressor : INoiseSuppressor
     {
         localSnrDb = float.NaN;
         return false;
+    }
+    public bool Reset() => true;
+    public void Dispose() { }
+}
+
+sealed class ControlAwareSuppressor : INoiseSuppressor
+{
+    private float amount;
+    public bool IsAvailable => true;
+    public string BackendName => "control-aware-test";
+    public string ModelIdentifier => "control-aware-test";
+    public string? ModelHash => null;
+    public string? NativeLibraryHash => null;
+    public int SampleRate => AudioConstants.ProcessingSampleRate;
+    public int FrameLength => 480;
+    public double AlgorithmicLatencyMs => 10;
+    public double AttenuationLimitDb => NoiseStrengthMapping.ToAttenuationDb(amount);
+    public string? LastError => null;
+    public bool Initialize(NoiseSuppressorInitialization initialization) => true;
+    public void Configure(float value) => amount = value;
+    public bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
+    {
+        var gain = MathF.Pow(10f, -(float)AttenuationLimitDb / 20f);
+        for (var index = 0; index < FrameLength; index++) output[index] = input[index] * gain;
+        localSnrDb = 12f;
+        return true;
     }
     public bool Reset() => true;
     public void Dispose() { }
