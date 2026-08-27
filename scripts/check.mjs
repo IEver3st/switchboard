@@ -97,7 +97,7 @@ assert(
 );
 assert(
   mainSource.includes('const initialization = controller.initialize();')
-    && mainSource.includes('showWindow();\n    await initialization;'),
+    && /showWindow\(\);\r?\n\s+await initialization;/.test(mainSource),
   'The main window must be shown while real controller initialization is still running.',
 );
 
