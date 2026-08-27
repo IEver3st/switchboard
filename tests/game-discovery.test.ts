@@ -19,12 +19,16 @@ describe('game discovery', () => {
     const steamGame = join(steamApps, 'common', 'Signal Game');
     const epicManifests = join(directory, 'EpicManifests');
     const epicGame = join(directory, 'EpicLibrary', 'Route Game');
+    const steamIconDirectory = join(steamRoot, 'appcache', 'librarycache', '1234');
+    const steamIcon = Buffer.from('steam-icon-fixture');
     await Promise.all([
       mkdir(steamGame, { recursive: true }),
       mkdir(epicManifests, { recursive: true }),
       mkdir(join(epicGame, 'Binaries', 'Win64'), { recursive: true }),
+      mkdir(steamIconDirectory, { recursive: true }),
     ]);
     await writeFile(join(steamApps, 'appmanifest_1234.acf'), `"AppState"\n{\n  "appid" "1234"\n  "name" "Signal Game"\n  "installdir" "Signal Game"\n}\n`);
+    await writeFile(join(steamIconDirectory, `${'a'.repeat(40)}.jpg`), steamIcon);
     await writeFile(join(epicManifests, 'route.item'), JSON.stringify({
       DisplayName: 'Route Game',
       InstallLocation: epicGame,
@@ -36,6 +40,7 @@ describe('game discovery', () => {
       steamRoots: [steamRoot],
       epicManifestDirectories: [epicManifests],
       queryRegistry: false,
+      extractExecutableIcon: async (path) => `data:image/png;base64,${Buffer.from(path).toString('base64')}`,
     });
     const result = await service.scan();
 
@@ -45,6 +50,10 @@ describe('game discovery', () => {
     expect(result.games.find((game) => game.source === 'epic')?.executablePath).toBe(
       join(epicGame, 'Binaries\\Win64\\RouteGame.exe'),
     );
+    expect(result.games.find((game) => game.source === 'steam')?.iconDataUrl).toBe(
+      `data:image/jpeg;base64,${steamIcon.toString('base64')}`,
+    );
+    expect(result.games.find((game) => game.source === 'epic')?.iconDataUrl).toStartWith('data:image/png;base64,');
   });
 
   it('validates and creates a stable manual game entry from an executable', async () => {
@@ -52,7 +61,12 @@ describe('game discovery', () => {
     temporaryDirectories.push(directory);
     const executable = join(directory, 'Manual Game.exe');
     await writeFile(executable, 'fixture');
-    const service = new GameDiscoveryService({ steamRoots: [], epicManifestDirectories: [], queryRegistry: false });
+    const service = new GameDiscoveryService({
+      steamRoots: [],
+      epicManifestDirectories: [],
+      queryRegistry: false,
+      extractExecutableIcon: async () => 'data:image/png;base64,bWFudWFsLWljb24=',
+    });
 
     const first = await service.fromExecutable(executable);
     const second = await service.fromExecutable(executable);
@@ -60,6 +74,25 @@ describe('game discovery', () => {
     expect(first.name).toBe('Manual Game');
     expect(first.source).toBe('manual');
     expect(first.executablePath).toBe(executable);
+    expect(first.iconDataUrl).toBe('data:image/png;base64,bWFudWFsLWljb24=');
     expect(first.id).toBe(second.id);
+  });
+
+  it('keeps a discovered game when executable icon extraction fails', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-game-icon-failure-'));
+    temporaryDirectories.push(directory);
+    const executable = join(directory, 'Fallback Game.exe');
+    await writeFile(executable, 'fixture');
+    const service = new GameDiscoveryService({
+      steamRoots: [],
+      epicManifestDirectories: [],
+      queryRegistry: false,
+      extractExecutableIcon: async () => { throw new Error('No shell icon'); },
+    });
+
+    const game = await service.fromExecutable(executable);
+
+    expect(game.name).toBe('Fallback Game');
+    expect(game.iconDataUrl).toBeUndefined();
   });
 });

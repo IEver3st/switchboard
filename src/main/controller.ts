@@ -133,7 +133,12 @@ export class AppController {
       isPackaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
     });
-    this.gameDiscovery = new GameDiscoveryService();
+    this.gameDiscovery = new GameDiscoveryService({
+      extractExecutableIcon: async (executablePath) => {
+        const icon = await app.getFileIcon(executablePath, { size: 'normal' });
+        return icon.isEmpty() ? undefined : icon.toDataURL();
+      },
+    });
     this.engines = new EngineSupervisor(
       (status) => this.applyEngineStatus(status),
       (frame) => this.emitAudioMeters(frame),
@@ -1019,7 +1024,15 @@ export class AppController {
       const preservedGames = result.warnings.length > 0
         ? previousGames
         : previousGames.filter((game) => game.source === 'manual');
-      const byIdentity = new Map(result.games.map((game) => [gameIdentityKey(game), game]));
+      const previousByIdentity = new Map(previousGames.map((game) => [gameIdentityKey(game), game]));
+      const byIdentity = new Map(result.games.map((game) => {
+        const key = gameIdentityKey(game);
+        const previous = previousByIdentity.get(key);
+        return [key, {
+          ...game,
+          iconDataUrl: game.iconDataUrl ?? previous?.iconDataUrl,
+        }];
+      }));
       for (const game of preservedGames) {
         if (!byIdentity.has(gameIdentityKey(game))) byIdentity.set(gameIdentityKey(game), game);
       }

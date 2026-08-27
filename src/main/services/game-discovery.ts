@@ -12,6 +12,7 @@ export type GameDiscoveryOptions = {
   steamRoots?: readonly string[];
   epicManifestDirectories?: readonly string[];
   queryRegistry?: boolean;
+  extractExecutableIcon?: (executablePath: string) => Promise<string | undefined>;
 };
 
 export type GameScanResult = {
@@ -24,6 +25,7 @@ export class GameDiscoveryService {
   private readonly steamRoots?: readonly string[];
   private readonly epicManifestDirectories?: readonly string[];
   private readonly queryRegistry: boolean;
+  private readonly extractExecutableIcon?: (executablePath: string) => Promise<string | undefined>;
 
   public constructor(options: GameDiscoveryOptions = {}) {
     this.environment = options.environment ?? process.env;
@@ -33,6 +35,7 @@ export class GameDiscoveryService {
       ?? readPathList(this.environment.SWITCHBOARD_GAME_SCAN_EPIC_MANIFESTS);
     this.queryRegistry = options.queryRegistry
       ?? (process.platform === 'win32' && this.environment.SWITCHBOARD_NATIVE_FIXTURES !== '1');
+    this.extractExecutableIcon = options.extractExecutableIcon;
   }
 
   public async scan(): Promise<GameScanResult> {
@@ -62,6 +65,7 @@ export class GameDiscoveryService {
       installDirectory: dirname(resolvedPath),
       executablePath: resolvedPath,
       launchUri: null,
+      iconDataUrl: await this.readExecutableIcon(resolvedPath),
     });
   }
 
@@ -110,6 +114,7 @@ export class GameDiscoveryService {
             installDirectory,
             executablePath: null,
             launchUri: `steam://rungameid/${appId}`,
+            iconDataUrl: await readSteamIconDataUrl([...roots, ...libraries], appId),
           }));
         } catch {
           warnings.push(`A Steam game manifest could not be read at ${join(steamApps, manifest)}.`);
@@ -151,6 +156,7 @@ export class GameDiscoveryService {
             installDirectory,
             executablePath,
             launchUri: appName ? `com.epicgames.launcher://apps/${encodeURIComponent(appName)}?action=launch` : null,
+            iconDataUrl: executablePath ? await this.readExecutableIcon(executablePath) : undefined,
           }));
         } catch {
           warnings.push(`An Epic Games manifest could not be read at ${join(manifestDirectory, manifest)}.`);
@@ -184,6 +190,15 @@ export class GameDiscoveryService {
       ? [join(programData, 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests')]
       : [];
   }
+
+  private async readExecutableIcon(executablePath: string): Promise<string | undefined> {
+    if (!this.extractExecutableIcon) return undefined;
+    try {
+      return await this.extractExecutableIcon(executablePath);
+    } catch {
+      return undefined;
+    }
+  }
 }
 
 export function gameIdentityKey(game: Pick<DetectedGame, 'executablePath' | 'installDirectory' | 'launchUri'>): string {
@@ -206,6 +221,31 @@ function deduplicateGames(games: DetectedGame[]): DetectedGame[] {
     if (!byIdentity.has(key)) byIdentity.set(key, game);
   }
   return [...byIdentity.values()];
+}
+
+async function readSteamIconDataUrl(roots: readonly string[], appId: string): Promise<string | undefined> {
+  const visited = new Set<string>();
+  for (const root of roots) {
+    const iconDirectory = join(root, 'appcache', 'librarycache', appId);
+    const normalizedDirectory = resolve(iconDirectory).toLocaleLowerCase();
+    if (visited.has(normalizedDirectory)) continue;
+    visited.add(normalizedDirectory);
+
+    try {
+      const iconFile = (await readdir(iconDirectory))
+        .filter((entry) => /^[a-f0-9]{40}\.(?:jpe?g|png)$/i.test(entry))
+        .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }))[0];
+      if (!iconFile) continue;
+      const iconPath = join(iconDirectory, iconFile);
+      const file = await stat(iconPath);
+      if (!file.isFile() || file.size > 196_608) continue;
+      const mimeType = /\.png$/i.test(iconFile) ? 'image/png' : 'image/jpeg';
+      return `data:${mimeType};base64,${(await readFile(iconPath)).toString('base64')}`;
+    } catch {
+      // Missing or unreadable cached artwork is a per-game fallback, not a failed launcher scan.
+    }
+  }
+  return undefined;
 }
 
 function parseSteamLibraryPaths(contents: string): string[] {

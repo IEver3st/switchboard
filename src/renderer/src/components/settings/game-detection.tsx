@@ -99,7 +99,13 @@ export function GameDetectionSettings({
             <ul aria-label="Detected games">
               {gameDetection.games.map((game) => (
                 <li key={game.id} className="settings-game-row">
-                  <Gamepad2 className="settings-game-row__icon" aria-hidden />
+                  <div className="settings-game-row__art" aria-hidden>
+                    {game.iconDataUrl ? (
+                      <img src={game.iconDataUrl} alt="" />
+                    ) : (
+                      <Gamepad2 />
+                    )}
+                  </div>
                   <div className="settings-game-row__copy">
                     <strong>{game.name}</strong>
                     <span title={game.executablePath ?? game.installDirectory}>

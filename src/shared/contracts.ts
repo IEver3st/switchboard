@@ -217,7 +217,7 @@ export const lightingCapabilitySchema = z.object({
   activeProfileId: z.string().min(1).optional(),
   muteLinked: z.boolean().default(false),
   muteLinkedWritable: z.boolean().default(false),
-  state: z.enum(['maintained', 'unknown']).optional(),
+  state: z.enum(['maintained', 'acknowledged', 'unknown']).optional(),
   stateReason: z.string().optional(),
   physicalEffectVerified: z.boolean().default(false),
   profileMode: deviceProfileModeSchema,
@@ -225,6 +225,26 @@ export const lightingCapabilitySchema = z.object({
   unavailableReason: z.string().optional(),
 });
 export type LightingCapability = z.infer<typeof lightingCapabilitySchema>;
+
+export const keyboardFeatureStatusSchema = z.enum(['native', 'synapse', 'observed']);
+export type KeyboardFeatureStatus = z.infer<typeof keyboardFeatureStatusSchema>;
+
+export const keyboardFeatureSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  summary: z.string().min(1),
+  status: keyboardFeatureStatusSchema,
+  unavailableReason: z.string().optional(),
+});
+export type KeyboardFeature = z.infer<typeof keyboardFeatureSchema>;
+
+export const keyboardCapabilitySchema = z.object({
+  firmwareVersion: z.string().min(1).optional(),
+  pollingRateHz: z.number().int().positive().optional(),
+  transport: z.enum(['native-hid', 'unavailable']),
+  features: z.array(keyboardFeatureSchema),
+});
+export type KeyboardCapability = z.infer<typeof keyboardCapabilitySchema>;
 
 export const microphoneMuteStateCapabilitySchema = z.object({
   muted: z.boolean().nullable(),
@@ -252,6 +272,7 @@ export const deviceCapabilitiesSchema = z.object({
   monitoring: z.boolean().optional(),
   mute: z.boolean().optional(),
   muteState: microphoneMuteStateCapabilitySchema.optional(),
+  keyboard: keyboardCapabilitySchema.optional(),
 });
 export type DeviceCapabilities = z.infer<typeof deviceCapabilitiesSchema>;
 
@@ -808,6 +829,7 @@ export const detectedGameSchema = z.object({
   installDirectory: z.string().min(1),
   executablePath: z.string().min(1).nullable(),
   launchUri: z.string().min(1).nullable(),
+  iconDataUrl: z.string().startsWith('data:image/').max(262_144).optional(),
   addedAt: z.string(),
 });
 export type DetectedGame = z.infer<typeof detectedGameSchema>;
