@@ -1025,7 +1025,7 @@ export class AppController {
         ? previousGames
         : previousGames.filter((game) => game.source === 'manual');
       const previousByIdentity = new Map(previousGames.map((game) => [gameIdentityKey(game), game]));
-      const byIdentity = new Map(result.games.map((game) => {
+      const byIdentity = new Map(result.games.map((game): [string, typeof game] => {
         const key = gameIdentityKey(game);
         const previous = previousByIdentity.get(key);
         return [key, {

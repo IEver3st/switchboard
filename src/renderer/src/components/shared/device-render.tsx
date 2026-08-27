@@ -4,9 +4,8 @@ import g502XPlusBlackUrl from '@/assets/device-renders/g502-x-plus.png';
 import g502XPlusWhiteUrl from '@/assets/device-renders/g502-x-plus-white.png';
 import quadCast2Url from '@/assets/device-renders/quadcast-2.png';
 import { DeviceGlyph } from '@/components/shared/device-glyph';
+import { applyLighting, type LightingMask } from '@/components/shared/device-lighting';
 import { cn } from '@/lib/cn';
-
-type LightingMask = 'red';
 
 interface DeviceArtwork {
   src: string;
@@ -22,9 +21,9 @@ interface ProcessedArtwork {
 const processedArtworkCache = new Map<string, ProcessedArtwork>();
 const maximumCachedArtwork = 6;
 const artworkByAssetKey: Record<string, DeviceArtwork> = {
-  'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl },
-  'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl },
-  'hyperx-quadcast-2': { src: quadCast2Url, lightingMask: 'red' },
+  'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl, lightingMask: 'saturated-rgb' },
+  'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl, lightingMask: 'saturated-rgb' },
+  'hyperx-quadcast-2': { src: quadCast2Url, lightingMask: 'red-dominant' },
 };
 
 export function DeviceRender({
@@ -139,7 +138,7 @@ function ProductCanvas({
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
         if (artwork.lightingMask) {
-          applyLighting(pixels.data, lighting.enabled, lighting.color);
+          applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color);
         }
 
         const bounds = findVisibleBounds(pixels.data, canvas.width, canvas.height);
@@ -202,35 +201,6 @@ function rememberProcessedArtwork(key: string, artwork: ProcessedArtwork): void 
   if (typeof oldest === 'string') processedArtworkCache.delete(oldest);
 }
 
-function applyLighting(data: Uint8ClampedArray, enabled: boolean, color: string): void {
-  const target = parseHexColor(color);
-  const targetMaximum = Math.max(target.red, target.green, target.blue, 1);
-
-  for (let offset = 0; offset < data.length; offset += 4) {
-    if ((data[offset + 3] ?? 0) <= 0) continue;
-    const red = data[offset] ?? 0;
-    const green = data[offset + 1] ?? 0;
-    const blue = data[offset + 2] ?? 0;
-    const maximum = Math.max(red, green, blue);
-    const minimum = Math.min(red, green, blue);
-    const matches = red > 70 && red - Math.max(green, blue) > 24;
-    if (!matches) continue;
-
-    if (!enabled) {
-      const neutral = Math.round((red * 0.2126 + green * 0.7152 + blue * 0.0722) * 0.24);
-      data[offset] = neutral;
-      data[offset + 1] = neutral;
-      data[offset + 2] = neutral;
-      continue;
-    }
-
-    const floor = minimum * 0.12;
-    data[offset] = Math.round(floor + (target.red / targetMaximum) * (maximum - floor));
-    data[offset + 1] = Math.round(floor + (target.green / targetMaximum) * (maximum - floor));
-    data[offset + 2] = Math.round(floor + (target.blue / targetMaximum) * (maximum - floor));
-  }
-}
-
 function findVisibleBounds(
   data: Uint8ClampedArray,
   width: number,
@@ -262,14 +232,6 @@ function findVisibleBounds(
     top: paddedTop,
     width: paddedRight - paddedLeft + 1,
     height: paddedBottom - paddedTop + 1,
-  };
-}
-
-function parseHexColor(value: string): { red: number; green: number; blue: number } {
-  return {
-    red: Number.parseInt(value.slice(1, 3), 16),
-    green: Number.parseInt(value.slice(3, 5), 16),
-    blue: Number.parseInt(value.slice(5, 7), 16),
   };
 }
 

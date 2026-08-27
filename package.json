@@ -11,6 +11,7 @@
     "preview": "electron-vite preview",
     "review:native": "bun run build && bun ./scripts/run-native-review.mjs capture",
     "verify:native-ui": "bun run build && bun ./scripts/run-native-review.mjs verify",
+    "verify:app-update-ui": "bun run build && bun ./scripts/run-native-review.mjs app-updates",
     "verify:audio-noise-native": "bun run build && bun ./scripts/run-native-review.mjs audio-noise",
     "verify:packaged-audio-host": "node ./scripts/verify-packaged-audio-host.mjs",
     "preview:static": "node ./scripts/build-standalone-preview.mjs",

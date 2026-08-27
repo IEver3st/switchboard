@@ -2711,15 +2711,13 @@ select {
   height: 30px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid var(--border-strong);
-  border-radius: 5px;
-  background: var(--surface-interactive);
 }
 
 .settings-game-row__art img {
   display: block;
   width: 100%;
   height: 100%;
+  border-radius: 4px;
   object-fit: contain;
 }
 

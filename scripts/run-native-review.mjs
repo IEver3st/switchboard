@@ -37,6 +37,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-audio-mixer-ui.mjs');
 } else if (command === 'clip-editor') {
   await runElectron('scripts/verify-clip-editor-ui.mjs');
+} else if (command === 'app-updates') {
+  await runElectron('scripts/verify-app-update-ui.mjs');
 } else {
   throw new Error(`Unknown native review command: ${command ?? '(missing)'}`);
 }

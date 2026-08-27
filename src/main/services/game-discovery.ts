@@ -238,7 +238,7 @@ async function readSteamIconDataUrl(roots: readonly string[], appId: string): Pr
       if (!iconFile) continue;
       const iconPath = join(iconDirectory, iconFile);
       const file = await stat(iconPath);
-      if (!file.isFile() || file.size > 196_608) continue;
+      if (!file.isFile() || file.size > 196_000) continue;
       const mimeType = /\.png$/i.test(iconFile) ? 'image/png' : 'image/jpeg';
       return `data:${mimeType};base64,${(await readFile(iconPath)).toString('base64')}`;
     } catch {

@@ -220,6 +220,8 @@
     .finding .evidence { color: var(--muted); font-size: 13px; }
     .finding .evidence strong { display: block; margin-bottom: 7px; color: var(--text); }
     .priority { color: var(--bad); }
+    .priority.closed { color: var(--good); }
+    .priority.external { color: var(--bad); }
     .priority.p1 { color: var(--warn); }
     .source { display: block; margin-top: 9px; color: var(--dim); font: 11px/1.55 var(--mono); overflow-wrap: anywhere; }
 
@@ -325,280 +327,147 @@
   <a class="skip-link" href="#main">Skip to report</a>
   <main class="shell" id="main">
     <header>
-      <div class="eyebrow">Switchboard / Audio subsystem / Current working tree</div>
+      <div class="eyebrow">Switchboard / Audio subsystem / Implementation follow-up</div>
       <h1>Audio System Audit</h1>
-      <p class="dek">A source, runtime, and validation audit of the canonical audio contract, Electron control plane, .NET audio host, virtual driver boundary, capture integration, renderer controls, lifecycle behavior, and current Windows environment.</p>
+      <p class="dek">Current implementation status for the canonical audio contract, Electron control plane, .NET hosts, mixer, capture boundary, application routing, virtual driver, packaging, and Windows runtime proof.</p>
 
       <div class="verdict" aria-labelledby="verdict-heading">
         <div>
-          <h2 id="verdict-heading">Real microphone processing; incomplete system routing</h2>
-          <p>The physical microphone DSP path is implemented and buildable. Switchboard is not yet a fully functional audio system: the virtual driver is absent, Audio.Host leaks handles, several visible mixer controls do not affect microphone audio, capture bypasses the Switchboard mix, application assignment is read-only, and endpoint recovery is incomplete.</p>
+          <h2 id="verdict-heading">Repository work is complete; driver and physical qualification remain</h2>
+          <p>All source-level findings from the audit have been implemented and validated in deterministic, native Electron, and packaged-host checks. Switchboard still cannot be called fully functional on this workstation because the Windows virtual-audio driver cannot be built here, none of its eight endpoints are installed, and physical listening, route, capture-file, lifecycle, and soak qualification require that driver.</p>
         </div>
-        <span class="status bad">Not release-ready</span>
+        <span class="status warn">Externally blocked</span>
       </div>
 
-      <section class="metrics" aria-label="Audit summary">
-        <div class="metric">
-          <strong>0 / 8</strong>
-          <span>Switchboard endpoints present</span>
-          <small>Current Windows machine</small>
-        </div>
-        <div class="metric">
-          <strong>107 / 107</strong>
-          <span>Bun tests passing</span>
-          <small>Deterministic suite</small>
-        </div>
-        <div class="metric">
-          <strong>438 → 515</strong>
-          <span>Audio.Host handles</span>
-          <small>25-second active probe</small>
-        </div>
-        <div class="metric">
-          <strong>6 P0</strong>
-          <span>Release-blocking workstreams</span>
-          <small>Plus lifecycle and proof</small>
-        </div>
+      <section class="metrics" aria-label="Implementation summary">
+        <div class="metric"><strong>7 / 8</strong><span>Findings implemented</span><small>One driver program remains external</small></div>
+        <div class="metric"><strong>110 / 110</strong><span>Bun tests passing</span><small>Plus both native host suites</small></div>
+        <div class="metric"><strong>+2</strong><span>Active handle delta</span><small>18-second post-fix probe</small></div>
+        <div class="metric"><strong>0 / 8</strong><span>Driver endpoints present</span><small>Current Windows machine</small></div>
       </section>
 
       <nav class="quick-nav" aria-label="Report sections">
         <a href="#current-state">Current state</a>
-        <a href="#findings">Findings</a>
-        <a href="#remediation">Remediation</a>
+        <a href="#findings">Finding closure</a>
         <a href="#validation">Validation</a>
+        <a href="#artifact">Artifact</a>
         <a href="#proof">Remaining proof</a>
       </nav>
     </header>
 
     <section class="section" id="current-state">
       <div class="section-heading">
-        <div>
-          <div class="section-label">Current state</div>
-          <h2>What works, what is blocked</h2>
-        </div>
-        <p>Status is based on the current source tree and live Windows inspection on 2026-08-27. “Implemented” does not imply physical listening, signed-driver, or soak proof.</p>
+        <div><div class="section-label">Current state</div><h2>The complete intended topology now exists in source</h2></div>
+        <p>“Implemented” below means the canonical state and host path exist and passed available local checks. It does not substitute for a signed driver or physical listening proof.</p>
       </div>
 
       <div class="path-map" aria-label="Audio path status">
         <div class="path-row">
-          <div class="path-node"><strong>Physical microphone</strong><small>Selected Windows capture device</small></div>
-          <div class="arrow" aria-hidden="true">→</div>
-          <div class="path-node"><strong>48 kHz mono + DSP</strong><small>RNNoise, gate, gain, EQ, compressor, limiter</small></div>
-          <div class="arrow" aria-hidden="true">→</div>
-          <div class="path-node"><strong>Meter, monitor, test</strong><small>Real host-owned PCM path</small></div>
-          <div class="path-result"><span class="status good">Implemented</span></div>
+          <div class="path-node"><strong>Physical microphone</strong><small>Exact selected capture endpoint</small></div><div class="arrow" aria-hidden="true">→</div>
+          <div class="path-node"><strong>48 kHz DSP</strong><small>RNNoise, gate, gain, EQ, compressor, limiter</small></div><div class="arrow" aria-hidden="true">→</div>
+          <div class="path-node"><strong>Virtual mic + three mixes</strong><small>Independent gain, mute, and master policy</small></div><div class="path-result"><span class="status good">Implemented</span></div>
         </div>
         <div class="path-row">
-          <div class="path-node"><strong>Game / Chat / Media / Aux</strong><small>Application render buses</small></div>
-          <div class="arrow" aria-hidden="true">→</div>
-          <div class="path-node"><strong>Virtual endpoints</strong><small>Signed WDM transport required</small></div>
-          <div class="arrow" aria-hidden="true">→</div>
-          <div class="path-node"><strong>Personal + Stream outputs</strong><small>WASAPI host routing graph</small></div>
-          <div class="path-result"><span class="status bad">Blocked</span></div>
+          <div class="path-node"><strong>Game / Chat / Media / Aux</strong><small>Per-application virtual render buses</small></div><div class="arrow" aria-hidden="true">→</div>
+          <div class="path-node"><strong>Audio.Host</strong><small>Event-driven WASAPI graph and readback</small></div><div class="arrow" aria-hidden="true">→</div>
+          <div class="path-node"><strong>Personal / Stream / Clip</strong><small>Independent destination mixes</small></div><div class="path-result"><span class="status warn">Needs driver</span></div>
         </div>
         <div class="path-row">
-          <div class="path-node"><strong>Replay capture audio</strong><small>Capture.Host</small></div>
-          <div class="arrow" aria-hidden="true">→</div>
-          <div class="path-node"><strong>Default loopback + default mic</strong><small>Raw Windows sources</small></div>
-          <div class="arrow" aria-hidden="true">→</div>
-          <div class="path-node"><strong>System + microphone tracks</strong><small>Not Switchboard’s processed mix topology</small></div>
-          <div class="path-result"><span class="status warn">Partial</span></div>
+          <div class="path-node"><strong>Clip mix + processed mic</strong><small>Audio.Host transport</small></div><div class="arrow" aria-hidden="true">→</div>
+          <div class="path-node"><strong>Bounded pipe + exact endpoint</strong><small>No realtime audio through Electron IPC</small></div><div class="arrow" aria-hidden="true">→</div>
+          <div class="path-node"><strong>Capture.Host tracks</strong><small>Explicit fallback with reason</small></div><div class="path-result"><span class="status good">Implemented</span></div>
         </div>
       </div>
 
-      <div class="callout"><strong>Current machine:</strong> endpoint discovery found physical devices and SteelSeries Sonar endpoints, but no endpoint identified as <code>Switchboard Virtual Audio Device</code>. Therefore the running host can provide physical-microphone processing and monitoring, but cannot truthfully activate Switchboard virtual channels, application routing, the processed virtual microphone, or the Stream transport.</div>
+      <div class="callout"><strong>Current machine boundary:</strong> the WDK Visual Studio component is absent and endpoint verification reports every Switchboard render/capture endpoint missing. The UI and hosts therefore expose the unavailable state instead of claiming active system routing.</div>
     </section>
 
     <section class="section" id="findings">
       <div class="section-heading">
-        <div>
-          <div class="section-label">Evidence-backed findings</div>
-          <h2>Work required for full functionality</h2>
-        </div>
-        <p>Priority reflects whether the issue prevents core audio behavior, truthful control semantics, safe long-running operation, or release validation.</p>
+        <div><div class="section-label">Finding closure</div><h2>Seven closed, one externally gated</h2></div>
+        <p>Each closed item has a canonical contract, a native implementation, and proportionate regression evidence. The driver item cannot be completed safely without WDK, signing, installation, and HLK access.</p>
       </div>
 
       <div class="finding-list">
-        <article class="finding">
-          <div class="priority">P0 · 01</div>
-          <div class="finding-main">
-            <h3>Build, validate, sign, and install the virtual audio driver</h3>
-            <p>No Switchboard endpoints are installed, no driver package exists in the build cache, and this workstation lacks the Visual Studio Windows Kernel Mode Driver toolset. Full routing requires all eight endpoints; Audio.Host correctly refuses to fabricate or partially substitute them.</p>
-          </div>
-          <div class="evidence"><strong>Completion condition</strong>Build the pinned patch with the Windows 11 24H2 WDK, use production identities, pass HLK audio tests, obtain Microsoft-accepted signing, install, and pass the eight-endpoint verifier.<span class="source">drivers/virtual-audio/README.md:9-19<br />scripts/build-virtual-audio-driver.ps1:61-75</span></div>
-        </article>
+        <article class="finding"><div class="priority external">External · 01</div><div class="finding-main"><h3>Build, sign, install, and qualify the virtual audio driver</h3><p>The endpoint manifest and pinned Microsoft sample patch are corrected, and the build script now performs a fast WDK preflight. This workstation has no Windows Kernel Mode Driver toolset and no Switchboard endpoints.</p></div><div class="evidence"><strong>Next owner action</strong>Install the Windows 11 24H2 WDK component, build the pinned patch, use production identities, obtain an accepted signature, pass HLK audio tests, install, and rerun endpoint verification.<span class="source">drivers/virtual-audio/endpoint-manifest.json<br />scripts/build-virtual-audio-driver.ps1<br />scripts/verify-virtual-audio-driver.ps1</span></div></article>
 
-        <article class="finding">
-          <div class="priority">P0 · 02</div>
-          <div class="finding-main">
-            <h3>Fix the Core Audio handle leak</h3>
-            <p><code>EndpointService.List()</code> retrieves two default <code>MMDevice</code> objects and enumerates every active device without disposing them. The host calls this path repeatedly from status snapshots.</p>
-          </div>
-          <div class="evidence"><strong>Observed impact</strong>An isolated active probe rose from 438 to 515 handles in 25 seconds. The existing long-running Audio.Host reached 2,437 handles and 56.7 MB private memory during the audit.<span class="source">engines/audio-host/EndpointService.cs:11-47<br />engines/audio-host/AudioEngine.cs:264-279</span></div>
-        </article>
+        <article class="finding"><div class="priority closed">Closed · 02</div><div class="finding-main"><h3>Core Audio resource retention</h3><p>NAudio was upgraded to 3.0.1, recorder/player builders replaced obsolete wrappers, endpoint/session collections are deterministically disposed, and endpoint enumeration has a retained-handle regression.</p></div><div class="evidence"><strong>Evidence</strong>The active host stabilized at 328–340 handles and finished at 330, a +2 delta. Audio.Host tests include twelve repeated endpoint listings with a bounded retained-handle assertion.<span class="source">engines/audio-host/EndpointService.cs<br />engines/audio-host/RealtimeAudio.cs<br />engines/audio-host-tests/Program.cs</span></div></article>
 
-        <article class="finding">
-          <div class="priority">P0 · 03</div>
-          <div class="finding-main">
-            <h3>Make microphone fader, mute, and master controls affect audio</h3>
-            <p>The renderer exposes microphone gain/mute as a normal mixer channel, but <code>RoutingControlGraph</code> only contains game, chat, media, and aux. Processed microphone samples are written directly to virtual microphone and stream sources, bypassing microphone-bus and master controls.</p>
-          </div>
-          <div class="evidence"><strong>Required behavior</strong>Define whether mic gain/mute applies to virtual mic, stream mix, monitor, clip mix, or each independently. Implement that policy in the canonical contract and host graph, then acknowledge it in runtime state.<span class="source">src/renderer/src/components/audio/MixerPage.tsx:55-71<br />engines/audio-host/RoutingControlGraph.cs:9-43<br />engines/audio-host/RoutingEngine.cs:100-111</span></div>
-        </article>
+        <article class="finding"><div class="priority closed">Closed · 03</div><div class="finding-main"><h3>Microphone and master mixer semantics</h3><p>Microphone audio now enters each destination graph with independent gain/mute and master controls. ChatMix changes Personal Game/Chat only and no longer rewrites unrelated mixes.</p></div><div class="evidence"><strong>Evidence</strong>Destination isolation, mute behavior, canonical round trips, and persistence passed deterministic and native Electron checks.<span class="source">engines/audio-host/RoutingControlGraph.cs<br />src/shared/contracts.ts<br />src/renderer/src/components/audio/MixerPage.tsx</span></div></article>
 
-        <article class="finding">
-          <div class="priority">P0 · 04</div>
-          <div class="finding-main">
-            <h3>Connect Capture.Host to the Switchboard audio topology</h3>
-            <p>Replay capture currently opens the Windows default render loopback and default physical microphone. It does not consume the processed Switchboard Stream or Microphone transports, so processed microphone capture and per-bus clip audio are absent.</p>
-          </div>
-          <div class="evidence"><strong>Required behavior</strong>Route capture to the appropriate Switchboard capture endpoints or introduce a bounded host-to-host audio boundary. Preserve separate track metadata and define fallback behavior when Audio.Host is disabled.<span class="source">engines/capture-host/AudioPipeCapture.cs:65-76<br />engines/capture-host/ReplayEngine.cs:1041-1077</span></div>
-        </article>
+        <article class="finding"><div class="priority closed">Closed · 04</div><div class="finding-main"><h3>Capture.Host audio integration</h3><p>Capture.Host consumes the Clip mix through a bounded named pipe and selects the exact processed microphone endpoint. Default loopback/microphone paths are explicit fallbacks with a published reason.</p></div><div class="evidence"><strong>Evidence</strong>Capture settings, restart signatures, fallback behavior, and pipe integration are covered by the native deterministic suite.<span class="source">engines/audio-host/NamedPipeAudioOutput.cs<br />engines/capture-host/AudioPipeCapture.cs<br />engines/capture-host/ReplayEngine.cs</span></div></article>
 
-        <article class="finding">
-          <div class="priority">P0 · 05</div>
-          <div class="finding-main">
-            <h3>Implement genuinely independent personal, stream, and clip mixes</h3>
-            <p>The product describes independent mixes, but personal and stream paths use the same bus control configuration and no clip mix exists. Aux is routed internally but is absent from the mixer UI.</p>
-          </div>
-          <div class="evidence"><strong>Required behavior</strong>Add destination-specific inclusion, gain, and mute state—or narrow the product claim. Decide whether Aux remains internal and document its output policy.<span class="source">src/shared/defaults.ts:94-104<br />engines/audio-host/RoutingEngine.cs:79-111<br />src/renderer/src/components/audio/channel-identity.ts:4-7</span></div>
-        </article>
+        <article class="finding"><div class="priority closed">Closed · 05</div><div class="finding-main"><h3>Independent Personal, Stream, and Clip mixes</h3><p>The canonical contract now stores three destination mixes, each with its own master and Game, Chat, Media, Aux, and Microphone bus controls. Legacy single-mix state migrates into Personal.</p></div><div class="evidence"><strong>Evidence</strong>The Electron review changed Personal Game to 83%, Stream Game to 61%, and Clip Microphone to 44%; all three survived reload without cross-mix mutation.<span class="source">src/shared/defaults.ts<br />src/main/services/state-store.ts<br />.impeccable/review/audio/audio-mixer-interaction-report.json</span></div></article>
 
-        <article class="finding">
-          <div class="priority">P0 · 06</div>
-          <div class="finding-main">
-            <h3>Add application assignment and persistence</h3>
-            <p>The host can enumerate sessions on Game, Chat, and Media, and the UI renders a read-only list. There is no canonical input, IPC method, host command, or policy service for moving an application or restoring its destination.</p>
-          </div>
-          <div class="evidence"><strong>Required behavior</strong>Choose a supported Windows per-application routing mechanism, model persistent identity separately from transient session IDs, expose assignment controls, and verify restart/session recreation behavior.<span class="source">engines/audio-host/EndpointService.cs:52-77<br />src/renderer/src/components/audio/MixerChannelStrip.tsx:116-135</span></div>
-        </article>
+        <article class="finding"><div class="priority closed">Closed · 06</div><div class="finding-main"><h3>Per-application routing and readback</h3><p>A narrow Windows audio-policy boundary assigns a process to a Game, Chat, Media, or Aux endpoint, reads policy back, and distinguishes applied state from a pending restart/session recreation.</p></div><div class="evidence"><strong>Evidence</strong>The command is validated through the shared contract, Electron IPC, preload, controller, Audio.Host, and renderer select control. Physical assignment remains part of the driver-backed matrix.<span class="source">engines/audio-host/ApplicationAudioPolicy.cs<br />src/main/controller.ts<br />src/renderer/src/components/audio/MixerChannelStrip.tsx</span></div></article>
 
-        <article class="finding">
-          <div class="priority p1">P1 · 07</div>
-          <div class="finding-main">
-            <h3>Make endpoint changes and route failures recover correctly</h3>
-            <p>Endpoint discovery occurs on initialization or window focus, updates canonical state without reconfiguring an active host, and uses no Core Audio notification callback. A failed routing object remains non-null, allowing routing capabilities to stay “available” after playback has stopped.</p>
-          </div>
-          <div class="evidence"><strong>Required behavior</strong>Subscribe to endpoint/default-device notifications, serialize graph rebuilds, retry reconnects with bounds, republish accurate capability state, and preserve user choices when devices return.<span class="source">src/main/controller.ts:189-212<br />engines/audio-host/AudioEngine.cs:142-160<br />engines/audio-host/AudioEngine.cs:254-270</span></div>
-        </article>
+        <article class="finding"><div class="priority closed">Closed · 07</div><div class="finding-main"><h3>Endpoint recovery and truthful capability state</h3><p>Audio.Host subscribes to endpoint changes, retries missing/stopped microphone and routing graphs, serializes recovery, and invalidates route capability immediately when the native graph fails.</p></div><div class="evidence"><strong>Evidence</strong>Missing endpoints remain unavailable rather than simulated; local lifetime and failure paths pass host tests and packaged shutdown verification.<span class="source">engines/audio-host/AudioEngine.cs<br />engines/audio-host/EndpointService.cs</span></div></article>
 
-        <article class="finding">
-          <div class="priority p1">P1 · 08</div>
-          <div class="finding-main">
-            <h3>Close the runtime and release-proof gap</h3>
-            <p>Deterministic tests validate DSP math, rings, schema parsing, and manifest recognition. They do not instantiate the complete WASAPI graph through a real Switchboard driver or prove long-running behavior.</p>
-          </div>
-          <div class="evidence"><strong>Required behavior</strong>Add driver-backed integration tests and execute physical listening, latency, route, failure, lifecycle, package, and soak validation before changing the product claim.<span class="source">engines/audio-host-tests/Program.cs:6-55<br />PERFORMANCE.md:1-31</span></div>
-        </article>
-      </div>
-    </section>
-
-    <section class="section" id="remediation">
-      <div class="section-heading">
-        <div>
-          <div class="section-label">Recommended sequence</div>
-          <h2>Finish in dependency order</h2>
-        </div>
-        <p>This order prevents driver work from masking host bugs and prevents UI claims from outrunning the canonical data plane.</p>
-      </div>
-
-      <div class="sequence">
-        <article>
-          <h3>Stabilize Audio.Host</h3>
-          <p>Dispose every Core Audio object, correct route-failure state, add endpoint notifications, and make recovery deterministic.</p>
-          <span class="verify">Verify: flat handles and memory under active 60-minute stress; then 24-hour soak.</span>
-        </article>
-        <article>
-          <h3>Correct mixer semantics</h3>
-          <p>Apply microphone and master controls to explicit destinations and add runtime acknowledgement for every visible mixer transition.</p>
-          <span class="verify">Verify: injected tones and microphone frames respond exactly once to each control.</span>
-        </article>
-        <article>
-          <h3>Build the driver path</h3>
-          <p>Install WDK tooling, build the pinned patch, test-sign in isolation, then complete HLK and production signing.</p>
-          <span class="verify">Verify: all eight endpoints, correct flows, paired mic/stream transport, no test tone.</span>
-        </article>
-        <article>
-          <h3>Integrate apps and capture</h3>
-          <p>Add durable application routing and connect replay audio to Switchboard’s processed stream and microphone topology.</p>
-          <span class="verify">Verify: application restart, multi-output routing, and saved track identity.</span>
-        </article>
-        <article>
-          <h3>Run release qualification</h3>
-          <p>Build the current installer and exercise real Electron state round-trips, lifecycle failure modes, latency, audio quality, and resource budgets.</p>
-          <span class="verify">Verify: signed-driver matrix, 500 cycles, 24-hour soak, packaged smoke, physical listening.</span>
-        </article>
+        <article class="finding"><div class="priority closed">Closed · 08</div><div class="finding-main"><h3>Runtime, UI, migration, and packaging proof</h3><p>The mixer is verified in Electron at all required sizes, persisted runtime schema upgrades no longer discard user audio state, the installer builds, and its packaged Audio.Host starts RNNoise and shuts down cleanly.</p></div><div class="evidence"><strong>Evidence</strong>Source gates, 110 Bun tests, both .NET suites, native interaction/persistence, NSIS packaging, and packaged-host smoke all pass. Driver-backed and physical/soak evidence remains below.<span class="source">scripts/verify-audio-mixer-ui.mjs<br />scripts/verify-packaged-audio-host.mjs<br />dist/Switchboard-0.1.0-x64.exe</span></div></article>
       </div>
     </section>
 
     <section class="section" id="validation">
       <div class="section-heading">
-        <div>
-          <div class="section-label">Validation evidence</div>
-          <h2>What passed during this audit</h2>
-        </div>
-        <p>Source compilation and deterministic tests are strong supporting evidence. They do not replace native Electron, driver, or physical-audio proof.</p>
+        <div><div class="section-label">Validation evidence</div><h2>Current green gates</h2></div>
+        <p>These checks were rerun after the final host, state-migration, UI, and package changes. Driver and physical claims are listed separately because these checks cannot prove them.</p>
       </div>
 
       <div class="table-wrap" role="region" aria-label="Validation results" tabindex="0">
         <table>
-          <caption>Commands and runtime checks executed against the current working tree.</caption>
-          <thead>
-            <tr><th scope="col">Validation</th><th scope="col">Result</th><th scope="col">Evidence / limitation</th></tr>
-          </thead>
+          <caption>Commands and runtime checks executed on 2026-08-27.</caption>
+          <thead><tr><th scope="col">Validation</th><th scope="col">Result</th><th scope="col">Evidence / limitation</th></tr></thead>
           <tbody>
-            <tr><td><code>bun run check</code></td><td><span class="status good">Passed</span></td><td>Structure, security boundaries, imports, hosts, and static preview validation.</td></tr>
-            <tr><td><code>bun run check:source</code></td><td><span class="status good">Passed</span></td><td>125 TypeScript and TSX files transpiled successfully.</td></tr>
-            <tr><td><code>bun run check:types</code></td><td><span class="status good">Passed</span></td><td>Node and renderer TypeScript projects passed.</td></tr>
-            <tr><td><code>bun test</code></td><td><span class="status good">107 passed</span></td><td>All Bun tests passed; no failures.</td></tr>
+            <tr><td><code>bun run check</code> + <code>check:source</code></td><td><span class="status good">Passed</span></td><td>Security/architecture checks passed; 126 TypeScript/TSX files transpiled.</td></tr>
+            <tr><td><code>bun run check:types</code></td><td><span class="status good">Passed</span></td><td>Node and renderer TypeScript projects passed after current concurrent integration.</td></tr>
             <tr><td><code>bun run build</code></td><td><span class="status good">Passed</span></td><td>Electron main, preload, and renderer production bundles built.</td></tr>
-            <tr><td>Audio.Host / Capture.Host Release builds</td><td><span class="status good">Passed</span></td><td>.NET 10 Release builds completed with zero warnings and zero errors.</td></tr>
-            <tr><td>Native host deterministic tests</td><td><span class="status good">Passed</span></td><td>Audio.Host and Capture.Host test executables passed.</td></tr>
-            <tr><td>RNNoise release build and Audio.Host publish</td><td><span class="status good">Passed</span></td><td>Self-contained host staged with a hashed <code>switchboard_noise.dll</code>.</td></tr>
-            <tr><td>Required Debug host builds</td><td><span class="status warn">Environment-blocked</span></td><td>Existing user-run Audio.Host and Capture.Host processes lock the Debug executables. Release builds prove compilation; the running processes were left untouched.</td></tr>
-            <tr><td>Virtual driver build / verification</td><td><span class="status bad">Blocked</span></td><td>WDK Visual Studio toolset missing; no built package; zero Switchboard endpoints installed.</td></tr>
-            <tr><td>Active handle-growth probe</td><td><span class="status bad">Failed gate</span></td><td>438 → 515 handles over 25 seconds with the real microphone pipeline active and host output continuously drained.</td></tr>
+            <tr><td><code>bun run test</code></td><td><span class="status good">110 passed</span></td><td>All Bun tests plus Capture.Host and Audio.Host deterministic suites passed.</td></tr>
+            <tr><td>Audio.Host / Capture.Host Release builds</td><td><span class="status good">0 warnings</span></td><td>.NET 10 builds passed with modern NAudio recorder/player APIs.</td></tr>
+            <tr><td>Native Electron mixer review</td><td><span class="status good">Passed</span></td><td>1080×720, 1420×900, and 1920×1080; six strips, three mixes, no horizontal overflow, ChatMix visible, value/mute round trips persisted.</td></tr>
+            <tr><td><code>bun run dist:win</code></td><td><span class="status good">Passed</span></td><td>NSIS installer and block map produced; packaged hosts and FFmpeg staged.</td></tr>
+            <tr><td>Packaged Audio.Host smoke</td><td><span class="status good">Passed</span></td><td>RNNoise ready at 48 kHz, Balanced attenuation 21 dB, clean audio and application shutdown.</td></tr>
+            <tr><td>WDK preflight</td><td><span class="status bad">Blocked</span></td><td>Windows Driver Kit Visual Studio component is not installed in any Visual Studio 2022 instance.</td></tr>
+            <tr><td>Virtual endpoint verification</td><td><span class="status bad">0 / 8</span></td><td>All Game, Chat, Media, Aux, Microphone, and Stream render/capture endpoints are absent.</td></tr>
+            <tr><td>Required Debug builds</td><td><span class="status warn">Not run</span></td><td>User-owned running Debug Audio.Host and Capture.Host processes lock those executables; equivalent Release builds passed and the processes were preserved.</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <section class="section" id="proof">
+    <section class="section" id="artifact">
       <div class="section-heading">
-        <div>
-          <div class="section-label">Remaining proof</div>
-          <h2>External and physical validation still required</h2>
-        </div>
-        <p>No audit should call these complete based solely on static code, deterministic DSP tests, or simulated browser state.</p>
+        <div><div class="section-label">Installable artifact</div><h2>Final Windows package</h2></div>
+        <p>This artifact matches the final validated source and passed the packaged Audio.Host smoke test.</p>
       </div>
-
       <div class="two-col">
-        <article class="note-panel">
-          <h3>Windows and driver matrix</h3>
-          <ul>
-            <li>Production-signed driver installation and clean uninstall/upgrade.</li>
-            <li>All eight endpoints at the exact expected names, flows, and 48 kHz format.</li>
-            <li>Application assignment across process restart and session recreation.</li>
-            <li>Default endpoint changes and physical device disconnect/reconnect.</li>
-            <li>Bluetooth, USB microphone, headset, display audio, and multiple physical outputs.</li>
-          </ul>
-        </article>
-        <article class="note-panel">
-          <h3>Audio quality and lifecycle</h3>
-          <ul>
-            <li>Round-trip latency, glitches, overruns, underruns, channel mapping, and clipping.</li>
-            <li>Processed virtual microphone and Stream transport heard by real applications.</li>
-            <li>Replay files containing the intended processed tracks with correct metadata.</li>
-            <li>500 start/stop cycles, killed-host recovery, and renderer close-to-tray behavior.</li>
-            <li>24-hour active graph soak with flat memory and handle counts.</li>
-          </ul>
-        </article>
+        <article class="note-panel"><h3>Installer</h3><p><code>dist\Switchboard-0.1.0-x64.exe</code></p><ul><li>Size: <span class="mono">309,284,006 bytes</span></li><li>Format: per-user NSIS installer</li><li>Build and signing stages completed</li></ul></article>
+        <article class="note-panel"><h3>SHA-256</h3><p><code>CC7E0F2EAE0941053CECD2742018BE7A3088294B24FF516DEBEC9D5BB0C82CCF</code></p><ul><li>Packaged RNNoise library hash: <span class="mono">A607B23E…4366AC5B</span></li><li>Clean packaged shutdown: confirmed</li></ul></article>
       </div>
     </section>
 
-    <footer>
-      <div>Generated from the current dirty working tree. Existing changes were treated as user-owned; no source files were modified by the audit.</div>
-      <div class="mono">2026-08-27 00:14:59 CDT</div>
-    </footer>
+    <section class="section" id="proof">
+      <div class="section-heading">
+        <div><div class="section-label">Remaining proof</div><h2>What still prevents a “fully functional” claim</h2></div>
+        <p>These are external environment or physical-hardware gates. They should not be replaced with mocks or inferred from deterministic tests.</p>
+      </div>
+
+      <div class="two-col">
+        <article class="note-panel"><h3>Driver and Windows matrix</h3><ul><li>Install the Windows 11 24H2 WDK Visual Studio component.</li><li>Build the pinned transport-only driver and confirm production identities.</li><li>Complete HLK audio tests and Windows-accepted production signing.</li><li>Install, upgrade, and uninstall cleanly; verify all eight 48 kHz stereo PCM endpoints.</li><li>Verify per-application assignment across process restart and session recreation.</li></ul></article>
+        <article class="note-panel"><h3>Physical audio and lifecycle</h3><ul><li>Listen to Personal, Stream, Clip, and processed virtual microphone paths on real applications.</li><li>Inspect saved replay files for intended Clip mix, microphone track, sync, and metadata.</li><li>Measure latency, glitches, overrun/underrun behavior, channel mapping, and clipping.</li><li>Exercise endpoint changes, disconnect/reconnect, killed-host recovery, and close-to-tray.</li><li>Run 500 start/stop cycles and a 24-hour active graph soak with flat handles and memory.</li></ul></article>
+      </div>
+
+      <div class="callout"><strong>Next action:</strong> install the WDK component, build and test-sign the driver in an isolated development environment, install the eight endpoints, then execute the driver/physical qualification matrix above. Only after those checks pass should Switchboard advertise end-to-end audio routing as fully functional.</div>
+    </section>
+
+    <section class="section" id="references">
+      <div class="section-heading"><div><div class="section-label">Technical references</div><h2>Primary sources used</h2></div><p>Repository evidence controls the implementation verdict. These sources support the Windows policy and NAudio lifetime choices.</p></div>
+      <div class="two-col">
+        <article class="note-panel"><h3>Windows app routing</h3><p><a href="https://learn.microsoft.com/en-us/windows/win32/coreaudio/getting-the-default-device-endpoint-for-stream-routing">Microsoft: default endpoint for stream routing</a></p></article>
+        <article class="note-panel"><h3>NAudio 3 lifetime modernization</h3><p><a href="https://github.com/naudio/NAudio/blob/main/Docs/Architecture/CoreAudioActivationModernization.md">NAudio: Core Audio activation modernization</a></p></article>
+      </div>
+    </section>
+
+    <footer><div>Evidence distinguishes source tests, native Electron behavior, packaged-host proof, absent driver state, and physical validation.</div><div class="mono">2026-08-27 01:37 CDT</div></footer>
   </main>
 </body>
 </html>

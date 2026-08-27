@@ -23,23 +23,27 @@
         },
         "toolbar": {
           "left": 270,
-          "top": 326.625732421875,
+          "top": 326.15625,
           "right": 1030,
-          "bottom": 366.625732421875,
+          "bottom": 366.15625,
           "width": 760,
           "height": 40
         },
         "list": {
           "left": 270,
-          "top": 374.625732421875,
+          "top": 374.15625,
           "right": 1030,
-          "bottom": 634.625732421875,
+          "bottom": 634.15625,
           "width": 760,
           "height": 260,
           "clientHeight": 259,
           "scrollHeight": 522
         },
         "rows": 9,
+        "gameIcons": {
+          "loaded": 9,
+          "fallback": 0
+        },
         "empty": false,
         "switchLabel": "Automatically scan for games",
         "switchChecked": "true",
@@ -96,6 +100,10 @@
           "scrollHeight": 522
         },
         "rows": 9,
+        "gameIcons": {
+          "loaded": 9,
+          "fallback": 0
+        },
         "empty": false,
         "switchLabel": "Automatically scan for games",
         "switchChecked": "true",
@@ -152,6 +160,10 @@
           "scrollHeight": 522
         },
         "rows": 9,
+        "gameIcons": {
+          "loaded": 9,
+          "fallback": 0
+        },
         "empty": false,
         "switchLabel": "Automatically scan for games",
         "switchChecked": "true",
@@ -208,6 +220,10 @@
           "scrollHeight": 259
         },
         "rows": 0,
+        "gameIcons": {
+          "loaded": 0,
+          "fallback": 0
+        },
         "empty": true,
         "switchLabel": "Automatically scan for games",
         "switchChecked": "true",

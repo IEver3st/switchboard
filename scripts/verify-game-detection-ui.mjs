@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, nativeImage } from 'electron';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -138,11 +138,17 @@ async function createLauncherFixtures() {
     ['553850', 'Helldivers 2'],
   ];
   await mkdir(steamApps, { recursive: true });
-  for (const [appId, name] of steamGames) {
+  for (const [index, [appId, name]] of steamGames.entries()) {
     await mkdir(join(steamApps, 'common', name), { recursive: true });
     await writeFile(
       join(steamApps, `appmanifest_${appId}.acf`),
       `"AppState"\n{\n  "appid" "${appId}"\n  "name" "${name}"\n  "installdir" "${name}"\n}\n`,
+    );
+    const iconDirectory = join(steamRoot, 'appcache', 'librarycache', appId);
+    await mkdir(iconDirectory, { recursive: true });
+    await writeFile(
+      join(iconDirectory, `${String(index + 1).repeat(40)}.png`),
+      createFixtureIcon(index),
     );
   }
 
@@ -161,6 +167,30 @@ async function createLauncherFixtures() {
     }));
   }
   await writeFile(manualExecutable, 'manual game fixture');
+}
+
+function createFixtureIcon(index) {
+  const palette = [
+    [88, 151, 191],
+    [180, 115, 101],
+    [111, 155, 119],
+    [154, 120, 181],
+    [191, 151, 88],
+    [104, 135, 188],
+  ];
+  const [red, green, blue] = palette[index % palette.length];
+  const bitmap = Buffer.alloc(32 * 32 * 4);
+  for (let y = 0; y < 32; y += 1) {
+    for (let x = 0; x < 32; x += 1) {
+      const offset = (y * 32 + x) * 4;
+      const inset = x >= 6 && x < 26 && y >= 6 && y < 26;
+      bitmap[offset] = inset ? blue : Math.round(blue * 0.42);
+      bitmap[offset + 1] = inset ? green : Math.round(green * 0.42);
+      bitmap[offset + 2] = inset ? red : Math.round(red * 0.42);
+      bitmap[offset + 3] = 255;
+    }
+  }
+  return nativeImage.createFromBitmap(bitmap, { width: 32, height: 32, scaleFactor: 1 }).toPNG();
 }
 
 async function openGamesSettings(window) {
@@ -278,6 +308,11 @@ async function getMetrics(window) {
         toolbar: rect(toolbar),
         list: { ...rect(list), clientHeight: list?.clientHeight ?? null, scrollHeight: list?.scrollHeight ?? null },
         rows: document.querySelectorAll('.settings-game-row').length,
+        gameIcons: {
+          loaded: [...document.querySelectorAll('.settings-game-row__art img')]
+            .filter((image) => image.complete && image.naturalWidth > 0).length,
+          fallback: document.querySelectorAll('.settings-game-row__art svg').length,
+        },
         empty: Boolean(document.querySelector('.settings-game-library__empty')),
         switchLabel: switchControl?.getAttribute('aria-label'),
         switchChecked: switchControl?.getAttribute('aria-checked'),
@@ -299,6 +334,9 @@ function assertLayout(metrics, viewport) {
   }
   if (!metrics.toolbar || !metrics.list || metrics.list.bottom > viewport.height + 1) {
     throw new Error(`Game library is clipped at ${viewport.width}x${viewport.height}.`);
+  }
+  if (metrics.rows > 0 && metrics.gameIcons.loaded === 0) {
+    throw new Error(`No file-backed game icons rendered at ${viewport.width}x${viewport.height}.`);
   }
   if (metrics.switchLabel !== 'Automatically scan for games') throw new Error('The automatic scan switch is missing its accessible name.');
   if (metrics.actions.map((action) => action.label).join(',') !== 'Scan now,Add game') {

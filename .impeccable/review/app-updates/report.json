@@ -1,0 +1,254 @@
+[
+  {
+    "viewport": {
+      "width": 1080,
+      "height": 720
+    },
+    "category": "general",
+    "filename": "1080x720-general.png",
+    "metrics": {
+      "viewport": {
+        "width": 1080,
+        "height": 722
+      },
+      "documentWidth": 1080,
+      "content": {
+        "clientWidth": 840,
+        "scrollWidth": 840,
+        "clientHeight": 662,
+        "scrollHeight": 662,
+        "rect": {
+          "top": 60,
+          "right": 1080,
+          "bottom": 722,
+          "left": 230,
+          "width": 850,
+          "height": 662
+        }
+      },
+      "updateRow": null,
+      "updateStatus": null,
+      "updateDescription": null,
+      "automaticUpdateSwitch": {
+        "checked": true,
+        "ariaLabel": "Automatically check for updates",
+        "rect": {
+          "top": 553.40625,
+          "right": 1030,
+          "bottom": 577.40625,
+          "left": 988,
+          "width": 42,
+          "height": 24
+        }
+      }
+    }
+  },
+  {
+    "viewport": {
+      "width": 1080,
+      "height": 720
+    },
+    "category": "about",
+    "filename": "1080x720-about.png",
+    "metrics": {
+      "viewport": {
+        "width": 1080,
+        "height": 722
+      },
+      "documentWidth": 1080,
+      "content": {
+        "clientWidth": 840,
+        "scrollWidth": 840,
+        "clientHeight": 662,
+        "scrollHeight": 662,
+        "rect": {
+          "top": 60,
+          "right": 1080,
+          "bottom": 722,
+          "left": 230,
+          "width": 850,
+          "height": 662
+        }
+      },
+      "updateRow": {
+        "top": 544.5208740234375,
+        "right": 1030,
+        "bottom": 616.5208740234375,
+        "left": 270,
+        "width": 760,
+        "height": 72
+      },
+      "updateStatus": "Unavailable",
+      "updateDescription": "Application updates are available only in an installed Windows build.",
+      "automaticUpdateSwitch": null
+    }
+  },
+  {
+    "viewport": {
+      "width": 1420,
+      "height": 900
+    },
+    "category": "general",
+    "filename": "1420x900-general.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "documentWidth": 1420,
+      "content": {
+        "clientWidth": 1150,
+        "scrollWidth": 1150,
+        "clientHeight": 840,
+        "scrollHeight": 840,
+        "rect": {
+          "top": 60,
+          "right": 1420,
+          "bottom": 900,
+          "left": 260,
+          "width": 1160,
+          "height": 840
+        }
+      },
+      "updateRow": null,
+      "updateStatus": null,
+      "updateDescription": null,
+      "automaticUpdateSwitch": {
+        "checked": true,
+        "ariaLabel": "Automatically check for updates",
+        "rect": {
+          "top": 611.40625,
+          "right": 1339,
+          "bottom": 635.40625,
+          "left": 1297,
+          "width": 42,
+          "height": 24
+        }
+      }
+    }
+  },
+  {
+    "viewport": {
+      "width": 1420,
+      "height": 900
+    },
+    "category": "about",
+    "filename": "1420x900-about.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "documentWidth": 1420,
+      "content": {
+        "clientWidth": 1150,
+        "scrollWidth": 1150,
+        "clientHeight": 840,
+        "scrollHeight": 840,
+        "rect": {
+          "top": 60,
+          "right": 1420,
+          "bottom": 900,
+          "left": 260,
+          "width": 1160,
+          "height": 840
+        }
+      },
+      "updateRow": {
+        "top": 615.0208740234375,
+        "right": 1339,
+        "bottom": 697.0208740234375,
+        "left": 331,
+        "width": 1008,
+        "height": 82
+      },
+      "updateStatus": "Unavailable",
+      "updateDescription": "Application updates are available only in an installed Windows build.",
+      "automaticUpdateSwitch": null
+    }
+  },
+  {
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "category": "general",
+    "filename": "1920x1080-general.png",
+    "metrics": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "documentWidth": 1920,
+      "content": {
+        "clientWidth": 1650,
+        "scrollWidth": 1650,
+        "clientHeight": 1020,
+        "scrollHeight": 1020,
+        "rect": {
+          "top": 60,
+          "right": 1920,
+          "bottom": 1080,
+          "left": 260,
+          "width": 1660,
+          "height": 1020
+        }
+      },
+      "updateRow": null,
+      "updateStatus": null,
+      "updateDescription": null,
+      "automaticUpdateSwitch": {
+        "checked": true,
+        "ariaLabel": "Automatically check for updates",
+        "rect": {
+          "top": 611.40625,
+          "right": 1639,
+          "bottom": 635.40625,
+          "left": 1597,
+          "width": 42,
+          "height": 24
+        }
+      }
+    }
+  },
+  {
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "category": "about",
+    "filename": "1920x1080-about.png",
+    "metrics": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "documentWidth": 1920,
+      "content": {
+        "clientWidth": 1650,
+        "scrollWidth": 1650,
+        "clientHeight": 1020,
+        "scrollHeight": 1020,
+        "rect": {
+          "top": 60,
+          "right": 1920,
+          "bottom": 1080,
+          "left": 260,
+          "width": 1660,
+          "height": 1020
+        }
+      },
+      "updateRow": {
+        "top": 615.0208740234375,
+        "right": 1639,
+        "bottom": 697.0208740234375,
+        "left": 531,
+        "width": 1108,
+        "height": 82
+      },
+      "updateStatus": "Unavailable",
+      "updateDescription": "Application updates are available only in an installed Windows build.",
+      "automaticUpdateSwitch": null
+    }
+  }
+]

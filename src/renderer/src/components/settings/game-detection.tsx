@@ -99,13 +99,7 @@ export function GameDetectionSettings({
             <ul aria-label="Detected games">
               {gameDetection.games.map((game) => (
                 <li key={game.id} className="settings-game-row">
-                  <div className="settings-game-row__art" aria-hidden>
-                    {game.iconDataUrl ? (
-                      <img src={game.iconDataUrl} alt="" />
-                    ) : (
-                      <Gamepad2 />
-                    )}
-                  </div>
+                  <GameArtwork iconDataUrl={game.iconDataUrl} />
                   <div className="settings-game-row__copy">
                     <strong>{game.name}</strong>
                     <span title={game.executablePath ?? game.installDirectory}>
@@ -125,6 +119,20 @@ export function GameDetectionSettings({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function GameArtwork({ iconDataUrl }: { iconDataUrl?: string }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const canShowImage = Boolean(iconDataUrl && iconDataUrl !== failedUrl);
+  return (
+    <div className="settings-game-row__art" aria-hidden>
+      {canShowImage ? (
+        <img src={iconDataUrl} alt="" onError={() => setFailedUrl(iconDataUrl ?? null)} />
+      ) : (
+        <Gamepad2 />
+      )}
     </div>
   );
 }
