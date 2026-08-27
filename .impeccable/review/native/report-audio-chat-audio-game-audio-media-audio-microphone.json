@@ -1,0 +1,450 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1023,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1023,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1023,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1553,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-audio-microphone.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1074,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1074,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1074,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 1594,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-audio-microphone.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1131,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1131,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1131,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1651,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-audio-microphone.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-game",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/game"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-game.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-chat",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/chat"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-chat.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-media",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/media"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-media.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "audio-microphone",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2492,
+      "viewportScrollWidth": 2492,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1651,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#audio/microphone"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-audio-microphone.png"
+  }
+]

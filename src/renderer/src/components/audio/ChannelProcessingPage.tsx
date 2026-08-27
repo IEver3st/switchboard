@@ -108,54 +108,61 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
         </p>
       ) : null}
 
-      <section className="audio-primary-section" aria-labelledby={`${busId}-equalizer-heading`}>
-        <SettingToggle
-          title="Equalizer"
-          description="Shape the sound by dragging a band, or enter an exact value below."
-          checked={processing.equalizer.enabled}
-          disabled={unavailable}
-          pending={pending}
-          onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', enabled })}
-        />
-        <ParametricEq
-          bands={processing.equalizer.bands}
-          disabled={unavailable || !processing.equalizer.enabled || pending}
-          onCommit={(bands) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', parameters: { bands } })}
-        />
-      </section>
-
-      <section className="audio-simple-grid">
-        <div className="audio-simple-section">
+      <div className="audio-main-grid">
+        <section className="audio-primary-section" aria-labelledby={`${busId}-equalizer-heading`}>
           <SettingToggle
-            title={levelingCopy[busId].title}
-            description={levelingCopy[busId].description}
-            checked={levelingEnabled}
+            title="Equalizer"
+            description="Shape the sound by dragging a band, then fine-tune the selected point below."
+            checked={processing.equalizer.enabled}
             disabled={unavailable}
             pending={pending}
-            technicalName="Normalization + compressor"
-            onCheckedChange={(enabled) => void setLevelingEnabled(enabled)}
+            onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', enabled })}
           />
-          <SemanticChoice
-            label={`${levelingCopy[busId].title} strength`}
-            value={levelingStrength}
-            options={strengthOptions}
-            disabled={unavailable || !levelingEnabled || pending}
-            onChange={(strength) => void setLevelingStrength(strength)}
+          <ParametricEq
+            bands={processing.equalizer.bands}
+            disabled={unavailable || !processing.equalizer.enabled || pending}
+            onCommit={(bands) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', parameters: { bands } })}
           />
-        </div>
+        </section>
 
-        <div className="audio-simple-section">
-          <SettingToggle
-            title="Output safety"
-            description="Prevents sudden clipping and excessive peaks."
-            checked={processing.limiter.enabled}
-            disabled={unavailable}
-            pending={pending}
-            technicalName="Limiter"
-            onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'limiter', enabled })}
-          />
-        </div>
-      </section>
+        <section className="audio-control-rail" aria-label={`${labels[busId]} processing controls`}>
+          <header className="audio-control-rail__header">
+            <h3>Processing</h3>
+            <p>Keep volume steady and peaks under control.</p>
+          </header>
+
+          <div className="audio-simple-section">
+            <SettingToggle
+              title={levelingCopy[busId].title}
+              description={levelingCopy[busId].description}
+              checked={levelingEnabled}
+              disabled={unavailable}
+              pending={pending}
+              technicalName="Normalization + compressor"
+              onCheckedChange={(enabled) => void setLevelingEnabled(enabled)}
+            />
+            <SemanticChoice
+              label={`${levelingCopy[busId].title} strength`}
+              value={levelingStrength}
+              options={strengthOptions}
+              disabled={unavailable || !levelingEnabled || pending}
+              onChange={(strength) => void setLevelingStrength(strength)}
+            />
+          </div>
+
+          <div className="audio-simple-section">
+            <SettingToggle
+              title="Output safety"
+              description="Prevents sudden clipping and excessive peaks."
+              checked={processing.limiter.enabled}
+              disabled={unavailable}
+              pending={pending}
+              technicalName="Limiter"
+              onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'limiter', enabled })}
+            />
+          </div>
+        </section>
+      </div>
 
       <AdvancedDisclosure>
         <div className="advanced-processor-grid">

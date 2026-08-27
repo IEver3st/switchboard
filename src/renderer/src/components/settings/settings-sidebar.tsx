@@ -1,4 +1,4 @@
-import { Search, X } from 'lucide-react';
+import { ArrowLeft, Search, X } from 'lucide-react';
 import { useMemo, useRef, type KeyboardEvent, type RefObject } from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/cn';
@@ -17,6 +17,7 @@ export function SettingsSidebar({
   onCategoryChange,
   onQueryChange,
   onResultSelect,
+  onBack,
 }: {
   category: SettingsCategoryId;
   query: string;
@@ -24,6 +25,7 @@ export function SettingsSidebar({
   onCategoryChange: (category: SettingsCategoryId) => void;
   onQueryChange: (query: string) => void;
   onResultSelect: (result: SettingsSearchEntry) => void;
+  onBack: () => void;
 }) {
   const navigationRef = useRef<HTMLElement>(null);
   const results = useMemo(() => searchSettings(query), [query]);
@@ -116,6 +118,11 @@ export function SettingsSidebar({
           ))}
         </div>
       </nav>
+
+      <button type="button" className="settings-back no-drag" onClick={onBack} title="Back (Esc)">
+        <ArrowLeft aria-hidden />
+        <span>Back</span>
+      </button>
     </aside>
   );
 }

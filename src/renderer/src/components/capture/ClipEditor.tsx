@@ -3,11 +3,14 @@ import { ArrowLeft, FolderOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-rea
 import type { Clip, ClipAudioChannel, ClipExportPreset } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { channelColor } from '@/components/audio/channel-identity';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatClipTimestamp, formatDuration } from '@/lib/format';
 import { ClipTimeline } from './ClipTimeline';
-import { ShareClipPopover } from './ShareClipPopover';
+import { ShareClipDialog } from './ShareClipDialog';
 
 const channelLabels: Record<ClipAudioChannel, string> = {
   game: 'Game',
@@ -35,11 +38,13 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
   const savedEndMs = clip.trimEndMs ?? clip.durationMs;
   const [startMs, setStartMs] = useState(savedStartMs);
   const [endMs, setEndMs] = useState(savedEndMs);
+  const [previewState, setPreviewState] = useState<'loading' | 'ready' | 'error'>('loading');
   const dirty = startMs !== savedStartMs || endMs !== savedEndMs;
 
   useEffect(() => {
     setStartMs(clip.trimStartMs ?? 0);
     setEndMs(clip.trimEndMs ?? clip.durationMs);
+    setPreviewState('loading');
   }, [clip.id]);
 
   useEffect(() => {
@@ -47,7 +52,7 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
   }, []);
 
   const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[data-radix-popper-content-wrapper]')) {
+    if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[data-radix-popper-content-wrapper], [data-share-clip-dialog][data-state="open"]')) {
       event.preventDefault();
       onClose();
       return;
@@ -71,37 +76,53 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
   };
 
   return (
-    <section ref={editorRef} className="fixed bottom-0 left-[68px] right-0 top-[38px] z-40 flex min-h-0 flex-col bg-background" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" onKeyDown={keepFocusInside}>
-      <header className="flex min-h-[52px] shrink-0 items-center gap-3 border-b border-border bg-card px-3 no-drag">
+    <section ref={editorRef} className="clip-editor-shell" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" onKeyDown={keepFocusInside}>
+      <header className="clip-editor-header no-drag">
         <Button ref={backRef} type="button" variant="ghost" size="sm" className="no-drag px-2" onClick={onClose}>
           <ArrowLeft className="size-4" /> Back to clips
         </Button>
-        <div className="h-5 w-px bg-border" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <h2 id="clip-editor-title" className="m-0 truncate text-[14px] font-semibold text-foreground">{clip.name}</h2>
-          <p className="m-0 mt-0.5 truncate text-[10px] text-muted-foreground">{clipGameLabel(clip)} <span aria-hidden="true">·</span> {formatClipTimestamp(clip.createdAt)}</p>
+        <Separator orientation="vertical" className="h-5" />
+        <div className="clip-editor-header__identity">
+          <h2 id="clip-editor-title">{clip.name}</h2>
+          <p>{clipGameLabel(clip)} <span aria-hidden="true">·</span> {formatClipTimestamp(clip.createdAt)}</p>
         </div>
-        <Button type="button" variant="ghost" size="icon" className={cn('no-drag', clip.favorite && 'text-primary')} aria-label={clip.favorite ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={clip.favorite} onClick={() => onFavorite(!clip.favorite)}>
-          <Star className={cn('size-4', clip.favorite && 'fill-current')} />
-        </Button>
-        <ShareClipPopover clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs)} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className={cn('no-drag', clip.favorite && 'text-primary')} aria-label={clip.favorite ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={clip.favorite} onClick={() => onFavorite(!clip.favorite)}>
+              <Star className={cn('size-4', clip.favorite && 'fill-current')} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{clip.favorite ? 'Remove from favorites' : 'Add to favorites'}</TooltipContent>
+        </Tooltip>
+        <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs)} />
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_272px] max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto">
-        <main className="flex min-h-0 min-w-0 flex-col gap-3 bg-background p-3">
-          <div className="grid min-h-0 flex-1 place-items-center overflow-hidden bg-black">
+      <div className="clip-editor-layout">
+        <main className="clip-editor-workspace">
+          <div className="clip-editor-preview" data-state={previewState}>
             <video
               ref={videoRef}
               src={`switchboard-media://clip/${encodeURIComponent(clip.id)}`}
-              controls
               preload="metadata"
-              className="block size-full bg-black object-contain"
-              onLoadedMetadata={(event) => { event.currentTarget.currentTime = startMs / 1_000; }}
+              aria-label={`Preview ${clip.name}`}
+              onLoadedMetadata={(event) => {
+                event.currentTarget.currentTime = startMs / 1_000;
+              }}
+              onCanPlay={() => setPreviewState('ready')}
+              onError={() => setPreviewState('error')}
             />
+            {previewState !== 'ready' ? (
+              <div className="clip-editor-preview__status" role={previewState === 'error' ? 'alert' : 'status'}>
+                <strong>{previewState === 'error' ? 'Preview unavailable' : 'Loading preview'}</strong>
+                <span>{previewState === 'error' ? 'The clip could not be decoded. File actions remain available.' : 'Reading clip metadata…'}</span>
+              </div>
+            ) : null}
           </div>
           <ClipTimeline
+            key={clip.id}
             videoRef={videoRef}
             durationMs={clip.durationMs}
+            fps={clip.fps}
             startMs={startMs}
             endMs={endMs}
             dirty={dirty}
@@ -111,38 +132,48 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
           />
         </main>
 
-        <aside className="min-h-0 overflow-y-auto border-l border-border bg-card p-4 max-[900px]:border-l-0 max-[900px]:border-t">
-          <h3 className="m-0 text-[12px] font-semibold text-foreground">Clip details</h3>
-          <dl className="mt-2 grid gap-0 text-[11px]">
-            <Detail label="Game" value={clipGameLabel(clip)} />
-            <Detail label="Selection" value={formatDuration((endMs - startMs) / 1_000)} />
-            <Detail label="Original" value={formatDuration(clip.durationMs / 1_000)} />
-            <Detail label="Recorded" value={new Date(clip.createdAt).toLocaleString()} />
-            <Detail label="Quality" value={`${clip.width} × ${clip.height} · ${Math.round(clip.fps)} FPS`} />
-            <Detail label="Size" value={formatBytes(clip.fileSize)} />
-          </dl>
+        <aside className="clip-editor-inspector" aria-label="Clip details and actions">
+          <ScrollArea className="h-full">
+            <div className="clip-editor-inspector__content">
+              <div className="clip-editor-inspector__heading">
+                <span>Inspector</span>
+                <h3>Clip details</h3>
+              </div>
+              <dl className="clip-editor-details">
+                <Detail label="Game" value={clipGameLabel(clip)} />
+                <Detail label="Selection" value={formatDuration((endMs - startMs) / 1_000)} />
+                <Detail label="Original" value={formatDuration(clip.durationMs / 1_000)} />
+                <Detail label="Recorded" value={new Date(clip.createdAt).toLocaleString()} />
+                <Detail label="Quality" value={`${clip.width} × ${clip.height} · ${Math.round(clip.fps)} FPS`} />
+                <Detail label="Size" value={formatBytes(clip.fileSize)} />
+              </dl>
 
-          <section className="mt-4 border-t border-border pt-3" aria-labelledby="audio-tracks-heading">
-            <h3 id="audio-tracks-heading" className="m-0 flex items-center gap-2 text-[11px] font-semibold text-foreground"><Volume2 className="size-3.5" /> Audio tracks</h3>
-            {clip.audioChannels && clip.audioChannels.length > 0 ? (
-              <ul className="m-0 mt-2 grid list-none gap-1 p-0">
-                {clip.audioChannels.map((channel) => (
-                  <li key={channel} className="grid h-7 grid-cols-[3px_minmax(0,1fr)] items-center gap-2 bg-surface-1 pr-2 text-[10px] text-text-secondary">
-                    <span className="h-full" style={{ backgroundColor: channelColor(channel) }} aria-hidden="true" />
-                    <span>{channelLabels[channel]}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="m-0 mt-2 text-[10px] leading-4 text-muted-foreground">No separate channel metadata is available.</p>
-            )}
-          </section>
+              <Separator />
+              <section className="clip-editor-inspector__section" aria-labelledby="audio-tracks-heading">
+                <h3 id="audio-tracks-heading"><Volume2 className="size-3.5" aria-hidden="true" /> Audio tracks</h3>
+                {clip.audioChannels && clip.audioChannels.length > 0 ? (
+                  <ul className="clip-editor-audio-tracks">
+                    {clip.audioChannels.map((channel) => (
+                      <li key={channel}>
+                        <span style={{ backgroundColor: channelColor(channel) }} aria-hidden="true" />
+                        {channelLabels[channel]}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No separate channel metadata is available.</p>
+                )}
+              </section>
 
-          <div className="mt-4 grid gap-2 border-t border-border pt-3">
-            <Button type="button" variant="secondary" size="sm" className="justify-start" onClick={onRename}><Pencil className="size-3.5" /> Rename</Button>
-            <Button type="button" variant="secondary" size="sm" className="justify-start" onClick={onReveal}><FolderOpen className="size-3.5" /> Show in folder</Button>
-            <Button type="button" variant="danger" size="sm" className="justify-start" onClick={onDelete}><Trash2 className="size-3.5" /> Delete clip</Button>
-          </div>
+              <Separator />
+              <section className="clip-editor-inspector__section clip-editor-inspector__actions" aria-labelledby="clip-actions-heading">
+                <h3 id="clip-actions-heading">File actions</h3>
+                <Button type="button" variant="ghost" size="sm" onClick={onRename}><Pencil className="size-3.5" /> Rename</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={onReveal}><FolderOpen className="size-3.5" /> Show in folder</Button>
+                <Button type="button" variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onDelete}><Trash2 className="size-3.5" /> Delete clip</Button>
+              </section>
+            </div>
+          </ScrollArea>
         </aside>
       </div>
     </section>
@@ -150,7 +181,7 @@ export function ClipEditor({ clip, exportPending, trimPending, onClose, onFavori
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-2 border-b border-border py-2"><dt className="text-muted-foreground">{label}</dt><dd className="m-0 min-w-0 break-words tabular-nums text-text-secondary">{value}</dd></div>;
+  return <div><dt>{label}</dt><dd>{value}</dd></div>;
 }
 
 function focusableElements(root: HTMLElement | null): HTMLElement[] {

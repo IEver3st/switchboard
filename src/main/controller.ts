@@ -1319,7 +1319,9 @@ function captureIndexedDisplays(): Display[] {
   const primary = screen.getPrimaryDisplay();
   return [
     primary,
-    ...screen.getAllDisplays().filter((display) => display.id !== primary.id),
+    ...screen.getAllDisplays()
+      .filter((display) => display.id !== primary.id)
+      .sort((left, right) => left.bounds.x - right.bounds.x || left.bounds.y - right.bounds.y),
   ];
 }
 

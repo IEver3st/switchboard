@@ -33,6 +33,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-game-detection-ui.mjs');
 } else if (command === 'audio-noise') {
   await runElectron('scripts/capture-native-ui.mjs', '--verify-audio-noise');
+} else if (command === 'clip-editor') {
+  await runElectron('scripts/verify-clip-editor-ui.mjs');
 } else {
   throw new Error(`Unknown native review command: ${command ?? '(missing)'}`);
 }

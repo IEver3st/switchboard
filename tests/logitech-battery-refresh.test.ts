@@ -75,6 +75,34 @@ describe('Logitech battery discovery', () => {
     expect(batteryReads).toBe(2);
   });
 
+  test('publishes updated remaining-time telemetry on every discovery cycle', async () => {
+    let batteryReads = 0;
+    const dependencies: LogitechDeviceModuleDependencies = {
+      readAgentDevices: async () => [agentDevice],
+      readCapabilities: async () => ({}),
+      readBattery: async () => {
+        batteryReads += 1;
+        return {
+          percentage: batteryReads === 1 ? 75 : 74,
+          charging: false,
+          fullyCharged: false,
+          batteryMileageSupport: 'MILEAGE_SUPPORTED',
+          mileage: batteryReads === 1 ? 18 : 17.5,
+        };
+      },
+      writeControl: async () => undefined,
+    };
+    const module = new LogitechDeviceModule(dependencies);
+
+    const first = await module.discover({ hidDevices: [receiver], previousDevices: [], appearanceOverrides: {} });
+    const second = await module.discover({ hidDevices: [receiver], previousDevices: first, appearanceOverrides: {} });
+
+    expect(first[0]?.capabilities.battery?.estimatedMinutesRemaining).toBe(1_080);
+    expect(second[0]?.capabilities.battery?.estimatedMinutesRemaining).toBe(1_050);
+    expect(second[0]?.capabilities.battery?.percentage).toBe(74);
+    expect(batteryReads).toBe(2);
+  });
+
   test('keeps the known white variant and drops stale charging state when the agent disappears', async () => {
     let agentAvailable = true;
     const dependencies: LogitechDeviceModuleDependencies = {

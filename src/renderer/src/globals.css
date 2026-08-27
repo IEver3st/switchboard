@@ -957,13 +957,32 @@ select {
 }
 
 .battery-status {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  outline: 0;
   color: var(--muted-foreground);
 }
 
+.battery-status:focus-visible {
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.battery-status__icon-wrap {
+  position: relative;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  margin-top: 2px;
+}
+
 .battery-status__icon {
-  width: 17px;
-  height: 17px;
-  flex: none;
+  width: 26px;
+  height: 26px;
 }
 
 .battery-status__icon-fill {
@@ -971,92 +990,162 @@ select {
   opacity: 0.9;
 }
 
-.battery-status[data-charging="true"] .battery-status__icon-fill {
+.battery-status__icon-bolt {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  padding: 1px;
+  border-radius: 2px;
+  background: var(--background);
+  color: var(--success);
   fill: var(--success);
-  animation: battery-charge-pulse 1.25s ease-in-out infinite;
+  stroke-width: 2.1;
 }
 
-@keyframes battery-charge-pulse {
-  0%,
-  100% {
-    opacity: 0.72;
-  }
-
-  50% {
-    opacity: 1;
-  }
+.battery-status[data-charging="true"] .battery-status__icon-fill,
+.battery-status[data-state="full"] .battery-status__icon-fill {
+  fill: var(--success);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .battery-status[data-charging="true"] .battery-status__icon-fill {
-    animation: none;
-    opacity: 0.9;
-  }
-}
-
-.battery-status--compact {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 6px;
-  font-size: 11px;
-  line-height: 1.3;
-}
-
-.battery-status--compact strong {
-  color: var(--foreground);
-  font-size: 12px;
-  font-weight: 680;
-}
-
-.battery-status--header {
-  display: flex;
-  min-width: 138px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 9px;
-}
-
-.battery-status--header .battery-status__icon {
-  width: 20px;
-  height: 20px;
-}
-
-.battery-status__header-copy {
+.battery-status__copy {
   display: grid;
-  justify-items: end;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 6px;
+}
+
+.battery-status__topline {
+  display: flex;
+  min-width: 0;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 6px;
 }
 
 .battery-status__value {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   color: var(--foreground);
-  font-size: 19px;
-  font-weight: 690;
-  letter-spacing: -0.035em;
+  font-size: 22px;
+  font-weight: 720;
+  letter-spacing: -0.045em;
   line-height: 1;
 }
 
-.battery-status__detail {
-  display: flex;
-  gap: 7px;
-  margin-top: 5px;
+.battery-status__badge {
+  padding: 1px 5px;
+  font-size: 8px;
+  line-height: 1.25;
+}
+
+.battery-status__label,
+.battery-status__runtime {
+  grid-column: 1 / -1;
+  line-height: 1.25;
+}
+
+.battery-status__label {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.battery-status__runtime {
+  margin-top: 1px;
+  color: var(--text-description);
   font-size: 9px;
-  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.battery-status__detail span::before {
-  margin-right: 7px;
-  content: "·";
+.battery-status__progress {
+  height: 2px;
+  grid-column: 1 / -1;
+  margin-top: 5px;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
 }
 
-.battery-status[data-severity="low"] {
-  color: var(--warning);
+.battery-status__progress-indicator {
+  background: color-mix(in srgb, var(--foreground) 58%, transparent);
 }
 
-.battery-status[data-severity="critical"] {
-  color: var(--destructive);
+.battery-status[data-charging="true"] .battery-status__progress-indicator,
+.battery-status[data-state="full"] .battery-status__progress-indicator {
+  background: var(--success);
+}
+
+.battery-status[data-severity="low"] .battery-status__progress-indicator {
+  background: var(--warning);
+}
+
+.battery-status[data-severity="critical"] .battery-status__progress-indicator {
+  background: var(--destructive);
+}
+
+.battery-status__tooltip {
+  display: grid;
+  gap: 2px;
+  font-weight: 500;
+}
+
+.battery-status__tooltip strong {
+  color: var(--popover-foreground);
+  font-weight: 650;
+}
+
+.battery-status__tooltip span {
+  color: var(--muted-foreground);
+}
+
+.battery-status--compact {
+  width: 146px;
+  margin-top: 6px;
+}
+
+.battery-status--compact .battery-status__value {
+  font-size: 16px;
+}
+
+.battery-status--header {
+  width: 174px;
+}
+
+.battery-status--loading {
+  pointer-events: none;
+}
+
+.battery-status__icon-skeleton {
+  width: 24px;
+  height: 14px;
+  margin-top: 7px;
+}
+
+.battery-status__value-skeleton {
+  width: 48px;
+  height: 19px;
+  grid-column: 1 / -1;
+}
+
+.battery-status__label-skeleton {
+  width: 38px;
+  height: 8px;
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.battery-status__runtime-skeleton {
+  width: 92px;
+  height: 7px;
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.battery-status__progress-skeleton {
+  width: 100%;
+  height: 2px;
+  grid-column: 1 / -1;
+  margin-top: 5px;
 }
 
 .mouse-stage {
@@ -1921,10 +2010,8 @@ select {
     justify-self: start;
   }
 
-  .battery-status--header,
-  .battery-status__header-copy {
-    justify-content: flex-start;
-    justify-items: start;
+  .battery-status--header {
+    justify-self: start;
   }
 
   .mouse-stage {
@@ -2034,7 +2121,7 @@ select {
 }
 
 .settings-restore,
-.settings-close {
+.settings-back {
   display: inline-flex;
   align-items: center;
   border: 0;
@@ -2053,20 +2140,26 @@ select {
   font-weight: 600;
 }
 
-.settings-close {
-  width: 34px;
+.settings-back {
+  flex: 0 0 auto;
+  align-self: flex-start;
   height: 34px;
-  justify-content: center;
+  gap: 7px;
+  margin-top: auto;
+  margin-left: -8px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.settings-close svg {
-  width: 18px;
-  height: 18px;
+.settings-back svg {
+  width: 16px;
+  height: 16px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .settings-restore:hover,
-  .settings-close:hover,
+  .settings-back:hover,
   .settings-search__clear:hover {
     background: var(--accent);
     color: var(--foreground);
@@ -2089,7 +2182,7 @@ select {
   overflow-y: auto;
   border-right: 1px solid var(--border);
   background: var(--chrome);
-  padding: 26px 18px 30px;
+  padding: 26px 18px 14px;
 }
 
 .settings-search {
@@ -2980,6 +3073,12 @@ select {
     padding: 10px 12px;
   }
 
+  .settings-back {
+    grid-column: 1 / -1;
+    margin-top: 0;
+    margin-left: -4px;
+  }
+
   .settings-results {
     position: absolute;
     z-index: 20;
@@ -3099,7 +3198,7 @@ select {
   .settings-category-link,
   .settings-result,
   .settings-restore,
-  .settings-close {
+  .settings-back {
     transition: none;
   }
 
@@ -4588,19 +4687,6 @@ select {
   background: var(--foreground);
 }
 
-.battery-status--header .battery-status__icon {
-  width: 22px;
-  height: 22px;
-}
-
-.battery-status__value {
-  font-size: 22px;
-}
-
-.battery-status__detail {
-  font-size: 10px;
-}
-
 .mouse-callout__copy {
   width: 146px;
   flex-basis: 146px;
@@ -4900,15 +4986,6 @@ select {
 }
 
 /* Post-audit scale corrections */
-.battery-status--compact {
-  font-size: 12px;
-}
-
-.battery-status--compact strong {
-  font-size: 14px;
-}
-
-.battery-status__detail,
 .device-workbench__meta {
   font-size: 11px;
 }
@@ -4981,5 +5058,1191 @@ select {
 
   .microphone-workbench .parametric-eq__graph {
     height: clamp(290px, 31vh, 370px);
+  }
+}
+
+/* Audio signal desk ------------------------------------------------------- */
+.audio-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  min-width: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background) 96%, var(--surface-1));
+  scrollbar-width: none;
+}
+
+.audio-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.audio-tabs__inner {
+  display: flex;
+  width: min(100%, 1540px);
+  min-width: max-content;
+  height: 50px;
+  align-items: stretch;
+  margin: 0 auto;
+  padding: 0 clamp(18px, 2.4vw, 34px);
+}
+
+.audio-tabs__tab {
+  position: relative;
+  display: inline-flex;
+  min-width: 106px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0 16px;
+  color: var(--text-description);
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.audio-tabs__tab::after {
+  position: absolute;
+  right: 16px;
+  bottom: -1px;
+  left: 16px;
+  height: 2px;
+  transform: scaleX(0.35);
+  background: var(--primary);
+  content: '';
+  opacity: 0;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 120ms ease-out;
+}
+
+.audio-tabs__tab:hover {
+  background: color-mix(in srgb, var(--surface-hover) 42%, transparent);
+  color: var(--text-secondary);
+}
+
+.audio-tabs__tab.is-active {
+  color: var(--foreground);
+}
+
+.audio-tabs__tab.is-active::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.audio-tabs__tab:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ring) 72%, transparent);
+}
+
+.audio-tabs__icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+}
+
+.audio-workbench,
+.mixer-workbench {
+  width: min(100%, 1540px);
+  margin: 0 auto;
+  padding: 15px clamp(18px, 2.4vw, 34px) 38px;
+  --control-accent: var(--primary);
+}
+
+.audio-workbench[data-channel] {
+  --control-accent: var(--primary);
+}
+
+.audio-header {
+  min-height: 56px;
+  gap: 28px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
+  padding-bottom: 12px;
+}
+
+.audio-header__identity {
+  flex: 1 1 230px;
+}
+
+.audio-header__identity h2 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.audio-header__identity p {
+  max-width: 48ch;
+  margin-top: 3px;
+  color: var(--text-description);
+  font-size: 10.5px;
+}
+
+.audio-header__tools {
+  flex: 1 1 600px;
+  gap: 12px;
+}
+
+.preset-picker {
+  min-width: 0;
+}
+
+.preset-picker__primary {
+  gap: 6px;
+}
+
+.preset-picker__primary > label {
+  gap: 8px;
+  font-size: 10px;
+}
+
+.preset-picker__primary [role="combobox"] {
+  width: clamp(172px, 18vw, 238px);
+  height: 34px;
+}
+
+.preset-picker__actions [data-slot="button"] {
+  color: var(--text-description);
+}
+
+.audio-workbench__availability {
+  margin-top: 8px;
+  font-size: 10px;
+}
+
+.audio-main-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(286px, 316px);
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.audio-primary-section {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+
+.audio-primary-section > .human-setting,
+.audio-primary-section > .mic-setting {
+  min-height: 58px;
+  margin: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  padding: 10px 14px;
+}
+
+.audio-primary-section .human-setting__title,
+.audio-primary-section .mic-setting__title h3 {
+  font-size: 13px;
+}
+
+.audio-primary-section .human-setting__copy p,
+.audio-primary-section .mic-setting__copy > p {
+  margin-top: 2px;
+  font-size: 10px;
+}
+
+.audio-primary-section .mic-setting {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.audio-primary-section .mic-setting__state {
+  grid-column: 2;
+}
+
+.audio-primary-section .parametric-eq {
+  padding: 10px 12px 11px;
+}
+
+.parametric-eq__graph,
+.microphone-workbench .parametric-eq__graph {
+  height: clamp(224px, 27vh, 290px);
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--background) 82%, var(--surface-1));
+}
+
+.parametric-eq__node {
+  cursor: grab;
+  transition: r 120ms ease-out, fill 120ms ease-out, stroke-width 120ms ease-out;
+}
+
+.parametric-eq__node:hover,
+.parametric-eq__node.is-selected {
+  r: 10px;
+}
+
+.parametric-eq__node:active {
+  cursor: grabbing;
+}
+
+.parametric-eq__bands {
+  gap: 2px;
+  margin-top: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-bottom: 6px;
+}
+
+.parametric-eq__band {
+  min-height: 29px;
+  gap: 5px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.parametric-eq__band > .parametric-eq__band-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--status-neutral);
+}
+
+.parametric-eq__band > .parametric-eq__band-dot[data-enabled="true"] {
+  background: var(--band-color);
+}
+
+.parametric-eq__band-name {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.parametric-eq__band.is-selected {
+  background: color-mix(in srgb, var(--band-color) 13%, transparent);
+  box-shadow: none;
+  color: var(--band-color);
+}
+
+.parametric-eq__band.is-selected .parametric-eq__band-name,
+.parametric-eq__band.is-selected .parametric-eq__band-freq {
+  color: var(--band-color);
+}
+
+.parametric-eq__inspector {
+  grid-template-columns: minmax(104px, 0.8fr) minmax(118px, 1.1fr) repeat(3, minmax(92px, 0.8fr)) auto;
+  gap: 8px;
+  border: 0;
+  padding: 9px 0 0;
+}
+
+.parametric-eq__inspector-heading {
+  display: flex;
+  min-height: 31px;
+  align-items: center;
+  align-self: end;
+  gap: 7px;
+}
+
+.parametric-eq__inspector-heading strong {
+  margin-right: auto;
+  font-size: 11px;
+}
+
+.parametric-eq__selected-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.parametric-eq__band-state {
+  gap: 0;
+}
+
+.parametric-eq__band-state > button {
+  transform: scale(0.78);
+  transform-origin: right center;
+}
+
+.eq-value-field {
+  gap: 4px;
+  font-size: 9.5px;
+}
+
+.eq-value-field__input,
+.eq-value-field [role="combobox"] {
+  height: 31px;
+  border-color: color-mix(in srgb, var(--input) 78%, transparent);
+  background: var(--surface-interactive);
+}
+
+.parametric-eq__inspector > [data-slot="button"] {
+  height: 31px;
+  align-self: end;
+  color: var(--text-description);
+  white-space: nowrap;
+}
+
+.audio-control-rail {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+
+.audio-control-rail__header {
+  min-height: 58px;
+  border-bottom: 1px solid var(--border);
+  padding: 11px 14px;
+}
+
+.audio-control-rail__header h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.audio-control-rail__header p {
+  margin: 3px 0 0;
+  color: var(--text-description);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.audio-simple-section {
+  border: 0;
+  padding: 6px 14px 13px;
+}
+
+.audio-simple-section + .audio-simple-section {
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.audio-control-rail .human-setting {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 0;
+}
+
+.audio-control-rail .human-setting__title {
+  font-size: 12px;
+}
+
+.audio-control-rail .human-setting__technical {
+  display: block;
+  width: 100%;
+  margin-top: 1px;
+  font-size: 9px;
+}
+
+.audio-control-rail .human-setting__copy p {
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.audio-control-rail .human-setting__state {
+  gap: 6px;
+  font-size: 10px;
+}
+
+.audio-control-rail .semantic-choice {
+  margin-top: 3px;
+}
+
+.audio-control-rail .semantic-choice [role="group"] > button {
+  height: 31px;
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+.mic-chain {
+  gap: 8px;
+  margin-top: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  padding: 4px 0 8px;
+}
+
+.mic-chain__label {
+  padding-left: 2px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mic-chain__stage button {
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 9.5px;
+}
+
+.mic-chain__dot[data-state="on"] {
+  background: var(--primary);
+}
+
+.mic-chain__link {
+  width: 8px;
+  background: color-mix(in srgb, var(--border-strong) 75%, transparent);
+}
+
+.microphone-main-grid {
+  margin-top: 10px;
+}
+
+.microphone-workbench .mic-section--equalizer {
+  margin: 0;
+}
+
+.mic-control-rail {
+  display: flex;
+  flex-direction: column;
+}
+
+.mic-rail__input {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  padding: 5px 14px 9px;
+}
+
+.mic-control-rail .primary-slider {
+  padding: 4px 0 0;
+}
+
+.mic-control-rail .primary-slider__heading {
+  min-height: 30px;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.mic-control-rail .primary-slider__heading > div > span {
+  font-size: 12px;
+}
+
+.mic-control-rail .primary-slider__heading p {
+  margin-top: 1px;
+  font-size: 9px;
+}
+
+.mic-control-rail .primary-slider__heading output {
+  font-size: 15px;
+}
+
+.mic-control-rail .mic-rows {
+  margin: 0;
+}
+
+.mic-control-rail .mic-rows__row {
+  padding: 0 14px;
+}
+
+.mic-control-rail .mic-rows__row + .mic-rows__row {
+  border-top-color: color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.mic-control-rail .mic-setting {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 8px;
+  padding: 7px 0 8px;
+}
+
+.mic-control-rail .mic-setting__title h3 {
+  font-size: 11.5px;
+}
+
+.mic-control-rail .mic-setting__title span {
+  display: none;
+}
+
+.mic-control-rail .mic-setting__copy > p {
+  margin-top: 1px;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.mic-control-rail .mic-setting__control {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.mic-control-rail .mic-setting__state {
+  grid-column: 2;
+  grid-row: 1;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.mic-control-rail .mic-strength {
+  gap: 6px;
+}
+
+.mic-control-rail .mic-strength [role="group"] > button {
+  height: 27px;
+  min-width: 0;
+  padding: 0 5px;
+  font-size: 9px;
+}
+
+.mic-section--monitoring {
+  margin-top: 13px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.mic-section--monitoring > .mic-setting {
+  min-height: 48px;
+  padding: 8px 0;
+}
+
+.mic-monitoring__controls {
+  grid-template-columns: minmax(250px, 0.9fr) minmax(320px, 1.25fr);
+  gap: 32px;
+  margin-top: 0;
+}
+
+.mic-monitoring__controls > label,
+.mic-monitoring__controls .primary-slider {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.advanced-disclosure {
+  margin-top: 12px;
+}
+
+.advanced-disclosure__trigger {
+  min-height: 40px;
+  font-size: 10.5px;
+}
+
+/* Mixer: one uninterrupted desk with column separators, not a card grid. */
+.mixer-grid {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+
+.mixer-channel {
+  border-right: 1px solid var(--border);
+  background: transparent;
+  padding: 13px 14px 12px;
+}
+
+.mixer-channel:last-child {
+  border-right: 0;
+}
+
+.mixer-channel:hover {
+  background: color-mix(in srgb, var(--surface-hover) 56%, transparent);
+}
+
+.mixer-channel.is-muted {
+  background: color-mix(in srgb, var(--surface-2) 68%, transparent);
+}
+
+.mixer-channel--master {
+  background: var(--surface-2);
+}
+
+.mixer-channel__title h3 {
+  font-size: 12.5px;
+}
+
+.mixer-channel__meta {
+  margin-top: 8px;
+}
+
+.mixer-channel__meta-row {
+  min-height: 30px;
+  grid-template-columns: 40px minmax(0, 1fr);
+}
+
+.mixer-channel__meta-row--link:hover > strong {
+  color: var(--primary);
+}
+
+.mixer-channel__fader {
+  height: clamp(218px, calc(100vh - 470px), 410px);
+  min-height: 218px;
+  margin-top: 10px;
+}
+
+.mixer-channel__fader--master {
+  padding-right: clamp(18px, 3vw, 52px);
+  padding-left: clamp(18px, 3vw, 52px);
+}
+
+.mixer-fader__range,
+.mixer-fader__thumb-mark {
+  background: var(--channel-accent);
+}
+
+.mixer-channel__apps {
+  min-height: 56px;
+  margin-top: 9px;
+}
+
+.chatmix-control {
+  min-height: 54px;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+@media (max-width: 1180px) {
+  .audio-tabs__inner {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .audio-tabs__tab {
+    min-width: 100px;
+    padding-right: 13px;
+    padding-left: 13px;
+  }
+
+  .audio-workbench,
+  .mixer-workbench {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .audio-header {
+    min-height: 52px;
+    align-items: center;
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  .audio-header__identity {
+    flex: 1 1 180px;
+  }
+
+  .audio-header__identity p {
+    display: none;
+  }
+
+  .audio-header__tools {
+    width: auto;
+    flex: 0 1 auto;
+    justify-content: flex-end;
+  }
+
+  .audio-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .parametric-eq__graph,
+  .microphone-workbench .parametric-eq__graph {
+    height: 206px;
+  }
+
+  .audio-control-rail {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.75fr) repeat(2, minmax(210px, 1fr));
+  }
+
+  .audio-control-rail__header {
+    border-right: 1px solid var(--border);
+    border-bottom: 0;
+  }
+
+  .audio-simple-section {
+    padding: 5px 12px 9px;
+  }
+
+  .audio-simple-section + .audio-simple-section {
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .mic-control-rail {
+    display: grid;
+    grid-template-columns: minmax(142px, 0.8fr) minmax(150px, 0.95fr) repeat(4, minmax(142px, 1fr));
+  }
+
+  .mic-control-rail .audio-control-rail__header {
+    padding: 10px 12px;
+  }
+
+  .mic-control-rail .audio-control-rail__header p {
+    display: none;
+  }
+
+  .mic-rail__input {
+    border-right: 1px solid var(--border);
+    border-bottom: 0;
+    padding: 5px 10px 8px;
+  }
+
+  .mic-control-rail .mic-rows {
+    display: contents;
+  }
+
+  .mic-control-rail .mic-rows__row {
+    min-width: 0;
+    border-left: 1px solid var(--border);
+    padding: 0 9px;
+  }
+
+  .mic-control-rail .mic-rows__row + .mic-rows__row {
+    border-top: 0;
+  }
+
+  .mic-control-rail .mic-setting__copy > p,
+  .mic-control-rail .primary-slider__heading p {
+    display: none;
+  }
+
+  .mic-control-rail .mic-setting {
+    padding-top: 6px;
+  }
+
+  .mic-control-rail .mic-strength [role="group"] > button {
+    padding: 0 3px;
+    font-size: 8px;
+  }
+
+  .mic-control-rail .mic-setting__state > span {
+    display: none;
+  }
+
+  .mixer-channel {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .mixer-channel__fader--master {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+}
+
+@media (max-width: 860px) {
+  .audio-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .audio-header__tools {
+    width: 100%;
+    flex: none;
+    justify-content: flex-start;
+  }
+
+  .audio-control-rail,
+  .mic-control-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .audio-control-rail__header,
+  .mic-rail__input,
+  .mic-control-rail .mic-rows__row {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .parametric-eq__inspector {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .parametric-eq__inspector > [data-slot="button"] {
+    justify-self: start;
+  }
+
+  .mic-monitoring__controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-tabs__tab,
+  .audio-tabs__tab::after,
+  .parametric-eq__node {
+    transition: none;
+  }
+}
+
+/* Spacious audio paths: full-width instruments and deliberate vertical flow. */
+.audio-tabs__inner {
+  width: 100%;
+  height: 54px;
+  margin: 0;
+  padding-right: clamp(20px, 2.5vw, 42px);
+  padding-left: clamp(20px, 2.5vw, 42px);
+}
+
+.audio-tabs__tab {
+  min-width: 92px;
+  justify-content: flex-start;
+  padding-right: 18px;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+
+.audio-tabs__tab::after {
+  right: 18px;
+  left: 18px;
+}
+
+.audio-workbench,
+.mixer-workbench {
+  width: 100%;
+  max-width: none;
+  padding: 18px clamp(20px, 2.5vw, 42px) 54px;
+}
+
+.audio-header {
+  min-height: 66px;
+  padding-bottom: 14px;
+}
+
+.audio-header__identity h2 {
+  font-size: 20px;
+}
+
+.audio-header__identity p {
+  display: block;
+  font-size: 11px;
+}
+
+.audio-main-grid,
+.microphone-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.audio-primary-section {
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+
+.audio-primary-section > .human-setting,
+.audio-primary-section > .mic-setting {
+  min-height: 68px;
+  padding: 13px 16px;
+}
+
+.audio-primary-section .human-setting__title,
+.audio-primary-section .mic-setting__title h3 {
+  font-size: 14px;
+}
+
+.audio-primary-section .human-setting__copy p,
+.audio-primary-section .mic-setting__copy > p {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.audio-primary-section .parametric-eq {
+  padding: 13px 16px 15px;
+}
+
+.parametric-eq__graph,
+.microphone-workbench .parametric-eq__graph {
+  height: clamp(300px, 37vh, 390px);
+  background: color-mix(in srgb, var(--background) 73%, var(--surface-1));
+}
+
+.parametric-eq__bands {
+  margin-top: 8px;
+  padding-bottom: 8px;
+}
+
+.parametric-eq__band {
+  min-height: 34px;
+  font-size: 10.5px;
+}
+
+.parametric-eq__inspector {
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.audio-control-rail,
+.mic-control-rail {
+  display: grid;
+  overflow: visible;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.audio-control-rail__header {
+  min-height: 66px;
+  grid-column: 1 / -1;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 14px 16px;
+}
+
+.audio-control-rail__header h3 {
+  font-size: 13px;
+}
+
+.audio-control-rail__header p {
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.audio-simple-section {
+  min-height: 146px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 13px 16px 16px;
+}
+
+.audio-simple-section + .audio-simple-section {
+  border: 1px solid var(--border);
+}
+
+.audio-control-rail .human-setting {
+  display: flex;
+  min-height: 64px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 5px 0 10px;
+}
+
+.audio-control-rail .human-setting__title {
+  font-size: 13px;
+}
+
+.audio-control-rail .human-setting__technical {
+  display: inline;
+  width: auto;
+  margin-top: 0;
+  font-size: 9.5px;
+}
+
+.audio-control-rail .human-setting__copy p {
+  max-width: 58ch;
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.audio-control-rail .human-setting__state {
+  gap: 8px;
+  font-size: 11px;
+}
+
+.audio-control-rail .semantic-choice {
+  margin-top: 8px;
+}
+
+.audio-control-rail .semantic-choice [role="group"] > button {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 10.5px;
+}
+
+.mic-chain {
+  min-height: 42px;
+  margin-top: 10px;
+  padding: 6px 2px 10px;
+}
+
+.mic-chain__stage button {
+  min-height: 30px;
+  padding-right: 9px;
+  padding-left: 9px;
+  font-size: 10px;
+}
+
+.mic-control-rail .audio-control-rail__header {
+  grid-column: 1 / -1;
+}
+
+.mic-rail__input {
+  min-height: 112px;
+  grid-column: 1 / -1;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 14px 16px 16px;
+}
+
+.mic-control-rail .primary-slider {
+  padding: 0;
+}
+
+.mic-control-rail .primary-slider__heading {
+  min-height: 44px;
+  margin-bottom: 8px;
+}
+
+.mic-control-rail .primary-slider__heading > div > span {
+  font-size: 13px;
+}
+
+.mic-control-rail .primary-slider__heading p {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.mic-control-rail .primary-slider__heading output {
+  font-size: 19px;
+}
+
+.mic-control-rail .mic-rows {
+  display: contents;
+}
+
+.mic-control-rail .mic-rows__row,
+.mic-control-rail .mic-rows__row + .mic-rows__row {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 0 16px;
+}
+
+.mic-control-rail .mic-setting {
+  display: grid;
+  min-height: 140px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 10px 18px;
+  padding: 14px 0 16px;
+}
+
+.mic-control-rail .mic-setting__title h3 {
+  font-size: 13px;
+}
+
+.mic-control-rail .mic-setting__copy > p {
+  display: block;
+  max-width: 54ch;
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.mic-control-rail .mic-setting__control {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: end;
+}
+
+.mic-control-rail .mic-setting__state {
+  grid-column: 2;
+  grid-row: 1;
+  gap: 7px;
+  font-size: 10.5px;
+}
+
+.mic-control-rail .mic-setting__state > span {
+  display: inline;
+}
+
+.mic-control-rail .mic-strength [role="group"] > button {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 10.5px;
+}
+
+.mic-section--monitoring {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 6px 16px 14px;
+}
+
+.mic-section--monitoring > .mic-setting {
+  min-height: 62px;
+  border-bottom: 1px solid var(--border);
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.mic-monitoring__controls {
+  gap: 48px;
+  padding-top: 7px;
+}
+
+.advanced-disclosure {
+  margin-top: 18px;
+}
+
+@media (max-width: 1180px) {
+  .audio-workbench,
+  .mixer-workbench {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .audio-header {
+    min-height: 62px;
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .audio-header__tools {
+    width: auto;
+    flex: 0 1 auto;
+    justify-content: flex-end;
+  }
+
+  .parametric-eq__graph,
+  .microphone-workbench .parametric-eq__graph {
+    height: 286px;
+  }
+
+  .audio-control-rail,
+  .mic-control-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audio-control-rail__header,
+  .mic-control-rail .audio-control-rail__header {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mic-rail__input {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mic-control-rail .mic-rows__row,
+  .mic-control-rail .mic-rows__row + .mic-rows__row {
+    border: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 860px) {
+  .audio-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .audio-header__tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .audio-control-rail,
+  .mic-control-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .audio-control-rail__header,
+  .mic-control-rail .audio-control-rail__header,
+  .mic-rail__input {
+    grid-column: 1;
+  }
+
+  .parametric-eq__inspector {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
 }

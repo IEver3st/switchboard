@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { AlertTriangle, RotateCcw, X } from 'lucide-react';
+import { AlertTriangle, RotateCcw } from 'lucide-react';
 import type {
   CaptureConfig,
   CaptureEncoderPreference,
@@ -106,9 +106,6 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
             <RotateCcw className="size-4" aria-hidden />
             Restore defaults
           </button>
-          <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings" title="Close settings (Esc)">
-            <X aria-hidden />
-          </button>
         </div>
         {confirmation ? (
           <ResetConfirmation
@@ -128,6 +125,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
           onCategoryChange={changeCategory}
           onQueryChange={setQuery}
           onResultSelect={selectSearchResult}
+          onBack={onClose}
         />
         <div className="settings-content-scroll" data-settings-content-scroll>
           <div key={category} className="settings-content">

@@ -46,6 +46,29 @@ AssertValue(0, operations.Count, "Completed host requests must not remain tracke
 AssertValue(false, ReplayEngine.IsHostActiveState("error"), "An errored capture engine must be restartable.");
 AssertValue(true, ReplayEngine.IsHostActiveState("buffering"), "A buffering capture engine must remain active.");
 
+var displaySource = new CaptureSource(
+    "display:0", "display", "Display 1", null, null, "0", true, DisplayHandle: 12345);
+var displayFilter = ReplayEngine.BuildCaptureFilter("Windows Graphics Capture", validSettings with
+{
+    Source = "display",
+    DisplayIndex = 0,
+}, displaySource);
+AssertEqual(
+    "gfxcapture=hmonitor=12345:capture_cursor=0:capture_border=0:display_border=0:max_framerate=60:width=2560:height=1440:resize_mode=scale_aspect:scale_mode=bilinear",
+    displayFilter,
+    "Display capture must bind the selected physical HMONITOR instead of relying on an unrelated FFmpeg index.");
+if (OperatingSystem.IsWindows())
+{
+    var discoveredDisplays = new WindowsCaptureSources().ListSources()
+        .Where(source => source.Type == "display")
+        .ToArray();
+    AssertValue(true, discoveredDisplays.Length > 0, "Windows capture must discover at least one display.");
+    AssertValue(true, discoveredDisplays.All(source => source.DisplayHandle is not null),
+        "Every discovered display must retain its physical HMONITOR inside Capture.Host.");
+    AssertValue(discoveredDisplays.Length, discoveredDisplays.Select(source => source.DisplayHandle).Distinct().Count(),
+        "Each discovered display must map to one distinct physical HMONITOR.");
+}
+
 using (var childJob = new WindowsChildProcessJob())
 using (var child = childJob.Start(
            new ProcessStartInfo(Environment.ProcessPath!, "--job-child")

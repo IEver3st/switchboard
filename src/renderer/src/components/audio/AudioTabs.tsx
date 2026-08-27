@@ -1,6 +1,5 @@
-import type { CSSProperties, KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import { cn } from '@/lib/cn';
-import { channelColor } from './channel-identity';
 
 export const audioWorkspaceTabs = ['mixer', 'game', 'chat', 'media', 'microphone'] as const;
 export type AudioWorkspaceTab = (typeof audioWorkspaceTabs)[number];
@@ -34,27 +33,25 @@ export function AudioTabs({ value, onChange }: { value: AudioWorkspaceTab; onCha
       role="tablist"
       aria-label="Audio workspace"
       onKeyDown={onKeyDown}
-      className="flex min-w-0 overflow-x-auto border-b border-border px-6"
+      className="audio-tabs"
     >
-      {audioWorkspaceTabs.map((tab) => (
-        <button
-          key={tab}
-          id={`audio-tab-${tab}`}
-          type="button"
-          role="tab"
-          aria-selected={value === tab}
-          aria-controls={`audio-panel-${tab}`}
-          tabIndex={value === tab ? 0 : -1}
-          onClick={() => onChange(tab)}
-          style={{ '--tab-accent': tab === 'mixer' ? 'var(--primary)' : channelColor(tab === 'microphone' ? 'mic' : tab) } as CSSProperties}
-          className={cn(
-            'relative h-11 shrink-0 border-0 bg-transparent px-4 text-xs font-semibold text-muted-foreground outline-none transition-colors duration-150 hover:text-text-secondary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 motion-reduce:transition-none',
-            value === tab && 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-[2px] after:bg-[var(--tab-accent)]',
-          )}
-        >
-          {labels[tab]}
-        </button>
-      ))}
+      <div className="audio-tabs__inner">
+        {audioWorkspaceTabs.map((tab) => (
+          <button
+            key={tab}
+            id={`audio-tab-${tab}`}
+            type="button"
+            role="tab"
+            aria-selected={value === tab}
+            aria-controls={`audio-panel-${tab}`}
+            tabIndex={value === tab ? 0 : -1}
+            onClick={() => onChange(tab)}
+            className={cn('audio-tabs__tab', value === tab && 'is-active')}
+          >
+            {labels[tab]}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

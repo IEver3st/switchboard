@@ -37,11 +37,13 @@ internal sealed class WindowsCaptureSources
             new("automatic-game", "automatic-game", "Automatic game", null, null, null, true),
         };
 
-        var displayCount = GetSystemMetrics(80); // SM_CMONITORS
-        for (var index = 0; index < Math.Max(1, displayCount); index++)
+        var displays = EnumerateDisplays();
+        for (var index = 0; index < displays.Count; index++)
         {
+            var display = displays[index];
             sources.Add(new CaptureSource(
-                $"display:{index}", "display", $"Display {index + 1}", null, null, index.ToString(), true));
+                $"display:{index}", "display", $"Display {index + 1}", null, null, index.ToString(), true,
+                DisplayHandle: display.Handle.ToInt64()));
         }
 
         foreach (var window in EnumerateWindows())
@@ -57,9 +59,17 @@ internal sealed class WindowsCaptureSources
     {
         if (settings.Source == "display")
         {
+            var displays = EnumerateDisplays();
+            if (settings.DisplayIndex >= displays.Count)
+            {
+                return new CaptureSource(
+                    $"display:{settings.DisplayIndex}", "display", $"Display {settings.DisplayIndex + 1}",
+                    null, null, settings.DisplayIndex.ToString(), false);
+            }
+            var display = displays[settings.DisplayIndex];
             return new CaptureSource(
                 $"display:{settings.DisplayIndex}", "display", $"Display {settings.DisplayIndex + 1}",
-                null, null, settings.DisplayIndex.ToString(), true);
+                null, null, settings.DisplayIndex.ToString(), true, DisplayHandle: display.Handle.ToInt64());
         }
 
         if (settings.Source != "window" || string.IsNullOrWhiteSpace(settings.SourceId)) return null;
@@ -111,6 +121,8 @@ internal sealed class WindowsCaptureSources
 
     public bool IsAvailable(CaptureSource source)
     {
+        if (source.DisplayHandle is { } displayHandle)
+            return EnumerateDisplays().Any(display => display.Handle.ToInt64() == displayHandle);
         if (source.WindowHandle is null) return true;
         return long.TryParse(source.WindowHandle, out var handle) && GetWindowInfo((nint)handle, includeGameSignals: false) is not null;
     }
@@ -123,6 +135,23 @@ internal sealed class WindowsCaptureSources
         window.Handle.ToString(),
         null,
         true);
+
+    private static IReadOnlyList<DisplayMonitor> EnumerateDisplays()
+    {
+        var displays = new List<DisplayMonitor>();
+        EnumDisplayMonitors(0, 0, (nint handle, nint hdc, ref Rect bounds, nint parameter) =>
+        {
+            var info = new NativeMonitorInfo { Size = Marshal.SizeOf<NativeMonitorInfo>() };
+            if (GetMonitorInfo(handle, ref info))
+                displays.Add(new DisplayMonitor(handle, bounds, (info.Flags & 1) != 0));
+            return true;
+        }, 0);
+        return displays
+            .OrderByDescending(display => display.Primary)
+            .ThenBy(display => display.Bounds.Left)
+            .ThenBy(display => display.Bounds.Top)
+            .ToArray();
+    }
 
     private static bool IsLikelyGame(WindowInfo window)
     {
@@ -172,7 +201,7 @@ internal sealed class WindowsCaptureSources
             GetClassName(handle, classBuilder, classBuilder.Capacity);
             GetWindowRect(handle, out var rect);
             var monitor = MonitorFromWindow(handle, 2); // MONITOR_DEFAULTTONEAREST
-            var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+            var monitorInfo = new NativeMonitorInfo { Size = Marshal.SizeOf<NativeMonitorInfo>() };
             GetMonitorInfo(monitor, ref monitorInfo);
             var windowArea = Math.Max(0, rect.Right - rect.Left) * (long)Math.Max(0, rect.Bottom - rect.Top);
             var monitorArea = Math.Max(1, monitorInfo.Monitor.Right - monitorInfo.Monitor.Left)
@@ -215,13 +244,16 @@ internal sealed class WindowsCaptureSources
         bool CoversMostOfMonitor,
         bool HasGpuStyle);
 
+    private sealed record DisplayMonitor(nint Handle, Rect Bounds, bool Primary);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect { public int Left, Top, Right, Bottom; }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct MonitorInfo { public int Size; public Rect Monitor; public Rect Work; public uint Flags; }
+    private struct NativeMonitorInfo { public int Size; public Rect Monitor; public Rect Work; public uint Flags; }
 
     private delegate bool EnumWindowsProc(nint handle, nint parameter);
+    private delegate bool EnumDisplayMonitorsProc(nint monitor, nint hdc, ref Rect bounds, nint parameter);
 
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, nint parameter);
     [DllImport("user32.dll")] private static extern bool IsWindow(nint handle);
@@ -234,6 +266,6 @@ internal sealed class WindowsCaptureSources
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern bool GetWindowRect(nint handle, out Rect rect);
     [DllImport("user32.dll")] private static extern nint MonitorFromWindow(nint handle, uint flags);
-    [DllImport("user32.dll")] private static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo info);
-    [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] private static extern bool GetMonitorInfo(nint monitor, ref NativeMonitorInfo info);
+    [DllImport("user32.dll")] private static extern bool EnumDisplayMonitors(nint hdc, nint clip, EnumDisplayMonitorsProc callback, nint parameter);
 }

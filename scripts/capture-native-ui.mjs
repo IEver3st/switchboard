@@ -81,6 +81,14 @@ async function runReview() {
   }
   await installReviewStyles(window);
 
+  if (process.env.SWITCHBOARD_VERIFY_SETTINGS_BACK === '1') {
+    window.setContentSize(1080, 720, false);
+    await waitForViewport({ name: '1080x720', width: 1080, height: 720 });
+    const interaction = await verifySettingsBackControl();
+    await writeFile(join(outputDirectory, 'settings-back-workflow-report.json'), `${JSON.stringify(interaction, null, 2)}\n`);
+    console.log(JSON.stringify({ settingsBackWorkflow: interaction }, null, 2));
+  }
+
   if (process.env.SWITCHBOARD_VERIFY_CLIP_SETTINGS === '1') {
     window.setContentSize(1420, 900, false);
     await waitForViewport({ name: '1420x900', width: 1420, height: 900 });
@@ -416,12 +424,68 @@ async function verifyClipSettingsControls() {
     if (persisted[key] !== value) throw new Error(`Clip setting ${key} did not persist through reload.`);
   }
 
-  await window.webContents.executeJavaScript(`document.querySelector('button[aria-label="Close settings"]')?.click()`);
+  await window.webContents.executeJavaScript(`document.querySelector('.settings-back')?.click()`);
   await waitForCondition(`!document.querySelector('.settings-page')`, 'Settings takeover to close');
   const closedHash = await window.webContents.executeJavaScript('location.hash');
   if (closedHash !== '#devices') throw new Error(`Settings returned to ${closedHash} instead of the previous workspace.`);
 
   return { expected, persisted: true, storageButtons: controls.storageButtons, closedHash };
+}
+
+async function verifySettingsBackControl() {
+  await openSettingsCategory('General');
+  const layout = await window.webContents.executeJavaScript(`
+    (() => {
+      const back = document.querySelector('.settings-back');
+      const sidebar = document.querySelector('.settings-sidebar');
+      if (!(back instanceof HTMLButtonElement) || !(sidebar instanceof HTMLElement)) return null;
+      const backRect = back.getBoundingClientRect();
+      const sidebarRect = sidebar.getBoundingClientRect();
+      return {
+        text: back.textContent?.trim(),
+        title: back.title,
+        hasHeaderClose: Boolean(document.querySelector('.settings-close, button[aria-label="Close settings"]')),
+        backRect: { left: backRect.left, top: backRect.top, right: backRect.right, bottom: backRect.bottom },
+        sidebarRect: { left: sidebarRect.left, top: sidebarRect.top, right: sidebarRect.right, bottom: sidebarRect.bottom },
+        bottomInset: sidebarRect.bottom - backRect.bottom,
+        leftInset: backRect.left - sidebarRect.left,
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    })()
+  `);
+  assertReview(layout?.text === 'Back', 'Settings Back control was not rendered with the expected label.');
+  assertReview(layout.title === 'Back (Esc)', 'Settings Back control did not expose its Escape shortcut.');
+  assertReview(!layout.hasHeaderClose, 'The legacy Settings header close control is still present.');
+  assertReview(layout.bottomInset >= 0 && layout.bottomInset <= 20, `Settings Back control was not anchored to the sidebar footer: ${layout.bottomInset}px.`);
+  assertReview(layout.leftInset >= 0 && layout.leftInset <= 20, `Settings Back control was not aligned to the sidebar left edge: ${layout.leftInset}px.`);
+  assertReview(!layout.horizontalOverflow, 'Settings Back control introduced horizontal overflow.');
+
+  await window.webContents.executeJavaScript(`document.querySelector('.settings-back')?.click()`);
+  await waitForCondition(`!document.querySelector('.settings-page')`, 'Settings Back pointer activation');
+  const pointerHash = await window.webContents.executeJavaScript('location.hash');
+  assertReview(pointerHash === '#devices', `Settings Back pointer activation returned to ${pointerHash}.`);
+
+  await openSettingsCategory('General');
+  const focused = await window.webContents.executeJavaScript(`
+    (() => {
+      const back = document.querySelector('.settings-back');
+      if (!(back instanceof HTMLButtonElement)) return false;
+      back.focus();
+      return document.activeElement === back;
+    })()
+  `);
+  assertReview(focused, 'Settings Back control could not receive keyboard focus.');
+  window.show();
+  window.focus();
+  window.webContents.focus();
+  await delay(80);
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'SPACE' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'SPACE' });
+  await waitForCondition(`!document.querySelector('.settings-page')`, 'Settings Back keyboard activation');
+  const keyboardHash = await window.webContents.executeJavaScript('location.hash');
+  assertReview(keyboardHash === '#devices', `Settings Back keyboard activation returned to ${keyboardHash}.`);
+
+  return { ...layout, pointerHash, keyboardHash, keyboardFocus: true };
 }
 
 async function chooseSettingsOption(settingId, label) {
@@ -457,7 +521,7 @@ async function waitForCaptureConfig(key, value) {
 async function clickButton(label) {
   const settingsOpen = await window.webContents.executeJavaScript(`Boolean(document.querySelector('.settings-page'))`);
   if (settingsOpen && label !== 'Settings') {
-    await window.webContents.executeJavaScript(`document.querySelector('button[aria-label="Close settings"]')?.click()`);
+    await window.webContents.executeJavaScript(`document.querySelector('.settings-back')?.click()`);
     await waitForCondition(`!document.querySelector('.settings-page')`, 'Settings to close');
   }
   const clicked = await window.webContents.executeJavaScript(`

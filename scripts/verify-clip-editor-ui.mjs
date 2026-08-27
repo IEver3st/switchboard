@@ -22,9 +22,19 @@ app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 
 let exportDestination = null;
-dialog.showSaveDialog = async () => exportDestination
-  ? { canceled: false, filePath: exportDestination }
-  : { canceled: true, filePath: undefined };
+let holdNextSaveDialog = false;
+let pendingSaveDialogResolve = null;
+const saveDialogCalls = [];
+dialog.showSaveDialog = async (options) => {
+  saveDialogCalls.push(options);
+  if (holdNextSaveDialog) {
+    holdNextSaveDialog = false;
+    return new Promise((resolveDialog) => { pendingSaveDialogResolve = resolveDialog; });
+  }
+  return exportDestination
+    ? { canceled: false, filePath: exportDestination }
+    : { canceled: true, filePath: undefined };
+};
 
 await import('../out/main/index.js');
 void app.whenReady().then(run).catch((error) => {
@@ -59,9 +69,10 @@ async function run() {
         editor: rect ? { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom } : null,
         header: headerRect ? { top: headerRect.top, bottom: headerRect.bottom } : null,
         backNoDrag: back ? getComputedStyle(back).webkitAppRegion === 'no-drag' : false,
-        trimHandles: [...document.querySelectorAll('[role="slider"]')].map((slider) => ({
+        timelineSliders: [...editor.querySelectorAll('[role="slider"]')].map((slider) => ({
           label: slider.getAttribute('aria-label'), value: slider.getAttribute('aria-valuenow'),
         })),
+        interaction: editor.querySelector('.clip-editor-timeline')?.getAttribute('data-interaction'),
       };
     })()`);
     if (metrics.document.scrollWidth !== metrics.document.clientWidth) throw new Error(`Horizontal overflow at ${viewport.width}x${viewport.height}.`);
@@ -69,21 +80,81 @@ async function run() {
       throw new Error(`Editor does not respect native chrome at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics.editor)}`);
     }
     if (metrics.header?.top !== 38 || !metrics.backNoDrag) throw new Error('Editor controls overlap or participate in the native drag region.');
-    if (metrics.trimHandles.map((item) => item.label).join(',') !== 'Trim start,Trim end') throw new Error('Both accessible trim handles were not rendered.');
+    if (metrics.timelineSliders.map((item) => item.label).join(',') !== 'Playhead,Trim start,Trim end') throw new Error('The accessible playhead and both trim handles were not rendered.');
+    if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
+
+    const editorImage = await window.webContents.capturePage();
+    const editorPath = join(outputDirectory, `${viewport.width}x${viewport.height}-clip-editor.png`);
+    await writeFile(editorPath, editorImage.toPNG());
 
     await clickButton(window, 'Share');
-    await waitForSelector(window, '[aria-label="Create share file"]');
+    await waitForSelector(window, '[data-share-clip-dialog][role="dialog"]');
     await delay(180);
-    const presets = await evaluate(window, `[...document.querySelectorAll('input[name="share-preset"]')].map((input) => input.value)`);
+    const dialogMetrics = await evaluate(window, `(() => {
+      const content = document.querySelector('[data-share-clip-dialog][role="dialog"]');
+      const overlay = document.querySelector('[data-dialog-overlay][data-state="open"]');
+      const rect = content?.getBoundingClientRect();
+      const overlayStyle = overlay ? getComputedStyle(overlay) : null;
+      return {
+        role: content?.getAttribute('role'),
+        ariaModal: content?.getAttribute('aria-modal'),
+        title: content ? document.getElementById(content.getAttribute('aria-labelledby'))?.textContent?.trim() : null,
+        rect: rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null,
+        centerDelta: rect ? {
+          x: Math.abs(rect.left + rect.width / 2 - innerWidth / 2),
+          y: Math.abs(rect.top + rect.height / 2 - innerHeight / 2),
+        } : null,
+        overlay: overlayStyle ? {
+          inset: [overlayStyle.top, overlayStyle.right, overlayStyle.bottom, overlayStyle.left],
+          backgroundColor: overlayStyle.backgroundColor,
+          backdropFilter: overlayStyle.backdropFilter,
+        } : null,
+        focusInside: content?.contains(document.activeElement) ?? false,
+      };
+    })()`);
+    if (dialogMetrics.role !== 'dialog' || dialogMetrics.ariaModal !== 'true') throw new Error(`Share surface is not modal: ${JSON.stringify(dialogMetrics)}`);
+    if (dialogMetrics.title !== 'Create share file') throw new Error(`Share dialog title is missing: ${JSON.stringify(dialogMetrics)}`);
+    if (!dialogMetrics.rect || dialogMetrics.rect.width > 440.5 || dialogMetrics.centerDelta.x > 1 || dialogMetrics.centerDelta.y > 1) {
+      throw new Error(`Share dialog is not centered at ${viewport.width}x${viewport.height}: ${JSON.stringify(dialogMetrics)}`);
+    }
+    if (!dialogMetrics.overlay || !dialogMetrics.overlay.backdropFilter.includes('blur') || !dialogMetrics.overlay.backgroundColor.includes('0.5')) {
+      throw new Error(`Share backdrop is incomplete: ${JSON.stringify(dialogMetrics.overlay)}`);
+    }
+    if (!dialogMetrics.focusInside) throw new Error('Initial dialog focus escaped the modal.');
+
+    const presets = await evaluate(window, `[...document.querySelectorAll('[data-share-clip-dialog] [role="radio"]')].map((item) => item.getAttribute('value'))`);
     if (presets.join(',') !== '10mb,25mb,50mb,original') throw new Error(`Share presets were incomplete: ${presets.join(',')}`);
+    if (viewport.width === 1080) {
+      await evaluate(window, `document.querySelector('[data-share-clip-dialog] [role="radio"][data-state="checked"]')?.focus()`);
+      await evaluate(window, `(() => {
+        window.__shareDialogKey = null;
+        document.activeElement?.addEventListener('keydown', (event) => { window.__shareDialogKey = { key: event.key, code: event.code }; }, { once: true });
+      })()`);
+      await pressKey(window, 'Down');
+      const keyEvidence = await evaluate(window, `window.__shareDialogKey`);
+      if (keyEvidence?.key !== 'ArrowDown') throw new Error(`Native ArrowDown was not delivered correctly: ${JSON.stringify(keyEvidence)}`);
+      await waitForSelector(window, '[data-share-clip-dialog] [role="radio"][value="25mb"][data-state="checked"]');
+      const expectedOutput = await evaluate(window, `document.querySelector('[data-share-clip-dialog] footer')?.textContent?.replace(/\\s+/g, ' ').trim()`);
+      if (!expectedOutput.includes('Expected output') || !expectedOutput.includes('Up to 25 MB')) throw new Error(`Keyboard radio selection did not update output: ${expectedOutput}`);
+      await evaluate(window, `document.querySelector('label[for="share-preset-50mb"]')?.click()`);
+      await waitForSelector(window, '[data-share-clip-dialog] [role="radio"][value="50mb"][data-state="checked"]');
+      await evaluate(window, `document.querySelector('[data-share-clip-dialog] button')?.focus()`);
+      for (let index = 0; index < 7; index += 1) {
+        await pressKey(window, 'TAB');
+        const trapped = await evaluate(window, `document.querySelector('[data-share-clip-dialog]')?.contains(document.activeElement) ?? false`);
+        if (!trapped) throw new Error(`Dialog focus escaped after ${index + 1} Tab presses.`);
+      }
+    }
 
     const image = await window.webContents.capturePage();
     const path = join(outputDirectory, `${viewport.width}x${viewport.height}-clip-editor-share.png`);
     await writeFile(path, image.toPNG());
-    results.push({ viewport, metrics, presets, screenshot: path });
+    results.push({ viewport, metrics, dialogMetrics, presets, editorScreenshot: editorPath, shareScreenshot: path });
 
-    await window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'ESC' });
-    await window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'ESC' });
+    await pressKey(window, 'ESC');
+    await waitForMissingSelector(window, '[data-share-clip-dialog]');
+    const escapeState = await evaluate(window, `({ editorOpen: Boolean(document.querySelector('[data-testid="clip-editor"]')), focus: document.activeElement?.textContent?.trim() })`);
+    if (!escapeState.editorOpen || escapeState.focus !== 'Share') throw new Error(`Escape did not close only the dialog and restore focus: ${JSON.stringify(escapeState)}`);
     await clickButton(window, 'Back to clips');
     await waitForMissingSelector(window, '[data-testid="clip-editor"]');
     await delay(80);
@@ -92,6 +163,38 @@ async function run() {
   }
 
   await openEditor(window);
+  await clickButton(window, 'Share');
+  await evaluate(window, `document.querySelector('label[for="share-preset-25mb"]')?.click()`);
+  await waitForSelector(window, '[data-share-clip-dialog] [role="radio"][value="25mb"][data-state="checked"]');
+  const saveDialogCallCount = saveDialogCalls.length;
+  holdNextSaveDialog = true;
+  await clickButton(window, 'Choose destination');
+  await waitForCondition(() => saveDialogCalls.length > saveDialogCallCount && pendingSaveDialogResolve !== null, 'destination chooser');
+  const pendingState = await evaluate(window, `(() => {
+    const radios = [...document.querySelectorAll('[data-share-clip-dialog] [role="radio"]')];
+    const button = [...document.querySelectorAll('[data-share-clip-dialog] button')].find((candidate) => candidate.textContent?.trim() === 'Compressing…');
+    return {
+      radiosDisabled: radios.length === 4 && radios.every((radio) => radio.matches(':disabled')),
+      rowsDisabled: [...document.querySelectorAll('[data-share-clip-dialog] label[data-disabled]')].length,
+      buttonDisabled: button?.matches(':disabled') ?? false,
+    };
+  })()`);
+  if (!pendingState.radiosDisabled || pendingState.rowsDisabled !== 4 || !pendingState.buttonDisabled) {
+    throw new Error(`Pending export state was not disabled: ${JSON.stringify(pendingState)}`);
+  }
+  pendingSaveDialogResolve({ canceled: true, filePath: undefined });
+  pendingSaveDialogResolve = null;
+  await waitForButton(window, 'Choose destination');
+  await waitForSelector(window, '[data-share-clip-dialog][role="dialog"]');
+  const destinationCall = saveDialogCalls.at(-1);
+  if (destinationCall?.title !== 'Create share file' || !destinationCall.defaultPath?.endsWith('-25mb.mp4')) {
+    throw new Error(`Destination action did not preserve the selected share preset: ${JSON.stringify(destinationCall)}`);
+  }
+  await pressKey(window, 'ESC');
+  await waitForMissingSelector(window, '[data-share-clip-dialog]');
+
+  const interactionEvidence = await verifyTimelineInteractions(window);
+  await clickButton(window, 'Reset');
   const originalEnd = Number(await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.getAttribute('aria-valuenow')`));
   await evaluate(window, `document.querySelector('[aria-label="Trim end"]')?.focus()`);
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'LEFT' });
@@ -126,8 +229,101 @@ async function run() {
   const exportEvidence = { sizeBytes: exportedFile.size, targetBytes: 10 * 1_024 * 1_024, durationSeconds: exportedDuration };
   await rm(exportDestination, { force: true });
 
-  process.stdout.write(`${JSON.stringify({ outputDirectory, results, persistence: { originalEnd, adjustedEnd, reopenedEnd }, exportEvidence }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ outputDirectory, results, interactionEvidence, destinationAction: { title: destinationCall.title, defaultPath: destinationCall.defaultPath, pendingState, canceledDialogStayedOpen: true }, persistence: { originalEnd, adjustedEnd, reopenedEnd }, exportEvidence }, null, 2)}\n`);
   app.quit();
+}
+
+async function verifyTimelineInteractions(window) {
+  const initial = await timelineState(window);
+  const surface = await evaluate(window, `(() => { const rect = document.querySelector('[data-testid="clip-timeline-surface"]')?.getBoundingClientRect(); return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null; })()`);
+  if (!surface) throw new Error('Timeline surface was not rendered.');
+  const trackY = Math.round(surface.y + surface.height * 0.62);
+  const clickX = Math.round(surface.x + surface.width * 0.25);
+  const hitEvidence = await evaluate(window, `(() => {
+    window.__timelinePointerEvents = [];
+    document.addEventListener('pointerdown', (event) => window.__timelinePointerEvents.push({ type: event.type, x: event.clientX, y: event.clientY, button: event.button, buttons: event.buttons, isPrimary: event.isPrimary, pointerId: event.pointerId, target: event.target?.className }), { capture: true, once: true });
+    const target = document.elementFromPoint(${clickX}, ${trackY});
+    return { target: target?.className, label: target?.getAttribute?.('aria-label'), rect: target ? { x: target.getBoundingClientRect().x, y: target.getBoundingClientRect().y, width: target.getBoundingClientRect().width, height: target.getBoundingClientRect().height } : null };
+  })()`);
+
+  await pointerDrag(window, clickX, trackY, clickX, trackY);
+  const clicked = await timelineState(window);
+  clicked.hitEvidence = hitEvidence;
+  clicked.pointerEvents = await evaluate(window, `window.__timelinePointerEvents`);
+  if (clicked.currentMs === 0) throw new Error(`Native click did not reach the timeline: ${JSON.stringify(clicked)}`);
+  assertNear(clicked.currentMs, clicked.durationMs * 0.25, 180, 'Click-to-seek');
+  assertNear(clicked.videoMs, clicked.currentMs, 180, 'Click-to-seek preview');
+  assertTrimUnchanged(initial, clicked, 'Click-to-seek');
+
+  await pointerDrag(window, surface.x + surface.width * 0.32, trackY, surface.x + surface.width * 0.68, trackY);
+  const scrubbed = await timelineState(window);
+  assertNear(scrubbed.currentMs, scrubbed.durationMs * 0.68, 200, 'Drag-to-scrub');
+  assertNear(scrubbed.videoMs, scrubbed.currentMs, 180, 'Drag-to-scrub preview');
+  assertTrimUnchanged(initial, scrubbed, 'Drag-to-scrub');
+  if (scrubbed.interaction !== 'idle') throw new Error(`Scrubbing did not return to idle: ${scrubbed.interaction}`);
+
+  const startRect = await sliderRect(window, 'Trim start');
+  await pointerDrag(window, startRect.x + startRect.width / 2, startRect.y + startRect.height / 2, surface.x + surface.width * 0.18, trackY);
+  const startTrimmed = await timelineState(window);
+  if (!(startTrimmed.startMs > initial.startMs)) throw new Error(`Left trim handle did not advance: ${initial.startMs} -> ${startTrimmed.startMs}`);
+  assertNear(startTrimmed.currentMs, scrubbed.currentMs, 80, 'Left trim handle unexpectedly sought');
+
+  const endRect = await sliderRect(window, 'Trim end');
+  await pointerDrag(window, endRect.x + endRect.width / 2, endRect.y + endRect.height / 2, surface.x + surface.width * 0.82, trackY);
+  const endTrimmed = await timelineState(window);
+  if (!(endTrimmed.endMs < initial.endMs)) throw new Error(`Right trim handle did not retreat: ${initial.endMs} -> ${endTrimmed.endMs}`);
+  assertNear(endTrimmed.currentMs, startTrimmed.currentMs, 80, 'Right trim handle unexpectedly sought');
+
+  const crossedStartRect = await sliderRect(window, 'Trim start');
+  await pointerDrag(window, crossedStartRect.x + crossedStartRect.width / 2, crossedStartRect.y + crossedStartRect.height / 2, surface.x + surface.width, trackY);
+  const bounded = await timelineState(window);
+  if (bounded.endMs - bounded.startMs < 100) throw new Error(`Trim handles crossed: ${bounded.startMs} -> ${bounded.endMs}`);
+
+  await evaluate(window, `document.querySelector('[aria-label="Playhead"]')?.focus()`);
+  await pressKey(window, 'LEFT');
+  const keyboard = await timelineState(window);
+  if (!(keyboard.currentMs < bounded.currentMs)) throw new Error('Playhead keyboard control did not move by one frame.');
+  assertTrimUnchanged(bounded, keyboard, 'Playhead keyboard control');
+
+  return { initial, clicked, scrubbed, startTrimmed, endTrimmed, bounded, keyboard };
+}
+
+async function timelineState(window) {
+  return evaluate(window, `(() => {
+    const read = (label) => Number(document.querySelector('[aria-label="' + label + '"]')?.getAttribute('aria-valuenow'));
+    const playhead = document.querySelector('[aria-label="Playhead"]');
+    const video = document.querySelector('video');
+    return {
+      currentMs: read('Playhead'), startMs: read('Trim start'), endMs: read('Trim end'),
+      durationMs: Number(playhead?.getAttribute('aria-valuemax')),
+      videoMs: Math.round((video?.currentTime ?? 0) * 1000),
+      interaction: document.querySelector('.clip-editor-timeline')?.getAttribute('data-interaction'),
+    };
+  })()`);
+}
+
+async function sliderRect(window, label) {
+  const rect = await evaluate(window, `(() => { const value = document.querySelector('[aria-label=${JSON.stringify(label)}]')?.getBoundingClientRect(); return value ? { x: value.x, y: value.y, width: value.width, height: value.height } : null; })()`);
+  if (!rect) throw new Error(`${label} was not rendered.`);
+  return rect;
+}
+
+async function pointerDrag(window, startX, startY, endX, endY) {
+  await window.webContents.sendInputEvent({ type: 'mouseMove', x: Math.round(startX), y: Math.round(startY) });
+  await window.webContents.sendInputEvent({ type: 'mouseDown', x: Math.round(startX), y: Math.round(startY), button: 'left', clickCount: 1 });
+  await delay(30);
+  await window.webContents.sendInputEvent({ type: 'mouseMove', x: Math.round(endX), y: Math.round(endY), button: 'left' });
+  await delay(30);
+  await window.webContents.sendInputEvent({ type: 'mouseUp', x: Math.round(endX), y: Math.round(endY), button: 'left', clickCount: 1 });
+  await delay(100);
+}
+
+function assertTrimUnchanged(before, after, label) {
+  if (before.startMs !== after.startMs || before.endMs !== after.endMs) throw new Error(`${label} changed trim: ${before.startMs}-${before.endMs} -> ${after.startMs}-${after.endMs}`);
+}
+
+function assertNear(actual, expected, tolerance, label) {
+  if (Math.abs(actual - expected) > tolerance) throw new Error(`${label} expected ${expected} ± ${tolerance}, received ${actual}.`);
 }
 
 async function openEditor(window) {
@@ -184,6 +380,22 @@ async function waitForMissingSelector(window, selector) {
     await delay(50);
   }
   throw new Error(`Timed out waiting for ${selector} to close.`);
+}
+
+async function waitForCondition(predicate, label, timeout = 10_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await delay(50);
+  }
+  throw new Error(`Timed out waiting for ${label}.`);
+}
+
+async function pressKey(window, keyCode) {
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
+  await delay(20);
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+  await delay(60);
 }
 
 async function waitForWindow() {

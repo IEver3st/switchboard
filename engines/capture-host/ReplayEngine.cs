@@ -642,7 +642,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return "-f";
         yield return "lavfi";
         yield return "-i";
-        yield return BuildCaptureFilter(capture, source);
+        yield return BuildCaptureFilter(backendName, capture, source);
 
         yield return "-map";
         yield return "0:v:0";
@@ -679,12 +679,13 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return Path.Combine(outputDirectory, "segment-%09d.mkv");
     }
 
-    private string BuildCaptureFilter(CaptureSettings capture, CaptureSource source)
+    internal static string BuildCaptureFilter(string backendName, CaptureSettings capture, CaptureSource source)
     {
         var options = new List<string>();
         if (backendName == "Windows Graphics Capture")
         {
             if (source.WindowHandle is not null) options.Add($"hwnd={source.WindowHandle}");
+            else if (source.DisplayHandle is not null) options.Add($"hmonitor={source.DisplayHandle}");
             else options.Add($"monitor_idx={capture.DisplayIndex}");
             options.Add($"capture_cursor={(capture.IncludeCursor ? 1 : 0)}");
             options.Add("capture_border=0");

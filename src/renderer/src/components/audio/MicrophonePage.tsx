@@ -244,116 +244,122 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
       <MicrophoneChain stages={chainStages} />
 
-      <section id="microphone-equalizer-section" className="mic-section mic-section--equalizer" aria-labelledby="microphone-equalizer-heading">
-        <MicSetting
-          headingId="microphone-equalizer-heading"
-          title="Voice EQ"
-          description="Shape your voice by dragging a band, or enter an exact value below."
-          technicalName="Parametric equalizer"
-          checked={equalizer.enabled}
-          disabled={unavailable}
-          pending={processingPending}
-          onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'equalizer', enabled })}
-        />
-        <ParametricEq
-          bands={equalizer.parameters.bands}
-          disabled={unavailable || !equalizer.enabled || processingPending}
-          onCommit={(bands) => void setMicProcessor({ processorId: 'equalizer', parameters: { bands } })}
-        />
-      </section>
-
-      <section id="microphone-input-section" className="mic-section mic-section--volume">
-        <PrimarySlider
-          label="Input volume"
-          description="Adjusts your voice after the microphone's hardware level."
-          value={gain.parameters.gainDb}
-          min={-20}
-          max={30}
-          step={0.5}
-          unit="dB"
-          disabled={unavailable || !gain.enabled || processingPending}
-          onCommit={(gainDb) => void setMicProcessor({ processorId: 'gain', enabled: true, parameters: { gainDb } })}
-        />
-      </section>
-
-      <section className="mic-rows" aria-label="Microphone processors">
-        <div id="microphone-gate-section" className="mic-rows__row">
+      <div className="audio-main-grid microphone-main-grid">
+        <section id="microphone-equalizer-section" className="mic-section mic-section--equalizer audio-primary-section" aria-labelledby="microphone-equalizer-heading">
           <MicSetting
-            headingId="microphone-gate-heading"
-            title="Noise gate"
-            description="Stops background sound while you are not speaking."
-            checked={gate.enabled}
+            headingId="microphone-equalizer-heading"
+            title="Voice EQ"
+            description="Shape your voice by dragging a band, then fine-tune the selected point below."
+            technicalName="Parametric equalizer"
+            checked={equalizer.enabled}
             disabled={unavailable}
             pending={processingPending}
-            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}
-          >
-            <MicStrength
-              label="Noise gate strength"
-              value={matchGate(gate.parameters.thresholdDb)}
-              options={gateOptions}
-              disabled={unavailable || !gate.enabled || processingPending}
-              onChange={(strength) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: gateThresholds[strength] } })}
-            />
-          </MicSetting>
-        </div>
-
-        <div id="microphone-removal-section" className="mic-rows__row">
-          <MicSetting
-            headingId="microphone-removal-heading"
-            title="Noise removal"
-            description={suppressionUnavailable
-              ? suppressionError ?? 'Noise removal is unavailable with the current audio setup.'
-              : 'Reduces fans, keyboard noise, and background sound.'}
-            technicalName="Noise suppression"
-            checked={suppression.enabled && !suppressionUnavailable}
-            disabled={suppressionUnavailable}
-            pending={processingPending}
-            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}
-          >
-            <MicStrength
-              label="Noise removal strength"
-              value={matchNoiseRemoval(suppression.parameters.amount)}
-              options={noiseOptions}
-              disabled={suppressionUnavailable || !suppression.enabled || processingPending}
-              onChange={(strength) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: noiseRemovalAmounts[strength] } })}
-            />
-          </MicSetting>
-        </div>
-
-        <div id="microphone-consistency-section" className="mic-rows__row">
-          <MicSetting
-            headingId="microphone-consistency-heading"
-            title="Voice consistency"
-            description="Keeps quiet and loud speech at a similar level."
-            technicalName="Compressor"
-            checked={compressor.enabled}
-            disabled={unavailable}
-            pending={processingPending}
-            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'compressor', enabled })}
-          >
-            <MicStrength
-              label="Voice consistency style"
-              value={matchVoiceConsistency(compressor.parameters)}
-              options={voiceOptions}
-              disabled={unavailable || !compressor.enabled || processingPending}
-              onChange={(style) => void setMicProcessor({ processorId: 'compressor', enabled: true, parameters: voiceConsistency[style] })}
-            />
-          </MicSetting>
-        </div>
-
-        <div id="microphone-safety-section" className="mic-rows__row">
-          <MicSetting
-            headingId="microphone-safety-heading"
-            title="Output safety"
-            description="Prevents sudden clipping and excessive peaks."
-            technicalName="Limiter"
-            checked={limiter.enabled}
-            disabled={unavailable}
-            pending={processingPending}
-            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'limiter', enabled })}
+            onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'equalizer', enabled })}
           />
-        </div>
-      </section>
+          <ParametricEq
+            bands={equalizer.parameters.bands}
+            disabled={unavailable || !equalizer.enabled || processingPending}
+            onCommit={(bands) => void setMicProcessor({ processorId: 'equalizer', parameters: { bands } })}
+          />
+        </section>
+
+        <section className="audio-control-rail mic-control-rail" aria-label="Microphone processing controls">
+          <header className="audio-control-rail__header">
+            <h3>Voice chain</h3>
+            <p>Clean, balance, and protect your microphone.</p>
+          </header>
+
+          <section id="microphone-input-section" className="mic-rail__input">
+            <PrimarySlider
+              label="Input volume"
+              description="Software level"
+              value={gain.parameters.gainDb}
+              min={-20}
+              max={30}
+              step={0.5}
+              unit="dB"
+              disabled={unavailable || !gain.enabled || processingPending}
+              onCommit={(gainDb) => void setMicProcessor({ processorId: 'gain', enabled: true, parameters: { gainDb } })}
+            />
+          </section>
+
+          <section className="mic-rows" aria-label="Microphone processors">
+            <div id="microphone-gate-section" className="mic-rows__row">
+              <MicSetting
+                headingId="microphone-gate-heading"
+                title="Noise gate"
+                description="Mutes the room while you are not speaking."
+                checked={gate.enabled}
+                disabled={unavailable}
+                pending={processingPending}
+                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-gate', enabled })}
+              >
+                <MicStrength
+                  label="Noise gate strength"
+                  value={matchGate(gate.parameters.thresholdDb)}
+                  options={gateOptions}
+                  disabled={unavailable || !gate.enabled || processingPending}
+                  onChange={(strength) => void setMicProcessor({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: gateThresholds[strength] } })}
+                />
+              </MicSetting>
+            </div>
+
+            <div id="microphone-removal-section" className="mic-rows__row">
+              <MicSetting
+                headingId="microphone-removal-heading"
+                title="Noise removal"
+                description={suppressionUnavailable
+                  ? suppressionError ?? 'Unavailable with the current audio setup.'
+                  : 'Reduces fans, keys, and background sound.'}
+                checked={suppression.enabled && !suppressionUnavailable}
+                disabled={suppressionUnavailable}
+                pending={processingPending}
+                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'noise-suppression', enabled })}
+              >
+                <MicStrength
+                  label="Noise removal strength"
+                  value={matchNoiseRemoval(suppression.parameters.amount)}
+                  options={noiseOptions}
+                  disabled={suppressionUnavailable || !suppression.enabled || processingPending}
+                  onChange={(strength) => void setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: noiseRemovalAmounts[strength] } })}
+                />
+              </MicSetting>
+            </div>
+
+            <div id="microphone-consistency-section" className="mic-rows__row">
+              <MicSetting
+                headingId="microphone-consistency-heading"
+                title="Voice consistency"
+                description="Keeps quiet and loud speech at a similar level."
+                checked={compressor.enabled}
+                disabled={unavailable}
+                pending={processingPending}
+                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'compressor', enabled })}
+              >
+                <MicStrength
+                  label="Voice consistency style"
+                  value={matchVoiceConsistency(compressor.parameters)}
+                  options={voiceOptions}
+                  disabled={unavailable || !compressor.enabled || processingPending}
+                  onChange={(style) => void setMicProcessor({ processorId: 'compressor', enabled: true, parameters: voiceConsistency[style] })}
+                />
+              </MicSetting>
+            </div>
+
+            <div id="microphone-safety-section" className="mic-rows__row">
+              <MicSetting
+                headingId="microphone-safety-heading"
+                title="Output safety"
+                description="Catches clipping and sudden peaks."
+                checked={limiter.enabled}
+                disabled={unavailable}
+                pending={processingPending}
+                onCheckedChange={(enabled) => void setMicProcessor({ processorId: 'limiter', enabled })}
+              />
+            </div>
+          </section>
+        </section>
+      </div>
 
       <section id="microphone-monitoring-section" className="mic-section mic-section--monitoring" aria-labelledby="microphone-monitoring-heading">
         <MicSetting

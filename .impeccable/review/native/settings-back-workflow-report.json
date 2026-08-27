@@ -1,0 +1,23 @@
+{
+  "text": "Back",
+  "title": "Back (Esc)",
+  "hasHeaderClose": false,
+  "backRect": {
+    "left": 6,
+    "top": 674,
+    "right": 72.58333587646484,
+    "bottom": 708
+  },
+  "sidebarRect": {
+    "left": 0,
+    "top": 60,
+    "right": 230,
+    "bottom": 722
+  },
+  "bottomInset": 14,
+  "leftInset": 6,
+  "horizontalOverflow": false,
+  "pointerHash": "#devices",
+  "keyboardHash": "#devices",
+  "keyboardFocus": true
+}

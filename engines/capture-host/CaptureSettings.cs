@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Switchboard.CaptureHost;
 
 internal sealed record CaptureSettings(
@@ -58,7 +60,8 @@ internal sealed record CaptureSource(
     int? ProcessId,
     string? WindowHandle,
     string? DisplayId,
-    bool Available);
+    bool Available,
+    [property: JsonIgnore] long? DisplayHandle = null);
 
 internal sealed record CaptureCapabilities(
     string Backend,
