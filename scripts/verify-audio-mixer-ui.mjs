@@ -203,7 +203,15 @@ async function selectMix(label) {
     })()
   `);
   assert(clicked, `Could not select the ${label} mix.`);
-  await delay(80);
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const selected = await window.webContents.executeJavaScript(`
+      document.querySelector('.mixer-destination [data-state="on"]')?.textContent?.trim() ?? null
+    `);
+    if (selected === label) return;
+    await delay(40);
+  }
+  throw new Error(`Timed out selecting the ${label} mix.`);
 }
 
 function findMix(snapshot, id) {

@@ -65,11 +65,16 @@ try {
   await mkdir(evidenceDirectory, { recursive: true });
   await writeFile(join(evidenceDirectory, 'packaged-audio-smoke.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));
+
+  await evaluate(socket, `window.switchboard.updateSettings({ closeToTray: false })`);
+  await evaluate(socket, `(() => { setTimeout(() => window.close(), 0); return true; })()`);
+  const exitedCleanly = await waitForExit(child, 20_000);
+  if (!exitedCleanly) throw new Error('The packaged app did not complete its graceful host shutdown.');
 } finally {
   socket?.close();
-  if (child.exitCode === null) child.kill();
+  if (child.exitCode === null) await terminateProcessTree(child);
   await waitForExit(child, 5_000);
-  await rm(userData, { recursive: true, force: true });
+  await removeDirectoryWithRetry(userData, 10_000);
 }
 
 async function reservePort() {
@@ -161,6 +166,37 @@ function waitForExit(process, timeoutMs) {
       resolveExit(true);
     });
   });
+}
+
+async function terminateProcessTree(process) {
+  if (!process.pid || process.exitCode !== null) return;
+  await new Promise((resolveTermination) => {
+    const terminator = spawn('taskkill.exe', ['/pid', String(process.pid), '/t', '/f'], {
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    terminator.once('error', () => {
+      process.kill();
+      resolveTermination();
+    });
+    terminator.once('exit', resolveTermination);
+  });
+}
+
+async function removeDirectoryWithRetry(path, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  do {
+    try {
+      await rm(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!['EBUSY', 'ENOTEMPTY', 'EPERM'].includes(error?.code)) throw error;
+      await delay(100);
+    }
+  } while (Date.now() < deadline);
+  throw lastError;
 }
 
 function delay(milliseconds) {
