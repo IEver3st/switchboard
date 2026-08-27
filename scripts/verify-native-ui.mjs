@@ -138,14 +138,14 @@ async function exerciseWorkflows() {
     await waitSnapshot((value) => device(value, 'QuadCast 2').settings.gain === originalGain + 1, 'microphone gain');
     await evaluate(`window.switchboard.setDeviceSetting(${JSON.stringify({ deviceId: originalMicrophone.id, key: 'monitoring', value: originalMonitoring + 1 })})`);
     await waitSnapshot((value) => device(value, 'QuadCast 2').settings.monitoring === originalMonitoring + 1, 'direct monitoring');
-    await clickSelector('[aria-label="Mute light follows microphone state"]');
+    await clickSelector('[aria-label="Follow physical mute"]');
     await waitSnapshot((value) => device(value, 'QuadCast 2').settings.muteLed !== originalMuteLed, 'mute light toggle');
     return { sliders, gain: originalGain + 1, monitoring: originalMonitoring + 1, muteLed: !originalMuteLed };
   });
 
   await evaluate(`window.switchboard.setDeviceSetting(${JSON.stringify({ deviceId: originalMicrophone.id, key: 'gain', value: originalGain })})`);
   await evaluate(`window.switchboard.setDeviceSetting(${JSON.stringify({ deviceId: originalMicrophone.id, key: 'monitoring', value: originalMonitoring })})`);
-  await clickSelector('[aria-label="Mute light follows microphone state"]');
+  await clickSelector('[aria-label="Follow physical mute"]');
   report.capabilities.quadCastLighting = originalMicrophone.capabilities.lighting?.writable ? 'writable' : 'unavailable';
   report.capabilities.quadCastInputMeter = (await snapshot()).audio.capabilities.realtimeMetering;
 
@@ -153,7 +153,11 @@ async function exerciseWorkflows() {
   await step('audio.start', async () => {
     if (!(await snapshot()).audio.enabled) {
       await evaluate('window.switchboard.setAudioEnabled(true)');
-      await waitSnapshot((value) => value.audio.enabled, 'Audio start', 15_000);
+      await waitSnapshot(
+        (value) => value.audio.enabled && value.engines.find((engine) => engine.kind === 'audio')?.state === 'running',
+        'Audio start',
+        15_000,
+      );
     }
     return { state: (await snapshot()).engines.find((engine) => engine.kind === 'audio')?.state };
   });
@@ -249,14 +253,26 @@ async function exerciseWorkflows() {
     return { ratioFieldValue: ratioValue, compressorRatio: 4.1, simpleState: 'Custom', eqGainDb: -2.5 };
   });
 
-  await step('audio.unavailable-workflows', async () => {
+  await step('audio.capability-gated-workflows', async () => {
+    const state = await snapshot();
     const testDisabled = await selectorDisabled('button[aria-describedby="microphone-test-status"]');
     const monitoringDisabled = await selectorDisabled('[aria-label="Monitoring"]');
-    if (!testDisabled || !monitoringDisabled) throw new Error('Unavailable microphone actions were not disabled.');
-    const state = await snapshot();
+    const expectedTestDisabled = state.audio.capabilities.microphoneTest !== 'available';
+    const expectedMonitoringDisabled = state.audio.capabilities.monitoring === 'unavailable';
+    if (testDisabled !== expectedTestDisabled || monitoringDisabled !== expectedMonitoringDisabled) {
+      throw new Error(`Microphone actions did not match host capabilities: ${JSON.stringify({
+        microphoneTest: state.audio.capabilities.microphoneTest,
+        testDisabled,
+        monitoring: state.audio.capabilities.monitoring,
+        monitoringDisabled,
+      })}`);
+    }
     report.capabilities.microphoneTest = state.audio.capabilities.microphoneTest;
     report.capabilities.monitoring = state.audio.capabilities.monitoring;
-    return { microphoneTest: testDisabled, monitoring: monitoringDisabled };
+    return {
+      microphoneTest: { capability: state.audio.capabilities.microphoneTest, disabled: testDisabled },
+      monitoring: { capability: state.audio.capabilities.monitoring, disabled: monitoringDisabled },
+    };
   });
 
   const finalState = await snapshot();
@@ -344,17 +360,22 @@ async function openAudioTab(tab) {
   await waitForSelector(`#audio-panel-${tab}`);
 }
 
-async function clickSimpleChoice(title, option) {
-  const clicked = await evaluate(`
-    (() => {
-      const section = [...document.querySelectorAll('.audio-simple-section')].find((candidate) => candidate.querySelector('.human-setting__title')?.textContent?.includes(${JSON.stringify(title)}));
-      const button = [...(section?.querySelectorAll('button') ?? [])].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(option)});
-      if (!button || button.disabled) return false;
-      button.click();
-      return true;
-    })()
-  `);
-  if (!clicked) throw new Error(`Could not choose ${option} for ${title}.`);
+async function clickSimpleChoice(title, option, timeout = 10_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const clicked = await evaluate(`
+      (() => {
+        const section = [...document.querySelectorAll('.audio-simple-section')].find((candidate) => candidate.querySelector('.human-setting__title')?.textContent?.includes(${JSON.stringify(title)}));
+        const button = [...(section?.querySelectorAll('button') ?? [])].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(option)});
+        if (!button || button.disabled) return false;
+        button.click();
+        return true;
+      })()
+    `);
+    if (clicked) return;
+    await delay(50);
+  }
+  throw new Error(`Could not choose ${option} for ${title}.`);
 }
 
 async function clickButtonText(text, scope = 'body') {
@@ -432,6 +453,7 @@ async function sectionText(title) {
 }
 
 async function selectPreset(label) {
+  await waitForEnabledSelector('.preset-picker [role="combobox"]');
   await clickSelector('.preset-picker [role="combobox"]');
   await waitForSelector('[role="option"]');
   const selected = await evaluate(`
@@ -445,7 +467,20 @@ async function selectPreset(label) {
     })()
   `);
   if (!selected) throw new Error(`Preset option was not found: ${label}`);
-  await delay(100);
+  await waitForEnabledSelector('.preset-picker [role="combobox"]');
+}
+
+async function waitForEnabledSelector(selector, timeout = 10_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const enabled = await evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      return Boolean(element && !element.matches(':disabled'));
+    })()`);
+    if (enabled) return;
+    await delay(50);
+  }
+  throw new Error(`Timed out waiting for enabled selector: ${selector}.`);
 }
 
 async function waitForWindow() {

@@ -9,6 +9,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private readonly SemaphoreSlim saveGate = new(1, 1);
     private readonly WindowsCaptureSources sourceService = new();
     private readonly CancellationTokenSource lifetime = new();
+    private readonly WindowsChildProcessJob childProcesses = new();
     private Process? ffmpeg;
     private Process? systemAudioFfmpeg;
     private Process? microphoneFfmpeg;
@@ -47,7 +48,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     public TimeSpan ChildProcessorTime => ActiveProcesses()
         .Aggregate(TimeSpan.Zero, (total, process) => total + SafeTotalProcessorTime(process));
     public long ChildWorkingSetBytes => ActiveProcesses().Sum(SafeWorkingSet);
-    public bool HostActive => operationalState is not "stopped";
+    public bool HostActive => IsHostActiveState(operationalState);
     public TimeSpan Uptime => startedAt is null ? TimeSpan.Zero : DateTimeOffset.UtcNow - startedAt.Value;
 
     private IEnumerable<Process> ActiveProcesses()
@@ -169,6 +170,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         {
             operationalState = "error";
             error = configureError.Message;
+            monitorCancellation?.Cancel();
+            await StopFfmpegInternalAsync(CancellationToken.None, preserveRing: true);
             EmitSnapshot();
             throw;
         }
@@ -396,6 +399,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             try { await monitorTask.WaitAsync(TimeSpan.FromSeconds(2)); } catch { }
         }
         monitorCancellation?.Dispose();
+        childProcesses.Dispose();
         lifetime.Dispose();
         lifecycleGate.Dispose();
         saveGate.Dispose();
@@ -411,6 +415,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         // before a new host session starts was left behind by an interrupted host/save.
         ring.CleanupAbandonedSessions(TimeSpan.Zero);
     }
+
+    internal static bool IsHostActiveState(string state) => state is "starting" or "waiting" or "buffering" or "recovering";
 
     private async Task ProbeCapabilitiesAsync(CaptureSettings capture, CancellationToken cancellationToken)
     {
@@ -485,13 +491,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
             {
                 try
                 {
-                    systemAudioFfmpeg = Process.Start(BuildAudioStartInfo(
+                    systemAudioFfmpeg = childProcesses.Start(BuildAudioStartInfo(
                         capture,
                         sessionDirectory,
                         systemAudio,
                         "system",
-                        capture.SystemAudioBitrateBps));
-                    if (systemAudioFfmpeg is null) throw new InvalidOperationException("Unable to launch system-audio encoder.");
+                        capture.SystemAudioBitrateBps), "system-audio encoder");
                     _ = DrainAsync(systemAudioFfmpeg.StandardError, lifetime.Token);
                     _ = DrainAsync(systemAudioFfmpeg.StandardOutput, lifetime.Token);
                 }
@@ -508,13 +513,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
             {
                 try
                 {
-                    microphoneFfmpeg = Process.Start(BuildAudioStartInfo(
+                    microphoneFfmpeg = childProcesses.Start(BuildAudioStartInfo(
                         capture,
                         sessionDirectory,
                         microphoneAudio,
                         "microphone",
-                        capture.MicrophoneBitrateBps));
-                    if (microphoneFfmpeg is null) throw new InvalidOperationException("Unable to launch microphone encoder.");
+                        capture.MicrophoneBitrateBps), "microphone encoder");
                     _ = DrainAsync(microphoneFfmpeg.StandardError, lifetime.Token);
                     _ = DrainAsync(microphoneFfmpeg.StandardOutput, lifetime.Token);
                 }
@@ -539,7 +543,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             await Task.WhenAll(audioConnections);
 
             var start = BuildStartInfo(capture, source, sessionDirectory);
-            ffmpeg = Process.Start(start) ?? throw new InvalidOperationException("Unable to launch FFmpeg capture.");
+            ffmpeg = childProcesses.Start(start, "FFmpeg capture");
             _ = ReadProgressAsync(ffmpeg.StandardError, lifetime.Token);
             _ = DrainAsync(ffmpeg.StandardOutput, lifetime.Token);
 
@@ -851,6 +855,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         await StopFfmpegInternalAsync(CancellationToken.None, preserveRing: true);
                         operationalState = "error";
                         error = "Instant Replay stopped before the cache could exhaust available disk space.";
+                        monitorCancellation?.Cancel();
                     }
 
                     if (ffmpeg is { HasExited: true } && operationalState == "buffering")
@@ -878,6 +883,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 {
                     operationalState = "error";
                     error = monitorError.Message;
+                    monitorCancellation?.Cancel();
                 }
                 finally
                 {
@@ -1076,7 +1082,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             temporaryOutputPath,
         ]);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Unable to launch FFmpeg remux.");
+        using var process = childProcesses.Start(start, "FFmpeg remux");
         var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken);

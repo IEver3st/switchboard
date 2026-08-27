@@ -21,6 +21,11 @@ pub extern "C" fn switchboard_noise_create() -> *mut c_void {
 }
 
 #[no_mangle]
+/// Resets a noise-suppression state to its initial model state.
+///
+/// # Safety
+///
+/// `state` must be null or a live pointer returned by `switchboard_noise_create`.
 pub unsafe extern "C" fn switchboard_noise_reset(state: *mut c_void) -> bool {
     let Some(state) = (state as *mut NoiseState).as_mut() else {
         return false;
@@ -30,6 +35,14 @@ pub unsafe extern "C" fn switchboard_noise_reset(state: *mut c_void) -> bool {
 }
 
 #[no_mangle]
+/// Processes exactly one RNNoise frame from `input` into `output`.
+///
+/// # Safety
+///
+/// `state` must point to a live state returned by `switchboard_noise_create`.
+/// `input` and `output` must each reference at least
+/// `switchboard_noise_get_frame_size()` readable or writable `c_float` values.
+/// When non-null, `voice_probability` must reference one writable `c_float`.
 pub unsafe extern "C" fn switchboard_noise_process_frame(
     state: *mut c_void,
     input: *const c_float,
@@ -76,6 +89,12 @@ pub unsafe extern "C" fn switchboard_noise_process_frame(
 }
 
 #[no_mangle]
+/// Releases a noise-suppression state.
+///
+/// # Safety
+///
+/// `state` must be null or a live pointer returned by `switchboard_noise_create`
+/// that has not already been destroyed.
 pub unsafe extern "C" fn switchboard_noise_destroy(state: *mut c_void) {
     if !state.is_null() {
         drop(Box::from_raw(state as *mut NoiseState));

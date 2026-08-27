@@ -10,6 +10,7 @@ import { AudioPage } from '@/pages/audio';
 import { CapturePage } from '@/pages/capture';
 import { DevicesPage } from '@/pages/devices';
 import { SettingsPage } from '@/pages/settings';
+import { manageAsyncCleanup } from '@/lib/async-cleanup';
 import { useSystemStore } from '@/stores/use-system-store';
 
 const pageTitles: Record<PageId, string> = {
@@ -36,13 +37,7 @@ export function App() {
   const reduceMotion = useReducedMotion();
   const [startupPhase, setStartupPhase] = useState<'visible' | 'exiting' | 'complete'>('visible');
 
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    void initialize().then((dispose) => {
-      unsubscribe = dispose;
-    });
-    return () => unsubscribe?.();
-  }, [initialize]);
+  useEffect(() => manageAsyncCleanup(initialize()), [initialize]);
 
   useEffect(() => {
     if (page !== 'settings' && page !== 'modules') previousWorkspaceRef.current = page;

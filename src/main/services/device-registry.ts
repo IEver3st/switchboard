@@ -1,4 +1,4 @@
-import { devicesAsync } from 'node-hid';
+import { devicesAsync, type Device as HidDevice } from 'node-hid';
 import type { Device, DeviceControlChange, SystemSnapshot } from '../../shared/contracts';
 import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
@@ -7,20 +7,32 @@ import { LogitechDeviceModule } from '../modules/logitech';
 const discoveryIntervalMs = 5_000;
 const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1']);
 
+type DeviceRegistryOptions = {
+  modules?: DeviceModule[];
+  listHidDevices?: () => Promise<HidDevice[]>;
+  fixtureMode?: boolean;
+};
+
 export class DeviceRegistry {
   private readonly modules: DeviceModule[];
+  private readonly listHidDevices: () => Promise<HidDevice[]>;
+  private readonly fixtureMode: boolean;
   private timer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
+  private disposePromise: Promise<void> | null = null;
   private disposed = false;
 
   public constructor(
     private readonly getSnapshot: () => SystemSnapshot,
     private readonly applyDevices: (devices: Device[], options?: { persist?: boolean }) => void,
+    options: DeviceRegistryOptions = {},
   ) {
-    this.modules = [
+    this.modules = options.modules ?? [
       new LogitechDeviceModule(),
       new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
     ];
+    this.listHidDevices = options.listHidDevices ?? devicesAsync;
+    this.fixtureMode = options.fixtureMode ?? process.env.SWITCHBOARD_NATIVE_FIXTURES === '1';
   }
 
   public async start(): Promise<void> {
@@ -43,7 +55,7 @@ export class DeviceRegistry {
   }
 
   public async setControl(deviceId: string, change: DeviceControlChange): Promise<void> {
-    if (process.env.SWITCHBOARD_NATIVE_FIXTURES === '1') {
+    if (this.fixtureMode) {
       this.setFixtureControl(deviceId, change);
       return;
     }
@@ -59,11 +71,17 @@ export class DeviceRegistry {
     await this.refresh();
   }
 
-  public async dispose(): Promise<void> {
+  public dispose(): Promise<void> {
+    if (this.disposePromise) return this.disposePromise;
     this.disposed = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    await Promise.all(this.modules.map((module) => module.dispose?.()));
+    const activeRefresh = this.refreshPromise;
+    this.disposePromise = (async () => {
+      if (activeRefresh) await activeRefresh;
+      await Promise.all(this.modules.map((module) => module.dispose?.()));
+    })();
+    return this.disposePromise;
   }
 
   private setFixtureControl(deviceId: string, change: DeviceControlChange): void {
@@ -101,6 +119,7 @@ export class DeviceRegistry {
     }
     if (change.type === 'microphone-mute-lighting' && device.capabilities.lighting) {
       device.capabilities.lighting.muteLinked = change.enabled;
+      if (Object.hasOwn(device.settings, 'muteLed')) device.settings.muteLed = change.enabled;
     }
 
     this.applyDevices(devices);
@@ -109,7 +128,8 @@ export class DeviceRegistry {
   private async discover(): Promise<void> {
     if (this.disposed) return;
     const snapshot = this.getSnapshot();
-    const hidDevices = await devicesAsync();
+    const hidDevices = await this.listHidDevices();
+    if (this.disposed) return;
     const enabledModuleIds = new Set(snapshot.modules.filter((module) => module.enabled).map((module) => module.id));
     const activeModules = this.modules.filter((module) => enabledModuleIds.has(module.id));
     await Promise.all(this.modules
@@ -120,6 +140,7 @@ export class DeviceRegistry {
       previousDevices: snapshot.devices,
       appearanceOverrides: snapshot.settings.deviceAppearanceOverrides,
     })));
+    if (this.disposed) return;
     const connected = groups.flat().map((device) => mergeDeviceSettings(device, snapshot.devices));
     const connectedIds = new Set(connected.map((device) => device.id));
     const moduleIds = new Set(this.modules.map((module) => module.id));

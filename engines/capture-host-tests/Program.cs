@@ -1,4 +1,11 @@
+using System.Diagnostics;
 using Switchboard.CaptureHost;
+
+if (args.Contains("--job-child", StringComparer.Ordinal))
+{
+    await Task.Delay(TimeSpan.FromMinutes(5));
+    return;
+}
 
 var start = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 var segments = Enumerable.Range(0, 5)
@@ -32,6 +39,28 @@ _ = validSettings.Validate();
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { Fps = 59 }).Validate(), "Unsupported FPS must fail validation.");
 AssertThrows<InvalidOperationException>(() => (validSettings with { Source = "window", SourceId = null }).Validate(), "Window capture requires a target.");
 
+var operations = new OperationTracker();
+operations.Track(Task.CompletedTask);
+await Task.Yield();
+AssertValue(0, operations.Count, "Completed host requests must not remain tracked.");
+AssertValue(false, ReplayEngine.IsHostActiveState("error"), "An errored capture engine must be restartable.");
+AssertValue(true, ReplayEngine.IsHostActiveState("buffering"), "A buffering capture engine must remain active.");
+
+using (var childJob = new WindowsChildProcessJob())
+using (var child = childJob.Start(
+           new ProcessStartInfo(Environment.ProcessPath!, "--job-child")
+           {
+               UseShellExecute = false,
+               CreateNoWindow = true,
+           },
+           "capture cleanup test child"))
+{
+    childJob.Dispose();
+    using var childExitTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+    await child.WaitForExitAsync(childExitTimeout.Token);
+    AssertValue(true, child.HasExited, "Closing the capture process job must terminate child encoders.");
+}
+
 var cleanupRoot = Path.Combine(Path.GetTempPath(), $"switchboard-ring-cleanup-{Guid.NewGuid():N}");
 try
 {
@@ -57,6 +86,12 @@ static void AssertSequence(IEnumerable<string> actual, IReadOnlyList<string> exp
 static void AssertEqual(string expected, string actual, string message)
 {
     if (!string.Equals(expected, actual, StringComparison.Ordinal))
+        throw new InvalidOperationException($"{message} Expected '{expected}', got '{actual}'.");
+}
+
+static void AssertValue<T>(T expected, T actual, string message) where T : IEquatable<T>
+{
+    if (!actual.Equals(expected))
         throw new InvalidOperationException($"{message} Expected '{expected}', got '{actual}'.");
 }
 

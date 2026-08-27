@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,7 +9,7 @@ var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 };
 var outputGate = new SemaphoreSlim(1, 1);
 var shutdown = new CancellationTokenSource();
-var requests = new ConcurrentDictionary<Guid, Task>();
+var requests = new OperationTracker();
 await using var engine = new ReplayEngine();
 var previousCpuTime = Process.GetCurrentProcess().TotalProcessorTime + engine.ChildProcessorTime;
 var previousCpuSampleAt = Stopwatch.GetTimestamp();
@@ -33,18 +32,12 @@ try
             await HandleLineAsync(line);
             break;
         }
-        var operationId = Guid.NewGuid();
-        var operation = HandleLineAsync(line).ContinueWith(
-            completedTask => requests.TryRemove(operationId, out var _),
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-        requests[operationId] = operation;
+        requests.Track(HandleLineAsync(line));
     }
 }
 catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
 
-await Task.WhenAll(requests.Values);
+await Task.WhenAll(requests.Pending);
 
 async Task HandleLineAsync(string line)
 {
