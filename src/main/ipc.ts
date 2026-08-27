@@ -33,6 +33,7 @@ import {
   settingsResetScopeSchema,
 } from '../shared/contracts';
 import type { AppController } from './controller';
+import { getStartupSnapshot } from './startup-readiness';
 
 function assertTrustedSender(event: IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null): void {
   const window = getMainWindow();
@@ -67,8 +68,7 @@ function handle<TInput, TResult>(
 export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null): () => void {
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow);
-    await controller.initialize();
-    return controller.getSnapshot();
+    return getStartupSnapshot(controller);
   });
   ipcMain.handle(ipcChannels.refreshDevices, async (event) => {
     assertTrustedSender(event, getMainWindow);

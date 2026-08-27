@@ -14,14 +14,12 @@ import { DeviceGlyph } from '@/components/shared/device-glyph';
 import {
   adaptBlackHardwareForDarkSurface,
   applyLighting,
-  matteDarkProductBackdrop,
   type LightingMask,
 } from '@/components/shared/device-lighting';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/cn';
 
-type ToneProfile = 'black-hardware-on-dark';
-type BackdropProfile = 'dark-product-photo';
+type ToneProfile = 'black-hardware-on-dark' | 'black-hardware-on-dark-when-unlit';
 
 interface ArtworkCrop {
   left: number;
@@ -34,7 +32,6 @@ interface DeviceArtwork {
   src: string;
   lightingMask?: LightingMask;
   toneProfile?: ToneProfile;
-  backdropProfile?: BackdropProfile;
   crop?: ArtworkCrop;
   heroProcessingSize?: number;
   presentation: DevicePresentation;
@@ -81,7 +78,7 @@ const artworkByAssetKey: Record<string, DeviceArtwork> = {
   'razer-huntsman-v2-analog': {
     src: huntsmanV2AnalogUrl,
     lightingMask: 'photographic-rgb',
-    backdropProfile: 'dark-product-photo',
+    toneProfile: 'black-hardware-on-dark-when-unlit',
     crop: { left: 0.09, top: 0.12, right: 0.91, bottom: 0.88 },
     heroProcessingSize: 1100,
     presentation: { orientation: 'landscape', galleryScale: 0.94, heroScale: 1.06, groundWidth: '72%' },
@@ -186,7 +183,6 @@ function ProductCanvas({
       artwork.src,
       artwork.lightingMask ?? 'no-lighting',
       artwork.toneProfile ?? 'source-tone',
-      artwork.backdropProfile ?? 'transparent-source',
       density,
       artwork.lightingMask ? (lighting.enabled ? 'on' : 'off') : 'static',
       artwork.lightingMask ? lighting.color : 'source-color',
@@ -243,16 +239,13 @@ function ProductCanvas({
 
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-        if (artwork.backdropProfile === 'dark-product-photo') {
-          matteDarkProductBackdrop(pixels.data);
-        }
         if (artwork.lightingMask && (!lighting.preserveSourceColor || !lighting.enabled)) {
           applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color, lighting.brightness);
         }
-        if (artwork.backdropProfile === 'dark-product-photo' && !lighting.enabled) {
-          adaptBlackHardwareForDarkSurface(pixels.data);
-        }
-        if (artwork.toneProfile === 'black-hardware-on-dark') {
+        if (
+          artwork.toneProfile === 'black-hardware-on-dark'
+          || (artwork.toneProfile === 'black-hardware-on-dark-when-unlit' && !lighting.enabled)
+        ) {
           adaptBlackHardwareForDarkSurface(pixels.data);
         }
 
@@ -285,7 +278,7 @@ function ProductCanvas({
       image.onload = null;
       image.onerror = null;
     };
-  }, [artwork.backdropProfile, artwork.crop, artwork.heroProcessingSize, artwork.lightingMask, artwork.src, artwork.toneProfile, density, lighting.brightness, lighting.color, lighting.enabled]);
+  }, [artwork.crop, artwork.heroProcessingSize, artwork.lightingMask, artwork.src, artwork.toneProfile, density, lighting.brightness, lighting.color, lighting.enabled, lighting.preserveSourceColor]);
 
   if (status === 'failed') return fallback;
   return (

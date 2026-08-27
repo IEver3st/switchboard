@@ -65,7 +65,7 @@ async function run() {
   await setControl(window, { type: 'lighting-speed', speed: 78 });
   await setControl(window, { type: 'lighting-direction', direction: 'left' });
   await waitFor(window, `(() => {
-    const active = document.querySelector('.lighting-effect-option[data-active="true"]');
+    const active = document.querySelector('[aria-label="Lighting effect"]');
     const speed = document.querySelector('[aria-label="Lighting effect speed"]');
     const direction = document.querySelector('[aria-label="Lighting effect direction"]');
     return active?.textContent?.trim() === 'Color wave'
@@ -82,10 +82,10 @@ async function run() {
   await setControl(window, { type: 'lighting-color', color: '#f472b6' });
   await setControl(window, { type: 'lighting-brightness', brightness: 64 });
   const changed = await mouseSnapshot(window);
-  if (changed.capabilities.lighting?.zones?.find((zone) => zone.id === 'zone-2')?.color !== '#12abef') {
+  if (changed.capabilities.lighting?.zones?.find((zone) => zone.id === 'zone-2')?.color.toLowerCase() !== '#12abef') {
     throw new Error('The confirmed zone color did not reach canonical renderer state.');
   }
-  if (changed.capabilities.lighting?.color !== '#f472b6' || changed.capabilities.lighting?.brightness !== 64) {
+  if (changed.capabilities.lighting?.color?.toLowerCase() !== '#f472b6' || changed.capabilities.lighting?.brightness !== 64) {
     throw new Error('The confirmed global lighting controls did not reach canonical renderer state.');
   }
   await revealStudio(window);
@@ -96,7 +96,7 @@ async function run() {
   await waitForLoad(window);
   await openG502(window);
   const refreshed = await mouseSnapshot(window);
-  if (refreshed.capabilities.lighting?.brightness !== 64 || refreshed.capabilities.lighting?.color !== '#f472b6') {
+  if (refreshed.capabilities.lighting?.brightness !== 64 || refreshed.capabilities.lighting?.color?.toLowerCase() !== '#f472b6') {
     throw new Error('Lighting state did not survive a renderer refresh round trip.');
   }
 
@@ -125,18 +125,22 @@ async function verifyColorPopoverPersistence(window) {
 
   const mouse = await mouseSnapshot(window);
   const nextColor = mouse.capabilities.lighting?.color?.toLowerCase() === '#12abef' ? '#f472b6' : '#12abef';
-  await evaluate(window, `(() => {
+  const entered = await evaluate(window, `(() => {
     const input = document.querySelector('.color-picker input[aria-label="HEX color"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!input || !setter) return false;
     input.focus();
-    input.select();
+    setter.call(input, ${JSON.stringify(nextColor.slice(1).toUpperCase())});
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ${JSON.stringify(nextColor.slice(1).toUpperCase())} }));
+    return true;
   })()`);
-  window.webContents.insertText(nextColor);
-  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
-  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+  if (!entered) throw new Error('The lighting HEX input could not be edited.');
+  await paint(window);
+  await evaluate(window, `document.querySelector('.color-picker input[aria-label="HEX color"]')?.blur()`);
   await waitFor(window, `(async () => {
     const snapshot = await window.switchboard.getSnapshot();
     return snapshot.devices.find((device) => device.displayName === 'G502 X Plus')
-      ?.capabilities.lighting?.color === ${JSON.stringify(nextColor)};
+      ?.capabilities.lighting?.color?.toLowerCase() === ${JSON.stringify(nextColor.toLowerCase())};
   })()`);
   await delay(100);
 
@@ -183,14 +187,14 @@ async function openG502(window) {
 }
 
 async function revealStudio(window) {
-  await waitFor(window, `Boolean(document.querySelector('.lighting-studio'))`);
-  await evaluate(window, `document.querySelector('.lighting-studio')?.scrollIntoView({ block: 'center' })`);
+  await waitFor(window, `Boolean(document.querySelector('.lighting-editor'))`);
+  await evaluate(window, `document.querySelector('.lighting-editor')?.scrollIntoView({ block: 'center' })`);
   await paint(window);
 }
 
 function studioMetrics(window) {
   return evaluate(window, `(() => {
-    const studio = document.querySelector('.lighting-studio');
+    const studio = document.querySelector('.lighting-editor');
     const viewport = document.querySelector('[data-radix-scroll-area-viewport]');
     const rect = studio?.getBoundingClientRect();
     return {
@@ -199,7 +203,7 @@ function studioMetrics(window) {
       workspaceWidth: viewport?.clientWidth ?? null,
       workspaceScrollWidth: viewport?.scrollWidth ?? null,
       studio: rect ? { top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height } : null,
-      effects: document.querySelectorAll('.lighting-effect-option').length,
+      effectControl: Boolean(document.querySelector('[aria-label="Lighting effect"]')),
       zones: document.querySelectorAll('.lighting-zone').length,
       horizontalOverflow: studio ? studio.scrollWidth > studio.clientWidth : null,
     };
@@ -208,16 +212,16 @@ function studioMetrics(window) {
 
 function assertStudio(metrics, label) {
   if (!metrics.studio || metrics.studio.top < 0 || metrics.studio.bottom > metrics.viewport.height + 1) {
-    throw new Error(`${label} Lighting Studio is not fully reachable in the review viewport: ${JSON.stringify(metrics)}`);
+    throw new Error(`${label} lighting editor is not fully reachable in the review viewport: ${JSON.stringify(metrics)}`);
   }
   if (metrics.documentWidth > metrics.viewport.width || metrics.horizontalOverflow) {
-    throw new Error(`${label} Lighting Studio has horizontal overflow.`);
+    throw new Error(`${label} lighting editor has horizontal overflow.`);
   }
   if (metrics.workspaceWidth !== null && metrics.workspaceScrollWidth > metrics.workspaceWidth) {
     throw new Error(`${label} workspace has horizontal overflow.`);
   }
-  if (metrics.effects !== 5 || metrics.zones !== 8) {
-    throw new Error(`${label} did not expose the fixture's five effects and eight reported zones.`);
+  if (!metrics.effectControl || metrics.zones !== 8) {
+    throw new Error(`${label} did not expose the effect selector and eight reported zones.`);
   }
 }
 

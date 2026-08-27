@@ -1359,6 +1359,14 @@ textarea:focus-visible {
   transition: transform 190ms cubic-bezier(0.2, 0.75, 0.2, 1), filter 160ms ease-out;
 }
 
+/* The Huntsman source is an official product photograph rather than a
+   transparent render. Its near-black backdrop matches the device stage; a
+   narrow edge fade prevents the cropped photograph from reading as a card. */
+.device-render[data-asset-key="razer-huntsman-v2-analog"] .device-render__media {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 3%, #000 97%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 3%, #000 97%, transparent 100%);
+}
+
 .device-render canvas {
   display: block;
   width: auto;
@@ -8083,15 +8091,15 @@ textarea:focus-visible {
 .keyboard-stage {
   position: relative;
   display: grid;
-  min-height: clamp(220px, 31vh, 310px);
+  min-height: clamp(250px, 34vh, 350px);
   place-items: center;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
 
 .keyboard-stage .device-render--hero {
-  width: min(96%, 980px);
-  height: clamp(205px, 29vh, 292px);
+  width: min(98%, 1060px);
+  height: clamp(235px, 32vh, 332px);
 }
 
 .keyboard-stage .device-render__ground {
@@ -8469,11 +8477,11 @@ textarea:focus-visible {
   }
 
   .keyboard-stage {
-    min-height: 160px;
+    min-height: 210px;
   }
 
   .keyboard-stage .device-render--hero {
-    height: 158px;
+    height: 205px;
   }
 
   .keyboard-control-row {
@@ -8596,6 +8604,118 @@ textarea:focus-visible {
 .headset-connection-message strong { color: var(--foreground); font-size: 10px; }
 .headset-inline-error { color: var(--destructive); }
 
+/* XM6 consumer control surface refinement */
+.headset-console {
+  width: min(100%, 1280px);
+  margin-top: 12px;
+  grid-template-columns: minmax(280px, .82fr) minmax(570px, 1.58fr);
+  gap: clamp(28px, 4.4vw, 64px);
+}
+
+.headset-product__render { min-height: 270px; }
+.headset-product__render .device-render--hero { height: clamp(255px, 32vh, 360px); }
+
+.headset-device-summary {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 2px 13px;
+}
+
+.headset-battery-summary { display: grid; gap: 9px; }
+.headset-battery-summary > div { display: flex; align-items: baseline; gap: 8px; }
+.headset-battery-summary span { color: var(--muted-foreground); font-size: 9px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; }
+.headset-battery-summary strong { margin-left: auto; color: var(--foreground); font-size: 18px; font-weight: 690; line-height: 1; font-variant-numeric: tabular-nums; }
+.headset-battery-summary svg { width: 14px; height: 14px; color: var(--primary); }
+.headset-battery-summary progress { width: 100%; height: 4px; overflow: hidden; border: 0; border-radius: 0; background: var(--muted); color: var(--primary); appearance: none; }
+.headset-battery-summary progress::-webkit-progress-bar { background: var(--muted); }
+.headset-battery-summary progress::-webkit-progress-value { background: var(--primary); }
+
+.headset-live-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin: 0; }
+.headset-live-summary > div { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; }
+.headset-live-summary dt { color: var(--muted-foreground); font-size: 9px; }
+.headset-live-summary dd { overflow: hidden; margin: 0; color: var(--secondary-foreground); font-size: 9px; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
+.headset-live-summary dd[data-good="true"]::before { display: inline-block; width: 5px; height: 5px; margin-right: 6px; border-radius: 50%; background: var(--status-ok); content: ''; vertical-align: 1px; }
+
+.headset-colorway { padding-top: 12px; padding-bottom: 9px; }
+.headset-colorway > span { font-size: 9px; letter-spacing: .01em; }
+.headset-colorway button { width: 25px; height: 25px; }
+.headset-colorway button > span { width: 17px; height: 17px; }
+
+.headset-controls { border-top-color: color-mix(in srgb, var(--border) 82%, transparent); }
+.headset-connection-status {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+.headset-connection-status > svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--warning); }
+.headset-connection-status > i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--status-ok); }
+.headset-connection-status > span { display: grid; gap: 1px; min-width: 0; }
+.headset-connection-status strong { color: var(--secondary-foreground); font-size: 10px; font-weight: 660; }
+.headset-connection-status small { overflow: hidden; max-width: 490px; font-size: 8px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.headset-connection-status button { margin-left: auto; flex: 0 0 auto; }
+.headset-connection-status[data-state="connected"] { min-height: 38px; }
+.headset-spin { animation: headset-spin .8s linear infinite; }
+@keyframes headset-spin { to { transform: rotate(360deg); } }
+
+.headset-inline-error { min-height: 34px; padding: 8px 0; font-size: 9px; }
+.headset-section { padding: 12px 0; }
+.headset-section > header { align-items: center; margin-bottom: 11px; }
+.headset-section h3 { font-size: 13px; }
+.headset-section header p { margin-top: 2px; font-size: 8px; }
+.headset-section__title-line { display: flex; align-items: center; gap: 8px; }
+.headset-section__title-line > span,
+.headset-listening__heading > span { color: var(--muted-foreground); font-size: 8px; font-weight: 620; }
+.headset-section[data-pending="true"] { cursor: progress; }
+
+.headset-noise__modes { gap: 0; }
+.headset-noise__modes > button { height: 36px; border-radius: 0; font-size: 10px; }
+.headset-noise__modes > button[data-state="on"] { color: var(--primary-foreground); background: var(--primary); }
+.headset-ambient { gap: 9px; margin-top: 12px; }
+.headset-ambient > label { font-size: 9px; }
+.headset-ambient output small { color: var(--muted-foreground); font-size: 8px; font-weight: 500; }
+
+.headset-eq__toolbar { display: flex; align-items: center; gap: 4px; }
+.headset-eq__toolbar [role="combobox"] { width: 138px; }
+.headset-eq__toolbar > button { width: 30px; height: 30px; }
+.headset-eq__toolbar > button svg { width: 14px; height: 14px; }
+.headset-eq__graph { grid-template-columns: repeat(10, minmax(30px, 1fr)); height: 140px; padding: 3px 8px 0 18px; }
+.headset-eq__graph > label { grid-template-rows: 15px 98px 18px; font-size: 8px; }
+.headset-eq__graph .ui-slider { height: 88px; }
+.headset-eq__zero { top: 61px; left: 18px; }
+.headset-eq__graph output { color: var(--foreground); font-size: 8px; font-weight: 630; }
+.headset-eq__range { position: absolute; left: 0; color: var(--muted-foreground); font-size: 7px; font-variant-numeric: tabular-nums; }
+.headset-eq__range--high { top: 22px; }
+.headset-eq__range--low { bottom: 22px; }
+.headset-eq__storage { margin: 2px 0 0; color: var(--muted-foreground); font-size: 8px; }
+
+.headset-setting-row { min-height: 40px; border-top: 0; }
+.headset-setting-row + .headset-setting-row { border-top: 1px solid color-mix(in srgb, var(--border) 58%, transparent); }
+.headset-setting-row strong { font-size: 10px; }
+.headset-setting-row small { font-size: 8px; }
+.headset-setting-row em { color: var(--muted-foreground); font-size: 8px; font-style: normal; font-weight: 620; }
+
+.headset-listening { display: grid; gap: 10px; border-top: 1px solid color-mix(in srgb, var(--border) 58%, transparent); padding-top: 11px; }
+.headset-listening__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.headset-listening__heading > div { display: grid; gap: 2px; }
+.headset-listening__heading strong { color: var(--secondary-foreground); font-size: 10px; font-weight: 650; }
+.headset-listening__heading small { color: var(--muted-foreground); font-size: 8px; }
+.headset-listening__modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.headset-listening__modes button { display: grid; min-width: 0; min-height: 58px; align-content: start; gap: 4px; border: 1px solid var(--border); border-right: 0; padding: 8px 11px; outline: 0; color: var(--muted-foreground); background: transparent; text-align: left; }
+.headset-listening__modes button:last-child { border-right: 1px solid var(--border); }
+.headset-listening__modes button strong { color: var(--secondary-foreground); font-size: 9px; font-weight: 650; }
+.headset-listening__modes button span { font-size: 8px; line-height: 1.35; }
+.headset-listening__modes button[aria-checked="true"] { border-color: var(--primary); box-shadow: inset 0 2px 0 var(--primary); background: color-mix(in srgb, var(--primary) 9%, transparent); }
+.headset-listening__modes button:focus-visible { position: relative; z-index: 1; box-shadow: inset 0 0 0 2px var(--ring); }
+.headset-listening__modes button:disabled { cursor: not-allowed; }
+.headset-listening__room { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.headset-listening__room > span { color: var(--muted-foreground); font-size: 8px; }
+.headset-listening__room [role="combobox"] { width: 132px; }
+
 @media (max-width: 1180px) {
   .device-workbench[data-device-kind="headset"] { padding-right: 28px; padding-left: 28px; }
   .headset-console { grid-template-columns: minmax(240px, .7fr) minmax(510px, 1.5fr); gap: 24px; }
@@ -8606,13 +8726,23 @@ textarea:focus-visible {
   .headset-console { margin-top: 8px; }
   .headset-product__render { min-height: 235px; }
   .headset-product__render .device-render--hero { height: 250px; }
-  .headset-section { padding: 13px 0; }
-  .headset-section > header { margin-bottom: 10px; }
-  .headset-eq__graph { height: 148px; }
-  .headset-eq__graph > label { grid-template-rows: 14px 104px 18px; }
-  .headset-eq__graph .ui-slider { height: 96px; }
-  .headset-eq__zero { top: 61px; }
-  .headset-setting-row { min-height: 42px; }
+  .headset-connection-status[data-state="connected"] { min-height: 28px; }
+  .headset-connection-status[data-state="connected"] small { display: none; }
+  .headset-section { padding: 8px 0; }
+  .headset-section > header { margin-bottom: 6px; }
+  .headset-ambient { grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 6px 10px; margin-top: 7px; }
+  .headset-ambient > label { grid-column: 1; }
+  .headset-ambient > .ui-slider { grid-column: 2; }
+  .headset-ambient .headset-setting-row { grid-column: 1 / -1; min-height: 30px; }
+  .headset-eq__graph { height: 120px; }
+  .headset-eq__graph > label { grid-template-rows: 14px 78px 18px; }
+  .headset-eq__graph .ui-slider { height: 70px; }
+  .headset-eq__zero { top: 48px; }
+  .headset-setting-row { min-height: 34px; }
+  .headset-listening { gap: 6px; padding-top: 6px; }
+  .headset-listening__modes button { min-height: 44px; padding-top: 5px; padding-bottom: 5px; }
+  .headset-listening__room [role="combobox"] { height: 24px; min-height: 24px; }
+  .headset-sound { padding-bottom: 4px; }
 }
 
 @media (max-width: 900px) {

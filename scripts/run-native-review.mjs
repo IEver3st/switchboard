@@ -46,6 +46,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-montage-ui.mjs');
 } else if (command === 'capture-scale') {
   await runElectron('scripts/capture-scale-qa.mjs', ...commandArguments);
+} else if (command === 'startup') {
+  await runElectron('scripts/measure-startup.mjs', ...commandArguments);
 } else if (command === 'app-updates') {
   await runElectron('scripts/verify-app-update-ui.mjs');
 } else if (command === 'device-popovers') {

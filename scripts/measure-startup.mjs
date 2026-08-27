@@ -7,12 +7,13 @@ import { performance } from 'node:perf_hooks';
 const startedAt = performance.now();
 const projectRoot = resolve(import.meta.dirname, '..');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-startup-measure-'));
-const maximumReadyMs = Number.parseInt(process.env.SWITCHBOARD_STARTUP_MAX_MS ?? '', 10);
+const maximumReadyMs = Number.parseInt(process.env.SWITCHBOARD_STARTUP_MAX_MS ?? '1500', 10);
 
 app.setName('switchboard-startup-measure');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
+process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
 const importStartedAt = performance.now();
 await import('../out/main/index.js');
@@ -27,6 +28,8 @@ void app.whenReady().then(async () => {
   await waitForControlPlane(window);
   const controlPlaneReadyAt = performance.now();
   const result = {
+    mode: 'isolated-native-fixtures',
+    budgetMs: maximumReadyMs,
     importMs: round(importedAt - importStartedAt),
     appReadyMs: round(appReadyAt - startedAt),
     windowCreatedMs: round(windowCreatedAt - startedAt),

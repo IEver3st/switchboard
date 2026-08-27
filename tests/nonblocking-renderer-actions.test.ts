@@ -29,7 +29,7 @@ test('routine renderer mutations do not publish a global UI lock while IPC is pe
     });
 
     const { useSystemStore } = await import(`../src/renderer/src/stores/use-system-store.ts?nonblocking=${Date.now()}`);
-    pendingAction = useSystemStore.getState().setAudioBusGain({ busId: 'game', gain: 0.75 });
+    pendingAction = useSystemStore.getState().setAudioBusGain({ mixId: 'personal', busId: 'game', gain: 0.75 });
 
     expect(useSystemStore.getState()).not.toHaveProperty('actionPending');
   } finally {

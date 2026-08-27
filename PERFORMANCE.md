@@ -22,6 +22,12 @@ These are release gates, not marketing claims.
 - captured/dropped frames;
 - device reconnect count and leaked HID handles.
 
+## Startup responsiveness
+
+`bun run measure:startup` builds the production Electron bundles and measures the isolated native review path from main-process JavaScript entry to a usable control plane. The budget is 1,500 ms; the harness uses canonical fixture devices so physical HID latency cannot make the result nondeterministic.
+
+Persisted state hydration is the only renderer-readiness gate. Hardware discovery, audio endpoint discovery, clip reconciliation, update scheduling, and optional engine restoration continue through Electron main and publish canonical snapshot updates when ready. A stalled peripheral must not keep the startup screen visible.
+
 ## Guard behavior
 
 The product should surface sustained regressions, not react to one noisy sample. Initial policy:

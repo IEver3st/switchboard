@@ -7,7 +7,8 @@ using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Concurrent;
 
-var sonyMdrService = new Guid("956C7B26-D49A-4BA8-B03F-B17D393CB6E2");
+var sonyMdrServiceV2 = new Guid("956C7B26-D49A-4BA8-B03F-B17D393CB6E2");
+var sonyMdrServiceV1 = new Guid("96CC203E-5068-46AD-B32D-E316F5E069BA");
 var json = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 var devices = new Dictionary<string, BluetoothDevice>();
 var sessions = new ConcurrentDictionary<string, Socket>();
@@ -103,7 +104,16 @@ while (!lifetime.IsCancellationRequested)
                 if (command.Token is null || !devices.TryGetValue(command.Token, out var target))
                     throw new InvalidOperationException("unknown-device");
                 if (sessions.TryRemove(command.Token, out var prior)) prior.Dispose();
-                var socket = BluetoothSocket.Connect(target.Address, sonyMdrService, 8_000);
+                Socket socket;
+                try { socket = BluetoothSocket.ConnectService(target.Address, sonyMdrServiceV2, 8_000); }
+                catch (SocketException error) when (error.SocketErrorCode == SocketError.AddressNotAvailable)
+                {
+                    try { socket = BluetoothSocket.ConnectService(target.Address, sonyMdrServiceV1, 8_000); }
+                    catch (SocketException fallbackError) when (fallbackError.SocketErrorCode == SocketError.AddressNotAvailable)
+                    {
+                        socket = BluetoothSocket.ConnectChannel(target.Address, 9, 8_000);
+                    }
+                }
                 sessions[command.Token] = socket;
                 _ = Receive(command.Token, socket);
                 await Emit(new { type = "response", command.RequestId, ok = true });
@@ -146,32 +156,44 @@ static class BluetoothSocket
     const int AfBluetooth = 32;
     const int SocketStream = 1;
     const int ProtocolRfcomm = 3;
+    const int WsaWouldBlock = 10035;
+    const int WsaInProgress = 10036;
+    const int WsaTimedOut = 10060;
+    const int Fionbio = unchecked((int)0x8004667e);
+    const short PollWrite = 0x0010;
     static readonly object StartupLock = new();
     static bool winsockStarted;
 
-    public static Socket Connect(ulong address, Guid service, int timeoutMilliseconds)
+    public static Socket ConnectService(ulong address, Guid service, int timeoutMilliseconds) => Connect(address, service, 0, timeoutMilliseconds);
+    public static Socket ConnectChannel(ulong address, uint channel, int timeoutMilliseconds) => Connect(address, Guid.Empty, channel, timeoutMilliseconds);
+
+    static Socket Connect(ulong address, Guid service, uint port, int timeoutMilliseconds)
     {
         EnsureWinsock();
         var handle = socket(AfBluetooth, SocketStream, ProtocolRfcomm);
         if (handle == new IntPtr(-1)) throw new SocketException(WSAGetLastError());
-        var endpoint = new SockAddrBth { AddressFamily = AfBluetooth, Address = address, ServiceClassId = service, Port = uint.MaxValue };
-        uint nonblocking = 1;
-        if (ioctlsocket(handle, unchecked((int)0x8004667e), ref nonblocking) != 0) return Fail(handle, WSAGetLastError());
+        uint secure = 1;
+        if (setsockopt(handle, ProtocolRfcomm, unchecked((int)0x80000001), ref secure, sizeof(uint)) != 0) return Fail(handle, WSAGetLastError());
+        if (setsockopt(handle, ProtocolRfcomm, 0x00000002, ref secure, sizeof(uint)) != 0) return Fail(handle, WSAGetLastError());
+        var endpoint = new SockAddrBth { AddressFamily = AfBluetooth, Address = address, ServiceClassId = service, Port = port };
+        uint nonBlocking = 1;
+        if (ioctlsocket(handle, Fionbio, ref nonBlocking) != 0) return Fail(handle, WSAGetLastError());
         var result = connect(handle, ref endpoint, Marshal.SizeOf<SockAddrBth>());
         if (result != 0)
         {
-            var error = WSAGetLastError();
-            if (error is not (10035 or 10036 or 10022)) return Fail(handle, error);
-            var descriptor = new WsaPollFd { Socket = handle, Events = 0x0010 };
-            if (WSAPoll(ref descriptor, 1, timeoutMilliseconds) <= 0 || (descriptor.ReturnedEvents & 0x0007) != 0)
-                return Fail(handle, 10060);
+            var connectError = WSAGetLastError();
+            if (connectError != WsaWouldBlock && connectError != WsaInProgress) return Fail(handle, connectError);
+            var descriptor = new WsaPollFd { Socket = handle, Events = PollWrite };
+            var pollResult = WSAPoll(ref descriptor, 1, timeoutMilliseconds);
+            if (pollResult == 0) return Fail(handle, WsaTimedOut);
+            if (pollResult < 0) return Fail(handle, WSAGetLastError());
             var socketError = 0;
             var socketErrorLength = sizeof(int);
-            if (getsockopt(handle, 0xffff, 0x1007, ref socketError, ref socketErrorLength) != 0 || socketError != 0)
-                return Fail(handle, socketError == 0 ? WSAGetLastError() : socketError);
+            if (getsockopt(handle, 0xffff, 0x1007, ref socketError, ref socketErrorLength) != 0) return Fail(handle, WSAGetLastError());
+            if (socketError != 0) return Fail(handle, socketError);
         }
-        uint blocking = 0;
-        if (ioctlsocket(handle, unchecked((int)0x8004667e), ref blocking) != 0) return Fail(handle, WSAGetLastError());
+        nonBlocking = 0;
+        if (ioctlsocket(handle, Fionbio, ref nonBlocking) != 0) return Fail(handle, WSAGetLastError());
         return new Socket(new SafeSocketHandle(handle, ownsHandle: true));
     }
 
@@ -206,6 +228,7 @@ static class BluetoothSocket
     struct WsaPollFd { public IntPtr Socket; public short Events; public short ReturnedEvents; }
 
     [DllImport("Ws2_32.dll", SetLastError = true)] static extern IntPtr socket(int addressFamily, int socketType, int protocol);
+    [DllImport("Ws2_32.dll")] static extern int setsockopt(IntPtr socket, int level, int option, ref uint value, int valueLength);
     [DllImport("Ws2_32.dll", SetLastError = true)] static extern int connect(IntPtr socket, ref SockAddrBth name, int nameLength);
     [DllImport("Ws2_32.dll")] static extern int ioctlsocket(IntPtr socket, int command, ref uint argument);
     [DllImport("Ws2_32.dll")] static extern int WSAPoll(ref WsaPollFd descriptors, uint count, int timeoutMilliseconds);

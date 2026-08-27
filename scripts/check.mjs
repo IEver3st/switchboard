@@ -109,11 +109,17 @@ assert(
 );
 
 const ipcSource = read('src/main/ipc.ts');
+const startupReadinessSource = read('src/main/startup-readiness.ts');
 assert(ipcSource.includes('assertTrustedSender'), 'IPC handlers must validate their sender.');
 assert(ipcSource.includes('.parse('), 'IPC payloads must be schema validated.');
 assert(ipcSource.includes('event.sender.id'), 'IPC must be pinned to the current main renderer webContents.');
 assert(!ipcSource.includes('Boolean(input)') && !ipcSource.includes('Number(input)'), 'IPC must not use lossy Boolean/Number coercion.');
-assert(ipcSource.includes('await controller.initialize();'), 'The initial renderer snapshot must wait for real controller initialization.');
+assert(
+  ipcSource.includes('return getStartupSnapshot(controller);')
+    && startupReadinessSource.includes('await controller.prepareSnapshot();')
+    && !startupReadinessSource.includes('controller.initialize('),
+  'The initial renderer snapshot must wait for persisted state without waiting for background services.',
+);
 
 const appSource = read('src/renderer/src/App.tsx');
 assert(

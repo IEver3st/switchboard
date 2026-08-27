@@ -339,9 +339,17 @@ export const headsetTransportStateSchema = z.enum([
 ]);
 export type HeadsetTransportState = z.infer<typeof headsetTransportStateSchema>;
 
+export const headsetControlAvailabilitySchema = z.enum([
+  'available',
+  'temporarily-unavailable',
+  'read-only',
+]);
+export type HeadsetControlAvailability = z.infer<typeof headsetControlAvailabilitySchema>;
+
 export const headsetToggleCapabilitySchema = z.object({
   enabled: z.boolean().nullable(),
   writable: z.boolean(),
+  availability: headsetControlAvailabilitySchema.default('available'),
   unavailableReason: z.string().optional(),
 });
 export type HeadsetToggleCapability = z.infer<typeof headsetToggleCapabilitySchema>;
@@ -351,6 +359,8 @@ export type SonyNoiseControlMode = z.infer<typeof sonyNoiseControlModeSchema>;
 
 export const sonyNoiseControlCapabilitySchema = z.object({
   writable: z.boolean(),
+  availability: headsetControlAvailabilitySchema.default('available'),
+  supportedModes: z.array(sonyNoiseControlModeSchema).min(1).default(['noise-cancelling', 'ambient', 'off']),
   mode: sonyNoiseControlModeSchema.nullable(),
   ambientLevel: z.number().int().min(1).max(20).nullable(),
   ambientLevelMin: z.literal(1),
@@ -376,6 +386,8 @@ export type SonyEqualizerPreset = z.infer<typeof sonyEqualizerPresetSchema>;
 
 export const sonyEqualizerCapabilitySchema = z.object({
   writable: z.boolean(),
+  bandsWritable: z.boolean().default(true),
+  availability: headsetControlAvailabilitySchema.default('available'),
   activePresetId: z.string().min(1).nullable(),
   bands: z.array(sonyEqualizerBandSchema).length(10),
   presets: z.array(sonyEqualizerPresetSchema).min(1),
@@ -393,6 +405,8 @@ export type SonyBackgroundRoom = z.infer<typeof sonyBackgroundRoomSchema>;
 
 export const sonyListeningModeCapabilitySchema = z.object({
   writable: z.boolean(),
+  availability: headsetControlAvailabilitySchema.default('available'),
+  supportedModes: z.array(sonyListeningModeSchema).min(1).default(['standard', 'background-music', 'cinema']),
   mode: sonyListeningModeSchema.nullable(),
   backgroundRoom: sonyBackgroundRoomSchema.nullable(),
   unavailableReason: z.string().optional(),
@@ -1136,6 +1150,7 @@ export const deviceControlChangeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('headset-equalizer-bands'), gainsDb: z.array(z.number().int().min(-6).max(6)).length(10) }),
   z.object({ type: z.literal('headset-dsee-extreme'), enabled: z.boolean() }),
   z.object({ type: z.literal('headset-speak-to-chat'), enabled: z.boolean() }),
+  z.object({ type: z.literal('headset-reconnect') }),
   z.object({
     type: z.literal('headset-listening-mode'),
     mode: sonyListeningModeSchema,

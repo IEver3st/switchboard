@@ -81,7 +81,11 @@ function applyPhotographicLighting(data: Uint8ClampedArray, target: RgbColor, in
       saturation: targetHsl.saturation,
       lightness: sourceHsl.lightness,
     });
-    const neutralValue = relativeLuminance(source) * 0.14;
+    // Keep the vendor photograph opaque. The RGB spill is part of the product
+    // silhouette as well as its illumination, so alpha-keying it makes an unlit
+    // black keyboard disappear against Switchboard's dark canvas. Neutralize
+    // emitted color while retaining enough luminance to show keys and edges.
+    const neutralValue = relativeLuminance(source) * 0.55;
     const neutral = { red: neutralValue, green: neutralValue, blue: neutralValue };
     const lit = mixColor(neutral, colorized, intensity);
     const output = mixColor(source, lit, maskStrength);
@@ -89,11 +93,6 @@ function applyPhotographicLighting(data: Uint8ClampedArray, target: RgbColor, in
     data[offset] = Math.round(output.red);
     data[offset + 1] = Math.round(output.green);
     data[offset + 2] = Math.round(output.blue);
-    if (intensity === 0) {
-      // A photographic glow remains opaque even after its RGB is neutralized.
-      // Fade those emitted-light pixels instead of leaving a dark halo behind.
-      data[offset + 3] = Math.round((data[offset + 3] ?? 0) * (1 - maskStrength * 0.88));
-    }
   }
 }
 
@@ -167,30 +166,6 @@ export function adaptBlackHardwareForDarkSurface(data: Uint8ClampedArray): void 
     data[offset] = Math.min(255, red + lift);
     data[offset + 1] = Math.min(255, green + lift);
     data[offset + 2] = Math.min(255, blue + lift);
-  }
-}
-
-/**
- * Builds a soft transparency matte for product photography shot against a
- * nearly black backdrop. Saturated lighting and material highlights remain
- * intact while dark, neutral backdrop pixels fall into Switchboard's stage.
- */
-export function matteDarkProductBackdrop(data: Uint8ClampedArray): void {
-  for (let offset = 0; offset < data.length; offset += 4) {
-    const alpha = data[offset + 3] ?? 0;
-    if (alpha <= 0) continue;
-
-    const red = data[offset] ?? 0;
-    const green = data[offset + 1] ?? 0;
-    const blue = data[offset + 2] ?? 0;
-    const maximum = Math.max(red, green, blue);
-    const minimum = Math.min(red, green, blue);
-    const saturation = maximum > 0 ? (maximum - minimum) / maximum : 0;
-    const neutralWeight = 1 - smoothstep(0.07, 0.22, saturation);
-    const darkness = 1 - smoothstep(16, 52, maximum);
-    const matteStrength = neutralWeight * darkness;
-
-    data[offset + 3] = Math.round(alpha * (1 - matteStrength));
   }
 }
 

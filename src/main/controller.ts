@@ -51,7 +51,7 @@ import {
   type SystemSnapshot,
   type UpdateSettingsInput,
 } from '../shared/contracts';
-import { defaultAudio, defaultCaptureConfig, defaultGameDetection, defaultSettings } from '../shared/defaults';
+import { defaultAudio, defaultCaptureConfig, defaultDevices, defaultGameDetection, defaultSettings } from '../shared/defaults';
 import {
   applyAudioPathPreset,
   findMatchingAudioPresetId,
@@ -120,6 +120,7 @@ export class AppController {
   private captureSourceThumbnailsRefreshedAt = 0;
   private gameScan: Promise<SystemSnapshot> | null = null;
   private readonly activeClipExports = new Map<string, AbortController>();
+  private snapshotPreparation: Promise<void> | null = null;
   private initialization: Promise<void> | null = null;
   private disposed = false;
 
@@ -169,13 +170,30 @@ export class AppController {
     return this.initialization;
   }
 
-  private async initializeOnce(): Promise<void> {
+  public prepareSnapshot(): Promise<void> {
+    this.snapshotPreparation ??= this.prepareSnapshotOnce();
+    return this.snapshotPreparation;
+  }
+
+  private async prepareSnapshotOnce(): Promise<void> {
     await this.store.load();
     if (this.disposed) return;
+    if (process.env.SWITCHBOARD_NATIVE_FIXTURES === '1') {
+      this.store.update((draft) => {
+        draft.devices = structuredClone(defaultDevices);
+      }, { persist: false });
+    } else {
+      this.devices.removeLegacyFixtures();
+    }
     this.store.update((draft) => {
       draft.version = app.getVersion();
       draft.prototypeMode = !app.isPackaged;
     }, { persist: false });
+  }
+
+  private async initializeOnce(): Promise<void> {
+    await this.prepareSnapshot();
+    if (this.disposed) return;
     await this.appUpdates.initialize(appUpdatePreferences(this.store.get().settings));
     if (this.disposed) return;
     await this.refreshAudioDevices(true);

@@ -478,18 +478,18 @@ export const defaultDevices: Device[] = [
       battery: { percentage: 84, charging: false, fullyCharged: false, updatedAt: Date.now() },
       headset: {
         platform: 'sony-mdr', model: 'wh-1000xm6', transportState: 'connected',
-        noiseControl: { writable: true, mode: 'noise-cancelling', ambientLevel: 12, ambientLevelMin: 1, ambientLevelMax: 20, focusOnVoice: false },
+        noiseControl: { writable: true, availability: 'available', supportedModes: ['noise-cancelling', 'ambient', 'off'], mode: 'noise-cancelling', ambientLevel: 12, ambientLevelMin: 1, ambientLevelMax: 20, focusOnVoice: false },
         equalizer: {
-          writable: true, activePresetId: 'custom', gainMinDb: -6, gainMaxDb: 6,
+          writable: true, bandsWritable: true, availability: 'available', activePresetId: 'custom', gainMinDb: -6, gainMaxDb: 6,
           bands: [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000].map((frequencyHz, index) => ({ frequencyHz, gainDb: [1, 2, 1, 0, -1, 0, 2, 3, 2, 1][index] ?? 0 })),
           presets: [
             ['off', 'Off'], ['heavy', 'Heavy'], ['clear', 'Clear'], ['hard', 'Hard'], ['soft', 'Soft'],
             ['custom', 'Custom'], ['user-1', 'User 1'], ['user-2', 'User 2'], ['user-3', 'User 3'], ['user-4', 'User 4'], ['user-5', 'User 5'],
           ].map(([id, label]) => ({ id: id!, label: label!, writable: true, storedOnHeadphones: true })),
         },
-        dseeExtreme: { enabled: true, writable: true },
-        speakToChat: { enabled: false, writable: true },
-        listeningMode: { writable: true, mode: 'standard', backgroundRoom: 'my-room' },
+        dseeExtreme: { enabled: true, writable: true, availability: 'available' },
+        speakToChat: { enabled: false, writable: true, availability: 'available' },
+        listeningMode: { writable: true, availability: 'available', supportedModes: ['standard', 'background-music', 'cinema'], mode: 'standard', backgroundRoom: 'my-room' },
         diagnostics: { protocol: 'sony-mdr-v2', lastSyncAt: now(), reconnectCount: 0, malformedFrameCount: 0, commandFailureCount: 0, lastErrorCode: null },
       },
     },

@@ -12,6 +12,20 @@ mock.module('electron', () => ({
 const { DeviceRegistry } = await import('../src/main/services/device-registry');
 
 describe('device registry lifecycle', () => {
+  test('removes preview fixture devices before real discovery starts', async () => {
+    let snapshot = createDefaultSnapshot();
+    const registry = new DeviceRegistry(
+      () => snapshot,
+      (devices) => { snapshot = { ...snapshot, devices }; },
+      { modules: [], listHidDevices: async () => [] },
+    );
+
+    registry.removeLegacyFixtures();
+
+    expect(snapshot.devices).toHaveLength(0);
+    await registry.dispose();
+  });
+
   test('bounds a stalled HID enumeration without starting overlapping native scans', async () => {
     let releaseFirst!: (devices: []) => void;
     const stalledEnumeration = new Promise<[]>((resolve) => { releaseFirst = resolve; });

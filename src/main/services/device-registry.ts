@@ -52,6 +52,13 @@ export class DeviceRegistry {
     this.timer.unref();
   }
 
+  public removeLegacyFixtures(): void {
+    if (this.fixtureMode) return;
+    const snapshot = this.getSnapshot();
+    const devices = snapshot.devices.filter((device) => !legacyFixtureIds.has(device.id));
+    if (devices.length !== snapshot.devices.length) this.applyDevices(devices, { persist: false });
+  }
+
   public refresh(): Promise<void> {
     if (this.refreshPromise) return this.refreshPromise;
     this.refreshPromise = this.discover()

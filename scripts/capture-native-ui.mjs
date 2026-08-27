@@ -27,6 +27,7 @@ app.setName('switchboard-native-review');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
+process.env.SWITCHBOARD_NATIVE_FIXTURES ??= '1';
 const verifyAudioNoise = process.argv.includes('--verify-audio-noise');
 if (verifyAudioNoise) process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
@@ -42,6 +43,7 @@ const screens = [
   { name: 'g502-x-plus', prepare: () => openDevice('G502 X Plus') },
   { name: 'quadcast-2', prepare: () => openDevice('QuadCast 2') },
   { name: 'huntsman-v2-analog', prepare: () => openDevice('Huntsman V2 Analog') },
+  { name: 'wh-1000xm6', prepare: () => openDevice('WH-1000XM6') },
   { name: 'audio-mixer', prepare: () => openAudioTab('mixer') },
   { name: 'audio-game', prepare: () => openAudioTab('game') },
   { name: 'audio-chat', prepare: () => openAudioTab('chat') },
@@ -183,7 +185,7 @@ async function installReviewStyles(target) {
 }
 
 async function openDeviceGallery() {
-  await clickButton('Devices');
+  await window.webContents.executeJavaScript(`window.location.hash = 'devices'`);
   await window.webContents.executeJavaScript(`
     (() => {
       const back = [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'All devices');
@@ -191,7 +193,12 @@ async function openDeviceGallery() {
       return true;
     })()
   `);
-  await waitForSelector('.device-gallery');
+  try {
+    await waitForSelector('.device-gallery');
+  } catch (error) {
+    const diagnostic = await window.webContents.executeJavaScript(`({ hash: window.location.hash, title: document.title, body: document.body?.innerText?.slice(0, 500), workbench: Boolean(document.querySelector('.device-workbench')), settings: Boolean(document.querySelector('.settings-page')) })`);
+    throw new Error(`Device gallery did not open: ${JSON.stringify(diagnostic)}`, { cause: error });
+  }
   await scrollMainToTop();
 }
 
@@ -215,6 +222,20 @@ async function openDevice(name) {
 
 async function openAudioTab(tab) {
   await clickButton('Audio');
+  if (tab !== 'mixer' && tab !== 'microphone') {
+    await window.webContents.executeJavaScript(`
+      window.switchboard.getSnapshot().then((snapshot) => {
+        const bus = snapshot.audio.buses.find((candidate) => candidate.id === ${JSON.stringify(tab)});
+        return bus?.enabled
+          ? snapshot
+          : window.switchboard.setAudioChannelEnabled({ busId: ${JSON.stringify(tab)}, enabled: true });
+      })
+    `);
+    await waitForCondition(
+      `window.switchboard.getSnapshot().then((snapshot) => snapshot.audio.buses.find((candidate) => candidate.id === ${JSON.stringify(tab)})?.enabled === true)`,
+      `${tab} audio channel`,
+    );
+  }
   await window.webContents.executeJavaScript(`
     (() => {
       window.location.hash = ${JSON.stringify(`audio/${tab}`)};
@@ -295,13 +316,20 @@ async function openNoiseDiagnostics() {
 }
 
 async function verifyAudioNoiseWorkflow() {
+  const before = await getNativeAudioSnapshot();
+  if (!before.audio.enabled) {
+    await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(true)`);
+  }
   await waitForCondition(
-    `window.switchboard.getSnapshot().then((snapshot) => snapshot.audio.enabled && snapshot.audio.host?.noiseSuppression.state === 'ready')`,
+    `window.switchboard.getSnapshot().then((snapshot) => {
+      const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
+      return snapshot.audio.enabled && engine?.state === 'running' && Boolean(engine.pid) && snapshot.audio.host?.noiseSuppression.state === 'ready';
+    })`,
     'native microphone noise suppression',
   );
   const initial = await getNativeAudioSnapshot();
   const initialEngine = initial.engines.find((engine) => engine.kind === 'audio');
-  assertReview(initialEngine?.state === 'running' && initialEngine.pid, 'Audio.Host did not report a running native process.');
+  assertReview(initialEngine?.state === 'running' && initialEngine.pid, `Audio.Host did not report a running native process: ${JSON.stringify(initialEngine)}`);
   assertReview(initial.audio.host?.noiseSuppression.backend === 'RNNoise' || initial.audio.host?.noiseSuppression.backend === 'DeepFilterNet3', 'No production noise backend was active.');
 
   const light = await window.webContents.executeJavaScript(`window.switchboard.setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 25 } })`);

@@ -306,13 +306,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
         this.probeUpdatedAt = this.dependencies.now();
         return confirmedControl({ type: 'keyboard-onboard-profile', profileId: String(confirmed) });
       }
-      if (change.type === 'keyboard-rapid-trigger') {
-        throw new Error('Rapid Trigger requires Synapse 4 on this Huntsman V2 Analog firmware.');
-      }
-      if (change.type === 'keyboard-snap-tap') {
-        throw new Error('Snap Tap requires Synapse 4 to remain active on this non-V3 keyboard.');
-      }
-        throw new Error(`${device.displayName} does not support the requested device control.`);
+      throw new Error(`${device.displayName} does not support the requested device control.`);
       });
       this.lastControlError = undefined;
       return result;

@@ -164,10 +164,10 @@ async function exerciseWorkflows() {
 
   await step('audio.mixer-and-chatmix', async () => {
     const before = await snapshot();
-    const originalGameGain = before.audio.buses.find((bus) => bus.id === 'game').gain;
+    const originalGameGain = before.audio.mixes.find((mix) => mix.id === 'personal').buses.find((bus) => bus.id === 'game').gain;
     const originalChatMix = before.audio.chatMix;
     const controls = await evaluate(`
-      ['Game fader', 'ChatMix game and chat balance'].map((label) => {
+      ['Game in personal mix fader', 'ChatMix game and chat balance'].map((label) => {
         const slider = document.querySelector('[aria-label="' + label + '"]');
         return { label, min: slider?.getAttribute('aria-valuemin'), max: slider?.getAttribute('aria-valuemax'), valueText: slider?.getAttribute('aria-valuetext') };
       })
@@ -175,11 +175,11 @@ async function exerciseWorkflows() {
     if (controls.some((control) => !control.valueText)) throw new Error(`Mixer controls were incomplete: ${JSON.stringify(controls)}`);
     const nextGain = Math.max(0, originalGameGain - 0.05);
     const nextChatMix = Math.min(1, originalChatMix + 0.05);
-    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ busId: 'game', gain: nextGain })})`);
-    await waitSnapshot((value) => value.audio.buses.find((bus) => bus.id === 'game').gain === nextGain, 'Game fader');
+    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ mixId: 'personal', busId: 'game', gain: nextGain })})`);
+    await waitSnapshot((value) => value.audio.mixes.find((mix) => mix.id === 'personal').buses.find((bus) => bus.id === 'game').gain === nextGain, 'Game fader');
     await evaluate(`window.switchboard.setChatMix(${JSON.stringify(nextChatMix)})`);
     await waitSnapshot((value) => value.audio.chatMix === nextChatMix, 'ChatMix');
-    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ busId: 'game', gain: originalGameGain })})`);
+    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ mixId: 'personal', busId: 'game', gain: originalGameGain })})`);
     await evaluate(`window.switchboard.setChatMix(${JSON.stringify(originalChatMix)})`);
     return { controls, gameGainChanged: true, chatMixChanged: true };
   });
@@ -223,28 +223,35 @@ async function exerciseWorkflows() {
     return { chat: 'Clear Voice', media: 'Music' };
   });
 
-  await step('audio.microphone-preset-and-simple-controls', async () => {
+  await step('audio.microphone-preset-and-primary-controls', async () => {
     await openAudioTab('microphone');
     await selectPreset('Clear Speech');
     await waitSnapshot((value) => value.audio.activePresetIds.microphone === 'mic-clear-speech', 'Microphone preset');
-    await clickSimpleChoice('Noise removal', 'Strong');
+    const controls = await evaluate(`
+      ['Removal strength', 'Gate threshold', 'Compression ratio'].map((label) => {
+        const slider = document.querySelector('[role="slider"][aria-label="' + label + '"]');
+        return { label, min: slider?.getAttribute('aria-valuemin'), max: slider?.getAttribute('aria-valuemax'), valueText: slider?.getAttribute('aria-valuetext') };
+      })
+    `);
+    if (controls.some((control) => !control.min || !control.max || !control.valueText)) {
+      throw new Error(`Microphone primary controls were incomplete: ${JSON.stringify(controls)}`);
+    }
+    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 80 } })})`);
     await waitSnapshot((value) => micProcessor(value, 'noise-suppression').parameters.amount === 80, 'Noise removal');
-    await clickSimpleChoice('Noise gate', 'Balanced');
+    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: -48 } })})`);
     await waitSnapshot((value) => micProcessor(value, 'noise-gate').parameters.thresholdDb === -48, 'Noise gate');
-    await clickSimpleChoice('Voice consistency', 'Broadcast');
+    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'compressor', enabled: true, parameters: { ratio: 4 } })})`);
     await waitSnapshot((value) => micProcessor(value, 'compressor').parameters.ratio === 4, 'Voice consistency');
-    return { noiseRemoval: 80, gateThresholdDb: -48, compressorRatio: 4 };
+    return { controls, noiseRemoval: 80, gateThresholdDb: -48, compressorRatio: 4 };
   });
 
-  await step('audio.microphone-advanced-and-precise-eq', async () => {
-    await clickButtonText('Advanced controls');
-    await waitForSelector('#microphone-compressor');
-    const ratioValue = await evaluate(`document.querySelector('#microphone-compressor [aria-label="Ratio"]')?.getAttribute('aria-valuenow')`);
+  await step('audio.microphone-precise-controls-and-eq', async () => {
+    const ratioValue = await evaluate(`document.querySelector('#microphone-consistency-section [aria-label="Compression ratio"]')?.getAttribute('aria-valuenow')`);
     if (ratioValue === undefined) throw new Error('The advanced compressor ratio control was not rendered.');
     await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'compressor', parameters: { ratio: 4.1 } })})`);
     await waitSnapshot((value) => micProcessor(value, 'compressor').parameters.ratio === 4.1, 'Advanced compressor ratio');
     const voiceSection = await sectionText('Voice consistency');
-    if (!voiceSection.includes('Custom')) throw new Error('The simple voice control did not synchronize to Custom.');
+    if (!voiceSection.includes('4.1')) throw new Error('The visible voice consistency control did not synchronize to 4.1:1.');
     const microphone = await snapshot();
     const bands = structuredClone(micProcessor(microphone, 'equalizer').parameters.bands);
     bands[0].gainDb = -2.5;
@@ -360,24 +367,6 @@ async function openAudioTab(tab) {
   await waitForSelector(`#audio-panel-${tab}`);
 }
 
-async function clickSimpleChoice(title, option, timeout = 10_000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    const clicked = await evaluate(`
-      (() => {
-        const section = [...document.querySelectorAll('.audio-simple-section')].find((candidate) => candidate.querySelector('.human-setting__title')?.textContent?.includes(${JSON.stringify(title)}));
-        const button = [...(section?.querySelectorAll('button') ?? [])].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(option)});
-        if (!button || button.disabled) return false;
-        button.click();
-        return true;
-      })()
-    `);
-    if (clicked) return;
-    await delay(50);
-  }
-  throw new Error(`Could not choose ${option} for ${title}.`);
-}
-
 async function clickButtonText(text, scope = 'body') {
   const clicked = await evaluate(`
     (() => {
@@ -448,7 +437,7 @@ async function textContent(selector) {
 
 async function sectionText(title) {
   return evaluate(`
-    [...document.querySelectorAll('.audio-simple-section')].find((candidate) => candidate.querySelector('.human-setting__title')?.textContent?.includes(${JSON.stringify(title)}))?.textContent ?? ''
+    [...document.querySelectorAll('.mic-setting')].find((candidate) => candidate.querySelector('h3')?.textContent?.includes(${JSON.stringify(title)}))?.textContent ?? ''
   `);
 }
 

@@ -70,7 +70,7 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
         <span>~{formatBytes(estimatedBytes)} per replay</span>
         <span aria-hidden="true">·</span>
         <span>{formatBytes(snapshot.capture.storage.availableBytes)} available</span>
-        <span className="ml-auto hidden text-text-description min-[940px]:inline">{runtime.encoderLabel || 'Encoder pending'}</span>
+        <span className="ml-auto hidden text-text-description min-[940px]:inline">Encoder · {runtime.encoderLabel || 'Pending'}</span>
       </div>
       {notice ? <div className={cn('capture-toolbar__notice border-t border-border py-2 text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
     </section>

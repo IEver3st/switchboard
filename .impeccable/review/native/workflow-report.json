@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-08-26T08:16:52.180Z",
+  "startedAt": "2026-08-27T08:43:30.255Z",
   "steps": [
     {
       "name": "devices.open-g502",
@@ -44,7 +44,7 @@
       "evidence": {
         "enabled": true,
         "color": "#FF4F7D",
-        "colorTrigger": "Lighting color #ff1744"
+        "colorTrigger": "Lighting color #7dd3fc"
       }
     },
     {
@@ -100,7 +100,7 @@
       "evidence": {
         "controls": [
           {
-            "label": "Game fader",
+            "label": "Game in personal mix fader",
             "min": "0",
             "max": "150",
             "valueText": "100 percent"
@@ -117,10 +117,11 @@
       }
     },
     {
-      "name": "audio.routing-empty-state",
+      "name": "audio.routing-notice-removed",
       "passed": true,
       "evidence": {
-        "state": "unavailable"
+        "state": "unavailable",
+        "standaloneNotice": false
       }
     },
     {
@@ -146,16 +147,36 @@
       }
     },
     {
-      "name": "audio.microphone-preset-and-simple-controls",
+      "name": "audio.microphone-preset-and-primary-controls",
       "passed": true,
       "evidence": {
+        "controls": [
+          {
+            "label": "Removal strength",
+            "min": "0",
+            "max": "100",
+            "valueText": "60 %"
+          },
+          {
+            "label": "Gate threshold",
+            "min": "-80",
+            "max": "-10",
+            "valueText": "-44.0 dB"
+          },
+          {
+            "label": "Compression ratio",
+            "min": "1",
+            "max": "20",
+            "valueText": "3.5 :1"
+          }
+        ],
         "noiseRemoval": 80,
         "gateThresholdDb": -48,
         "compressorRatio": 4
       }
     },
     {
-      "name": "audio.microphone-advanced-and-precise-eq",
+      "name": "audio.microphone-precise-controls-and-eq",
       "passed": true,
       "evidence": {
         "ratioFieldValue": "4",
@@ -165,11 +186,17 @@
       }
     },
     {
-      "name": "audio.unavailable-workflows",
+      "name": "audio.capability-gated-workflows",
       "passed": true,
       "evidence": {
-        "microphoneTest": true,
-        "monitoring": true
+        "microphoneTest": {
+          "capability": "available",
+          "disabled": false
+        },
+        "monitoring": {
+          "capability": "available",
+          "disabled": false
+        }
       }
     },
     {
@@ -189,11 +216,11 @@
     }
   ],
   "capabilities": {
-    "quadCastLighting": "unavailable",
-    "quadCastInputMeter": "simulation",
+    "quadCastLighting": "writable",
+    "quadCastInputMeter": "unavailable",
     "applicationRouting": "unavailable",
-    "microphoneTest": "unavailable",
-    "monitoring": "unavailable"
+    "microphoneTest": "available",
+    "monitoring": "available"
   },
-  "completedAt": "2026-08-26T08:16:57.518Z"
+  "completedAt": "2026-08-27T08:43:32.424Z"
 }

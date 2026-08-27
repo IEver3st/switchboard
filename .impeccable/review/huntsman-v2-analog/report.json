@@ -190,8 +190,8 @@
         "viewportWidth": 1080,
         "workspaceWidth": 1012,
         "workspaceScrollWidth": 1012,
-        "workbenchBottom": 462.5625228881836,
-        "routineControlsBottom": 461.89585876464844,
+        "workbenchBottom": 512.5625228881836,
+        "routineControlsBottom": 511.89585876464844,
         "innerHeight": 722
       },
       "offFilename": "1080x720-off.png"
@@ -207,8 +207,8 @@
         "viewportWidth": 1420,
         "workspaceWidth": 1352,
         "workspaceScrollWidth": 1352,
-        "workbenchBottom": 630.5625228881836,
-        "routineControlsBottom": 629.8958587646484,
+        "workbenchBottom": 657.5625228881836,
+        "routineControlsBottom": 656.8958587646484,
         "innerHeight": 900
       },
       "offFilename": "1420x900-off.png"
@@ -224,8 +224,8 @@
         "viewportWidth": 1920,
         "workspaceWidth": 1852,
         "workspaceScrollWidth": 1852,
-        "workbenchBottom": 661.5625228881836,
-        "routineControlsBottom": 660.8958587646484,
+        "workbenchBottom": 701.5625228881836,
+        "routineControlsBottom": 700.8958587646484,
         "innerHeight": 1080
       },
       "offFilename": "1920x1080-off.png"

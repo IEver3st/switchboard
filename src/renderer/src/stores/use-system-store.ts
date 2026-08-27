@@ -135,13 +135,20 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     error: null,
     pendingDeviceIds: [],
     async initialize() {
+      let receivedSubscriptionSnapshot = false;
+      const unsubscribe = switchboardApi.subscribe((snapshot) => {
+        receivedSubscriptionSnapshot = true;
+        set({ snapshot });
+      });
       try {
         const snapshot = await switchboardApi.getSnapshot();
-        set({
-          snapshot,
-          selectedDeviceId: get().selectedDeviceId,
-          loading: false,
-        });
+        set(receivedSubscriptionSnapshot
+          ? { loading: false }
+          : {
+              snapshot,
+              selectedDeviceId: get().selectedDeviceId,
+              loading: false,
+            });
       } catch (error) {
         set({ loading: false, error: error instanceof Error ? error.message : String(error) });
       }
@@ -154,7 +161,6 @@ export const useSystemStore = create<SystemStore>((set, get) => {
         set({ page, selectedDeviceId: null });
       };
       window.addEventListener('hashchange', onHashChange);
-      const unsubscribe = switchboardApi.subscribe((snapshot) => set({ snapshot }));
       return () => {
         window.removeEventListener('hashchange', onHashChange);
         unsubscribe();
