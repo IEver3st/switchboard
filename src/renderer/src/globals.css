@@ -14,8 +14,8 @@
   --text-secondary: #a1aab7;
   --text-description: #7d8795;
   --text-muted: #697586;
-  --accent-brand: #f05d7d;
-  --accent-hover: #ff6b8b;
+  --accent-brand: #89cff0;
+  --accent-hover: #a8ddf5;
   --accent-subtle: color-mix(in srgb, var(--accent-brand) 12%, transparent);
   --status-success: #5cc69b;
   --status-info: #6c9eff;
@@ -41,7 +41,7 @@
   --popover: var(--surface-interactive);
   --popover-foreground: var(--text-primary);
   --primary: var(--accent-brand);
-  --primary-foreground: #260b12;
+  --primary-foreground: #07151c;
   --secondary: var(--surface-interactive);
   --secondary-foreground: var(--text-primary);
   --muted: var(--surface-1);
@@ -1075,12 +1075,20 @@ select {
   background: var(--success);
 }
 
-.battery-status[data-severity="low"] .battery-status__progress-indicator {
+.battery-status[data-state="low"] .battery-status__progress-indicator {
   background: var(--warning);
 }
 
-.battery-status[data-severity="critical"] .battery-status__progress-indicator {
+.battery-status[data-state="critical"] .battery-status__progress-indicator {
   background: var(--destructive);
+}
+
+.battery-status[data-state="low"] .battery-status__icon-wrap {
+  color: var(--warning);
+}
+
+.battery-status[data-state="critical"] .battery-status__icon-wrap {
+  color: var(--destructive);
 }
 
 .battery-status__tooltip {

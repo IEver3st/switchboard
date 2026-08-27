@@ -14,8 +14,8 @@ colors:
   text-secondary: "#a1aab7"
   text-description: "#7d8795"
   text-muted: "#697586"
-  accent-brand: "#f05d7d"
-  accent-hover: "#ff6b8b"
+  accent-brand: "#89cff0"
+  accent-hover: "#a8ddf5"
   status-success: "#5cc69b"
   status-info: "#6c9eff"
   status-warning: "#e5b567"
@@ -71,7 +71,7 @@ spacing:
 components:
   button-primary:
     backgroundColor: "{colors.accent-brand}"
-    textColor: "#260b12"
+    textColor: "#07151c"
     typography: "{typography.label}"
     rounded: "{rounded.sm}"
     height: "36px"
@@ -118,41 +118,41 @@ The interface is continuous and operational. Users select a path, act on one pro
 
 - Continuous console composition with visible signal flow
 - Full-width audio instruments followed by generous processing modules
-- Ink, graphite, and steel surfaces with coral interaction states
+- Ink, graphite, and steel surfaces with baby-blue interaction states
 - Stable semantic colors for channels and EQ bands
 - Tight utility typography, thin dividers, and restrained corners
 - No ornamental effects competing with live controls
 
 ## Colors
 
-The palette is nearly black and cool-neutral; coral marks interaction while channel, EQ, and status colors carry stable operational meaning.
+The palette is nearly black and cool-neutral; baby blue marks interaction while channel, EQ, and status colors carry stable operational meaning.
 
 ### Primary
 
-- **Signal Coral:** Reserved for active controls, selection indicators, focus, and the master mixer path. It is an interaction color, not ambient decoration.
-- **Live Coral:** The brighter hover counterpart for primary actions.
+- **Signal Blue** (#89cff0): Reserved for active controls, selection indicators, focus, and the master mixer path. It is an interaction color, not ambient decoration.
+- **Live Blue** (#a8ddf5): The brighter hover counterpart for primary actions.
 
 ### Secondary
 
-- **Game Teal, Chat Blue, Media Violet, and Microphone Amber:** Stable channel identities used on mixer meters, fader ranges, icons, and related readouts.
-- **Success Mint, Information Blue, Warning Amber, and Danger Red:** Semantic status colors used only with text, icons, or structure that also communicates meaning.
+- **Game Teal, Chat Blue, Media Violet, and Microphone Amber** (#53bfae, #6f9fe8, #a889dc, #dda65a): Stable channel identities used on mixer meters, fader ranges, icons, and related readouts.
+- **Success Mint, Information Blue, Warning Amber, and Danger Red** (#5cc69b, #6c9eff, #e5b567, #e96969): Semantic status colors used only with text, icons, or structure that also communicates meaning.
 
 ### Tertiary
 
-- **Eight-Band Spectrum:** Muted rose, ochre, green, blue, violet, mauve, steel, and umber distinguish individual EQ nodes and their band selectors. Selection always adds shape, size, text, or surface treatment.
+- **Eight-Band Spectrum** (#d9788d, #c69a62, #61b394, #6f98c7, #927fc9, #b47791, #8290a2, #a98967): Muted rose, ochre, green, blue, violet, mauve, steel, and umber distinguish individual EQ nodes and their band selectors. Selection always adds shape, size, text, or surface treatment.
 
 ### Neutral
 
-- **Ink Background and Chrome:** Form the application shell and persistent navigation.
-- **Graphite Surfaces:** Separate instruments, processing modules, popovers, and interactive fields through small tonal steps.
-- **Steel Dividers:** Define functional boundaries with one-pixel rules.
-- **Primary, Secondary, Description, and Muted Text:** Preserve a four-step information hierarchy without opacity hacks.
+- **Ink Background and Chrome** (#0d1015, #10141a): Form the application shell and persistent navigation.
+- **Graphite Surfaces** (#141920, #161c24, #181e27, #1d2530): Separate instruments, processing modules, popovers, and interactive fields through small tonal steps.
+- **Steel Dividers** (#252d38, #323c49): Define functional boundaries with one-pixel rules.
+- **Primary, Secondary, Description, and Muted Text** (#f2f4f7, #a1aab7, #7d8795, #697586): Preserve a four-step information hierarchy without opacity hacks.
 
 ### Named Rules
 
-**The Coral Is Interaction Rule.** Coral appears where the user can act or where a primary state is active; it never becomes ambient decoration.
+**The Blue Is Interaction Rule.** Baby blue appears where the user can act or where a primary state is active; it never becomes ambient decoration.
 
-**The Stable Channel Identity Rule.** Master is coral, Game is teal, Chat is blue, Media is violet, and Microphone is amber everywhere those channels appear.
+**The Stable Channel Identity Rule.** Master is baby blue, Game is teal, Chat is blue, Media is violet, and Microphone is amber everywhere those channels appear.
 
 **The Band Identity Rule.** Every EQ band keeps its assigned color, but no selected or enabled state may rely on color alone.
 
@@ -214,20 +214,20 @@ Shared shadcn and Radix primitives remain the base. Components preserve semantic
 ### Buttons
 
 - **Shape:** Compact rectangular controls with gently restrained corners (4px).
-- **Primary:** Coral fill, dark foreground, and 36px height; reserve for the clearest committed action.
+- **Primary:** Baby-blue fill, dark foreground, and 36px height; reserve for the clearest committed action.
 - **Secondary:** Graphite fill with a steel border; hover strengthens both surface and border.
 - **Ghost:** Transparent at rest and tonal on hover; use for icon utilities and reversible secondary actions.
-- **Focus / Disabled:** Use a two-pixel coral-tinted focus ring. Disabled controls remain visible at reduced contrast and do not accept pointer input.
+- **Focus / Disabled:** Use a two-pixel baby-blue-tinted focus ring. Disabled controls remain visible at reduced contrast and do not accept pointer input.
 
 ### Inputs / Fields
 
 - **Style:** Graphite interactive fill, steel border, compact 34px height, and 4px corners.
-- **Focus:** Strengthen the border or add a restrained two-pixel coral-tinted ring.
+- **Focus:** Strengthen the border or add a restrained two-pixel baby-blue-tinted ring.
 - **Unavailable / Disabled:** Keep the current or placeholder value readable and expose the reason nearby; never replace capability truth with a convincing inert field.
 
 ### Navigation
 
-- **Audio path tabs:** Simple text labels in a 54px rail. Active state combines primary text with a two-pixel coral underline; hover uses a quiet graphite tint. Arrow keys, Home, and End move focus.
+- **Audio path tabs:** Simple text labels in a 54px rail. Active state combines primary text with a two-pixel baby-blue underline; hover uses a quiet graphite tint. Arrow keys, Home, and End move focus.
 - **Application navigation:** Persistent, compact, and visually subordinate to the working surface. Active state is explicit and focus remains visible.
 
 ### Switches and Semantic Choices
@@ -265,4 +265,3 @@ The mixer is one continuous bounded desk with channel separators. Faders and met
 - **Don't** introduce card grids, nested cards, pill-shaped text containers, giant radii, or decorative icon boxes.
 - **Don't** fabricate controls, telemetry, search, hardware capability, audio routing, or capture state.
 - **Don't** expose low-level identifiers outside diagnostics or bypass Electron's canonical state ownership.
-

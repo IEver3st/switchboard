@@ -1,0 +1,668 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-26T22:39:00-05:00",
+  "title": "Design System: Switchboard",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Ink Background",
+        "canonical": "#0d1015",
+        "tonalRamp": [
+          "oklch(15% 0.012 260.6)",
+          "oklch(26% 0.012 260.6)",
+          "oklch(38% 0.012 260.6)",
+          "oklch(50% 0.012 260.6)",
+          "oklch(62% 0.012 260.6)",
+          "oklch(74% 0.012 260.6)",
+          "oklch(86% 0.012 260.6)",
+          "oklch(95% 0.012 260.6)"
+        ]
+      },
+      "chrome": {
+        "role": "neutral",
+        "displayName": "Console Chrome",
+        "canonical": "#10141a",
+        "tonalRamp": [
+          "oklch(15% 0.014 258.4)",
+          "oklch(26% 0.014 258.4)",
+          "oklch(38% 0.014 258.4)",
+          "oklch(50% 0.014 258.4)",
+          "oklch(62% 0.014 258.4)",
+          "oklch(74% 0.014 258.4)",
+          "oklch(86% 0.014 258.4)",
+          "oklch(95% 0.014 258.4)"
+        ]
+      },
+      "surface-1": {
+        "role": "neutral",
+        "displayName": "Graphite Surface",
+        "canonical": "#141920",
+        "tonalRamp": [
+          "oklch(15% 0.016 256.8)",
+          "oklch(26% 0.016 256.8)",
+          "oklch(38% 0.016 256.8)",
+          "oklch(50% 0.016 256.8)",
+          "oklch(62% 0.016 256.8)",
+          "oklch(74% 0.016 256.8)",
+          "oklch(86% 0.016 256.8)",
+          "oklch(95% 0.016 256.8)"
+        ]
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Raised Graphite",
+        "canonical": "#161c24",
+        "tonalRamp": [
+          "oklch(15% 0.018 255.7)",
+          "oklch(26% 0.018 255.7)",
+          "oklch(38% 0.018 255.7)",
+          "oklch(50% 0.018 255.7)",
+          "oklch(62% 0.018 255.7)",
+          "oklch(74% 0.018 255.7)",
+          "oklch(86% 0.018 255.7)",
+          "oklch(95% 0.018 255.7)"
+        ]
+      },
+      "surface-interactive": {
+        "role": "neutral",
+        "displayName": "Interactive Graphite",
+        "canonical": "#181e27",
+        "tonalRamp": [
+          "oklch(15% 0.020 258.4)",
+          "oklch(26% 0.020 258.4)",
+          "oklch(38% 0.020 258.4)",
+          "oklch(50% 0.020 258.4)",
+          "oklch(62% 0.020 258.4)",
+          "oklch(74% 0.020 258.4)",
+          "oklch(86% 0.020 258.4)",
+          "oklch(95% 0.020 258.4)"
+        ]
+      },
+      "surface-hover": {
+        "role": "neutral",
+        "displayName": "Hover Graphite",
+        "canonical": "#1d2530",
+        "tonalRamp": [
+          "oklch(15% 0.024 256.4)",
+          "oklch(26% 0.024 256.4)",
+          "oklch(38% 0.024 256.4)",
+          "oklch(50% 0.024 256.4)",
+          "oklch(62% 0.024 256.4)",
+          "oklch(74% 0.024 256.4)",
+          "oklch(86% 0.024 256.4)",
+          "oklch(95% 0.024 256.4)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Steel Divider",
+        "canonical": "#252d38",
+        "tonalRamp": [
+          "oklch(15% 0.023 256.4)",
+          "oklch(26% 0.023 256.4)",
+          "oklch(38% 0.023 256.4)",
+          "oklch(50% 0.023 256.4)",
+          "oklch(62% 0.023 256.4)",
+          "oklch(74% 0.023 256.4)",
+          "oklch(86% 0.023 256.4)",
+          "oklch(95% 0.023 256.4)"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Strong Steel",
+        "canonical": "#323c49",
+        "tonalRamp": [
+          "oklch(15% 0.026 255.1)",
+          "oklch(26% 0.026 255.1)",
+          "oklch(38% 0.026 255.1)",
+          "oklch(50% 0.026 255.1)",
+          "oklch(62% 0.026 255.1)",
+          "oklch(74% 0.026 255.1)",
+          "oklch(86% 0.026 255.1)",
+          "oklch(95% 0.026 255.1)"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Primary Utility White",
+        "canonical": "#f2f4f7",
+        "tonalRamp": [
+          "oklch(15% 0.005 258.3)",
+          "oklch(26% 0.005 258.3)",
+          "oklch(38% 0.005 258.3)",
+          "oklch(50% 0.005 258.3)",
+          "oklch(62% 0.005 258.3)",
+          "oklch(74% 0.005 258.3)",
+          "oklch(86% 0.005 258.3)",
+          "oklch(95% 0.005 258.3)"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Steel Text",
+        "canonical": "#a1aab7",
+        "tonalRamp": [
+          "oklch(15% 0.021 257.5)",
+          "oklch(26% 0.021 257.5)",
+          "oklch(38% 0.021 257.5)",
+          "oklch(50% 0.021 257.5)",
+          "oklch(62% 0.021 257.5)",
+          "oklch(74% 0.021 257.5)",
+          "oklch(86% 0.021 257.5)",
+          "oklch(95% 0.021 257.5)"
+        ]
+      },
+      "text-description": {
+        "role": "neutral",
+        "displayName": "Description Gray",
+        "canonical": "#7d8795",
+        "tonalRamp": [
+          "oklch(15% 0.024 256.8)",
+          "oklch(26% 0.024 256.8)",
+          "oklch(38% 0.024 256.8)",
+          "oklch(50% 0.024 256.8)",
+          "oklch(62% 0.024 256.8)",
+          "oklch(74% 0.024 256.8)",
+          "oklch(86% 0.024 256.8)",
+          "oklch(95% 0.024 256.8)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Slate Text",
+        "canonical": "#697586",
+        "tonalRamp": [
+          "oklch(15% 0.030 257.1)",
+          "oklch(26% 0.030 257.1)",
+          "oklch(38% 0.030 257.1)",
+          "oklch(50% 0.030 257.1)",
+          "oklch(62% 0.030 257.1)",
+          "oklch(74% 0.030 257.1)",
+          "oklch(86% 0.030 257.1)",
+          "oklch(95% 0.030 257.1)"
+        ]
+      },
+      "accent-brand": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#89cff0",
+        "tonalRamp": [
+          "oklch(15% 0.084 229.3)",
+          "oklch(26% 0.084 229.3)",
+          "oklch(38% 0.084 229.3)",
+          "oklch(50% 0.084 229.3)",
+          "oklch(62% 0.084 229.3)",
+          "oklch(74% 0.084 229.3)",
+          "oklch(86% 0.084 229.3)",
+          "oklch(95% 0.084 229.3)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Live Blue",
+        "canonical": "#a8ddf5",
+        "tonalRamp": [
+          "oklch(15% 0.064 227.5)",
+          "oklch(26% 0.064 227.5)",
+          "oklch(38% 0.064 227.5)",
+          "oklch(50% 0.064 227.5)",
+          "oklch(62% 0.064 227.5)",
+          "oklch(74% 0.064 227.5)",
+          "oklch(86% 0.064 227.5)",
+          "oklch(95% 0.064 227.5)"
+        ]
+      },
+      "status-success": {
+        "role": "tertiary",
+        "displayName": "Success Mint",
+        "canonical": "#5cc69b",
+        "tonalRamp": [
+          "oklch(15% 0.118 164.4)",
+          "oklch(26% 0.118 164.4)",
+          "oklch(38% 0.118 164.4)",
+          "oklch(50% 0.118 164.4)",
+          "oklch(62% 0.118 164.4)",
+          "oklch(74% 0.118 164.4)",
+          "oklch(86% 0.118 164.4)",
+          "oklch(95% 0.118 164.4)"
+        ]
+      },
+      "status-info": {
+        "role": "tertiary",
+        "displayName": "Information Blue",
+        "canonical": "#6c9eff",
+        "tonalRamp": [
+          "oklch(15% 0.152 262.5)",
+          "oklch(26% 0.152 262.5)",
+          "oklch(38% 0.152 262.5)",
+          "oklch(50% 0.152 262.5)",
+          "oklch(62% 0.152 262.5)",
+          "oklch(74% 0.152 262.5)",
+          "oklch(86% 0.152 262.5)",
+          "oklch(95% 0.152 262.5)"
+        ]
+      },
+      "status-warning": {
+        "role": "tertiary",
+        "displayName": "Warning Amber",
+        "canonical": "#e5b567",
+        "tonalRamp": [
+          "oklch(15% 0.111 78.2)",
+          "oklch(26% 0.111 78.2)",
+          "oklch(38% 0.111 78.2)",
+          "oklch(50% 0.111 78.2)",
+          "oklch(62% 0.111 78.2)",
+          "oklch(74% 0.111 78.2)",
+          "oklch(86% 0.111 78.2)",
+          "oklch(95% 0.111 78.2)"
+        ]
+      },
+      "status-danger": {
+        "role": "tertiary",
+        "displayName": "Danger Red",
+        "canonical": "#e96969",
+        "tonalRamp": [
+          "oklch(15% 0.159 22.3)",
+          "oklch(26% 0.159 22.3)",
+          "oklch(38% 0.159 22.3)",
+          "oklch(50% 0.159 22.3)",
+          "oklch(62% 0.159 22.3)",
+          "oklch(74% 0.159 22.3)",
+          "oklch(86% 0.159 22.3)",
+          "oklch(95% 0.159 22.3)"
+        ]
+      },
+      "status-neutral": {
+        "role": "neutral",
+        "displayName": "Neutral Status Slate",
+        "canonical": "#586474",
+        "tonalRamp": [
+          "oklch(15% 0.030 255.7)",
+          "oklch(26% 0.030 255.7)",
+          "oklch(38% 0.030 255.7)",
+          "oklch(50% 0.030 255.7)",
+          "oklch(62% 0.030 255.7)",
+          "oklch(74% 0.030 255.7)",
+          "oklch(86% 0.030 255.7)",
+          "oklch(95% 0.030 255.7)"
+        ]
+      },
+      "channel-game": {
+        "role": "secondary",
+        "displayName": "Game Teal",
+        "canonical": "#53bfae",
+        "tonalRamp": [
+          "oklch(15% 0.102 181.5)",
+          "oklch(26% 0.102 181.5)",
+          "oklch(38% 0.102 181.5)",
+          "oklch(50% 0.102 181.5)",
+          "oklch(62% 0.102 181.5)",
+          "oklch(74% 0.102 181.5)",
+          "oklch(86% 0.102 181.5)",
+          "oklch(95% 0.102 181.5)"
+        ]
+      },
+      "channel-chat": {
+        "role": "secondary",
+        "displayName": "Chat Blue",
+        "canonical": "#6f9fe8",
+        "tonalRamp": [
+          "oklch(15% 0.120 258.5)",
+          "oklch(26% 0.120 258.5)",
+          "oklch(38% 0.120 258.5)",
+          "oklch(50% 0.120 258.5)",
+          "oklch(62% 0.120 258.5)",
+          "oklch(74% 0.120 258.5)",
+          "oklch(86% 0.120 258.5)",
+          "oklch(95% 0.120 258.5)"
+        ]
+      },
+      "channel-media": {
+        "role": "secondary",
+        "displayName": "Media Violet",
+        "canonical": "#a889dc",
+        "tonalRamp": [
+          "oklch(15% 0.123 300.4)",
+          "oklch(26% 0.123 300.4)",
+          "oklch(38% 0.123 300.4)",
+          "oklch(50% 0.123 300.4)",
+          "oklch(62% 0.123 300.4)",
+          "oklch(74% 0.123 300.4)",
+          "oklch(86% 0.123 300.4)",
+          "oklch(95% 0.123 300.4)"
+        ]
+      },
+      "channel-microphone": {
+        "role": "secondary",
+        "displayName": "Microphone Amber",
+        "canonical": "#dda65a",
+        "tonalRamp": [
+          "oklch(15% 0.114 73.5)",
+          "oklch(26% 0.114 73.5)",
+          "oklch(38% 0.114 73.5)",
+          "oklch(50% 0.114 73.5)",
+          "oklch(62% 0.114 73.5)",
+          "oklch(74% 0.114 73.5)",
+          "oklch(86% 0.114 73.5)",
+          "oklch(95% 0.114 73.5)"
+        ]
+      },
+      "eq-band-1": {
+        "role": "tertiary",
+        "displayName": "Band 1 Rose",
+        "canonical": "#d9788d",
+        "tonalRamp": [
+          "oklch(15% 0.122 7.0)",
+          "oklch(26% 0.122 7.0)",
+          "oklch(38% 0.122 7.0)",
+          "oklch(50% 0.122 7.0)",
+          "oklch(62% 0.122 7.0)",
+          "oklch(74% 0.122 7.0)",
+          "oklch(86% 0.122 7.0)",
+          "oklch(95% 0.122 7.0)"
+        ]
+      },
+      "eq-band-2": {
+        "role": "tertiary",
+        "displayName": "Band 2 Ochre",
+        "canonical": "#c69a62",
+        "tonalRamp": [
+          "oklch(15% 0.090 72.3)",
+          "oklch(26% 0.090 72.3)",
+          "oklch(38% 0.090 72.3)",
+          "oklch(50% 0.090 72.3)",
+          "oklch(62% 0.090 72.3)",
+          "oklch(74% 0.090 72.3)",
+          "oklch(86% 0.090 72.3)",
+          "oklch(95% 0.090 72.3)"
+        ]
+      },
+      "eq-band-3": {
+        "role": "tertiary",
+        "displayName": "Band 3 Green",
+        "canonical": "#61b394",
+        "tonalRamp": [
+          "oklch(15% 0.094 167.1)",
+          "oklch(26% 0.094 167.1)",
+          "oklch(38% 0.094 167.1)",
+          "oklch(50% 0.094 167.1)",
+          "oklch(62% 0.094 167.1)",
+          "oklch(74% 0.094 167.1)",
+          "oklch(86% 0.094 167.1)",
+          "oklch(95% 0.094 167.1)"
+        ]
+      },
+      "eq-band-4": {
+        "role": "tertiary",
+        "displayName": "Band 4 Blue",
+        "canonical": "#6f98c7",
+        "tonalRamp": [
+          "oklch(15% 0.084 252.4)",
+          "oklch(26% 0.084 252.4)",
+          "oklch(38% 0.084 252.4)",
+          "oklch(50% 0.084 252.4)",
+          "oklch(62% 0.084 252.4)",
+          "oklch(74% 0.084 252.4)",
+          "oklch(86% 0.084 252.4)",
+          "oklch(95% 0.084 252.4)"
+        ]
+      },
+      "eq-band-5": {
+        "role": "tertiary",
+        "displayName": "Band 5 Violet",
+        "canonical": "#927fc9",
+        "tonalRamp": [
+          "oklch(15% 0.110 294.9)",
+          "oklch(26% 0.110 294.9)",
+          "oklch(38% 0.110 294.9)",
+          "oklch(50% 0.110 294.9)",
+          "oklch(62% 0.110 294.9)",
+          "oklch(74% 0.110 294.9)",
+          "oklch(86% 0.110 294.9)",
+          "oklch(95% 0.110 294.9)"
+        ]
+      },
+      "eq-band-6": {
+        "role": "tertiary",
+        "displayName": "Band 6 Mauve",
+        "canonical": "#b47791",
+        "tonalRamp": [
+          "oklch(15% 0.083 352.5)",
+          "oklch(26% 0.083 352.5)",
+          "oklch(38% 0.083 352.5)",
+          "oklch(50% 0.083 352.5)",
+          "oklch(62% 0.083 352.5)",
+          "oklch(74% 0.083 352.5)",
+          "oklch(86% 0.083 352.5)",
+          "oklch(95% 0.083 352.5)"
+        ]
+      },
+      "eq-band-7": {
+        "role": "tertiary",
+        "displayName": "Band 7 Steel",
+        "canonical": "#8290a2",
+        "tonalRamp": [
+          "oklch(15% 0.031 254.8)",
+          "oklch(26% 0.031 254.8)",
+          "oklch(38% 0.031 254.8)",
+          "oklch(50% 0.031 254.8)",
+          "oklch(62% 0.031 254.8)",
+          "oklch(74% 0.031 254.8)",
+          "oklch(86% 0.031 254.8)",
+          "oklch(95% 0.031 254.8)"
+        ]
+      },
+      "eq-band-8": {
+        "role": "tertiary",
+        "displayName": "Band 8 Umber",
+        "canonical": "#a98967",
+        "tonalRamp": [
+          "oklch(15% 0.061 68.1)",
+          "oklch(26% 0.061 68.1)",
+          "oklch(38% 0.061 68.1)",
+          "oklch(50% 0.061 68.1)",
+          "oklch(62% 0.061 68.1)",
+          "oklch(74% 0.061 68.1)",
+          "oklch(86% 0.061 68.1)",
+          "oklch(95% 0.061 68.1)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Workspace Heading",
+        "purpose": "Route and workspace headings."
+      },
+      "title": {
+        "displayName": "Instrument Title",
+        "purpose": "Instrument, module, and setting titles."
+      },
+      "body": {
+        "displayName": "Operational Body",
+        "purpose": "Plain-language explanations and availability copy."
+      },
+      "label": {
+        "displayName": "Utility Label",
+        "purpose": "Tabs, fields, states, and compact controls."
+      }
+    },
+    "shadows": [
+      {
+        "name": "fader-thumb",
+        "value": "0 1px 2px rgb(0 0 0 / 38%)",
+        "purpose": "Small tactile lift for the draggable mixer thumb."
+      },
+      {
+        "name": "transient-overlay",
+        "value": "0 14px 32px rgb(0 0 0 / 30%)",
+        "purpose": "Separation for dialogs and popovers only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "120ms ease-out",
+        "purpose": "Focus, opacity, node, and compact state transitions."
+      },
+      {
+        "name": "state-standard",
+        "value": "140ms ease-out",
+        "purpose": "Hover and surface-color transitions."
+      },
+      {
+        "name": "selection-emphasis",
+        "value": "160ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Audio-tab underline selection."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "none",
+        "purpose": "Disable nonessential transitions when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "860px"
+      },
+      {
+        "name": "console",
+        "value": "1180px"
+      },
+      {
+        "name": "wide",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The committed action; baby blue is intentionally scarce.",
+      "html": "<button class=\"ds-btn-primary\">Apply preset</button>",
+      "css": ".ds-btn-primary { display:inline-flex; height:36px; align-items:center; justify-content:center; border:0; border-radius:4px; background:var(--accent-brand); padding:0 16px; color:#07151c; font:600 10.5px/1.35 var(--font-sans, Inter, sans-serif); cursor:pointer; transition:background-color 140ms ease-out; } .ds-btn-primary:hover { background:var(--accent-hover); } .ds-btn-primary:focus-visible { outline:2px solid var(--ring); outline-offset:2px; } .ds-btn-primary:active { background:var(--accent-brand); } .ds-btn-primary:disabled { cursor:not-allowed; opacity:.45; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The default utility action for routine desktop work.",
+      "html": "<button class=\"ds-btn-secondary\">Test microphone</button>",
+      "css": ".ds-btn-secondary { display:inline-flex; height:36px; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:4px; background:var(--surface-interactive); padding:0 16px; color:var(--text-primary); font:600 10.5px/1.35 var(--font-sans, Inter, sans-serif); cursor:pointer; transition:border-color 140ms ease-out, background-color 140ms ease-out; } .ds-btn-secondary:hover { border-color:var(--border-strong); background:var(--surface-hover); } .ds-btn-secondary:focus-visible { outline:2px solid color-mix(in srgb, var(--ring) 72%, transparent); outline-offset:2px; } .ds-btn-secondary:active { background:var(--surface-1); }"
+    },
+    {
+      "name": "Preset Select",
+      "kind": "input",
+      "refersTo": "select-trigger",
+      "description": "A compact graphite field for device and preset selection.",
+      "html": "<label class=\"ds-select\"><span>Sound</span><select><option>Flat</option><option>Balanced</option></select></label>",
+      "css": ".ds-select { display:grid; grid-template-columns:auto minmax(172px,238px); align-items:center; gap:8px; color:var(--text-description); font:600 10.5px/1.35 var(--font-sans, Inter, sans-serif); } .ds-select select { height:34px; min-width:0; border:1px solid var(--border); border-radius:4px; background:var(--surface-interactive); padding:0 10px; color:var(--text-primary); font:600 11px/1.35 var(--font-sans, Inter, sans-serif); } .ds-select select:hover { border-color:var(--border-strong); background:var(--surface-hover); } .ds-select select:focus-visible { outline:2px solid color-mix(in srgb, var(--ring) 45%, transparent); outline-offset:1px; } .ds-select select:disabled { cursor:not-allowed; opacity:.5; }"
+    },
+    {
+      "name": "Audio Path Tabs",
+      "kind": "nav",
+      "refersTo": "audio-tab",
+      "description": "The quiet text rail that moves between Mixer, Game, Chat, Media, and Microphone.",
+      "html": "<nav class=\"ds-audio-tabs\" aria-label=\"Audio workspace\"><button class=\"ds-audio-tab\">Mixer</button><button class=\"ds-audio-tab ds-audio-tab-active\" aria-current=\"page\">Game</button><button class=\"ds-audio-tab\">Chat</button><button class=\"ds-audio-tab\">Media</button><button class=\"ds-audio-tab\">Microphone</button></nav>",
+      "css": ".ds-audio-tabs { display:flex; height:54px; align-items:stretch; border-bottom:1px solid var(--border); background:color-mix(in srgb, var(--background) 96%, var(--surface-1)); padding:0 20px; } .ds-audio-tab { position:relative; min-width:92px; border:0; background:transparent; padding:0 18px; color:var(--text-description); font:620 12.5px/1.35 var(--font-sans, Inter, sans-serif); text-align:left; cursor:pointer; transition:color 140ms ease-out, background-color 140ms ease-out; } .ds-audio-tab:hover { background:color-mix(in srgb, var(--surface-hover) 42%, transparent); color:var(--text-secondary); } .ds-audio-tab-active { color:var(--text-primary); } .ds-audio-tab-active::after { position:absolute; right:18px; bottom:-1px; left:18px; height:2px; background:var(--accent-brand); content:''; } .ds-audio-tab:focus-visible { outline:0; box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--ring) 72%, transparent); }"
+    },
+    {
+      "name": "Setting Toggle",
+      "kind": "custom",
+      "description": "A plain-language setting row with explicit text and switch state.",
+      "html": "<section class=\"ds-setting\"><div><h3>Output safety</h3><p>Prevents sudden clipping and excessive peaks.</p></div><label><span>On</span><button class=\"ds-switch\" role=\"switch\" aria-checked=\"true\" aria-label=\"Output safety\"><span></span></button></label></section>",
+      "css": ".ds-setting { display:flex; min-height:68px; align-items:flex-start; justify-content:space-between; gap:24px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2); padding:14px 16px; color:var(--text-primary); font-family:var(--font-sans, Inter, sans-serif); } .ds-setting h3 { margin:0; font-size:13px; font-weight:650; } .ds-setting p { max-width:58ch; margin:4px 0 0; color:var(--text-description); font-size:10.5px; line-height:1.45; } .ds-setting label { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; } .ds-switch { position:relative; width:42px; height:24px; border:1px solid var(--accent-brand); border-radius:999px; background:color-mix(in srgb, var(--accent-brand) 25%, transparent); cursor:pointer; } .ds-switch span { position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%; background:var(--accent-brand); } .ds-switch:hover { border-color:var(--accent-hover); } .ds-switch:focus-visible { outline:2px solid color-mix(in srgb, var(--ring) 72%, transparent); outline-offset:2px; }"
+    },
+    {
+      "name": "EQ Band Selector",
+      "kind": "custom",
+      "description": "A semantic band rail whose selected state is structural as well as colorful.",
+      "html": "<div class=\"ds-eq-bands\" role=\"list\" aria-label=\"Equalizer bands\"><button class=\"ds-eq-band ds-eq-band-selected\" style=\"--ds-band:var(--eq-band-1)\"><span></span><strong>1</strong><small>80 Hz</small></button><button class=\"ds-eq-band\" style=\"--ds-band:var(--eq-band-2)\"><span></span><strong>2</strong><small>180 Hz</small></button><button class=\"ds-eq-band\" style=\"--ds-band:var(--eq-band-3)\"><span></span><strong>3</strong><small>700 Hz</small></button></div>",
+      "css": ".ds-eq-bands { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2px; border-bottom:1px solid color-mix(in srgb, var(--border) 70%, transparent); padding-bottom:8px; font-family:var(--font-sans, Inter, sans-serif); } .ds-eq-band { display:flex; min-height:34px; align-items:center; justify-content:center; gap:5px; border:0; border-radius:4px; background:transparent; color:var(--text-description); cursor:pointer; } .ds-eq-band > span { width:5px; height:5px; border-radius:50%; background:var(--ds-band); } .ds-eq-band strong { color:var(--text-secondary); font-size:10.5px; } .ds-eq-band small { font-size:10.5px; } .ds-eq-band:hover { background:var(--surface-hover); } .ds-eq-band-selected { background:color-mix(in srgb, var(--ds-band) 13%, transparent); color:var(--ds-band); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ds-band) 35%, transparent); } .ds-eq-band-selected strong { color:var(--ds-band); } .ds-eq-band:focus-visible { outline:2px solid var(--ring); outline-offset:1px; }"
+    },
+    {
+      "name": "Processing Module",
+      "kind": "card",
+      "refersTo": "processing-module",
+      "description": "A generous outcome-first module placed below the primary instrument.",
+      "html": "<section class=\"ds-processing\"><header><div><h3>Volume leveling</h3><small>Normalization + compressor</small></div><span>On</span></header><p>Keeps quiet and loud moments closer together.</p><div class=\"ds-segments\" role=\"group\" aria-label=\"Volume leveling strength\"><button>Natural</button><button class=\"ds-segment-active\">Balanced</button><button>Strong</button></div></section>",
+      "css": ".ds-processing { min-height:146px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2); padding:14px 16px 16px; color:var(--text-primary); font-family:var(--font-sans, Inter, sans-serif); } .ds-processing header { display:flex; align-items:baseline; justify-content:space-between; gap:24px; } .ds-processing h3 { display:inline; margin:0; font-size:13px; font-weight:650; } .ds-processing small { margin-left:8px; color:var(--text-muted); font-size:9.5px; } .ds-processing header > span { font-size:11px; font-weight:600; } .ds-processing p { max-width:58ch; margin:4px 0 12px; color:var(--text-description); font-size:10.5px; line-height:1.45; } .ds-segments { display:flex; overflow:hidden; border:1px solid var(--border); border-radius:4px; } .ds-segments button { height:38px; flex:1; border:0; border-left:1px solid var(--border); background:var(--surface-1); color:var(--text-muted); font-size:10.5px; font-weight:600; } .ds-segments button:first-child { border-left:0; } .ds-segments button:hover { background:var(--surface-hover); color:var(--text-primary); } .ds-segments .ds-segment-active { background:color-mix(in srgb, var(--accent-brand) 12%, transparent); color:var(--accent-brand); } .ds-segments button:focus-visible { position:relative; outline:2px solid var(--ring); outline-offset:-2px; }"
+    },
+    {
+      "name": "Mixer Fader",
+      "kind": "custom",
+      "description": "A tactile channel-colored level control with an exact numeric readout.",
+      "html": "<article class=\"ds-fader\" style=\"--ds-channel:var(--channel-game)\"><header><span class=\"ds-channel-dot\"></span><h3>Game</h3></header><div class=\"ds-fader-body\"><div class=\"ds-fader-track\"><div class=\"ds-fader-range\"></div><button class=\"ds-fader-thumb\" aria-label=\"Game level, 87 percent\"><span></span></button></div></div><output>87%</output></article>",
+      "css": ".ds-fader { width:150px; border-right:1px solid var(--border); background:var(--surface-1); padding:13px 14px; color:var(--text-primary); font-family:var(--font-sans, Inter, sans-serif); } .ds-fader header { display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding-bottom:10px; } .ds-channel-dot { width:8px; height:8px; border-radius:50%; background:var(--ds-channel); } .ds-fader h3 { margin:0; font-size:12.5px; font-weight:650; } .ds-fader-body { display:flex; height:218px; justify-content:center; padding-top:14px; } .ds-fader-track { position:relative; width:5px; height:100%; border-radius:2px; background:var(--border-strong); } .ds-fader-range { position:absolute; right:0; bottom:0; left:0; height:62%; border-radius:2px; background:var(--ds-channel); } .ds-fader-thumb { position:absolute; top:36%; left:50%; display:flex; width:17px; height:23px; transform:translate(-50%,-50%); align-items:center; justify-content:center; border:1px solid #c7ced8; border-radius:3px; background:#f3f5f8; box-shadow:0 1px 2px rgb(0 0 0 / 38%); cursor:ns-resize; } .ds-fader-thumb span { width:9px; height:2px; background:var(--ds-channel); } .ds-fader-thumb:hover { border-color:#ffffff; } .ds-fader-thumb:focus-visible { outline:2px solid var(--ring); outline-offset:3px; } .ds-fader output { display:block; width:58px; margin:8px auto 0; border:1px solid var(--border); border-radius:4px; background:var(--border-strong); padding:5px 6px; font-size:11px; font-weight:620; font-variant-numeric:tabular-nums; text-align:center; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Wide Sonar Console",
+    "overview": "Switchboard is an ink-black Windows control surface with the calm legibility of studio equipment. Graphite modules, fine steel dividers, crisp utility type, and sparse semantic color make complex hardware and audio state readable without turning the product into a generic dashboard or gaming spectacle.\n\nThe interface is continuous and operational. Users select a path, act on one prominent instrument, then follow the signal flow into large plain-language controls. Capability truth is part of the visual system: unavailable, disabled, pending, error, and selected states remain explicit and survive canonical state round trips.",
+    "keyCharacteristics": [
+      "Continuous console composition with visible signal flow",
+      "Full-width audio instruments followed by generous processing modules",
+      "Ink, graphite, and steel surfaces with baby-blue interaction states",
+      "Stable semantic colors for channels and EQ bands",
+      "Tight utility typography, thin dividers, and restrained corners",
+      "No ornamental effects competing with live controls"
+    ],
+    "rules": [
+      {
+        "name": "The Blue Is Interaction Rule",
+        "body": "Baby blue appears where the user can act or where a primary state is active; it never becomes ambient decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stable Channel Identity Rule",
+        "body": "Master is baby blue, Game is teal, Chat is blue, Media is violet, and Microphone is amber everywhere those channels appear.",
+        "section": "colors"
+      },
+      {
+        "name": "The Band Identity Rule",
+        "body": "Every EQ band keeps its assigned color, but no selected or enabled state may rely on color alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Utility Before Theater Rule",
+        "body": "Type is compact and direct; hierarchy comes from weight and contrast, never oversized headings or decorative typography.",
+        "section": "typography"
+      },
+      {
+        "name": "The Instrument Leads Rule",
+        "body": "Each audio path is led by one broad instrument; never compress the EQ into a side rail or place routine processing ahead of it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Continuous Desk Rule",
+        "body": "Related controls share aligned rows and dividers. Surfaces mark real functional boundaries, not decorative card nesting.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat At Rest Rule",
+        "body": "Persistent surfaces use tone and dividers; shadow is reserved for transient elevation or a draggable physical control.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do lead each Game, Chat, Media, and Microphone path with its full-width EQ.",
+      "Do keep routine controls, current state, recovery actions, signal chain, meters, faders, and unavailable reasons visible.",
+      "Do preserve stable channel and EQ-band colors while adding non-color state cues.",
+      "Do use switches, segmented choices, faders, sliders, and graphs for the values they are designed to control.",
+      "Do verify 1080 × 720, 1420 × 900, and 1920 × 1080 without horizontal overflow.",
+      "Do extend existing shared shadcn/Radix primitives and the canonical audio contracts."
+    ],
+    "donts": [
+      "Don't return audio processing to a compressed side rail or hide routine work behind repeated disclosure.",
+      "Don't restyle Switchboard as a website, generic dashboard, gaming overlay, or component-library showcase.",
+      "Don't use gradients, glow, glassmorphism, neon, decorative blur, ambient visualizers, ornamental animation, or routine shadows.",
+      "Don't introduce card grids, nested cards, pill-shaped text containers, giant radii, or decorative icon boxes.",
+      "Don't fabricate controls, telemetry, search, hardware capability, audio routing, or capture state.",
+      "Don't expose low-level identifiers outside diagnostics or bypass Electron's canonical state ownership."
+    ]
+  }
+}

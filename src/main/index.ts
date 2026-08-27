@@ -1,8 +1,12 @@
 import { app, BrowserWindow, Menu, nativeImage, net, protocol, session, Tray } from 'electron';
-import { join } from 'node:path';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { Readable } from 'node:stream';
 import { AppController } from './controller';
 import { registerIpc } from './ipc';
+import { parseByteRange } from './media-byte-range';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -169,6 +173,7 @@ if (hasSingleInstanceLock) {
       const path = controller?.getClipPath(id, url.hostname === 'thumbnail');
       if (!path) return new Response('Not found', { status: 404 });
       const range = request.headers.get('range');
+      if (url.hostname === 'clip') return streamClip(path, range);
       return net.fetch(pathToFileURL(path).toString(), range ? { headers: { Range: range } } : undefined);
     });
     cleanupIpc = registerIpc(controller, () => mainWindow);
@@ -195,3 +200,32 @@ app.on('before-quit', (event) => {
     .catch((error) => console.error('Switchboard shutdown failed.', error))
     .finally(() => app.exit(0));
 });
+
+async function streamClip(path: string, rangeHeader: string | null): Promise<Response> {
+  const file = await stat(path);
+  const headers = new Headers({
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'no-store',
+    'Content-Type': clipContentType(path),
+  });
+  const range = parseByteRange(rangeHeader, file.size);
+  if (rangeHeader && !range) {
+    headers.set('Content-Range', `bytes */${file.size}`);
+    return new Response(null, { status: 416, headers });
+  }
+
+  const start = range?.start ?? 0;
+  const end = range?.end ?? Math.max(0, file.size - 1);
+  headers.set('Content-Length', String(Math.max(0, end - start + 1)));
+  if (range) headers.set('Content-Range', `bytes ${start}-${end}/${file.size}`);
+  const stream = Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream<Uint8Array>;
+  return new Response(stream, { status: range ? 206 : 200, headers });
+}
+
+function clipContentType(path: string): string {
+  switch (extname(path).toLowerCase()) {
+    case '.mkv': return 'video/x-matroska';
+    case '.webm': return 'video/webm';
+    default: return 'video/mp4';
+  }
+}

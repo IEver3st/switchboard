@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
+import { formatBatteryRuntime } from './battery-status-format';
 
 interface BatteryStatusProps {
   battery?: BatteryCapability;
@@ -23,7 +24,8 @@ export function BatteryStatus({
   loading = false,
   className,
 }: BatteryStatusProps) {
-  if (loading || !battery) return <BatteryStatusSkeleton variant={variant} className={className} />;
+  if (loading) return <BatteryStatusSkeleton variant={variant} className={className} />;
+  if (!battery) return null;
 
   const roundedPercentage = Math.round(battery.percentage);
   const severity = roundedPercentage <= 5 ? 'critical' : roundedPercentage <= 15 ? 'low' : 'normal';
@@ -60,6 +62,7 @@ export function BatteryStatus({
           data-charging={isCharging || undefined}
           data-severity={severity}
           data-state={state}
+          role="group"
           tabIndex={variant === 'header' ? 0 : undefined}
           aria-label={accessible}
         >
@@ -140,13 +143,6 @@ function BatteryStatusSkeleton({ variant, className }: { variant: 'compact' | 'h
       </div>
     </div>
   );
-}
-
-export function formatBatteryRuntime(minutes: number): string {
-  const safeMinutes = Math.max(0, Math.round(minutes));
-  if (safeMinutes < 60) return `~${Math.max(1, safeMinutes)} ${safeMinutes === 1 ? 'minute' : 'minutes'} remaining`;
-  const hours = Math.max(1, Math.round(safeMinutes / 60));
-  return `~${hours} ${hours === 1 ? 'hour' : 'hours'} remaining`;
 }
 
 function batteryRuntimeLabel(battery: BatteryCapability, connected: boolean): string {

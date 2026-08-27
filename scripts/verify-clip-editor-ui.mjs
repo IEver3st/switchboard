@@ -252,12 +252,26 @@ async function verifyTimelineInteractions(window) {
   clicked.pointerEvents = await evaluate(window, `window.__timelinePointerEvents`);
   if (clicked.currentMs === 0) throw new Error(`Native click did not reach the timeline: ${JSON.stringify(clicked)}`);
   assertNear(clicked.currentMs, clicked.durationMs * 0.25, 180, 'Click-to-seek');
+  try {
+    await waitForCondition(async () => {
+      const state = await timelineState(window);
+      return Math.abs(state.videoMs - clicked.currentMs) <= 180;
+    }, 'click-to-seek preview update', 5_000);
+  } catch (error) {
+    throw new Error(`${error.message} ${JSON.stringify(await timelineState(window))}`);
+  }
+  clicked.videoMs = (await timelineState(window)).videoMs;
   assertNear(clicked.videoMs, clicked.currentMs, 180, 'Click-to-seek preview');
   assertTrimUnchanged(initial, clicked, 'Click-to-seek');
 
   await pointerDrag(window, surface.x + surface.width * 0.32, trackY, surface.x + surface.width * 0.68, trackY);
   const scrubbed = await timelineState(window);
   assertNear(scrubbed.currentMs, scrubbed.durationMs * 0.68, 200, 'Drag-to-scrub');
+  await waitForCondition(async () => {
+    const state = await timelineState(window);
+    return Math.abs(state.videoMs - scrubbed.currentMs) <= 180;
+  }, 'drag-to-scrub preview update', 5_000);
+  scrubbed.videoMs = (await timelineState(window)).videoMs;
   assertNear(scrubbed.videoMs, scrubbed.currentMs, 180, 'Drag-to-scrub preview');
   assertTrimUnchanged(initial, scrubbed, 'Drag-to-scrub');
   if (scrubbed.interaction !== 'idle') throw new Error(`Scrubbing did not return to idle: ${scrubbed.interaction}`);
@@ -273,11 +287,14 @@ async function verifyTimelineInteractions(window) {
   const endTrimmed = await timelineState(window);
   if (!(endTrimmed.endMs < initial.endMs)) throw new Error(`Right trim handle did not retreat: ${initial.endMs} -> ${endTrimmed.endMs}`);
   assertNear(endTrimmed.currentMs, startTrimmed.currentMs, 80, 'Right trim handle unexpectedly sought');
+  const trimmedScreenshot = join(outputDirectory, '1920x1080-clip-editor-trimmed.png');
+  await writeFile(trimmedScreenshot, (await window.webContents.capturePage()).toPNG());
 
   const crossedStartRect = await sliderRect(window, 'Trim start');
   await pointerDrag(window, crossedStartRect.x + crossedStartRect.width / 2, crossedStartRect.y + crossedStartRect.height / 2, surface.x + surface.width, trackY);
   const bounded = await timelineState(window);
   if (bounded.endMs - bounded.startMs < 100) throw new Error(`Trim handles crossed: ${bounded.startMs} -> ${bounded.endMs}`);
+  if (bounded.interaction !== 'idle') throw new Error(`Trim drag did not return to idle: ${bounded.interaction}`);
 
   await evaluate(window, `document.querySelector('[aria-label="Playhead"]')?.focus()`);
   await pressKey(window, 'LEFT');
@@ -285,7 +302,7 @@ async function verifyTimelineInteractions(window) {
   if (!(keyboard.currentMs < bounded.currentMs)) throw new Error('Playhead keyboard control did not move by one frame.');
   assertTrimUnchanged(bounded, keyboard, 'Playhead keyboard control');
 
-  return { initial, clicked, scrubbed, startTrimmed, endTrimmed, bounded, keyboard };
+  return { initial, clicked, scrubbed, startTrimmed, endTrimmed, bounded, keyboard, trimmedScreenshot };
 }
 
 async function timelineState(window) {
@@ -297,6 +314,9 @@ async function timelineState(window) {
       currentMs: read('Playhead'), startMs: read('Trim start'), endMs: read('Trim end'),
       durationMs: Number(playhead?.getAttribute('aria-valuemax')),
       videoMs: Math.round((video?.currentTime ?? 0) * 1000),
+      readyState: video?.readyState, seeking: video?.seeking,
+      seekable: video ? Array.from({ length: video.seekable.length }, (_, index) => [video.seekable.start(index), video.seekable.end(index)]) : [],
+      mediaError: video?.error ? { code: video.error.code, message: video.error.message } : null,
       interaction: document.querySelector('.clip-editor-timeline')?.getAttribute('data-interaction'),
     };
   })()`);
@@ -315,7 +335,7 @@ async function pointerDrag(window, startX, startY, endX, endY) {
   await window.webContents.sendInputEvent({ type: 'mouseMove', x: Math.round(endX), y: Math.round(endY), button: 'left' });
   await delay(30);
   await window.webContents.sendInputEvent({ type: 'mouseUp', x: Math.round(endX), y: Math.round(endY), button: 'left', clickCount: 1 });
-  await delay(100);
+  await delay(250);
 }
 
 function assertTrimUnchanged(before, after, label) {

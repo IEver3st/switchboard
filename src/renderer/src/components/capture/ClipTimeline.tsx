@@ -48,6 +48,7 @@ export function ClipTimeline({
   const timelineRef = useRef<HTMLDivElement>(null);
   const currentMsRef = useRef(startMs);
   const interactionRef = useRef<TimelineInteraction>('idle');
+  const pendingSeekMsRef = useRef<number | null>(null);
   const resumeAfterScrubRef = useRef(false);
   const playbackModeRef = useRef<'selection' | 'free'>('selection');
   const [currentMs, setCurrentMs] = useState(startMs);
@@ -62,7 +63,10 @@ export function ClipTimeline({
     currentMsRef.current = boundedMs;
     setCurrentMs(boundedMs);
     const video = videoRef.current;
-    if (video) video.currentTime = boundedMs / 1_000;
+    if (video) {
+      pendingSeekMsRef.current = boundedMs;
+      video.currentTime = boundedMs / 1_000;
+    }
   }, [durationMs, videoRef]);
 
   const setInteraction = (next: TimelineInteraction) => {
@@ -222,10 +226,34 @@ export function ClipTimeline({
   }, []);
 
   useEffect(() => {
+    const clearStalePointerState = () => {
+      if (interactionRef.current === 'idle') return;
+      interactionRef.current = 'idle';
+      resumeAfterScrubRef.current = false;
+      setInteractionState('idle');
+    };
+    window.addEventListener('pointerup', clearStalePointerState);
+    window.addEventListener('pointercancel', clearStalePointerState);
+    window.addEventListener('blur', clearStalePointerState);
+    return () => {
+      window.removeEventListener('pointerup', clearStalePointerState);
+      window.removeEventListener('pointercancel', clearStalePointerState);
+      window.removeEventListener('blur', clearStalePointerState);
+    };
+  }, []);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     const updateTime = () => {
       const nextMs = Math.min(durationMs, Math.max(0, video.currentTime * 1_000));
+      const pendingSeekMs = pendingSeekMsRef.current;
+      if (pendingSeekMs !== null && Math.abs(nextMs - pendingSeekMs) > Math.max(80, frameMs * 2)) {
+        currentMsRef.current = pendingSeekMs;
+        setCurrentMs(pendingSeekMs);
+        return;
+      }
+      pendingSeekMsRef.current = null;
       if (!video.paused && playbackModeRef.current === 'selection' && nextMs >= endMs) {
         video.pause();
         setPlayhead(endMs);
@@ -237,6 +265,7 @@ export function ClipTimeline({
     const updatePlayback = () => setPlaying(!video.paused);
     const updateVolume = () => setMuted(video.muted || video.volume === 0);
     video.addEventListener('timeupdate', updateTime);
+    video.addEventListener('seeked', updateTime);
     video.addEventListener('play', updatePlayback);
     video.addEventListener('pause', updatePlayback);
     video.addEventListener('ended', updatePlayback);
@@ -245,12 +274,13 @@ export function ClipTimeline({
     updateVolume();
     return () => {
       video.removeEventListener('timeupdate', updateTime);
+      video.removeEventListener('seeked', updateTime);
       video.removeEventListener('play', updatePlayback);
       video.removeEventListener('pause', updatePlayback);
       video.removeEventListener('ended', updatePlayback);
       video.removeEventListener('volumechange', updateVolume);
     };
-  }, [durationMs, endMs, setPlayhead, videoRef]);
+  }, [durationMs, endMs, frameMs, setPlayhead, videoRef]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
