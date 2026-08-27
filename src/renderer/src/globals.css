@@ -1785,8 +1785,8 @@ select {
   }
 
   .device-workbench[data-device-kind="mouse"] .mouse-stage {
-    height: 220px;
-    min-height: 220px;
+    height: 260px;
+    min-height: 260px;
   }
 
   .device-workbench[data-device-kind="mouse"] .device-workbench__controls {
@@ -1996,7 +1996,8 @@ select {
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
   background: var(--chrome);
-  padding: 0 18px 0 24px;
+  /* Keep header actions clear of the native window-control overlay. */
+  padding: 0 calc(18px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)) 0 24px;
 }
 
 .settings-breadcrumb,
@@ -2834,7 +2835,10 @@ select {
 .settings-reset-confirmation {
   position: absolute;
   top: 50px;
-  right: 18px;
+  right: calc(18px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+  /* Rendered inside the draggable settings header; without this the drag
+     region swallows pointer input on the Cancel and Restore buttons. */
+  -webkit-app-region: no-drag;
   display: grid;
   width: min(450px, calc(100vw - 40px));
   grid-template-columns: 18px minmax(0, 1fr);
@@ -4911,6 +4915,15 @@ select {
 
 .microphone-workbench .parametric-eq__graph {
   height: clamp(200px, 25vh, 290px);
+}
+
+.microphone-workbench .parametric-eq__inspector {
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+
+.microphone-workbench .mic-section--equalizer {
+  margin-top: 10px;
 }
 
 @media (min-width: 1600px) and (min-height: 900px) {

@@ -86,7 +86,24 @@ async function run() {
   await delay(500);
   window.focus();
   await delay(200);
-  const phase1 = await js(window, `Boolean(document.querySelector('.settings-reset-confirmation'))`, 'popup after os click on trigger');
+  let phase1 = await js(window, `Boolean(document.querySelector('.settings-reset-confirmation'))`, 'popup after os click on trigger');
+  if (!phase1) {
+    const diag = await js(window, `
+      (() => {
+        const el = document.elementFromPoint(${triggerLeft.x}, ${triggerLeft.y});
+        return { at: el ? el.tagName + '.' + (el.className?.baseVal ?? el.className) : null,
+          hasTrigger: Boolean(document.querySelector('.settings-restore')),
+          focus: document.hasFocus() };
+      })()
+    `, 'trigger diag');
+    console.log('TRIGGER DIAG', JSON.stringify(diag));
+    await writeFile(coordsFile, JSON.stringify({
+      click: { x: Math.round((bounds.x + triggerLeft.x) * dpr), y: Math.round((bounds.y + triggerLeft.y) * dpr) },
+    }));
+    await waitForDone();
+    await delay(600);
+    phase1 = await js(window, `Boolean(document.querySelector('.settings-reset-confirmation'))`, 'popup after retry');
+  }
   console.log('POPUP OPEN AFTER OS CLICK ON TRIGGER:', phase1);
 
   let phase2 = null;
@@ -111,7 +128,7 @@ async function run() {
   if (phase2) {
     await js(window, `(() => { document.querySelector('.settings-restore')?.click(); return true; })()`, 'reopen popup');
     await delay(300);
-    const before = await js(window, `(await window.switchboard.getSnapshot()).settings.closeToTray`, 'closeToTray before restore');
+    const before = await js(window, `(async () => (await window.switchboard.getSnapshot()).settings.closeToTray)()`, 'closeToTray before restore');
     const restore = await js(window, `
       (() => {
         const restore = [...document.querySelectorAll('.settings-reset-confirmation button')].find((b) => b.textContent?.trim() === 'Restore');
