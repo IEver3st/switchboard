@@ -68,9 +68,31 @@ async function run() {
   if (!mouse) throw new Error('The canonical snapshot did not include G502 X Plus.');
   if (mouse.asset.key !== 'logitech-g502-x-plus-white') throw new Error(`Unexpected asset: ${mouse.asset.key}`);
   if (mouse.capabilities.battery?.charging !== false) throw new Error('The canonical battery state did not report discharging.');
-  if (mouse.capabilities.reportRate?.writable) throw new Error('Polling rate was exposed as writable after the physical mouse rejected direct writes.');
-  if (!mouse.capabilities.reportRate?.unavailableReason) throw new Error('Read-only polling rate did not explain its hardware limit.');
   if (!mouse.capabilities.dpi?.writable) throw new Error('Direct DPI control was unavailable.');
+  if (!mouse.capabilities.reportRate?.writable) throw new Error('Onboard polling-rate control was unavailable.');
+  if (!mouse.capabilities.buttonAssignments?.writable) throw new Error('Onboard button assignments were unavailable.');
+  if (!mouse.capabilities.lighting?.writable) throw new Error('Onboard lighting was unavailable.');
+  if (!mouse.capabilities.onboardMemory?.writable || !mouse.capabilities.onboardMemory.enabled) {
+    throw new Error('Onboard memory was not detected as active and writable.');
+  }
+  const shiftBinding = mouse.capabilities.buttonAssignments.bindings
+    .find((binding) => binding.buttonId === 'dpi-shift');
+  if (shiftBinding?.currentActionId !== 'mouse.dpi-shift') {
+    throw new Error(`Physical sniper button did not decode as DPI Shift: ${shiftBinding?.currentActionId}`);
+  }
+
+  const roundTrips = [];
+  for (const change of [
+    { type: 'dpi-shift', value: mouse.capabilities.dpi.shiftDpi },
+    { type: 'report-rate', value: mouse.capabilities.reportRate.value },
+    { type: 'button-assignment', buttonId: 'dpi-shift', actionId: 'mouse.dpi-shift' },
+  ]) {
+    await window.webContents.executeJavaScript(`window.switchboard.setDeviceControl(${JSON.stringify({
+      deviceId: mouse.id,
+      change,
+    })})`);
+    roundTrips.push(change.type);
+  }
 
   const report = [];
   for (const viewport of viewports) {
@@ -95,7 +117,15 @@ async function run() {
       dpi: mouse.capabilities.dpi.activeDpi,
       reportRate: mouse.capabilities.reportRate.value,
     },
-    pollingRateReadOnlyReason: mouse.capabilities.reportRate.unavailableReason,
+    nativeCapabilities: {
+      dpi: mouse.capabilities.dpi.writable,
+      reportRate: mouse.capabilities.reportRate.writable,
+      buttons: mouse.capabilities.buttonAssignments.writable,
+      lighting: mouse.capabilities.lighting.writable,
+      onboardMemory: mouse.capabilities.onboardMemory.writable,
+    },
+    sniperBinding: shiftBinding,
+    verifiedRoundTrips: roundTrips,
     captures: report,
   }, null, 2)}\n`);
   console.log(JSON.stringify({ outputDirectory, device: mouse.displayName, captures: report.length }, null, 2));

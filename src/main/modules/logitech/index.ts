@@ -11,7 +11,7 @@ import { resolveProductAsset } from '../../../shared/product-assets';
 import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
 import { readG502Capabilities, writeG502Control } from './devices/g502-x-plus/agent';
 import { g502XPlusDefinition, resolveG502XPlusVariant } from './devices/g502-x-plus/definition';
-import { G502SniperDpiSession } from './devices/g502-x-plus/sniper-dpi';
+import { G502NativeSession, type G502DirectSession } from './devices/g502-x-plus/sniper-dpi';
 import {
   readLogitechAgentDevices,
   readLogitechBattery,
@@ -32,6 +32,7 @@ export interface LogitechDeviceModuleDependencies {
   readBattery(deviceId: string): Promise<LogitechBatteryState | undefined>;
   readCapabilities: typeof readG502Capabilities;
   writeControl: typeof writeG502Control;
+  openDirectSession?(endpoint: HidDevice, previous: DeviceCapabilities | undefined): Promise<G502DirectSession>;
 }
 
 const defaultDependencies: LogitechDeviceModuleDependencies = {
@@ -39,14 +40,15 @@ const defaultDependencies: LogitechDeviceModuleDependencies = {
   readBattery: readLogitechBattery,
   readCapabilities: readG502Capabilities,
   writeControl: writeG502Control,
+  openDirectSession: G502NativeSession.open,
 };
 
 export class LogitechDeviceModule implements DeviceModule {
   public readonly id = 'device.logitech-hidpp';
   private readonly agentIds = new Map<string, string>();
   private readonly capabilityCache = new Map<string, TimedValue<DeviceCapabilities>>();
-  private directDpiSession: G502SniperDpiSession | null = null;
-  private directDpiPath: string | null = null;
+  private directSession: G502DirectSession | null = null;
+  private directPath: string | null = null;
   private directDeviceId: string | null = null;
 
   public constructor(private readonly dependencies: LogitechDeviceModuleDependencies = defaultDependencies) {}
@@ -55,7 +57,7 @@ export class LogitechDeviceModule implements DeviceModule {
     const logitechHid = context.hidDevices.filter((device) => device.vendorId === logitechVendorId);
     this.agentIds.clear();
     if (logitechHid.length === 0) {
-      await this.stopDirectDpiSession();
+      await this.stopDirectSession();
       return [];
     }
 
@@ -63,7 +65,7 @@ export class LogitechDeviceModule implements DeviceModule {
     const matchingAgentDevices = agentDevices
       .filter((device) => device.deviceBaseModel === g502XPlusDefinition.deviceBaseModel);
     if (matchingAgentDevices.length > 0) {
-      await this.stopDirectDpiSession();
+      await this.stopDirectSession();
       return Promise.all(matchingAgentDevices.map((device) => this.createG502XPlus(device, logitechHid, context)));
     }
 
@@ -76,23 +78,9 @@ export class LogitechDeviceModule implements DeviceModule {
 
   public async setControl(device: Device, change: DeviceControlChange): Promise<void> {
     if (!device.connected) throw new Error(`${device.displayName} is disconnected.`);
-    if (this.directDpiSession && device.id === this.directDeviceId) {
-      if (change.type === 'dpi') {
-        await this.directDpiSession.setBaseDpi(change.value);
-        return;
-      }
-      if (change.type === 'dpi-shift') {
-        await this.directDpiSession.setShiftDpi(change.value);
-        return;
-      }
-      if (change.type === 'dpi-stages') {
-        this.directDpiSession.setStages(change.stages);
-        return;
-      }
-      if (change.type === 'report-rate') {
-        throw new Error('Switchboard can read the live polling rate, but this mouse rejected direct polling-rate writes.');
-      }
-      throw new Error('This control still requires the local Logitech device service. Live DPI, hold-to-shift, polling-rate status, and battery remain available.');
+    if (this.directSession && device.id === this.directDeviceId) {
+      await this.directSession.setControl(change);
+      return;
     }
     const agentDeviceId = this.agentIds.get(device.id);
     if (!agentDeviceId) throw new Error('Logitech configuration requires the local G HUB device service.');
@@ -103,11 +91,11 @@ export class LogitechDeviceModule implements DeviceModule {
   }
 
   public deactivate(): Promise<void> {
-    return this.stopDirectDpiSession();
+    return this.stopDirectSession();
   }
 
   public dispose(): Promise<void> {
-    return this.stopDirectDpiSession();
+    return this.stopDirectSession();
   }
 
   private async createG502XPlus(
@@ -193,33 +181,31 @@ export class LogitechDeviceModule implements DeviceModule {
         ?? (previous ? context.appearanceOverrides[previous.id] : undefined)
         ?? previousOverride,
     );
-    // G HUB capabilities describe a different control backend. Reusing them
-    // here leaves convincing but unusable controls behind after that service
-    // exits, so direct fallback starts from only what HID++ proves available.
+    // Direct HID++ replaces the G HUB control backend. A successful session
+    // reports only capabilities proven by the mouse; a failed open keeps the
+    // last known controls visible but disabled with an ownership hint.
     let capabilities: DeviceCapabilities = {};
     if (directEndpoint?.path) {
       try {
-        const session = await this.ensureDirectDpiSession(directEndpoint, previous);
-        capabilities = { ...capabilities, dpi: await session.getCapability() };
-        try {
-          const reportRate = await session.getReportRateCapability();
-          if (reportRate) capabilities.reportRate = reportRate;
-        } catch (error) {
-          console.warn('Direct G502 X Plus polling rate is temporarily unavailable.', error);
-        }
-        try {
-          const battery = await session.getBatteryCapability();
-          if (battery) capabilities.battery = battery;
-        } catch (error) {
-          console.warn('Direct G502 X Plus battery state is temporarily unavailable.', error);
-        }
+        const session = await this.ensureDirectSession(directEndpoint, previous);
+        capabilities = await session.getCapabilities();
         this.directDeviceId = id;
       } catch (error) {
-        console.warn('Direct G502 X Plus DPI Shift is temporarily unavailable.', error);
-        await this.stopDirectDpiSession();
+        console.warn('Native G502 X Plus controls are temporarily unavailable.', error);
+        capabilities = disableControls(
+          previous?.capabilities,
+          'Native control is unavailable. Close G HUB, OpenLogi, or another app using the Logitech receiver, then reconnect the mouse.',
+        );
+        delete capabilities.battery;
+        await this.stopDirectSession();
       }
     } else {
-      await this.stopDirectDpiSession();
+      capabilities = disableControls(
+        previous?.capabilities,
+        'The Logitech HID++ control interface is unavailable. Reconnect the mouse or receiver.',
+      );
+      delete capabilities.battery;
+      await this.stopDirectSession();
     }
     return {
       id,
@@ -235,24 +221,25 @@ export class LogitechDeviceModule implements DeviceModule {
     };
   }
 
-  private async ensureDirectDpiSession(
+  private async ensureDirectSession(
     endpoint: HidDevice,
     previous: Device | undefined,
-  ): Promise<G502SniperDpiSession> {
-    if (this.directDpiSession && !this.directDpiSession.isClosed && this.directDpiPath === endpoint.path) {
-      return this.directDpiSession;
+  ): Promise<G502DirectSession> {
+    if (this.directSession && !this.directSession.isClosed && this.directPath === endpoint.path) {
+      return this.directSession;
     }
-    await this.stopDirectDpiSession();
-    const session = await G502SniperDpiSession.open(endpoint, previous?.capabilities.dpi);
-    this.directDpiSession = session;
-    this.directDpiPath = endpoint.path ?? null;
+    await this.stopDirectSession();
+    const openDirectSession = this.dependencies.openDirectSession ?? G502NativeSession.open;
+    const session = await openDirectSession(endpoint, previous?.capabilities);
+    this.directSession = session;
+    this.directPath = endpoint.path ?? null;
     return session;
   }
 
-  private async stopDirectDpiSession(): Promise<void> {
-    const session = this.directDpiSession;
-    this.directDpiSession = null;
-    this.directDpiPath = null;
+  private async stopDirectSession(): Promise<void> {
+    const session = this.directSession;
+    this.directSession = null;
+    this.directPath = null;
     this.directDeviceId = null;
     if (session) await session.close();
   }
@@ -305,9 +292,11 @@ export class LogitechDeviceModule implements DeviceModule {
   }
 }
 
-function disableControls(previous: DeviceCapabilities | undefined): DeviceCapabilities {
+function disableControls(
+  previous: DeviceCapabilities | undefined,
+  reason = 'Configuration is unavailable while the local Logitech device service is not responding.',
+): DeviceCapabilities {
   if (!previous) return {};
-  const reason = 'Configuration is unavailable while the local Logitech device service is not responding.';
   const next = structuredClone(previous);
   if (next.dpi) Object.assign(next.dpi, { writable: false, unavailableReason: reason });
   if (next.reportRate) Object.assign(next.reportRate, { writable: false, unavailableReason: reason });
@@ -351,7 +340,7 @@ function previousVariantCandidates(previous: Device | undefined): DeviceVariantC
     variant: previous.identity.variant,
     colorway: previous.identity.colorway,
     confidence,
-    source: `Previously observed ${previous.variantResolution.source}`,
+    source: `Previously observed ${previous.variantResolution.source.replace(/^(?:Previously observed )+/, '')}`,
     evidence: previous.variantResolution.evidence,
   }];
 }

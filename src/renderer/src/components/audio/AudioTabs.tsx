@@ -48,7 +48,7 @@ export function AudioTabs({ value, onChange }: { value: AudioWorkspaceTab; onCha
           onClick={() => onChange(tab)}
           style={{ '--tab-accent': tab === 'mixer' ? 'var(--primary)' : channelColor(tab === 'microphone' ? 'mic' : tab) } as CSSProperties}
           className={cn(
-            'relative h-11 shrink-0 border-0 bg-transparent px-5 text-xs font-semibold text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 motion-reduce:transition-none',
+            'relative h-11 shrink-0 border-0 bg-transparent px-4 text-xs font-semibold text-muted-foreground outline-none transition-colors duration-150 hover:text-text-secondary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 motion-reduce:transition-none',
             value === tab && 'text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-[2px] after:bg-[var(--tab-accent)]',
           )}
         >

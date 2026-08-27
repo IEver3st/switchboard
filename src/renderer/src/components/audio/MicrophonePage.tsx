@@ -3,6 +3,7 @@ import { AdvancedDisclosure, PrimarySlider } from '@/components/shared/human-con
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/cn';
+import { AudioWorkbenchHeader } from './AudioWorkbenchHeader';
 import { AudioDevicePicker } from './AudioDevicePicker';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
@@ -204,30 +205,34 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <div className="audio-workbench microphone-workbench" data-channel="microphone">
-      <header className="audio-workbench__header microphone-workbench__header">
-        <div className="microphone-workbench__preset">
-          <PresetPicker
-            kind="microphone"
-            label="Voice preset"
-            presets={snapshot.audio.pathPresets}
-            activeId={snapshot.audio.activePresetIds.microphone}
-            pending={actionPending?.startsWith('audio:preset') ?? false}
-            desktopFeatures={Boolean(window.switchboard)}
-            onApply={(presetId) => void applyAudioPreset({ presetId })}
-            onCreate={(name) => void createAudioPreset({ kind: 'microphone', name })}
-            onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
-            onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
-            onDelete={(presetId) => void deleteAudioPreset({ presetId })}
-            onImport={() => void importAudioPreset()}
-            onExport={(presetId) => void exportAudioPreset({ presetId })}
-          />
-          <MicrophoneTest
-            support={snapshot.audio.capabilities.microphoneTest}
-            pending={actionPending === 'audio:microphone-test'}
-            onRecord={() => void testMicrophone()}
-          />
-        </div>
-      </header>
+      <AudioWorkbenchHeader
+        title="Microphone"
+        subtitle="Input volume, noise control, voice EQ, and monitoring."
+        tools={(
+          <>
+            <PresetPicker
+              kind="microphone"
+              label="Voice preset"
+              presets={snapshot.audio.pathPresets}
+              activeId={snapshot.audio.activePresetIds.microphone}
+              pending={actionPending?.startsWith('audio:preset') ?? false}
+              desktopFeatures={Boolean(window.switchboard)}
+              onApply={(presetId) => void applyAudioPreset({ presetId })}
+              onCreate={(name) => void createAudioPreset({ kind: 'microphone', name })}
+              onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
+              onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
+              onDelete={(presetId) => void deleteAudioPreset({ presetId })}
+              onImport={() => void importAudioPreset()}
+              onExport={(presetId) => void exportAudioPreset({ presetId })}
+            />
+            <MicrophoneTest
+              support={snapshot.audio.capabilities.microphoneTest}
+              pending={actionPending === 'audio:microphone-test'}
+              onRecord={() => void testMicrophone()}
+            />
+          </>
+        )}
+      />
 
       {support !== 'available' ? (
         <p className="audio-workbench__availability" role="status">
@@ -271,8 +276,8 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
         />
       </section>
 
-      <section className="mic-panel" aria-label="Microphone processors">
-        <div id="microphone-gate-section" className="mic-panel__row">
+      <section className="mic-rows" aria-label="Microphone processors">
+        <div id="microphone-gate-section" className="mic-rows__row">
           <MicSetting
             headingId="microphone-gate-heading"
             title="Noise gate"
@@ -292,7 +297,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           </MicSetting>
         </div>
 
-        <div id="microphone-removal-section" className="mic-panel__row">
+        <div id="microphone-removal-section" className="mic-rows__row">
           <MicSetting
             headingId="microphone-removal-heading"
             title="Noise removal"
@@ -315,7 +320,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           </MicSetting>
         </div>
 
-        <div id="microphone-consistency-section" className="mic-panel__row">
+        <div id="microphone-consistency-section" className="mic-rows__row">
           <MicSetting
             headingId="microphone-consistency-heading"
             title="Voice consistency"
@@ -336,7 +341,7 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           </MicSetting>
         </div>
 
-        <div id="microphone-safety-section" className="mic-panel__row">
+        <div id="microphone-safety-section" className="mic-rows__row">
           <MicSetting
             headingId="microphone-safety-heading"
             title="Output safety"

@@ -12,7 +12,7 @@ The Electron prototype includes:
 - persisted module, device, audio, capture, and lifecycle state.
 - capability-driven Logitech mouse and HyperX microphone workbenches.
 - event-driven QuadCast 2 physical mute state plus maintained fixed-red lighting, brightness, breathing/pulse timing, and hardware-backed lighting profiles.
-- G502 X Plus hold-to-lower-DPI behavior through event-driven HID++ MouseButtonSpy and live sensor DPI control.
+- G502 X Plus control without G HUB: DPI stages and hold-to-lower-DPI, report rate, primary button assignments, onboard mode, battery, and static/off lighting through direct HID++ with CRC-checked profile readback.
 - optional native audio and capture hosts that exist only while enabled.
 - audio buses, ChatMix, microphone processing, replay buffer, and clip library surfaces.
 - persisted game detection with one-shot Steam/Epic manifest scans and manual executable entries.
@@ -23,7 +23,7 @@ The Electron prototype includes:
 
 The prototype does not claim to provide:
 
-- broad direct HID configuration or persistent onboard-profile writes beyond the scoped G502 X Plus live DPI path;
+- direct HID configuration for Logitech models other than the verified G502 X Plus profile formats and feature set;
 - production game capture through the default Electron worker;
 - signed virtual Windows audio endpoints;
 - a production module registry, signing service, or updater.

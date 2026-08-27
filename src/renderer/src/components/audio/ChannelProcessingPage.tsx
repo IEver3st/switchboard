@@ -1,5 +1,6 @@
 import type { ChannelAudioBusId, SystemSnapshot } from '../../../../shared/contracts';
 import { AdvancedDisclosure, SemanticChoice, SettingToggle } from '@/components/shared/human-controls';
+import { AudioWorkbenchHeader } from './AudioWorkbenchHeader';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
@@ -17,6 +18,12 @@ const levelingCopy: Record<ChannelAudioBusId, { title: string; description: stri
   game: { title: 'Volume leveling', description: 'Keeps quiet and loud moments closer together.' },
   chat: { title: 'Voice leveling', description: 'Keeps people at a more consistent volume.' },
   media: { title: 'Volume leveling', description: 'Smooths large volume changes between songs, videos, and apps.' },
+};
+
+const pageCopy: Record<ChannelAudioBusId, { title: string; subtitle: string }> = {
+  game: { title: 'Game', subtitle: 'Equalizer, leveling, and output safety for game audio.' },
+  chat: { title: 'Chat', subtitle: 'Equalizer, leveling, and output safety for voice chat.' },
+  media: { title: 'Media', subtitle: 'Equalizer, leveling, and output safety for music and video.' },
 };
 
 const strengthOptions = [
@@ -71,23 +78,27 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
 
   return (
     <div className="audio-workbench" data-channel={busId}>
-      <header className="audio-workbench__header">
-        <PresetPicker
-          kind={busId}
-          label="Sound"
-          presets={snapshot.audio.pathPresets}
-          activeId={snapshot.audio.activePresetIds[busId]}
-          pending={pendingId?.startsWith('audio:preset') ?? false}
-          desktopFeatures={Boolean(window.switchboard)}
-          onApply={(presetId) => void applyAudioPreset({ presetId })}
-          onCreate={(name) => void createAudioPreset({ kind: busId, name })}
-          onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
-          onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
-          onDelete={(presetId) => void deleteAudioPreset({ presetId })}
-          onImport={() => void importAudioPreset()}
-          onExport={(presetId) => void exportAudioPreset({ presetId })}
-        />
-      </header>
+      <AudioWorkbenchHeader
+        title={pageCopy[busId].title}
+        subtitle={pageCopy[busId].subtitle}
+        tools={(
+          <PresetPicker
+            kind={busId}
+            label="Sound"
+            presets={snapshot.audio.pathPresets}
+            activeId={snapshot.audio.activePresetIds[busId]}
+            pending={pendingId?.startsWith('audio:preset') ?? false}
+            desktopFeatures={Boolean(window.switchboard)}
+            onApply={(presetId) => void applyAudioPreset({ presetId })}
+            onCreate={(name) => void createAudioPreset({ kind: busId, name })}
+            onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
+            onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
+            onDelete={(presetId) => void deleteAudioPreset({ presetId })}
+            onImport={() => void importAudioPreset()}
+            onExport={(presetId) => void exportAudioPreset({ presetId })}
+          />
+        )}
+      />
 
       {support !== 'available' ? (
         <p className="audio-workbench__availability" role="status">

@@ -1,6 +1,7 @@
 import { AppWindow } from 'lucide-react';
 import type { AudioBus, AudioPathId, SystemSnapshot } from '../../../../shared/contracts';
 import type { AudioWorkspaceTab } from './AudioTabs';
+import { AudioWorkbenchHeader } from './AudioWorkbenchHeader';
 import { ChatMixSlider } from './ChatMixSlider';
 import { channelIcons, mixerChannelOrder, type MixerChannelId } from './channel-identity';
 import { MixerChannelStrip } from './MixerChannelStrip';
@@ -32,9 +33,15 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
 
   return (
     <div className="mixer-workbench">
-      {snapshot.audio.capabilities.realtimeMetering === 'simulation' ? (
-        <p className="mixer-workbench__note" role="status">Live levels are unavailable on this setup.</p>
-      ) : null}
+      <AudioWorkbenchHeader
+        title="Mixer"
+        subtitle={engineRunning
+          ? 'Channel levels, output devices, and ChatMix.'
+          : 'Channel levels, output devices, and ChatMix. The audio engine is not running.'}
+        tools={snapshot.audio.capabilities.realtimeMetering === 'simulation'
+          ? <p className="mixer-workbench__note" role="status">Live levels are unavailable on this setup.</p>
+          : undefined}
+      />
 
       <div className="mixer-grid" data-testid="mixer-grid">
         <MixerMasterStrip

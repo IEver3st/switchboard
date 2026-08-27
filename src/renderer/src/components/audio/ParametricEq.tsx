@@ -218,6 +218,11 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
             strokeDasharray="1 3"
             opacity="0.45"
           />
+          <path
+            d={`${path} L ${geometry.width - PLOT_RIGHT} ${geometry.height - PLOT_BOTTOM} L ${PLOT_LEFT} ${geometry.height - PLOT_BOTTOM} Z`}
+            fill="color-mix(in srgb, var(--channel-accent, var(--primary)) 7%, transparent)"
+            stroke="none"
+          />
           <path d={path} fill="none" stroke="var(--channel-accent, var(--primary))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
           {draft.map((band, index) => (
             <circle

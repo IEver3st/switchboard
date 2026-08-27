@@ -1,0 +1,263 @@
+[
+  {
+    "viewport": "1080x720",
+    "tab": "mixer",
+    "filename": "1080x720-audio-mixer.png",
+    "metrics": {
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 968.8,
+        "height": 48
+      },
+      "eqGraph": null
+    }
+  },
+  {
+    "viewport": "1080x720",
+    "tab": "game",
+    "filename": "1080x720-audio-game.png",
+    "metrics": {
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 955.9,
+        "height": 83.8
+      },
+      "eqGraph": {
+        "width": 955.9,
+        "height": 230
+      }
+    }
+  },
+  {
+    "viewport": "1080x720",
+    "tab": "chat",
+    "filename": "1080x720-audio-chat.png",
+    "metrics": {
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 955.9,
+        "height": 83.8
+      },
+      "eqGraph": {
+        "width": 955.9,
+        "height": 230
+      }
+    }
+  },
+  {
+    "viewport": "1080x720",
+    "tab": "media",
+    "filename": "1080x720-audio-media.png",
+    "metrics": {
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 955.9,
+        "height": 83.8
+      },
+      "eqGraph": {
+        "width": 955.9,
+        "height": 230
+      }
+    }
+  },
+  {
+    "viewport": "1080x720",
+    "tab": "microphone",
+    "filename": "1080x720-audio-microphone.png",
+    "metrics": {
+      "viewportWidth": 1012,
+      "viewportScrollWidth": 1012,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 955.9,
+        "height": 87.8
+      },
+      "eqGraph": {
+        "width": 955.9,
+        "height": 200
+      }
+    }
+  },
+  {
+    "viewport": "1420x900",
+    "tab": "mixer",
+    "filename": "1420x900-audio-mixer.png",
+    "metrics": {
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1295.2,
+        "height": 48
+      },
+      "eqGraph": null
+    }
+  },
+  {
+    "viewport": "1420x900",
+    "tab": "game",
+    "filename": "1420x900-audio-game.png",
+    "metrics": {
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1208,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1208,
+        "height": 279
+      }
+    }
+  },
+  {
+    "viewport": "1420x900",
+    "tab": "chat",
+    "filename": "1420x900-audio-chat.png",
+    "metrics": {
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1208,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1208,
+        "height": 279
+      }
+    }
+  },
+  {
+    "viewport": "1420x900",
+    "tab": "media",
+    "filename": "1420x900-audio-media.png",
+    "metrics": {
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1208,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1208,
+        "height": 279
+      }
+    }
+  },
+  {
+    "viewport": "1420x900",
+    "tab": "microphone",
+    "filename": "1420x900-audio-microphone.png",
+    "metrics": {
+      "viewportWidth": 1352,
+      "viewportScrollWidth": 1352,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1208,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1208,
+        "height": 225
+      }
+    }
+  },
+  {
+    "viewport": "1920x1080",
+    "tab": "mixer",
+    "filename": "1920x1080-audio-mixer.png",
+    "metrics": {
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1700,
+        "height": 48
+      },
+      "eqGraph": null
+    }
+  },
+  {
+    "viewport": "1920x1080",
+    "tab": "game",
+    "filename": "1920x1080-audio-game.png",
+    "metrics": {
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1648,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1648,
+        "height": 345.6
+      }
+    }
+  },
+  {
+    "viewport": "1920x1080",
+    "tab": "chat",
+    "filename": "1920x1080-audio-chat.png",
+    "metrics": {
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1648,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1648,
+        "height": 345.6
+      }
+    }
+  },
+  {
+    "viewport": "1920x1080",
+    "tab": "media",
+    "filename": "1920x1080-audio-media.png",
+    "metrics": {
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1648,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1648,
+        "height": 345.6
+      }
+    }
+  },
+  {
+    "viewport": "1920x1080",
+    "tab": "microphone",
+    "filename": "1920x1080-audio-microphone.png",
+    "metrics": {
+      "viewportWidth": 1852,
+      "viewportScrollWidth": 1852,
+      "horizontalOverflow": false,
+      "header": {
+        "width": 1648,
+        "height": 48
+      },
+      "eqGraph": {
+        "width": 1648,
+        "height": 334.8
+      }
+    }
+  }
+]

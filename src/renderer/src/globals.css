@@ -1774,6 +1774,56 @@ select {
 
 }
 
+@media (max-height: 760px) and (min-width: 861px) {
+  .device-workbench[data-device-kind="mouse"] {
+    padding-top: 12px;
+    padding-bottom: 20px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .device-workbench__hero {
+    margin-top: 4px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .mouse-stage {
+    height: 220px;
+    min-height: 220px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .device-workbench__controls {
+    margin-top: 4px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .mouse-config {
+    padding-top: 12px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .mouse-config__sensitivity {
+    margin-top: 7px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .dpi-control__slider,
+  .device-workbench[data-device-kind="mouse"] .report-rate-control [role="group"] {
+    margin-top: 4px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .dpi-presets {
+    margin-top: 7px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .dpi-shift-control {
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .mouse-config__separator {
+    margin: 10px 0;
+  }
+
+  .device-workbench[data-device-kind="mouse"] .device-setting-row {
+    min-height: 36px;
+  }
+}
+
 @media (max-width: 980px) {
   .mouse-stage {
     --callout-overlap: 32px;
@@ -3095,9 +3145,9 @@ select {
 
 /* Consumer workbench hierarchy */
 .audio-workbench {
-  width: min(100%, 1380px);
+  width: min(100%, 1280px);
   margin: 0 auto;
-  padding: 16px clamp(20px, 2.6vw, 36px) 44px;
+  padding: 18px clamp(20px, 2.6vw, 36px) 48px;
 }
 
 .audio-workbench[data-channel="game"] { --channel-accent: var(--channel-game); }
@@ -3109,13 +3159,42 @@ select {
   --control-accent: var(--channel-accent);
 }
 
-.audio-workbench__header {
+.audio-header {
   display: flex;
-  min-height: 44px;
+  min-height: 48px;
   align-items: center;
-  gap: 16px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 12px;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.audio-header__identity {
+  min-width: 200px;
+  flex: 1 1 260px;
+}
+
+.audio-header__identity h2 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 17px;
+  font-weight: 690;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.audio-header__identity p {
+  margin: 4px 0 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.audio-header__tools {
+  display: flex;
+  min-width: 0;
+  flex: 2 1 480px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
 }
 
 .audio-workbench__availability {
@@ -3123,7 +3202,7 @@ select {
   max-width: 72ch;
   align-items: center;
   gap: 7px;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   color: var(--muted-foreground);
   font-size: 10px;
   line-height: 1.4;
@@ -3308,12 +3387,13 @@ select {
 }
 
 .audio-primary-section {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .audio-primary-section > .human-setting {
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
-  margin-bottom: 12px;
+  min-height: 0;
+  margin-bottom: 8px;
+  padding: 4px 0 2px;
 }
 
 .audio-workbench .human-setting {
@@ -3334,17 +3414,17 @@ select {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px clamp(28px, 4vw, 56px);
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
 .audio-simple-section {
   min-width: 0;
   border-top: 1px solid var(--border);
-  padding-top: 5px;
+  padding-top: 6px;
 }
 
 .advanced-disclosure {
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 .advanced-disclosure__trigger {
@@ -3355,13 +3435,17 @@ select {
   justify-content: space-between;
   border: 0;
   border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
   background: transparent;
   padding: 0 2px;
-  color: var(--foreground);
+  color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 620;
   cursor: pointer;
+  transition: color 130ms ease-out;
+}
+
+.advanced-disclosure__trigger:hover {
+  color: var(--foreground);
 }
 
 .advanced-disclosure__trigger svg {
@@ -3405,7 +3489,8 @@ select {
   display: block;
   width: 100%;
   height: clamp(230px, 31vh, 330px);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 8px;
   background: var(--surface-1);
   touch-action: none;
 }
@@ -3413,6 +3498,13 @@ select {
 .parametric-eq__node {
   cursor: crosshair;
   outline: none;
+  transition: r 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parametric-eq__node {
+    transition: none;
+  }
 }
 
 .parametric-eq__node:focus-visible {
@@ -3423,28 +3515,40 @@ select {
 .parametric-eq__bands {
   display: flex;
   min-width: 0;
-  gap: 1px;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  background: var(--border);
+  gap: 4px;
+  margin-top: 8px;
+  border: 0;
+  background: transparent;
 }
 
 .parametric-eq__band {
   display: flex;
   min-width: 0;
-  min-height: 36px;
+  min-height: 30px;
   flex: 1;
   align-items: center;
   justify-content: center;
   gap: 6px;
   border: 0;
-  background: var(--background);
+  border-radius: 5px;
+  background: transparent;
   color: var(--muted-foreground);
   font-size: 10px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.parametric-eq__band:hover {
+  background: var(--surface-interactive);
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parametric-eq__band {
+    transition: none;
+  }
 }
 
 .parametric-eq__band > .parametric-eq__band-dot {
@@ -3467,8 +3571,14 @@ select {
 }
 
 .parametric-eq__band.is-selected {
-  background: var(--accent);
+  background: var(--surface-interactive);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
   color: var(--foreground);
+}
+
+.parametric-eq__band.is-selected:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 70%, transparent);
+  outline-offset: 1px;
 }
 
 .parametric-eq__inspector {
@@ -3477,7 +3587,7 @@ select {
   align-items: end;
   gap: 14px;
   border-bottom: 1px solid var(--border);
-  padding: 13px 0;
+  padding: 12px 0 14px;
 }
 
 .parametric-eq__inspector-heading {
@@ -3554,15 +3664,17 @@ select {
 }
 
 .mixer-workbench {
-  width: min(100%, 1450px);
+  width: min(100%, 1400px);
   margin: 0 auto;
-  padding: 14px clamp(16px, 2vw, 30px) 40px;
+  padding: 18px clamp(16px, 2vw, 30px) 40px;
 }
 
 .mixer-workbench__note {
-  margin: 0 0 8px;
+  max-width: 320px;
+  margin: 0;
   color: var(--muted-foreground);
   font-size: 10px;
+  line-height: 1.4;
   text-align: right;
 }
 
@@ -3579,8 +3691,8 @@ select {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1px;
-  border: 1px solid var(--border);
-  background: var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--border) 80%, transparent);
 }
 
 .mixer-channel {
@@ -3589,10 +3701,25 @@ select {
   min-width: 0;
   flex-direction: column;
   background: var(--surface-1);
-  padding: 12px 14px;
+  padding: 13px 16px 14px;
+  transition: background-color 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mixer-channel {
+    transition: none;
+  }
+}
+
+.mixer-channel:hover {
+  background: color-mix(in srgb, var(--surface-1) 88%, var(--surface-hover));
 }
 
 .mixer-channel.is-muted {
+  background: var(--surface-2);
+}
+
+.mixer-channel--master {
   background: var(--surface-2);
 }
 
@@ -3943,10 +4070,9 @@ select {
   align-items: center;
   gap: 18px;
   min-height: 52px;
-  margin-top: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  padding: 8px 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding: 12px 2px 0;
 }
 
 .chatmix-control.is-disabled {
@@ -3997,16 +4123,9 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
-/* Microphone page: one flowing workbench, no boxed sections. */
-.microphone-workbench .audio-workbench__header {
-  min-height: 0;
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
+/* Microphone page: one flowing workbench, hairline-separated processor rows. */
 .microphone-workbench .parametric-eq__graph {
   border-color: color-mix(in srgb, var(--border) 55%, transparent);
-  border-radius: 6px;
 }
 
 .mic-section {
@@ -4020,19 +4139,23 @@ select {
 }
 
 .mic-section--monitoring {
-  margin-top: 22px;
+  margin-top: 18px;
+}
+
+.mic-section--equalizer {
+  margin-top: 14px;
 }
 
 .mic-section--equalizer .mic-setting {
-  padding: 10px 0 6px;
+  padding: 8px 0 8px;
 }
 
 .mic-setting {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(280px, 460px) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(300px, 460px) auto;
   align-items: center;
   gap: 12px 28px;
-  padding: 14px 0;
+  padding: 12px 0;
 }
 
 .mic-setting__copy {
@@ -4085,10 +4208,18 @@ select {
   font-weight: 600;
 }
 
-/* Amber stays identity-only here: quiet neutral tracks, amber thumb. */
-.microphone-workbench [role="switch"][data-state="checked"] {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
+.mic-rows {
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.mic-rows__row {
+  min-width: 0;
+  scroll-margin-top: 14px;
+}
+
+.mic-rows__row + .mic-rows__row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
 }
 
 .mic-strength {
@@ -4102,26 +4233,12 @@ select {
   display: flex;
   min-width: 0;
   flex: 1;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-interactive) 72%, transparent);
 }
 
 .mic-strength [role="group"] > button {
   min-width: 0;
   flex: 1;
   height: 34px;
-  border: 0;
-  border-radius: 0;
-  font-size: 12px;
-  font-weight: 560;
-}
-
-.mic-strength [role="group"] > button[data-state="on"] {
-  background: var(--surface-hover);
-  color: var(--foreground);
-  box-shadow: inset 0 -2px var(--channel-accent);
 }
 
 .mic-strength__custom {
@@ -4129,22 +4246,6 @@ select {
   color: var(--muted-foreground);
   font-size: 11px;
   font-weight: 560;
-}
-
-.mic-panel {
-  margin-top: 18px;
-  border-radius: 8px;
-  background: var(--surface-1);
-  padding: 4px 20px;
-}
-
-.mic-panel__row {
-  min-width: 0;
-  scroll-margin-top: 14px;
-}
-
-.mic-panel__row + .mic-panel__row {
-  border-top: 1px solid color-mix(in srgb, var(--border) 38%, transparent);
 }
 
 .mic-monitoring__controls {
@@ -4165,12 +4266,18 @@ select {
   font-weight: 600;
 }
 
-.microphone-workbench__preset {
+.microphone-test {
   display: flex;
-  width: 100%;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+}
+
+.microphone-test p {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .mic-chain {
@@ -4178,7 +4285,7 @@ select {
   min-width: 0;
   align-items: center;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .mic-chain__label {
@@ -4254,20 +4361,6 @@ select {
   height: 1px;
   flex: none;
   background: var(--border-strong);
-}
-
-.microphone-test {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.microphone-test p {
-  max-width: 44ch;
-  margin: 0;
-  color: var(--muted-foreground);
-  font-size: 10px;
-  line-height: 1.4;
 }
 
 .device-workbench[data-device-kind="microphone"] .device-workbench__hero {
@@ -4605,10 +4698,26 @@ select {
   }
 }
 
-@media (max-width: 920px) {
-  .microphone-workbench__preset {
+@media (max-width: 1200px) {
+  .audio-header {
     align-items: flex-start;
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .audio-header__identity {
+    flex: none;
+  }
+
+  .audio-header__tools {
+    flex: none;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 920px) {
+  .audio-header__tools {
+    flex-wrap: wrap;
   }
 
   .mic-setting {

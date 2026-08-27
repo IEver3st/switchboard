@@ -27,17 +27,17 @@ describe('G502 X Plus hold-to-shift DPI', () => {
 
   test('accepts only unsolicited MouseButtonSpy reports from the matching mouse', () => {
     expect(parseMouseButtonSpyNotification(
-      Uint8Array.from([0x11, 0x01, 0x0c, 0x00, 0x00, 0x20]),
+      Uint8Array.from([0x11, 0x01, 0x0c, 0x00, 0x00, 0x10]),
       0x01,
       0x0c,
-    )).toBe(0x0020);
+    )).toBe(0x0010);
     expect(parseMouseButtonSpyNotification(
-      Uint8Array.from([0x11, 0x02, 0x0c, 0x00, 0x00, 0x20]),
+      Uint8Array.from([0x11, 0x02, 0x0c, 0x00, 0x00, 0x10]),
       0x01,
       0x0c,
     )).toBeNull();
     expect(parseMouseButtonSpyNotification(
-      Uint8Array.from([0x11, 0x01, 0x0c, 0x07, 0x00, 0x20]),
+      Uint8Array.from([0x11, 0x01, 0x0c, 0x07, 0x00, 0x10]),
       0x01,
       0x0c,
     )).toBeNull();
@@ -54,8 +54,8 @@ describe('G502 X Plus hold-to-shift DPI', () => {
       },
     }, 1_600, 800);
 
-    runtime.handleButtonBitmap(0x0020);
-    runtime.handleButtonBitmap(0x0020);
+    runtime.handleButtonBitmap(0x0010);
+    runtime.handleButtonBitmap(0x0010);
     runtime.handleButtonBitmap(0x0000);
     await runtime.idle();
 
@@ -76,7 +76,7 @@ describe('G502 X Plus hold-to-shift DPI', () => {
       },
     }, 3_200, 600);
 
-    runtime.handleButtonBitmap(0x0020);
+    runtime.handleButtonBitmap(0x0010);
     runtime.handleButtonBitmap(0x0000);
     await Promise.resolve();
     expect(writes).toEqual([600]);
@@ -93,10 +93,27 @@ describe('G502 X Plus hold-to-shift DPI', () => {
       write: async (dpi) => { writes.push(dpi); },
     }, 2_400, 700);
 
-    runtime.handleButtonBitmap(0x0020);
+    runtime.handleButtonBitmap(0x0010);
     await runtime.idle();
     await runtime.dispose();
 
     expect(writes).toEqual([700, 2_400]);
+  });
+
+  test('uses the G502 X slot-4 bitmap instead of the older G502 slot-5 assumption', async () => {
+    const writes: number[] = [];
+    const runtime = new SniperDpiRuntime({
+      read: async () => 3_200,
+      write: async (dpi) => { writes.push(dpi); },
+    }, 3_200, 400);
+
+    runtime.handleButtonBitmap(0x0020);
+    await runtime.idle();
+    expect(writes).toEqual([]);
+
+    runtime.handleButtonBitmap(0x0010);
+    runtime.handleButtonBitmap(0x0000);
+    await runtime.idle();
+    expect(writes).toEqual([400, 3_200]);
   });
 });

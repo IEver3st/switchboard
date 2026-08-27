@@ -1,28 +1,104 @@
 import { describe, expect, test } from 'bun:test';
 import type { Device as HidDevice } from 'node-hid';
 import { LogitechDeviceModule } from '../src/main/modules/logitech';
-import type { Device } from '../src/shared/contracts';
-
-const serviceUnavailableReason = 'Configuration is unavailable while the local Logitech device service is not responding.';
+import type { Device, DeviceCapabilities } from '../src/shared/contracts';
 
 describe('Logitech service fallback', () => {
-  test('does not retain stale service-only controls when G HUB disappears', async () => {
+  test('keeps native G502 controls and DPI Shift active without G HUB', async () => {
+    const writes: Array<{ type: string; value?: number }> = [];
+    let openedPath: string | undefined;
+    const directCapabilities: DeviceCapabilities = {
+      dpi: {
+        writable: true,
+        min: 100,
+        max: 25_600,
+        step: 50,
+        stages: [800, 1_600, 3_200],
+        activeDpi: 3_200,
+        defaultDpi: 3_200,
+        shiftDpi: 400,
+        shiftMode: 'host-button-spy',
+        maxStages: 5,
+        profileMode: 'onboard',
+      },
+      reportRate: {
+        writable: true,
+        value: 500,
+        supportedRates: [125, 250, 500, 1_000],
+        profileMode: 'onboard',
+      },
+      buttonAssignments: previousServiceDevice.capabilities.buttonAssignments,
+      lighting: previousServiceDevice.capabilities.lighting,
+      onboardMemory: { writable: true, enabled: true, activeProfile: '1' },
+    };
     const module = new LogitechDeviceModule({
       readAgentDevices: async () => [],
       readBattery: async () => undefined,
       readCapabilities: async () => ({}),
       writeControl: async () => undefined,
+      openDirectSession: async (endpoint) => {
+        openedPath = endpoint.path;
+        return {
+          isClosed: false,
+          getCapabilities: async () => structuredClone(directCapabilities),
+          setControl: async (change) => { writes.push(change); },
+          close: async () => undefined,
+        };
+      },
     });
 
     const [device] = await module.discover({
-      hidDevices: [receiverDescriptor],
+      hidDevices: [receiverDescriptor, longEndpointDescriptor],
       previousDevices: [previousServiceDevice],
       appearanceOverrides: {},
     });
 
     expect(device).toBeDefined();
-    expect(device?.capabilities).toEqual({});
-    expect(JSON.stringify(device)).not.toContain(serviceUnavailableReason);
+    expect(openedPath).toBe(longEndpointDescriptor.path);
+    expect(device?.capabilities).toEqual(directCapabilities);
+    expect(device?.capabilities).toMatchObject({
+      dpi: { writable: true, shiftDpi: 400, shiftMode: 'host-button-spy' },
+      reportRate: { writable: true },
+      buttonAssignments: { writable: true },
+      lighting: { writable: true },
+      onboardMemory: { writable: true },
+    });
+
+    await module.setControl(device!, { type: 'dpi-shift', value: 400 });
+    expect(writes).toEqual([{ type: 'dpi-shift', value: 400 }]);
+    await module.dispose();
+  });
+
+  test('keeps last-known controls visible and unavailable when another app owns HID++', async () => {
+    const module = new LogitechDeviceModule({
+      readAgentDevices: async () => [],
+      readBattery: async () => undefined,
+      readCapabilities: async () => ({}),
+      writeControl: async () => undefined,
+      openDirectSession: async () => { throw new Error('cannot open device with path'); },
+    });
+
+    const [device] = await module.discover({
+      hidDevices: [receiverDescriptor, longEndpointDescriptor],
+      previousDevices: [previousServiceDevice],
+      appearanceOverrides: {},
+    });
+
+    expect(device?.capabilities.battery).toBeUndefined();
+    expect(device?.capabilities).toMatchObject({
+      dpi: {
+        writable: false,
+        unavailableReason: expect.stringContaining('Close G HUB, OpenLogi'),
+      },
+      reportRate: { writable: false },
+      buttonAssignments: { writable: false },
+      lighting: {
+        writable: false,
+        colorWritable: false,
+        brightnessWritable: false,
+      },
+      onboardMemory: { writable: false },
+    });
   });
 });
 
@@ -31,6 +107,13 @@ const receiverDescriptor = {
   productId: 0xc547,
   release: 0x0402,
   product: 'USB Receiver',
+} as HidDevice;
+
+const longEndpointDescriptor = {
+  ...receiverDescriptor,
+  path: '\\\\?\\hid#vid_046d&pid_c547&mi_02#switchboard-test',
+  usagePage: 0xff00,
+  usage: 2,
 } as HidDevice;
 
 const previousServiceDevice: Device = {

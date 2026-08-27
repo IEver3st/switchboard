@@ -8,15 +8,42 @@
     },
     "variant": "white",
     "battery": {
-      "percentage": 79,
+      "percentage": 75,
       "charging": false,
       "fullyCharged": false,
-      "updatedAt": 1787733097699
+      "updatedAt": 1787799271492
     },
-    "dpi": 3000,
-    "reportRate": 500
+    "dpi": 3200,
+    "reportRate": 1000
   },
-  "pollingRateReadOnlyReason": "Switchboard can read the live polling rate, but this mouse rejected direct polling-rate writes.",
+  "nativeCapabilities": {
+    "dpi": true,
+    "reportRate": true,
+    "buttons": true,
+    "lighting": true,
+    "onboardMemory": true
+  },
+  "sniperBinding": {
+    "buttonId": "dpi-shift",
+    "slotId": "g502x-plus_g5_m1",
+    "currentActionId": "mouse.dpi-shift",
+    "hotspot": {
+      "id": "dpi-shift",
+      "label": "DPI shift",
+      "position": {
+        "x": 36,
+        "y": 43
+      },
+      "calloutSide": "left",
+      "order": 2,
+      "capability": "button-assignment"
+    }
+  },
+  "verifiedRoundTrips": [
+    "dpi-shift",
+    "report-rate",
+    "button-assignment"
+  ],
   "captures": [
     {
       "viewport": {
@@ -36,11 +63,54 @@
         "viewportWidth": 1012,
         "viewportScrollWidth": 1012,
         "assetKey": "logitech-g502-x-plus-white",
-        "variantSource": "Stable device appearance override",
+        "variantSource": "Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Logitech DEVIO extended model",
         "renderState": "ready",
-        "batteryLabel": "Battery, 79 percent battery",
+        "batteryLabel": "Battery, 75 percent battery",
         "charging": null,
-        "callouts": []
+        "callouts": [
+          {
+            "id": "primary",
+            "side": "left",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "back",
+            "side": "left",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "dpi-shift",
+            "side": "left",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "secondary",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "wheel",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0103759765625,
+            "verticalGap": 0
+          },
+          {
+            "id": "forward",
+            "side": "right",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          }
+        ]
       }
     },
     {
@@ -61,11 +131,54 @@
         "viewportWidth": 1352,
         "viewportScrollWidth": 1352,
         "assetKey": "logitech-g502-x-plus-white",
-        "variantSource": "Stable device appearance override",
+        "variantSource": "Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Logitech DEVIO extended model",
         "renderState": "ready",
-        "batteryLabel": "Battery, 79 percent battery",
+        "batteryLabel": "Battery, 75 percent battery",
         "charging": null,
-        "callouts": []
+        "callouts": [
+          {
+            "id": "primary",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "back",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "dpi-shift",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "secondary",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "wheel",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0103759765625,
+            "verticalGap": 0
+          },
+          {
+            "id": "forward",
+            "side": "right",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          }
+        ]
       }
     },
     {
@@ -86,11 +199,54 @@
         "viewportWidth": 1852,
         "viewportScrollWidth": 1852,
         "assetKey": "logitech-g502-x-plus-white",
-        "variantSource": "Stable device appearance override",
+        "variantSource": "Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Previously observed Logitech DEVIO extended model",
         "renderState": "ready",
-        "batteryLabel": "Battery, 79 percent battery",
+        "batteryLabel": "Battery, 75 percent battery",
         "charging": null,
-        "callouts": []
+        "callouts": [
+          {
+            "id": "primary",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "back",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "dpi-shift",
+            "side": "left",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0.0000152587890625,
+            "verticalGap": 0
+          },
+          {
+            "id": "secondary",
+            "side": "right",
+            "lineJoinGap": 0,
+            "hotspotJoinGap": 0,
+            "verticalGap": 0
+          },
+          {
+            "id": "wheel",
+            "side": "right",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          },
+          {
+            "id": "forward",
+            "side": "right",
+            "lineJoinGap": 0.000030517578125,
+            "hotspotJoinGap": 0.01043701171875,
+            "verticalGap": 0
+          }
+        ]
       }
     }
   ]
