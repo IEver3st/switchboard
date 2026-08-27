@@ -1,0 +1,44 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Verify tag matches package version
+        shell: pwsh
+        run: |
+          $releaseVersion = '${{ github.ref_name }}' -replace '^v', ''
+          $packageVersion = (Get-Content -Raw -LiteralPath package.json | ConvertFrom-Json).version
+          if ($releaseVersion -ne $packageVersion) {
+            throw "Tag version $releaseVersion does not match package version $packageVersion."
+          }
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run check:source
+      - run: bun run check:types
+      - run: bun test
+      - run: bun run release:win
+

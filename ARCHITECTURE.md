@@ -138,3 +138,9 @@ Automatic game capture holds a conservative, stable game-window identity and wai
 - IPC sender origin checked;
 - Zod validates all mutable IPC payloads;
 - modules will require signed manifests, hashes, constrained permissions, and atomic rollback.
+
+## Application updates
+
+Electron main owns the application-update lifecycle through `AppUpdateService`. Installed Windows builds use the electron-builder GitHub provider and NSIS metadata; the renderer receives only the validated canonical update state plus narrow check/install intents. Automatic checks run once shortly after launch and every six hours while enabled. The timer and updater listeners are removed on disable or disposal, and the installer starts only after an explicit restart action.
+
+GitHub Release publishing and end-user delivery are separate gates. The tag workflow can publish assets to a private repository, but installed clients need an anonymously readable feed; no GitHub credential is stored in settings, preload, or the renderer.

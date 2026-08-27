@@ -23,6 +23,7 @@
     "measure:audio-host": "node ./scripts/measure-audio-host.mjs",
     "build:hosts": "bun run build:capture-host && bun run build:audio-host",
     "dist:win": "bun run build:hosts && bun run build && electron-builder --win nsis",
+    "release:win": "bun run build:hosts && bun run build && electron-builder --win nsis --publish always",
     "check": "node ./scripts/check.mjs",
     "check:source": "node ./scripts/transpile-check.mjs",
     "check:types": "tsc -p tsconfig.node.json --noEmit --pretty false && tsc -p tsconfig.web.json --noEmit --pretty false",

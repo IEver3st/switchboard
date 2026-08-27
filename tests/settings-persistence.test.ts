@@ -23,6 +23,7 @@ describe('settings persistence', () => {
       draft.settings.closeToTray = false;
       draft.settings.diagnosticsRetentionDays = 14;
       draft.settings.scanGamesAutomatically = false;
+      draft.settings.automaticAppUpdates = false;
       draft.capture.config.replaySeconds = 90;
       draft.capture.config.hotkey = 'Ctrl+Alt+F9';
       draft.capture.config.clipsDirectory = 'C:\\Switchboard Test Clips';
@@ -36,6 +37,7 @@ describe('settings persistence', () => {
     expect(snapshot.settings.closeToTray).toBeFalse();
     expect(snapshot.settings.diagnosticsRetentionDays).toBe(14);
     expect(snapshot.settings.scanGamesAutomatically).toBeFalse();
+    expect(snapshot.settings.automaticAppUpdates).toBeFalse();
     expect(snapshot.capture.config.replaySeconds).toBe(90);
     expect(snapshot.capture.config.hotkey).toBe('Ctrl+Alt+F9');
     expect(snapshot.capture.config.clipsDirectory).toBe('C:\\Switchboard Test Clips');
@@ -49,8 +51,9 @@ describe('settings persistence', () => {
     const settings = legacy.settings as Record<string, unknown>;
     settings.closeToTray = false;
     delete settings.scanGamesAutomatically;
-    delete legacy.gameDetection;
+    delete settings.automaticAppUpdates;
     delete legacy.appUpdate;
+    delete legacy.gameDetection;
     await writeFile(filePath, JSON.stringify(legacy));
 
     const store = new StateStore(filePath);
@@ -59,8 +62,9 @@ describe('settings persistence', () => {
 
     expect(snapshot.settings.closeToTray).toBeFalse();
     expect(snapshot.settings.scanGamesAutomatically).toBeTrue();
+    expect(snapshot.settings.automaticAppUpdates).toBeTrue();
+    expect(snapshot.appUpdate.status).toBe('unavailable');
     expect(snapshot.gameDetection.games).toEqual([]);
     expect(snapshot.gameDetection.scanState).toBe('idle');
-    expect(snapshot.appUpdate).toEqual(createDefaultSnapshot().appUpdate);
   });
 });

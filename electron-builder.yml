@@ -1,6 +1,11 @@
 appId: dev.switchboard.prototype
 productName: Switchboard
 artifactName: ${productName}-${version}-${arch}.${ext}
+publish:
+  - provider: github
+    owner: IEver3st
+    repo: switchboard
+    releaseType: release
 files:
   - out/**
   - package.json

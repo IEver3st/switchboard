@@ -18,6 +18,7 @@ The Electron prototype includes:
 - persisted game detection with one-shot Steam/Epic manifest scans and manual executable entries.
 - tray lifecycle with optional renderer destruction.
 - explicit memory, CPU, and process budgets.
+- main-process-owned Windows update checks, background downloads, and explicit restart-to-install behavior backed by GitHub Release metadata.
 - .NET 10 capture and audio hosts, including WASAPI routing, processed microphone transport, session discovery, and real meters.
 - dependency-free interactive browser preview.
 
@@ -26,7 +27,8 @@ The prototype does not claim to provide:
 - direct HID configuration for Logitech models other than the verified G502 X Plus profile formats and feature set;
 - production game capture through the default Electron worker;
 - signed virtual Windows audio endpoints;
-- a production module registry, signing service, or updater.
+- a production module registry or signing service;
+- publicly consumable application updates while the GitHub release feed remains private or Windows installers remain unsigned.
 
 Simulated behavior is identified as `Prototype` in the interface.
 

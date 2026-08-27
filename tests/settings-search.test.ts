@@ -20,7 +20,7 @@ describe('settings search metadata', () => {
   it('indexes every stable settings row and workspace action', () => {
     const ids = new Set(settingsSearchEntries.map((entry) => entry.id));
     const expectedIds = [
-      'general.startup', 'general.closeToTray', 'general.destroyRenderer',
+      'general.startup', 'general.closeToTray', 'general.destroyRenderer', 'general.automaticAppUpdates',
       'devices.connected', 'devices.appearanceFallback', 'devices.workspace',
       'audio.engine', 'audio.sampleRate', 'audio.output', 'audio.microphone', 'audio.mixer',
       'capture.engine', 'capture.storage', 'capture.duration', 'capture.shortcut', 'capture.source',
@@ -31,7 +31,7 @@ describe('settings search metadata', () => {
       'diagnostics.telemetry', 'diagnostics.retention', 'diagnostics.guard',
       'diagnostics.memory', 'diagnostics.engines', 'diagnostics.capture-path',
       'diagnostics.capture-health', 'diagnostics.deviceIdentity',
-      'about.version', 'about.runtime', 'about.isolation',
+      'about.version', 'about.updates', 'about.runtime', 'about.isolation',
     ];
 
     expect(expectedIds.filter((id) => !ids.has(id))).toEqual([]);

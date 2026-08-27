@@ -795,7 +795,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           {update.capability === 'available' ? (
             <Button
               type="button"
-              variant={update.status === 'downloaded' ? 'default' : 'secondary'}
+              variant={update.status === 'downloaded' ? 'primary' : 'secondary'}
               size="sm"
               className="w-full"
               disabled={updateBusy}
