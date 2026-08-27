@@ -184,11 +184,11 @@ async function exerciseWorkflows() {
     return { controls, gameGainChanged: true, chatMixChanged: true };
   });
 
-  await step('audio.routing-empty-state', async () => {
+  await step('audio.routing-notice-removed', async () => {
     const text = await textContent('.mixer-workbench__routing-note');
-    if (!text.includes('Application routing is not available on this setup yet')) throw new Error('Application routing did not show the human-facing unavailable state.');
+    if (text) throw new Error('The mixer still rendered the removed standalone application-routing notice.');
     report.capabilities.applicationRouting = (await snapshot()).audio.capabilities.applicationRouting;
-    return { state: report.capabilities.applicationRouting };
+    return { state: report.capabilities.applicationRouting, standaloneNotice: false };
   });
 
   await step('audio.game-preset-and-eq', async () => {

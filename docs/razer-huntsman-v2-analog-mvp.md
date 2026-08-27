@@ -30,7 +30,7 @@ The control collection is HID interface 3, usage page `0x0c`, usage `0x01`. Each
 
 1. Opens the exact path non-exclusively.
 2. Sends one 91-byte feature report.
-3. validates transaction, command, response status, and XOR checksum.
+3. Validates transaction, command, response status, and XOR checksum.
 4. Reads brightness when the command has a readable state.
 5. Closes the handle in `finally`.
 

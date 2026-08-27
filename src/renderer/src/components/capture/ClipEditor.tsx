@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ArrowLeft, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
-import type { Clip, ClipAudioChannel, ClipCanvasSize, ClipExportPreset } from '../../../../shared/contracts';
+import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -38,9 +38,9 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
   onReveal: () => void;
   onInspectorOpenChange: (open: boolean) => void;
   onCanvasSizeChange: (canvasSize: ClipCanvasSize) => void;
-  onSaveTrim: (startMs: number, endMs: number) => Promise<void>;
+  onSaveTrim: (startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => Promise<void>;
   onAudioTrackLevelChange: (trackIndex: number, level: number) => Promise<void>;
-  onExport: (preset: ClipExportPreset, startMs: number, endMs: number) => Promise<boolean>;
+  onExport: (preset: ClipExportPreset, startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => Promise<boolean>;
   onDelete: () => void;
 }) {
   const backRef = useRef<HTMLButtonElement>(null);
@@ -50,15 +50,20 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
   const videoRef = useRef<HTMLVideoElement>(null);
   const savedStartMs = clip.trimStartMs ?? 0;
   const savedEndMs = clip.trimEndMs ?? clip.durationMs;
+  const savedAudioTrackTrims = clip.audioTrackTrims ?? [];
   const [startMs, setStartMs] = useState(savedStartMs);
   const [endMs, setEndMs] = useState(savedEndMs);
+  const [audioTrackTrims, setAudioTrackTrims] = useState<Array<ClipAudioTrackTrim | null>>(() => [...savedAudioTrackTrims]);
   const [previewState, setPreviewState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
-  const dirty = startMs !== savedStartMs || endMs !== savedEndMs;
+  const dirty = startMs !== savedStartMs
+    || endMs !== savedEndMs
+    || !sameAudioTrackTrims(audioTrackTrims, savedAudioTrackTrims);
 
   useEffect(() => {
     setStartMs(clip.trimStartMs ?? 0);
     setEndMs(clip.trimEndMs ?? clip.durationMs);
+    setAudioTrackTrims([...(clip.audioTrackTrims ?? [])]);
     setPreviewState('loading');
   }, [clip.id]);
 
@@ -128,6 +133,18 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
     setEndMs(nextEndMs);
   };
 
+  const updateAudioTrackTrim = (trackIndex: number, nextStartMs: number, nextEndMs: number) => {
+    setAudioTrackTrims((current) => {
+      const next = [...current];
+      while (next.length <= trackIndex) next.push(null);
+      next[trackIndex] = nextStartMs === 0 && nextEndMs === clip.durationMs
+        ? null
+        : { startMs: nextStartMs, endMs: nextEndMs };
+      while (next.at(-1) === null) next.pop();
+      return next;
+    });
+  };
+
   const toggleViewerFullscreen = () => setViewerFullscreen((current) => !current);
 
   return (
@@ -160,7 +177,7 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
           </TooltipTrigger>
           <TooltipContent>{inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'}</TooltipContent>
         </Tooltip>
-        <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs)} />
+        <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset) => onExport(preset, startMs, endMs, audioTrackTrims)} />
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -237,13 +254,19 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
             fps={clip.fps}
             audioChannels={clip.audioChannels}
             audioTrackLevels={clip.audioTrackLevels}
+            audioTrackTrims={audioTrackTrims}
             startMs={startMs}
             endMs={endMs}
             dirty={dirty}
             savePending={trimPending}
             onChange={updateTrim}
+            onAudioTrackTrimChange={updateAudioTrackTrim}
+            onResetTrims={() => {
+              updateTrim(0, clip.durationMs);
+              setAudioTrackTrims([]);
+            }}
             onAudioTrackLevelChange={onAudioTrackLevelChange}
-            onSave={() => void onSaveTrim(startMs, endMs)}
+            onSave={() => void onSaveTrim(startMs, endMs, audioTrackTrims)}
           />
         </main>
 
@@ -303,6 +326,19 @@ export function ClipEditor({ clip, exportPending, trimPending, canvasPending, in
       </div>
     </section>
   );
+}
+
+function sameAudioTrackTrims(
+  left: readonly (ClipAudioTrackTrim | null)[],
+  right: readonly (ClipAudioTrackTrim | null)[],
+): boolean {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftTrim = left[index] ?? null;
+    const rightTrim = right[index] ?? null;
+    if (leftTrim?.startMs !== rightTrim?.startMs || leftTrim?.endMs !== rightTrim?.endMs) return false;
+  }
+  return true;
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

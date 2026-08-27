@@ -1,0 +1,381 @@
+{
+  "report": [
+    {
+      "viewport": {
+        "name": "1080x720",
+        "width": 1080,
+        "height": 720
+      },
+      "settingsMetrics": {
+        "documentOverflowX": false,
+        "contentOverflowX": false,
+        "sidebarOverflowY": false,
+        "sidebarRect": {
+          "left": 0,
+          "top": 60,
+          "right": 230,
+          "bottom": 722,
+          "width": 230,
+          "height": 662
+        },
+        "feedbackRect": {
+          "left": 6,
+          "top": 638,
+          "right": 207.33334350585938,
+          "bottom": 672,
+          "width": 201.33334350585938,
+          "height": 34
+        },
+        "backRect": {
+          "left": 6,
+          "top": 674,
+          "right": 215.33334350585938,
+          "bottom": 708,
+          "width": 209.33334350585938,
+          "height": 34
+        },
+        "categoryIcons": [
+          {
+            "id": "general",
+            "iconCount": 1,
+            "current": "page"
+          },
+          {
+            "id": "devices",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "audio",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "capture",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "clips",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "games",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "modules",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "diagnostics",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "about",
+            "iconCount": 1,
+            "current": null
+          }
+        ]
+      },
+      "dialogMetrics": {
+        "rect": {
+          "left": 260,
+          "top": 61.484375,
+          "right": 820,
+          "bottom": 660.515625,
+          "width": 560,
+          "height": 599.03125
+        },
+        "clientHeight": 598,
+        "scrollHeight": 598,
+        "documentOverflowX": false,
+        "submitVisible": true,
+        "submitDisabled": true,
+        "role": "dialog",
+        "modal": "true",
+        "focusInside": true,
+        "bugSelected": "checked",
+        "featureSelected": "unchecked"
+      }
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "settingsMetrics": {
+        "documentOverflowX": false,
+        "contentOverflowX": false,
+        "sidebarOverflowY": false,
+        "sidebarRect": {
+          "left": 0,
+          "top": 60,
+          "right": 260,
+          "bottom": 900,
+          "width": 260,
+          "height": 840
+        },
+        "feedbackRect": {
+          "left": 10,
+          "top": 816,
+          "right": 233.33334350585938,
+          "bottom": 850,
+          "width": 223.33334350585938,
+          "height": 34
+        },
+        "backRect": {
+          "left": 10,
+          "top": 852,
+          "right": 241.33334350585938,
+          "bottom": 886,
+          "width": 231.33334350585938,
+          "height": 34
+        },
+        "categoryIcons": [
+          {
+            "id": "general",
+            "iconCount": 1,
+            "current": "page"
+          },
+          {
+            "id": "devices",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "audio",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "capture",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "clips",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "games",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "modules",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "diagnostics",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "about",
+            "iconCount": 1,
+            "current": null
+          }
+        ]
+      },
+      "dialogMetrics": {
+        "rect": {
+          "left": 430,
+          "top": 150.484375,
+          "right": 990,
+          "bottom": 749.515625,
+          "width": 560,
+          "height": 599.03125
+        },
+        "clientHeight": 598,
+        "scrollHeight": 598,
+        "documentOverflowX": false,
+        "submitVisible": true,
+        "submitDisabled": true,
+        "role": "dialog",
+        "modal": "true",
+        "focusInside": true,
+        "bugSelected": "checked",
+        "featureSelected": "unchecked"
+      },
+      "interaction": {
+        "title": "Add per-game audio profile switching",
+        "descriptionLength": 71,
+        "supportingDetailsLength": 94,
+        "diagnostics": "unchecked",
+        "submitDisabled": false
+      }
+    },
+    {
+      "viewport": {
+        "name": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "settingsMetrics": {
+        "documentOverflowX": false,
+        "contentOverflowX": false,
+        "sidebarOverflowY": false,
+        "sidebarRect": {
+          "left": 0,
+          "top": 60,
+          "right": 260,
+          "bottom": 1080,
+          "width": 260,
+          "height": 1020
+        },
+        "feedbackRect": {
+          "left": 10,
+          "top": 996,
+          "right": 233.33334350585938,
+          "bottom": 1030,
+          "width": 223.33334350585938,
+          "height": 34
+        },
+        "backRect": {
+          "left": 10,
+          "top": 1032,
+          "right": 241.33334350585938,
+          "bottom": 1066,
+          "width": 231.33334350585938,
+          "height": 34
+        },
+        "categoryIcons": [
+          {
+            "id": "general",
+            "iconCount": 1,
+            "current": "page"
+          },
+          {
+            "id": "devices",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "audio",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "capture",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "clips",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "games",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "modules",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "diagnostics",
+            "iconCount": 1,
+            "current": null
+          },
+          {
+            "id": "about",
+            "iconCount": 1,
+            "current": null
+          }
+        ]
+      },
+      "dialogMetrics": {
+        "rect": {
+          "left": 680,
+          "top": 240.484375,
+          "right": 1240,
+          "bottom": 839.515625,
+          "width": 560,
+          "height": 599.03125
+        },
+        "clientHeight": 598,
+        "scrollHeight": 598,
+        "documentOverflowX": false,
+        "submitVisible": true,
+        "submitDisabled": true,
+        "role": "dialog",
+        "modal": "true",
+        "focusInside": true,
+        "bugSelected": "checked",
+        "featureSelected": "unchecked"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "id": "general",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "devices",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "audio",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "capture",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "clips",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "games",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "modules",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "diagnostics",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    },
+    {
+      "id": "about",
+      "current": "page",
+      "iconCount": 1,
+      "horizontalOverflow": false
+    }
+  ],
+  "reducedMotion": {
+    "mediaMatches": true,
+    "optionTransitionDuration": "0s",
+    "contentAnimationDuration": "0s"
+  }
+}

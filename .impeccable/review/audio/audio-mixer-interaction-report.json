@@ -14,7 +14,7 @@
         "selectedMix": "Personal",
         "chatMixVisibleWithoutScroll": true,
         "verticalGeometry": {
-          "chatMixBottom": 583,
+          "chatMixBottom": 532,
           "viewportBottom": 722,
           "viewportClientHeight": 684,
           "viewportScrollHeight": 684
@@ -43,10 +43,10 @@
         "selectedMix": "Personal",
         "chatMixVisibleWithoutScroll": true,
         "verticalGeometry": {
-          "chatMixBottom": 890,
+          "chatMixBottom": 803,
           "viewportBottom": 900,
           "viewportClientHeight": 862,
-          "viewportScrollHeight": 935
+          "viewportScrollHeight": 862
         },
         "values": {
           "Personal master": "100",
@@ -72,7 +72,7 @@
         "selectedMix": "Personal",
         "chatMixVisibleWithoutScroll": true,
         "verticalGeometry": {
-          "chatMixBottom": 950,
+          "chatMixBottom": 863,
           "viewportBottom": 1080,
           "viewportClientHeight": 1042,
           "viewportScrollHeight": 1042
@@ -103,10 +103,10 @@
       "selectedMix": "Personal",
       "chatMixVisibleWithoutScroll": true,
       "verticalGeometry": {
-        "chatMixBottom": 890,
+        "chatMixBottom": 803,
         "viewportBottom": 900,
         "viewportClientHeight": 862,
-        "viewportScrollHeight": 935
+        "viewportScrollHeight": 862
       },
       "values": {
         "Personal master": "127",
@@ -125,10 +125,10 @@
       "selectedMix": "Stream",
       "chatMixVisibleWithoutScroll": true,
       "verticalGeometry": {
-        "chatMixBottom": 890,
+        "chatMixBottom": 803,
         "viewportBottom": 900,
         "viewportClientHeight": 862,
-        "viewportScrollHeight": 935
+        "viewportScrollHeight": 862
       },
       "values": {
         "Stream master": "100",
@@ -147,10 +147,10 @@
       "selectedMix": "Clip",
       "chatMixVisibleWithoutScroll": true,
       "verticalGeometry": {
-        "chatMixBottom": 890,
+        "chatMixBottom": 803,
         "viewportBottom": 900,
         "viewportClientHeight": 862,
-        "viewportScrollHeight": 935
+        "viewportScrollHeight": 862
       },
       "values": {
         "Clip master": "100",

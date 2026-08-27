@@ -246,7 +246,7 @@ export const defaultDevices: Device[] = [
         speed: 50,
         speedWritable: false,
         direction: 'right',
-        availableDirections: [],
+        availableDirections: ['cycle', 'left', 'right', 'up', 'down', 'in', 'out', 'center-in', 'center-out'],
         directionWritable: false,
         zones: [
           { id: 'zone-1', label: 'Zone 1', color: '#7dd3fc', colorWritable: true },

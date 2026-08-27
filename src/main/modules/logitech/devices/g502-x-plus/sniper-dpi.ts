@@ -13,7 +13,7 @@ import {
   parseProfileDirectory,
   type OnboardProfilesInfo,
 } from './onboard-profile';
-import { LogitechRgbEffectsController } from './rgb-effects';
+import { LogitechRgbEffectsController } from '../../rgb-effects';
 
 const deviceNameFeatureId = 0x0005;
 const unifiedBatteryFeatureId = 0x1004;

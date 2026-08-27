@@ -1,0 +1,112 @@
+{
+  "finalLighting": {
+    "writable": true,
+    "enabled": true,
+    "activeEffectId": "static",
+    "availableEffects": [
+      {
+        "id": "static",
+        "label": "Static"
+      },
+      {
+        "id": "breathing",
+        "label": "Breathing"
+      },
+      {
+        "id": "spectrum",
+        "label": "Spectrum"
+      },
+      {
+        "id": "reactive",
+        "label": "Reactive"
+      },
+      {
+        "id": "starlight",
+        "label": "Starlight"
+      },
+      {
+        "id": "wave-left",
+        "label": "Wave left"
+      },
+      {
+        "id": "wave-right",
+        "label": "Wave right"
+      },
+      {
+        "id": "wheel-left",
+        "label": "Wheel left"
+      },
+      {
+        "id": "wheel-right",
+        "label": "Wheel right"
+      }
+    ],
+    "color": "#4466aa",
+    "colorWritable": true,
+    "brightness": 62,
+    "brightnessWritable": true,
+    "speedWritable": false,
+    "profiles": [],
+    "activeProfileId": "custom",
+    "muteLinked": false,
+    "muteLinkedWritable": false,
+    "state": "acknowledged",
+    "stateReason": "The device acknowledged the requested lighting change.",
+    "physicalEffectVerified": false,
+    "profileMode": "software",
+    "source": "firmware"
+  },
+  "persistedSettings": {
+    "lightingEnabled": true,
+    "lightingBrightness": 62,
+    "lightingEffect": "static",
+    "lightingColor": "#4466aa"
+  },
+  "captures": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-static.png",
+      "metrics": {
+        "documentWidth": 1080,
+        "viewportWidth": 1080,
+        "workspaceWidth": 1012,
+        "workspaceScrollWidth": 1012,
+        "consoleBottom": 673.4479370117188,
+        "innerHeight": 722
+      }
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-static.png",
+      "metrics": {
+        "documentWidth": 1420,
+        "viewportWidth": 1420,
+        "workspaceWidth": 1352,
+        "workspaceScrollWidth": 1352,
+        "consoleBottom": 780.6145935058594,
+        "innerHeight": 900
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-static.png",
+      "metrics": {
+        "documentWidth": 1920,
+        "viewportWidth": 1920,
+        "workspaceWidth": 1852,
+        "workspaceScrollWidth": 1852,
+        "consoleBottom": 780.6145935058594,
+        "innerHeight": 1080
+      }
+    }
+  ]
+}

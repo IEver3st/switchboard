@@ -968,11 +968,19 @@ export class AppController {
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (input.endMs > clip.durationMs) throw new Error('The trim range exceeds the clip duration.');
     if (input.endMs - input.startMs < 100) throw new Error('Keep at least 0.1 seconds in the trim range.');
+    for (const trim of input.audioTrackTrims ?? []) {
+      if (!trim) continue;
+      if (trim.endMs > clip.durationMs) throw new Error('An audio track trim exceeds the clip duration.');
+      if (trim.endMs - trim.startMs < 100) throw new Error('Keep at least 0.1 seconds in each audio track trim range.');
+    }
     return this.store.update((draft) => {
       const current = draft.clips.find((candidate) => candidate.id === input.id);
       if (!current) return;
       current.trimStartMs = input.startMs;
       current.trimEndMs = input.endMs < current.durationMs ? input.endMs : undefined;
+      const audioTrackTrims = [...(input.audioTrackTrims ?? [])];
+      while (audioTrackTrims.at(-1) === null) audioTrackTrims.pop();
+      current.audioTrackTrims = audioTrackTrims.length > 0 ? audioTrackTrims : undefined;
     });
   }
 
@@ -1012,12 +1020,18 @@ export class AppController {
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
     if (input.endMs > clip.durationMs) throw new Error('The export range exceeds the clip duration.');
     if (input.endMs - input.startMs < 100) throw new Error('Keep at least 0.1 seconds in the export range.');
+    for (const trim of input.audioTrackTrims ?? clip.audioTrackTrims ?? []) {
+      if (!trim) continue;
+      if (trim.endMs > clip.durationMs) throw new Error('An audio track trim exceeds the clip duration.');
+      if (trim.endMs - trim.startMs < 100) throw new Error('Keep at least 0.1 seconds in each audio track trim range.');
+    }
     const fullRange = input.startMs === 0 && input.endMs === clip.durationMs;
     const audioMixChanged = clip.audioTrackLevels?.some((level) => level !== 100) ?? false;
-    const canCopyOriginal = input.preset === 'original' && fullRange && clip.canvasSize === 'original' && !audioMixChanged;
+    const audioTrimChanged = (input.audioTrackTrims ?? clip.audioTrackTrims)?.some(Boolean) ?? false;
+    const canCopyOriginal = input.preset === 'original' && fullRange && clip.canvasSize === 'original' && !audioMixChanged && !audioTrimChanged;
     const extension = canCopyOriginal ? extname(clip.path) || '.mp4' : '.mp4';
     const presetSuffix = input.preset === 'original'
-      ? (fullRange ? (audioMixChanged ? '-mixed' : '') : '-trimmed')
+      ? (fullRange ? (audioMixChanged || audioTrimChanged ? '-mixed' : '') : '-trimmed')
       : `-${input.preset}`;
     const canvasSuffix = clip.canvasSize === '9:16' ? '-9x16' : '';
     const selection = await dialog.showSaveDialog({

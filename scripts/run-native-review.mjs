@@ -29,6 +29,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-native-ui.mjs', '--phase=verify');
 } else if (command === 'g502') {
   await runElectron('scripts/verify-g502-fix-native.mjs');
+} else if (command === 'huntsman') {
+  await runElectron('scripts/verify-huntsman-ui.mjs');
 } else if (command === 'games') {
   await runElectron('scripts/verify-game-detection-ui.mjs');
 } else if (command === 'audio-noise') {

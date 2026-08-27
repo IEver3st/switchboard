@@ -2,7 +2,7 @@ import type {
   LightingCapability,
   LightingDirection,
   LightingEffect,
-} from '../../../../../shared/contracts';
+} from '../../../shared/contracts';
 
 const rgbEffectsFeatureId = 0x8071;
 const perKeyLightingV2FeatureId = 0x8081;
@@ -239,14 +239,35 @@ export class LogitechRgbEffectsController {
 
   public async setColor(color: string): Promise<void> {
     assertColor(color);
-    this.color = color.toLowerCase();
-    for (const zoneId of this.zoneColors.keys()) this.zoneColors.set(zoneId, this.color);
-    await this.claim();
-    await this.applyEffect('static');
-    this.activeEffectId = 'static';
-    this.enabled = true;
-    await this.paintAllZones();
-    this.acknowledged = true;
+    const previousColor = this.color;
+    const previousEffect = this.activeEffectId;
+    const previousEnabled = this.enabled;
+    const previousZones = new Map(this.zoneColors);
+    const targetEffect = this.activeDefinition?.controls.includes('color')
+      ? this.activeEffectId
+      : 'static';
+    if (!this.availableEffects.some((effect) => effect.id === targetEffect)) {
+      throw new Error('The active LIGHTSYNC effect does not accept a custom color.');
+    }
+    try {
+      this.color = color.toLowerCase();
+      if (targetEffect === 'static') {
+        for (const zoneId of this.zoneColors.keys()) this.zoneColors.set(zoneId, this.color);
+      }
+      await this.claim();
+      await this.applyEffect(targetEffect);
+      if (targetEffect === 'static') await this.paintAllZones();
+      this.activeEffectId = targetEffect;
+      this.enabled = true;
+      this.acknowledged = true;
+    } catch (error) {
+      this.color = previousColor;
+      this.activeEffectId = previousEffect;
+      this.enabled = previousEnabled;
+      this.zoneColors.clear();
+      for (const [zoneId, previousColorValue] of previousZones) this.zoneColors.set(zoneId, previousColorValue);
+      throw error;
+    }
   }
 
   public async setZoneColor(zoneId: string, color: string): Promise<void> {
@@ -255,40 +276,81 @@ export class LogitechRgbEffectsController {
     if (numericId === null || !this.zoneColors.has(numericId) || this.perKeyFeatureIndex === null) {
       throw new Error('That LIGHTSYNC zone is not available on this device.');
     }
-    this.zoneColors.set(numericId, color.toLowerCase());
-    await this.claim();
-    await this.applyEffect('static');
-    this.activeEffectId = 'static';
-    this.enabled = true;
-    await this.paintAllZones();
-    this.acknowledged = true;
+    if (!this.availableEffects.some((effect) => effect.id === 'static')) {
+      throw new Error('This device does not report the Static effect required for zone colors.');
+    }
+    const previousColor = this.zoneColors.get(numericId)!;
+    const previousEffect = this.activeEffectId;
+    const previousEnabled = this.enabled;
+    try {
+      this.zoneColors.set(numericId, color.toLowerCase());
+      await this.claim();
+      await this.applyEffect('static');
+      this.activeEffectId = 'static';
+      this.enabled = true;
+      await this.paintAllZones();
+      this.acknowledged = true;
+    } catch (error) {
+      this.zoneColors.set(numericId, previousColor);
+      this.activeEffectId = previousEffect;
+      this.enabled = previousEnabled;
+      throw error;
+    }
   }
 
   public async setBrightness(brightness: number): Promise<void> {
-    this.brightness = clamp(Math.round(brightness), 0, 100);
-    await this.claim();
-    await this.applyEffect(this.activeEffectId);
-    if (this.activeEffectId === 'static') await this.paintAllZones();
-    this.enabled = true;
-    this.acknowledged = true;
+    if (!this.activeDefinition?.controls.includes('brightness')) {
+      throw new Error('The selected LIGHTSYNC effect has no brightness control.');
+    }
+    const previousBrightness = this.brightness;
+    const previousEnabled = this.enabled;
+    try {
+      this.brightness = clamp(Math.round(brightness), 0, 100);
+      await this.claim();
+      await this.applyEffect(this.activeEffectId);
+      if (this.activeEffectId === 'static') await this.paintAllZones();
+      this.enabled = true;
+      this.acknowledged = true;
+    } catch (error) {
+      this.brightness = previousBrightness;
+      this.enabled = previousEnabled;
+      throw error;
+    }
   }
 
   public async setSpeed(speed: number): Promise<void> {
     if (!this.activeDefinition?.controls.includes('speed')) throw new Error('The selected LIGHTSYNC effect has no speed control.');
-    this.speed = clamp(Math.round(speed), 1, 100);
-    await this.claim();
-    await this.applyEffect(this.activeEffectId);
-    this.enabled = true;
-    this.acknowledged = true;
+    const previousSpeed = this.speed;
+    const previousEnabled = this.enabled;
+    try {
+      this.speed = clamp(Math.round(speed), 1, 100);
+      await this.claim();
+      await this.applyEffect(this.activeEffectId);
+      this.enabled = true;
+      this.acknowledged = true;
+    } catch (error) {
+      this.speed = previousSpeed;
+      this.enabled = previousEnabled;
+      throw error;
+    }
   }
 
   public async setDirection(direction: LightingDirection): Promise<void> {
     if (!this.activeDefinition?.controls.includes('direction')) throw new Error('The selected LIGHTSYNC effect has no direction control.');
-    this.direction = direction;
-    await this.claim();
-    await this.applyEffect(this.activeEffectId);
-    this.enabled = true;
-    this.acknowledged = true;
+    if (!directions.includes(direction)) throw new Error('That LIGHTSYNC direction is unavailable.');
+    const previousDirection = this.direction;
+    const previousEnabled = this.enabled;
+    try {
+      this.direction = direction;
+      await this.claim();
+      await this.applyEffect(this.activeEffectId);
+      this.enabled = true;
+      this.acknowledged = true;
+    } catch (error) {
+      this.direction = previousDirection;
+      this.enabled = previousEnabled;
+      throw error;
+    }
   }
 
   public async release(): Promise<void> {

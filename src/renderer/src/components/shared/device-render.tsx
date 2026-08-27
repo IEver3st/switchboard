@@ -29,8 +29,8 @@ interface ProcessedArtwork {
 const processedArtworkCache = new Map<string, ProcessedArtwork>();
 const maximumCachedArtwork = 6;
 const artworkByAssetKey: Record<string, DeviceArtwork> = {
-  'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl, lightingMask: 'saturated-rgb' },
-  'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl, lightingMask: 'saturated-rgb' },
+  'logitech-g502-x-plus-black': { src: g502XPlusBlackUrl, lightingMask: 'g502-rgb' },
+  'logitech-g502-x-plus-white': { src: g502XPlusWhiteUrl, lightingMask: 'g502-rgb' },
   'hyperx-quadcast-2': {
     src: quadCast2Url,
     lightingMask: 'red-dominant',

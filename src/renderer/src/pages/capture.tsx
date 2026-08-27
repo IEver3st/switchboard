@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Clip, ClipCanvasSize, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
+import type { Clip, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
 import { DeleteClipDialog, RenameClipDialog } from '@/components/capture/ClipDialogs';
@@ -109,11 +109,11 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
             onCanvasSizeChange={(canvasSize: ClipCanvasSize) => void runClipAction(`clip:${editorClip.id}:canvas`, () => setClipCanvasSize({ id: editorClip.id, canvasSize })).then(() => {
               showTransientToast(canvasSize === '9:16' ? 'Canvas set to 9:16' : 'Canvas restored to original', setToast);
             })}
-            onSaveTrim={(startMs, endMs) => runClipAction(`clip:${editorClip.id}:trim`, () => setClipTrim({ id: editorClip.id, startMs, endMs })).then(() => {
-              showTransientToast('Trim saved', setToast);
+            onSaveTrim={(startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => runClipAction(`clip:${editorClip.id}:trim`, () => setClipTrim({ id: editorClip.id, startMs, endMs, audioTrackTrims })).then(() => {
+              showTransientToast('Timeline edits saved', setToast);
             })}
             onAudioTrackLevelChange={(trackIndex, level) => setClipAudioTrackLevel({ id: editorClip.id, trackIndex, level })}
-            onExport={(preset: ClipExportPreset, startMs, endMs) => runClipAction(`clip:${editorClip.id}:export`, () => exportClip({ id: editorClip.id, startMs, endMs, preset })).then((exported) => {
+            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => runClipAction(`clip:${editorClip.id}:export`, () => exportClip({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims })).then((exported) => {
               if (exported) showTransientToast('Share file created', setToast);
               return exported;
             })}

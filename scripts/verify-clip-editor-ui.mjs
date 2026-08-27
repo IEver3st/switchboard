@@ -108,8 +108,8 @@ async function run() {
     if (metrics.waveformState !== 'ready' || metrics.audioTracks.length < 2 || metrics.audioLevelLabels.length !== metrics.audioTracks.length) {
       throw new Error(`Separate audio tracks did not load: ${JSON.stringify({ waveformState: metrics.waveformState, audioTracks: metrics.audioTracks, audioLevelLabels: metrics.audioLevelLabels })}`);
     }
-    if (metrics.audioTracks.some((track) => track.height < 28 || track.height > 34 || track.waveform < 100)) {
-      throw new Error(`Audio lanes are not compact or waveform-backed: ${JSON.stringify(metrics.audioTracks)}`);
+    if (metrics.audioTracks.some((track) => track.height < 38 || track.height > 42 || track.waveform < 100)) {
+      throw new Error(`Audio lanes are not correctly sized or waveform-backed: ${JSON.stringify(metrics.audioTracks)}`);
     }
     if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
 

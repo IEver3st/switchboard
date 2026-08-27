@@ -192,6 +192,10 @@ function applyConfirmedLightingControl(
   } else if (change.type === 'lighting-color') {
     lighting.color = change.color.toLowerCase();
     lighting.enabled = true;
+    if (!lighting.availableEffects.find((effect) => effect.id === lighting.activeEffectId)?.controls?.includes('color')) {
+      lighting.activeEffectId = lighting.availableEffects.find((effect) => effect.id === 'static' || effect.id === 'solid')?.id
+        ?? lighting.activeEffectId;
+    }
     lighting.activeProfileId = 'custom';
     setExistingSetting(device, 'lightingColor', lighting.color);
   } else if (change.type === 'lighting-brightness') {
@@ -236,12 +240,28 @@ function applyConfirmedLightingControl(
     setExistingSetting(device, 'muteLed', change.enabled);
   }
 
+  syncLightingWritability(lighting);
+
   if (lighting.state !== 'maintained') {
     lighting.state = 'acknowledged';
     lighting.stateReason = 'The device acknowledged the requested lighting change.';
   }
   applyDevices(devices);
   return true;
+}
+
+function syncLightingWritability(lighting: Device['capabilities']['lighting']): void {
+  if (!lighting) return;
+  const effect = lighting.availableEffects.find((candidate) => candidate.id === lighting.activeEffectId);
+  if (!effect?.controls) return;
+  lighting.colorWritable = lighting.writable && effect.controls.includes('color');
+  lighting.brightnessWritable = lighting.writable && effect.controls.includes('brightness');
+  lighting.speedWritable = lighting.writable && effect.controls.includes('speed');
+  lighting.directionWritable = lighting.writable && effect.controls.includes('direction');
+  if (lighting.zones) {
+    const writable = lighting.writable && effect.controls.includes('zones');
+    lighting.zones = lighting.zones.map((zone) => ({ ...zone, colorWritable: writable }));
+  }
 }
 
 function setExistingSetting(device: Device, key: string, value: Device['settings'][string]): void {

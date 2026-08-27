@@ -587,8 +587,8 @@
 
 .clip-editor-timeline__desk {
   display: grid;
-  height: calc(25px + var(--audio-track-count) * 32px + (var(--audio-track-count) - 1) * 4px);
-  min-height: 57px;
+  height: calc(25px + var(--audio-track-count) * 40px + (var(--audio-track-count) - 1) * 4px);
+  min-height: 65px;
   min-width: 0;
   grid-template-columns: 138px minmax(0, 1fr);
   gap: 8px;
@@ -643,7 +643,7 @@
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 32px;
+  min-height: 40px;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: 14px 11px;
   align-content: center;
@@ -717,7 +717,7 @@
 
 .clip-editor-track-controls__empty {
   display: flex;
-  min-height: 32px;
+  min-height: 40px;
   align-items: center;
   border-left: 2px solid var(--border-strong);
   background: var(--surface-2);
@@ -772,7 +772,7 @@
 
 .clip-editor-timeline__audio-track {
   position: relative;
-  min-height: 32px;
+  min-height: 40px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--track-color) 48%, var(--border-strong));
   border-radius: 2px;
@@ -888,8 +888,8 @@
   position: absolute;
   z-index: 5;
   top: 19px;
+  bottom: 2px;
   width: 30px;
-  height: 65px;
   transform: translateX(-50%);
   cursor: ew-resize;
   outline: 0;

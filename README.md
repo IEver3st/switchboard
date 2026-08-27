@@ -10,9 +10,9 @@ The Electron prototype includes:
 - shadcn-style components using Tailwind and selected Radix primitives.
 - sandboxed renderer with a narrow, schema-validated preload API.
 - persisted module, device, audio, capture, and lifecycle state.
-- capability-driven Logitech mouse and HyperX microphone workbenches.
+- capability-driven Logitech mouse, Razer keyboard, and HyperX microphone workbenches.
 - event-driven QuadCast 2 physical mute state plus maintained fixed-red lighting, brightness, breathing/pulse timing, and hardware-backed lighting profiles.
-- G502 X Plus control without G HUB: DPI stages and hold-to-lower-DPI, report rate, primary button assignments, onboard mode, battery, and static/off lighting through direct HID++; lighting power changes use acknowledged runtime control before CRC-checked profile persistence.
+- G502 X Plus control without G HUB: DPI stages and hold-to-lower-DPI, report rate, primary button assignments, onboard mode, battery, device-reported LIGHTSYNC effects, effect speed/direction, and addressable zones through direct HID++; stored onboard lighting remains limited to CRC-checked profile fields.
 - optional native audio and capture hosts that exist only while enabled.
 - audio buses, ChatMix, microphone processing, replay buffer, and clip library surfaces.
 - persisted game detection with one-shot Steam/Epic manifest scans and manual executable entries.

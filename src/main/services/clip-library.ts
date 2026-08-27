@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { access, mkdir, opendir, rename, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, join, parse, resolve } from 'node:path';
-import type { Clip, ClipAudioChannel, ClipAudioWaveform, ClipAudioWaveformTrack, ClipCanvasSize, ExportClipInput } from '../../shared/contracts';
+import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveform, ClipAudioWaveformTrack, ClipCanvasSize, ExportClipInput } from '../../shared/contracts';
 import { createDefaultClipTitle, inferClipGame, normalizeClipRecord } from '../../shared/clip-library';
 
 const supportedExtensions = new Set(['.mp4', '.mkv', '.webm', '.mov']);
@@ -173,8 +173,9 @@ export class ClipLibraryService {
     const video = ['-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-vf', buildClipVideoFilter(clip.canvasSize)];
 
     const audioLevels = clip.audioTrackLevels ?? [];
-    const audioMixChanged = audioLevels.some((level) => level !== 100);
-    if (input.preset === 'original' && !audioMixChanged) {
+    const audioTrackTrims = input.audioTrackTrims ?? clip.audioTrackTrims ?? [];
+    const audioEditChanged = audioLevels.some((level) => level !== 100) || audioTrackTrims.some(Boolean);
+    if (input.preset === 'original' && !audioEditChanged) {
       await run(executable, [
         ...common, '-map', '0:a?', ...video, '-crf', '18', '-c:a', 'aac', '-b:a', '160k',
         '-movflags', '+faststart', '-y', destination,
@@ -184,7 +185,7 @@ export class ClipLibraryService {
 
     if (input.preset === 'original') {
       const audioStreams = await this.getAudioStreams(clip.path);
-      const audioArguments = buildShareAudioArguments(audioStreams.length, 160, audioLevels);
+      const audioArguments = buildShareAudioArguments(audioStreams.length, 160, audioLevels, audioTrackTrims, startMs, endMs);
       await run(executable, [
         ...common, ...audioArguments, ...video, '-crf', '18',
         '-movflags', '+faststart', '-y', destination,
@@ -212,7 +213,7 @@ export class ClipLibraryService {
       ]);
 
       const audioStreams = await this.getAudioStreams(clip.path);
-      const audioArguments = buildShareAudioArguments(audioStreams.length, audioKbps, audioLevels);
+      const audioArguments = buildShareAudioArguments(audioStreams.length, audioKbps, audioLevels, audioTrackTrims, startMs, endMs);
       await run(executable, [
         ...common, ...audioArguments, ...video, '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passLog,
         '-movflags', '+faststart', '-y', destination,
@@ -316,20 +317,39 @@ const exportPresetBytes = {
   '50mb': 50 * 1_024 * 1_024,
 } as const;
 
-export function buildShareAudioArguments(streamCount: number, bitrateKbps: number, levels: readonly number[] = []): string[] {
+export function buildShareAudioArguments(
+  streamCount: number,
+  bitrateKbps: number,
+  levels: readonly number[] = [],
+  trims: readonly (ClipAudioTrackTrim | null)[] = [],
+  selectionStartMs = 0,
+  selectionEndMs = Number.POSITIVE_INFINITY,
+): string[] {
   if (streamCount <= 0) return ['-an'];
   const active = Array.from({ length: streamCount }, (_, trackIndex) => ({
     trackIndex,
     level: Math.min(100, Math.max(0, levels[trackIndex] ?? 100)),
-  })).filter((track) => track.level > 0);
+    startMs: Math.max(selectionStartMs, trims[trackIndex]?.startMs ?? selectionStartMs),
+    endMs: Math.min(selectionEndMs, trims[trackIndex]?.endMs ?? selectionEndMs),
+  })).filter((track) => track.level > 0 && track.endMs > track.startMs);
   if (active.length === 0) return ['-an'];
-  if (active.length === 1 && active[0]!.level === 100) {
+  const hasTrackTrims = active.some((track) => track.startMs > selectionStartMs || track.endMs < selectionEndMs);
+  if (active.length === 1 && active[0]!.level === 100 && !hasTrackTrims) {
     return ['-map', `0:a:${active[0]!.trackIndex}`, '-c:a', 'aac', '-b:a', `${bitrateKbps}k`];
   }
 
-  const filters = active.map((track, index) => (
-    `[0:a:${track.trackIndex}]volume=${(track.level / 100).toFixed(2)}[track${index}]`
-  ));
+  const filters = active.map((track, index) => {
+    const filtersForTrack: string[] = [];
+    if (track.startMs > selectionStartMs || track.endMs < selectionEndMs) {
+      const relativeStartSeconds = (track.startMs - selectionStartMs) / 1_000;
+      const relativeEndSeconds = (track.endMs - selectionStartMs) / 1_000;
+      filtersForTrack.push(`atrim=start=${relativeStartSeconds.toFixed(3)}:end=${relativeEndSeconds.toFixed(3)}`, 'asetpts=PTS-STARTPTS');
+      const delayMs = Math.round(track.startMs - selectionStartMs);
+      if (delayMs > 0) filtersForTrack.push(`adelay=${delayMs}:all=1`);
+    }
+    filtersForTrack.push(`volume=${(track.level / 100).toFixed(2)}`);
+    return `[0:a:${track.trackIndex}]${filtersForTrack.join(',')}[track${index}]`;
+  });
   const inputs = active.map((_track, index) => `[track${index}]`).join('');
   if (active.length > 1) {
     filters.push(`${inputs}amix=inputs=${active.length}:duration=longest:dropout_transition=0:normalize=1[aout]`);

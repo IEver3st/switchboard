@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { Device as HidDevice } from 'node-hid';
 import { RazerHuntsmanV2AnalogModule, type HuntsmanControlTransport } from '../src/main/modules/razer';
 import {
@@ -13,6 +16,7 @@ import {
   razerReportLength,
 } from '../src/main/modules/razer/huntsman-v2-analog-protocol';
 import { resolveProductAsset } from '../src/shared/product-assets';
+import { StateStore } from '../src/main/services/state-store';
 
 describe('Razer Huntsman V2 Analog protocol', () => {
   test('builds the 91-byte feature report and checksum used by the control collection', () => {
@@ -133,6 +137,24 @@ describe('Razer Huntsman V2 Analog module', () => {
       lighting: { writable: false, unavailableReason: 'Access denied by HIDAPI.' },
     });
     await module.dispose();
+  });
+
+  test('adds the installed module to an existing persisted snapshot', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-razer-state-'));
+    const statePath = join(directory, 'switchboard-state.json');
+    const original = new StateStore(statePath);
+    await original.load();
+    original.update((snapshot) => {
+      snapshot.modules = snapshot.modules.filter((module) => module.id !== 'device.razer-huntsman');
+    });
+    await original.flush();
+
+    const reloaded = new StateStore(statePath);
+    await reloaded.load();
+    expect(reloaded.get().modules.find((module) => module.id === 'device.razer-huntsman')).toMatchObject({
+      installed: true,
+      enabled: true,
+    });
   });
 });
 

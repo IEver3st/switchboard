@@ -55,7 +55,25 @@ async function run() {
     assertNoHorizontalOverflow(metrics, `${viewport.width}x${viewport.height} gallery`);
     const filename = `${viewport.width}x${viewport.height}-gallery-off.png`;
     await capture(window, filename);
-    report.gallery.push({ viewport, filename, metrics });
+    report.gallery.push({ state: 'off', viewport, filename, metrics });
+  }
+
+  const cyanState = { enabled: true, color: '#00d8ff', brightness: 100 };
+  await setLighting(window, cyanState.enabled, cyanState.color, cyanState.brightness);
+  for (const viewport of [
+    { width: 1080, height: 720 },
+    { width: 1420, height: 900 },
+    { width: 1920, height: 1080 },
+  ]) {
+    await setViewport(window, viewport);
+    await openGallery(window);
+    await waitForRender(window, '.device-gallery', cyanState.enabled, cyanState.color, cyanState.brightness);
+    await paint(window);
+    const metrics = await layoutMetrics(window, '.device-gallery');
+    assertNoHorizontalOverflow(metrics, `${viewport.width}x${viewport.height} cyan gallery`);
+    const filename = `${viewport.width}x${viewport.height}-gallery-cyan.png`;
+    await capture(window, filename);
+    report.gallery.push({ state: 'cyan', viewport, filename, metrics });
   }
 
   await setViewport(window, { width: 1420, height: 900 });
@@ -64,7 +82,8 @@ async function run() {
     { name: 'off', enabled: false, color: '#ff1744', brightness: 75 },
     { name: 'red', enabled: true, color: '#ff1744', brightness: 100 },
     { name: 'red-dim', enabled: true, color: '#ff1744', brightness: 25 },
-    { name: 'green', enabled: true, color: '#42d392', brightness: 75 },
+    { name: 'green', enabled: true, color: '#00ff00', brightness: 75 },
+    { name: 'cyan', ...cyanState },
   ]) {
     await setLighting(window, state.enabled, state.color, state.brightness);
     await waitForRender(window, '.mouse-stage', state.enabled, state.color, state.brightness);
@@ -77,8 +96,8 @@ async function run() {
     report.states.push({ ...state, filename, metrics, pixels });
   }
 
-  const [off, red, redDim, green] = report.states;
-  if (!off || !red || !redDim || !green) throw new Error('Lighting state evidence was incomplete.');
+  const [off, red, redDim, green, cyan] = report.states;
+  if (!off || !red || !redDim || !green || !cyan) throw new Error('Lighting state evidence was incomplete.');
   if (red.pixels.redDominant <= off.pixels.redDominant + 100) {
     throw new Error('The red canonical state did not materially recolor the mouse render.');
   }
@@ -87,6 +106,9 @@ async function run() {
   }
   if (redDim.pixels.redMeanMaximum >= red.pixels.redMeanMaximum) {
     throw new Error('The lower canonical brightness did not dim the mouse render.');
+  }
+  if (cyan.pixels.saturated <= off.pixels.saturated + 100) {
+    throw new Error('The cyan canonical state did not materially recolor the mouse render.');
   }
 
   await setLighting(

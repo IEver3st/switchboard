@@ -830,6 +830,17 @@ export const clipAudioWaveformSchema = z.object({
 });
 export type ClipAudioWaveform = z.infer<typeof clipAudioWaveformSchema>;
 
+export const clipAudioTrackTrimSchema = z.object({
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().positive(),
+}).refine((trim) => trim.endMs > trim.startMs, {
+  message: 'The audio track trim end must be after its start.',
+  path: ['endMs'],
+});
+export type ClipAudioTrackTrim = z.infer<typeof clipAudioTrackTrimSchema>;
+
+export const clipAudioTrackTrimsSchema = z.array(clipAudioTrackTrimSchema.nullable()).max(8);
+
 export const clipSchema = z.object({
   id: z.string().min(1),
   path: z.string().min(1),
@@ -850,6 +861,7 @@ export const clipSchema = z.object({
   canvasSize: clipCanvasSizeSchema.default('original'),
   audioChannels: z.array(clipAudioChannelSchema).max(4).optional(),
   audioTrackLevels: z.array(z.number().int().min(0).max(100)).max(8).optional(),
+  audioTrackTrims: clipAudioTrackTrimsSchema.optional(),
 });
 export type Clip = z.infer<typeof clipSchema>;
 
@@ -1300,6 +1312,7 @@ const clipTrimInputShape = {
   id: z.string().min(1).max(256),
   startMs: z.number().int().nonnegative(),
   endMs: z.number().int().positive(),
+  audioTrackTrims: clipAudioTrackTrimsSchema.optional(),
 };
 
 export const clipTrimInputSchema = z.object(clipTrimInputShape).refine((input) => input.endMs > input.startMs, {

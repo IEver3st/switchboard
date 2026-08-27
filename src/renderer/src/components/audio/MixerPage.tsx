@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { AudioBus, AudioMixId, AudioPathId, SystemSnapshot } from '../../../../shared/contracts';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { AudioWorkspaceTab } from './AudioTabs';
-import { AudioWorkbenchHeader } from './AudioWorkbenchHeader';
 import { ChatMixSlider } from './ChatMixSlider';
 import { channelIcons, mixerChannelOrder, type MixerChannelId } from './channel-identity';
 import { MixerChannelStrip } from './MixerChannelStrip';
@@ -38,32 +37,24 @@ export function MixerPage({ snapshot, onNavigate }: { snapshot: SystemSnapshot; 
 
   return (
     <div className="mixer-workbench">
-      <AudioWorkbenchHeader
-        title="Mixer"
-        subtitle={engineRunning
-          ? 'Channel levels, output devices, and ChatMix.'
-          : 'Channel levels, output devices, and ChatMix. The audio engine is not running.'}
-        tools={(
-          <>
-            <div className="mixer-mix-picker" role="group" aria-label="Mixer destination">
-              <span className="mixer-mix-picker__label">Mix</span>
-              <ToggleGroup
-                type="single"
-                value={selectedMixId}
-                onValueChange={(value) => value && setSelectedMixId(value as AudioMixId)}
-                aria-label="Select mixer destination"
-              >
-                {snapshot.audio.mixes.map((mix) => (
-                  <ToggleGroupItem key={mix.id} value={mix.id} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-            {snapshot.audio.capabilities.realtimeMetering === 'simulation'
-              ? <p className="mixer-workbench__note" role="status">Live levels are unavailable on this setup.</p>
-              : null}
-          </>
-        )}
-      />
+      <div className="mixer-mix-toolbar">
+        <div className="mixer-mix-picker" role="group" aria-label="Mixer destination">
+          <span className="mixer-mix-picker__label">Mix</span>
+          <ToggleGroup
+            type="single"
+            value={selectedMixId}
+            onValueChange={(value) => value && setSelectedMixId(value as AudioMixId)}
+            aria-label="Select mixer destination"
+          >
+            {snapshot.audio.mixes.map((mix) => (
+              <ToggleGroupItem key={mix.id} value={mix.id} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+        {snapshot.audio.capabilities.realtimeMetering === 'simulation'
+          ? <p className="mixer-workbench__note" role="status">Live levels are unavailable on this setup.</p>
+          : null}
+      </div>
 
       <div className="mixer-grid" data-testid="mixer-grid">
         <MixerMasterStrip

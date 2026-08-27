@@ -541,6 +541,9 @@ const demoApi: SwitchboardApi = {
     if (clip) {
       clip.trimStartMs = input.startMs;
       clip.trimEndMs = input.endMs < clip.durationMs ? input.endMs : undefined;
+      const audioTrackTrims = [...(input.audioTrackTrims ?? [])];
+      while (audioTrackTrims.at(-1) === null) audioTrackTrims.pop();
+      clip.audioTrackTrims = audioTrackTrims.length > 0 ? audioTrackTrims : undefined;
     }
     return emit();
   },

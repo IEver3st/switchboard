@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   LogitechRgbEffectsController,
   type LogitechRgbTransport,
-} from '../src/main/modules/logitech/devices/g502-x-plus/rgb-effects';
+} from '../src/main/modules/logitech/rgb-effects';
 
 interface RequestRecord {
   featureIndex: number;
