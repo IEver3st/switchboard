@@ -50,6 +50,7 @@ describe('settings persistence', () => {
     settings.closeToTray = false;
     delete settings.scanGamesAutomatically;
     delete legacy.gameDetection;
+    delete legacy.appUpdate;
     await writeFile(filePath, JSON.stringify(legacy));
 
     const store = new StateStore(filePath);
@@ -60,5 +61,6 @@ describe('settings persistence', () => {
     expect(snapshot.settings.scanGamesAutomatically).toBeTrue();
     expect(snapshot.gameDetection.games).toEqual([]);
     expect(snapshot.gameDetection.scanState).toBe('idle');
+    expect(snapshot.appUpdate).toEqual(createDefaultSnapshot().appUpdate);
   });
 });

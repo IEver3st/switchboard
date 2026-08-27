@@ -826,6 +826,7 @@ export const appSettingsSchema = z.object({
   launchAtStartup: z.boolean(),
   closeToTray: z.boolean(),
   destroyRendererInTray: z.boolean(),
+  automaticAppUpdates: z.boolean(),
   automaticModuleUpdates: z.boolean(),
   performanceGuard: z.boolean(),
   diagnosticsRetentionDays: z.number().int().min(1).max(30),
@@ -836,9 +837,22 @@ export const appSettingsSchema = z.object({
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
+export const appUpdateStateSchema = z.object({
+  capability: z.enum(['available', 'unavailable']),
+  status: z.enum(['idle', 'checking', 'available', 'downloading', 'downloaded', 'installing', 'error', 'unavailable']),
+  currentVersion: z.string().min(1),
+  availableVersion: z.string().min(1).nullable(),
+  downloadProgress: z.number().min(0).max(100).nullable(),
+  checkedAt: z.string().nullable(),
+  error: z.string().nullable(),
+  unavailableReason: z.string().nullable(),
+});
+export type AppUpdateState = z.infer<typeof appUpdateStateSchema>;
+
 export const systemSnapshotSchema = z.object({
   version: z.string(),
   prototypeMode: z.boolean(),
+  appUpdate: appUpdateStateSchema,
   modules: z.array(moduleManifestSchema),
   devices: z.array(deviceSchema),
   engines: z.array(engineStatusSchema),
@@ -1099,6 +1113,8 @@ export const ipcChannels = {
   refreshCaptureSources: 'capture:refresh-sources',
   scanGames: 'games:scan',
   addGame: 'games:add',
+  checkAppUpdates: 'updates:check',
+  installAppUpdate: 'updates:install',
   updateSettings: 'settings:update',
   resetSettings: 'settings:reset',
   revealClip: 'clips:reveal',
@@ -1143,6 +1159,8 @@ export interface SwitchboardApi {
   refreshCaptureSources(): Promise<SystemSnapshot>;
   scanGames(): Promise<SystemSnapshot>;
   addGame(): Promise<SystemSnapshot>;
+  checkAppUpdates(): Promise<SystemSnapshot>;
+  installAppUpdate(): Promise<void>;
   updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot>;
   resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot>;
   revealClip(id: string): Promise<void>;

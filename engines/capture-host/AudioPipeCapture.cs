@@ -25,7 +25,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
 {
     private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
 
-    private readonly IWaveIn capture;
+    private readonly WasapiRecorder capture;
     private readonly MMDevice? heldEndpoint;
     private readonly NamedPipeServerStream pipe;
     private readonly Channel<AudioPacket> packets;
@@ -38,7 +38,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     private long capturedBytes;
     private long writtenBytes;
 
-    private AudioPipeCapture(IWaveIn capture, string label, MMDevice? heldEndpoint = null)
+    private AudioPipeCapture(WasapiRecorder capture, string label, MMDevice? heldEndpoint = null)
     {
         this.capture = capture;
         this.heldEndpoint = heldEndpoint;
@@ -154,14 +154,20 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         lifetime.Dispose();
     }
 
-    private void OnDataAvailable(object? sender, WaveInEventArgs eventArgs)
+    private void OnDataAvailable(
+        ReadOnlySpan<byte> buffer,
+        AudioClientBufferFlags flags,
+        long devicePosition,
+        long qpcPosition)
     {
-        if (eventArgs.BytesRecorded <= 0) return;
+        if (buffer.IsEmpty) return;
         Interlocked.Increment(ref capturedPackets);
-        Interlocked.Add(ref capturedBytes, eventArgs.BytesRecorded);
-        var rented = ArrayPool<byte>.Shared.Rent(eventArgs.BytesRecorded);
-        Buffer.BlockCopy(eventArgs.Buffer, 0, rented, 0, eventArgs.BytesRecorded);
-        var packet = new AudioPacket(rented, eventArgs.BytesRecorded);
+        Interlocked.Add(ref capturedBytes, buffer.Length);
+        var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+        var destination = rented.AsSpan(0, buffer.Length);
+        if ((flags & AudioClientBufferFlags.Silent) != 0) destination.Clear();
+        else buffer.CopyTo(destination);
+        var packet = new AudioPacket(rented, buffer.Length);
         if (!packets.Writer.TryWrite(packet))
         {
             packet.Return();

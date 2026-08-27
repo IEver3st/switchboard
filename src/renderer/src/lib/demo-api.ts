@@ -450,6 +450,8 @@ const demoApi: SwitchboardApi = {
   async refreshCaptureSources() { return emit(); },
   async scanGames() { return simulateGameScan(); },
   async addGame() { throw new Error('Selecting a game executable requires the Switchboard desktop application.'); },
+  async checkAppUpdates() { return emit(); },
+  async installAppUpdate() { throw new Error('Application updates require an installed Switchboard build.'); },
   async updateSettings(input: UpdateSettingsInput) {
     const enableAutomaticScan = input.scanGamesAutomatically === true && !snapshot.settings.scanGamesAutomatically;
     snapshot.settings = { ...snapshot.settings, ...input };
@@ -473,6 +475,7 @@ const demoApi: SwitchboardApi = {
       snapshot.settings.launchAtStartup = defaults.settings.launchAtStartup;
       snapshot.settings.closeToTray = defaults.settings.closeToTray;
       snapshot.settings.destroyRendererInTray = defaults.settings.destroyRendererInTray;
+      snapshot.settings.automaticAppUpdates = defaults.settings.automaticAppUpdates;
     }
     if (scope === 'devices') snapshot.settings.deviceAppearanceOverrides = {};
     if (scope === 'audio') {

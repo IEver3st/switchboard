@@ -187,12 +187,20 @@ internal sealed class MicrophonePipeline : IDisposable
         samplesAvailable.Dispose();
     }
 
-    private void OnDataAvailable(object? sender, WaveInEventArgs eventArgs)
+    private void OnDataAvailable(
+        ReadOnlySpan<byte> buffer,
+        AudioClientBufferFlags flags,
+        long devicePosition,
+        long qpcPosition)
     {
         var startedAt = Stopwatch.GetTimestamp();
-        if (eventArgs.BytesRecorded > 0)
+        if (!buffer.IsEmpty)
         {
-            converter.ConvertAndWrite(eventArgs.Buffer, eventArgs.BytesRecorded, captureFrames, out var dropped);
+            converter.ConvertAndWrite(
+                buffer,
+                captureFrames,
+                out var dropped,
+                (flags & AudioClientBufferFlags.Silent) != 0);
             if (dropped > 0) Interlocked.Add(ref captureOverruns, dropped);
             samplesAvailable.Set();
         }

@@ -59,6 +59,7 @@ import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService } from './services/clip-library';
 import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
+import { AppUpdateService } from './services/app-update-service';
 import { DeviceRegistry } from './services/device-registry';
 import { EngineSupervisor } from './services/engine-supervisor';
 import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery';
@@ -82,6 +83,10 @@ type WorkerSavedClip = z.infer<typeof workerSavedClipSchema>;
 const audioEndpointRefreshMinimumIntervalMs = 10_000;
 const captureSourceThumbnailRefreshMinimumIntervalMs = 10_000;
 
+type AppControllerOptions = {
+  onUpdateInstallRequested?: (installing: boolean) => void;
+};
+
 export class AppController {
   private readonly store: StateStore;
   private readonly engines: EngineSupervisor;
@@ -91,6 +96,7 @@ export class AppController {
   private readonly clipLibrary: ClipLibraryService;
   private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
   private readonly gameDiscovery: GameDiscoveryService;
+  private readonly appUpdates: AppUpdateService;
   private capturePaths: CapturePaths;
   private registeredShortcut: string | null = null;
   private captureRestartTimer: NodeJS.Timeout | null = null;
@@ -108,8 +114,17 @@ export class AppController {
   private initialization: Promise<void> | null = null;
   private disposed = false;
 
-  public constructor() {
+  public constructor(options: AppControllerOptions = {}) {
     this.store = new StateStore(join(app.getPath('userData'), 'switchboard-state.json'));
+    this.appUpdates = new AppUpdateService({
+      currentVersion: app.getVersion(),
+      isPackaged: app.isPackaged,
+      platform: process.platform,
+      onStateChanged: (appUpdate) => {
+        this.store.update((draft) => { draft.appUpdate = appUpdate; }, { persist: false });
+      },
+      onInstallRequested: options.onUpdateInstallRequested,
+    });
     this.captureStorage = new CaptureStorageService(app.getPath('videos'), app.getPath('userData'));
     this.capturePaths = this.captureStorage.resolvePaths(null);
     this.clipLibrary = new ClipLibraryService(this.capturePaths.thumbnailDirectory);
@@ -141,6 +156,12 @@ export class AppController {
 
   private async initializeOnce(): Promise<void> {
     await this.store.load();
+    if (this.disposed) return;
+    this.store.update((draft) => {
+      draft.version = app.getVersion();
+      draft.prototypeMode = !app.isPackaged;
+    }, { persist: false });
+    await this.appUpdates.initialize(this.store.get().settings.automaticAppUpdates);
     if (this.disposed) return;
     await this.refreshAudioDevices(true);
     if (this.disposed) return;
@@ -779,10 +800,22 @@ export class AppController {
     if (typeof input.launchAtStartup === 'boolean') {
       this.applyLoginItemSetting(input.launchAtStartup);
     }
+    if (typeof input.automaticAppUpdates === 'boolean') {
+      this.appUpdates.setAutomaticChecksEnabled(input.automaticAppUpdates);
+    }
     if (input.scanGamesAutomatically === true && !automaticScanWasEnabled) {
       return this.scanGames();
     }
     return snapshot;
+  }
+
+  public async checkAppUpdates(): Promise<SystemSnapshot> {
+    await this.appUpdates.checkForUpdates();
+    return this.store.get();
+  }
+
+  public installAppUpdate(): void {
+    this.appUpdates.installDownloadedUpdate();
   }
 
   public async resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot> {
@@ -805,6 +838,7 @@ export class AppController {
         draft.settings.launchAtStartup = defaultSettings.launchAtStartup;
         draft.settings.closeToTray = defaultSettings.closeToTray;
         draft.settings.destroyRendererInTray = defaultSettings.destroyRendererInTray;
+        draft.settings.automaticAppUpdates = defaultSettings.automaticAppUpdates;
       }
       if (scope === 'devices') {
         draft.settings.deviceAppearanceOverrides = {};
@@ -831,6 +865,9 @@ export class AppController {
         draft.settings.diagnosticsRetentionDays = defaultSettings.diagnosticsRetentionDays;
       }
     });
+    if (scope === 'all' || scope === 'general') {
+      this.appUpdates.setAutomaticChecksEnabled(snapshot.settings.automaticAppUpdates);
+    }
     if (scope === 'all' || scope === 'capture') {
       this.capturePaths = await this.captureStorage.validate(defaultCaptureConfig.clipsDirectory);
       const storage = await this.captureStorage.getStorageStatus(
@@ -954,6 +991,7 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    this.appUpdates.dispose();
     await this.initialization?.catch(() => undefined);
     if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
     this.audioRestartTimer = null;

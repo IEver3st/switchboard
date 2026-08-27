@@ -230,6 +230,14 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     assertTrustedSender(event, getMainWindow);
     return controller.addGame();
   });
+  ipcMain.handle(ipcChannels.checkAppUpdates, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.checkAppUpdates();
+  });
+  ipcMain.handle(ipcChannels.installAppUpdate, (event) => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.installAppUpdate();
+  });
   handle(
     ipcChannels.updateSettings,
     getMainWindow,

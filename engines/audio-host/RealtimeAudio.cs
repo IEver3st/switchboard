@@ -23,9 +23,9 @@ internal sealed class SpscFloatRing : ISampleProvider
     public WaveFormat WaveFormat { get; }
     public long DroppedSamples => Volatile.Read(ref droppedSamples);
 
-    public void WriteFloat32(byte[] source, int byteCount)
+    public void WriteFloat32(ReadOnlySpan<byte> source, bool silent)
     {
-        var incoming = Math.Min(byteCount / sizeof(float), samples.Length);
+        var incoming = Math.Min(source.Length / sizeof(float), samples.Length);
         if (incoming <= 0) return;
         var write = Volatile.Read(ref writeSequence);
         var read = Volatile.Read(ref readSequence);
@@ -39,9 +39,15 @@ internal sealed class SpscFloatRing : ISampleProvider
 
         var destination = checked((int)(write % samples.Length));
         var first = Math.Min(accepted, samples.Length - destination);
-        Buffer.BlockCopy(source, 0, samples, destination * sizeof(float), first * sizeof(float));
+        var sourceSamples = MemoryMarshal.Cast<byte, float>(source);
+        if (silent) samples.AsSpan(destination, first).Clear();
+        else sourceSamples[..first].CopyTo(samples.AsSpan(destination, first));
         var second = accepted - first;
-        if (second > 0) Buffer.BlockCopy(source, first * sizeof(float), samples, 0, second * sizeof(float));
+        if (second > 0)
+        {
+            if (silent) samples.AsSpan(0, second).Clear();
+            else sourceSamples.Slice(first, second).CopyTo(samples.AsSpan(0, second));
+        }
         Volatile.Write(ref writeSequence, write + accepted);
         if (accepted < incoming) Interlocked.Add(ref droppedSamples, incoming - accepted);
     }
@@ -120,11 +126,16 @@ internal sealed class CaptureFanOut : IDisposable
     public event Action<Exception>? Failed;
     public void Start() => capture.StartRecording();
 
-    private void OnDataAvailable(object? sender, WaveInEventArgs eventArgs)
+    private void OnDataAvailable(
+        ReadOnlySpan<byte> buffer,
+        AudioClientBufferFlags flags,
+        long devicePosition,
+        long qpcPosition)
     {
+        var silent = (flags & AudioClientBufferFlags.Silent) != 0;
         for (var index = 0; index < destinations.Length; index++)
         {
-            destinations[index].WriteFloat32(eventArgs.Buffer, eventArgs.BytesRecorded);
+            destinations[index].WriteFloat32(buffer, silent);
         }
     }
 

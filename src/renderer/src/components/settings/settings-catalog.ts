@@ -59,6 +59,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['renderer', 'memory', 'ram', 'chromium', 'tray', 'resource'],
   },
   {
+    id: 'general.automaticAppUpdates',
+    category: 'general',
+    title: 'Automatically check for updates',
+    description: 'Check for application releases in the background and download them before restart.',
+    keywords: ['app', 'application', 'automatic', 'update', 'upgrade', 'release', 'github'],
+  },
+  {
     id: 'devices.connected',
     category: 'devices',
     title: 'Connected hardware',
@@ -309,6 +316,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Version',
     description: 'View the current Switchboard application version.',
     keywords: ['build', 'release', 'about'],
+  },
+  {
+    id: 'about.updates',
+    category: 'about',
+    title: 'Switchboard updates',
+    description: 'Check update status or restart to install a downloaded release.',
+    keywords: ['app', 'application', 'update', 'upgrade', 'release', 'download', 'restart', 'github'],
   },
   {
     id: 'about.runtime',

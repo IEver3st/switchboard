@@ -92,6 +92,8 @@ interface SystemStore {
   refreshCaptureSources(): Promise<void>;
   scanGames(): Promise<void>;
   addGame(): Promise<void>;
+  checkAppUpdates(): Promise<void>;
+  installAppUpdate(): Promise<void>;
   deleteClip(id: string): Promise<void>;
   renameClip(input: RenameClipInput): Promise<void>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<void>;
@@ -196,6 +198,12 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     refreshCaptureSources: () => run(() => switchboardApi.refreshCaptureSources()),
     scanGames: () => run(() => switchboardApi.scanGames()),
     addGame: () => run(() => switchboardApi.addGame()),
+    checkAppUpdates: () => run(() => switchboardApi.checkAppUpdates()),
+    installAppUpdate: async () => {
+      set({ error: null });
+      try { await switchboardApi.installAppUpdate(); }
+      catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
+    },
     deleteClip: async (id) => {
       set({ error: null });
       try { set({ snapshot: await switchboardApi.deleteClip(id) }); }

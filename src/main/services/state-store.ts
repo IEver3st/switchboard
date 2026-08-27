@@ -24,7 +24,7 @@ export class StateStore {
     try {
       const raw = await readFile(this.filePath, 'utf8');
       const parsed = systemSnapshotSchema.safeParse(
-        migrateGameDetectionState(migrateLegacyCaptureState(migrateAudioMixState(migrateLegacyDeviceState(JSON.parse(raw))))),
+        migrateAppUpdateState(migrateGameDetectionState(migrateLegacyCaptureState(migrateAudioMixState(migrateLegacyDeviceState(JSON.parse(raw)))))),
       );
       if (parsed.success) {
         this.snapshot = this.resetRuntimeState(parsed.data);
@@ -319,6 +319,15 @@ function migrateGameDetectionState(value: unknown): unknown {
       scanState: 'idle',
       error: undefined,
     },
+  };
+}
+
+function migrateAppUpdateState(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const defaults = createDefaultSnapshot();
+  return {
+    ...value,
+    appUpdate: defaults.appUpdate,
   };
 }
 

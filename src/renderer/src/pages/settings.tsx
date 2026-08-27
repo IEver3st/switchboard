@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import type {
+  AppUpdateState,
   CaptureConfig,
   CaptureEncoderPreference,
   Device,
@@ -189,6 +190,15 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           checked={snapshot.settings.destroyRendererInTray}
           disabled={!snapshot.settings.closeToTray}
           onCheckedChange={(checked) => void updateSettings({ destroyRendererInTray: checked })}
+        />
+      </SettingSection>
+      <SettingSection title="Application updates">
+        <SettingSwitch
+          settingId="general.automaticAppUpdates"
+          title="Automatically check for updates"
+          description="Check shortly after launch and every six hours while Switchboard is running, then download available releases in the background. Installation waits for an explicit restart."
+          checked={snapshot.settings.automaticAppUpdates}
+          onCheckedChange={(automaticAppUpdates) => void updateSettings({ automaticAppUpdates })}
         />
       </SettingSection>
     </>
@@ -755,10 +765,15 @@ function formatProductIds(device: Device): string | undefined {
 function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
   const electronVersion = navigator.userAgent.match(/Electron\/([\d.]+)/)?.[1];
   const platform = navigator.userAgent.includes('Windows') || navigator.platform.startsWith('Win') ? 'Windows' : navigator.platform;
+  const checkAppUpdates = useSystemStore((state) => state.checkAppUpdates);
+  const installAppUpdate = useSystemStore((state) => state.installAppUpdate);
+  const update = snapshot.appUpdate;
+  const updateBusy = update.status === 'checking' || update.status === 'available' || update.status === 'downloading' || update.status === 'installing';
+  const updateActionLabel = appUpdateActionLabel(update);
 
   return (
     <>
-      <SettingsCategoryHeader title="About" description="Version, runtime, and process-isolation information." />
+      <SettingsCategoryHeader title="About" description="Version, updates, runtime, and process-isolation information." />
       <div className="settings-about-intro">
         <img src="./switchboard-icon.png" alt="" draggable={false} />
         <div>
@@ -771,8 +786,55 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
         <SettingValue settingId="about.runtime" title="Runtime" description={platform} value={electronVersion ? `Electron ${electronVersion}` : 'Browser preview'} />
         <SettingValue settingId="about.isolation" title="Renderer isolation" description="Sandboxed renderer with a narrow, validated preload bridge." value="Enabled" tone="success" />
       </SettingSection>
+      <SettingSection title="Updates">
+        <SettingRow
+          settingId="about.updates"
+          title="Switchboard updates"
+          description={<span role="status" aria-live="polite">{appUpdateDescription(update)}</span>}
+        >
+          {update.capability === 'available' ? (
+            <Button
+              type="button"
+              variant={update.status === 'downloaded' ? 'default' : 'secondary'}
+              size="sm"
+              className="w-full"
+              disabled={updateBusy}
+              onClick={() => {
+                if (update.status === 'downloaded') void installAppUpdate();
+                else void checkAppUpdates();
+              }}
+            >
+              {updateActionLabel}
+            </Button>
+          ) : (
+            <span className="settings-row__value">Unavailable</span>
+          )}
+        </SettingRow>
+      </SettingSection>
     </>
   );
+}
+
+function appUpdateActionLabel(update: AppUpdateState): string {
+  if (update.status === 'checking') return 'Checking…';
+  if (update.status === 'available') return 'Starting download…';
+  if (update.status === 'downloading') return `Downloading ${Math.round(update.downloadProgress ?? 0)}%`;
+  if (update.status === 'downloaded') return 'Restart to update';
+  if (update.status === 'installing') return 'Restarting…';
+  if (update.status === 'error') return 'Try again';
+  return 'Check now';
+}
+
+function appUpdateDescription(update: AppUpdateState): string {
+  if (update.status === 'unavailable') return update.unavailableReason ?? 'Application updates are unavailable in this build.';
+  if (update.status === 'checking') return 'Checking the Switchboard release feed.';
+  if (update.status === 'available') return `Version ${update.availableVersion ?? 'new'} is available. The download will start automatically.`;
+  if (update.status === 'downloading') return `Downloading version ${update.availableVersion ?? 'new'} in the background.`;
+  if (update.status === 'downloaded') return `Version ${update.availableVersion ?? 'new'} is downloaded and ready. Restart when convenient to install it.`;
+  if (update.status === 'installing') return 'Closing Switchboard and starting the verified installer.';
+  if (update.status === 'error') return update.error ?? 'The update could not be completed.';
+  if (update.checkedAt) return `Switchboard is up to date. Last checked ${new Date(update.checkedAt).toLocaleString()}.`;
+  return 'Check GitHub Releases for a newer version of Switchboard.';
 }
 
 function ResetConfirmation({

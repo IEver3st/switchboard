@@ -1,4 +1,5 @@
 import type {
+  AppUpdateState,
   AppSettings,
   AudioState,
   CaptureConfig,
@@ -471,6 +472,7 @@ export const defaultSettings: AppSettings = {
   launchAtStartup: false,
   closeToTray: true,
   destroyRendererInTray: true,
+  automaticAppUpdates: true,
   automaticModuleUpdates: true,
   performanceGuard: true,
   diagnosticsRetentionDays: 7,
@@ -478,6 +480,17 @@ export const defaultSettings: AppSettings = {
   scanGamesAutomatically: true,
   clipEditorInspectorOpen: true,
   deviceAppearanceOverrides: {},
+};
+
+export const defaultAppUpdate: AppUpdateState = {
+  capability: 'unavailable',
+  status: 'unavailable',
+  currentVersion: '0.1.0',
+  availableVersion: null,
+  downloadProgress: null,
+  checkedAt: null,
+  error: null,
+  unavailableReason: 'Application updates are available only in an installed Windows build.',
 };
 
 export const stoppedEngines: EngineStatus[] = [
@@ -515,6 +528,7 @@ export function createDefaultSnapshot(): SystemSnapshot {
   return {
     version: '0.1.0',
     prototypeMode: true,
+    appUpdate: structuredClone(defaultAppUpdate),
     modules: structuredClone(defaultModules),
     devices: structuredClone(defaultDevices),
     engines: structuredClone(stoppedEngines),

@@ -157,7 +157,11 @@ if (hasSingleInstanceLock) {
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
 
-    controller = new AppController();
+    controller = new AppController({
+      onUpdateInstallRequested: (installing) => {
+        quitting = installing;
+      },
+    });
     const initialization = controller.initialize();
     await protocol.handle('switchboard-media', async (request) => {
       const url = new URL(request.url);
