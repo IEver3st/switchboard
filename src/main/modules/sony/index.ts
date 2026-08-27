@@ -4,6 +4,7 @@ import { resolveProductAsset } from '../../../shared/product-assets';
 import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
 import { SonyMdrSession } from './common/protocol/session';
 import { SonyHeadphonesHost, type SonyHostDevice } from './common/transport/host';
+import { xm6BatteryCapability } from './wh1000xm6/battery-estimate';
 import {
   parseXm6Event,
   xm6Dsee,
@@ -215,7 +216,7 @@ export class SonyDeviceModule implements DeviceModule {
 
   private applyEvent(runtime: Xm6Runtime, event: Xm6Event): void {
     const headset = runtime.capability;
-    if (event.type === 'battery') runtime.battery = { percentage: event.percentage, charging: event.charging, fullyCharged: event.percentage === 100, updatedAt: Date.now() };
+    if (event.type === 'battery') runtime.battery = xm6BatteryCapability(event.percentage, event.charging);
     else if (event.type === 'noise-control') {
       runtime.noiseSubtype = event.subtype;
       headset.noiseControl = {

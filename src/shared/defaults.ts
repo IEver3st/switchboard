@@ -475,7 +475,7 @@ export const defaultDevices: Device[] = [
     variantResolution: { confidence: 'user-override', source: 'Preview color selection' },
     asset: { key: 'sony-wh1000xm6-black', matchedBy: 'exact-variant', source: 'bundled-official' },
     capabilities: {
-      battery: { percentage: 84, charging: false, fullyCharged: false, updatedAt: Date.now() },
+      battery: { percentage: 84, charging: false, fullyCharged: false, estimatedMinutesRemaining: 1_512, updatedAt: Date.now() },
       headset: {
         platform: 'sony-mdr', model: 'wh-1000xm6', transportState: 'connected',
         noiseControl: { writable: true, availability: 'available', supportedModes: ['noise-cancelling', 'ambient', 'off'], mode: 'noise-cancelling', ambientLevel: 12, ambientLevelMin: 1, ambientLevelMax: 20, focusOnVoice: false },

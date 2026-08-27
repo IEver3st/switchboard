@@ -22,7 +22,7 @@ The XM6 firmware found in the field uses more than one ambient-control and equal
 
 Implemented state families:
 
-- battery and charging state
+- battery and charging state, plus a nominal remaining-playback estimate derived from Sony's 30-hour noise-cancelling/Ambient Sound rating when the headphones are discharging
 - Noise Cancelling, Ambient Sound, Off, ambient level, and Focus on Voice
 - ten-band EQ, device-resident presets, and the writable Custom curve when ten bands are reported
 - DSEE Extreme
@@ -42,6 +42,8 @@ Automatic reconnect uses bounded exponential delays and pauses after five unsucc
 The Windows service cache for the paired test device advertised the MDR v2 UUID and RFCOMM channel 9. The original Switchboard endpoint failed locally with `socket-addressnotavailable`; changing UUID-based connects from port `uint.MaxValue` to port `0` reaches the remote device and now returns the expected bounded `socket-timedout` while that headset is powered off.
 
 Packet codecs, dialect parsing, endpoint construction, timeout behavior, type contracts, static interaction, production build, and native Electron layouts are covered locally. A powered-on WH-1000XM6 is still required to complete physical write/readback proof for ANC, ambient level, EQ, DSEE Extreme, Speak-to-Chat, all three listening modes, external-controller synchronization, disconnect-during-command, power-cycle recovery, and shutdown. Do not treat fixture or packet-test results as that physical proof.
+
+The remaining-playback value is explicitly an estimate rather than device telemetry. Sony rates Bluetooth music playback at up to 30 hours with noise cancelling or Ambient Sound enabled, while codec, EQ, DSEE Extreme, Speak-to-Chat, temperature, and other settings can reduce actual runtime. Switchboard therefore derives minutes only while discharging and does not mislabel that value as time-to-full while charging.
 
 Reference implementations used for protocol comparison:
 

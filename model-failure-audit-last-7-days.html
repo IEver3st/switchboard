@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="A seven-day audit of recurring model failures in local Codex, T3 Code, and OpenMausBot chats, plus a copy-ready prevention prompt." />
+<title>Seven-Day Model Failure Audit and Prevention Prompt</title>
+<style>
+:root {
+  --bg: #080908;
+  --surface: #0d0f0e;
+  --surface-2: #111412;
+  --surface-3: #151916;
+  --line: #242825;
+  --line-strong: #3a403b;
+  --text: #f2f2ee;
+  --muted: #a0a69f;
+  --muted-2: #747b74;
+  --accent: #d7c56e;
+  --bad: #db8588;
+  --warn: #d7b86d;
+  --good: #8dbb8c;
+  --info: #88aac7;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, a { font: inherit; }
+a { color: var(--text); text-underline-offset: 3px; }
+a:hover { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.shell { width: min(1320px, calc(100% - 40px)); margin: 0 auto; padding: 42px 0 72px; }
+.eyebrow {
+  margin-bottom: 10px;
+  color: var(--muted-2);
+  font: 650 11px/1.2 "Cascadia Code", "SFMono-Regular", ui-monospace, monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+h1 { margin: 0; max-width: 980px; font-size: clamp(30px, 4.3vw, 56px); line-height: 1.02; letter-spacing: -.045em; }
+.dek { max-width: 900px; margin: 16px 0 0; color: var(--muted); font-size: 16px; line-height: 1.62; }
+.verdict {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 28px;
+  padding: 18px 20px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+.verdict::before { content: ""; width: 3px; height: 100%; min-height: 58px; background: var(--bad); }
+.verdict strong { display: block; margin-bottom: 5px; font-size: 15px; }
+.verdict p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 30px; }
+.metric { min-height: 104px; padding: 18px; border: 1px solid var(--line); background: var(--surface); }
+.metric strong { display: block; margin-bottom: 12px; font: 660 27px/1 "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; }
+.metric span { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+.section { margin-top: 42px; padding-top: 24px; border-top: 1px solid var(--line); }
+.section-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 430px); gap: 36px; align-items: end; margin-bottom: 18px; }
+.section h2 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.12; letter-spacing: -.025em; }
+.section-intro { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 13px; }
+th { padding: 11px 12px; border-bottom: 1px solid var(--line-strong); color: var(--muted-2); text-align: left; font-size: 10.5px; letter-spacing: .075em; text-transform: uppercase; }
+td { padding: 15px 12px; border-bottom: 1px solid #1b1e1c; vertical-align: top; line-height: 1.5; }
+tbody tr:last-child td { border-bottom: 0; }
+td:first-child { width: 44px; color: var(--muted-2); font-family: "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; }
+.finding-title { display: block; margin-bottom: 3px; color: var(--text); font-weight: 680; }
+.finding-detail, .prevention { color: var(--muted); }
+.evidence { color: var(--info); font-family: "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; font-size: 12px; }
+.priority { display: inline-flex; min-height: 24px; align-items: center; padding: 3px 8px; border: 1px solid var(--line-strong); color: var(--warn); background: #17140c; font: 650 10.5px/1 "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; letter-spacing: .055em; text-transform: uppercase; }
+.priority.critical { color: var(--bad); background: #180e10; border-color: #42262a; }
+
+.signal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); background: var(--surface); }
+.signal { display: grid; grid-template-columns: 64px 1fr; gap: 14px; padding: 16px; border-bottom: 1px solid var(--line); }
+.signal:nth-child(odd) { border-right: 1px solid var(--line); }
+.signal:nth-last-child(-n+2) { border-bottom: 0; }
+.signal strong { color: var(--accent); font: 680 22px/1 "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; }
+.signal span { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+
+.prompt-shell { border: 1px solid var(--line-strong); background: var(--surface); }
+.prompt-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.prompt-toolbar span { color: var(--muted); font: 600 11px/1.3 "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; letter-spacing: .045em; text-transform: uppercase; }
+.copy-button { min-height: 36px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 3px; color: var(--text); background: var(--surface-3); cursor: pointer; }
+.copy-button:hover { border-color: var(--accent); }
+.copy-button[data-state="copied"] { color: var(--good); border-color: #355437; }
+pre { margin: 0; padding: 22px; overflow: auto; color: #e7e8e3; background: #090b0a; font: 12.5px/1.65 "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; }
+
+.method { display: grid; grid-template-columns: 1.1fr .9fr; gap: 12px; }
+.method article { padding: 18px; border: 1px solid var(--line); background: var(--surface); }
+.method h3 { margin: 0 0 9px; font-size: 14px; }
+.method p, .method li { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.method p { margin: 0; }
+.method ul { margin: 0; padding-left: 18px; }
+.method li + li { margin-top: 6px; }
+.path { overflow-wrap: anywhere; color: var(--text); font-family: "Cascadia Code", "SFMono-Regular", ui-monospace, monospace; font-size: 11.5px; }
+.footnote { margin: 14px 0 0; color: var(--muted-2); font-size: 11.5px; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .section-head, .method { grid-template-columns: 1fr; gap: 10px; }
+}
+
+@media (max-width: 640px) {
+  .shell { width: min(100% - 32px, 1320px); padding-top: 28px; }
+  .metrics, .signal-grid { grid-template-columns: 1fr; }
+  .signal:nth-child(odd) { border-right: 0; }
+  .signal:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+  .prompt-toolbar { align-items: stretch; flex-direction: column; }
+  .copy-button { width: 100%; }
+  pre { padding: 16px; font-size: 11.5px; }
+}
+
+@media print {
+  :root { --bg: #fff; --surface: #fff; --surface-2: #f4f4f1; --surface-3: #eee; --line: #ccc; --line-strong: #999; --text: #111; --muted: #444; --muted-2: #666; }
+  .shell { width: 100%; padding: 0; }
+  .copy-button { display: none; }
+  pre { color: #111; background: #f5f5f2; white-space: pre-wrap; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a, button, tbody tr { transition: color .14s ease, background-color .14s ease, border-color .14s ease; }
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div class="eyebrow">Local chat audit / 20 Aug to 27 Aug 2026 / CDT</div>
+    <h1>The models keep failing at product truth and visual closure.</h1>
+    <p class="dek">The two most common confirmed correction types were tied: implementations that still did not work, and interfaces that still missed the requested visual or geometric result. The deeper recurring problem is premature completion: a model treats code changes, a passing static check, or a plausible first render as proof that the real workflow is finished.</p>
+    <div class="verdict" role="note" aria-label="Primary conclusion">
+      <div>
+        <strong>Primary correction</strong>
+        <p>Require an evidence loop that continues through real state transitions, exact-route visual inspection, regression repair, and a second audit. Do not let the model substitute a plan, a mock state, a fixture, or a build result for the requested product outcome.</p>
+      </div>
+    </div>
+  </header>
+
+  <section class="metrics" aria-label="Audit coverage">
+    <div class="metric"><strong>355</strong><span>Transcript files in the seven-day window</span></div>
+    <div class="metric"><strong>289</strong><span>Sessions with substantive user or delegated work</span></div>
+    <div class="metric"><strong>592</strong><span>Substantive messages after wrapper filtering</span></div>
+    <div class="metric"><strong>22</strong><span>Strong direct T3 in-thread correction messages</span></div>
+  </section>
+
+  <section class="section" aria-labelledby="findings-title">
+    <div class="section-head">
+      <h2 id="findings-title">Most common failure modes</h2>
+      <p class="section-intro">The first three rows use direct in-thread correction evidence. Later rows combine raw-chat recurrence with recorded session outcomes. Counts are not forced into a single score because categories overlap.</p>
+    </div>
+    <div class="table-wrap" role="region" aria-label="Model failure findings" tabindex="0">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Priority</th><th>Failure</th><th>Evidence</th><th>Prevention rule</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>01</td>
+            <td><span class="priority critical">Critical</span></td>
+            <td><span class="finding-title">The feature still does not work</span><span class="finding-detail">The model changes code or UI, but the actual command, prompt, device, animation, updater, or state transition remains broken.</span></td>
+            <td class="evidence">10 / 22 direct corrections</td>
+            <td class="prevention">Trace the whole path from input to canonical state, boundary, host or runtime, acknowledgement, readback, and rendered state. Verify the actual workflow, not the presence of code.</td>
+          </tr>
+          <tr>
+            <td>02</td>
+            <td><span class="priority critical">Critical</span></td>
+            <td><span class="finding-title">The UI misses the reference or exact geometry</span><span class="finding-detail">Repeated complaints included “still too wide,” wrong or default icons, poor hierarchy, crude controls, over-compaction, bad asset treatment, and elements that look out of place.</span></td>
+            <td class="evidence">10 / 22 direct corrections</td>
+            <td class="prevention">Inspect the exact route and supplied images before editing, then render at target sizes and compare hierarchy, density, alignment, assets, empty space, and interaction states. Iterate until the mismatch is gone.</td>
+          </tr>
+          <tr>
+            <td>03</td>
+            <td><span class="priority">High</span></td>
+            <td><span class="finding-title">The model stops at planning, auditing, or a partial pass</span><span class="finding-detail">Users repeatedly had to add “do not just write a plan,” “execute on the findings,” “fix everything,” or “audit again.”</span></td>
+            <td class="evidence">2 / 22 direct corrections; 64 / 269 T3 sessions carried finish-and-execute guardrails</td>
+            <td class="prevention">Use a closed loop: inspect, diagnose, implement, validate, visually inspect, repair regressions, re-run checks, and only then report completion.</td>
+          </tr>
+          <tr>
+            <td>04</td>
+            <td><span class="priority">High</span></td>
+            <td><span class="finding-title">The proof is weaker than the completion claim</span><span class="finding-detail">Static checks, fixtures, protocol acceptance, browser DOM checks, or a successful build are reported as if they prove native Electron, live FiveM, packaged, or physical-hardware behavior.</span></td>
+            <td class="evidence">90 / 269 T3 sessions contained explicit proof or validation guardrails</td>
+            <td class="prevention">Name the proof level: source, deterministic test, browser render, native Electron, packaged app, live runtime, or physical hardware. Never promote evidence to a stronger level than it supports.</td>
+          </tr>
+          <tr>
+            <td>05</td>
+            <td><span class="priority">High</span></td>
+            <td><span class="finding-title">The UI becomes generic, bloated, or developer-facing</span><span class="finding-detail">Models reach for card grids, pills, banners, excessive helper copy, gradients, debug identifiers, and equal-weight controls instead of the product’s existing visual language.</span></td>
+            <td class="evidence">93 / 269 T3 sessions carried UI-slop or bloat guardrails</td>
+            <td class="prevention">Use the repository’s primitives and product language. Keep routine state and controls prominent, diagnostics separate, explanatory copy sparse, and surfaces tied to real functional boundaries.</td>
+          </tr>
+          <tr>
+            <td>06</td>
+            <td><span class="priority">High</span></td>
+            <td><span class="finding-title">The implementation bypasses repository contracts</span><span class="finding-detail">Common risks were parallel state, renderer-only success, duplicate abstractions, wrong folders, stale generated output, or failure to preserve unrelated dirty work.</span></td>
+            <td class="evidence">71 / 269 T3 sessions carried architecture or preservation guardrails</td>
+            <td class="prevention">Read effective instructions, git state, contracts, controllers, and shared primitives first. Extend the canonical path and preserve user-owned changes.</td>
+          </tr>
+          <tr>
+            <td>07</td>
+            <td><span class="priority">High</span></td>
+            <td><span class="finding-title">The model patches the symptom instead of the root cause</span><span class="finding-detail">Examples included stale preload output, a shared readiness boundary mistaken for a provider bug, the wrong target resource, and state that looked ready without a running host.</span></td>
+            <td class="evidence">70 / 269 T3 sessions carried repeated-failure or root-cause signals</td>
+            <td class="prevention">Reproduce first. Map the state and lifecycle. Test the suspected mechanism. Repair the owning boundary and add regression coverage before polishing the symptom.</td>
+          </tr>
+          <tr>
+            <td>08</td>
+            <td><span class="priority">High</span></td>
+            <td><span class="finding-title">External-operation results are reported without decisive evidence</span><span class="finding-detail">Job agents risked confusing leads, starts, outreach, and submissions; stale pages or blocked browser routes could be treated as verified state.</span></td>
+            <td class="evidence">Recorded multi-agent outcome failures</td>
+            <td class="prevention">Count only confirmation-backed outcomes, never guess material answers, stop the affected path at security or permission boundaries, and continue independent work through verified alternatives.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="signals-title">
+    <div class="section-head">
+      <h2 id="signals-title">Recurring guardrail signals</h2>
+      <p class="section-intro">These are overlapping session-level keyword signals across 269 direct T3 sessions. They show what the user repeatedly had to specify or protect against. They are not claims that every matching session contained a confirmed failure.</p>
+    </div>
+    <div class="signal-grid">
+      <div class="signal"><strong>93</strong><span>Generic UI, excessive chrome, card/pill patterns, clutter, crude hierarchy, or explanatory text bloat</span></div>
+      <div class="signal"><strong>90</strong><span>Explicit validation, runtime, persistence, packaging, native, live, or physical-proof requirements</span></div>
+      <div class="signal"><strong>81</strong><span>Reference fidelity, exact assets, responsive geometry, overflow, spacing, alignment, or viewport requirements</span></div>
+      <div class="signal"><strong>71</strong><span>Canonical contracts, existing architecture, shared primitives, state ownership, or dirty-work preservation</span></div>
+      <div class="signal"><strong>70</strong><span>Repeated symptoms, root-cause language, regressions, or requests to permanently fix the issue</span></div>
+      <div class="signal"><strong>64</strong><span>Instructions to implement directly, finish the full task, execute audit findings, or continue through validation</span></div>
+      <div class="signal"><strong>28</strong><span>Real hardware, readback, non-mock behavior, supported capability, or prevention of inert controls</span></div>
+      <div class="signal"><strong>14</strong><span>Consumer-facing product state versus developer, protocol, debug, or diagnostic information</span></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="prompt-title">
+    <div class="section-head">
+      <h2 id="prompt-title">Copy-ready prevention prompt</h2>
+      <p class="section-intro">Paste this after your task description. Replace the bracketed fields when useful. It is intentionally strict about UI closure, state truth, and evidence.</p>
+    </div>
+    <div class="prompt-shell">
+      <div class="prompt-toolbar">
+        <span>Anti-failure operating prompt</span>
+        <button class="copy-button" id="copyPrompt" type="button" aria-describedby="copyStatus">Copy prompt</button>
+        <span id="copyStatus" role="status" aria-live="polite" class="sr-status"></span>
+      </div>
+      <pre id="promptText">Work on the real existing system and own the requested outcome through completion.
+
+TASK
+[Describe the task]
+
+TARGET OUTCOME
+[Describe what must visibly or functionally be true when finished]
+
+REFERENCES AND CONSTRAINTS
+[List screenshots, routes, devices, contracts, required primitives, viewport sizes, or external evidence]
+
+Operating rules:
+
+1. Investigate before changing anything.
+   - Read the effective AGENTS.md and relevant architecture, validation, and performance docs.
+   - Inspect git status and treat unrelated or untracked work as user-owned.
+   - Read the relevant shared contract, controller or service, state owner, and existing UI primitive.
+   - Reproduce the current behavior and identify the owning root cause. Do not patch only the visible symptom.
+
+2. Do the work, not just the plan.
+   - After the audit, implement every safe in-scope correction yourself.
+   - Continue through integration, regression repair, validation, and a second audit.
+   - Do not stop midway to ask whether to continue when the next action is already within scope.
+   - If one path is blocked, continue independent in-scope work and report the exact blocker and evidence.
+
+3. Preserve architecture and real state ownership.
+   - Reuse canonical contracts, typed boundaries, shared services, settings, and repository primitives.
+   - Do not create renderer-only success, duplicate stores, parallel abstractions, or privileged shortcuts.
+   - Preserve unrelated dirty changes. Do not reset, clean, overwrite, or silently include them.
+
+4. Enforce product truth.
+   - Every visible control must map to a supported capability and a real state transition.
+   - Do not invent hardware writes, system-wide effects, telemetry, device state, submissions, or success.
+   - Distinguish requested or preview state from pending, acknowledged, confirmed, unavailable, unsupported, and failed state.
+   - A transport ACK, fixture, mock, or local React update is not readback or physical confirmation.
+   - On failure, retain the last confirmed state or visibly explain the unavailable state. Never leave a convincing false success.
+
+5. Treat UI work as an inspect-and-iterate task.
+   - Inspect the exact changed route and all supplied reference images before implementation.
+   - Match the intended information hierarchy, density, alignment, spacing, asset variant, control semantics, and interaction behavior.
+   - Use the repository's existing shadcn/Radix or product primitives when requested. Preserve the actual underlying behavior.
+   - Avoid generic SaaS composition, card soup, nested cards, pills, gradients, glow, glass, decorative icon boxes, excessive helper text, routine shadows, and developer details in the consumer UI.
+   - Do not blindly clone another product. Use it as a quality and interaction reference while keeping this product's tokens, controls, copy, and capability model.
+   - Keep routine controls and current state visible. Put low-level identifiers and protocol details in diagnostics only.
+   - Preserve semantic controls, accessible names, visible focus, keyboard order, contrast, reduced-motion behavior, and Electron no-drag behavior where applicable.
+
+6. Verify responsive and visual closure.
+   - Render the exact changed screen at the required sizes. If none are supplied, check 1080x720, 1420x900, and 1920x1080 for desktop UI, plus a narrow layout when supported.
+   - Check loading, empty, disconnected, unavailable, disabled, error, pending, success, focus, overflow, long-content, and reduced-motion states that apply.
+   - Exercise every changed control and confirm canonical state after refresh, restart, or round trip when applicable.
+   - Compare the result to the references again. Fix geometry, assets, hierarchy, and density mismatches before stopping.
+
+7. Match proof to the claim.
+   - Keep these evidence levels separate: source inspection, deterministic test, static browser or DOM render, native Electron, packaged application, live game/runtime, external confirmation, and physical hardware.
+   - Run the repository's actual applicable checks. Do not claim a lint, test, package, runtime, or hardware result that did not run.
+   - Build or regenerate tracked/generated output when the repository requires it, and fully restart processes when preload, native host, or packaged code can be stale.
+   - Add targeted regression coverage for the root cause. Do not add meaningless tests only to raise a count.
+
+8. Use a completion loop.
+   Reproduce -> trace root cause -> implement -> run focused checks -> run full applicable gates -> inspect the real UI/runtime -> exercise state and failure paths -> fix regressions -> repeat the affected checks -> audit the result again.
+
+Completion is allowed only when:
+   - the requested behavior works through the real owning path;
+   - the UI matches the requested visual and interaction intent at target sizes;
+   - refresh, restart, persistence, error, and unavailable behavior agree with canonical state;
+   - unrelated work remains preserved;
+   - evidence supports every success claim;
+   - any remaining physical, live, permission, or external blocker is named precisely without being presented as complete.
+
+Final response format:
+   - Outcome: what is now true.
+   - Changed: the important files or systems changed.
+   - Verified: exact commands, routes, viewport sizes, interactions, round trips, and evidence levels.
+   - Remaining limits: only genuine external, physical, live, or permission blockers.
+
+Keep the final report concise. Do not hide incomplete work behind a long summary.</pre>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="method-title">
+    <div class="section-head">
+      <h2 id="method-title">Method and limits</h2>
+      <p class="section-intro">The audit favors direct user corrections and verified outcome notes over speculation about model intent.</p>
+    </div>
+    <div class="method">
+      <article>
+        <h3>Sources inspected</h3>
+        <ul>
+          <li><span class="path">C:\Users\User\.codex\sessions</span></li>
+          <li><span class="path">C:\Users\User\.codex\archived_sessions</span></li>
+          <li>Local Codex memory registry and the recent rollout summaries it indexes</li>
+          <li>Common Claude, OpenCode, Cursor, T3 Code, and ChatGPT local locations were checked for recent JSON, JSONL, SQLite, or Markdown chat stores; no additional matching chat corpus was found.</li>
+        </ul>
+      </article>
+      <article>
+        <h3>How the counts were produced</h3>
+        <p>Transcript metadata limited the window to 20 August 2026 at 00:00 CDT through generation on 27 August 2026. Environment blocks, plugin lists, injected skill text, and agent persona wrappers were removed before message counts and phrase signals. Direct-correction messages were then assigned one primary category for the 10 / 10 / 2 split.</p>
+      </article>
+      <article>
+        <h3>Coverage caveat</h3>
+        <p>This covers locally available Codex, T3 Code, Chrome-sidepanel, and OpenMausBot transcripts. It cannot prove coverage of cloud-only ChatGPT history, deleted chats, encrypted stores, or applications that do not persist readable local history.</p>
+      </article>
+      <article>
+        <h3>Interpretation caveat</h3>
+        <p>The session-level guardrail counts are overlapping text signals, not a model-quality score and not a claim that every matching prompt followed a failure. They identify repeated user protections that the prevention prompt should encode.</p>
+      </article>
+    </div>
+    <p class="footnote">Generated 27 August 2026 at 14:05 CDT. The HTML is self-contained and requires no network connection.</p>
+  </section>
+</main>
+
+<script>
+(() => {
+  const button = document.getElementById('copyPrompt');
+  const prompt = document.getElementById('promptText');
+  const status = document.getElementById('copyStatus');
+
+  async function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    if (!copied) throw new Error('Copy command failed');
+  }
+
+  button.addEventListener('click', async () => {
+    try {
+      await copyText(prompt.textContent.trim());
+      button.textContent = 'Copied';
+      button.dataset.state = 'copied';
+      status.textContent = 'Prompt copied to clipboard.';
+      window.setTimeout(() => {
+        button.textContent = 'Copy prompt';
+        delete button.dataset.state;
+        status.textContent = '';
+      }, 1800);
+    } catch {
+      button.textContent = 'Select prompt below';
+      status.textContent = 'Automatic copy was unavailable. Select the prompt text manually.';
+    }
+  });
+})();
+</script>
+</body>
+</html>

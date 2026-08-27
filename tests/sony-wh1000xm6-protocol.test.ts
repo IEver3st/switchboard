@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { sonyFrameType } from '../src/main/modules/sony/common/protocol/frame';
+import { xm6BatteryCapability } from '../src/main/modules/sony/wh1000xm6/battery-estimate';
 import { parseXm6Event, xm6EqualizerBands, xm6ListeningMode, xm6NoiseControl } from '../src/main/modules/sony/wh1000xm6/protocol';
 
 describe('WH-1000XM6 protocol', () => {
@@ -30,5 +31,26 @@ describe('WH-1000XM6 protocol', () => {
     expect(parseXm6Event({ type: sonyFrameType.dataMdr, sequence: 1, payload: Uint8Array.from([0x69, 0x17, 1, 1, 1, 3, 0, 10]) })).toMatchObject({
       mode: 'noise-cancelling', subtype: 0x17, hasWindNoiseByte: true,
     });
+  });
+
+  test('publishes a battery-life estimate from a live battery notification', () => {
+    const event = parseXm6Event({
+      type: sonyFrameType.dataMdr,
+      sequence: 0,
+      payload: Uint8Array.from([0x25, 0x00, 50, 0]),
+    });
+    if (!event || event.type !== 'battery') throw new Error('Expected a battery event.');
+
+    expect(xm6BatteryCapability(event.percentage, event.charging, 1_700_000_000_000)).toEqual({
+      percentage: 50,
+      charging: false,
+      fullyCharged: false,
+      estimatedMinutesRemaining: 900,
+      updatedAt: 1_700_000_000_000,
+    });
+  });
+
+  test('does not report discharge runtime as time-to-full while charging', () => {
+    expect(xm6BatteryCapability(50, true, 1_700_000_000_000).estimatedMinutesRemaining).toBeUndefined();
   });
 });

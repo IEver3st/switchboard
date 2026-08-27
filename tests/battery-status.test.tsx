@@ -3,6 +3,7 @@ import {
   batteryRuntimeLabel,
   formatBatteryRuntime,
 } from '../src/renderer/src/components/device-controls/battery-status-format';
+import { defaultDevices } from '../src/shared/defaults';
 
 describe('battery runtime formatting', () => {
   test('uses compact estimates across minute and hour ranges', () => {
@@ -33,5 +34,18 @@ describe('battery runtime formatting', () => {
     }, true);
 
     expect(label).toBe('Estimate unavailable');
+  });
+
+  test('keeps every connected discharging review fixture estimate-capable', () => {
+    const batteryDevices = defaultDevices.filter((device) => (
+      device.connected
+      && device.capabilities.battery
+      && !device.capabilities.battery.charging
+      && !device.capabilities.battery.fullyCharged
+    ));
+
+    expect(batteryDevices.length).toBeGreaterThan(0);
+    expect(batteryDevices.map((device) => batteryRuntimeLabel(device.capabilities.battery!, device.connected)))
+      .not.toContain('Estimate unavailable');
   });
 });
