@@ -303,7 +303,7 @@ textarea:focus-visible {
 .capture-config-grid {
   display: grid;
   width: min(100%, 1600px);
-  grid-template-columns: minmax(260px, 1fr) 104px 116px 108px 104px max-content;
+  grid-template-columns: minmax(220px, 300px) 104px 116px 108px 104px max-content;
   align-items: start;
   justify-content: start;
   gap: 12px;
@@ -313,7 +313,6 @@ textarea:focus-visible {
 
 .capture-toolbar {
   background: var(--surface-1);
-  box-shadow: 0 10px 26px rgb(0 0 0 / 16%);
 }
 
 .capture-toolbar__separator,
@@ -424,14 +423,19 @@ textarea:focus-visible {
 .capture-library {
   width: 100%;
   margin: 0;
-  padding: 14px clamp(24px, 1.5vw, 32px) 28px;
+  padding: 0 0 28px;
 }
 
 .capture-library__header {
   display: grid;
   grid-template-columns: minmax(176px, auto) minmax(0, 1fr);
-  align-items: end;
+  min-height: 58px;
+  align-items: center;
   gap: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+  padding: 8px clamp(24px, 1.5vw, 32px);
+  box-shadow: 0 10px 26px rgb(0 0 0 / 16%);
 }
 
 .capture-library__tools {
@@ -452,11 +456,65 @@ textarea:focus-visible {
 
 .capture-library__content {
   margin-top: 14px;
+  padding-inline: clamp(24px, 1.5vw, 32px);
+}
+
+.capture-montage-trigger {
+  border: 1px solid color-mix(in srgb, var(--primary) 72%, transparent);
+  box-shadow: inset 0 1px rgb(255 255 255 / 12%);
+}
+
+.capture-tool-control {
+  --capture-tool-accent: var(--primary);
+}
+
+.capture-tool-control--favorites {
+  --capture-tool-accent: var(--status-warning);
+}
+
+.capture-tool-control--game {
+  --capture-tool-accent: var(--channel-game);
+}
+
+.capture-tool-control--date {
+  --capture-tool-accent: var(--channel-media);
+}
+
+.capture-tool-control--sort {
+  --capture-tool-accent: var(--status-info);
+}
+
+.capture-tool-control--view {
+  --control-accent: var(--primary);
+  --capture-tool-accent: var(--primary);
+}
+
+.capture-tool-control--search > svg,
+.capture-tool-icon,
+.capture-tool-control--favorites > svg,
+.capture-tool-control--date > svg {
+  color: var(--capture-tool-accent);
+}
+
+.capture-tool-control:is(button, [role="group"]),
+.capture-tool-control > input,
+.capture-tool-control > button {
+  border-color: color-mix(in srgb, var(--capture-tool-accent) 24%, var(--border));
+  background: color-mix(in srgb, var(--capture-tool-accent) 5%, var(--surface-interactive));
+}
+
+.capture-tool-control:is(button, [role="group"]):hover,
+.capture-tool-control > input:hover,
+.capture-tool-control > input:focus-visible,
+.capture-tool-control > button:hover,
+.capture-tool-control > button[data-state="open"] {
+  border-color: color-mix(in srgb, var(--capture-tool-accent) 46%, var(--border-strong));
+  background: color-mix(in srgb, var(--capture-tool-accent) 9%, var(--surface-hover));
 }
 
 .capture-filter-active {
-  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
-  background: color-mix(in srgb, var(--primary) 10%, var(--surface-interactive));
+  border-color: color-mix(in srgb, var(--capture-tool-accent, var(--primary)) 62%, var(--border));
+  background: color-mix(in srgb, var(--capture-tool-accent, var(--primary)) 13%, var(--surface-interactive));
   color: var(--foreground);
 }
 
@@ -471,7 +529,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 12px;
+  margin: 12px clamp(24px, 1.5vw, 32px) 0;
   border-block: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-1) 72%, transparent);
   padding: 6px 8px;

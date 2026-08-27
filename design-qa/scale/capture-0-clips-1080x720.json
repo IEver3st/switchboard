@@ -1,0 +1,33 @@
+{
+  "viewport": {
+    "width": 1080,
+    "height": 722
+  },
+  "requestedClips": 0,
+  "cards": 0,
+  "rows": 0,
+  "columns": 0,
+  "cardWidths": null,
+  "libraryBounds": {
+    "left": 68,
+    "right": 1080,
+    "width": 1012
+  },
+  "toolbarBounds": {
+    "left": 92,
+    "right": 1056,
+    "width": 964
+  },
+  "emptyState": true,
+  "dateGroups": [],
+  "lazyImages": 0,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "interactions": null,
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-0-clips-1080x720.png",
+  "imageSize": {
+    "width": 1620,
+    "height": 1083
+  }
+}

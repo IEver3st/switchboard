@@ -9,9 +9,17 @@ mock.module('electron', () => ({
   },
 }));
 
-const { DeviceRegistry } = await import('../src/main/services/device-registry');
+const { DeviceRegistry, selectHidDeviceEnumerator } = await import('../src/main/services/device-registry');
 
 describe('device registry lifecycle', () => {
+  test('uses Windows PnP discovery instead of whole-bus HIDAPI enumeration', () => {
+    const windowsEnumerator = async () => [];
+    const portableEnumerator = async () => [];
+
+    expect(selectHidDeviceEnumerator('win32', windowsEnumerator, portableEnumerator)).toBe(windowsEnumerator);
+    expect(selectHidDeviceEnumerator('linux', windowsEnumerator, portableEnumerator)).toBe(portableEnumerator);
+  });
+
   test('removes preview fixture devices before real discovery starts', async () => {
     let snapshot = createDefaultSnapshot();
     const registry = new DeviceRegistry(

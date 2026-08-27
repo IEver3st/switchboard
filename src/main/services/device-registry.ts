@@ -5,6 +5,7 @@ import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
 import { RazerHuntsmanV2AnalogModule } from '../modules/razer';
 import { SonyDeviceModule } from '../modules/sony';
+import { enumerateWindowsHidDevices } from './windows-hid-enumerator';
 
 const discoveryIntervalMs = 5_000;
 const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1', 'razer-huntsman-v2-analog-1', 'sony-wh1000xm6-1']);
@@ -38,7 +39,8 @@ export class DeviceRegistry {
       new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
       new SonyDeviceModule((devices, persist) => this.applyModuleDevices('device.sony-mdr', devices, persist)),
     ];
-    this.listHidDevices = options.listHidDevices ?? devicesAsync;
+    this.listHidDevices = options.listHidDevices
+      ?? selectHidDeviceEnumerator(process.platform, enumerateWindowsHidDevices, devicesAsync);
     this.fixtureMode = options.fixtureMode ?? process.env.SWITCHBOARD_NATIVE_FIXTURES === '1';
     this.enumerationTimeoutMs = options.enumerationTimeoutMs ?? 3_000;
   }
@@ -46,8 +48,9 @@ export class DeviceRegistry {
   public async start(): Promise<void> {
     await this.refresh();
     if (this.disposed) return;
-    // node-hid has no Windows hot-plug event API. Poll only while the controller
-    // is alive, and stop deterministically during application shutdown.
+    // The Windows PnP inventory and the portable HIDAPI fallback expose no
+    // hot-plug subscription here. Poll every five seconds only while the
+    // controller is alive, and stop deterministically during shutdown.
     this.timer = setInterval(() => void this.refresh(), discoveryIntervalMs);
     this.timer.unref();
   }
@@ -243,6 +246,14 @@ export class DeviceRegistry {
     });
     if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next, { persist });
   }
+}
+
+export function selectHidDeviceEnumerator(
+  platform: NodeJS.Platform,
+  windowsEnumerator: () => Promise<HidDevice[]>,
+  portableEnumerator: () => Promise<HidDevice[]>,
+): () => Promise<HidDevice[]> {
+  return platform === 'win32' ? windowsEnumerator : portableEnumerator;
 }
 
 function withTimeout<T>(operation: Promise<T>, milliseconds: number, message: string): Promise<T> {

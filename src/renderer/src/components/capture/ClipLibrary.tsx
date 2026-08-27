@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, Clapperboard, Grid2X2, List, Search, SlidersHorizontal, Star, Video } from 'lucide-react';
+import { ArrowDownUp, CalendarDays, Check, Clapperboard, Gamepad2, Grid2X2, List, Search, SlidersHorizontal, Star, Video } from 'lucide-react';
 import type { Clip } from '../../../../shared/contracts';
 import {
   clipGameLabel,
@@ -111,7 +111,7 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, o
           <div className="flex items-center gap-2.5">
             <h2 id="clips-heading" className="m-0 text-[16px] font-semibold tracking-[-0.01em] text-foreground">Clips</h2>
             {!montageSelectionMode ? (
-              <Button type="button" variant="secondary" size="sm" className="h-7 gap-1.5 px-2.5 text-[11px]" disabled={allClips.length < 2} onClick={() => setMontageSelectionMode(true)}>
+              <Button type="button" variant="primary" size="sm" className="capture-montage-trigger h-8 gap-1.5 px-3 text-[11px]" disabled={allClips.length < 2} onClick={() => setMontageSelectionMode(true)}>
                 <Clapperboard className="size-3.5" aria-hidden="true" /> Create Montage
               </Button>
             ) : null}
@@ -123,7 +123,7 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, o
         </div>
 
         <div className="capture-library__tools">
-          <label className="capture-library__search relative">
+          <label className="capture-library__search capture-tool-control capture-tool-control--search relative">
             <span className="sr-only">Search clips</span>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clips" className="h-9 pl-8 text-[12px]" />
@@ -133,30 +133,30 @@ export function ClipLibrary({ clips: allClips, actions, replayEnabled, hotkey, o
             type="button"
             variant="secondary"
             size="sm"
-            className={cn('h-9 gap-1.5 px-2.5', favoritesOnly && 'capture-filter-active')}
+            className={cn('capture-tool-control capture-tool-control--favorites h-9 gap-1.5 px-2.5', favoritesOnly && 'capture-filter-active')}
             aria-pressed={favoritesOnly}
             onClick={() => setFavoritesOnly((current) => !current)}
           >
             <Star className={cn('size-3.5', favoritesOnly && 'fill-warning text-warning')} /> Favorites
           </Button>
 
-          <div className="w-36 shrink-0">
+          <div className="capture-tool-control capture-tool-control--game w-36 shrink-0">
             <Select value={game} onValueChange={setGame}>
-              <SelectTrigger aria-label="Filter clips by game" className={cn('h-9', game !== 'all' && 'capture-filter-active')}><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Filter clips by game" className={cn('h-9', game !== 'all' && 'capture-filter-active')}><Gamepad2 className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="all">All games</SelectItem>{games.map((label) => <SelectItem key={label} value={label}>{label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
           <DateFilter value={date} onChange={setDate} />
 
-          <div className="w-32 shrink-0">
+          <div className="capture-tool-control capture-tool-control--sort w-32 shrink-0">
             <Select value={sort} onValueChange={(value) => setSort(value as ClipSort)}>
-              <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-9"><ArrowDownUp className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
               <SelectContent>{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
-          <ToggleGroup type="single" value={layout} onValueChange={(value) => { if (value) setLayout(value as ClipLayout); }} aria-label="Clip view" className="h-9 shrink-0 bg-surface-1">
+          <ToggleGroup type="single" value={layout} onValueChange={(value) => { if (value) setLayout(value as ClipLayout); }} aria-label="Clip view" className="capture-tool-control capture-tool-control--view h-9 shrink-0 bg-surface-1">
             <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid view" className="h-9 min-w-9 px-0"><Grid2X2 className="size-4" /></ToggleGroupItem>
             <ToggleGroupItem value="list" aria-label="List view" title="List view" className="h-9 min-w-9 px-0"><List className="size-4" /></ToggleGroupItem>
           </ToggleGroup>
@@ -224,7 +224,7 @@ function DateFilter({ value, onChange }: { value: ClipDateFilter; onChange: (val
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="secondary" size="sm" className={cn('h-9 gap-1.5 px-2.5', active && 'capture-filter-active')}>
+        <Button type="button" variant="secondary" size="sm" className={cn('capture-tool-control capture-tool-control--date h-9 gap-1.5 px-2.5', active && 'capture-filter-active')}>
           {active ? <CalendarDays className="size-3.5 text-primary" /> : <SlidersHorizontal className="size-3.5" />}
           {active ? dateOptions.find((option) => option.value === value)?.label : 'Filter'}
         </Button>
