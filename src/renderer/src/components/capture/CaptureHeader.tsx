@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Monitor, RefreshCw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
 import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
@@ -68,8 +68,8 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
           summary={summary}
           onSourceChange={changeSource}
         />
+        <ClipLibraryToolbar controls={controls} />
       </div>
-      <ClipLibraryToolbar controls={controls} />
       {notice ? <div className={cn('capture-toolbar__notice border-t border-border text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
     </section>
   );
@@ -96,6 +96,8 @@ function ReplayConfiguration({
   summary: ReturnType<typeof replaySummary>;
   onSourceChange: (value: string) => void;
 }) {
+  const [replayOpen, setReplayOpen] = useState(false);
+  const replayTriggerRef = useRef<HTMLButtonElement>(null);
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
   const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
@@ -106,9 +108,10 @@ function ReplayConfiguration({
   const encoderOptions = encoderChoices(snapshot);
 
   return (
-    <Popover>
+    <Popover open={replayOpen} onOpenChange={setReplayOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={replayTriggerRef}
           type="button"
           variant="secondary"
           size="sm"
@@ -121,7 +124,17 @@ function ReplayConfiguration({
           <ChevronDown className="size-3.5 shrink-0" aria-hidden="true" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="capture-replay-popover p-0" aria-label="Replay configuration">
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        className="capture-replay-popover p-0"
+        aria-label="Replay configuration"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          replayTriggerRef.current?.focus();
+          window.requestAnimationFrame(() => replayTriggerRef.current?.focus());
+        }}
+      >
         <div className="capture-replay-popover__header">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -257,6 +270,7 @@ function CaptureSourcePicker({
 }) {
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [previewRevision, setPreviewRevision] = useState(0);
   const [refreshPending, setRefreshPending] = useState(false);
   const selected = options.find((option) => option.value === value);
@@ -281,6 +295,7 @@ function CaptureSourcePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          ref={triggerRef}
           type="button"
           className="capture-source-trigger"
           data-active={active ? 'true' : 'false'}
@@ -291,7 +306,17 @@ function CaptureSourcePicker({
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={6} className="capture-source-popover p-0" aria-label="Choose capture source">
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        className="capture-source-popover p-0"
+        aria-label="Choose capture source"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          triggerRef.current?.focus();
+          window.requestAnimationFrame(() => triggerRef.current?.focus());
+        }}
+      >
         <div className="capture-source-popover__header">
           <div className="min-w-0">
             <div className="text-[12px] font-semibold text-foreground">Capture source</div>

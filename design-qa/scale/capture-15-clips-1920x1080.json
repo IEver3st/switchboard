@@ -3,26 +3,86 @@
     "width": 1920,
     "height": 1080
   },
-  "reviewCards": 15,
-  "dialogBounds": {
-    "width": 1120,
-    "height": 780
+  "requestedClips": 15,
+  "cards": 15,
+  "rows": 0,
+  "columns": 5,
+  "cardWidths": {
+    "minimum": 346.0833435058594,
+    "maximum": 346.0833435058594
   },
-  "columns": 3,
-  "firstCard": {
-    "width": 345.5520935058594,
-    "height": 276.94793701171875
+  "libraryBounds": {
+    "left": 68,
+    "right": 1920,
+    "width": 1852
   },
-  "scrollOwned": true,
+  "toolbarBounds": {
+    "left": 341.3333435058594,
+    "right": 1891.2083435058594,
+    "width": 1549.875
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 90.66666793823242,
+    "height": 52.66666793823242
+  },
+  "commandTopBounds": {
+    "height": 52
+  },
+  "searchBounds": {
+    "width": 838.1875
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": "false",
+    "game": "All games",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today"
+  ],
+  "lazyImages": 15,
+  "decodedImages": 15,
   "horizontalOverflow": false,
-  "title": "15 new clips · 27 MB",
   "interactions": {
-    "escaped": true,
-    "reviewedThrough": 1787878894899,
-    "reopened": false
+    "searchFocused": true,
+    "searchMatches": 3,
+    "favoriteMatches": 3,
+    "gameMatches": 4,
+    "dateFilterApplied": true,
+    "sortChangedOrder": true,
+    "listItems": 15,
+    "montageSelection": true,
+    "replayControls": {
+      "source": true,
+      "fields": 9,
+      "shortcut": true
+    },
+    "replayKeyboard": {
+      "replayTriggerFocused": true,
+      "replayFocusInside": true,
+      "sourceOptions": [
+        "Detect active gameAutomatic gameAutomatic",
+        "UnavailableDisplay 1Display · Selected"
+      ],
+      "sourceFocusRestored": true,
+      "sourceFocusAfter": {
+        "tag": "BUTTON",
+        "className": "capture-source-trigger",
+        "label": "Capture source: Display 1"
+      },
+      "replayFocusRestored": true,
+      "replayFocusAfter": {
+        "tag": "BUTTON",
+        "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-border bg-surface-interactive text-secondary-foreground hover:border-border-strong hover:bg-surface-hover px-3 text-xs capture-replay-summary h-8",
+        "label": "Replay Off. Instant Replay is turned off in Capture Settings. Open replay configuration"
+      }
+    }
   },
   "resizeTransitions": null,
-  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\new-clips-review-15-1920x1080.png",
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-15-clips-1920x1080.png",
   "imageSize": {
     "width": 2880,
     "height": 1620

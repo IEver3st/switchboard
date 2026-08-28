@@ -1,5 +1,7 @@
 import electronPath from 'electron';
 import { spawn } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -48,6 +50,15 @@ if (command === 'capture') {
   await runElectron('scripts/capture-scale-qa.mjs', ...commandArguments);
 } else if (command === 'startup') {
   await runElectron('scripts/measure-startup.mjs', ...commandArguments);
+} else if (command === 'idle') {
+  const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-idle-measure-'));
+  process.env.SWITCHBOARD_IDLE_USER_DATA = isolatedUserData;
+  try {
+    await runElectron('scripts/measure-idle.mjs', ...commandArguments);
+  } finally {
+    delete process.env.SWITCHBOARD_IDLE_USER_DATA;
+    await rm(isolatedUserData, { recursive: true, force: true });
+  }
 } else if (command === 'app-updates') {
   await runElectron('scripts/verify-app-update-ui.mjs');
 } else if (command === 'device-popovers') {

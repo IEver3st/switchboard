@@ -1,25 +1,25 @@
 {
   "viewport": {
-    "width": 1080,
-    "height": 722
+    "width": 1420,
+    "height": 900
   },
   "requestedClips": 15,
-  "cards": 15,
+  "cards": 1,
   "rows": 0,
   "columns": 3,
   "cardWidths": {
-    "minimum": 310.66668701171875,
-    "maximum": 310.66668701171875
+    "minimum": 424,
+    "maximum": 424
   },
   "libraryBounds": {
     "left": 68,
-    "right": 1080,
-    "width": 1012
+    "right": 1420,
+    "width": 1352
   },
   "toolbarBounds": {
-    "left": 242.0729217529297,
-    "right": 1060.0000457763672,
-    "width": 817.9271240234375
+    "left": 319.6875,
+    "right": 1396,
+    "width": 1076.3125
   },
   "commandHeaderBounds": {
     "top": 38,
@@ -30,21 +30,21 @@
     "height": 52
   },
   "searchBounds": {
-    "width": 292.29168701171875
+    "width": 371.76043701171875
   },
   "toolbarOverflow": false,
   "activeControls": {
-    "favorites": "false",
-    "game": "All games",
-    "filter": "Filter",
+    "favorites": "true",
+    "game": "FiveM",
+    "filter": "Filter · 2",
     "view": "Grid view"
   },
   "emptyState": false,
   "dateGroups": [
     "Today"
   ],
-  "lazyImages": 15,
-  "decodedImages": 15,
+  "lazyImages": 1,
+  "decodedImages": 1,
   "horizontalOverflow": false,
   "interactions": {
     "searchFocused": true,
@@ -65,7 +65,7 @@
       "replayFocusInside": true,
       "sourceOptions": [
         "Detect active gameAutomatic gameAutomatic",
-        "UnavailableDisplay 1Display · Selected"
+        "Preview unavailableUnavailableDisplay 1Display · Selected"
       ],
       "sourceFocusRestored": true,
       "sourceFocusAfter": {
@@ -82,9 +82,9 @@
     }
   },
   "resizeTransitions": null,
-  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-15-clips-1080x720.png",
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-15-clips-1420x900-active.png",
   "imageSize": {
-    "width": 1620,
-    "height": 1083
+    "width": 2130,
+    "height": 1350
   }
 }

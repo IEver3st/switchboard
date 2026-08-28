@@ -16,6 +16,7 @@ const reviewDeleteConfirmation = process.argv.includes('--confirm-delete');
 const reviewViewAll = process.argv.includes('--view-all');
 const reviewOpenCard = process.argv.includes('--open-card');
 const reviewReplayPopover = process.argv.includes('--replay-popover');
+const reviewActiveControls = process.argv.includes('--active-controls');
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = join(projectRoot, 'design-qa', 'scale');
@@ -108,6 +109,12 @@ async function runReview() {
     await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Capture')?.click()");
     await waitForLibrary(window, count);
     await window.webContents.executeJavaScript("document.querySelectorAll('[data-radix-scroll-area-viewport]').forEach((element) => element.scrollTo(0, 0))");
+    if (reviewActiveControls) {
+      await clickButton(window, 'Favorites');
+      await waitFor(window, `document.querySelector('.capture-tool-control--favorites')?.getAttribute('aria-pressed') === 'true'`);
+      await selectGame(window, 'FiveM');
+      await waitFor(window, `document.querySelector('[aria-label="Filter clips by game"]')?.textContent.includes('FiveM')`);
+    }
     if (reviewReplayPopover) {
       await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
       await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
@@ -139,6 +146,7 @@ const metricsExpression = [
   "commandTopBounds: commandTop ? { height: commandTop.getBoundingClientRect().height } : null,",
   "searchBounds: search ? { width: search.getBoundingClientRect().width } : null,",
   "toolbarOverflow: tools ? tools.scrollWidth > tools.clientWidth : null,",
+  "activeControls: { favorites: document.querySelector('.capture-tool-control--favorites')?.getAttribute('aria-pressed'), game: document.querySelector('[aria-label=\"Filter clips by game\"]')?.textContent?.trim(), filter: document.querySelector('.capture-tool-control--date')?.textContent?.trim(), view: document.querySelector('.capture-tool-control--view [data-state=\"on\"]')?.getAttribute('aria-label') },",
   "emptyState: document.body.textContent.includes('No clips yet'),",
   "dateGroups: [...document.querySelectorAll('[id^=clip-group-]')].map((node) => node.textContent.trim()),",
   "lazyImages: images.filter((image) => image.loading === 'lazy').length,",
@@ -165,15 +173,23 @@ const metricsExpression = [
         };
       })()`)
     : await window.webContents.executeJavaScript(metricsExpression);
+  window.webContents.invalidate();
+  await window.webContents.executeJavaScript('new Promise((resolvePaint) => requestAnimationFrame(() => requestAnimationFrame(resolvePaint)))');
+  await delay(80);
   const image = await window.webContents.capturePage();
   const viewportSuffix = process.argv[3] ? '-' + requestedWidth + 'x' + requestedHeight : '';
-  const stateSuffix = reviewReplayPopover ? '-replay' : '';
+  const stateSuffix = reviewReplayPopover ? '-replay' : reviewActiveControls ? '-active' : '';
   const reviewSuffix = reviewDeleteConfirmation ? '-delete-confirm' : reviewViewAll ? '-view-all' : reviewOpenCard ? '-open-card' : '';
   const imagePath = join(outputDirectory, (reviewMode ? 'new-clips-review-' + count + reviewSuffix : 'capture-' + count + '-clips') + viewportSuffix + stateSuffix + '.png');
   await writeFile(imagePath, image.toPNG());
   if (reviewReplayPopover) {
     await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
     await waitFor(window, "!document.querySelector('.capture-replay-popover')");
+  }
+  if (reviewActiveControls) {
+    await clickButton(window, 'Favorites');
+    await selectGame(window, 'All games');
+    await waitForLibrary(window, count);
   }
   const interactions = reviewMode ? await verifyReviewDismissal(window) : count > 1 ? await verifyLibraryInteractions(window, count) : null;
   const resizeTransitions = process.argv[5] === 'resize-sequence' ? await verifyResizeTransitions(window) : null;
@@ -270,23 +286,78 @@ async function verifyLibraryInteractions(window, expectedCount) {
   await clickButton(window, 'Favorites');
   await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
 
+  await selectGame(window, 'FiveM');
+  await waitFor(window, `document.querySelectorAll('.capture-clip-card').length > 0 && document.querySelectorAll('.capture-clip-card').length < ${expectedCount}`);
+  const gameMatches = await window.webContents.executeJavaScript("document.querySelectorAll('.capture-clip-card').length");
+  await selectGame(window, 'All games');
+  await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
+
+  await openDateFilter(window);
+  await waitFor(window, "[...document.querySelectorAll('[role=menuitem]')].some((item) => item.textContent?.trim() === 'Today')");
+  await selectMenuItem(window, 'Today');
+  await waitFor(window, "document.querySelector('.capture-tool-control--date')?.textContent.includes('Filter · 1')");
+  const dateFilterApplied = await window.webContents.executeJavaScript("document.querySelector('.capture-tool-control--date')?.getAttribute('aria-pressed') === 'true'");
+  await openDateFilter(window);
+  await waitFor(window, "[...document.querySelectorAll('[role=menuitem]')].some((item) => item.textContent?.trim() === 'Any date')");
+  await selectMenuItem(window, 'Any date');
+  await waitFor(window, "document.querySelector('.capture-tool-control--date')?.textContent.trim() === 'Filter'");
+
+  const newestFirst = await window.webContents.executeJavaScript("document.querySelector('[data-clip-id]')?.getAttribute('data-clip-id')");
+  await selectToolbarOption(window, 'Sort clips', 'Oldest');
+  await waitFor(window, "document.querySelector('[aria-label=\"Sort clips\"]')?.textContent.includes('Oldest')");
+  const oldestFirst = await window.webContents.executeJavaScript("document.querySelector('[data-clip-id]')?.getAttribute('data-clip-id')");
+  await selectToolbarOption(window, 'Sort clips', 'Newest');
+
   await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"List view\"]')?.click()");
   await waitFor(window, `document.querySelectorAll('.capture-clip-list__item').length === ${expectedCount}`);
   const listItems = await window.webContents.executeJavaScript("document.querySelectorAll('.capture-clip-list__item').length");
   await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"Grid view\"]')?.click()");
   await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
 
-  await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+  await clickButton(window, 'Create Montage');
+  await waitFor(window, "Boolean(document.querySelector('[data-testid=\"montage-selection-toolbar\"]'))");
+  await window.webContents.executeJavaScript("[...document.querySelectorAll('button[data-clip-id]')].slice(0, 2).forEach((button) => button.click())");
+  await waitFor(window, "document.querySelector('[data-testid=\"montage-selection-toolbar\"]')?.textContent.includes('2 selected')");
+  const montageSelection = await window.webContents.executeJavaScript("document.querySelector('[data-testid=\"montage-selection-toolbar\"]')?.textContent.includes('Create Montage · 2 clips') === true");
+  await clickButton(window, 'Cancel');
+  await waitFor(window, "!document.querySelector('[data-testid=\"montage-selection-toolbar\"]')");
+
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await delay(80);
+  const replayTriggerFocused = await window.webContents.executeJavaScript("(() => { const trigger = document.querySelector('.capture-replay-summary'); trigger?.focus(); return document.activeElement === trigger; })()");
+  await waitFor(window, "document.activeElement?.classList.contains('capture-replay-summary') === true");
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Space' });
   await waitFor(window, "Boolean(document.querySelector('button[aria-label=\"Encoder\"]'))");
+  const replayFocusInside = await window.webContents.executeJavaScript("document.querySelector('.capture-replay-popover')?.contains(document.activeElement) === true");
+  await window.webContents.executeJavaScript("document.querySelector('.capture-source-trigger')?.focus()");
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Space' });
+  await waitFor(window, "Boolean(document.querySelector('.capture-source-popover'))");
+  const sourceOptions = await window.webContents.executeJavaScript("[...document.querySelectorAll('.capture-source-option')].map((option) => option.textContent.trim())");
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await waitFor(window, "!document.querySelector('.capture-source-popover')");
+  await waitFor(window, "document.activeElement?.classList.contains('capture-source-trigger') === true");
+  const sourceFocusAfter = await window.webContents.executeJavaScript("({ tag: document.activeElement?.tagName, className: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label') })");
+  const sourceFocusRestored = Boolean(sourceFocusAfter?.className?.includes?.('capture-source-trigger'));
+  await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced > summary')?.click()");
+  await waitFor(window, "document.querySelector('.capture-replay-advanced')?.open === true");
   const replayControls = await window.webContents.executeJavaScript(`(() => ({
     source: Boolean(document.querySelector('button[aria-label^="Capture source:"]')),
     fields: ['Replay length', 'Capture quality', 'Capture resolution', 'Capture frame rate', 'Encoder', 'Codec', 'Game audio', 'Microphone', 'Capture cursor']
       .filter((label) => document.querySelector('[aria-label="' + label + '"]')).length,
     shortcut: Boolean(document.querySelector('[aria-label^="Save replay shortcut:"]')),
   }))()`);
-  await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await waitFor(window, "!document.querySelector('.capture-replay-popover')");
+  await delay(40);
+  const replayFocusAfter = await window.webContents.executeJavaScript("({ tag: document.activeElement?.tagName, className: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label') })");
+  const replayFocusRestored = Boolean(replayFocusAfter?.className?.includes?.('capture-replay-summary'));
 
-  return { searchFocused, searchMatches, favoriteMatches, listItems, replayControls };
+  return { searchFocused, searchMatches, favoriteMatches, gameMatches, dateFilterApplied, sortChangedOrder: newestFirst !== oldestFirst, listItems, montageSelection, replayControls, replayKeyboard: { replayTriggerFocused, replayFocusInside, sourceOptions, sourceFocusRestored, sourceFocusAfter, replayFocusRestored, replayFocusAfter } };
 }
 
 async function setSearch(window, value) {
@@ -308,6 +379,34 @@ async function clickButton(window, label) {
     return Boolean(button);
   })()`);
   if (!clicked) throw new Error(`Button was unavailable: ${label}`);
+}
+
+async function selectGame(window, label) {
+  const opened = await window.webContents.executeJavaScript("(() => { const trigger = document.querySelector('[aria-label=\\\"Filter clips by game\\\"]'); trigger?.click(); return Boolean(trigger); })()");
+  if (!opened) throw new Error('Game filter was unavailable.');
+  await waitFor(window, "document.querySelectorAll('[role=option]').length > 0");
+  const selected = await window.webContents.executeJavaScript("(() => { const label = " + JSON.stringify(label) + "; const option = [...document.querySelectorAll('[role=option]')].find((candidate) => candidate.textContent?.trim() === label); option?.click(); return Boolean(option); })()");
+  if (!selected) throw new Error(`Game filter option was unavailable: ${label}`);
+}
+
+async function selectToolbarOption(window, triggerLabel, optionLabel) {
+  const opened = await window.webContents.executeJavaScript("(() => { const label = " + JSON.stringify(triggerLabel) + "; const trigger = [...document.querySelectorAll('button')].find((candidate) => candidate.getAttribute('aria-label') === label); trigger?.click(); return Boolean(trigger); })()");
+  if (!opened) throw new Error(`Toolbar select was unavailable: ${triggerLabel}`);
+  await waitFor(window, "document.querySelectorAll('[role=option]').length > 0");
+  const selected = await window.webContents.executeJavaScript("(() => { const label = " + JSON.stringify(optionLabel) + "; const option = [...document.querySelectorAll('[role=option]')].find((candidate) => candidate.textContent?.trim() === label); option?.click(); return Boolean(option); })()");
+  if (!selected) throw new Error(`Toolbar option was unavailable: ${optionLabel}`);
+}
+
+async function selectMenuItem(window, label) {
+  const selected = await window.webContents.executeJavaScript("(() => { const label = " + JSON.stringify(label) + "; const item = [...document.querySelectorAll('[role=menuitem]')].find((candidate) => candidate.textContent?.trim() === label); item?.click(); return Boolean(item); })()");
+  if (!selected) throw new Error(`Menu item was unavailable: ${label}`);
+}
+
+async function openDateFilter(window) {
+  const focused = await window.webContents.executeJavaScript("(() => { const trigger = document.querySelector('.capture-tool-control--date'); trigger?.focus(); return document.activeElement === trigger; })()");
+  if (!focused) throw new Error('Date filter was unavailable.');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Space' });
 }
 
 async function waitFor(window, expression, timeout = 8_000) {

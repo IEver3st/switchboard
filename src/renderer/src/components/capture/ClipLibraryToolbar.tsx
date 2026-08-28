@@ -40,7 +40,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
           </label>
 
           <Button type="button" variant="secondary" size="sm" className={cn('capture-tool-control capture-tool-control--favorites h-8 gap-1.5 px-2.5 text-[11px]', controls.favoritesOnly && 'capture-filter-active')} aria-pressed={controls.favoritesOnly} onClick={controls.onFavoritesChange}>
-            <Star className={cn('size-3.5', controls.favoritesOnly && 'fill-warning text-warning')} /> Favorites
+            <Star className={cn('size-3.5', controls.favoritesOnly && 'fill-warning text-warning')} /> <span className="capture-tool-label">Favorites</span>
           </Button>
 
           <div className="capture-tool-control capture-tool-control--game w-36 shrink-0">
@@ -66,7 +66,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
 
           {!controls.montageSelectionMode ? (
             <Button type="button" variant="primary" size="sm" className="capture-montage-trigger h-8 shrink-0 gap-1.5 px-3 text-[11px]" disabled={totalClipCount < 2} onClick={controls.onStartMontage}>
-              <Clapperboard className="size-3.5" aria-hidden="true" /> Create Montage
+              <Clapperboard className="size-3.5" aria-hidden="true" /> <span>Create Montage</span>
             </Button>
           ) : null}
       </div>
@@ -107,7 +107,7 @@ function DateFilter({ value, activeFilterCount, onChange }: { value: ClipDateFil
           aria-pressed={active}
         >
           <SlidersHorizontal className="size-3.5" />
-          {active ? `Filter · ${activeFilterCount}` : 'Filter'}
+          <span className="capture-tool-label">{active ? `Filter · ${activeFilterCount}` : 'Filter'}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48 p-1.5">
