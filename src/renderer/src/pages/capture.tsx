@@ -11,7 +11,11 @@ import type { ClipActions } from '@/components/capture/types';
 import { formatBytes, formatDuration } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
-export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
+export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled }: {
+  snapshot: SystemSnapshot;
+  requestedClipId?: string | null;
+  onRequestedClipHandled?: () => void;
+}) {
   const setClipFavorite = useSystemStore((state) => state.setClipFavorite);
   const revealClip = useSystemStore((state) => state.revealClip);
   const deleteClip = useSystemStore((state) => state.deleteClip);
@@ -70,6 +74,15 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   useEffect(() => {
     if (editorClipId && !editorClip) setEditorClipId(null);
   }, [editorClip, editorClipId]);
+
+  useEffect(() => {
+    if (!requestedClipId) return;
+    if (snapshot.clips.some((clip) => clip.id === requestedClipId)) {
+      setMontageProject(null);
+      setEditorClipId(requestedClipId);
+    }
+    onRequestedClipHandled?.();
+  }, [onRequestedClipHandled, requestedClipId, snapshot.clips]);
 
   useEffect(() => {
     if (!montageProject) return;

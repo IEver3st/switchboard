@@ -12,6 +12,7 @@ const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1',
 
 type DeviceRegistryOptions = {
   modules?: DeviceModule[];
+  additionalModules?: () => DeviceModule[];
   listHidDevices?: () => Promise<HidDevice[]>;
   fixtureMode?: boolean;
   enumerationTimeoutMs?: number;
@@ -19,6 +20,7 @@ type DeviceRegistryOptions = {
 
 export class DeviceRegistry {
   private readonly modules: DeviceModule[];
+  private readonly additionalModules: () => DeviceModule[];
   private readonly listHidDevices: () => Promise<HidDevice[]>;
   private readonly fixtureMode: boolean;
   private readonly enumerationTimeoutMs: number;
@@ -39,6 +41,7 @@ export class DeviceRegistry {
       new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
       new SonyDeviceModule((devices, persist) => this.applyModuleDevices('device.sony-mdr', devices, persist)),
     ];
+    this.additionalModules = options.additionalModules ?? (() => []);
     this.listHidDevices = options.listHidDevices
       ?? selectHidDeviceEnumerator(process.platform, enumerateWindowsHidDevices, devicesAsync);
     this.fixtureMode = options.fixtureMode ?? process.env.SWITCHBOARD_NATIVE_FIXTURES === '1';
@@ -79,7 +82,7 @@ export class DeviceRegistry {
     }
     const device = this.getSnapshot().devices.find((candidate) => candidate.id === deviceId);
     if (!device) throw new Error('Device not found.');
-    const module = this.modules.find((candidate) => candidate.id === device.moduleId);
+    const module = this.allModules().find((candidate) => candidate.id === device.moduleId);
     if (!module?.setControl) throw new Error(`${device.displayName} does not expose writable device controls.`);
     const result = await module.setControl(device, change);
     if (result?.confirmedChanges.length) {
@@ -106,7 +109,7 @@ export class DeviceRegistry {
     const activeRefresh = this.refreshPromise;
     this.disposePromise = (async () => {
       if (activeRefresh) await activeRefresh;
-      await Promise.all(this.modules.map((module) => module.dispose?.()));
+      await Promise.all(this.allModules().map((module) => module.dispose?.()));
     })();
     return this.disposePromise;
   }
@@ -189,8 +192,9 @@ export class DeviceRegistry {
     const hidDevices = await this.enumerateHidDevices();
     if (this.disposed) return;
     const enabledModuleIds = new Set(snapshot.modules.filter((module) => module.enabled).map((module) => module.id));
-    const activeModules = this.modules.filter((module) => enabledModuleIds.has(module.id));
-    await Promise.all(this.modules
+    const modules = this.allModules();
+    const activeModules = modules.filter((module) => enabledModuleIds.has(module.id));
+    await Promise.all(modules
       .filter((module) => !enabledModuleIds.has(module.id))
       .map((module) => module.deactivate?.()));
     const groups = await Promise.all(activeModules.map((module) => module.discover({
@@ -201,7 +205,7 @@ export class DeviceRegistry {
     if (this.disposed) return;
     const connected = groups.flat().map((device) => mergeDeviceSettings(device, snapshot.devices));
     const connectedIds = new Set(connected.map((device) => device.id));
-    const moduleIds = new Set(this.modules.map((module) => module.id));
+    const moduleIds = new Set(snapshot.modules.map((module) => module.id));
     const disconnected = snapshot.devices
       .filter((device) => (
         moduleIds.has(device.moduleId)
@@ -245,6 +249,16 @@ export class DeviceRegistry {
       return left.displayName.localeCompare(right.displayName);
     });
     if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next, { persist });
+  }
+
+  public removeModuleDevices(moduleId: string): void {
+    const devices = this.getSnapshot().devices.filter((device) => device.moduleId !== moduleId);
+    this.applyDevices(devices);
+  }
+
+  private allModules(): DeviceModule[] {
+    const modules = [...this.modules, ...this.additionalModules()];
+    return [...new Map(modules.map((module) => [module.id, module])).values()];
   }
 }
 

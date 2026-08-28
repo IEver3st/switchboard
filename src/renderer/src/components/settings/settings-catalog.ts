@@ -248,10 +248,24 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['games', 'scan', 'add game', 'executable', 'exe', 'library', 'manual'],
   },
   {
+    id: 'modules.create',
+    category: 'modules',
+    title: 'Create a device add-on',
+    description: 'Scaffold a sandboxed device-discovery module with a manifest, tests, schema, and guide.',
+    keywords: ['plugin', 'addon', 'add-on', 'author', 'developer', 'sdk', 'vid', 'pid', 'manifest', 'scaffold'],
+  },
+  {
+    id: 'modules.local',
+    category: 'modules',
+    title: 'Local module projects',
+    description: 'Validate, open, enable, or unlink a local add-on project.',
+    keywords: ['plugin', 'addon', 'add-on', 'link', 'validate', 'sandbox', 'project', 'local'],
+  },
+  {
     id: 'modules.automaticUpdates',
     category: 'modules',
-    title: 'Automatic module updates',
-    description: 'Verify and install signed module packages with rollback retained.',
+    title: 'Automatic bundled-module updates',
+    description: 'Verify and install signed bundled module packages with rollback retained.',
     keywords: ['extensions', 'plugins', 'updates', 'signed', 'rollback'],
   },
   {

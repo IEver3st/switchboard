@@ -6,12 +6,14 @@ import {
   appSettingsSchema,
   captureConfigSchema,
   clipTrimInputSchema,
+  createModuleProjectInputSchema,
   createAudioPresetInputSchema,
   exportClipInputSchema,
   exportMontageInputSchema,
   feedbackReportInputSchema,
   ipcChannels,
   markClipsReviewedInputSchema,
+  moduleProjectIdInputSchema,
   renameClipInputSchema,
   renameAudioPresetInputSchema,
   setAudioChannelProcessorInputSchema,
@@ -81,6 +83,36 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setModuleStateInputSchema.parse(input),
     (input) => controller.setModuleState(input),
+  );
+  handle(
+    ipcChannels.createModuleProject,
+    getMainWindow,
+    (input) => createModuleProjectInputSchema.parse(input),
+    (input) => controller.createModuleProject(input),
+  );
+  handle(
+    ipcChannels.linkModuleProject,
+    getMainWindow,
+    (input) => z.undefined().parse(input),
+    () => controller.linkModuleProject(),
+  );
+  handle(
+    ipcChannels.validateModuleProject,
+    getMainWindow,
+    (input) => moduleProjectIdInputSchema.parse(input),
+    (input) => controller.validateModuleProject(input),
+  );
+  handle(
+    ipcChannels.revealModuleProject,
+    getMainWindow,
+    (input) => moduleProjectIdInputSchema.parse(input),
+    (input) => controller.revealModuleProject(input),
+  );
+  handle(
+    ipcChannels.unlinkModuleProject,
+    getMainWindow,
+    (input) => moduleProjectIdInputSchema.parse(input),
+    (input) => controller.unlinkModuleProject(input),
   );
   handle(
     ipcChannels.setDeviceControl,

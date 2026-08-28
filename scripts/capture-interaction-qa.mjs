@@ -106,8 +106,8 @@ await clickButton('Filter');
 await waitFor("[...document.querySelectorAll('button')].some((button) => button.textContent.trim() === 'Today')");
 results.dateOptions = await evaluate("[...document.querySelectorAll('button')].map((button) => button.textContent.trim()).filter((text) => ['Any date','Today','Yesterday','Last 7 days','Last 30 days'].includes(text))");
 await clickButton('Today');
-await waitFor("[...document.querySelectorAll('button')].some((button) => button.textContent.trim() === 'Today')");
-await clickButton('Today');
+await waitFor("document.querySelector('.capture-tool-control--date')?.textContent.includes('Filter · 1')");
+await click("document.querySelector('.capture-tool-control--date')");
 await waitFor("[...document.querySelectorAll('button')].some((button) => button.textContent.trim() === 'Any date')");
 await clickButton('Any date');
 
@@ -153,9 +153,10 @@ results.editorTabLoop = await evaluate("(() => { const editor = document.querySe
 await clickButton('Back to clips');
 await waitFor("!document.querySelector('#clip-editor-title')");
 
-await clickButton('More');
+await click("document.querySelector('.capture-replay-summary')");
 await waitFor("document.querySelector('button[aria-label=Encoder]')");
-results.more = await evaluate("['Encoder','Codec','Game audio','Microphone','Capture cursor'].every((label) => document.querySelector('[aria-label=\\\"' + label + '\\\"]')) && Boolean(document.querySelector('[aria-label^=\\\"Save replay shortcut:\\\"]'))");
+await click("document.querySelector('.capture-replay-advanced > summary')");
+results.replayConfiguration = await evaluate("['Replay length','Capture quality','Capture resolution','Capture frame rate','Encoder','Codec','Game audio','Microphone','Capture cursor'].every((label) => document.querySelector('[aria-label=\\\"' + label + '\\\"]')) && Boolean(document.querySelector('button[aria-label^=\\\"Capture source:\\\"]')) && Boolean(document.querySelector('[aria-label^=\\\"Save replay shortcut:\\\"]'))");
 results.audioCapabilityTruth = await evaluate("(() => { const game = document.querySelector('[aria-label=\"Game audio\"]'); const microphone = document.querySelector('[aria-label=\"Microphone\"]'); return { gameDisabled: game?.disabled === true, microphoneDisabled: microphone?.disabled === true, reasons: [...document.querySelectorAll('[data-radix-popper-content-wrapper] span')].filter((node) => node.textContent === 'Unavailable for this capture setup').length }; })()");
 await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
 

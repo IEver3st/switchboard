@@ -1,0 +1,30 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "reviewCards": 15,
+  "dialogBounds": {
+    "width": 1120,
+    "height": 780
+  },
+  "columns": 3,
+  "firstCard": {
+    "width": 345.5520935058594,
+    "height": 276.94793701171875
+  },
+  "scrollOwned": true,
+  "horizontalOverflow": false,
+  "title": "15 new clips · 27 MB",
+  "interactions": {
+    "escaped": true,
+    "reviewedThrough": 1787878894899,
+    "reopened": false
+  },
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\new-clips-review-15-1920x1080.png",
+  "imageSize": {
+    "width": 2880,
+    "height": 1620
+  }
+}

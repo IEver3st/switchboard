@@ -30,6 +30,37 @@ export type EngineStatus = z.infer<typeof engineStatusSchema>;
 export const moduleKindSchema = z.enum(['device', 'capture', 'audio', 'integration']);
 export type ModuleKind = z.infer<typeof moduleKindSchema>;
 
+export const moduleSourceSchema = z.enum(['bundled', 'local']);
+export type ModuleSource = z.infer<typeof moduleSourceSchema>;
+
+export const moduleRuntimeStatusSchema = z.enum([
+  'ready',
+  'validating',
+  'active',
+  'invalid',
+  'incompatible',
+  'missing',
+  'runtime-error',
+]);
+export type ModuleRuntimeStatus = z.infer<typeof moduleRuntimeStatusSchema>;
+
+export const moduleValidationIssueSchema = z.object({
+  severity: z.enum(['error', 'warning', 'info']),
+  code: z.string().min(1),
+  message: z.string().min(1),
+  file: z.string().min(1).optional(),
+});
+export type ModuleValidationIssue = z.infer<typeof moduleValidationIssueSchema>;
+
+export const moduleDevelopmentStateSchema = z.object({
+  projectPath: z.string().min(1),
+  sdkVersion: z.literal(1),
+  status: moduleRuntimeStatusSchema,
+  lastValidatedAt: z.string().nullable(),
+  issues: z.array(moduleValidationIssueSchema).max(64),
+});
+export type ModuleDevelopmentState = z.infer<typeof moduleDevelopmentStateSchema>;
+
 export const moduleManifestSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -43,11 +74,65 @@ export const moduleManifestSchema = z.object({
   restartRequired: z.boolean().default(false),
   capabilities: z.array(z.string()),
   vendors: z.array(z.string()).default([]),
+  source: moduleSourceSchema.default('bundled'),
+  author: z.string().trim().min(1).max(120).optional(),
+  development: moduleDevelopmentStateSchema.optional(),
 });
 export type ModuleManifest = z.infer<typeof moduleManifestSchema>;
 
+const moduleIdentifierSchema = z.string()
+  .trim()
+  .min(3)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/, 'Use a namespaced lowercase ID such as device.my-company.product.');
+const moduleVersionSchema = z.string()
+  .trim()
+  .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/, 'Use a semantic version such as 0.1.0.');
+const moduleHexIdentifierSchema = z.string()
+  .trim()
+  .regex(/^[0-9a-fA-F]{4}$/, 'Use exactly four hexadecimal characters.');
+
+export const addonHidPermissionSchema = z.object({
+  vendorId: moduleHexIdentifierSchema,
+  productIds: z.array(moduleHexIdentifierSchema).min(1).max(32),
+});
+export type AddonHidPermission = z.infer<typeof addonHidPermissionSchema>;
+
+export const addonProjectManifestSchema = z.object({
+  schemaVersion: z.literal(1),
+  id: moduleIdentifierSchema,
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().min(12).max(240),
+  author: z.string().trim().min(2).max(120),
+  version: moduleVersionSchema,
+  minimumCoreVersion: moduleVersionSchema,
+  kind: moduleKindSchema,
+  entrypoint: z.string().trim().min(1).max(200),
+  capabilities: z.array(z.string().trim().min(1).max(64)).min(1).max(32),
+  permissions: z.object({
+    hid: z.array(addonHidPermissionSchema).min(1).max(16).default([]),
+  }),
+});
+export type AddonProjectManifest = z.infer<typeof addonProjectManifestSchema>;
+
+export const moduleProjectIdInputSchema = z.object({ moduleId: moduleIdentifierSchema });
+export type ModuleProjectIdInput = z.infer<typeof moduleProjectIdInputSchema>;
+
 export const deviceKindSchema = z.enum(['mouse', 'microphone', 'keyboard', 'headset', 'unknown']);
 export type DeviceKind = z.infer<typeof deviceKindSchema>;
+
+export const createModuleProjectInputSchema = z.object({
+  id: moduleIdentifierSchema,
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().min(12).max(240),
+  author: z.string().trim().min(2).max(120),
+  manufacturer: z.string().trim().min(1).max(80),
+  model: z.string().trim().min(1).max(120),
+  deviceKind: deviceKindSchema,
+  vendorId: moduleHexIdentifierSchema,
+  productId: moduleHexIdentifierSchema,
+});
+export type CreateModuleProjectInput = z.infer<typeof createModuleProjectInputSchema>;
 
 export const deviceConnectionSchema = z.enum(['usb', 'wireless', 'bluetooth', 'unknown']);
 export type DeviceConnection = z.infer<typeof deviceConnectionSchema>;
@@ -1372,6 +1457,11 @@ export const ipcChannels = {
   getSnapshot: 'system:get-snapshot',
   refreshDevices: 'devices:refresh',
   setModuleState: 'modules:set-state',
+  createModuleProject: 'modules:create-project',
+  linkModuleProject: 'modules:link-project',
+  validateModuleProject: 'modules:validate-project',
+  revealModuleProject: 'modules:reveal-project',
+  unlinkModuleProject: 'modules:unlink-project',
   setDeviceControl: 'devices:set-control',
   setDeviceSetting: 'devices:set-setting',
   setDeviceAppearanceOverride: 'devices:set-appearance-override',
@@ -1428,6 +1518,11 @@ export interface SwitchboardApi {
   getSnapshot(): Promise<SystemSnapshot>;
   refreshDevices(): Promise<SystemSnapshot>;
   setModuleState(input: SetModuleStateInput): Promise<SystemSnapshot>;
+  createModuleProject(input: CreateModuleProjectInput): Promise<SystemSnapshot>;
+  linkModuleProject(): Promise<SystemSnapshot>;
+  validateModuleProject(input: ModuleProjectIdInput): Promise<SystemSnapshot>;
+  revealModuleProject(input: ModuleProjectIdInput): Promise<void>;
+  unlinkModuleProject(input: ModuleProjectIdInput): Promise<SystemSnapshot>;
   setDeviceControl(input: SetDeviceControlInput): Promise<SystemSnapshot>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<SystemSnapshot>;
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<SystemSnapshot>;

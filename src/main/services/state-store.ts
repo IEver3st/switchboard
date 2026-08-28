@@ -89,12 +89,22 @@ export class StateStore {
     const next = structuredClone(snapshot);
     const defaults = createDefaultSnapshot();
     const modulesById = new Map(next.modules.map((module) => [module.id, module]));
-    next.modules = defaults.modules.map((fallback) => {
+    const bundledModules = defaults.modules.map((fallback) => {
       const existing = modulesById.get(fallback.id);
       return existing
         ? { ...structuredClone(fallback), enabled: existing.enabled }
         : structuredClone(fallback);
     });
+    const localModules = next.modules
+      .filter((module) => module.source === 'local' && module.development)
+      .map((module) => ({
+        ...module,
+        enabled: module.enabled,
+        development: module.development
+          ? { ...module.development, status: 'validating' as const }
+          : undefined,
+      }));
+    next.modules = [...bundledModules, ...localModules];
     next.audio.devices = [];
     next.audio.outputDevice = '';
     next.audio.microphoneDevice = '';
@@ -174,6 +184,9 @@ export class StateStore {
   private calculatePerformance(snapshot: SystemSnapshot): SystemSnapshot['performance'] {
     const engineMemory = snapshot.engines.reduce((sum, engine) => sum + engine.memoryMb, 0);
     const engineCpu = snapshot.engines.reduce((sum, engine) => sum + engine.cpuPercent, 0);
+    const activeLocalModuleHosts = snapshot.modules.filter((module) => (
+      module.source === 'local' && module.enabled && module.development?.status === 'active'
+    )).length;
     const rendererMemory = this.rendererActive ? 92 : 0;
     const coreMemory = 44;
     const baseCpu = this.rendererActive ? 0.3 : 0.1;
@@ -187,7 +200,8 @@ export class StateStore {
       activeProcesses:
         1 +
         (this.rendererActive ? 1 : 0) +
-        snapshot.engines.filter((engine) => engine.state === 'running' || engine.state === 'starting').length,
+        snapshot.engines.filter((engine) => engine.state === 'running' || engine.state === 'starting').length +
+        activeLocalModuleHosts,
     };
   }
 

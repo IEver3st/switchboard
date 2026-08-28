@@ -49,7 +49,7 @@ const screens = [
   { name: 'audio-chat', prepare: () => openAudioTab('chat') },
   { name: 'audio-media', prepare: () => openAudioTab('media') },
   { name: 'audio-microphone', prepare: () => openAudioTab('microphone') },
-  { name: 'capture', prepare: () => openPage('Capture', '.capture-config-grid') },
+  { name: 'capture', prepare: () => openPage('Capture', '.capture-command-header') },
   { name: 'clip-editor', prepare: () => openClipEditor() },
   { name: 'modules', prepare: () => openSettingsCategory('Modules') },
   { name: 'settings', prepare: () => openSettingsCategory('General') },
@@ -255,7 +255,7 @@ async function openPage(label, selector) {
 }
 
 async function openClipEditor() {
-  await openPage('Capture', '.capture-config-grid');
+  await openPage('Capture', '.capture-command-header');
   const opened = await window.webContents.executeJavaScript(`
     (() => {
       const button = document.querySelector('.capture-clip-card button, table tbody button');

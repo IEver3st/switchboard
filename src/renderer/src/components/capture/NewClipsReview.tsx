@@ -14,7 +14,7 @@ type ReviewBatch = {
   reviewedThrough: number;
 };
 
-export function NewClipsReview({ snapshot }: { snapshot: SystemSnapshot }) {
+export function NewClipsReview({ snapshot, onOpenClip }: { snapshot: SystemSnapshot; onOpenClip: (id: string) => void }) {
   const deleteClip = useSystemStore((state) => state.deleteClip);
   const markClipsReviewed = useSystemStore((state) => state.markClipsReviewed);
   const setPage = useSystemStore((state) => state.setPage);
@@ -78,7 +78,7 @@ export function NewClipsReview({ snapshot }: { snapshot: SystemSnapshot }) {
   const totalBytes = clips.reduce((total, clip) => total + clip.fileSize, 0);
   const gameLabels = [...new Set(clips.map(clipGameLabel))];
 
-  const finishReview = useCallback((focusClipId?: string) => {
+  const finishReview = useCallback((openClipId?: string) => {
     const current = batchRef.current;
     if (!current) return;
     locallyReviewedThrough.current = Math.max(locallyReviewedThrough.current, current.reviewedThrough);
@@ -86,15 +86,9 @@ export function NewClipsReview({ snapshot }: { snapshot: SystemSnapshot }) {
     setConfirmDelete(false);
     setDeletionError(null);
     void markClipsReviewed({ reviewedThrough: current.reviewedThrough });
-    setPage('capture');
-    if (focusClipId) {
-      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-        const target = document.querySelector<HTMLElement>(`[data-clip-id="${CSS.escape(focusClipId)}"]`);
-        target?.scrollIntoView({ block: 'center' });
-        target?.focus({ preventScroll: true });
-      }));
-    }
-  }, [markClipsReviewed, setBatch, setPage]);
+    if (openClipId) onOpenClip(openClipId);
+    else setPage('capture');
+  }, [markClipsReviewed, onOpenClip, setBatch, setPage]);
 
   const deleteBatch = async () => {
     const current = batchRef.current;

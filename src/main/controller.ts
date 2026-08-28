@@ -4,6 +4,7 @@ import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
 import { app, clipboard, desktopCapturer, dialog, globalShortcut, screen, shell, type DesktopCapturerSource, type Display } from 'electron';
 import { z } from 'zod';
+import projectPackage from '../../package.json';
 import {
   captureConfigSchema,
   captureHostSnapshotSchema,
@@ -21,12 +22,14 @@ import {
   type CaptureHostSnapshot,
   type CaptureSource,
   type Clip,
+  type CreateModuleProjectInput,
   type ExportClipInput,
   type ExportMontageInput,
   type FeedbackHandoffResult,
   type FeedbackReportInput,
   type EngineStatus,
   type MarkClipsReviewedInput,
+  type ModuleProjectIdInput,
   type CreateAudioPresetInput,
   type RenameAudioPresetInput,
   type RenameClipInput,
@@ -73,6 +76,13 @@ import { EngineSupervisor } from './services/engine-supervisor';
 import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery';
 import { performFeedbackHandoff } from './services/feedback-handoff';
 import { StateStore } from './services/state-store';
+import {
+  createModuleProject as scaffoldModuleProject,
+  moduleManifestFromProject,
+  validateModuleProject,
+  type ModuleProjectValidation,
+} from './services/module-authoring';
+import { SandboxedDeviceAddon } from './modules/sandboxed-device-addon';
 
 const workerSavedClipSchema = z.object({
   path: z.string().min(1),
@@ -107,6 +117,7 @@ export class AppController {
   private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
   private readonly gameDiscovery: GameDiscoveryService;
   private readonly appUpdates: AppUpdateService;
+  private readonly localDeviceModules = new Map<string, SandboxedDeviceAddon>();
   private capturePaths: CapturePaths;
   private registeredShortcut: string | null = null;
   private captureRestartTimer: NodeJS.Timeout | null = null;
@@ -129,7 +140,7 @@ export class AppController {
   public constructor(options: AppControllerOptions = {}) {
     this.store = new StateStore(join(app.getPath('userData'), 'switchboard-state.json'));
     this.appUpdates = new AppUpdateService({
-      currentVersion: app.getVersion(),
+      currentVersion: currentCoreVersion(),
       isPackaged: app.isPackaged,
       platform: process.platform,
       demoUpdate: options.demoUpdate,
@@ -164,6 +175,7 @@ export class AppController {
           draft.devices = devices;
         }, { persist: options?.persist ?? true });
       },
+      { additionalModules: () => [...this.localDeviceModules.values()] },
     );
   }
 
@@ -188,7 +200,7 @@ export class AppController {
       this.devices.removeLegacyFixtures();
     }
     this.store.update((draft) => {
-      draft.version = app.getVersion();
+      draft.version = currentCoreVersion();
       draft.prototypeMode = !app.isPackaged;
     }, { persist: false });
   }
@@ -197,6 +209,8 @@ export class AppController {
     await this.prepareSnapshot();
     if (this.disposed) return;
     await this.appUpdates.initialize(appUpdatePreferences(this.store.get().settings));
+    if (this.disposed) return;
+    await this.loadPersistedLocalModules();
     if (this.disposed) return;
     await this.refreshAudioDevices(true);
     if (this.disposed) return;
@@ -275,6 +289,25 @@ export class AppController {
     const module = this.store.get().modules.find((candidate) => candidate.id === input.moduleId);
     if (!module) throw new Error(`Unknown module: ${input.moduleId}`);
 
+    if (module.source === 'local') {
+      if (input.enabled && !['ready', 'active'].includes(module.development?.status ?? 'invalid')) {
+        await this.validateModuleProject({ moduleId: input.moduleId });
+        const validated = this.store.get().modules.find((candidate) => candidate.id === input.moduleId);
+        if (!validated || validated.development?.status !== 'ready') {
+          throw new Error(`${module.name} must pass validation before it can be enabled.`);
+        }
+      }
+      this.store.update((draft) => {
+        const target = draft.modules.find((candidate) => candidate.id === input.moduleId);
+        if (!target?.development) throw new Error(`Local module metadata is missing for ${input.moduleId}.`);
+        target.enabled = input.enabled;
+        target.development.status = 'ready';
+        target.development.issues = target.development.issues.filter((issue) => issue.code !== 'runtime-error');
+      });
+      await this.devices.refresh();
+      return this.store.get();
+    }
+
     if (module.kind === 'capture') return this.setCaptureConfig({ enabled: input.enabled });
     if (module.kind === 'audio') return this.setAudioEnabled(input.enabled);
 
@@ -286,6 +319,197 @@ export class AppController {
     });
     await this.devices.refresh();
     return this.store.get();
+  }
+
+  public async createModuleProject(input: CreateModuleProjectInput): Promise<SystemSnapshot> {
+    if (this.store.get().modules.some((module) => module.id === input.id)) {
+      throw new Error(`A module with the ID ${input.id} is already installed or linked.`);
+    }
+    const reviewParent = nativeReviewPath('SWITCHBOARD_MODULE_PROJECT_REVIEW_PARENT');
+    const selection = reviewParent ? null : await dialog.showOpenDialog({
+        title: 'Choose a parent folder for the module project',
+        defaultPath: app.getPath('documents'),
+        buttonLabel: 'Create project here',
+        properties: ['openDirectory', 'createDirectory'],
+      });
+    const parentDirectory = reviewParent ?? selection?.filePaths[0];
+    if (selection?.canceled || !parentDirectory) return this.store.get();
+    const projectPath = await scaffoldModuleProject(parentDirectory, input, currentCoreVersion());
+    const validation = await validateModuleProject(projectPath, currentCoreVersion());
+    await this.linkValidatedModuleProject(projectPath, validation);
+    return this.store.get();
+  }
+
+  public async linkModuleProject(): Promise<SystemSnapshot> {
+    const reviewProject = nativeReviewPath('SWITCHBOARD_MODULE_PROJECT_REVIEW_LINK');
+    const selection = reviewProject ? null : await dialog.showOpenDialog({
+        title: 'Link a Switchboard module project',
+        defaultPath: app.getPath('documents'),
+        buttonLabel: 'Link project',
+        properties: ['openDirectory'],
+      });
+    const projectPath = reviewProject ?? selection?.filePaths[0];
+    if (selection?.canceled || !projectPath) return this.store.get();
+    const validation = await validateModuleProject(projectPath, currentCoreVersion());
+    await this.linkValidatedModuleProject(projectPath, validation);
+    return this.store.get();
+  }
+
+  public async validateModuleProject(input: ModuleProjectIdInput): Promise<SystemSnapshot> {
+    const current = this.store.get().modules.find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
+    if (!current?.development) throw new Error(`Unknown local module: ${input.moduleId}`);
+    this.store.update((draft) => {
+      const target = draft.modules.find((candidate) => candidate.id === input.moduleId);
+      if (target?.development) target.development.status = 'validating';
+    }, { persist: false });
+
+    const validation = await validateModuleProject(current.development.projectPath, currentCoreVersion());
+    if (validation.manifest && validation.manifest.id !== current.id) {
+      validation.issues.push({
+        severity: 'error',
+        code: 'module-id-changed',
+        message: `The linked manifest ID changed from ${current.id} to ${validation.manifest.id}. Unlink it before changing IDs.`,
+        file: 'switchboard.module.json',
+      });
+      validation.status = 'invalid';
+    }
+    await this.replaceLinkedModule(current, validation);
+    if (this.store.get().modules.find((candidate) => candidate.id === input.moduleId)?.enabled) {
+      await this.devices.refresh();
+    }
+    return this.store.get();
+  }
+
+  public async revealModuleProject(input: ModuleProjectIdInput): Promise<void> {
+    const module = this.store.get().modules.find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
+    const projectPath = module?.development?.projectPath;
+    if (!projectPath) throw new Error(`Unknown local module: ${input.moduleId}`);
+    const error = await shell.openPath(projectPath);
+    if (error) throw new Error(error);
+  }
+
+  public async unlinkModuleProject(input: ModuleProjectIdInput): Promise<SystemSnapshot> {
+    const module = this.store.get().modules.find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
+    if (!module) throw new Error(`Unknown local module: ${input.moduleId}`);
+    const runtime = this.localDeviceModules.get(input.moduleId);
+    this.localDeviceModules.delete(input.moduleId);
+    await runtime?.dispose();
+    this.devices.removeModuleDevices(input.moduleId);
+    return this.store.update((draft) => {
+      draft.modules = draft.modules.filter((candidate) => candidate.id !== input.moduleId);
+      for (const deviceId of Object.keys(draft.settings.deviceAppearanceOverrides)) {
+        if (!draft.devices.some((device) => device.id === deviceId)) delete draft.settings.deviceAppearanceOverrides[deviceId];
+      }
+    });
+  }
+
+  private async loadPersistedLocalModules(): Promise<void> {
+    const localModules = this.store.get().modules.filter((module) => module.source === 'local' && module.development);
+    for (const module of localModules) {
+      if (this.disposed || !module.development) return;
+      const validation = await validateModuleProject(module.development.projectPath, currentCoreVersion());
+      if (validation.manifest && validation.manifest.id !== module.id) {
+        validation.issues.push({
+          severity: 'error',
+          code: 'module-id-changed',
+          message: `The linked manifest ID changed from ${module.id} to ${validation.manifest.id}.`,
+          file: 'switchboard.module.json',
+        });
+        validation.status = 'invalid';
+      }
+      await this.replaceLinkedModule(module, validation);
+    }
+  }
+
+  private async linkValidatedModuleProject(projectPath: string, validation: ModuleProjectValidation): Promise<void> {
+    if (!validation.manifest) {
+      throw new Error(validation.issues[0]?.message ?? 'The selected folder is not a valid Switchboard module project.');
+    }
+    const existing = this.store.get().modules.find((candidate) => candidate.id === validation.manifest?.id);
+    if (existing && (existing.source !== 'local' || existing.development?.projectPath !== resolve(projectPath))) {
+      throw new Error(`A module with the ID ${validation.manifest.id} is already installed or linked.`);
+    }
+    if (existing) {
+      await this.replaceLinkedModule(existing, validation);
+      return;
+    }
+
+    const linked = moduleManifestFromProject(projectPath, validation, false);
+    this.store.update((draft) => {
+      draft.modules.push(linked);
+      draft.modules.sort((left, right) => left.name.localeCompare(right.name));
+    });
+    await this.installLocalRuntime(linked, validation);
+  }
+
+  private async replaceLinkedModule(current: SystemSnapshot['modules'][number], validation: ModuleProjectValidation): Promise<void> {
+    const runtime = this.localDeviceModules.get(current.id);
+    this.localDeviceModules.delete(current.id);
+    await runtime?.dispose();
+
+    if (!validation.manifest || validation.manifest.id !== current.id) {
+      this.store.update((draft) => {
+        const target = draft.modules.find((candidate) => candidate.id === current.id);
+        if (!target?.development) return;
+        target.enabled = false;
+        target.sizeMb = validation.sizeMb;
+        target.development.status = validation.status;
+        target.development.lastValidatedAt = new Date().toISOString();
+        target.development.issues = validation.issues;
+      });
+      this.devices.removeModuleDevices(current.id);
+      return;
+    }
+
+    const linked = moduleManifestFromProject(
+      current.development?.projectPath ?? '',
+      validation,
+      current.enabled && validation.status === 'ready',
+    );
+    this.store.update((draft) => {
+      const index = draft.modules.findIndex((candidate) => candidate.id === current.id);
+      if (index >= 0) draft.modules[index] = linked;
+    });
+    await this.installLocalRuntime(linked, validation);
+    if (validation.status !== 'ready') this.devices.removeModuleDevices(current.id);
+  }
+
+  private async installLocalRuntime(
+    module: SystemSnapshot['modules'][number],
+    validation: ModuleProjectValidation,
+  ): Promise<void> {
+    if (validation.status !== 'ready' || !validation.manifest || !validation.entrypointPath) return;
+    const runtime = new SandboxedDeviceAddon(
+      validation.manifest,
+      validation.entrypointPath,
+      (moduleId, status, message) => this.applyLocalModuleRuntimeState(moduleId, status, message),
+    );
+    this.localDeviceModules.set(module.id, runtime);
+  }
+
+  private applyLocalModuleRuntimeState(
+    moduleId: string,
+    status: 'ready' | 'active' | 'runtime-error',
+    message?: string,
+  ): void {
+    const current = this.store.get().modules.find((candidate) => candidate.id === moduleId);
+    if (!current?.development || (status === 'active' && !current.enabled)) return;
+    const runtimeIssue = current.development.issues.find((issue) => issue.code === 'runtime-error');
+    if (current.development.status === status && (status !== 'runtime-error' || runtimeIssue?.message === message)) return;
+    this.store.update((draft) => {
+      const module = draft.modules.find((candidate) => candidate.id === moduleId);
+      if (!module?.development) return;
+      module.development.status = status;
+      module.development.issues = module.development.issues.filter((issue) => issue.code !== 'runtime-error');
+      if (status === 'runtime-error') {
+        module.enabled = false;
+        module.development.issues.unshift({
+          severity: 'error',
+          code: 'runtime-error',
+          message: message ?? 'The sandboxed module stopped unexpectedly.',
+        });
+      }
+    });
   }
 
   public setDeviceSetting(input: SetDeviceSettingInput): SystemSnapshot {
@@ -1698,6 +1922,16 @@ function appUpdatePreferences(settings: SystemSnapshot['settings']): AppUpdatePr
     automaticDownloads: settings.automaticAppUpdateDownloads,
     installOnNextStartup: settings.installAppUpdatesOnNextStartup,
   };
+}
+
+function currentCoreVersion(): string {
+  return app.isPackaged ? app.getVersion() : projectPackage.version;
+}
+
+function nativeReviewPath(variable: string): string | null {
+  if (process.env.SWITCHBOARD_NATIVE_REVIEW !== '1') return null;
+  const value = process.env[variable]?.trim();
+  return value ? resolve(value) : null;
 }
 
 function matchDesktopCaptureSource(

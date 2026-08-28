@@ -52,6 +52,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-app-update-ui.mjs');
 } else if (command === 'device-popovers') {
   await runElectron('scripts/verify-logitech-lighting-studio.mjs', '--interaction-only');
+} else if (command === 'module-authoring') {
+  await runElectron('scripts/verify-module-authoring-ui.mjs');
 } else {
   throw new Error(`Unknown native review command: ${command ?? '(missing)'}`);
 }
