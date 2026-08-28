@@ -15,6 +15,7 @@ const reviewMode = process.argv.includes('--new-clips-review');
 const reviewDeleteConfirmation = process.argv.includes('--confirm-delete');
 const reviewViewAll = process.argv.includes('--view-all');
 const reviewOpenCard = process.argv.includes('--open-card');
+const reviewReplayPopover = process.argv.includes('--replay-popover');
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = join(projectRoot, 'design-qa', 'scale');
@@ -107,6 +108,11 @@ async function runReview() {
     await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Capture')?.click()");
     await waitForLibrary(window, count);
     await window.webContents.executeJavaScript("document.querySelectorAll('[data-radix-scroll-area-viewport]').forEach((element) => element.scrollTo(0, 0))");
+    if (reviewReplayPopover) {
+      await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+      await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
+      await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced')?.setAttribute('open', '')");
+    }
   }
   await delay(250);
 
@@ -161,13 +167,18 @@ const metricsExpression = [
     : await window.webContents.executeJavaScript(metricsExpression);
   const image = await window.webContents.capturePage();
   const viewportSuffix = process.argv[3] ? '-' + requestedWidth + 'x' + requestedHeight : '';
+  const stateSuffix = reviewReplayPopover ? '-replay' : '';
   const reviewSuffix = reviewDeleteConfirmation ? '-delete-confirm' : reviewViewAll ? '-view-all' : reviewOpenCard ? '-open-card' : '';
-  const imagePath = join(outputDirectory, (reviewMode ? 'new-clips-review-' + count + reviewSuffix : 'capture-' + count + '-clips') + viewportSuffix + '.png');
+  const imagePath = join(outputDirectory, (reviewMode ? 'new-clips-review-' + count + reviewSuffix : 'capture-' + count + '-clips') + viewportSuffix + stateSuffix + '.png');
   await writeFile(imagePath, image.toPNG());
+  if (reviewReplayPopover) {
+    await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+    await waitFor(window, "!document.querySelector('.capture-replay-popover')");
+  }
   const interactions = reviewMode ? await verifyReviewDismissal(window) : count > 1 ? await verifyLibraryInteractions(window, count) : null;
   const resizeTransitions = process.argv[5] === 'resize-sequence' ? await verifyResizeTransitions(window) : null;
   const report = { ...metrics, interactions, resizeTransitions, imagePath, imageSize: image.getSize() };
-  await writeFile(join(outputDirectory, 'capture-' + count + '-clips' + viewportSuffix + '.json'), JSON.stringify(report, null, 2) + '\n');
+  await writeFile(join(outputDirectory, 'capture-' + count + '-clips' + viewportSuffix + stateSuffix + '.json'), JSON.stringify(report, null, 2) + '\n');
   process.stdout.write(JSON.stringify(report) + '\n');
   app.quit();
 }

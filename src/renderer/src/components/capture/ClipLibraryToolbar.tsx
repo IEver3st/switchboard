@@ -52,7 +52,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
 
           <DateFilter value={controls.date} activeFilterCount={activeFilterCount} onChange={controls.onDateChange} />
 
-          <div className="capture-tool-control capture-tool-control--sort w-28 shrink-0">
+          <div className="capture-tool-control capture-tool-control--sort w-32 shrink-0">
             <Select value={controls.sort} onValueChange={controls.onSortChange}>
               <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-8 text-[11px]"><ArrowDownUp className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
               <SelectContent>{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
