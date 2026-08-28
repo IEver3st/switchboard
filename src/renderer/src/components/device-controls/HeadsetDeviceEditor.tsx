@@ -19,10 +19,10 @@ const colorways = [
   { variant: 'olive-gray', label: 'Olive Gray', color: '#77796f' },
 ] as const;
 
-const listeningModes: Array<{ id: SonyListeningMode; label: string; description: string }> = [
-  { id: 'standard', label: 'Standard', description: 'Original stereo presentation' },
-  { id: 'background-music', label: 'Background Music', description: 'Moves the sound image farther away' },
-  { id: 'cinema', label: 'Cinema', description: 'Wider presentation for films and video' },
+const listeningModes: Array<{ id: SonyListeningMode; label: string }> = [
+  { id: 'standard', label: 'Standard' },
+  { id: 'background-music', label: 'Background Music' },
+  { id: 'cinema', label: 'Cinema' },
 ];
 
 export function HeadsetDeviceEditor({ device }: { device: Device }) {
@@ -44,7 +44,9 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
   const controlsConnected = device.connected && headset.transportState === 'connected';
   const battery = device.capabilities.battery;
   const batteryPercentage = battery ? Math.round(battery.percentage) : null;
-  const activeNoiseLabel = headset.noiseControl?.mode ? noiseModeLabel(headset.noiseControl.mode) : null;
+  const activeNoiseLabel = headset.noiseControl?.mode
+    ? noiseControlStatus(headset.noiseControl.mode, headset.noiseControl.ambientLevel)
+    : null;
 
   const run = async (key: string, action: () => Promise<void>) => {
     setInlineError(null);
@@ -89,7 +91,6 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
               </button>
             ))}
           </div>
-          <p>{device.variantResolution.confidence === 'fallback' ? 'Changes the product image only.' : `${device.identity.colorway ?? 'Selected'} · product image only`}</p>
         </div>
       </aside>
 
@@ -99,15 +100,15 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
 
         {headset.noiseControl ? (
           <section className="headset-section headset-noise" aria-labelledby="noise-control-heading" data-pending={pending?.startsWith('noise') || pending === 'ambient' || pending === 'voice'}>
-            <SectionHeader id="noise-control-heading" title="Noise control" detail="Hardware state stays synchronized across connected controllers." availability={headset.noiseControl.availability} />
+            <SectionHeader id="noise-control-heading" title="Noise control" status={activeNoiseLabel ?? 'Not reported'} availability={headset.noiseControl.availability} />
             <ToggleGroup type="single" value={headset.noiseControl.mode ?? ''} disabled={!controlsConnected || !controlAvailable(headset.noiseControl.availability, headset.noiseControl.writable) || pending !== null} onValueChange={(mode) => { if (mode) void send('noise-mode', { type: 'headset-noise-control', mode: mode as SonyNoiseControlMode }); }} aria-label="Noise control mode" className="headset-noise__modes">
-              {headset.noiseControl.supportedModes.map((mode) => <ToggleGroupItem key={mode} value={mode}>{noiseModeLabel(mode)}</ToggleGroupItem>)}
+              {headset.noiseControl.supportedModes.map((mode) => <ToggleGroupItem key={mode} value={mode}><span>{noiseModeLabel(mode)}</span>{headset.noiseControl?.mode === mode ? <Check aria-hidden /> : null}</ToggleGroupItem>)}
             </ToggleGroup>
             {headset.noiseControl.mode === 'ambient' ? (
               <div className="headset-ambient">
                 <label htmlFor="ambient-level"><span>Ambient level</span><output>{ambientLevel}<small> / 20</small></output></label>
                 <Slider id="ambient-level" min={1} max={20} step={1} value={[ambientLevel]} disabled={!controlsConnected || !controlAvailable(headset.noiseControl.availability, headset.noiseControl.writable) || pending !== null} aria-label="Ambient sound level" aria-valuetext={`${ambientLevel} of 20`} onValueChange={([level]) => { if (level !== undefined) setAmbientLevel(level); }} onValueCommit={([level]) => { if (level !== undefined) void send('ambient', { type: 'headset-ambient-level', level }); }} />
-                <SettingRow label="Focus on Voice" detail="Prioritizes speech while Ambient Sound is active."><Switch checked={headset.noiseControl.focusOnVoice ?? false} disabled={!controlsConnected || pending !== null} onCheckedChange={(enabled) => void send('voice', { type: 'headset-focus-on-voice', enabled })} aria-label="Focus on Voice" /></SettingRow>
+                <SettingRow label="Focus on Voice"><Switch checked={headset.noiseControl.focusOnVoice ?? false} disabled={!controlsConnected || pending !== null} onCheckedChange={(enabled) => void send('voice', { type: 'headset-focus-on-voice', enabled })} aria-label="Focus on Voice" /></SettingRow>
               </div>
             ) : null}
           </section>
@@ -116,7 +117,7 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
         {headset.equalizer ? (
           <section className="headset-section headset-eq" aria-labelledby="equalizer-heading" data-pending={pending?.startsWith('eq')}>
             <header>
-              <div><div className="headset-section__title-line"><h3 id="equalizer-heading">Equalizer</h3>{pending?.startsWith('eq') ? <span>Confirming…</span> : equalizerModified ? <span>Modified</span> : null}</div><p>{headset.equalizer.bandsWritable ? 'Ten bands stored on the headphones.' : 'Preset selection is available; custom band writes were not reported.'}</p></div>
+              <div className="headset-section__title-line"><h3 id="equalizer-heading">Equalizer</h3>{pending?.startsWith('eq') ? <span>Confirming…</span> : equalizerModified ? <span>Modified</span> : null}</div>
               <div className="headset-eq__toolbar">
                 <Select value={headset.equalizer.activePresetId ?? undefined} disabled={!controlsConnected || !controlAvailable(headset.equalizer.availability, headset.equalizer.writable) || pending !== null} onValueChange={(presetId) => void send('eq-preset', { type: 'headset-equalizer-preset', presetId })}><SelectTrigger aria-label="Headphone equalizer preset"><SelectValue placeholder="Preset" /></SelectTrigger><SelectContent>{headset.equalizer.presets.map((preset) => <SelectItem key={preset.id} value={preset.id}>{preset.label}</SelectItem>)}</SelectContent></Select>
                 <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Equalizer preset actions" title="Equalizer preset actions"><MoreHorizontal aria-hidden /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-52">
@@ -134,20 +135,19 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
                 return <label key={band.frequencyHz} onDoubleClick={() => { if (controlsConnected && headset.equalizer?.bandsWritable && pending === null) commitEqualizer(gains.map((value, bandIndex) => bandIndex === index ? 0 : value)); }} title="Double-click to reset this band"><output>{formatGain(gain)}</output><Slider orientation="vertical" min={-6} max={6} step={1} value={[gain]} disabled={!controlsConnected || !headset.equalizer?.bandsWritable || !controlAvailable(headset.equalizer.availability, headset.equalizer.writable) || pending !== null} aria-label={`${formatFrequency(band.frequencyHz)} equalizer band`} aria-valuetext={`${gain} decibels`} onValueChange={([value]) => { if (value !== undefined) setGains((current) => current.map((currentGain, bandIndex) => bandIndex === index ? value : currentGain)); }} onValueCommit={([value]) => { if (value !== undefined) commitEqualizer(gains.map((currentGain, bandIndex) => bandIndex === index ? value : currentGain)); }} /><span>{formatFrequency(band.frequencyHz)}</span></label>;
               })}
             </div>
-            <p className="headset-eq__storage">Headphone presets are device-resident. Local presets remain in Switchboard until loaded.</p>
           </section>
         ) : null}
 
         {(headset.dseeExtreme || headset.speakToChat || headset.listeningMode) ? (
           <section className="headset-section headset-sound" aria-labelledby="sound-heading">
-            <SectionHeader id="sound-heading" title="Sound" detail="Processing performed by the headphones." />
-            {headset.dseeExtreme ? <SettingRow label="DSEE Extreme" detail="Restores high-frequency detail in compressed audio." availability={headset.dseeExtreme.availability}><Switch checked={headset.dseeExtreme.enabled ?? false} disabled={!controlsConnected || !controlAvailable(headset.dseeExtreme.availability, headset.dseeExtreme.writable) || pending !== null} onCheckedChange={(enabled) => void send('dsee', { type: 'headset-dsee-extreme', enabled })} aria-label="DSEE Extreme" /></SettingRow> : null}
-            {headset.speakToChat ? <SettingRow label="Speak-to-Chat" detail="Pauses playback and lets in ambient sound when you speak." availability={headset.speakToChat.availability}><Switch checked={headset.speakToChat.enabled ?? false} disabled={!controlsConnected || !controlAvailable(headset.speakToChat.availability, headset.speakToChat.writable) || pending !== null} onCheckedChange={(enabled) => void send('speak', { type: 'headset-speak-to-chat', enabled })} aria-label="Speak-to-Chat" /></SettingRow> : null}
+            <SectionHeader id="sound-heading" title="Sound" />
+            {headset.dseeExtreme ? <SettingRow label="DSEE Extreme" availability={headset.dseeExtreme.availability}><Switch checked={headset.dseeExtreme.enabled ?? false} disabled={!controlsConnected || !controlAvailable(headset.dseeExtreme.availability, headset.dseeExtreme.writable) || pending !== null} onCheckedChange={(enabled) => void send('dsee', { type: 'headset-dsee-extreme', enabled })} aria-label="DSEE Extreme" /></SettingRow> : null}
+            {headset.speakToChat ? <SettingRow label="Speak-to-Chat" availability={headset.speakToChat.availability}><Switch checked={headset.speakToChat.enabled ?? false} disabled={!controlsConnected || !controlAvailable(headset.speakToChat.availability, headset.speakToChat.writable) || pending !== null} onCheckedChange={(enabled) => void send('speak', { type: 'headset-speak-to-chat', enabled })} aria-label="Speak-to-Chat" /></SettingRow> : null}
             {headset.listeningMode ? (
               <div className="headset-listening" data-availability={headset.listeningMode.availability}>
-                <div className="headset-listening__heading"><div><strong>Listening mode</strong><small>Changes the headphones’ spatial presentation.</small></div>{pending === 'listening' || pending === 'room' ? <span>Confirming…</span> : null}</div>
+                <div className="headset-listening__heading"><strong>Listening mode</strong>{pending === 'listening' || pending === 'room' ? <span>Confirming…</span> : null}</div>
                 <div className="headset-listening__modes" role="radiogroup" aria-label="Listening mode">
-                  {listeningModes.filter((mode) => headset.listeningMode?.supportedModes.includes(mode.id)).map((mode) => <button key={mode.id} type="button" role="radio" aria-checked={headset.listeningMode?.mode === mode.id} disabled={!controlsConnected || !controlAvailable(headset.listeningMode!.availability, headset.listeningMode!.writable) || pending !== null} onClick={() => void send('listening', { type: 'headset-listening-mode', mode: mode.id, backgroundRoom: headset.listeningMode?.backgroundRoom ?? undefined })}><strong>{mode.label}</strong><span>{mode.description}</span></button>)}
+                  {listeningModes.filter((mode) => headset.listeningMode?.supportedModes.includes(mode.id)).map((mode) => <button key={mode.id} type="button" role="radio" aria-checked={headset.listeningMode?.mode === mode.id} disabled={!controlsConnected || !controlAvailable(headset.listeningMode!.availability, headset.listeningMode!.writable) || pending !== null} onClick={() => void send('listening', { type: 'headset-listening-mode', mode: mode.id, backgroundRoom: headset.listeningMode?.backgroundRoom ?? undefined })}><strong>{mode.label}</strong></button>)}
                 </div>
                 {headset.listeningMode.mode === 'background-music' ? <div className="headset-listening__room"><span>Perceived room</span><Select value={headset.listeningMode.backgroundRoom ?? 'my-room'} disabled={!controlsConnected || pending !== null} onValueChange={(backgroundRoom) => void send('room', { type: 'headset-listening-mode', mode: 'background-music', backgroundRoom: backgroundRoom as SonyBackgroundRoom })}><SelectTrigger aria-label="Background Music room"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="my-room">My Room</SelectItem><SelectItem value="living-room">Living Room</SelectItem><SelectItem value="cafe">Cafe</SelectItem></SelectContent></Select></div> : null}
               </div>
@@ -160,16 +160,17 @@ export function HeadsetDeviceEditor({ device }: { device: Device }) {
 }
 
 function ConnectionStatus({ audioConnected, state, message, pending, onRetry }: { audioConnected: boolean; state: string; message?: string; pending: boolean; onRetry: () => void }) {
-  if (state === 'connected') return <div className="headset-connection-status" data-state="connected" role="status"><i aria-hidden /><span><strong>Controls connected</strong><small>Changes are read back from the headphones.</small></span></div>;
+  if (state === 'connected') return null;
   const connecting = state === 'connecting' || pending;
   return <div className="headset-connection-status" data-state={state} role="status">{connecting ? <LoaderCircle className="headset-spin" aria-hidden /> : <AlertTriangle aria-hidden />}<span><strong>{connecting ? 'Connecting controls…' : audioConnected ? 'Audio connected · Controls unavailable' : 'Headphones unavailable'}</strong><small>{message ?? 'Connect the headphones in Windows to restore controls.'}</small></span>{!connecting ? <Button variant="ghost" size="sm" onClick={onRetry}><RefreshCw aria-hidden />Retry</Button> : null}</div>;
 }
 
-function SectionHeader({ id, title, detail, availability }: { id: string; title: string; detail: string; availability?: HeadsetControlAvailability }) { return <header><div><div className="headset-section__title-line"><h3 id={id}>{title}</h3>{availability && availability !== 'available' ? <span>{availabilityLabel(availability)}</span> : null}</div><p>{detail}</p></div></header>; }
-function SettingRow({ label, detail, availability, children }: { label: string; detail: string; availability?: HeadsetControlAvailability; children: React.ReactNode }) { return <div className="headset-setting-row"><span><strong>{label}</strong><small>{detail}</small></span>{availability && availability !== 'available' ? <em>{availabilityLabel(availability)}</em> : children}</div>; }
+function SectionHeader({ id, title, status, availability }: { id: string; title: string; status?: string; availability?: HeadsetControlAvailability }) { return <header><div className="headset-section__title-line"><h3 id={id}>{title}</h3>{availability && availability !== 'available' ? <span>{availabilityLabel(availability)}</span> : null}</div>{status ? <output className="headset-section__status" aria-live="polite">{status}</output> : null}</header>; }
+function SettingRow({ label, availability, children }: { label: string; availability?: HeadsetControlAvailability; children: React.ReactNode }) { return <div className="headset-setting-row"><strong>{label}</strong>{availability && availability !== 'available' ? <em>{availabilityLabel(availability)}</em> : children}</div>; }
 function controlAvailable(availability: HeadsetControlAvailability, writable: boolean): boolean { return availability === 'available' && writable; }
 function availabilityLabel(availability: HeadsetControlAvailability): string { return availability === 'read-only' ? 'Read only' : 'Unavailable'; }
 function formatFrequency(hz: number): string { return hz >= 1_000 ? `${hz / 1_000}k` : String(hz); }
 function formatGain(gain: number): string { return gain > 0 ? `+${gain}` : String(gain); }
 function noiseModeLabel(mode: SonyNoiseControlMode): string { return mode === 'noise-cancelling' ? 'Noise Cancelling' : mode === 'ambient' ? 'Ambient Sound' : 'Off'; }
+function noiseControlStatus(mode: SonyNoiseControlMode, ambientLevel: number | null): string { return mode === 'ambient' && ambientLevel !== null ? `${noiseModeLabel(mode)} · ${ambientLevel} / 20` : noiseModeLabel(mode); }
 function compactTransportLabel(state: string): string { return state === 'connected' ? 'Connected' : state === 'connecting' ? 'Connecting' : state === 'busy' ? 'In use' : 'Unavailable'; }

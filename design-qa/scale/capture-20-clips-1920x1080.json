@@ -23,8 +23,7 @@
   },
   "emptyState": false,
   "dateGroups": [
-    "Today",
-    "Yesterday"
+    "Today"
   ],
   "lazyImages": 20,
   "decodedImages": 20,

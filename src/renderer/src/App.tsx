@@ -3,6 +3,7 @@ import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
 import { Sidebar } from '@/components/layout/sidebar';
+import { NewClipsReview } from '@/components/capture/NewClipsReview';
 import { StartupScreen } from '@/components/layout/startup-screen';
 import { TitleStrip } from '@/components/layout/title-strip';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -74,6 +75,8 @@ export function App() {
               </button>
             </div>
           ) : null}
+
+          <NewClipsReview snapshot={snapshot} />
         </div>
       ) : null}
 
