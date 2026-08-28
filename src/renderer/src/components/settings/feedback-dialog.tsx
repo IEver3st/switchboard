@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Bug, ExternalLink, Lightbulb, LoaderCircle, MessageSquarePlus } from 'lucide-react';
 import type { FeedbackReportInput, FeedbackReportKind } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
@@ -15,17 +15,19 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { switchboardApi } from '@/lib/demo-api';
+import { defaultFeedbackDiagnosticsIncluded } from '../../../../shared/feedback-report';
 
 const titleMinimum = 5;
 const descriptionMinimum = 10;
 
 export function FeedbackDialog() {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<FeedbackReportKind>('bug');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [supportingDetails, setSupportingDetails] = useState('');
-  const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
+  const [includeDiagnostics, setIncludeDiagnostics] = useState(defaultFeedbackDiagnosticsIncluded);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: 'status' | 'error'; text: string } | null>(null);
   const canContinue = title.trim().length >= titleMinimum && description.trim().length >= descriptionMinimum;
@@ -36,7 +38,7 @@ export function FeedbackDialog() {
     setTitle('');
     setDescription('');
     setSupportingDetails('');
-    setIncludeDiagnostics(true);
+    setIncludeDiagnostics(defaultFeedbackDiagnosticsIncluded);
     setPending(false);
     setMessage(null);
   };
@@ -62,7 +64,12 @@ export function FeedbackDialog() {
     try {
       const result = await switchboardApi.handoffFeedbackReport(input);
       if (result.opened) {
-        handleOpenChange(false);
+        setMessage({
+          tone: 'status',
+          text: result.copied
+            ? 'Report copied and opened in GitHub. Review the public issue, then submit it there.'
+            : 'GitHub opened with your report. Review and submit it there; the clipboard copy was unavailable.',
+        });
         return;
       }
       setMessage({
@@ -84,7 +91,7 @@ export function FeedbackDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <button type="button" className="settings-feedback-trigger no-drag">
+        <button ref={triggerRef} type="button" className="settings-feedback-trigger no-drag">
           <MessageSquarePlus aria-hidden />
           <span>Bug or feature</span>
         </button>
@@ -94,6 +101,10 @@ export function FeedbackDialog() {
         className="settings-feedback-dialog no-drag"
         data-feedback-dialog
         onEscapeKeyDown={(event) => event.stopPropagation()}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          triggerRef.current?.focus();
+        }}
       >
         <DialogHeader className="settings-feedback-dialog__header">
           <DialogTitle>Send product feedback</DialogTitle>
@@ -220,7 +231,7 @@ export function FeedbackDialog() {
           ) : null}
 
           <footer className="settings-feedback-footer">
-            <p>The report is copied before GitHub opens. Repository access is required to submit it.</p>
+            <p>GitHub issues are public. Review the report in your browser before submitting it.</p>
             <div>
               <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => handleOpenChange(false)}>
                 Cancel

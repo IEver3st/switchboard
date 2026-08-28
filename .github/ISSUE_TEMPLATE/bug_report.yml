@@ -1,0 +1,56 @@
+name: Bug report
+description: Report behavior that is broken, unexpected, or different from the last confirmed state.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Switchboard. Issues are public. Remove names, paths, device identifiers, captured media, account details, and secrets before submitting.
+
+  - type: input
+    id: summary
+    attributes:
+      label: What broke?
+      description: Name the affected device, audio path, capture action, or setting.
+      placeholder: Replay shortcut stops working after Capture.Host restarts
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Describe the behavior you saw and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the shortest reliable sequence, including relevant reconnects or host restarts.
+      placeholder: |
+        1. Enable Capture
+        2. Restart Capture.Host
+        3. Press the replay shortcut
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include only details you are comfortable making public.
+      placeholder: Switchboard version, Windows version, device model, and connection type
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Public issue check
+      options:
+        - label: I reviewed this report and removed personal data, secrets, private paths, and sensitive captured media.
+          required: true

@@ -100,7 +100,8 @@
         "modal": "true",
         "focusInside": true,
         "bugSelected": "checked",
-        "featureSelected": "unchecked"
+        "featureSelected": "unchecked",
+        "diagnostics": "unchecked"
       }
     },
     {
@@ -203,13 +204,14 @@
         "modal": "true",
         "focusInside": true,
         "bugSelected": "checked",
-        "featureSelected": "unchecked"
+        "featureSelected": "unchecked",
+        "diagnostics": "unchecked"
       },
       "interaction": {
         "title": "Add per-game audio profile switching",
         "descriptionLength": 71,
         "supportingDetailsLength": 94,
-        "diagnostics": "unchecked",
+        "diagnostics": "checked",
         "submitDisabled": false
       }
     },
@@ -313,7 +315,8 @@
         "modal": "true",
         "focusInside": true,
         "bugSelected": "checked",
-        "featureSelected": "unchecked"
+        "featureSelected": "unchecked",
+        "diagnostics": "unchecked"
       }
     }
   ],

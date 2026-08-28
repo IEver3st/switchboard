@@ -62,7 +62,7 @@ import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
 import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-presets';
 import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
-import { buildFeedbackClipboardText, buildFeedbackIssueUrl, type FeedbackEnvironment } from '../shared/feedback-report';
+import type { FeedbackEnvironment } from '../shared/feedback-report';
 import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService } from './services/clip-library';
@@ -71,6 +71,7 @@ import { AppUpdateService, type AppUpdatePreferences } from './services/app-upda
 import { DeviceRegistry } from './services/device-registry';
 import { EngineSupervisor } from './services/engine-supervisor';
 import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery';
+import { performFeedbackHandoff } from './services/feedback-handoff';
 import { StateStore } from './services/state-store';
 
 const workerSavedClipSchema = z.object({
@@ -889,19 +890,10 @@ export class AppController {
       platform: `${process.platform} ${process.arch}`,
       prototypeMode: this.store.get().prototypeMode,
     };
-    let copied = true;
-    try {
-      clipboard.writeText(buildFeedbackClipboardText(input, environment));
-    } catch {
-      copied = false;
-    }
-    let opened = true;
-    try {
-      await shell.openExternal(buildFeedbackIssueUrl(input, environment));
-    } catch {
-      opened = false;
-    }
-    return { copied, opened };
+    return performFeedbackHandoff(input, environment, {
+      writeClipboard: (text) => clipboard.writeText(text),
+      openExternal: (url) => shell.openExternal(url),
+    });
   }
 
   public async resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot> {

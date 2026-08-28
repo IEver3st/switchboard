@@ -4,7 +4,7 @@ Switchboard uses `electron-updater` with the NSIS artifacts and `latest.yml` pub
 
 ## Distribution prerequisites
 
-1. The update feed must be anonymously readable by installed clients. The current `IEver3st/switchboard` repository is private, so its releases can be produced for internal testing but cannot serve end-user automatic updates without putting a GitHub token on every user machine. Do not embed a personal access token in the application. Make this repository public or move the generated release assets to a public update repository/service before describing delivery as live.
+1. The update feed must be anonymously readable by installed clients. `IEver3st/switchboard` is public, so GitHub can serve release metadata without a token on user machines. Do not embed a personal access token in the application. Before describing delivery as live, publish a release with the NSIS installer, block map, and `latest.yml`, then verify those assets from an unauthenticated client.
 2. Production releases should be Authenticode-signed. Add repository secrets named `WINDOWS_CSC_LINK` and `WINDOWS_CSC_KEY_PASSWORD`. `WINDOWS_CSC_LINK` can contain the base64-encoded `.pfx` accepted by electron-builder. The workflow remains buildable without these secrets, but that produces an unsigned installer and does not provide a trusted publisher identity or a good SmartScreen experience.
 3. Keep `package.json` and the release tag at the same semantic version.
 

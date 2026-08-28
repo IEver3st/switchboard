@@ -185,6 +185,7 @@ async function inspectDialog() {
         focusInside: Boolean(dialog?.contains(document.activeElement)),
         bugSelected: document.getElementById('feedback-kind-bug')?.getAttribute('data-state'),
         featureSelected: document.getElementById('feedback-kind-feature')?.getAttribute('data-state'),
+        diagnostics: document.querySelector('.settings-feedback-diagnostics button[role="switch"]')?.getAttribute('data-state'),
       };
     })()
   `);
@@ -200,7 +201,7 @@ function assertDialogMetrics(metrics, viewport) {
   if (metrics.documentOverflowX || !metrics.submitVisible || metrics.scrollHeight > metrics.clientHeight + 1) {
     throw new Error(`${viewport.name} feedback dialog clips routine controls: ${JSON.stringify(metrics)}`);
   }
-  if (!metrics.submitDisabled || !metrics.focusInside || metrics.bugSelected !== 'checked' || metrics.featureSelected !== 'unchecked') {
+  if (!metrics.submitDisabled || !metrics.focusInside || metrics.bugSelected !== 'checked' || metrics.featureSelected !== 'unchecked' || metrics.diagnostics !== 'unchecked') {
     throw new Error(`${viewport.name} feedback dialog initial state is incorrect: ${JSON.stringify(metrics)}`);
   }
 }

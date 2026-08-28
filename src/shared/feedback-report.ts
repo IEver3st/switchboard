@@ -1,6 +1,7 @@
 import type { FeedbackReportInput } from './contracts';
 
 export const switchboardIssueUrl = 'https://github.com/IEver3st/switchboard/issues/new';
+export const defaultFeedbackDiagnosticsIncluded = false;
 
 export type FeedbackEnvironment = {
   version: string;

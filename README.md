@@ -1,122 +1,179 @@
-# Switchboard prototype
+<p align="center">
+  <img src="resources/branding/switchboard-mark.png" width="76" alt="Switchboard mark" />
+</p>
 
-A working control-plane prototype for a modular, open-source alternative to SteelSeries GG, Sonar, Moments, Logitech G Hub, and HyperX NGENUITY.
+<h1 align="center">Switchboard</h1>
 
-## What is implemented
+<p align="center">
+  A low-overhead Windows control surface for peripherals, audio routing, microphone processing, and game capture.
+</p>
 
-The Electron prototype includes:
+<p align="center">
+  <a href="ARCHITECTURE.md">Architecture</a> ·
+  <a href="DESIGN.md">Design</a> ·
+  <a href="PERFORMANCE.md">Performance</a> ·
+  <a href="TODO.md">Current work</a> ·
+  <a href="https://github.com/IEver3st/switchboard/issues">Issues</a>
+</p>
 
-- Electron + React + TypeScript desktop shell.
-- shadcn-style components using Tailwind and selected Radix primitives.
-- sandboxed renderer with a narrow, schema-validated preload API.
-- persisted module, device, audio, capture, and lifecycle state.
-- capability-driven Logitech mouse, Razer keyboard, and HyperX microphone workbenches.
-- event-driven QuadCast 2 physical mute state plus maintained fixed-red lighting, brightness, breathing/pulse timing, and hardware-backed lighting profiles.
-- G502 X Plus control without G HUB: DPI stages and hold-to-lower-DPI, report rate, primary button assignments, onboard mode, battery, device-reported LIGHTSYNC effects, effect speed/direction, and addressable zones through direct HID++; stored onboard lighting remains limited to CRC-checked profile fields.
-- optional native audio and capture hosts that exist only while enabled.
-- audio buses, ChatMix, microphone processing, replay buffer, and clip library surfaces.
-- persisted game detection with one-shot Steam/Epic manifest scans and manual executable entries.
-- tray lifecycle with optional renderer destruction.
-- explicit memory, CPU, and process budgets.
-- main-process-owned Windows update checks, optional background downloads, and explicit or next-startup installation backed by GitHub Release metadata.
-- .NET 10 capture and audio hosts, including WASAPI routing, processed microphone transport, session discovery, and real meters.
-- dependency-free interactive browser preview.
+![Switchboard device workspace](design-audit/2026-08-27-switchboard/final-native/1920x1080-devices.png)
 
-The prototype does not claim to provide:
+Switchboard brings device control, audio mixing, microphone processing, replay capture, and clip management into one restrained desktop utility. It is built to replace the parts of peripheral suites people actually use without keeping a pile of vendor applications, background services, and decorative dashboards alive.
 
-- direct HID configuration for Logitech models other than the verified G502 X Plus profile formats and feature set;
-- production game capture through the default Electron worker;
-- signed virtual Windows audio endpoints;
-- a production module registry or signing service;
-- publicly consumable application updates while the GitHub release feed remains private or Windows installers remain unsigned.
+This repository is an active Windows alpha. The control plane is real, several named devices have hardware-backed integrations, and the native audio and capture hosts are working. Some release-critical paths still need signed drivers, powered-on hardware acceptance, and long-running validation. Switchboard labels those boundaries instead of pretending they are finished.
 
-Simulated behavior is identified as `Prototype` in the interface.
+## What works today
 
+### Devices
 
-## Run the desktop app
+- **Logitech G502 X Plus:** direct HID++ control for DPI stages, shift DPI, report rate, primary button assignments, onboard mode, battery state, supported LIGHTSYNC effects, and addressable zones. Onboard profile writes require a known layout and valid CRC.
+- **HyperX QuadCast 2:** event-driven mute state, maintained lighting, brightness, pulse timing, and hardware-backed lighting profiles.
+- **Razer Huntsman V2 Analog:** readback-backed brightness, firmware-reported quick effects, Gaming Mode, and onboard profile selection. Actuation, analog mapping, macros, Snap Tap, and per-key lighting remain outside Switchboard until their device protocols are independently verified.
+- **Sony WH-1000XM6:** an isolated RFCOMM host and canonical control model for noise control, ambient level, EQ, DSEE Extreme, Speak-to-Chat, and listening modes. Packet and UI validation are complete; powered-on write and readback acceptance is still pending.
 
-Windows with Bun:
+Switchboard shows a control only when the detected device reports a matching capability. Failed writes leave the last confirmed state intact.
+
+### Audio
+
+- Native .NET 10 audio host built on NAudio.
+- Physical microphone capture with 48 kHz normalization, microphone DSP, monitoring, and real meters.
+- CPU noise suppression through a packaged RNNoise implementation.
+- Game, Chat, Media, Aux, Microphone, Personal, Stream, and Clip mix contracts.
+- ChatMix, per-channel processing, parametric EQ, presets, session discovery, and output selection.
+- Per-process endpoint assignment with immediate readback and a pending-restart state when Windows retains an existing session.
+
+The complete virtual-channel path depends on the signed WDM transport driver in `drivers/virtual-audio`. Until Windows accepts and loads every required endpoint, Switchboard keeps virtual routing unavailable.
+
+### Capture
+
+- Isolated .NET capture host with an FFmpeg-first Windows path.
+- Bounded encoded segment ring, atomic replay saves, and MP4 remux without a full re-encode.
+- Automatic game detection plus manual executable entries.
+- Searchable clip library, favorites, filters, grid and list views, trim editing, and waveform inspection.
+- Ordered multi-clip montage projects with trim, reorder, playback, and FFmpeg export.
+
+The development host defaults to simulation. Production capture claims require the Windows FFmpeg path and real encoder output, not renderer fixtures.
+
+### Desktop lifecycle
+
+- Sandboxed Electron renderer with no Node access.
+- Narrow, typed preload operations and Zod-validated mutable IPC.
+- Electron-main-owned persistence for modules, devices, audio, capture, settings, diagnostics, and engine state.
+- Optional native hosts that exist only while their engines are enabled.
+- Tray lifecycle with optional renderer destruction.
+- GitHub Release update checks, optional background downloads, explicit restart, and install-on-next-startup policy for installed Windows builds.
+- In-app bug and feature handoff that prepares a redacted report, copies it, and opens this repository's issue flow.
+
+## Project status
+
+| Area | Current state |
+| --- | --- |
+| Electron control plane | Implemented and persisted |
+| G502 X Plus and QuadCast 2 | Hardware-backed integration |
+| Huntsman V2 Analog | Supported controls implemented; clean-process physical revalidation remains |
+| WH-1000XM6 | Transport and UI implemented; powered-on acceptance remains |
+| Audio host | Native host implemented |
+| Virtual audio endpoints | Package builds; production signature and qualification remain |
+| Capture host | Native path implemented; production Windows capture qualification remains |
+| Application updates | Client flow implemented; no public release has been published yet |
+| Windows installer | Buildable; currently unsigned |
+| Soak testing | Release suite remains |
+
+The exact remaining work lives in [TODO.md](TODO.md). Performance budgets and soak requirements live in [PERFORMANCE.md](PERFORMANCE.md).
+
+## Architecture
+
+```text
+Sandboxed React renderer
+          │
+          │ narrow typed IPC
+          ▼
+Electron main process
+  ├── canonical state and persistence
+  ├── device registry and vendor modules
+  ├── Audio.Host            .NET 10 + NAudio + native DSP
+  ├── Capture.Host          .NET 10 + FFmpeg
+  └── Sony.Headphones.Host  .NET 10 + Bluetooth RFCOMM
+          │
+          ▼
+Signed virtual audio transport driver  C++ / WDK
+```
+
+Realtime audio and video buffers never cross Electron IPC. Electron owns policy and state; isolated native hosts own realtime work. The virtual driver transports frames only. It contains no DSP, profiles, networking, update logic, or product policy.
+
+Read [ARCHITECTURE.md](ARCHITECTURE.md) for subsystem boundaries and state ownership.
+
+## Run Switchboard
+
+Development currently targets Windows. Install [Bun](https://bun.sh/) and the .NET 10 SDK, then run:
 
 ```powershell
 bun install
 bun run dev
 ```
 
-To preview the pending application-update presentation in the development app:
-
-```powershell
-bun run dev --demo-update
-```
-
-This is a presentation-only development flag. It shows the sidebar update indicator and pending state in **Settings → About** without contacting the release feed or launching an installer. It also activates an already-running development instance; packaged builds ignore it.
-
-Build the Electron bundles:
+Build the Electron application:
 
 ```powershell
 bun run build
 ```
 
-Create a Windows installer:
+Build the native hosts and create an NSIS installer:
 
 ```powershell
 bun run dist:win
 ```
 
-## Open the browser prototype
+The generated installer is not Authenticode-signed unless the release environment supplies signing credentials.
 
-Open `preview/index.html`, or generate a single-file copy:
+## Validate a checkout
+
+```powershell
+bun run check
+bun run check:source
+bun run check:types
+bun run test
+bun run build
+dotnet build .\engines\capture-host\Capture.Host.csproj
+dotnet build .\engines\audio-host\Audio.Host.csproj
+```
+
+The repository has no lint script. The checks above cover structural invariants, source transpilation, TypeScript contracts, Bun tests, native host tests, Electron bundles, and direct host builds.
+
+Hardware fixtures and native Electron captures prove deterministic application behavior. They do not prove a physical HID or Bluetooth write, visible lighting, production audio routing, encoder output, reconnect behavior, or a 24-hour soak. Each subsystem document records its remaining physical proof.
+
+## Browser preview
+
+The browser preview is useful for reviewing the shell without Electron or hardware:
 
 ```powershell
 bun run preview:static
 ```
 
-The generated file is `preview/standalone.html` and requires no local server or package installation.
+Open `preview/index.html`, or use the generated single-file `preview/standalone.html`. The standalone file is generated and should not be edited by hand.
 
-## Validate
+## Repository map
 
-```powershell
-bun run check
-bun run check:types
-bun run build
-```
+| Path | Purpose |
+| --- | --- |
+| `src/shared/contracts.ts` | Canonical renderer, main, preload, and host contracts |
+| `src/main/controller.ts` | Product orchestration and persisted state transitions |
+| `src/main/services/device-registry.ts` and `src/main/modules` | Device registry and vendor protocol modules |
+| `src/renderer/src` | React desktop interface |
+| `engines/audio-host` | Realtime Windows audio host |
+| `engines/capture-host` | FFmpeg-first Windows capture host |
+| `engines/sony-headphones-host` | Sony RFCOMM transport host |
+| `native/noise-bridge` | Packaged CPU noise-suppression bridge |
+| `drivers/virtual-audio` | Transport-only WDM driver source and release contract |
+| `docs` | Subsystem, release, and supply-chain notes |
+| `scripts` | Build, validation, measurement, and native review tools |
 
-The structural check validates local imports, Electron security flags, IPC validation, process isolation, worker syntax, C# project targets, capture ring construction, and allocation rules in the audio realtime path.
+## Reporting bugs
 
-## Native hosts
+Use Switchboard's **Bug or feature** action, or open a [GitHub issue](https://github.com/IEver3st/switchboard/issues/new). Review the report before submitting it because issues in this repository are public.
 
-```powershell
-dotnet run --project .\engines\capture-host\Capture.Host.csproj
-dotnet run --project .\engines\audio-host\Audio.Host.csproj
-```
+The app can confirm that it copied a report and opened GitHub. It cannot claim that GitHub accepted the issue until you submit it in the browser. Diagnostics are limited to the app version, Electron runtime, operating system, and architecture.
 
-`Audio.Host` owns physical microphone capture, 48 kHz mono normalization, CPU noise suppression, microphone DSP, monitoring, and bounded diagnostics. Build its packaged RNNoise dependency with `bun run build:noise-native`; `bun run build:audio-host` performs that step automatically. The optional DeepFilterNet integration and its unresolved model-license gate are documented in `docs/noise-suppression-supply-chain.md`.
+## License
 
-The capture host defaults to simulation. Read `engines/capture-host/README.md` before opting into its Windows FFmpeg path.
-
-## Architecture
-
-```text
-Electron renderer
-      │ narrow typed IPC
-Electron main process
-      │
-      ├── module and device state
-      ├── Audio.Host    .NET 10 + NAudio + native CPU DSP
-      └── Capture.Host  .NET 10 + FFmpeg
-                 │
-      Signed virtual audio driver  C++/WDK, release dependency
-```
-
-The virtual driver is intentionally not fabricated. Its eight-endpoint contract is in `drivers/virtual-audio`; it must remain a transport-only, signed WDM driver with no DSP or product policy.
-
-## Important files
-
-- `src/shared/contracts.ts`: canonical state and IPC contracts.
-- `src/main/controller.ts`: application orchestration and persisted state transitions.
-- `src/main/services/engine-supervisor.ts`: optional process lifecycle and request routing.
-- `src/renderer/src/pages`: product surfaces.
-- `resources/engine-workers`: retained prototype fixtures; the live audio path does not launch them.
-- `engines`: isolated native audio and capture hosts.
-- `docs/MODULES.md`: signed module package model.
-- `AGENTS.md`: project-local instructions for autonomous coding agents.
-- `PERFORMANCE.md`: resource budgets and release gates.
+No project license has been selected yet. Public access to this repository does not grant permission to copy, modify, or redistribute Switchboard. Third-party components retain their own licenses and attributions in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

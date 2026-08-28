@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose a capability or workflow grounded in real hardware, audio, or capture behavior.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Switchboard does not add convincing but inert controls. Explain the real device capability, state transition, or workflow this request should support.
+
+  - type: textarea
+    id: capability
+    attributes:
+      label: What should Switchboard do?
+      description: Describe the behavior and the outcome it should enable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Where does this fit in your workflow?
+      description: Explain what you do today and what the requested behavior would replace.
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Relevant hardware or software
+      description: Name an exact model, Windows feature, game, encoder, or application when one is involved.
+    validations:
+      required: false
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Capability evidence
+      description: Link public protocol documentation, vendor behavior, or another implementation if it helps establish that the capability is real.
+    validations:
+      required: false

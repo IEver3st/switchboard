@@ -1,267 +1,261 @@
----
-name: Switchboard
-description: A restrained Windows control console for hardware, audio routing, and capture.
-colors:
-  background: "#0d1015"
-  chrome: "#10141a"
-  surface-1: "#141920"
-  surface-2: "#161c24"
-  surface-interactive: "#181e27"
-  surface-hover: "#1d2530"
-  border: "#252d38"
-  border-strong: "#323c49"
-  text-primary: "#f2f4f7"
-  text-secondary: "#a1aab7"
-  text-description: "#7d8795"
-  text-muted: "#697586"
-  accent-brand: "#89cff0"
-  accent-hover: "#a8ddf5"
-  status-success: "#5cc69b"
-  status-info: "#6c9eff"
-  status-warning: "#e5b567"
-  status-danger: "#e96969"
-  status-neutral: "#586474"
-  channel-game: "#53bfae"
-  channel-chat: "#6f9fe8"
-  channel-media: "#a889dc"
-  channel-microphone: "#dda65a"
-  eq-band-1: "#d9788d"
-  eq-band-2: "#c69a62"
-  eq-band-3: "#61b394"
-  eq-band-4: "#6f98c7"
-  eq-band-5: "#927fc9"
-  eq-band-6: "#b47791"
-  eq-band-7: "#8290a2"
-  eq-band-8: "#a98967"
-typography:
-  display:
-    fontFamily: "Inter Variable, Inter, ui-sans-serif, system-ui, Segoe UI, sans-serif"
-    fontSize: "20px"
-    fontWeight: 700
-    lineHeight: 1.2
-    letterSpacing: "-0.03em"
-  title:
-    fontFamily: "Inter Variable, Inter, ui-sans-serif, system-ui, Segoe UI, sans-serif"
-    fontSize: "14px"
-    fontWeight: 650
-    lineHeight: 1.35
-  body:
-    fontFamily: "Inter Variable, Inter, ui-sans-serif, system-ui, Segoe UI, sans-serif"
-    fontSize: "11px"
-    fontWeight: 400
-    lineHeight: 1.45
-  label:
-    fontFamily: "Inter Variable, Inter, ui-sans-serif, system-ui, Segoe UI, sans-serif"
-    fontSize: "10.5px"
-    fontWeight: 600
-    lineHeight: 1.35
-rounded:
-  xs: "2px"
-  sm: "4px"
-  md: "7px"
-  lg: "8px"
-  full: "999px"
-spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "24px"
-  workspace-gutter: "clamp(20px, 2.5vw, 42px)"
-components:
-  button-primary:
-    backgroundColor: "{colors.accent-brand}"
-    textColor: "#07151c"
-    typography: "{typography.label}"
-    rounded: "{rounded.sm}"
-    height: "36px"
-    padding: "0 16px"
-  button-secondary:
-    backgroundColor: "{colors.surface-interactive}"
-    textColor: "{colors.text-primary}"
-    typography: "{typography.label}"
-    rounded: "{rounded.sm}"
-    height: "36px"
-    padding: "0 16px"
-  select-trigger:
-    backgroundColor: "{colors.surface-interactive}"
-    textColor: "{colors.text-primary}"
-    typography: "{typography.label}"
-    rounded: "{rounded.sm}"
-    height: "34px"
-    padding: "0 10px"
-  audio-tab:
-    backgroundColor: "transparent"
-    textColor: "{colors.text-description}"
-    typography: "{typography.label}"
-    rounded: "{rounded.xs}"
-    height: "54px"
-    padding: "0 18px"
-  processing-module:
-    backgroundColor: "{colors.surface-2}"
-    textColor: "{colors.text-primary}"
-    rounded: "{rounded.md}"
-    padding: "14px 16px"
----
+# Switchboard design
 
-# Design System: Switchboard
+Switchboard should feel like a piece of Windows equipment. It is quiet, compact, and built around the state of real devices and signal paths. The interface does not need to look exciting at rest. It needs to make the next action obvious and make a failure hard to misunderstand.
 
-## Overview
+This document owns design intent. The current tokens and component implementations in `src/renderer/src/globals.css` and `src/renderer/src/components` own the exact code.
 
-**Creative North Star: "The Wide Sonar Console"**
+## The product character
 
-Switchboard is an ink-black Windows control surface with the calm legibility of studio equipment. Graphite modules, fine steel dividers, crisp utility type, and sparse semantic color make complex hardware and audio state readable without turning the product into a generic dashboard or gaming spectacle.
+Switchboard is a continuous console, not a collection of cards. Hardware, audio, and capture each get a workspace shaped around the job:
 
-The interface is continuous and operational. Users select a path, act on one prominent instrument, then follow the signal flow into large plain-language controls. Capability truth is part of the visual system: unavailable, disabled, pending, error, and selected states remain explicit and survive canonical state round trips.
+- Devices are physical objects with capability-specific controls.
+- Audio is a signal path with meters, faders, EQ, processing, and destinations.
+- Capture is a recorder and media library with clear storage and engine state.
+- Settings explain policy, recovery, updates, diagnostics, and limits without taking over the main product.
 
-**Key Characteristics:**
+The result should feel closer to studio equipment and Windows system tools than a gaming launcher or web admin panel.
 
-- Continuous console composition with visible signal flow
-- Full-width audio instruments followed by generous processing modules
-- Ink, graphite, and steel surfaces with baby-blue interaction states
-- Stable semantic colors for channels and EQ bands
-- Tight utility typography, thin dividers, and restrained corners
-- No ornamental effects competing with live controls
+## Five rules
 
-## Colors
+### State is the visual system
 
-The palette is nearly black and cool-neutral; baby blue marks interaction while channel, EQ, and status colors carry stable operational meaning.
+Connected, disconnected, live, muted, selected, pending, unavailable, read-only, failed, and unverified states must look different before the user reads the explanation. Color can reinforce state, but text, structure, icons, and control behavior carry the meaning.
 
-### Primary
+Never animate a control to the requested value and call the write complete. Pending state remains visible until the canonical snapshot confirms the change. A rejected write restores the last confirmed value and explains what happened.
 
-- **Signal Blue** (#89cff0): Reserved for active controls, selection indicators, focus, and the master mixer path. It is an interaction color, not ambient decoration.
-- **Live Blue** (#a8ddf5): The brighter hover counterpart for primary actions.
+### One workspace leads
 
-### Secondary
+Every route has one dominant working area. A device page leads with the actual device and its useful controls. An audio channel leads with the EQ and its signal path. Capture leads with source and engine state, then the clip library.
 
-- **Game Teal, Chat Blue, Media Violet, and Microphone Amber** (#53bfae, #6f9fe8, #a889dc, #dda65a): Stable channel identities used on mixer meters, fader ranges, icons, and related readouts.
-- **Success Mint, Information Blue, Warning Amber, and Danger Red** (#5cc69b, #6c9eff, #e5b567, #e96969): Semantic status colors used only with text, icons, or structure that also communicates meaning.
+Do not split routine work across nested tabs, modal chains, or repeated disclosure. Dialogs are for short, interrupting decisions, not ordinary operation.
 
-### Tertiary
+### Surfaces mean something
 
-- **Eight-Band Spectrum** (#d9788d, #c69a62, #61b394, #6f98c7, #927fc9, #b47791, #8290a2, #a98967): Muted rose, ochre, green, blue, violet, mauve, steel, and umber distinguish individual EQ nodes and their band selectors. Selection always adds shape, size, text, or surface treatment.
+Background changes, borders, and spacing mark a real boundary such as application chrome, a device workbench, a signal stage, a clip, a transient overlay, or an editable field.
 
-### Neutral
+Do not wrap content in a panel merely to make it look designed. Nested cards, decorative containers, floating bubbles, and icon tiles create noise without improving the task.
 
-- **Ink Background and Chrome** (#0d1015, #10141a): Form the application shell and persistent navigation.
-- **Graphite Surfaces** (#141920, #161c24, #181e27, #1d2530): Separate instruments, processing modules, popovers, and interactive fields through small tonal steps.
-- **Steel Dividers** (#252d38, #323c49): Define functional boundaries with one-pixel rules.
-- **Primary, Secondary, Description, and Muted Text** (#f2f4f7, #a1aab7, #7d8795, #697586): Preserve a four-step information hierarchy without opacity hacks.
+### Hardware stays physical
 
-### Named Rules
+Use the correct known product render and colorway. Let its silhouette, material, lighting, buttons, and current state carry visual weight. Do not replace available product imagery with a generic mouse, keyboard, headset, or microphone illustration.
 
-**The Blue Is Interaction Rule.** Baby blue appears where the user can act or where a primary state is active; it never becomes ambient decoration.
+A hardware render may preview a supported whole-device state such as brightness or lighting color. It must not imply unsupported per-key, per-zone, or animated control.
 
-**The Stable Channel Identity Rule.** Master is baby blue, Game is teal, Chat is blue, Media is violet, and Microphone is amber everywhere those channels appear.
+### Density is earned
 
-**The Band Identity Rule.** Every EQ band keeps its assigned color, but no selected or enabled state may rely on color alone.
+Switchboard can be dense because its users adjust real systems. Density still needs rhythm. Align labels, readouts, controls, and dividers so the eye can scan a row without hunting. Keep descriptions short and put protocol details in diagnostics.
 
-## Typography
+## Shell and navigation
 
-**Display Font:** Inter Variable (with Inter, system UI, and Segoe UI fallbacks)  
-**Body Font:** Inter Variable (with Inter, system UI, and Segoe UI fallbacks)  
-**Label/Mono Font:** Cascadia Mono is reserved for diagnostics and low-level identifiers.
+The persistent shell is dark, narrow, and subordinate to the workspace. It contains product identity, Devices, Audio, Capture, and Settings. Active navigation uses a clear structural marker and stronger text. It does not need a glowing background or oversized icon container.
 
-**Character:** Compact, neutral, and highly legible. Weight, spacing, and tabular numerals do the work; decorative display type would undermine the desktop-tool character.
+The title bar and navigation may form Electron drag regions. Every interactive descendant must opt out with `no-drag`.
 
-### Hierarchy
+Navigation rules:
 
-- **Display** (700, 20px, 1.2): Route and workspace headings.
-- **Title** (650, 14px, 1.35): Instrument, processing-module, and setting titles.
-- **Body** (400, 11px, 1.45): Plain-language explanations, availability copy, and supporting descriptions; keep lines near 48–68 characters where practical.
-- **Label** (600, 10.5px, 1.35): Tabs, field labels, compact state text, and utility controls.
-- **Numeric Readout** (620–690, tabular numerals): Levels, percentages, decibels, frequencies, and timing values.
+- Keep route names stable and plain.
+- Keep the current route visually explicit.
+- Preserve keyboard order and visible focus.
+- Avoid notification dots unless they correspond to a real state that needs attention.
+- Do not add a route for a feature that has no working product path.
 
-### Named Rules
+## Workspace patterns
 
-**The Utility Before Theater Rule.** Type is compact and direct; hierarchy comes from weight and contrast, never oversized headings or decorative typography.
+### Device gallery
 
-## Layout
+The gallery is a calm inventory of connected hardware. Real product renders do most of the work. Connection, transport, battery, and one useful status line sit close to each device. Internal IDs and protocol labels do not appear here.
 
-Switchboard uses a fixed application shell with a continuous work area, not a card dashboard. Audio path tabs occupy a quiet 54px text rail. Workspaces span the available width with responsive horizontal gutters from 20px to 42px and deliberate vertical space.
+Unknown devices use honest identity and capability information. Do not guess a cosmetic variant. A missing colorway must not block discovery.
 
-Game, Chat, Media, and Microphone place the EQ first as a full-width instrument. The graph is 300–390px high in the wide layout and 286px at the 1180px console breakpoint. Processing follows below in a two-column grid of large modules; below 860px, it becomes one column and the EQ inspector becomes two columns. The mixer remains one uninterrupted desk divided into channels rather than separate cards.
+### Device workbench
 
-The supported minimum is 1080 × 720, the standard review size is 1420 × 900, and the wide review size is 1920 × 1080. At 1080 × 720, critical status and routine audio controls remain in the first view without page-level horizontal overflow.
+The selected device becomes the primary instrument. Its render and the controls should read as one object, especially when a button callout, lighting preview, battery state, or profile selector maps to physical hardware.
 
-**The Instrument Leads Rule.** Each audio path is led by one broad instrument; never compress the EQ into a side rail or place routine processing ahead of it.
+Organize controls by the user's goal, not by packet or feature ID. Keep supported controls visible. Put unavailable ownership and recovery beside the affected control. Advanced protocol diagnostics belong in Settings.
 
-**The Continuous Desk Rule.** Related controls share aligned rows and dividers. Surfaces mark real functional boundaries, not decorative card nesting.
+### Audio desk
 
-## Elevation & Depth
+Audio is one continuous desk. Mixer channels share a frame and align vertically. The master stage, Game, Chat, Media, Aux, and Microphone remain visually related instead of becoming separate cards.
 
-The interface is flat by default. Depth comes from the ink-to-graphite tonal ladder, one-pixel steel dividers, and rare inset focus or selection rings. Routine modules and mixer channels do not cast shadows. Shadows are limited to transient overlays and the physical-looking mixer fader thumb.
+Each channel keeps a stable identity:
 
-### Shadow Vocabulary
+| Channel | Token | Color |
+| --- | --- | --- |
+| Master and primary interaction | `--accent-brand` | `#89cff0` |
+| Game | `--channel-game` | `#53bfae` |
+| Chat | `--channel-chat` | `#6f9fe8` |
+| Media | `--channel-media` | `#a889dc` |
+| Microphone | `--channel-microphone` | `#dda65a` |
 
-- **Fader Thumb** (0 1px 2px rgb(0 0 0 / 38%)): Gives the draggable hardware affordance a small tactile lift.
-- **Transient Overlay** (0 14px 32px rgb(0 0 0 / 30%)): Separates dialogs and popovers from the continuous console.
-
-### Named Rules
-
-**The Flat At Rest Rule.** Persistent surfaces use tone and dividers; shadow is reserved for transient elevation or a draggable physical control.
-
-## Shapes
-
-Corners are restrained and functional. Tiny controls and fields use 2–4px radii; primary modules use 7px; bounded composite surfaces and overlays may use 8px. Circular geometry is reserved for knobs, EQ nodes, indicators, and switch thumbs. Pill-shaped text containers, giant radii, decorative bubbles, and ornamental icon boxes do not belong in Switchboard.
-
-Thin one-pixel borders and dividers are the default boundary. The mixer is a single 8px outer frame with square internal channel joins.
-
-## Components
-
-Shared shadcn and Radix primitives remain the base. Components preserve semantic HTML, visible focus, keyboard operation, disabled behavior, and narrow typed state transitions.
-
-### Buttons
-
-- **Shape:** Compact rectangular controls with gently restrained corners (4px).
-- **Primary:** Baby-blue fill, dark foreground, and 36px height; reserve for the clearest committed action.
-- **Secondary:** Graphite fill with a steel border; hover strengthens both surface and border.
-- **Ghost:** Transparent at rest and tonal on hover; use for icon utilities and reversible secondary actions.
-- **Focus / Disabled:** Use a two-pixel baby-blue-tinted focus ring. Disabled controls remain visible at reduced contrast and do not accept pointer input.
-
-### Inputs / Fields
-
-- **Style:** Graphite interactive fill, steel border, compact 34px height, and 4px corners.
-- **Focus:** Strengthen the border or add a restrained two-pixel baby-blue-tinted ring.
-- **Unavailable / Disabled:** Keep the current or placeholder value readable and expose the reason nearby; never replace capability truth with a convincing inert field.
-
-### Navigation
-
-- **Audio path tabs:** Simple text labels in a 54px rail. Active state combines primary text with a two-pixel baby-blue underline; hover uses a quiet graphite tint. Arrow keys, Home, and End move focus.
-- **Application navigation:** Persistent, compact, and visually subordinate to the working surface. Active state is explicit and focus remains visible.
-
-### Switches and Semantic Choices
-
-Switches represent booleans and pair the thumb movement with explicit On/Off text where space allows. Small discrete sets use exposed segmented choices. Selected choices combine tinted surface, text, and structural state; pending and disabled states remain distinguishable.
-
-### Processing Modules
-
-Large plain-language modules follow the primary instrument. A module uses graphite surface, a one-pixel steel boundary, 7px corners, and 14–16px internal padding. Technical names may appear as secondary labels, while ordinary descriptions explain outcomes first.
+Use channel color on meters, fader ranges, compact icons, and related readouts. Do not wash whole panels in color. Muted and unavailable channels change structure and copy as well as color.
 
 ### Parametric EQ
 
-The EQ is the signature audio instrument: full-width graph, frequency-region labels, draggable colored nodes, a band rail, and an inspector. Hover and selection enlarge nodes; selected band buttons add a tinted surface and reinforced label treatment. Disabled state dims the entire instrument without erasing its shape or current values.
+The EQ is the main instrument for Game, Chat, Media, and Microphone. Give the graph enough width to show frequency relationships and enough height to make dragging accurate. The band rail and inspector stay aligned with the graph.
 
-### Mixer
+Each band keeps its assigned token from `--eq-band-1` through `--eq-band-8`. Selected nodes grow or gain a ring, selected band controls gain a structural state, and exact values use tabular numerals. Color alone never indicates selection.
 
-The mixer is one continuous bounded desk with channel separators. Faders and meters use stable channel colors, exact numeric readouts use tabular figures, and the fader thumb is the only persistent control with a tactile shadow. Muted channels are structurally dimmed as well as labeled.
+Do not turn the EQ into a decorative waveform. Every plotted value must come from the canonical audio state.
 
-## Do's and Don'ts
+### Capture workspace
 
-### Do:
+Capture has two distinct layers. Source, replay state, duration, quality, resolution, frame rate, storage estimate, and encoder status form the recorder. Clips form the library below it.
 
-- **Do** lead each Game, Chat, Media, and Microphone path with its full-width EQ.
-- **Do** keep routine controls, current state, recovery actions, signal chain, meters, faders, and unavailable reasons visible.
-- **Do** preserve stable channel and EQ-band colors while adding non-color state cues.
-- **Do** use switches, segmented choices, faders, sliders, and graphs for the values they are designed to control.
-- **Do** verify 1080 × 720, 1420 × 900, and 1920 × 1080 without horizontal overflow.
-- **Do** extend existing shared shadcn/Radix primitives and the canonical audio contracts.
+The recorder stays visible because it explains whether new media can exist. The library may scale from empty state to hundreds of clips. Search, favorites, game filters, ordering, view selection, and montage entry belong in the library toolbar. They must operate on real indexed clips.
 
-### Don't:
+Clip thumbnails preserve the media aspect ratio. Duration, source, time, resolution, frame rate, and file size use a stable hierarchy. Selection for montage or bulk work changes both the thumbnail frame and its explicit selection control.
 
-- **Don't** return audio processing to a compressed side rail or hide routine work behind repeated disclosure.
-- **Don't** restyle Switchboard as a website, generic dashboard, gaming overlay, or component-library showcase.
-- **Don't** use gradients, glow, glassmorphism, neon, decorative blur, ambient visualizers, ornamental animation, or routine shadows.
-- **Don't** introduce card grids, nested cards, pill-shaped text containers, giant radii, or decorative icon boxes.
-- **Don't** fabricate controls, telemetry, search, hardware capability, audio routing, or capture state.
-- **Don't** expose low-level identifiers outside diagnostics or bypass Electron's canonical state ownership.
+### Timeline and montage
+
+The timeline is an editing instrument, not decoration. Playhead, trim boundaries, segment boundaries, audio tracks, muted state, waveform availability, and keyboard focus need distinct shapes.
+
+Single-clip and montage projects remain visibly different. Montage segments show order and source boundaries. Missing media, analysis failure, export cancellation, and cleanup errors remain recoverable and explicit.
+
+### Settings and diagnostics
+
+Settings uses compact rows and full-page groups. Routine policy stays visible. Destructive reset, update installation, and report handoff use clear confirmation and status.
+
+Diagnostics can be technical. This is the proper home for VID/PID, HID paths, transport details, host PIDs, protocol failures, endpoint identifiers, checksums, and timestamps. It still needs readable grouping and copyable values.
+
+## Materials and color
+
+The palette is nearly black with small cool-neutral steps. Exact values live at the top of `globals.css`.
+
+| Role | Token | Value |
+| --- | --- | --- |
+| App background | `--background` | `#0d1015` |
+| Persistent chrome | `--chrome` | `#10141a` |
+| Primary surface | `--surface-1` | `#141920` |
+| Secondary surface | `--surface-2` | `#161c24` |
+| Interactive surface | `--surface-interactive` | `#181e27` |
+| Hover surface | `--surface-hover` | `#1d2530` |
+| Divider | `--border` | `#252d38` |
+| Strong divider | `--border-strong` | `#323c49` |
+| Primary text | `--text-primary` | `#f2f4f7` |
+| Secondary text | `--text-secondary` | `#a1aab7` |
+| Description text | `--text-description` | `#7d8795` |
+| Muted text | `--text-muted` | `#697586` |
+
+Baby blue is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path. It is not ambient decoration.
+
+Semantic colors are reserved for actual meaning:
+
+- `--status-success` confirms healthy or completed state.
+- `--status-info` identifies neutral operational information.
+- `--status-warning` marks degraded, partial, or attention-needed state.
+- `--status-danger` marks failure, destructive action, or unsafe state.
+- `--status-neutral` marks inactive or unknown state.
+
+Always pair a semantic color with readable text, an icon, or a structural cue.
+
+## Type and numbers
+
+Inter Variable is the product typeface, with Inter, system UI, and Segoe UI fallbacks. Cascadia Mono is reserved for diagnostics, paths, IDs, versions, timestamps, and protocol values.
+
+Use a compact hierarchy:
+
+- Route headings sit near 20px and 700 weight.
+- Workbench and module titles sit near 14px and 650 weight.
+- Body and explanatory copy sit near 11px with enough line height to remain readable.
+- Labels sit near 10.5px and 600 weight.
+- Percentages, decibels, frequencies, time, frame rates, and storage values use tabular numerals.
+
+Do not create hierarchy with giant headings. A desktop utility has little room for marketing typography.
+
+## Boundaries, radius, and depth
+
+Use a four-pixel spacing rhythm. Common gaps are 4, 8, 12, 16, and 24px. Workspace gutters may grow on wider windows, but aligned edges should stay stable across routes.
+
+Corners stay restrained:
+
+- 2px for tiny state and technical controls.
+- 4px for buttons, fields, and ordinary interactive elements.
+- 7px for processing modules and larger bounded instruments.
+- 8px for the outer frame of a composite workspace or a transient overlay.
+
+Circular geometry belongs to knobs, EQ nodes, indicators, and switch thumbs. Text should not live in a pill unless the shape communicates a compact state with no better structural treatment.
+
+Persistent content is flat. Tone and one-pixel dividers create depth. Use shadow only for a transient overlay or a draggable control that needs a small tactile lift.
+
+## Controls
+
+Choose the control that matches the value:
+
+- Switches change booleans.
+- Exposed segmented choices select among a few discrete options.
+- Select menus handle longer or dynamic sets.
+- Sliders and faders change meaningful continuous values.
+- Knobs work only where radial interaction improves the hardware or audio task.
+- Graphs edit real specialized data such as EQ or a timeline.
+- Buttons perform commands. They do not stand in for persistent state.
+
+Primary buttons use the brand accent sparingly. Secondary and ghost buttons carry most routine actions. Destructive actions use danger styling and confirmation proportional to the consequence.
+
+Every control needs hover, active, focus, disabled, pending, and error behavior when those states apply. Disabled controls remain readable and explain why they cannot be used.
+
+## Motion
+
+Motion explains change. It may show a pending command, a startup transition, a meter update, a playhead, or the physical response to a drag.
+
+Do not add floating animation, particles, tilt, decorative waveform motion, breathing chrome, or ambient visualizers. Honor reduced motion. A static interface must retain every critical state and action.
+
+## Responsive behavior
+
+Switchboard supports three review sizes:
+
+| Window | Purpose |
+| --- | --- |
+| 1080 x 720 | Minimum supported window |
+| 1420 x 900 | Standard design review |
+| 1920 x 1080 | Wide desktop review |
+
+At 1080 x 720:
+
+- No route may create page-level horizontal overflow.
+- Critical engine, device, or error state stays in the first view.
+- Routine controls do not require a disclosure click or mandatory initial scroll.
+- Toolbars wrap, condense, or split according to task priority.
+- The audio desk may scroll within its intended region, but the page shell remains stable.
+
+At wider sizes, use the space to improve comparison and control precision. Do not inflate cards, headings, or empty margins. Long clip libraries and wide mixers should scale through columns and local scrolling rather than stretching every element.
+
+## Accessibility and Electron behavior
+
+- Use semantic elements before adding ARIA.
+- Give every icon-only control an accessible name.
+- Keep focus visible against every surface.
+- Preserve logical keyboard order when layouts wrap or stack.
+- Do not use color alone for selected, live, muted, failed, or unavailable state.
+- Keep text and controls legible at Windows display scaling.
+- Honor reduced motion.
+- Add `no-drag` to every interactive element inside an Electron drag region.
+- Restrict pointer input in transparent overlays to the intended controls.
+
+## Things Switchboard does not do
+
+Do not introduce:
+
+- gradients, glow, glassmorphism, neon chrome, decorative blur, or chromatic decoration;
+- giant radii, routine pills, nested card grids, floating bubbles, or ornamental icon boxes;
+- generic SaaS dashboards, marketing heroes, launcher-style promotions, or a hyper-futuristic control room;
+- fake search, analytics, telemetry, meters, device state, clip state, or capability controls;
+- low-level protocol copy in ordinary product screens;
+- modal-first routine work;
+- decorative animation that competes with live state;
+- pixel-for-pixel copies of another product.
+
+Reference products may inform information architecture. Switchboard keeps its own materials, language, control grammar, capability model, and product imagery.
+
+## Review checklist
+
+Before accepting renderer work, verify:
+
+- The route has one obvious primary workspace.
+- Every control maps to a supported capability and canonical state transition.
+- Pending, confirmed, unavailable, disabled, error, and disconnected states remain truthful.
+- Ordinary tasks stay visible without repeated disclosure.
+- Product imagery matches the detected hardware variant.
+- Shared typography, spacing, controls, channel colors, and interaction patterns remain consistent.
+- Keyboard, focus, contrast, reduced motion, and Electron drag behavior still work.
+- The route has no page-level horizontal overflow at 1080 x 720, 1420 x 900, or 1920 x 1080.
+- Native Electron evidence covers the changed route. Browser and DOM checks remain supporting evidence only.

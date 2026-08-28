@@ -4,6 +4,7 @@ import {
   buildFeedbackClipboardText,
   buildFeedbackIssueUrl,
   buildFeedbackReportMarkdown,
+  defaultFeedbackDiagnosticsIncluded,
   switchboardIssueUrl,
 } from '../src/shared/feedback-report';
 
@@ -23,6 +24,10 @@ const environment = {
 };
 
 describe('feedback report handoff', () => {
+  it('requires an affirmative choice before diagnostics are included', () => {
+    expect(defaultFeedbackDiagnosticsIncluded).toBeFalse();
+  });
+
   it('validates bounded report input at the IPC boundary', () => {
     expect(feedbackReportInputSchema.parse(bugReport)).toEqual(bugReport);
     expect(feedbackReportInputSchema.safeParse({ ...bugReport, title: 'No' }).success).toBe(false);
@@ -51,5 +56,19 @@ describe('feedback report handoff', () => {
     expect(markdown).not.toContain('## Environment');
     expect(clipboard).toStartWith('# [Feature] Capture shortcut stops responding');
     expect(clipboard).toContain(markdown);
+  });
+
+  it('includes only allowlisted environment fields', () => {
+    const contaminatedEnvironment = {
+      ...environment,
+      username: 'private-user',
+      homeDirectory: 'C:\\Users\\private-user',
+      token: 'secret-token',
+    };
+    const markdown = buildFeedbackReportMarkdown(bugReport, contaminatedEnvironment);
+
+    expect(markdown).toContain('Electron 44.0.0');
+    expect(markdown).not.toContain('private-user');
+    expect(markdown).not.toContain('secret-token');
   });
 });
