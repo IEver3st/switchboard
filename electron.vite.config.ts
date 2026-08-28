@@ -5,7 +5,7 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@auri/sony-mdr'] })],
     resolve: {
       alias: {
         '@shared': resolve('src/shared'),

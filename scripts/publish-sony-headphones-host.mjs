@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = join(root, '.switchboard', 'build', 'sony-headphones-host');
-const project = join(root, 'engines', 'sony-headphones-host', 'Sony.Headphones.Host.csproj');
+const project = join(root, 'packages', 'sony-mdr', 'native', 'windows', 'Sony.Mdr.Windows.Host.csproj');
 
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { encodeSonyFrame, SonyFrameDecoder, sonyFrameType } from '../src/main/modules/sony/common/protocol/frame';
+import { encodeSonyFrame, SonyFrameDecoder, sonyFrameType } from '@auri/sony-mdr';
 
 describe('Sony MDR-v2 frame codec', () => {
   test('round trips reserved bytes across fragmented input', () => {
