@@ -1407,11 +1407,11 @@ textarea:focus-visible {
   }
 
   .capture-tool-control--game {
-    width: 124px;
+    width: 136px;
   }
 
   .capture-tool-control--sort {
-    width: 104px;
+    width: 128px;
   }
 
   .capture-replay-summary {

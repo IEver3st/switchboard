@@ -1,25 +1,25 @@
 {
   "viewport": {
-    "width": 1080,
-    "height": 722
+    "width": 1420,
+    "height": 900
   },
   "requestedClips": 15,
   "cards": 15,
   "rows": 0,
   "columns": 3,
   "cardWidths": {
-    "minimum": 310.66668701171875,
-    "maximum": 310.66668701171875
+    "minimum": 424,
+    "maximum": 424
   },
   "libraryBounds": {
     "left": 68,
-    "right": 1080,
-    "width": 1012
+    "right": 1420,
+    "width": 1352
   },
   "toolbarBounds": {
     "left": 68,
-    "right": 1080,
-    "width": 1012
+    "right": 1420,
+    "width": 1352
   },
   "commandHeaderBounds": {
     "top": 38,
@@ -30,7 +30,7 @@
     "height": 40
   },
   "searchBounds": {
-    "width": 280.3125
+    "width": 592.3125
   },
   "toolbarOverflow": false,
   "emptyState": false,
@@ -52,9 +52,9 @@
     }
   },
   "resizeTransitions": null,
-  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-15-clips-1080x720.png",
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-15-clips-1420x900-replay.png",
   "imageSize": {
-    "width": 1620,
-    "height": 1083
+    "width": 2130,
+    "height": 1350
   }
 }

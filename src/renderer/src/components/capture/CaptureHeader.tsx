@@ -474,8 +474,9 @@ function replaySummary(
 
 function captureNotice(snapshot: SystemSnapshot): { message: string; tone: 'danger' | 'warning' } | null {
   if (snapshot.capture.storage.criticalSpace) return { message: 'Storage is too low to save replays. Choose another clip folder.', tone: 'danger' };
-  if (snapshot.capture.runtime.error) return { message: "Instant Replay couldn't start. Restart it in Capture Settings, or check Diagnostics.", tone: 'danger' };
   if (snapshot.capture.storage.lowSpace) return { message: 'Storage is running low. Choose another clip folder soon.', tone: 'warning' };
+  if (!snapshot.capture.config.enabled) return null;
+  if (snapshot.capture.runtime.error) return { message: "Instant Replay couldn't start. Restart it in Capture Settings, or check Diagnostics.", tone: 'danger' };
   if (snapshot.capture.runtime.warning) return { message: 'Instant Replay is recovering. Check Diagnostics if this continues.', tone: 'warning' };
   return null;
 }
