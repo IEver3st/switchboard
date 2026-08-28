@@ -10,6 +10,7 @@ import type {
 } from '../../../shared/contracts';
 import { estimateClipSize, getEncodingPreset } from '../../../shared/capture-presets';
 import { GameDetectionSettings } from '@/components/settings/game-detection';
+import { ModuleAuthoringWorkbench } from '@/components/settings/module-authoring-workbench';
 import { ModuleManagement } from '@/components/settings/module-management';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import {
@@ -589,17 +590,18 @@ function ModulesSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <div className="settings-category--modules">
-      <SettingsCategoryHeader title="Modules" description="Manage signed capability modules and their update behavior." onReset={onReset} />
+      <SettingsCategoryHeader title="Modules" description="Create sandboxed device add-ons, validate local projects, and manage bundled capability modules." onReset={onReset} />
+      <ModuleAuthoringWorkbench snapshot={snapshot} />
+      <ModuleManagement snapshot={snapshot} />
       <SettingSection title="Maintenance">
         <SettingSwitch
           settingId="modules.automaticUpdates"
-          title="Automatic module updates"
-          description="Verify signatures, install safely, and keep one rollback copy. Application updates are not configured yet."
+          title="Automatic bundled-module updates"
+          description="Verify signed packages, install atomically, and retain one rollback copy. Local authoring projects are never changed automatically."
           checked={snapshot.settings.automaticModuleUpdates}
           onCheckedChange={(automaticModuleUpdates) => void updateSettings({ automaticModuleUpdates })}
         />
       </SettingSection>
-      <ModuleManagement snapshot={snapshot} />
     </div>
   );
 }

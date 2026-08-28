@@ -104,8 +104,9 @@ assert(
   !captureHeaderSource.includes('function ReplayStatus(')
     && !captureHeaderSource.includes('aria-label="Replay buffer"')
     && !captureHeaderSource.includes('state.saveReplay')
-    && /<section aria-label="Capture controls"[^>]*>\s*<div className="capture-config-grid/.test(captureHeaderSource),
-  'CaptureHeader must keep the removed replay status/action row out of the capture workspace.',
+    && /<section aria-label="Clips commands"[^>]*>\s*<div className="capture-command-header__top/.test(captureHeaderSource)
+    && captureHeaderSource.includes('className="capture-replay-summary h-8"'),
+  'CaptureHeader must keep replay configuration integrated into the unified Clips command header.',
 );
 
 const ipcSource = read('src/main/ipc.ts');

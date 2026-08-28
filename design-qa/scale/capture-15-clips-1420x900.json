@@ -1,0 +1,34 @@
+{
+  "viewport": {
+    "width": 1420,
+    "height": 900
+  },
+  "reviewCards": 15,
+  "dialogBounds": {
+    "width": 1120,
+    "height": 780
+  },
+  "columns": 3,
+  "firstCard": {
+    "width": 345.5520935058594,
+    "height": 276.94793701171875
+  },
+  "scrollOwned": true,
+  "horizontalOverflow": false,
+  "title": "15 new clips · 27 MB",
+  "interactions": {
+    "mode": "open-card",
+    "reviewedThrough": 1787878984154,
+    "reopened": false,
+    "hash": "#capture",
+    "openedClipId": "scale-qa-000",
+    "activeClipId": null,
+    "editorOpen": true
+  },
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\new-clips-review-15-open-card-1420x900.png",
+  "imageSize": {
+    "width": 2130,
+    "height": 1350
+  }
+}

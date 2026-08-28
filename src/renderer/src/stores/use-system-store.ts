@@ -4,10 +4,12 @@ import {
   type ApplyAudioPresetInput,
   type AudioPresetIdInput,
   type CaptureConfig,
+  type CreateModuleProjectInput,
   type CreateAudioPresetInput,
   type ExportClipInput,
   type ExportMontageInput,
   type MarkClipsReviewedInput,
+  type ModuleProjectIdInput,
   type PageId,
   type RenameClipInput,
   type SetClipCanvasSizeInput,
@@ -70,6 +72,11 @@ interface SystemStore {
   clearError(): void;
   refreshDevices(): Promise<void>;
   setModuleState(input: SetModuleStateInput): Promise<void>;
+  createModuleProject(input: CreateModuleProjectInput): Promise<void>;
+  linkModuleProject(): Promise<void>;
+  validateModuleProject(input: ModuleProjectIdInput): Promise<void>;
+  revealModuleProject(input: ModuleProjectIdInput): Promise<void>;
+  unlinkModuleProject(input: ModuleProjectIdInput): Promise<void>;
   setDeviceControl(input: SetDeviceControlInput): Promise<void>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<void>;
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<void>;
@@ -179,6 +186,15 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     clearError: () => set({ error: null }),
     refreshDevices: () => run(() => switchboardApi.refreshDevices()),
     setModuleState: (input) => run(() => switchboardApi.setModuleState(input)),
+    createModuleProject: (input) => run(() => switchboardApi.createModuleProject(input)),
+    linkModuleProject: () => run(() => switchboardApi.linkModuleProject()),
+    validateModuleProject: (input) => run(() => switchboardApi.validateModuleProject(input)),
+    revealModuleProject: async (input) => {
+      set({ error: null });
+      try { await switchboardApi.revealModuleProject(input); }
+      catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
+    },
+    unlinkModuleProject: (input) => run(() => switchboardApi.unlinkModuleProject(input)),
     setDeviceControl: async (input) => {
       set((state) => ({
         error: null,

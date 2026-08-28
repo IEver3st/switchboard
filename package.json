@@ -13,6 +13,8 @@
     "verify:native-ui": "bun run build && bun ./scripts/run-native-review.mjs verify",
     "verify:app-update-ui": "bun run build && bun ./scripts/run-native-review.mjs app-updates",
     "verify:device-popovers": "bun run build && bun ./scripts/run-native-review.mjs device-popovers",
+    "verify:module-sandbox": "node ./scripts/verify-module-sandbox.mjs",
+    "verify:module-authoring-ui": "bun run build && bun ./scripts/run-native-review.mjs module-authoring",
     "verify:razer-hardware": "bun ./scripts/verify-razer-hardware.ts",
     "verify:audio-noise-native": "bun run build && bun ./scripts/run-native-review.mjs audio-noise",
     "verify:packaged-audio-host": "node ./scripts/verify-packaged-audio-host.mjs",

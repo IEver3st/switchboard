@@ -253,6 +253,28 @@ const demoApi: SwitchboardApi = {
     }
     return emit();
   },
+  async createModuleProject() {
+    throw new Error('Creating a module project requires the Switchboard desktop application.');
+  },
+  async linkModuleProject() {
+    throw new Error('Linking a module project requires the Switchboard desktop application.');
+  },
+  async validateModuleProject(input) {
+    const module = snapshot.modules.find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
+    if (module?.development) {
+      module.development.status = 'ready';
+      module.development.lastValidatedAt = new Date().toISOString();
+      module.development.issues = [];
+    }
+    return emit();
+  },
+  async revealModuleProject() {
+    throw new Error('Opening a module project requires the Switchboard desktop application.');
+  },
+  async unlinkModuleProject(input) {
+    snapshot.modules = snapshot.modules.filter((candidate) => candidate.id !== input.moduleId || candidate.source !== 'local');
+    return emit();
+  },
   async setDeviceControl(input: SetDeviceControlInput) {
     const device = snapshot.devices.find((candidate) => candidate.id === input.deviceId);
     if (!device) return emit();

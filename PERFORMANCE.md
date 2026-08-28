@@ -28,6 +28,8 @@ These are release gates, not marketing claims.
 
 Persisted state hydration is the only renderer-readiness gate. Hardware discovery, audio endpoint discovery, clip reconciliation, update scheduling, and optional engine restoration continue through Electron main and publish canonical snapshot updates when ready. A stalled peripheral must not keep the startup screen visible.
 
+Linked local modules follow the same rule. Persisted-state hydration publishes their last known project records, then manifest validation and sandbox preparation continue after renderer readiness. A local project path, entrypoint, or sandbox failure cannot hold the startup screen.
+
 ## Guard behavior
 
 The product should surface sustained regressions, not react to one noisy sample. Initial policy:
@@ -50,6 +52,8 @@ The application updater performs one delayed launch check and then checks every 
 6. Repeatedly start/stop each engine 500 times.
 
 ## Device sessions
+
+An enabled local device-discovery add-on creates at most one hidden sandboxed Chromium host. The host is lazy, performs work only during the registry's existing five-second discovery cycle, has no Module Host timer of its own, and is destroyed on disable, unlink, runtime failure, or shutdown. A disabled project retains no renderer process or subscription. Each active local host counts as an additional process in the canonical performance snapshot; real private working-set and long-running growth still require native measurement before release acceptance.
 
 The G502 X Plus native-control path holds one non-exclusive HID++ long-report handle only while the Logitech module and matching device are active. Sniper-button edges are notification-driven; the session adds no button or lighting polling timer. Device-reported live RGB effects and zone frames are written only after an explicit user change; software RGB ownership is retained for the session and released deterministically when onboard mode takes over or the session closes. Onboard profile sectors are read during discovery and written only in response to an explicit stored-setting change, with CRC validation and immediate readback rather than background flash traffic. Release, module disable, disconnect, and application shutdown close the handle deterministically and restore the pre-hold DPI when the device remains reachable.
 

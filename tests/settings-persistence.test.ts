@@ -26,6 +26,7 @@ describe('settings persistence', () => {
       draft.settings.automaticAppUpdates = false;
       draft.settings.automaticAppUpdateDownloads = false;
       draft.settings.installAppUpdatesOnNextStartup = true;
+      draft.clipReview.reviewedThrough = 1_777_777_777_777;
       draft.capture.config.replaySeconds = 90;
       draft.capture.config.hotkey = 'Ctrl+Alt+F9';
       draft.capture.config.clipsDirectory = 'C:\\Switchboard Test Clips';
@@ -42,6 +43,7 @@ describe('settings persistence', () => {
     expect(snapshot.settings.automaticAppUpdates).toBeFalse();
     expect(snapshot.settings.automaticAppUpdateDownloads).toBeFalse();
     expect(snapshot.settings.installAppUpdatesOnNextStartup).toBeTrue();
+    expect(snapshot.clipReview.reviewedThrough).toBe(1_777_777_777_777);
     expect(snapshot.capture.config.replaySeconds).toBe(90);
     expect(snapshot.capture.config.hotkey).toBe('Ctrl+Alt+F9');
     expect(snapshot.capture.config.clipsDirectory).toBe('C:\\Switchboard Test Clips');
@@ -74,5 +76,26 @@ describe('settings persistence', () => {
     expect(snapshot.appUpdate.status).toBe('unavailable');
     expect(snapshot.gameDetection.games).toEqual([]);
     expect(snapshot.gameDetection.scanState).toBe('idle');
+  });
+
+  it('treats clips from before the review feature as already reviewed', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-settings-legacy-clip-review-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const legacy = createDefaultSnapshot() as unknown as Record<string, unknown>;
+    legacy.clips = [
+      {
+        id: 'legacy-clip', path: 'C:\\Clips\\legacy.mp4', name: 'Legacy clip', createdAt: 42_000,
+        durationMs: 30_000, fileSize: 1_000_000, width: 1_920, height: 1_080, fps: 60,
+        favorite: false, titleEdited: false, canvasSize: 'original',
+      },
+    ];
+    delete legacy.clipReview;
+    await writeFile(filePath, JSON.stringify(legacy));
+
+    const store = new StateStore(filePath);
+    await store.load();
+
+    expect(store.get().clipReview.reviewedThrough).toBe(42_000);
   });
 });

@@ -1,4 +1,4 @@
-import { ArrowDownUp, CalendarDays, Check, Clapperboard, Gamepad2, Grid2X2, List, Search, SlidersHorizontal, Star } from 'lucide-react';
+import { ArrowDownUp, Check, Clapperboard, Gamepad2, Grid2X2, List, Search, SlidersHorizontal, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/cn';
-import { formatBytes } from '@/lib/format';
 import type { ClipDateFilter, ClipSort } from '../../../../shared/clip-library';
 import type { ClipLibraryControls } from './clip-library-model';
 
@@ -28,59 +27,48 @@ const dateOptions: Array<{ value: ClipDateFilter; label: string }> = [
 ];
 
 export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls }) {
-  const { totalClipCount, clips, hasFilters, visibleBytes } = controls;
-  const clipCount = hasFilters ? `${clips.length} of ${totalClipCount} clips` : `${totalClipCount} ${totalClipCount === 1 ? 'clip' : 'clips'}`;
+  const { totalClipCount, clips, hasFilters } = controls;
+  const activeFilterCount = Number(controls.favoritesOnly) + Number(controls.game !== 'all') + Number(controls.date !== 'any');
 
   return (
     <>
-      <div className="capture-toolbar__library">
-        <div className="capture-library__title min-w-40">
-          <div className="flex items-center gap-2.5">
-            <h2 id="clips-heading" className="m-0 text-[16px] font-semibold tracking-[-0.01em] text-foreground">Clips</h2>
-            {!controls.montageSelectionMode ? (
-              <Button type="button" variant="primary" size="sm" className="capture-montage-trigger h-8 gap-1.5 px-3 text-[11px]" disabled={totalClipCount < 2} onClick={controls.onStartMontage}>
-                <Clapperboard className="size-3.5" aria-hidden="true" /> Create Montage
-              </Button>
-            ) : null}
-          </div>
-          <p className="m-0 mt-0.5 text-[11px] tabular-nums text-muted-foreground" aria-live="polite">
-            {clipCount}
-            {clips.length > 0 ? <span> <span aria-hidden="true">·</span> {formatBytes(visibleBytes)}</span> : null}
-          </p>
-        </div>
-
-        <div className="capture-library__tools">
+      <div className="capture-command-header__tools capture-library__tools">
           <label className="capture-library__search capture-tool-control capture-tool-control--search relative">
             <span className="sr-only">Search clips</span>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" value={controls.query} onChange={(event) => controls.onQueryChange(event.target.value)} placeholder="Search clips" className="h-9 pl-8 text-[12px]" />
+            <Input type="search" value={controls.query} onChange={(event) => controls.onQueryChange(event.target.value)} placeholder="Search clips" className="h-8 pl-8 text-[11px]" />
           </label>
 
-          <Button type="button" variant="secondary" size="sm" className={cn('capture-tool-control capture-tool-control--favorites h-9 gap-1.5 px-2.5', controls.favoritesOnly && 'capture-filter-active')} aria-pressed={controls.favoritesOnly} onClick={controls.onFavoritesChange}>
+          <Button type="button" variant="secondary" size="sm" className={cn('capture-tool-control capture-tool-control--favorites h-8 gap-1.5 px-2.5 text-[11px]', controls.favoritesOnly && 'capture-filter-active')} aria-pressed={controls.favoritesOnly} onClick={controls.onFavoritesChange}>
             <Star className={cn('size-3.5', controls.favoritesOnly && 'fill-warning text-warning')} /> Favorites
           </Button>
 
           <div className="capture-tool-control capture-tool-control--game w-36 shrink-0">
             <Select value={controls.game} onValueChange={controls.onGameChange}>
-              <SelectTrigger aria-label="Filter clips by game" className={cn('h-9', controls.game !== 'all' && 'capture-filter-active')}><Gamepad2 className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Filter clips by game" className={cn('h-8 text-[11px]', controls.game !== 'all' && 'capture-filter-active')}><Gamepad2 className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="all">All games</SelectItem>{controls.games.map((label) => <SelectItem key={label} value={label}>{label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
-          <DateFilter value={controls.date} onChange={controls.onDateChange} />
+          <DateFilter value={controls.date} activeFilterCount={activeFilterCount} onChange={controls.onDateChange} />
 
-          <div className="capture-tool-control capture-tool-control--sort w-32 shrink-0">
+          <div className="capture-tool-control capture-tool-control--sort w-28 shrink-0">
             <Select value={controls.sort} onValueChange={controls.onSortChange}>
-              <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-9"><ArrowDownUp className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-8 text-[11px]"><ArrowDownUp className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
               <SelectContent>{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
-          <ToggleGroup type="single" value={controls.layout} onValueChange={(value) => { if (value) controls.onLayoutChange(value as 'grid' | 'list'); }} aria-label="Clip view" className="capture-tool-control capture-tool-control--view h-9 shrink-0 bg-surface-1">
-            <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid view" className="h-9 min-w-9 px-0"><Grid2X2 className="size-4" /></ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="List view" title="List view" className="h-9 min-w-9 px-0"><List className="size-4" /></ToggleGroupItem>
+          <ToggleGroup type="single" value={controls.layout} onValueChange={(value) => { if (value) controls.onLayoutChange(value as 'grid' | 'list'); }} aria-label="Clip view" className="capture-tool-control capture-tool-control--view h-8 shrink-0 bg-surface-interactive">
+            <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid view" className="h-8 min-w-8 px-0"><Grid2X2 className="size-3.5" /></ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" title="List view" className="h-8 min-w-8 px-0"><List className="size-3.5" /></ToggleGroupItem>
           </ToggleGroup>
-        </div>
+
+          {!controls.montageSelectionMode ? (
+            <Button type="button" variant="primary" size="sm" className="capture-montage-trigger h-8 shrink-0 gap-1.5 px-3 text-[11px]" disabled={totalClipCount < 2} onClick={controls.onStartMontage}>
+              <Clapperboard className="size-3.5" aria-hidden="true" /> Create Montage
+            </Button>
+          ) : null}
       </div>
 
       {controls.montageSelectionMode ? (
@@ -104,14 +92,22 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
   );
 }
 
-function DateFilter({ value, onChange }: { value: ClipDateFilter; onChange: (value: ClipDateFilter) => void }) {
-  const active = value !== 'any';
+function DateFilter({ value, activeFilterCount, onChange }: { value: ClipDateFilter; activeFilterCount: number; onChange: (value: ClipDateFilter) => void }) {
+  const active = activeFilterCount > 0;
+  const selectedDate = dateOptions.find((option) => option.value === value)?.label ?? 'Any date';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="secondary" size="sm" className={cn('capture-tool-control capture-tool-control--date h-9 gap-1.5 px-2.5', active && 'capture-filter-active')}>
-          {active ? <CalendarDays className="size-3.5 text-primary" /> : <SlidersHorizontal className="size-3.5" />}
-          {active ? dateOptions.find((option) => option.value === value)?.label : 'Filter'}
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className={cn('capture-tool-control capture-tool-control--date h-8 gap-1.5 px-2.5 text-[11px]', active && 'capture-filter-active')}
+          aria-label={active ? `Filters: ${activeFilterCount} active. Date: ${selectedDate}` : 'Filter clips by date'}
+          aria-pressed={active}
+        >
+          <SlidersHorizontal className="size-3.5" />
+          {active ? `Filter · ${activeFilterCount}` : 'Filter'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48 p-1.5">

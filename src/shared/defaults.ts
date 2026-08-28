@@ -62,6 +62,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['keyboard', 'firmware', 'lighting'],
     vendors: ['1532'],
+    source: 'bundled',
   },
   {
     id: 'device.hyperx-quadcast',
@@ -76,6 +77,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['microphone', 'gain', 'monitoring', 'lighting', 'firmware'],
     vendors: ['0951'],
+    source: 'bundled',
   },
   {
     id: 'device.logitech-hidpp',
@@ -90,6 +92,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['mouse', 'dpi', 'polling-rate', 'buttons', 'battery', 'profiles'],
     vendors: ['046d'],
+    source: 'bundled',
   },
   {
     id: 'device.sony-mdr',
@@ -104,6 +107,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['headset', 'battery', 'noise-control', 'equalizer', 'sound-processing'],
     vendors: ['054c'],
+    source: 'bundled',
   },
   {
     id: 'capability.replay',
@@ -118,6 +122,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['display-capture', 'window-capture', 'replay-buffer', 'clips'],
     vendors: [],
+    source: 'bundled',
   },
   {
     id: 'capability.audio-router',
@@ -132,6 +137,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['audio-buses', 'chatmix', 'microphone-dsp', 'stream-mix'],
     vendors: [],
+    source: 'bundled',
   },
   {
     id: 'device.steelseries-hid',
@@ -146,6 +152,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['mouse', 'keyboard', 'headset', 'lighting'],
     vendors: ['1038'],
+    source: 'bundled',
   },
   {
     id: 'integration.obs',
@@ -160,6 +167,7 @@ export const defaultModules: ModuleManifest[] = [
     restartRequired: false,
     capabilities: ['obs-websocket', 'scene-actions'],
     vendors: [],
+    source: 'bundled',
   },
 ];
 

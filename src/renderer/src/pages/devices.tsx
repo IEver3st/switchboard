@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Usb } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Blocks, Usb } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
 import { BatteryStatus } from '@/components/device-controls/BatteryStatus';
@@ -19,6 +19,9 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const selectDevice = useSystemStore((state) => state.selectDevice);
   const clearDeviceSelection = useSystemStore((state) => state.clearDeviceSelection);
   const selected = snapshot.devices.find((device) => device.id === selectedDeviceId);
+  const selectedModule = selected ? snapshot.modules.find((module) => module.id === selected.moduleId) : undefined;
+  const selectedFromLocalAddon = selectedModule?.source === 'local';
+  const localModuleIds = new Set(snapshot.modules.filter((module) => module.source === 'local').map((module) => module.id));
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const deviceButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const returnFocusDeviceId = useRef<string | null>(null);
@@ -59,8 +62,9 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
         <DeviceGalleryHeader connectedCount={connectedCount} />
         <div className="device-gallery-stage">
           <ul className="device-gallery" aria-label="Switchboard devices" data-device-count={snapshot.devices.length}>
-            {snapshot.devices.map((device) => (
-              <li key={device.id} className="device-gallery__entry" data-connected={device.connected} data-kind={device.kind}>
+            {snapshot.devices.map((device) => {
+              const localAddon = localModuleIds.has(device.moduleId);
+              return <li key={device.id} className="device-gallery__entry" data-connected={device.connected} data-kind={device.kind}>
                 <button
                   ref={(node) => {
                     if (node) deviceButtonRefs.current.set(device.id, node);
@@ -92,6 +96,7 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
                         </>
                       ) : null}
                     </span>
+                    {localAddon ? <span className="device-gallery__addon-state">Local add-on · identity only</span> : null}
                     {device.capabilities.battery ? (
                       <BatteryStatus
                         battery={device.capabilities.battery}
@@ -104,8 +109,8 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
                     </span>
                   </span>
                 </button>
-              </li>
-            ))}
+              </li>;
+            })}
           </ul>
         </div>
       </div>
@@ -134,6 +139,12 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
             <span>{selected.connected ? 'Connected' : 'Disconnected'}</span>
             <span aria-hidden>·</span>
             <span>{connectionLabel(selected)}</span>
+            {selectedFromLocalAddon ? (
+              <>
+                <span aria-hidden>·</span>
+                <span>Local add-on · identity only</span>
+              </>
+            ) : null}
           </div>
         </div>
         {selected.capabilities.battery ? (
@@ -146,7 +157,9 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
         ) : null}
       </div>
 
-      {selected.kind === 'mouse' ? (
+      {selectedFromLocalAddon ? (
+        <LocalAddonDeviceSurface device={selected} moduleName={selectedModule?.name ?? selected.moduleId} />
+      ) : selected.kind === 'mouse' ? (
         <MouseDeviceEditor device={selected} />
       ) : selected.kind === 'keyboard' ? (
         <KeyboardDeviceEditor device={selected} />
@@ -164,6 +177,30 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function LocalAddonDeviceSurface({ device, moduleName }: { device: Device; moduleName: string }) {
+  const setPage = useSystemStore((state) => state.setPage);
+  return (
+    <div className="local-addon-device">
+      <div className="device-workbench__hero">
+        <DeviceRender device={device} density="hero" />
+      </div>
+      <section className="local-addon-device__boundary" aria-labelledby="local-addon-device-title">
+        <Blocks aria-hidden />
+        <div>
+          <h3 id="local-addon-device-title">Identity supplied by {moduleName}</h3>
+          <p>This sandboxed add-on matched the connected hardware. Module Host API v1 cannot publish writable controls or claim device-confirmed telemetry.</p>
+          <dl>
+            <div><dt>VID : PID</dt><dd>{formatUsbId(device.identity.vendorId)} : {formatUsbId(device.identity.productId)}</dd></div>
+            <div><dt>Connection</dt><dd>{connectionLabel(device)}</dd></div>
+            <div><dt>Capability state</dt><dd>Read-only identity</dd></div>
+          </dl>
+          <button type="button" className="local-addon-device__settings" onClick={() => setPage('modules')}>Open module project</button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -187,6 +224,10 @@ function connectionLabel(device: Device): string {
   return device.identity.connectionLabel
     ?? (device.identity.connection === 'wireless' ? 'Wireless' : device.identity.connection?.toUpperCase())
     ?? 'Unknown connection';
+}
+
+function formatUsbId(value: number | undefined): string {
+  return typeof value === 'number' ? value.toString(16).padStart(4, '0').toLocaleUpperCase() : '----';
 }
 
 function MicrophoneControls({ device, snapshot }: { device: Device; snapshot: SystemSnapshot }) {

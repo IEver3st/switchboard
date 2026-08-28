@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
@@ -31,6 +31,7 @@ export function App() {
   const setPage = useSystemStore((state) => state.setPage);
   const clearError = useSystemStore((state) => state.clearError);
   const previousWorkspaceRef = useRef<Exclude<PageId, 'settings' | 'modules'>>('devices');
+  const [requestedClipId, setRequestedClipId] = useState<string | null>(null);
 
   useEffect(() => manageAsyncCleanup(initialize()), [initialize]);
 
@@ -58,7 +59,13 @@ export function App() {
                     <ScrollArea className="h-full">
                       {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
                       {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
-                      {page === 'capture' ? <CapturePage snapshot={snapshot} /> : null}
+                      {page === 'capture' ? (
+                        <CapturePage
+                          snapshot={snapshot}
+                          requestedClipId={requestedClipId}
+                          onRequestedClipHandled={() => setRequestedClipId(null)}
+                        />
+                      ) : null}
                     </ScrollArea>
                   </main>
                 </section>
@@ -76,7 +83,13 @@ export function App() {
             </div>
           ) : null}
 
-          <NewClipsReview snapshot={snapshot} />
+          <NewClipsReview
+            snapshot={snapshot}
+            onOpenClip={(id) => {
+              setRequestedClipId(id);
+              setPage('capture');
+            }}
+          />
         </div>
       ) : null}
 
