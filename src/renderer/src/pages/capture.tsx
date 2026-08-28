@@ -6,6 +6,7 @@ import { DeleteClipDialog, RenameClipDialog } from '@/components/capture/ClipDia
 import { ClipEditor } from '@/components/capture/ClipEditor';
 import { ClipLibrary } from '@/components/capture/ClipLibrary';
 import { createMontageProject, type MontageClipEditorProject } from '@/components/capture/clip-project-model';
+import { useClipLibraryControls } from '@/components/capture/clip-library-model';
 import type { ClipActions } from '@/components/capture/types';
 import { formatBytes, formatDuration } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
@@ -33,6 +34,10 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
   const editorClip = snapshot.clips.find((clip) => clip.id === editorClipId) ?? null;
   const editorOpen = Boolean(editorClip || montageProject);
   const dialogOpen = Boolean(deleteTarget || renameTarget);
+  const clipLibraryControls = useClipLibraryControls(snapshot.clips, (clips) => {
+    setEditorClipId(null);
+    setMontageProject(createMontageProject(clips));
+  });
 
   const runClipAction = useCallback(async <T,>(key: string, action: () => Promise<T>): Promise<T> => {
     setPendingClipActions((current) => new Set(current).add(key));
@@ -109,16 +114,13 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
         aria-hidden={editorOpen || dialogOpen ? true : undefined}
         inert={editorOpen || dialogOpen ? true : undefined}
       >
-        <CaptureHeader snapshot={snapshot} />
+        <CaptureHeader snapshot={snapshot} controls={clipLibraryControls} />
         <ClipLibrary
           clips={snapshot.clips}
           actions={actions}
           replayEnabled={snapshot.capture.config.enabled}
           hotkey={snapshot.capture.config.hotkey}
-          onCreateMontage={(clips) => {
-            setEditorClipId(null);
-            setMontageProject(createMontageProject(clips));
-          }}
+          controls={clipLibraryControls}
         />
       </div>
 

@@ -11,11 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatReplayLength } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
+import { ClipLibraryToolbar } from './ClipLibraryToolbar';
+import type { ClipLibraryControls } from './clip-library-model';
 
 const durationOptions = [30, 45, 60, 120, 180, 300];
 const qualityLabels: Record<number, string> = { 1: 'Economy', 2: 'Balanced', 3: 'Good', 4: 'High', 5: 'Ultra' };
 
-export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
+export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot; controls: ClipLibraryControls }) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const config = snapshot.capture.config;
   const runtime = snapshot.capture.runtime;
@@ -72,6 +74,7 @@ export function CaptureHeader({ snapshot }: { snapshot: SystemSnapshot }) {
         <span>{formatBytes(snapshot.capture.storage.availableBytes)} available</span>
         <span className="ml-auto hidden text-text-description min-[940px]:inline">Encoder · {runtime.encoderLabel || 'Pending'}</span>
       </div>
+      <ClipLibraryToolbar controls={controls} />
       {notice ? <div className={cn('capture-toolbar__notice border-t border-border py-2 text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
     </section>
   );

@@ -51,7 +51,7 @@ describe('application update lifecycle', () => {
     let loaderCalled = false;
     const states: AppUpdateState[] = [];
     const service = new AppUpdateService({
-      currentVersion: '0.1.0',
+      currentVersion: '0.5.0',
       isPackaged: false,
       platform: 'win32',
       onStateChanged: (state) => states.push(state),
@@ -73,7 +73,7 @@ describe('application update lifecycle', () => {
   it('supports an explicit development-only pending update presentation', async () => {
     let loaderCalled = false;
     const service = new AppUpdateService({
-      currentVersion: '0.1.0',
+      currentVersion: '0.5.0',
       isPackaged: false,
       platform: 'win32',
       demoUpdate: true,
@@ -87,7 +87,7 @@ describe('application update lifecycle', () => {
     await expect(service.initialize(preferences())).resolves.toMatchObject({
       capability: 'available',
       status: 'available',
-      availableVersion: '0.2.0',
+      availableVersion: '0.6.0',
       downloadProgress: 0,
     });
     expect(loaderCalled).toBeFalse();
@@ -97,7 +97,7 @@ describe('application update lifecycle', () => {
 
   it('can activate the development update presentation after initialization', async () => {
     const service = new AppUpdateService({
-      currentVersion: '0.1.0',
+      currentVersion: '0.5.0',
       isPackaged: false,
       platform: 'win32',
       onStateChanged: () => undefined,
@@ -107,7 +107,7 @@ describe('application update lifecycle', () => {
     expect(service.enableDemoUpdate()).toMatchObject({
       capability: 'available',
       status: 'available',
-      availableVersion: '0.2.0',
+      availableVersion: '0.6.0',
     });
     service.dispose();
   });
@@ -117,7 +117,7 @@ describe('application update lifecycle', () => {
     const states: AppUpdateState[] = [];
     const installRequests: boolean[] = [];
     const service = new AppUpdateService({
-      currentVersion: '0.1.0',
+      currentVersion: '0.5.0',
       isPackaged: true,
       platform: 'win32',
       onStateChanged: (state) => states.push(state),
@@ -132,15 +132,15 @@ describe('application update lifecycle', () => {
     expect((await service.checkForUpdates()).status).toBe('checking');
     expect(updater.checks).toBe(1);
 
-    updater.emit('update-available', { version: '0.2.0' });
+    updater.emit('update-available', { version: '0.6.0' });
     updater.emit('download-progress', { percent: 42.4 });
     expect(service.getState()).toMatchObject({
       status: 'downloading',
-      availableVersion: '0.2.0',
+      availableVersion: '0.6.0',
       downloadProgress: 42.4,
     });
 
-    updater.emit('update-downloaded', { version: '0.2.0' });
+    updater.emit('update-downloaded', { version: '0.6.0' });
     expect(service.getState().status).toBe('downloaded');
     service.installDownloadedUpdate();
 
@@ -155,7 +155,7 @@ describe('application update lifecycle', () => {
   it('applies download and next-startup preferences to the updater', async () => {
     const updater = new FakeUpdater();
     const service = new AppUpdateService({
-      currentVersion: '0.1.0',
+      currentVersion: '0.5.0',
       isPackaged: true,
       platform: 'win32',
       onStateChanged: () => undefined,
@@ -169,7 +169,7 @@ describe('application update lifecycle', () => {
     expect(updater.autoDownload).toBeFalse();
     expect(updater.autoInstallOnAppQuit).toBeTrue();
 
-    updater.emit('update-available', { version: '0.2.0' });
+    updater.emit('update-available', { version: '0.6.0' });
     await service.downloadAvailableUpdate();
     expect(updater.downloads).toBe(1);
 

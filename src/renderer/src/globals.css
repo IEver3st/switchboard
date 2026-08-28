@@ -426,16 +426,15 @@ textarea:focus-visible {
   padding: 0 0 28px;
 }
 
-.capture-library__header {
+.capture-toolbar__library {
   display: grid;
   grid-template-columns: minmax(176px, auto) minmax(0, 1fr);
   min-height: 58px;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   background: var(--surface-1);
   padding: 8px clamp(24px, 1.5vw, 32px);
-  box-shadow: 0 10px 26px rgb(0 0 0 / 16%);
 }
 
 .capture-library__tools {
@@ -529,10 +528,11 @@ textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 12px clamp(24px, 1.5vw, 32px) 0;
-  border-block: 1px solid var(--border);
+  margin: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-1) 72%, transparent);
-  padding: 6px 8px;
+  padding: 6px clamp(24px, 1.5vw, 32px);
 }
 
 .capture-montage-selection > div:first-child {
@@ -989,13 +989,18 @@ textarea:focus-visible {
 }
 
 @media (max-width: 1180px) {
-  .capture-library__header {
+  .capture-toolbar__library {
     grid-template-columns: 1fr;
     gap: 10px;
   }
 
   .capture-library__tools {
     justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .capture-library__search {
+    flex-basis: 240px;
   }
 
   .capture-montage-selection {

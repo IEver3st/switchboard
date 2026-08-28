@@ -16,7 +16,7 @@ const bugReport: FeedbackReportInput = {
 };
 
 const environment = {
-  version: '0.1.0',
+  version: '0.5.0',
   runtime: 'Electron 44.0.0',
   platform: 'win32 x64',
   prototypeMode: true,
