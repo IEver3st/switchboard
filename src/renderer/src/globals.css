@@ -306,17 +306,17 @@ textarea:focus-visible {
 
 .capture-command-header__top {
   display: flex;
-  min-height: 40px;
+  min-height: 52px;
   min-width: 0;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 7px clamp(24px, 1.5vw, 32px) 1px;
+  gap: 12px;
+  padding: 9px clamp(24px, 1.5vw, 32px);
 }
 
 .capture-command-header__identity {
   display: flex;
   min-width: 0;
+  flex: none;
   align-items: baseline;
   gap: 10px;
 }
@@ -460,11 +460,12 @@ textarea:focus-visible {
 
 .capture-command-header__tools {
   display: flex;
-  min-height: 44px;
+  min-height: 32px;
   min-width: 0;
+  flex: 1 1 auto;
   align-items: center;
   gap: 6px;
-  padding: 5px clamp(24px, 1.5vw, 32px) 7px;
+  padding: 0;
 }
 
 .capture-library__tools {
@@ -472,8 +473,8 @@ textarea:focus-visible {
 }
 
 .capture-library__search {
-  width: auto;
-  min-width: 190px;
+  width: 100%;
+  min-width: min(180px, 100%);
   max-width: none;
   flex: 1 1 480px;
 }
@@ -698,7 +699,7 @@ textarea:focus-visible {
 
 .capture-replay-summary {
   min-width: 0;
-  max-width: min(58vw, 540px);
+  max-width: 360px;
   flex: 0 1 auto;
   justify-content: flex-start;
   gap: 7px;
@@ -706,6 +707,14 @@ textarea:focus-visible {
   color: var(--text-secondary);
   font-size: 10.5px;
   font-variant-numeric: tabular-nums;
+}
+
+.capture-command-header__top > .capture-montage-selection {
+  flex: 0 0 100%;
+}
+
+.capture-command-header__top:has(> .capture-montage-selection) {
+  flex-wrap: wrap;
 }
 
 .capture-replay-summary__label {
@@ -1409,33 +1418,84 @@ textarea:focus-visible {
   }
 }
 
+@media (max-width: 1500px) {
+  .capture-command-header__size {
+    display: none;
+  }
+
+  .capture-replay-summary {
+    max-width: 300px;
+  }
+
+  .capture-tool-control--game {
+    width: 132px;
+  }
+
+  .capture-tool-control--sort {
+    width: 112px;
+  }
+
+  .capture-tool-control--game .capture-tool-icon,
+  .capture-tool-control--sort .capture-tool-icon {
+    display: none;
+  }
+}
+
 @media (max-width: 1180px) {
   .capture-command-header__top,
-  .capture-command-header__tools,
   .capture-toolbar__notice,
   .capture-montage-selection {
     padding-inline: 20px;
   }
 
   .capture-command-header__top {
-    gap: 12px;
+    gap: 8px;
+  }
+
+  .capture-command-header__identity p {
+    display: none;
+  }
+
+  .capture-library__tools {
+    gap: 4px;
   }
 
   .capture-library__search {
-    min-width: 150px;
-    flex-basis: 260px;
+    min-width: min(160px, 100%);
+    flex-basis: 240px;
+  }
+
+  .capture-tool-control--favorites,
+  .capture-tool-control--date {
+    width: 32px;
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .capture-tool-control--favorites .capture-tool-label,
+  .capture-tool-control--date .capture-tool-label {
+    display: none;
   }
 
   .capture-tool-control--game {
-    width: 136px;
+    width: 118px;
+  }
+
+  .capture-tool-control--game .capture-tool-icon {
+    display: none;
   }
 
   .capture-tool-control--sort {
-    width: 128px;
+    width: 96px;
+  }
+
+  .capture-tool-control--sort .capture-tool-icon {
+    display: none;
   }
 
   .capture-replay-summary {
-    max-width: 58vw;
+    max-width: 180px;
   }
 
   .capture-montage-selection {

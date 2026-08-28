@@ -17,22 +17,28 @@
     "width": 1352
   },
   "toolbarBounds": {
-    "left": 68,
-    "right": 1420,
-    "width": 1352
+    "left": 298.84375,
+    "right": 1396,
+    "width": 1097.15625
   },
   "commandHeaderBounds": {
     "top": 38,
-    "bottom": 122.66667175292969,
-    "height": 84.66667175292969
+    "bottom": 90.66666793823242,
+    "height": 52.66666793823242
   },
   "commandTopBounds": {
-    "height": 40
+    "height": 52
   },
   "searchBounds": {
-    "width": 592.3125
+    "width": 413.46875
   },
   "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": "false",
+    "game": "All games",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
   "emptyState": false,
   "dateGroups": [
     "Today"
@@ -44,11 +50,35 @@
     "searchFocused": true,
     "searchMatches": 3,
     "favoriteMatches": 3,
+    "gameMatches": 4,
+    "dateFilterApplied": true,
+    "sortChangedOrder": true,
     "listItems": 15,
+    "montageSelection": true,
     "replayControls": {
       "source": true,
       "fields": 9,
       "shortcut": true
+    },
+    "replayKeyboard": {
+      "replayTriggerFocused": true,
+      "replayFocusInside": true,
+      "sourceOptions": [
+        "Detect active gameAutomatic gameAutomatic",
+        "UnavailableDisplay 1Display · Selected"
+      ],
+      "sourceFocusRestored": true,
+      "sourceFocusAfter": {
+        "tag": "BUTTON",
+        "className": "capture-source-trigger",
+        "label": "Capture source: Display 1"
+      },
+      "replayFocusRestored": true,
+      "replayFocusAfter": {
+        "tag": "BUTTON",
+        "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-border bg-surface-interactive text-secondary-foreground hover:border-border-strong hover:bg-surface-hover px-3 text-xs capture-replay-summary h-8",
+        "label": "Replay Off. Instant Replay is turned off in Capture Settings. Open replay configuration"
+      }
     }
   },
   "resizeTransitions": null,

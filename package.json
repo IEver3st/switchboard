@@ -31,6 +31,7 @@
     "acquire:deepfilternet-model": "node ./scripts/acquire-deepfilternet-model.mjs",
     "measure:audio-host": "node ./scripts/measure-audio-host.mjs",
     "measure:startup": "bun run build && node ./scripts/run-native-review.mjs startup",
+    "measure:idle": "bun run build && node ./scripts/run-native-review.mjs idle",
     "build:hosts": "bun run build:capture-host && bun run build:audio-host && bun run build:sony-headphones-host",
     "dist:win": "bun run build:hosts && bun run build && electron-builder --win nsis",
     "release:win": "bun run build:hosts && bun run build && electron-builder --win nsis --publish always",
