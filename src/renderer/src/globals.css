@@ -427,6 +427,10 @@ textarea:focus-visible {
 }
 
 .capture-toolbar__library {
+  --capture-action: #5865f2;
+  --capture-action-hover: #6572f5;
+  --capture-action-pressed: #4c57d8;
+  --capture-action-foreground: #f5f7ff;
   display: grid;
   grid-template-columns: minmax(176px, auto) minmax(0, 1fr);
   min-height: 58px;
@@ -459,67 +463,77 @@ textarea:focus-visible {
 }
 
 .capture-montage-trigger {
-  border: 1px solid color-mix(in srgb, var(--primary) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--capture-action) 82%, white 18%);
+  border-radius: 4px;
+  background: var(--capture-action);
+  color: var(--capture-action-foreground);
   box-shadow: inset 0 1px rgb(255 255 255 / 12%);
 }
 
-.capture-tool-control {
+.capture-montage-trigger:hover:not(:disabled) {
+  background: var(--capture-action-hover);
+}
+
+.capture-tool-control--search {
   --capture-tool-accent: var(--primary);
 }
 
-.capture-tool-control--favorites {
-  --capture-tool-accent: var(--status-warning);
-}
-
-.capture-tool-control--game {
-  --capture-tool-accent: var(--channel-game);
-}
-
-.capture-tool-control--date {
-  --capture-tool-accent: var(--channel-media);
-}
-
-.capture-tool-control--sort {
-  --capture-tool-accent: var(--status-info);
-}
-
-.capture-tool-control--view {
-  --control-accent: var(--primary);
-  --capture-tool-accent: var(--primary);
-}
-
-.capture-tool-control--search > svg,
-.capture-tool-icon,
-.capture-tool-control--favorites > svg,
-.capture-tool-control--date > svg {
+.capture-tool-control--search > svg {
   color: var(--capture-tool-accent);
 }
 
-.capture-tool-control:is(button, [role="group"]),
-.capture-tool-control > input,
-.capture-tool-control > button {
+.capture-tool-control--search > input {
   border-color: color-mix(in srgb, var(--capture-tool-accent) 24%, var(--border));
   background: color-mix(in srgb, var(--capture-tool-accent) 5%, var(--surface-interactive));
 }
 
-.capture-tool-control:is(button, [role="group"]):hover,
-.capture-tool-control > input:hover,
-.capture-tool-control > input:focus-visible,
-.capture-tool-control > button:hover,
-.capture-tool-control > button[data-state="open"] {
+.capture-tool-control--search > input:hover,
+.capture-tool-control--search > input:focus-visible {
   border-color: color-mix(in srgb, var(--capture-tool-accent) 46%, var(--border-strong));
   background: color-mix(in srgb, var(--capture-tool-accent) 9%, var(--surface-hover));
 }
 
-.capture-filter-active {
-  border-color: color-mix(in srgb, var(--capture-tool-accent, var(--primary)) 62%, var(--border));
-  background: color-mix(in srgb, var(--capture-tool-accent, var(--primary)) 13%, var(--surface-interactive));
-  color: var(--foreground);
+.capture-tool-control:not(.capture-tool-control--search):is(button, [role="group"]),
+.capture-tool-control:not(.capture-tool-control--search) > button {
+  border-color: color-mix(in srgb, var(--capture-action) 82%, white 18%);
+  border-radius: 4px;
+  background: var(--capture-action);
+  color: var(--capture-action-foreground);
+  box-shadow: inset 0 1px rgb(255 255 255 / 12%);
 }
 
-.capture-sort-trigger {
-  background: var(--surface-1);
-  color: var(--text-secondary);
+.capture-tool-control:not(.capture-tool-control--search):is(button, [role="group"]) svg,
+.capture-tool-control:not(.capture-tool-control--search) > button svg {
+  color: color-mix(in srgb, var(--capture-action-foreground) 88%, transparent);
+}
+
+.capture-tool-control--favorites[aria-pressed="true"] > svg {
+  fill: currentColor;
+}
+
+.capture-tool-control:not(.capture-tool-control--search):is(button, [role="group"]):hover,
+.capture-tool-control:not(.capture-tool-control--search) > button:hover,
+.capture-tool-control:not(.capture-tool-control--search) > button[data-state="open"] {
+  border-color: color-mix(in srgb, var(--capture-action-hover) 82%, white 18%);
+  background: var(--capture-action-hover);
+}
+
+.capture-tool-control--favorites[aria-pressed="true"],
+.capture-tool-control > button.capture-filter-active {
+  border-color: color-mix(in srgb, var(--capture-action-pressed) 82%, white 18%);
+  background: var(--capture-action-pressed);
+  color: var(--capture-action-foreground);
+  box-shadow: inset 0 -2px rgb(255 255 255 / 32%);
+}
+
+.capture-tool-control--view > button {
+  border-color: rgb(255 255 255 / 18%);
+  color: color-mix(in srgb, var(--capture-action-foreground) 68%, transparent);
+}
+
+.capture-tool-control--view > button[data-state="on"] {
+  background: rgb(255 255 255 / 16%);
+  color: var(--capture-action-foreground);
 }
 
 .capture-montage-selection {

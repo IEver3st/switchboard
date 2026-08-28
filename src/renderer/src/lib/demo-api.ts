@@ -616,7 +616,15 @@ const demoApi: SwitchboardApi = {
     return { copied, opened: Boolean(issueWindow) };
   },
   async revealClip() {},
-  async deleteClip() { return emit(); },
+  async deleteClip(id) {
+    snapshot.clips = snapshot.clips.filter((clip) => clip.id !== id);
+    snapshot.capture.storage.clipsBytes = snapshot.clips.reduce((total, clip) => total + clip.fileSize, 0);
+    return emit();
+  },
+  async markClipsReviewed(input) {
+    snapshot.clipReview.reviewedThrough = Math.max(snapshot.clipReview.reviewedThrough, input.reviewedThrough);
+    return emit();
+  },
   async renameClip(input) {
     const clip = snapshot.clips.find((candidate) => candidate.id === input.id);
     if (clip) {

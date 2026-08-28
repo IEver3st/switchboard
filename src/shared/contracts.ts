@@ -1019,6 +1019,11 @@ export const clipSchema = z.object({
 });
 export type Clip = z.infer<typeof clipSchema>;
 
+export const clipReviewStateSchema = z.object({
+  reviewedThrough: z.number().int().nonnegative(),
+});
+export type ClipReviewState = z.infer<typeof clipReviewStateSchema>;
+
 export const performanceSnapshotSchema = z.object({
   coreMemoryMb: z.number().min(0),
   rendererMemoryMb: z.number().min(0),
@@ -1100,6 +1105,7 @@ export const systemSnapshotSchema = z.object({
     sources: z.array(captureSourceSchema),
   }),
   clips: z.array(clipSchema),
+  clipReview: clipReviewStateSchema,
   gameDetection: gameDetectionStateSchema,
   performance: performanceSnapshotSchema,
   settings: appSettingsSchema,
@@ -1405,6 +1411,7 @@ export const ipcChannels = {
   handoffFeedbackReport: 'feedback:handoff-report',
   revealClip: 'clips:reveal',
   deleteClip: 'clips:delete',
+  markClipsReviewed: 'clips:mark-reviewed',
   renameClip: 'clips:rename',
   setClipFavorite: 'clips:set-favorite',
   setClipTrim: 'clips:set-trim',
@@ -1460,6 +1467,7 @@ export interface SwitchboardApi {
   handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult>;
   revealClip(id: string): Promise<void>;
   deleteClip(id: string): Promise<SystemSnapshot>;
+  markClipsReviewed(input: MarkClipsReviewedInput): Promise<SystemSnapshot>;
   renameClip(input: RenameClipInput): Promise<SystemSnapshot>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<SystemSnapshot>;
   setClipTrim(input: SetClipTrimInput): Promise<SystemSnapshot>;
@@ -1477,6 +1485,11 @@ export const renameClipInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
 });
 export type RenameClipInput = z.infer<typeof renameClipInputSchema>;
+
+export const markClipsReviewedInputSchema = z.object({
+  reviewedThrough: z.number().int().nonnegative(),
+});
+export type MarkClipsReviewedInput = z.infer<typeof markClipsReviewedInputSchema>;
 
 export const setClipFavoriteInputSchema = z.object({
   id: z.string().min(1).max(256),

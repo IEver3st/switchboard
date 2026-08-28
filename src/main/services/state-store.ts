@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { systemSnapshotSchema, type EngineKind, type SystemSnapshot } from '../../shared/contracts';
+import { latestClipCreatedAt } from '../../shared/clip-review';
 import { createDefaultSnapshot } from '../../shared/defaults';
 
 type Listener = (snapshot: SystemSnapshot) => void;
@@ -24,7 +25,7 @@ export class StateStore {
     try {
       const raw = await readFile(this.filePath, 'utf8');
       const parsed = systemSnapshotSchema.safeParse(
-        migrateAppUpdateState(migrateGameDetectionState(migrateLegacyCaptureState(migrateAudioMixState(migrateLegacyDeviceState(JSON.parse(raw)))))),
+        migrateAppUpdateState(migrateGameDetectionState(migrateClipReviewState(migrateLegacyCaptureState(migrateAudioMixState(migrateLegacyDeviceState(JSON.parse(raw))))))),
       );
       if (parsed.success) {
         this.snapshot = this.resetRuntimeState(parsed.data);
@@ -327,6 +328,20 @@ function migrateGameDetectionState(value: unknown): unknown {
       error: undefined,
     },
   };
+}
+
+function migrateClipReviewState(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const clips = Array.isArray(value.clips)
+    ? value.clips.filter((clip): clip is Record<string, unknown> => isRecord(clip))
+    : [];
+  const existing = isRecord(value.clipReview) ? value.clipReview.reviewedThrough : undefined;
+  const reviewedThrough = typeof existing === 'number' && Number.isSafeInteger(existing) && existing >= 0
+    ? existing
+    : latestClipCreatedAt(clips
+      .filter((clip) => typeof clip.createdAt === 'number' && Number.isSafeInteger(clip.createdAt) && clip.createdAt >= 0)
+      .map((clip) => ({ createdAt: clip.createdAt as number })));
+  return { ...value, clipReview: { reviewedThrough } };
 }
 
 function migrateAppUpdateState(value: unknown): unknown {

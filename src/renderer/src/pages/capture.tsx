@@ -116,7 +116,6 @@ export function CapturePage({ snapshot }: { snapshot: SystemSnapshot }) {
       >
         <CaptureHeader snapshot={snapshot} controls={clipLibraryControls} />
         <ClipLibrary
-          clips={snapshot.clips}
           actions={actions}
           replayEnabled={snapshot.capture.config.enabled}
           hotkey={snapshot.capture.config.hotkey}

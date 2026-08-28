@@ -26,6 +26,7 @@ import {
   type FeedbackHandoffResult,
   type FeedbackReportInput,
   type EngineStatus,
+  type MarkClipsReviewedInput,
   type CreateAudioPresetInput,
   type RenameAudioPresetInput,
   type RenameClipInput,
@@ -984,6 +985,12 @@ export class AppController {
     return this.store.update((draft) => {
       draft.clips = draft.clips.filter((candidate) => candidate.id !== id);
       draft.capture.storage.clipsBytes = draft.clips.reduce((sum, candidate) => sum + candidate.fileSize, 0);
+    });
+  }
+
+  public markClipsReviewed(input: MarkClipsReviewedInput): SystemSnapshot {
+    return this.store.update((draft) => {
+      draft.clipReview.reviewedThrough = Math.max(draft.clipReview.reviewedThrough, input.reviewedThrough);
     });
   }
 

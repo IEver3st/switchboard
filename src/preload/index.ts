@@ -59,6 +59,7 @@ const api: SwitchboardApi = {
   ),
   revealClip: (id) => ipcRenderer.invoke(ipcChannels.revealClip, id),
   deleteClip: (id) => ipcRenderer.invoke(ipcChannels.deleteClip, id),
+  markClipsReviewed: (input) => ipcRenderer.invoke(ipcChannels.markClipsReviewed, input),
   renameClip: (input) => ipcRenderer.invoke(ipcChannels.renameClip, input),
   setClipFavorite: (input) => ipcRenderer.invoke(ipcChannels.setClipFavorite, input),
   setClipTrim: (input) => ipcRenderer.invoke(ipcChannels.setClipTrim, input),

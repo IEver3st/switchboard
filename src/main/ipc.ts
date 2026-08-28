@@ -11,6 +11,7 @@ import {
   exportMontageInputSchema,
   feedbackReportInputSchema,
   ipcChannels,
+  markClipsReviewedInputSchema,
   renameClipInputSchema,
   renameAudioPresetInputSchema,
   setAudioChannelProcessorInputSchema,
@@ -286,6 +287,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => z.string().min(1).max(256).parse(input),
     (id) => controller.deleteClip(id),
+  );
+  handle(
+    ipcChannels.markClipsReviewed,
+    getMainWindow,
+    (input) => markClipsReviewedInputSchema.parse(input),
+    (input) => controller.markClipsReviewed(input),
   );
   handle(
     ipcChannels.renameClip,

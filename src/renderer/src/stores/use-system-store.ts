@@ -7,6 +7,7 @@ import {
   type CreateAudioPresetInput,
   type ExportClipInput,
   type ExportMontageInput,
+  type MarkClipsReviewedInput,
   type PageId,
   type RenameClipInput,
   type SetClipCanvasSizeInput,
@@ -103,6 +104,7 @@ interface SystemStore {
   downloadAppUpdate(): Promise<void>;
   installAppUpdate(): Promise<void>;
   deleteClip(id: string): Promise<void>;
+  markClipsReviewed(input: MarkClipsReviewedInput): Promise<void>;
   renameClip(input: RenameClipInput): Promise<void>;
   setClipFavorite(input: SetClipFavoriteInput): Promise<void>;
   setClipTrim(input: SetClipTrimInput): Promise<void>;
@@ -249,6 +251,7 @@ export const useSystemStore = create<SystemStore>((set, get) => {
         throw error;
       }
     },
+    markClipsReviewed: (input) => run(() => switchboardApi.markClipsReviewed(input)),
     renameClip: async (input) => {
       set({ error: null });
       try { set({ snapshot: await switchboardApi.renameClip(input) }); }

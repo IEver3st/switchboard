@@ -1,5 +1,4 @@
 import { Search, Video } from 'lucide-react';
-import type { Clip } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import { ClipGrid } from './ClipGrid';
 import { ClipList } from './ClipList';
@@ -7,7 +6,6 @@ import type { ClipLibraryControls } from './clip-library-model';
 import type { ClipActions } from './types';
 
 export function ClipLibrary({ actions, replayEnabled, hotkey, controls }: {
-  clips: Clip[];
   actions: ClipActions;
   replayEnabled: boolean;
   hotkey: string;

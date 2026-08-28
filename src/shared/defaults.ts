@@ -722,6 +722,7 @@ export function createDefaultSnapshot(): SystemSnapshot {
       sources: [],
     },
     clips: structuredClone(seedClips),
+    clipReview: { reviewedThrough: 0 },
     gameDetection: structuredClone(defaultGameDetection),
     performance: structuredClone(defaultPerformance),
     settings: structuredClone(defaultSettings),
