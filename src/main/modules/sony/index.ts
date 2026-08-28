@@ -1,12 +1,12 @@
 import type { Device, DeviceControlChange, SonyHeadsetCapability } from '../../../shared/contracts';
-import { resolveDeviceVariant } from '../../../shared/device-variant';
-import { resolveProductAsset } from '../../../shared/product-assets';
-import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
-import { SonyMdrSession } from './common/protocol/session';
-import { SonyHeadphonesHost, type SonyHostDevice } from './common/transport/host';
-import { xm6BatteryCapability } from './wh1000xm6/battery-estimate';
+import { app } from 'electron';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import {
+  SonyHeadphonesHost,
+  SonyMdrSession,
   parseXm6Event,
+  xm6BatteryState as xm6BatteryCapability,
   xm6Dsee,
   xm6EqualizerBands,
   xm6EqualizerFrequencies,
@@ -16,8 +16,12 @@ import {
   xm6ListeningMode,
   xm6NoiseControl,
   xm6SpeakToChat,
+  type SonyHostDevice,
   type Xm6Event,
-} from './wh1000xm6/protocol';
+} from '@auri/sony-mdr';
+import { resolveDeviceVariant } from '../../../shared/device-variant';
+import { resolveProductAsset } from '../../../shared/product-assets';
+import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
 
 const moduleId = 'device.sony-mdr';
 const modelName = 'WH-1000XM6';
@@ -48,7 +52,7 @@ const reconnectDelays = [1_000, 2_500, 5_000, 15_000, 30_000] as const;
 
 export class SonyDeviceModule implements DeviceModule {
   public readonly id = moduleId;
-  private readonly host = new SonyHeadphonesHost();
+  private readonly host = new SonyHeadphonesHost(resolveSonyHost);
   private readonly runtimes = new Map<string, Xm6Runtime>();
   private lastContext: DeviceDiscoveryContext | null = null;
   private latestDevices: Device[] = [];
@@ -283,6 +287,21 @@ export class SonyDeviceModule implements DeviceModule {
     this.runtimes.clear();
     await this.host.dispose();
   }
+}
+
+function resolveSonyHost() {
+  if (app.isPackaged) {
+    const cwd = join(process.resourcesPath, 'sony-headphones-host');
+    return { command: join(cwd, 'Sony.Mdr.Windows.Host.exe'), arguments: [], cwd };
+  }
+  const root = app.getAppPath();
+  const executable = join(root, 'packages', 'sony-mdr', 'native', 'windows', 'bin', 'Debug', 'net10.0-windows', 'Sony.Mdr.Windows.Host.exe');
+  if (existsSync(executable)) return { command: executable, arguments: [], cwd: root };
+  return {
+    command: 'dotnet',
+    arguments: ['run', '--project', join(root, 'packages', 'sony-mdr', 'native', 'windows', 'Sony.Mdr.Windows.Host.csproj'), '--no-launch-profile'],
+    cwd: root,
+  };
 }
 
 function createRuntime(hostDevice: SonyHostDevice): Xm6Runtime {

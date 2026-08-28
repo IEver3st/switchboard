@@ -1,7 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { sonyFrameType } from '../src/main/modules/sony/common/protocol/frame';
-import { xm6BatteryCapability } from '../src/main/modules/sony/wh1000xm6/battery-estimate';
-import { parseXm6Event, xm6EqualizerBands, xm6ListeningMode, xm6NoiseControl } from '../src/main/modules/sony/wh1000xm6/protocol';
+import { sonyFrameType, xm6BatteryState as xm6BatteryCapability, parseXm6Event, xm6EqualizerBands, xm6ListeningMode, xm6NoiseControl } from '@auri/sony-mdr';
 
 describe('WH-1000XM6 protocol', () => {
   test('encodes verified noise control and ten-band EQ layouts', () => {

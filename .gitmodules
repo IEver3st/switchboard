@@ -1,0 +1,3 @@
+[submodule "packages/sony-mdr"]
+	path = packages/sony-mdr
+	url = https://github.com/IEver3st/sony-mdr.git
