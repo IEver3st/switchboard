@@ -12,6 +12,7 @@ if (!Number.isFinite(requestedWidth) || !Number.isFinite(requestedHeight) || req
   throw new Error('Viewport must be at least 1080x720.');
 }
 const reviewMode = process.argv.includes('--new-clips-review');
+const manualNoReview = process.argv.includes('--manual-no-review');
 const reviewDeleteConfirmation = process.argv.includes('--confirm-delete');
 const reviewViewAll = process.argv.includes('--view-all');
 const reviewOpenCard = process.argv.includes('--open-card');
@@ -84,7 +85,7 @@ state.capture.storage.cacheDirectory = join(isolatedUserData, 'cache', 'replay')
 state.capture.storage.clipsBytes = state.clips.reduce((total, clip) => total + clip.fileSize, 0);
 state.capture.storage.replayCacheBytes = 0;
 if (state.capture.autoCapture?.runtime) state.capture.autoCapture.runtime.activeGameId = null;
-state.clipReview = { reviewedThrough: reviewMode ? 0 : now };
+state.clipReview = { reviewedThrough: reviewMode || manualNoReview ? 0 : now };
 const replayModule = state.modules.find((module) => module.id === 'capability.replay');
 if (replayModule) replayModule.enabled = false;
 await writeFile(join(isolatedUserData, 'switchboard-state.json'), JSON.stringify(state, null, 2));
@@ -112,6 +113,13 @@ async function runReview() {
   }
   window.setContentSize(requestedWidth, requestedHeight, false);
   await waitForApp(window);
+  let manualReviewOpened = null;
+  if (manualNoReview) {
+    await window.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
+    await delay(180);
+    manualReviewOpened = await window.webContents.executeJavaScript("Boolean(document.querySelector('[data-testid=\"new-clips-review\"]'))");
+    if (manualReviewOpened) throw new Error('A manual shortcut clip incorrectly opened the post-game review.');
+  }
   if (reviewMode) {
     await window.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
     await waitFor(window, `document.querySelectorAll('.new-clips-review__card').length === ${count}`);
@@ -231,7 +239,7 @@ const metricsExpression = [
   }
   const interactions = reviewMode ? await verifyReviewDismissal(window) : count > 1 ? await verifyLibraryInteractions(window, count) : null;
   const resizeTransitions = process.argv[5] === 'resize-sequence' ? await verifyResizeTransitions(window) : null;
-  const report = { ...metrics, interactions, resizeTransitions, imagePath, imageSize: image.getSize() };
+  const report = { ...metrics, manualReviewOpened, interactions, resizeTransitions, imagePath, imageSize: image.getSize() };
   await writeFile(join(outputDirectory, 'capture-' + count + '-clips' + viewportSuffix + stateSuffix + '.json'), JSON.stringify(report, null, 2) + '\n');
   process.stdout.write(JSON.stringify(report) + '\n');
   app.quit();

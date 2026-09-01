@@ -30,6 +30,24 @@ describe('settings persistence', () => {
       draft.capture.config.replaySeconds = 90;
       draft.capture.config.hotkey = 'Ctrl+Alt+F9';
       draft.capture.config.clipsDirectory = 'C:\\Switchboard Test Clips';
+      draft.capture.autoCapture.settings = {
+        enabled: true,
+        preRollSeconds: 25,
+        postRollSeconds: 12,
+        mergeNearbyEvents: true,
+        mergeThresholdSeconds: 8,
+        notifyWhenSaved: true,
+        games: {
+          cs2: {
+            enabled: true,
+            useGlobalTiming: false,
+            preRollSeconds: 30,
+            postRollSeconds: 15,
+            events: { kill: true, death: false, round_win: true },
+          },
+        },
+        dismissedAvailability: { cs2: true },
+      };
     });
     await first.flush();
 
@@ -47,6 +65,13 @@ describe('settings persistence', () => {
     expect(snapshot.capture.config.replaySeconds).toBe(90);
     expect(snapshot.capture.config.hotkey).toBe('Ctrl+Alt+F9');
     expect(snapshot.capture.config.clipsDirectory).toBe('C:\\Switchboard Test Clips');
+    expect(snapshot.capture.autoCapture.settings).toMatchObject({
+      enabled: true,
+      preRollSeconds: 25,
+      postRollSeconds: 12,
+      games: { cs2: { useGlobalTiming: false, preRollSeconds: 30, events: { death: false } } },
+      dismissedAvailability: { cs2: true },
+    });
   });
 
   it('migrates existing state that predates game detection without discarding preferences', async () => {
@@ -76,6 +101,23 @@ describe('settings persistence', () => {
     expect(snapshot.appUpdate.status).toBe('unavailable');
     expect(snapshot.gameDetection.games).toEqual([]);
     expect(snapshot.gameDetection.scanState).toBe('idle');
+  });
+
+  it('migrates state from before Auto Capture as manual-only with conservative defaults', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-settings-legacy-autocapture-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const legacy = createDefaultSnapshot() as unknown as Record<string, unknown>;
+    delete (legacy.capture as Record<string, unknown>).autoCapture;
+    await writeFile(filePath, JSON.stringify(legacy));
+
+    const store = new StateStore(filePath);
+    await store.load();
+
+    expect(store.get().capture.autoCapture.settings.enabled).toBeFalse();
+    expect(store.get().capture.autoCapture.settings.preRollSeconds).toBe(20);
+    expect(store.get().capture.autoCapture.providers).toEqual([]);
+    expect(store.get().capture.autoCapture.runtime.state).toBe('disabled');
   });
 
   it('treats clips from before the review feature as already reviewed', async () => {

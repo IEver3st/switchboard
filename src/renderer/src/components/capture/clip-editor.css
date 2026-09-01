@@ -1242,6 +1242,71 @@
   outline-offset: -1px;
 }
 
+.clip-editor-events ul {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clip-editor-events button {
+  display: grid;
+  width: 100%;
+  min-height: 30px;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 2px;
+  padding: 4px 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.clip-editor-events button:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.clip-editor-events button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.clip-editor-events button > span {
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--timeline-playhead);
+}
+
+.clip-editor-events button > span[data-event-type="multi_kill"],
+.clip-editor-events button > span[data-event-type="round_win"],
+.clip-editor-events button > span[data-event-type="match_win"] {
+  border-radius: 1px;
+  color: var(--status-success);
+  transform: rotate(45deg);
+}
+
+.clip-editor-events strong {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clip-editor-events time {
+  color: var(--text-description);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
 .clip-editor-timeline__tracks {
   position: absolute;
   inset: 22px 0 3px;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Clip, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, ExportMontageInput, SystemSnapshot } from '../../../shared/contracts';
 import { clipGameLabel } from '../../../shared/clip-library';
+import { autoCaptureClipSummary } from '../../../shared/auto-capture';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
 import { DeleteClipDialog, RenameClipDialog } from '@/components/capture/ClipDialogs';
 import { ClipEditor } from '@/components/capture/ClipEditor';
@@ -10,6 +11,7 @@ import { useClipLibraryControls } from '@/components/capture/clip-library-model'
 import type { ClipActions } from '@/components/capture/types';
 import { formatBytes, formatDuration } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
+import { Button } from '@/components/ui/button';
 
 export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled }: {
   snapshot: SystemSnapshot;
@@ -27,6 +29,8 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   const setClipTrim = useSystemStore((state) => state.setClipTrim);
   const setClipAudioTrackLevel = useSystemStore((state) => state.setClipAudioTrackLevel);
   const updateSettings = useSystemStore((state) => state.updateSettings);
+  const updateAutoCaptureSettings = useSystemStore((state) => state.updateAutoCaptureSettings);
+  const setupAutoCaptureProvider = useSystemStore((state) => state.setupAutoCaptureProvider);
   const [editorClipId, setEditorClipId] = useState<string | null>(null);
   const [montageProject, setMontageProject] = useState<MontageClipEditorProject | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Clip | null>(null);
@@ -42,6 +46,14 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
     setEditorClipId(null);
     setMontageProject(createMontageProject(clips));
   });
+  const offeredAutoCaptureProvider = snapshot.capture.autoCapture.providers.find((provider) => (
+    !provider.developmentOnly
+      && provider.gameId === snapshot.capture.autoCapture.runtime.activeGameId
+      && provider.supportLevel === 'supported'
+      && provider.availability.state !== 'unavailable'
+      && !snapshot.capture.autoCapture.settings.enabled
+      && !snapshot.capture.autoCapture.settings.dismissedAvailability[provider.gameId]
+  ));
 
   const runClipAction = useCallback(async <T,>(key: string, action: () => Promise<T>): Promise<T> => {
     setPendingClipActions((current) => new Set(current).add(key));
@@ -103,8 +115,13 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
     if (!latest || latest.id === previousSavedClipId.current) return;
     previousSavedClipId.current = latest.id;
     if (!snapshot.capture.runtime.lastSavedAt || Math.abs(latest.createdAt - new Date(snapshot.capture.runtime.lastSavedAt).getTime()) > 5_000) return;
+    if (latest.autoCapture) {
+      if (!snapshot.capture.autoCapture.settings.notifyWhenSaved) return;
+      showTransientToast(`Auto Capture saved · ${autoCaptureClipSummary(latest) ?? 'Highlight'} · ${clipGameLabel(latest)}`, setToast);
+      return;
+    }
     showTransientToast(`Replay saved · ${clipGameLabel(latest)} · ${formatDuration(latest.durationMs / 1_000)} · ${formatBytes(latest.fileSize)}`, setToast);
-  }, [snapshot.capture.runtime.lastSavedAt, snapshot.clips]);
+  }, [snapshot.capture.autoCapture.settings.notifyWhenSaved, snapshot.capture.runtime.lastSavedAt, snapshot.clips]);
 
   const actions = useMemo<ClipActions>(() => ({
     open: (clip) => { setMontageProject(null); setEditorClipId(clip.id); },
@@ -243,6 +260,34 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
       ) : null}
 
       {toast ? <div className="fixed bottom-5 right-5 z-[70] max-w-sm rounded-lg border border-border bg-popover px-4 py-3 text-[12px] text-foreground shadow-xl" role="status" aria-live="polite">{toast}</div> : null}
+      {offeredAutoCaptureProvider ? (
+        <div className="fixed bottom-5 right-5 z-[69] w-[min(360px,calc(100vw-40px))] rounded-lg border border-border bg-popover px-4 py-3 shadow-xl" role="status" aria-live="polite">
+          <p className="text-[13px] font-medium text-foreground">Auto Capture is available for {offeredAutoCaptureProvider.displayName}.</p>
+          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">Gameplay telemetry stays local and preserves highlights from the existing replay buffer.</p>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void updateAutoCaptureSettings({ dismissedAvailability: { [offeredAutoCaptureProvider.gameId]: true } })}
+            >
+              Not now
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => void updateAutoCaptureSettings({
+                enabled: true,
+                games: { [offeredAutoCaptureProvider.gameId]: { enabled: true } },
+                dismissedAvailability: { [offeredAutoCaptureProvider.gameId]: true },
+              }).then(() => offeredAutoCaptureProvider.availability.state === 'setup-required'
+                ? setupAutoCaptureProvider(offeredAutoCaptureProvider.id)
+                : undefined)}
+            >
+              Enable
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

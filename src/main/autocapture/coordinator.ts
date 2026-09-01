@@ -7,7 +7,7 @@ import type {
   ProviderAvailability,
 } from '../../shared/contracts';
 import { AutoCaptureEngine } from './auto-capture-engine';
-import { AutoCaptureRegistry, matchDetectedGame } from './registry';
+import { AutoCaptureRegistry } from './registry';
 import { TestEventProvider } from './providers/test-event-provider';
 
 export type AutoCaptureCoordinatorOptions = {
@@ -136,9 +136,10 @@ export class AutoCaptureCoordinator {
   private async reconcileNow(): Promise<void> {
     if (this.disposed) return;
     const settings = this.options.getSettings();
-    const nextProvider = settings.enabled && this.captureEnabled && this.activeSource
+    const detectedProvider = this.captureEnabled && this.activeSource
       ? this.options.registry.getForSource(this.activeSource, this.detectedGames)
       : undefined;
+    const nextProvider = settings.enabled ? detectedProvider : undefined;
     const gameEnabled = nextProvider ? settings.games[nextProvider.gameId]?.enabled !== false : false;
     const nextProviderId = gameEnabled ? nextProvider?.id ?? null : null;
 
@@ -149,7 +150,9 @@ export class AutoCaptureCoordinator {
     }
 
     if (!nextProvider || !nextProviderId) {
-      this.options.engine.setActiveProvider(null, null, false);
+      // Retain the supported game identity for the restrained first-run offer,
+      // while keeping every provider dormant until the user explicitly opts in.
+      this.options.engine.setActiveProvider(detectedProvider?.gameId ?? null, null, false);
       this.publishProviders();
       return;
     }
@@ -158,7 +161,7 @@ export class AutoCaptureCoordinator {
       return;
     }
 
-    const detectedGame = matchDetectedGame(nextProvider.gameId, this.detectedGames);
+    const detectedGame = this.options.registry.getDetectedGame(nextProvider.id, this.detectedGames);
     try {
       await this.options.registry.start(nextProviderId, {
         gameId: nextProvider.gameId,

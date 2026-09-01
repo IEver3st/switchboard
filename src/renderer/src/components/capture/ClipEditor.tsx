@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { ArrowLeft, Clapperboard, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
 import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
+import { singularEventLabel } from '../../../../shared/auto-capture';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -172,6 +173,11 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
   };
 
   const toggleViewerFullscreen = () => setViewerFullscreen((current) => !current);
+  const seekToEvent = (timestampMs: number) => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = timestampMs / 1_000;
+    void videoRef.current.play().catch(() => undefined);
+  };
 
   return (
     <section ref={editorRef} className="clip-editor-shell" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" onKeyDown={keepFocusInside}>
@@ -330,6 +336,28 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
                 <Detail label="Game" value={clipGameLabel(clip)} />
                 <Detail label="Duration" value={formatDuration(clip.durationMs / 1_000)} />
               </dl>
+              {clip.autoCapture?.events.length ? (
+                <>
+                  <Separator />
+                  <section className="clip-editor-inspector__section clip-editor-events" aria-labelledby="clip-events-heading">
+                    <div className="clip-editor-section-heading">
+                      <h3 id="clip-events-heading">Events</h3>
+                      <span>{clip.autoCapture.events.length}</span>
+                    </div>
+                    <ul>
+                      {clip.autoCapture.events.map((marker) => (
+                        <li key={marker.id}>
+                          <button type="button" onClick={() => seekToEvent(marker.timestampMs)}>
+                            <span data-event-type={marker.type} aria-hidden="true" />
+                            <strong>{marker.label ?? singularEventLabel(marker.type)}</strong>
+                            <time>{formatEventTime(marker.timestampMs)}</time>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </>
+              ) : null}
               <Separator />
               <section className="clip-editor-inspector__section" aria-labelledby="audio-tracks-heading">
                 <h3 id="audio-tracks-heading"><Volume2 className="size-3.5" aria-hidden="true" /> Audio tracks</h3>
@@ -624,6 +652,13 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 function Metadata({ label, value }: { label: string; value: string }) {
   return <div><dt>{label}</dt><dd title={value}>{value}</dd></div>;
+}
+
+function formatEventTime(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1_000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function focusableElements(root: HTMLElement | null): HTMLElement[] {

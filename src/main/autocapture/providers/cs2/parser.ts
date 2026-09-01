@@ -35,7 +35,15 @@ const cs2StateSchema = z.object({
   }).passthrough().optional(),
 }).passthrough();
 
+const cs2AuthSchema = z.object({
+  auth: z.object({ token: z.string().min(16).max(256) }).passthrough(),
+}).passthrough();
+
 export type CS2GameState = z.infer<typeof cs2StateSchema>;
+
+export function readCS2AuthToken(raw: unknown): string {
+  return cs2AuthSchema.parse(raw).auth.token;
+}
 
 type CS2Counters = {
   mapName: string | null;
@@ -67,7 +75,7 @@ export class CS2TelemetryParser {
       throw new Error('Ignored telemetry for a non-CS2 application.');
     }
     const providerTimestamp = state.provider.timestamp ?? 0;
-    if (providerTimestamp > 0 && providerTimestamp + 2 < this.lastProviderTimestamp) {
+    if (providerTimestamp > 0 && providerTimestamp < this.lastProviderTimestamp) {
       return { token: state.auth.token, events: [] };
     }
     this.lastProviderTimestamp = Math.max(this.lastProviderTimestamp, providerTimestamp);

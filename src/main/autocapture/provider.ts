@@ -46,6 +46,7 @@ export interface GameEventProvider {
   readonly developmentOnly?: boolean;
 
   matchesGame(source: CaptureSource, detectedGames: readonly DetectedGame[]): boolean;
+  findDetectedGame?(detectedGames: readonly DetectedGame[]): DetectedGame | undefined;
   detectAvailability(context: ProviderDiscoveryContext): Promise<ProviderAvailability>;
   setup?(context: ProviderDiscoveryContext): Promise<ProviderAvailability>;
   start(context: ProviderContext): Promise<void>;

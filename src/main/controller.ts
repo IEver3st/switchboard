@@ -59,7 +59,7 @@ import {
   type SystemSnapshot,
   type UpdateSettingsInput,
 } from '../shared/contracts';
-import { defaultAudio, defaultCaptureConfig, defaultDevices, defaultGameDetection, defaultSettings } from '../shared/defaults';
+import { defaultAudio, defaultAutoCapture, defaultCaptureConfig, defaultDevices, defaultGameDetection, defaultSettings } from '../shared/defaults';
 import {
   applyAudioPathPreset,
   findMatchingAudioPresetId,
@@ -1278,6 +1278,7 @@ export class AppController {
         draft.settings = structuredClone(defaultSettings);
         draft.audio = createResetAudioState(draft.audio);
         draft.capture.config = structuredClone(defaultCaptureConfig);
+        draft.capture.autoCapture.settings = structuredClone(defaultAutoCapture.settings);
         draft.gameDetection = structuredClone(defaultGameDetection);
         const audioModule = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
         if (audioModule) audioModule.enabled = false;
@@ -1301,6 +1302,7 @@ export class AppController {
       }
       if (scope === 'capture') {
         draft.capture.config = structuredClone(defaultCaptureConfig);
+        draft.capture.autoCapture.settings = structuredClone(defaultAutoCapture.settings);
         const module = draft.modules.find((candidate) => candidate.id === 'capability.replay');
         if (module) module.enabled = false;
       }
