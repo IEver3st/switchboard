@@ -87,7 +87,7 @@ jobs:
           export const xm6EqualizerBands = (..._arguments: any[]): Uint8Array => new Uint8Array();
           export const xm6EqualizerFrequencies = [400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000, 20000] as const;
           export const xm6EqualizerPreset = (..._arguments: any[]): Uint8Array[] => [];
-          export const xm6EqualizerPresets: Array<{ id: string; name: string }> = [];
+          export const xm6EqualizerPresets: Array<readonly [string, number, string]> = [];
           export const xm6InitialQueries: Uint8Array[] = [];
           export const xm6ListeningMode = (..._arguments: any[]): Uint8Array[] => [];
           export const xm6NoiseControl = (..._arguments: any[]): Uint8Array => new Uint8Array();
