@@ -14,7 +14,7 @@ on:
       - 'src/renderer/src/components/capture/montage-v2.css'
       - 'src/renderer/src/lib/montage-v2-api.ts'
       - 'src/renderer/src/pages/capture.tsx'
-      - 'tests/montage-v2.test.ts'
+      - 'tests/montage-v2*.test.ts'
       - '.github/workflows/validate-montage-v2.yml'
 
 permissions:
@@ -100,8 +100,20 @@ jobs:
         with:
           bun-version: 1.4.0
 
+      - name: Locate FFmpeg tools
+        shell: pwsh
+        run: |
+          $ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
+          if (-not $ffmpeg) {
+            choco install ffmpeg -y --no-progress
+            $ffmpeg = Get-Command ffmpeg -ErrorAction Stop
+          }
+          $ffprobe = Get-Command ffprobe -ErrorAction Stop
+          "SWITCHBOARD_FFMPEG_INTEGRATION=$($ffmpeg.Source)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SWITCHBOARD_FFPROBE_INTEGRATION=$($ffprobe.Source)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - run: bun install
       - run: bun run check
       - run: bun run check:types
-      - run: bun test tests/montage-v2.test.ts
+      - run: bun test tests/montage-v2.test.ts tests/montage-v2-render.test.ts
       - run: bun run build
