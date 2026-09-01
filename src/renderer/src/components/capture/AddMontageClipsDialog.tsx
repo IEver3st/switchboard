@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -114,7 +113,7 @@ export function AddMontageClipsDialog({
             </div>
           </ScrollArea>
         </div>
-        <DialogFooter className="flex-row items-center justify-between px-5 py-4 sm:justify-between">
+        <div className="flex flex-row items-center justify-between px-5 py-4">
           <span className="text-[10px] text-muted-foreground">{selectedIds.length} selected</span>
           <div className="flex gap-2">
             <Button type="button" variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -122,7 +121,7 @@ export function AddMontageClipsDialog({
               Add to montage
             </Button>
           </div>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
