@@ -98,4 +98,28 @@ describe('settings persistence', () => {
 
     expect(store.get().clipReview.reviewedThrough).toBe(42_000);
   });
+
+  it('preserves sampled runtime performance across unrelated canonical updates', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-performance-state-'));
+    temporaryDirectories.push(directory);
+    const store = new StateStore(join(directory, 'switchboard-state.json'));
+    await store.load();
+    const sampled = {
+      ...store.get().performance,
+      coreMemoryMb: 74,
+      rendererMemoryMb: 81,
+      totalMemoryMb: 155,
+      residentMemoryMb: 192,
+      totalCpuPercent: 0.4,
+      activeProcesses: 4,
+      sampledAt: '2026-08-27T12:00:00.000Z',
+      guardState: 'within-budget' as const,
+    };
+
+    store.setPerformance(sampled);
+    store.update((draft) => { draft.settings.closeToTray = false; });
+
+    expect(store.get().performance).toEqual(sampled);
+    await store.flush();
+  });
 });

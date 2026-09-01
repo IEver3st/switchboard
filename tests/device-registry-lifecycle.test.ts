@@ -172,6 +172,53 @@ describe('device registry lifecycle', () => {
     expect(publications).toHaveLength(0);
   });
 
+  test('waits for in-flight discovery, deactivates a disabled module, and blocks device writes', async () => {
+    let announceDiscovery!: () => void;
+    let releaseDiscovery!: () => void;
+    const discoveryStarted = new Promise<void>((resolve) => { announceDiscovery = resolve; });
+    const discoveryGate = new Promise<void>((resolve) => { releaseDiscovery = resolve; });
+    let deactivated = false;
+    let controlWrites = 0;
+    const moduleId = 'device.logitech-hidpp';
+    const fakeModule: DeviceModule = {
+      id: moduleId,
+      async discover({ previousDevices }) {
+        announceDiscovery();
+        await discoveryGate;
+        return previousDevices.filter((device) => device.moduleId === moduleId);
+      },
+      async setControl() {
+        controlWrites += 1;
+      },
+      async deactivate() {
+        deactivated = true;
+      },
+    };
+    let snapshot = createDefaultSnapshot();
+    const registry = new DeviceRegistry(
+      () => snapshot,
+      (devices) => { snapshot = { ...snapshot, devices }; },
+      { modules: [fakeModule], listHidDevices: async () => [] },
+    );
+
+    const refresh = registry.refresh();
+    await discoveryStarted;
+    snapshot.modules.find((module) => module.id === fakeModule.id)!.enabled = false;
+    const disable = registry.reconcileModuleState(fakeModule.id, false);
+    await Promise.resolve();
+    expect(deactivated).toBe(false);
+
+    releaseDiscovery();
+    await Promise.all([refresh, disable]);
+
+    expect(deactivated).toBe(true);
+    expect(snapshot.devices.find((device) => device.moduleId === fakeModule.id)?.connected).toBe(false);
+    await expect(registry.setControl('logitech-g502x-plus-1', { type: 'lighting-enabled', enabled: false }))
+      .rejects.toThrow('module is disabled');
+    expect(controlWrites).toBe(0);
+    await registry.dispose();
+  });
+
   test('keeps fixture mute-lighting capability and persisted setting in sync', async () => {
     const snapshot = createDefaultSnapshot();
     const microphone = snapshot.devices.find((device) => device.id === 'hyperx-quadcast2-1');
@@ -188,6 +235,34 @@ describe('device registry lifecycle', () => {
     const updated = current.devices.find((device) => device.id === 'hyperx-quadcast2-1');
     expect(updated?.capabilities.lighting?.muteLinked).toBe(false);
     expect(updated?.settings.muteLed).toBe(false);
+    await registry.dispose();
+  });
+
+  test('restores fixture connection state after a module is re-enabled without scanning physical hardware', async () => {
+    let current = createDefaultSnapshot();
+    let enumerations = 0;
+    const registry = new DeviceRegistry(
+      () => current,
+      (devices) => { current = { ...current, devices }; },
+      {
+        modules: [],
+        listHidDevices: async () => {
+          enumerations += 1;
+          return [];
+        },
+        fixtureMode: true,
+      },
+    );
+    const moduleId = 'device.logitech-hidpp';
+
+    current.modules.find((module) => module.id === moduleId)!.enabled = false;
+    await registry.reconcileModuleState(moduleId, false);
+    expect(current.devices.find((device) => device.moduleId === moduleId)?.connected).toBe(false);
+
+    current.modules.find((module) => module.id === moduleId)!.enabled = true;
+    await registry.reconcileModuleState(moduleId, true);
+    expect(current.devices.find((device) => device.moduleId === moduleId)?.connected).toBe(true);
+    expect(enumerations).toBe(0);
     await registry.dispose();
   });
 });

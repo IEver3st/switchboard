@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Play, Video } from 'lucide-react';
 import type { Clip } from '../../../../shared/contracts';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -16,15 +17,15 @@ export function ClipThumbnail({ clip, onOpen, className, compact = false, select
   const [failed, setFailed] = useState(false);
   const hasThumbnail = Boolean(clip.thumbnailPath) && !failed;
   return (
-    <button
+    <AspectRatio ratio={16 / 9} className={className}>
+      <button
       type="button"
       data-clip-id={clip.id}
       onClick={onOpen}
       aria-label={selectionMode ? `${selected ? 'Remove' : 'Add'} ${clip.name} ${selected ? 'from' : 'to'} montage` : `Open ${clip.name}`}
       aria-pressed={selectionMode ? selected : undefined}
       className={cn(
-        'relative grid aspect-video w-full place-items-center overflow-hidden bg-background text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/65',
-        className,
+        'absolute inset-0 grid size-full place-items-center overflow-hidden bg-background text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/65',
       )}
     >
       {hasThumbnail ? (
@@ -58,6 +59,7 @@ export function ClipThumbnail({ clip, onOpen, className, compact = false, select
       )}>
         {formatDuration(clip.durationMs / 1_000)}
       </span>
-    </button>
+      </button>
+    </AspectRatio>
   );
 }

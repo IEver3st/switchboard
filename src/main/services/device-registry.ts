@@ -28,6 +28,7 @@ export class DeviceRegistry {
   private timer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
   private disposePromise: Promise<void> | null = null;
+  private readonly fixtureConnectionStates = new Map<string, Map<string, boolean>>();
   private disposed = false;
 
   public constructor(
@@ -76,12 +77,16 @@ export class DeviceRegistry {
   }
 
   public async setControl(deviceId: string, change: DeviceControlChange): Promise<void> {
+    const snapshot = this.getSnapshot();
+    const device = snapshot.devices.find((candidate) => candidate.id === deviceId);
+    if (!device) throw new Error('Device not found.');
+    if (!snapshot.modules.some((module) => module.id === device.moduleId && module.enabled)) {
+      throw new Error(`${device.displayName} is unavailable because its module is disabled.`);
+    }
     if (this.fixtureMode) {
       this.setFixtureControl(deviceId, change);
       return;
     }
-    const device = this.getSnapshot().devices.find((candidate) => candidate.id === deviceId);
-    if (!device) throw new Error('Device not found.');
     const module = this.allModules().find((candidate) => candidate.id === device.moduleId);
     if (!module?.setControl) throw new Error(`${device.displayName} does not expose writable device controls.`);
     const result = await module.setControl(device, change);
@@ -112,6 +117,33 @@ export class DeviceRegistry {
       await Promise.all(this.allModules().map((module) => module.dispose?.()));
     })();
     return this.disposePromise;
+  }
+
+  public async reconcileModuleState(moduleId: string, enabled: boolean): Promise<void> {
+    if (this.refreshPromise) await this.refreshPromise;
+    if (this.disposed) return;
+    const moduleState = this.getSnapshot().modules.find((module) => module.id === moduleId);
+    const usesBundledFixtures = this.fixtureMode && moduleState?.source === 'bundled';
+
+    if (enabled) {
+      if (usesBundledFixtures) {
+        this.restoreFixtureModuleConnections(moduleId);
+        return;
+      }
+      await this.refresh();
+      return;
+    }
+
+    if (usesBundledFixtures) {
+      this.fixtureConnectionStates.set(moduleId, new Map(
+        this.getSnapshot().devices
+          .filter((device) => device.moduleId === moduleId)
+          .map((device) => [device.id, device.connected]),
+      ));
+    }
+    const module = this.allModules().find((candidate) => candidate.id === moduleId);
+    await module?.deactivate?.();
+    this.markModuleDevicesDisconnected(moduleId);
   }
 
   private setFixtureControl(deviceId: string, change: DeviceControlChange): void {
@@ -240,6 +272,10 @@ export class DeviceRegistry {
   private applyModuleDevices(moduleId: string, published: Device[], persist: boolean): void {
     if (this.disposed) return;
     const snapshot = this.getSnapshot();
+    if (!snapshot.modules.some((module) => module.id === moduleId && module.enabled)) {
+      this.markModuleDevicesDisconnected(moduleId);
+      return;
+    }
     const merged = published.map((device) => mergeDeviceSettings(device, snapshot.devices));
     const next = [
       ...merged,
@@ -254,6 +290,32 @@ export class DeviceRegistry {
   public removeModuleDevices(moduleId: string): void {
     const devices = this.getSnapshot().devices.filter((device) => device.moduleId !== moduleId);
     this.applyDevices(devices);
+  }
+
+  private markModuleDevicesDisconnected(moduleId: string): void {
+    const snapshot = this.getSnapshot();
+    let changed = false;
+    const devices = snapshot.devices.map((device) => {
+      if (device.moduleId !== moduleId || !device.connected) return device;
+      changed = true;
+      return { ...device, connected: false };
+    });
+    if (changed) this.applyDevices(devices);
+  }
+
+  private restoreFixtureModuleConnections(moduleId: string): void {
+    const connectionStates = this.fixtureConnectionStates.get(moduleId);
+    if (!connectionStates) return;
+    this.fixtureConnectionStates.delete(moduleId);
+    const snapshot = this.getSnapshot();
+    let changed = false;
+    const devices = snapshot.devices.map((device) => {
+      const connected = connectionStates.get(device.id);
+      if (device.moduleId !== moduleId || connected === undefined || connected === device.connected) return device;
+      changed = true;
+      return { ...device, connected };
+    });
+    if (changed) this.applyDevices(devices);
   }
 
   private allModules(): DeviceModule[] {

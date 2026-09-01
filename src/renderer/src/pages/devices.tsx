@@ -1,10 +1,8 @@
 import { ArrowLeft, ArrowRight, Blocks, Usb } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../shared/contracts';
+import { devicesFromEnabledModules } from '../../../shared/device-module-state';
 import { BatteryStatus } from '@/components/device-controls/BatteryStatus';
-import { MouseDeviceEditor } from '@/components/device-controls/MouseDeviceEditor';
-import { KeyboardDeviceEditor } from '@/components/device-controls/KeyboardDeviceEditor';
-import { HeadsetDeviceEditor } from '@/components/device-controls/HeadsetDeviceEditor';
 import { HorizontalLevelMeter } from '@/components/audio/HorizontalLevelMeter';
 import { PrimarySlider, SemanticChoice } from '@/components/shared/human-controls';
 import { DeviceRender } from '@/components/shared/device-render';
@@ -14,11 +12,16 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSystemStore } from '@/stores/use-system-store';
 
+const HeadsetDeviceEditor = lazy(() => import('@/components/device-controls/HeadsetDeviceEditor').then((module) => ({ default: module.HeadsetDeviceEditor })));
+const KeyboardDeviceEditor = lazy(() => import('@/components/device-controls/KeyboardDeviceEditor').then((module) => ({ default: module.KeyboardDeviceEditor })));
+const MouseDeviceEditor = lazy(() => import('@/components/device-controls/MouseDeviceEditor').then((module) => ({ default: module.MouseDeviceEditor })));
+
 export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const selectedDeviceId = useSystemStore((state) => state.selectedDeviceId);
   const selectDevice = useSystemStore((state) => state.selectDevice);
   const clearDeviceSelection = useSystemStore((state) => state.clearDeviceSelection);
-  const selected = snapshot.devices.find((device) => device.id === selectedDeviceId);
+  const devices = devicesFromEnabledModules(snapshot.devices, snapshot.modules);
+  const selected = devices.find((device) => device.id === selectedDeviceId);
   const selectedModule = selected ? snapshot.modules.find((module) => module.id === selected.moduleId) : undefined;
   const selectedFromLocalAddon = selectedModule?.source === 'local';
   const localModuleIds = new Set(snapshot.modules.filter((module) => module.source === 'local').map((module) => module.id));
@@ -40,15 +43,22 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
     return () => cancelAnimationFrame(frame);
   }, [selected?.id]);
 
-  if (snapshot.devices.length === 0) {
+  if (devices.length === 0) {
+    const devicesHiddenByModules = snapshot.devices.length > 0;
     return (
       <div className="device-gallery-page" data-state="empty">
         <DeviceGalleryHeader connectedCount={0} />
         <div className="device-gallery-empty">
           <div className="text-center">
             <Usb className="mx-auto size-6 text-muted-foreground" />
-            <p className="mt-3 text-sm font-medium text-foreground">No supported devices detected</p>
-            <p className="mt-1 text-xs text-muted-foreground">Install a device module and connect hardware to see it here.</p>
+            <p className="mt-3 text-sm font-medium text-foreground">
+              {devicesHiddenByModules ? 'No devices from enabled modules' : 'No supported devices detected'}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {devicesHiddenByModules
+                ? 'Enable the device module in Settings to show its devices here.'
+                : 'Install a device module and connect hardware to see it here.'}
+            </p>
           </div>
         </div>
       </div>
@@ -56,13 +66,13 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
   }
 
   if (!selected) {
-    const connectedCount = snapshot.devices.filter((device) => device.connected).length;
+    const connectedCount = devices.filter((device) => device.connected).length;
     return (
       <div className="device-gallery-page">
         <DeviceGalleryHeader connectedCount={connectedCount} />
         <div className="device-gallery-stage">
-          <ul className="device-gallery" aria-label="Switchboard devices" data-device-count={snapshot.devices.length}>
-            {snapshot.devices.map((device) => {
+          <ul className="device-gallery" aria-label="Switchboard devices" data-device-count={devices.length}>
+            {devices.map((device) => {
               const localAddon = localModuleIds.has(device.moduleId);
               return <li key={device.id} className="device-gallery__entry" data-connected={device.connected} data-kind={device.kind}>
                 <button
@@ -157,26 +167,28 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
         ) : null}
       </div>
 
-      {selectedFromLocalAddon ? (
-        <LocalAddonDeviceSurface device={selected} moduleName={selectedModule?.name ?? selected.moduleId} />
-      ) : selected.kind === 'mouse' ? (
-        <MouseDeviceEditor device={selected} />
-      ) : selected.kind === 'keyboard' ? (
-        <KeyboardDeviceEditor device={selected} />
-      ) : selected.kind === 'headset' && selected.capabilities.headset ? (
-        <HeadsetDeviceEditor device={selected} />
-      ) : (
-        <>
-          <div className="device-workbench__hero">
-            <DeviceRender device={selected} density="hero" />
-          </div>
-          <div className="device-workbench__controls">
-            {selected.kind === 'microphone' ? <MicrophoneControls device={selected} snapshot={snapshot} /> : (
-              <p className="py-8 text-center text-xs text-muted-foreground">This device does not expose a control surface yet.</p>
-            )}
-          </div>
-        </>
-      )}
+      <Suspense fallback={<div className="grid min-h-60 place-items-center text-xs text-muted-foreground" role="status">Loading device controls…</div>}>
+        {selectedFromLocalAddon ? (
+          <LocalAddonDeviceSurface device={selected} moduleName={selectedModule?.name ?? selected.moduleId} />
+        ) : selected.kind === 'mouse' ? (
+          <MouseDeviceEditor device={selected} />
+        ) : selected.kind === 'keyboard' ? (
+          <KeyboardDeviceEditor device={selected} />
+        ) : selected.kind === 'headset' && selected.capabilities.headset ? (
+          <HeadsetDeviceEditor device={selected} />
+        ) : (
+          <>
+            <div className="device-workbench__hero">
+              <DeviceRender device={selected} density="hero" />
+            </div>
+            <div className="device-workbench__controls">
+              {selected.kind === 'microphone' ? <MicrophoneControls device={selected} snapshot={snapshot} /> : (
+                <p className="py-8 text-center text-xs text-muted-foreground">This device does not expose a control surface yet.</p>
+              )}
+            </div>
+          </>
+        )}
+      </Suspense>
     </div>
   );
 }

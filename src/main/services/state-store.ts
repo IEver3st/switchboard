@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { systemSnapshotSchema, type EngineKind, type SystemSnapshot } from '../../shared/contracts';
+import { systemSnapshotSchema, type EngineKind, type PerformanceSnapshot, type SystemSnapshot } from '../../shared/contracts';
 import { latestClipCreatedAt } from '../../shared/clip-review';
 import { createDefaultSnapshot } from '../../shared/defaults';
 
@@ -17,7 +17,6 @@ export class StateStore {
   private snapshot: SystemSnapshot = createDefaultSnapshot();
   private readonly listeners = new Set<Listener>();
   private persistChain: Promise<void> = Promise.resolve();
-  private rendererActive = true;
 
   public constructor(private readonly filePath: string) {}
 
@@ -41,7 +40,6 @@ export class StateStore {
     }
 
     this.snapshot = createDefaultSnapshot();
-    this.snapshot.performance = this.calculatePerformance(this.snapshot);
     await this.persist();
   }
 
@@ -49,11 +47,14 @@ export class StateStore {
     return structuredClone(this.snapshot);
   }
 
+  public getPerformanceGuardEnabled(): boolean {
+    return this.snapshot.settings.performanceGuard;
+  }
+
   public update(mutator: (draft: SystemSnapshot) => void, options: UpdateOptions = {}): SystemSnapshot {
     const { persist = true, emit = true } = options;
     const next = structuredClone(this.snapshot);
     mutator(next);
-    next.performance = this.calculatePerformance(next);
     this.snapshot = systemSnapshotSchema.parse(next);
 
     if (emit) this.emit();
@@ -63,17 +64,14 @@ export class StateStore {
 
   public restore(snapshot: SystemSnapshot): SystemSnapshot {
     const parsed = systemSnapshotSchema.parse(structuredClone(snapshot));
-    parsed.performance = this.calculatePerformance(parsed);
     this.snapshot = parsed;
     this.emit();
     void this.persist();
     return this.get();
   }
 
-  public setRendererActive(active: boolean): SystemSnapshot {
-    if (this.rendererActive === active) return this.get();
-    this.rendererActive = active;
-    return this.update(() => undefined, { persist: false });
+  public setPerformance(performance: PerformanceSnapshot): SystemSnapshot {
+    return this.update((draft) => { draft.performance = performance; }, { persist: false });
   }
 
   public subscribe(listener: Listener): () => void {
@@ -166,11 +164,13 @@ export class StateStore {
       shortcutRegistered: false,
       state: 'stopped',
     };
+    next.capture.autoCapture.runtime = structuredClone(defaults.capture.autoCapture.runtime);
+    next.capture.autoCapture.providers = [];
     next.capture.storage.replayCacheBytes = 0;
     next.capture.sources = [];
     next.gameDetection.scanState = 'idle';
     next.gameDetection.error = undefined;
-    next.performance = this.calculatePerformance(next);
+    next.performance = structuredClone(defaults.performance);
     return systemSnapshotSchema.parse(next);
   }
 
@@ -179,30 +179,6 @@ export class StateStore {
     for (const listener of this.listeners) {
       listener(snapshot);
     }
-  }
-
-  private calculatePerformance(snapshot: SystemSnapshot): SystemSnapshot['performance'] {
-    const engineMemory = snapshot.engines.reduce((sum, engine) => sum + engine.memoryMb, 0);
-    const engineCpu = snapshot.engines.reduce((sum, engine) => sum + engine.cpuPercent, 0);
-    const activeLocalModuleHosts = snapshot.modules.filter((module) => (
-      module.source === 'local' && module.enabled && module.development?.status === 'active'
-    )).length;
-    const rendererMemory = this.rendererActive ? 92 : 0;
-    const coreMemory = 44;
-    const baseCpu = this.rendererActive ? 0.3 : 0.1;
-
-    return {
-      ...snapshot.performance,
-      coreMemoryMb: coreMemory,
-      rendererMemoryMb: rendererMemory,
-      totalMemoryMb: Math.round((coreMemory + rendererMemory + engineMemory) * 10) / 10,
-      totalCpuPercent: Math.round((baseCpu + engineCpu) * 10) / 10,
-      activeProcesses:
-        1 +
-        (this.rendererActive ? 1 : 0) +
-        snapshot.engines.filter((engine) => engine.state === 'running' || engine.state === 'starting').length +
-        activeLocalModuleHosts,
-    };
   }
 
   private persist(): Promise<void> {
@@ -296,6 +272,15 @@ function migrateLegacyCaptureState(value: unknown): unknown {
         ? { ...defaults.capture.capabilities, ...capture.capabilities }
         : defaults.capture.capabilities,
       sources: Array.isArray(capture.sources) ? capture.sources : [],
+      autoCapture: isRecord(capture.autoCapture)
+        ? {
+            settings: isRecord(capture.autoCapture.settings)
+              ? { ...defaults.capture.autoCapture.settings, ...capture.autoCapture.settings }
+              : defaults.capture.autoCapture.settings,
+            providers: [],
+            runtime: defaults.capture.autoCapture.runtime,
+          }
+        : defaults.capture.autoCapture,
     },
   };
 }

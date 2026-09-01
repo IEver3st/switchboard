@@ -163,6 +163,8 @@ async function exerciseWorkflows() {
   });
 
   await step('audio.mixer-and-chatmix', async () => {
+    await waitForSelector('[aria-label="Game in personal mix fader"]');
+    await waitForSelector('[aria-label="ChatMix game and chat balance"]');
     const before = await snapshot();
     const originalGameGain = before.audio.mixes.find((mix) => mix.id === 'personal').buses.find((bus) => bus.id === 'game').gain;
     const originalChatMix = before.audio.chatMix;
@@ -381,6 +383,7 @@ async function clickButtonText(text, scope = 'body') {
 }
 
 async function clickSelector(selector) {
+  await waitForSelector(selector);
   const clicked = await evaluate(`
     (() => {
       const element = document.querySelector(${JSON.stringify(selector)});
@@ -499,7 +502,12 @@ async function waitForSelector(selector, timeout = 10_000) {
     if (await evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)) return;
     await delay(40);
   }
-  throw new Error(`Timed out waiting for ${selector}.`);
+  const diagnostics = await evaluate(`({
+    hash: location.hash,
+    text: document.body.innerText.slice(0, 1_200),
+    labels: [...document.querySelectorAll('[aria-label]')].map((element) => element.getAttribute('aria-label')).filter(Boolean).slice(0, 80),
+  })`);
+  throw new Error(`Timed out waiting for ${selector}. ${JSON.stringify(diagnostics)}`);
 }
 
 async function waitForEnabledButton(text, timeout = 10_000) {

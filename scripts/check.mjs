@@ -149,7 +149,9 @@ assert(engineSupervisor.includes('failPending'), 'Engine exits must reject pendi
 
 const stateStore = read('src/main/services/state-store.ts');
 assert(stateStore.includes('{ persist: false }'), 'Runtime telemetry must support transient, non-persisted updates.');
-assert(stateStore.includes('setRendererActive'), 'Performance telemetry must account for renderer destruction in tray mode.');
+const performanceMonitor = read('src/main/services/performance-monitor.ts');
+assert(performanceMonitor.includes('rendererActive'), 'Performance telemetry must account for renderer destruction in tray mode.');
+assert(performanceMonitor.includes('rollingWindowSamples'), 'Performance guard must use sustained rolling samples.');
 
 for (const relativePath of [
   'resources/engine-workers/audio-worker.cjs',

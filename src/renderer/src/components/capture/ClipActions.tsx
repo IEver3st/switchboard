@@ -1,11 +1,22 @@
-import { Download, FolderOpen, MoreHorizontal, Pencil, Play, Share2, Star, Trash2 } from 'lucide-react';
+import { Fragment, type ReactNode } from 'react';
+import { Download, FolderOpen, MoreHorizontal, Pencil, Play, Share2, Star, Trash2, type LucideIcon } from 'lucide-react';
 import type { Clip } from '../../../../shared/contracts';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 import type { ClipActions } from './types';
 
+interface ClipActionDefinition {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  destructive?: boolean;
+  run: () => void;
+}
+
 export function ClipActionsMenu({ clip, actions, className }: { clip: Clip; actions: ClipActions; className?: string }) {
+  const groups = clipActionGroups(clip, actions);
   return (
     <DropdownMenu>
       <Tooltip>
@@ -16,17 +27,58 @@ export function ClipActionsMenu({ clip, actions, className }: { clip: Clip; acti
         </TooltipTrigger>
         <TooltipContent>More actions</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-44 p-1.5">
-        <DropdownMenuItem onSelect={() => actions.open(clip)}><Play className="size-3.5" />Open editor</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => actions.favorite(clip, !clip.favorite)}><Star className={cn('size-3.5', clip.favorite && 'fill-warning text-warning')} />{clip.favorite ? 'Remove favorite' : 'Favorite'}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => actions.rename(clip)}><Pencil className="size-3.5" />Rename</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => actions.reveal(clip)}><FolderOpen className="size-3.5" />Show in folder</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => actions.export(clip)}><Download className="size-3.5" />Export</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => actions.delete(clip)}><Trash2 className="size-3.5" />Delete</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-48 p-1.5">
+        {groups.map((group, groupIndex) => (
+          <Fragment key={group[0]?.id ?? groupIndex}>
+            {groupIndex > 0 ? <DropdownMenuSeparator /> : null}
+            {group.map((action) => <DropdownAction key={action.id} action={action} />)}
+          </Fragment>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+export function ClipContextMenu({ clip, actions, children }: { clip: Clip; actions: ClipActions; children: ReactNode }) {
+  const groups = clipActionGroups(clip, actions);
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-48 p-1.5">
+        {groups.map((group, groupIndex) => (
+          <Fragment key={group[0]?.id ?? groupIndex}>
+            {groupIndex > 0 ? <ContextMenuSeparator /> : null}
+            {group.map((action) => {
+              const Icon = action.icon;
+              return <ContextMenuItem key={action.id} className={cn(action.destructive && 'text-destructive focus:text-destructive')} onSelect={action.run}><Icon className="size-3.5" />{action.label}</ContextMenuItem>;
+            })}
+          </Fragment>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+function DropdownAction({ action }: { action: ClipActionDefinition }) {
+  const Icon = action.icon;
+  return <DropdownMenuItem className={cn(action.destructive && 'text-destructive focus:text-destructive')} onSelect={action.run}><Icon className="size-3.5" />{action.label}</DropdownMenuItem>;
+}
+
+function clipActionGroups(clip: Clip, actions: ClipActions): ClipActionDefinition[][] {
+  return [
+    [
+      { id: 'open', label: 'Open editor', icon: Play, run: () => actions.open(clip) },
+      { id: 'favorite', label: clip.favorite ? 'Remove from favorites' : 'Add to favorites', icon: Star, run: () => actions.favorite(clip, !clip.favorite) },
+      { id: 'rename', label: 'Rename', icon: Pencil, run: () => actions.rename(clip) },
+    ],
+    [
+      { id: 'export', label: 'Export for sharing', icon: Download, run: () => actions.export(clip) },
+      { id: 'reveal', label: 'Show in folder', icon: FolderOpen, run: () => actions.reveal(clip) },
+    ],
+    [
+      { id: 'delete', label: 'Delete…', icon: Trash2, destructive: true, run: () => actions.delete(clip) },
+    ],
+  ];
 }
 
 export function ClipShare({ clip, onShare, className }: { clip: Clip; onShare: () => void; className?: string }) {
@@ -46,15 +98,20 @@ export function ClipFavorite({ clip, onChange, className }: {
   className?: string;
 }) {
   return (
-    <button
-      type="button"
-      data-favorite={clip.favorite}
-      aria-label={clip.favorite ? `Remove ${clip.name} from favorites` : `Add ${clip.name} to favorites`}
-      aria-pressed={clip.favorite}
-      onClick={() => onChange(!clip.favorite)}
-      className={cn('capture-clip-favorite', className)}
-    >
-      <Star className={cn('size-4', clip.favorite && 'fill-current')} />
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          data-favorite={clip.favorite}
+          aria-label={clip.favorite ? `Remove ${clip.name} from favorites` : `Add ${clip.name} to favorites`}
+          aria-pressed={clip.favorite}
+          onClick={() => onChange(!clip.favorite)}
+          className={cn('capture-clip-favorite', className)}
+        >
+          <Star className={cn('size-4', clip.favorite && 'fill-current')} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{clip.favorite ? 'Remove favorite' : 'Favorite'}</TooltipContent>
+    </Tooltip>
   );
 }

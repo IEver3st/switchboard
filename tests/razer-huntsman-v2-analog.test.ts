@@ -89,6 +89,48 @@ describe('Razer Huntsman V2 Analog protocol', () => {
 });
 
 describe('Razer Huntsman V2 Analog transport', () => {
+  test('keeps the control endpoint open between discovery and lighting writes', async () => {
+    let pending = Buffer.alloc(razerReportLength);
+    let openCount = 0;
+    let closeCount = 0;
+    const transport = new HuntsmanV2AnalogTransport({
+      async open() {
+        openCount += 1;
+        if (openCount > 1) return new Promise(() => undefined);
+        return {
+          async sendFeatureReport(report) {
+            pending = Buffer.from(report);
+            return report.byteLength;
+          },
+          async getFeatureReport() {
+            const commandClass = pending[7];
+            const commandId = pending[8];
+            if (commandClass === 0x00 && commandId === 0x81) return responseFromReport(pending, [1, 6]);
+            if (commandClass === 0x00 && commandId === 0x82) return responseFromReport(pending, [...Buffer.from('TEST-SERIAL')]);
+            if (commandClass === 0x0f && commandId === 0x04) return responseFromReport(pending, [1, 5, 128]);
+            if (commandClass === 0x0f && commandId === 0x84) return responseFromReport(pending, [1, 5, 128]);
+            if (commandClass === 0x0f && commandId === 0x82) return responseFromReport(pending, [1, 5, 1, 0, 0, 1, 0x44, 0xaa, 0xff]);
+            if (commandClass === 0x0f && commandId === 0x81) return responseFromReport(pending, [7, 0, 1, 2, 3, 4, 5, 7]);
+            if (commandClass === 0x03 && commandId === 0x80) return responseFromReport(pending, [1, 8, 0]);
+            if (commandClass === 0x05 && commandId === 0x81) return responseFromReport(pending, [2, 1, 2]);
+            if (commandClass === 0x05 && commandId === 0x84) return responseFromReport(pending, [1]);
+            throw new Error('Unexpected command in persistent-session test.');
+          },
+          async close() { closeCount += 1; },
+        };
+      },
+    }, 5);
+
+    const baseline = await transport.probe('razer-control');
+    expect(baseline.readFailures).toEqual({});
+    expect(await transport.setBrightness('razer-control', 50)).toBe(50);
+    expect(openCount).toBe(1);
+    expect(closeCount).toBe(0);
+
+    await transport.release();
+    expect(closeCount).toBe(1);
+  });
+
   test('fails a stalled endpoint open within the transport deadline', async () => {
     const transport = new HuntsmanV2AnalogTransport({
       async open() { return new Promise(() => undefined); },
@@ -166,6 +208,7 @@ describe('Razer Huntsman V2 Analog transport', () => {
       onboardProfileIds: [1, 2],
       activeOnboardProfileId: 1,
     });
+    await transport.release();
     expect(closed).toBe(true);
   });
 });

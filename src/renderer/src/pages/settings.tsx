@@ -10,6 +10,7 @@ import type {
 } from '../../../shared/contracts';
 import { estimateClipSize, getEncodingPreset } from '../../../shared/capture-presets';
 import { GameDetectionSettings } from '@/components/settings/game-detection';
+import { AutoCaptureSettings } from '@/components/settings/autocapture-settings';
 import { ModuleAuthoringWorkbench } from '@/components/settings/module-authoring-workbench';
 import { ModuleManagement } from '@/components/settings/module-management';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
@@ -33,7 +34,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
-import { formatBytes, percent } from '@/lib/format';
+import { formatBytes, formatRelativeTime, percent } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
 const categoryStorageKey = 'switchboard.settings.category';
@@ -354,6 +355,8 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
         />
       </SettingSection>
 
+      <AutoCaptureSettings snapshot={snapshot} />
+
       <SettingSection title="Video">
         <SettingSelect
           settingId="capture.source"
@@ -644,12 +647,20 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
         <SettingRow
           settingId="diagnostics.memory"
           title="Process usage"
-          description={`Core ${snapshot.performance.coreMemoryMb} MB · Renderer ${snapshot.performance.rendererMemoryMb} MB · ${snapshot.performance.activeProcesses} active processes`}
+          description={`Private: core ${snapshot.performance.coreMemoryMb} MB · renderer ${snapshot.performance.rendererMemoryMb} MB · ${snapshot.performance.activeProcesses} processes${snapshot.performance.sampledAt ? ` · sampled ${formatRelativeTime(new Date(snapshot.performance.sampledAt).getTime())}` : ''}`}
         >
           <span className="settings-row__value">
-            {snapshot.performance.totalMemoryMb} MB · {snapshot.performance.totalCpuPercent.toFixed(1)}% CPU
+            {snapshot.performance.totalMemoryMb} MB private · {snapshot.performance.residentMemoryMb} MB working set · {snapshot.performance.totalCpuPercent.toFixed(1)}% CPU
           </span>
         </SettingRow>
+        {snapshot.performance.warning ? (
+          <SettingValue
+            settingId="diagnostics.performance-warning"
+            title="Sustained budget warning"
+            description={snapshot.performance.warning}
+            value="Over budget"
+          />
+        ) : null}
         <SettingRow
           settingId="diagnostics.engines"
           title="Engine status"

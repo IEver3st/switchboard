@@ -52,11 +52,11 @@ if (command === 'capture') {
   await runElectron('scripts/measure-startup.mjs', ...commandArguments);
 } else if (command === 'idle') {
   const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-idle-measure-'));
-  process.env.SWITCHBOARD_IDLE_USER_DATA = isolatedUserData;
+  cleanEnvironment.SWITCHBOARD_IDLE_USER_DATA = isolatedUserData;
   try {
     await runElectron('scripts/measure-idle.mjs', ...commandArguments);
   } finally {
-    delete process.env.SWITCHBOARD_IDLE_USER_DATA;
+    delete cleanEnvironment.SWITCHBOARD_IDLE_USER_DATA;
     await rm(isolatedUserData, { recursive: true, force: true });
   }
 } else if (command === 'app-updates') {

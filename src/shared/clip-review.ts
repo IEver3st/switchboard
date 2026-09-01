@@ -6,6 +6,15 @@ export function unreviewedClips(clips: readonly Clip[], reviewedThrough: number)
     .toSorted((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id));
 }
 
+export function reviewableAutoCapturedClips(
+  clips: readonly Clip[],
+  reviewedThrough: number,
+  activeGameId: string | null,
+): Clip[] {
+  if (activeGameId !== null) return [];
+  return unreviewedClips(clips, reviewedThrough).filter((clip) => clip.autoCapture?.autoCaptured === true);
+}
+
 export function latestClipCreatedAt(clips: readonly Pick<Clip, 'createdAt'>[]): number {
   return clips.reduce((latest, clip) => Math.max(latest, clip.createdAt), 0);
 }

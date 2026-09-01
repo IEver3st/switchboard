@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Clip, SystemSnapshot } from '../../../../shared/contracts';
-import { latestClipCreatedAt, unreviewedClips } from '../../../../shared/clip-review';
+import { latestClipCreatedAt, reviewableAutoCapturedClips } from '../../../../shared/clip-review';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,7 +38,11 @@ export function NewClipsReview({ snapshot, onOpenClip }: { snapshot: SystemSnaps
   const offerReview = useCallback(() => {
     if (!focusReviewArmed.current || batchRef.current) return;
     const current = snapshotRef.current;
-    const clips = unreviewedClips(current.clips, locallyReviewedThrough.current);
+    const clips = reviewableAutoCapturedClips(
+      current.clips,
+      locallyReviewedThrough.current,
+      current.capture.autoCapture.runtime.activeGameId,
+    );
     if (clips.length === 0) return;
     const next = { ids: clips.map((clip) => clip.id), reviewedThrough: latestClipCreatedAt(clips) };
     focusReviewArmed.current = false;
@@ -68,7 +72,12 @@ export function NewClipsReview({ snapshot, onOpenClip }: { snapshot: SystemSnaps
 
   useEffect(() => {
     if (document.hasFocus() && document.visibilityState !== 'hidden') offerReview();
-  }, [offerReview, snapshot.clips, snapshot.clipReview.reviewedThrough]);
+  }, [
+    offerReview,
+    snapshot.clips,
+    snapshot.clipReview.reviewedThrough,
+    snapshot.capture.autoCapture.runtime.activeGameId,
+  ]);
 
   const clips = useMemo(() => {
     if (!batch) return [];

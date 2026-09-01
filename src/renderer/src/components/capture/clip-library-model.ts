@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Clip } from '../../../../shared/contracts';
+import type { Clip, GameEventType } from '../../../../shared/contracts';
 import {
   clipGameLabel,
   filterAndSortClips,
   type ClipDateFilter,
+  type ClipEventFilter,
+  type ClipSourceFilter,
   type ClipSort,
 } from '../../../../shared/clip-library';
 
@@ -14,6 +16,9 @@ export interface ClipLibraryControls {
   game: string;
   date: ClipDateFilter;
   favoritesOnly: boolean;
+  source: ClipSourceFilter;
+  event: ClipEventFilter;
+  availableEvents: GameEventType[];
   sort: ClipSort;
   layout: ClipLayout;
   games: string[];
@@ -28,6 +33,8 @@ export interface ClipLibraryControls {
   onGameChange: (value: string) => void;
   onDateChange: (value: ClipDateFilter) => void;
   onFavoritesChange: () => void;
+  onSourceChange: (value: ClipSourceFilter) => void;
+  onEventChange: (value: ClipEventFilter) => void;
   onSortChange: (value: ClipSort) => void;
   onLayoutChange: (value: ClipLayout) => void;
   onStartMontage: () => void;
@@ -43,13 +50,16 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
   const [game, setGame] = useState('all');
   const [date, setDate] = useState<ClipDateFilter>('any');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [source, setSource] = useState<ClipSourceFilter>('all');
+  const [event, setEvent] = useState<ClipEventFilter>('all');
   const [sort, setSort] = useState<ClipSort>('newest');
   const [layout, setLayout] = useState<ClipLayout>('grid');
   const [montageSelectionMode, setMontageSelectionMode] = useState(false);
   const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
   const games = useMemo(() => [...new Set(allClips.map(clipGameLabel))].sort((left, right) => left.localeCompare(right)), [allClips]);
-  const clips = useMemo(() => filterAndSortClips(allClips, { query, game, date, favoritesOnly, sort }), [allClips, date, favoritesOnly, game, query, sort]);
-  const hasFilters = query.trim().length > 0 || game !== 'all' || date !== 'any' || favoritesOnly;
+  const availableEvents = useMemo(() => [...new Set(allClips.flatMap((clip) => clip.autoCapture?.events.map((marker) => marker.type) ?? []))].sort(), [allClips]);
+  const clips = useMemo(() => filterAndSortClips(allClips, { query, game, date, favoritesOnly, source, event, sort }), [allClips, date, event, favoritesOnly, game, query, sort, source]);
+  const hasFilters = query.trim().length > 0 || game !== 'all' || date !== 'any' || favoritesOnly || source !== 'all' || event !== 'all';
   const visibleBytes = clips.reduce((total, clip) => total + clip.fileSize, 0);
   const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
 
@@ -90,6 +100,9 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
     game,
     date,
     favoritesOnly,
+    source,
+    event,
+    availableEvents,
     sort,
     layout,
     games,
@@ -104,6 +117,8 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
     onGameChange: setGame,
     onDateChange: setDate,
     onFavoritesChange: () => setFavoritesOnly((current) => !current),
+    onSourceChange: setSource,
+    onEventChange: setEvent,
     onSortChange: setSort,
     onLayoutChange: setLayout,
     onStartMontage: () => setMontageSelectionMode(true),
@@ -123,6 +138,8 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
       setGame('all');
       setDate('any');
       setFavoritesOnly(false);
+      setSource('all');
+      setEvent('all');
     },
   };
 }

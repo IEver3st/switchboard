@@ -17,6 +17,9 @@ const reviewViewAll = process.argv.includes('--view-all');
 const reviewOpenCard = process.argv.includes('--open-card');
 const reviewReplayPopover = process.argv.includes('--replay-popover');
 const reviewActiveControls = process.argv.includes('--active-controls');
+const reviewListView = process.argv.includes('--list-view');
+const reviewDeleteDialog = process.argv.includes('--delete-dialog');
+const reviewThumbnailLoading = process.argv.includes('--thumbnail-loading');
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = join(projectRoot, 'design-qa', 'scale');
@@ -50,7 +53,16 @@ for (let index = 0; index < count; index += 1) {
     titleEdited: false,
     thumbnailPath,
     audioChannels: index % 3 === 0 ? ['game', 'microphone'] : ['game'],
+    autoCapture: reviewMode ? {
+      autoCaptured: true,
+      providerId: 'scale-qa-provider',
+      gameId: game.toLowerCase().replaceAll(' ', '-'),
+      events: [{ id: `${id}-event`, type: 'highlight', timestampMs: 10_000 }],
+    } : undefined,
   });
+}
+if (reviewThumbnailLoading) {
+  state.clips.slice(0, 8).forEach((clip) => { clip.thumbnailPath = ''; });
 }
 state.capture.config.enabled = false;
 state.audio.enabled = false;
@@ -71,6 +83,7 @@ state.capture.storage.clipsDirectory = join(isolatedUserData, 'Clips');
 state.capture.storage.cacheDirectory = join(isolatedUserData, 'cache', 'replay');
 state.capture.storage.clipsBytes = state.clips.reduce((total, clip) => total + clip.fileSize, 0);
 state.capture.storage.replayCacheBytes = 0;
+if (state.capture.autoCapture?.runtime) state.capture.autoCapture.runtime.activeGameId = null;
 state.clipReview = { reviewedThrough: reviewMode ? 0 : now };
 const replayModule = state.modules.find((module) => module.id === 'capability.replay');
 if (replayModule) replayModule.enabled = false;
@@ -80,6 +93,7 @@ app.setName('switchboard-capture-scale-review');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
+process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 process.stdout.write(`scale ${count}: importing main\n`);
 await import('../out/main/index.js');
@@ -99,6 +113,7 @@ async function runReview() {
   window.setContentSize(requestedWidth, requestedHeight, false);
   await waitForApp(window);
   if (reviewMode) {
+    await window.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
     await waitFor(window, `document.querySelectorAll('.new-clips-review__card').length === ${count}`);
     if (reviewDeleteConfirmation) {
       await clickButton(window, `Delete ${count} clips`);
@@ -115,10 +130,25 @@ async function runReview() {
       await selectGame(window, 'FiveM');
       await waitFor(window, `document.querySelector('[aria-label="Filter clips by game"]')?.textContent.includes('FiveM')`);
     }
+    if (reviewListView) {
+      await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"List view\"]')?.click()");
+      await waitFor(window, `document.querySelectorAll('.capture-clip-list__item').length === ${count}`);
+    }
     if (reviewReplayPopover) {
       await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
       await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
-      await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced')?.setAttribute('open', '')");
+      await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced__trigger')?.click()");
+    }
+    if (reviewDeleteDialog) {
+      await window.webContents.executeJavaScript(`(() => {
+        const card = document.querySelector('.capture-clip-card');
+        const bounds = card?.getBoundingClientRect();
+        if (!card || !bounds) return false;
+        return card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: bounds.left + 20, clientY: bounds.top + 20 }));
+      })()`);
+      await waitFor(window, "Boolean(document.querySelector('.ui-context-menu'))");
+      await window.webContents.executeJavaScript("[...document.querySelectorAll('.ui-context-menu__item')].find((item) => item.textContent.trim() === 'Delete…')?.click()");
+      await waitFor(window, "Boolean(document.querySelector('[role=alertdialog]'))");
     }
   }
   await delay(250);
@@ -178,7 +208,7 @@ const metricsExpression = [
   await delay(80);
   const image = await window.webContents.capturePage();
   const viewportSuffix = process.argv[3] ? '-' + requestedWidth + 'x' + requestedHeight : '';
-  const stateSuffix = reviewReplayPopover ? '-replay' : reviewActiveControls ? '-active' : '';
+  const stateSuffix = reviewReplayPopover ? '-replay' : reviewActiveControls ? '-active' : reviewListView ? '-list' : reviewDeleteDialog ? '-delete' : reviewThumbnailLoading ? '-loading' : '';
   const reviewSuffix = reviewDeleteConfirmation ? '-delete-confirm' : reviewViewAll ? '-view-all' : reviewOpenCard ? '-open-card' : '';
   const imagePath = join(outputDirectory, (reviewMode ? 'new-clips-review-' + count + reviewSuffix : 'capture-' + count + '-clips') + viewportSuffix + stateSuffix + '.png');
   await writeFile(imagePath, image.toPNG());
@@ -190,6 +220,14 @@ const metricsExpression = [
     await clickButton(window, 'Favorites');
     await selectGame(window, 'All games');
     await waitForLibrary(window, count);
+  }
+  if (reviewListView) {
+    await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"Grid view\"]')?.click()");
+    await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${count}`);
+  }
+  if (reviewDeleteDialog) {
+    await clickButton(window, 'Cancel');
+    await waitFor(window, "!document.querySelector('[role=alertdialog]')");
   }
   const interactions = reviewMode ? await verifyReviewDismissal(window) : count > 1 ? await verifyLibraryInteractions(window, count) : null;
   const resizeTransitions = process.argv[5] === 'resize-sequence' ? await verifyResizeTransitions(window) : null;
@@ -228,9 +266,9 @@ async function verifyReviewDismissal(window) {
   const activeClipId = await window.webContents.executeJavaScript("document.activeElement?.getAttribute('data-clip-id') ?? null");
   const editorOpen = await window.webContents.executeJavaScript("Boolean(document.querySelector('[data-testid=\"clip-editor\"], .clip-editor'))");
   const hash = await window.webContents.executeJavaScript('location.hash');
-  window.blur();
+  await window.webContents.executeJavaScript("window.dispatchEvent(new Event('blur'))");
   await delay(80);
-  window.focus();
+  await window.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
   await delay(180);
   const reopened = await window.webContents.executeJavaScript("Boolean(document.querySelector('[data-testid=\"new-clips-review\"]'))");
   return { mode, reviewedThrough, reopened, hash, openedClipId, activeClipId, editorOpen };
@@ -314,13 +352,43 @@ async function verifyLibraryInteractions(window, expectedCount) {
   await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"Grid view\"]')?.click()");
   await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
 
+  await window.webContents.executeJavaScript(`(() => {
+    const trigger = document.querySelector('.capture-clip-card button[aria-label^="Actions for"]');
+    if (!trigger) return false;
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse' }));
+    return true;
+  })()`);
+  await waitFor(window, "Boolean(document.querySelector('[role=menu]'))");
+  const overflowMenuActions = await window.webContents.executeJavaScript("[...document.querySelectorAll('[role=menuitem]')].map((item) => item.textContent.trim())");
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await waitFor(window, "!document.querySelector('[role=menu]')");
+
+  await window.webContents.executeJavaScript(`(() => {
+    const card = document.querySelector('.capture-clip-card');
+    const bounds = card?.getBoundingClientRect();
+    if (!card || !bounds) return false;
+    return card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: bounds.left + 20, clientY: bounds.top + 20 }));
+  })()`);
+  await waitFor(window, "Boolean(document.querySelector('.ui-context-menu'))");
+  const contextMenuActions = await window.webContents.executeJavaScript("[...document.querySelectorAll('.ui-context-menu__item')].map((item) => item.textContent.trim())");
+  await window.webContents.executeJavaScript("[...document.querySelectorAll('.ui-context-menu__item')].find((item) => item.textContent.trim() === 'Delete…')?.click()");
+  await waitFor(window, "Boolean(document.querySelector('[role=alertdialog]'))");
+  const deleteDialogText = await window.webContents.executeJavaScript("document.querySelector('[role=alertdialog]')?.textContent.replace(/\\s+/g, ' ').trim()");
+  await clickButton(window, 'Cancel');
+  await waitFor(window, "!document.querySelector('[role=alertdialog]')");
+
   await clickButton(window, 'Create Montage');
   await waitFor(window, "Boolean(document.querySelector('[data-testid=\"montage-selection-toolbar\"]'))");
   await window.webContents.executeJavaScript("[...document.querySelectorAll('button[data-clip-id]')].slice(0, 2).forEach((button) => button.click())");
   await waitFor(window, "document.querySelector('[data-testid=\"montage-selection-toolbar\"]')?.textContent.includes('2 selected')");
   const montageSelection = await window.webContents.executeJavaScript("document.querySelector('[data-testid=\"montage-selection-toolbar\"]')?.textContent.includes('Create Montage · 2 clips') === true");
-  await clickButton(window, 'Cancel');
-  await waitFor(window, "!document.querySelector('[data-testid=\"montage-selection-toolbar\"]')");
+  await clickButton(window, 'Create Montage · 2 clips');
+  await waitFor(window, "Boolean(document.querySelector('[data-testid=\"clip-editor\"]'))");
+  const montageOpened = await window.webContents.executeJavaScript("document.querySelector('[data-testid=\"clip-editor\"]')?.textContent.includes('Montage') === true");
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await waitFor(window, "!document.querySelector('[data-testid=\"clip-editor\"]')");
 
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
@@ -331,7 +399,7 @@ async function verifyLibraryInteractions(window, expectedCount) {
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Space' });
   await waitFor(window, "Boolean(document.querySelector('button[aria-label=\"Encoder\"]'))");
   const replayFocusInside = await window.webContents.executeJavaScript("document.querySelector('.capture-replay-popover')?.contains(document.activeElement) === true");
-  await window.webContents.executeJavaScript("document.querySelector('.capture-source-trigger')?.focus()");
+  await window.webContents.executeJavaScript("document.querySelector('.capture-replay-popover .capture-source-trigger')?.focus()");
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Space' });
   await waitFor(window, "Boolean(document.querySelector('.capture-source-popover'))");
@@ -342,8 +410,12 @@ async function verifyLibraryInteractions(window, expectedCount) {
   await waitFor(window, "document.activeElement?.classList.contains('capture-source-trigger') === true");
   const sourceFocusAfter = await window.webContents.executeJavaScript("({ tag: document.activeElement?.tagName, className: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label') })");
   const sourceFocusRestored = Boolean(sourceFocusAfter?.className?.includes?.('capture-source-trigger'));
-  await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced > summary')?.click()");
-  await waitFor(window, "document.querySelector('.capture-replay-advanced')?.open === true");
+  if (!await window.webContents.executeJavaScript("Boolean(document.querySelector('.capture-replay-popover'))")) {
+    await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+    await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
+  }
+  await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced__trigger')?.click()");
+  await waitFor(window, "Boolean(document.querySelector('.capture-replay-advanced__content'))");
   const replayControls = await window.webContents.executeJavaScript(`(() => ({
     source: Boolean(document.querySelector('button[aria-label^="Capture source:"]')),
     fields: ['Replay length', 'Capture quality', 'Capture resolution', 'Capture frame rate', 'Encoder', 'Codec', 'Game audio', 'Microphone', 'Capture cursor']
@@ -353,11 +425,23 @@ async function verifyLibraryInteractions(window, expectedCount) {
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
   await waitFor(window, "!document.querySelector('.capture-replay-popover')");
-  await delay(40);
+  await delay(160);
   const replayFocusAfter = await window.webContents.executeJavaScript("({ tag: document.activeElement?.tagName, className: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label') })");
   const replayFocusRestored = Boolean(replayFocusAfter?.className?.includes?.('capture-replay-summary'));
 
-  return { searchFocused, searchMatches, favoriteMatches, gameMatches, dateFilterApplied, sortChangedOrder: newestFirst !== oldestFirst, listItems, montageSelection, replayControls, replayKeyboard: { replayTriggerFocused, replayFocusInside, sourceOptions, sourceFocusRestored, sourceFocusAfter, replayFocusRestored, replayFocusAfter } };
+  const openedClipId = await window.webContents.executeJavaScript(`(() => {
+    const target = document.querySelector('button[data-clip-id]');
+    const id = target?.getAttribute('data-clip-id') ?? null;
+    target?.click();
+    return id;
+  })()`);
+  await waitFor(window, "Boolean(document.querySelector('[data-testid=\"clip-editor\"]'))");
+  const clipOpened = Boolean(openedClipId) && await window.webContents.executeJavaScript("Boolean(document.querySelector('[data-testid=\"clip-editor\"]'))");
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await waitFor(window, "!document.querySelector('[data-testid=\"clip-editor\"]')");
+
+  return { searchFocused, searchMatches, favoriteMatches, gameMatches, dateFilterApplied, sortChangedOrder: newestFirst !== oldestFirst, listItems, overflowMenuActions, contextMenuActions, deleteDialogText, montageSelection, montageOpened, openedClipId, clipOpened, replayControls, replayKeyboard: { replayTriggerFocused, replayFocusInside, sourceOptions, sourceFocusRestored, sourceFocusAfter, replayFocusRestored, replayFocusAfter } };
 }
 
 async function setSearch(window, value) {

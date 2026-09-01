@@ -1,6 +1,7 @@
 import { devicesAsync } from 'node-hid';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { enumerateWindowsHidDevices } from '../src/main/services/windows-hid-enumerator';
 import {
   huntsmanV2AnalogProductId,
   razerVendorId,
@@ -35,7 +36,8 @@ async function runIsolatedVerifier(): Promise<void> {
 }
 
 async function verifyHardware(): Promise<void> {
-const descriptors = (await devicesAsync()).filter((descriptor) => (
+const hidDevices = process.platform === 'win32' ? await enumerateWindowsHidDevices() : await devicesAsync();
+const descriptors = hidDevices.filter((descriptor) => (
   descriptor.vendorId === razerVendorId && descriptor.productId === huntsmanV2AnalogProductId
 ));
 const endpoint = descriptors.find((descriptor) => (
@@ -50,6 +52,7 @@ if (!endpoint?.path) {
 }
 
 const transport = new HuntsmanV2AnalogTransport();
+try {
 const original = await transport.probe(endpoint.path);
 const restorationErrors: string[] = [];
 const checks: Record<string, unknown> = {
@@ -154,5 +157,8 @@ async function restore(label: string, operation: () => Promise<unknown>): Promis
   } catch (error) {
     restorationErrors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+} finally {
+  await transport.release();
 }
 }

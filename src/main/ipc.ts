@@ -4,6 +4,9 @@ import {
   applyAudioPresetInputSchema,
   audioPresetIdInputSchema,
   appSettingsSchema,
+  autoCaptureProviderIdSchema,
+  autoCaptureSettingsPatchSchema,
+  autoCaptureTestEventInputSchema,
   captureConfigSchema,
   clipTrimInputSchema,
   createModuleProjectInputSchema,
@@ -270,6 +273,24 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     assertTrustedSender(event, getMainWindow);
     return controller.refreshCaptureSources();
   });
+  handle(
+    ipcChannels.updateAutoCaptureSettings,
+    getMainWindow,
+    (input) => autoCaptureSettingsPatchSchema.parse(input),
+    (input) => controller.updateAutoCaptureSettings(input),
+  );
+  handle(
+    ipcChannels.setupAutoCaptureProvider,
+    getMainWindow,
+    (input) => autoCaptureProviderIdSchema.parse(input),
+    (providerId) => controller.setupAutoCaptureProvider(providerId),
+  );
+  handle(
+    ipcChannels.emitAutoCaptureTestEvent,
+    getMainWindow,
+    (input) => autoCaptureTestEventInputSchema.parse(input),
+    (input) => controller.emitAutoCaptureTestEvent(input),
+  );
   ipcMain.handle(ipcChannels.scanGames, (event) => {
     assertTrustedSender(event, getMainWindow);
     return controller.scanGames();

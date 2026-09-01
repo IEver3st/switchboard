@@ -203,13 +203,15 @@ internal sealed class ReplayEngine : IAsyncDisposable
         }
     }
 
-    public async Task<SavedReplay> SaveReplayAsync(CancellationToken cancellationToken)
+    public async Task<SavedReplay> SaveReplayAsync(SaveReplayWindow? requestedWindow, CancellationToken cancellationToken)
     {
         CaptureSettings capture;
         string snapshotDirectory;
         string? systemAudioSnapshotDirectory = null;
         string? microphoneSnapshotDirectory = null;
         CaptureSource? clipSource;
+        DateTimeOffset captureStartedAt;
+        DateTimeOffset captureEndedAt;
 
         await lifecycleGate.WaitAsync(cancellationToken);
         try
@@ -220,8 +222,13 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 throw new InvalidOperationException("Replay is waiting for a capture source.");
             EnsureStorageHeadroom(capture, preventStart: false);
             var segments = ring.List(sessionDirectory, captureRunning: ffmpeg is { HasExited: false });
-            var selected = ring.SelectForReplay(segments, TimeSpan.FromSeconds(capture.ReplaySeconds));
+            var window = requestedWindow?.Validate(capture.ReplaySeconds);
+            var selected = window is { } requested
+                ? ring.SelectForWindow(segments, requested.StartedAt, requested.EndedAt)
+                : ring.SelectForReplay(segments, TimeSpan.FromSeconds(capture.ReplaySeconds));
             if (selected.Count == 0) throw new InvalidOperationException("Replay has not buffered a complete segment yet.");
+            captureStartedAt = selected[0].StartedAt;
+            captureEndedAt = selected[^1].EndedAt;
             snapshotDirectory = ring.Snapshot(selected);
             try
             {
@@ -231,9 +238,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         sessionDirectory,
                         captureRunning: systemAudioFfmpeg is { HasExited: false },
                         searchPattern: "system-*.mka");
-                    var selectedSystemAudio = ring.SelectForReplay(
-                        systemAudioSegments,
-                        TimeSpan.FromSeconds(capture.ReplaySeconds));
+                    var selectedSystemAudio = window is { } systemWindow
+                        ? ring.SelectForWindow(systemAudioSegments, systemWindow.StartedAt, systemWindow.EndedAt)
+                        : ring.SelectForReplay(systemAudioSegments, TimeSpan.FromSeconds(capture.ReplaySeconds));
                     if (IsAudioRangeCurrent(selectedSystemAudio, selected[^1].EndedAt))
                         systemAudioSnapshotDirectory = ring.Snapshot(selectedSystemAudio);
                 }
@@ -243,9 +250,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         sessionDirectory,
                         captureRunning: microphoneFfmpeg is { HasExited: false },
                         searchPattern: "microphone-*.mka");
-                    var selectedMicrophone = ring.SelectForReplay(
-                        microphoneSegments,
-                        TimeSpan.FromSeconds(capture.ReplaySeconds));
+                    var selectedMicrophone = window is { } microphoneWindow
+                        ? ring.SelectForWindow(microphoneSegments, microphoneWindow.StartedAt, microphoneWindow.EndedAt)
+                        : ring.SelectForReplay(microphoneSegments, TimeSpan.FromSeconds(capture.ReplaySeconds));
                     if (IsAudioRangeCurrent(selectedMicrophone, selected[^1].EndedAt))
                         microphoneSnapshotDirectory = ring.Snapshot(selectedMicrophone);
                 }
@@ -290,7 +297,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     systemAudioConcatPath,
                     microphoneConcatPath,
                     temporaryPath,
-                    capture.ReplaySeconds,
+                    captureEndedAt - captureStartedAt,
                     cancellationToken);
                 await FlushFileAsync(temporaryPath, cancellationToken);
                 File.Move(temporaryPath, outputPath);
@@ -307,7 +314,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     media.Width,
                     media.Height,
                     media.Fps,
-                    media.Codec);
+                    media.Codec,
+                    CaptureStartedAt: captureStartedAt.ToUnixTimeMilliseconds(),
+                    CaptureEndedAt: captureEndedAt.ToUnixTimeMilliseconds());
             }
             catch
             {
@@ -1075,7 +1084,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         string? systemAudioConcatPath,
         string? microphoneConcatPath,
         string temporaryOutputPath,
-        int replaySeconds,
+        TimeSpan replayDuration,
         CancellationToken cancellationToken)
     {
         var start = new ProcessStartInfo(ffmpegPath)
@@ -1113,7 +1122,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         }
         arguments.AddRange([
             "-c", "copy",
-            "-t", replaySeconds.ToString(CultureInfo.InvariantCulture),
+            "-t", replayDuration.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
             "-movflags", "+faststart",
             "-f", "mp4",
             temporaryOutputPath,

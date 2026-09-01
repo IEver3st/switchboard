@@ -56,7 +56,7 @@ async Task HandleLineAsync(string line)
             "stop" => await engine.StopAsync(shutdown.Token),
             "status" => engine.GetSnapshot(),
             "listSources" => engine.ListSources(),
-            "saveReplay" => await engine.SaveReplayAsync(shutdown.Token),
+            "saveReplay" => await engine.SaveReplayAsync(ParseSaveReplayWindow(payload), shutdown.Token),
             "shutdown" => await ShutdownAsync(),
             _ => throw new InvalidOperationException($"Unknown command: {command}"),
         };
@@ -78,6 +78,14 @@ CaptureSettings ParseSettings(JsonElement payload)
         throw new InvalidOperationException("Capture settings are required.");
     return payload.Deserialize<CaptureSettings>(jsonOptions)?.Validate()
            ?? throw new InvalidOperationException("Capture settings could not be parsed.");
+}
+
+SaveReplayWindow? ParseSaveReplayWindow(JsonElement payload)
+{
+    if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) return null;
+    if (!payload.TryGetProperty("startedAt", out _) && !payload.TryGetProperty("endedAt", out _)) return null;
+    return payload.Deserialize<SaveReplayWindow>(jsonOptions)
+           ?? throw new InvalidOperationException("The replay window could not be parsed.");
 }
 
 async Task<object> ShutdownAsync()

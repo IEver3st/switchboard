@@ -9,6 +9,8 @@ import {
   captureConfigSchema,
   captureHostSnapshotSchema,
   captureSourceSchema,
+  autoCaptureSettingsPatchSchema,
+  autoCaptureSettingsSchema,
   audioHostSnapshotSchema,
   audioPresetFileSchema,
   channelProcessingSchema,
@@ -18,6 +20,8 @@ import {
   type AudioMeterFrame,
   type AudioHostSnapshot,
   type ApplyAudioPresetInput,
+  type AutoCaptureSettingsPatch,
+  type AutoCaptureTestEventInput,
   type CaptureConfig,
   type CaptureHostSnapshot,
   type CaptureSource,
@@ -76,6 +80,13 @@ import { EngineSupervisor } from './services/engine-supervisor';
 import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery';
 import { performFeedbackHandoff } from './services/feedback-handoff';
 import { StateStore } from './services/state-store';
+import { PerformanceMonitor } from './services/performance-monitor';
+import { AutoCaptureEngine, type AutoCapturePreserveRequest } from './autocapture/auto-capture-engine';
+import { AutoCaptureRegistry } from './autocapture/registry';
+import { AutoCaptureCoordinator } from './autocapture/coordinator';
+import { TestEventProvider } from './autocapture/providers/test-event-provider';
+import { CS2Provider } from './autocapture/providers/cs2/cs2-provider';
+import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
 import {
   createModuleProject as scaffoldModuleProject,
   moduleManifestFromProject,
@@ -96,6 +107,8 @@ const workerSavedClipSchema = z.object({
   fps: z.number().nonnegative(),
   codec: z.string().nullable().optional(),
   thumbnailPath: z.string().nullable().optional(),
+  captureStartedAt: z.number().int().nonnegative().nullable().optional(),
+  captureEndedAt: z.number().int().nonnegative().nullable().optional(),
 });
 
 type WorkerSavedClip = z.infer<typeof workerSavedClipSchema>;
@@ -117,6 +130,11 @@ export class AppController {
   private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
   private readonly gameDiscovery: GameDiscoveryService;
   private readonly appUpdates: AppUpdateService;
+  private readonly performance: PerformanceMonitor;
+  private readonly autoCaptureRegistry: AutoCaptureRegistry;
+  private readonly autoCaptureEngine: AutoCaptureEngine;
+  private readonly autoCaptureCoordinator: AutoCaptureCoordinator;
+  private readonly testEventProvider: TestEventProvider;
   private readonly localDeviceModules = new Map<string, SandboxedDeviceAddon>();
   private capturePaths: CapturePaths;
   private registeredShortcut: string | null = null;
@@ -136,6 +154,7 @@ export class AppController {
   private snapshotPreparation: Promise<void> | null = null;
   private initialization: Promise<void> | null = null;
   private disposed = false;
+  private rendererActive = true;
 
   public constructor(options: AppControllerOptions = {}) {
     this.store = new StateStore(join(app.getPath('userData'), 'switchboard-state.json'));
@@ -177,6 +196,45 @@ export class AppController {
       },
       { additionalModules: () => [...this.localDeviceModules.values()] },
     );
+    this.performance = new PerformanceMonitor({
+      getProcessMetrics: () => app.getAppMetrics(),
+      getContext: () => ({
+        rendererActive: this.rendererActive,
+        guardEnabled: this.store.getPerformanceGuardEnabled(),
+        engines: (['audio', 'capture'] as const).map((kind) => this.engines.getStatus(kind)),
+      }),
+      publish: (performance) => { this.store.setPerformance(performance); },
+    });
+    const autoCaptureLog = (
+      event: string,
+      fields: Readonly<Record<string, string | number | boolean | null>> = {},
+    ) => {
+      const details = Object.entries(fields).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(' ');
+      console.info(`[autocapture] ${event}${details ? ` ${details}` : ''}`);
+    };
+    this.autoCaptureRegistry = new AutoCaptureRegistry(autoCaptureLog);
+    this.testEventProvider = new TestEventProvider();
+    this.autoCaptureRegistry.register(new CS2Provider(join(app.getPath('userData'), 'autocapture', 'cs2-gsi-token')));
+    this.autoCaptureRegistry.register(this.testEventProvider);
+    this.autoCaptureEngine = new AutoCaptureEngine({
+      getSettings: () => this.store.get().capture.autoCapture.settings,
+      getMaximumWindowMs: () => this.store.get().capture.config.replaySeconds * 1_000,
+      preserve: (request) => this.preserveAutoCaptureWindow(request),
+      onRuntime: (runtime) => {
+        this.store.update((draft) => { draft.capture.autoCapture.runtime = runtime; }, { persist: false });
+      },
+      log: autoCaptureLog,
+    });
+    this.autoCaptureCoordinator = new AutoCaptureCoordinator({
+      registry: this.autoCaptureRegistry,
+      engine: this.autoCaptureEngine,
+      testProvider: this.testEventProvider,
+      getSettings: () => this.store.get().capture.autoCapture.settings,
+      includeDevelopmentProviders: () => this.store.get().prototypeMode,
+      onProvidersChanged: (providers) => {
+        this.store.update((draft) => { draft.capture.autoCapture.providers = providers; }, { persist: false });
+      },
+    });
   }
 
   public initialize(): Promise<void> {
@@ -208,6 +266,7 @@ export class AppController {
   private async initializeOnce(): Promise<void> {
     await this.prepareSnapshot();
     if (this.disposed) return;
+    this.performance.start();
     await this.appUpdates.initialize(appUpdatePreferences(this.store.get().settings));
     if (this.disposed) return;
     await this.loadPersistedLocalModules();
@@ -221,6 +280,8 @@ export class AppController {
     const snapshot = this.store.get();
     this.applyLoginItemSetting(snapshot.settings.launchAtStartup);
     await this.initializeCaptureStorage();
+    if (this.disposed) return;
+    await this.autoCaptureCoordinator.initialize(this.store.get().gameDetection.games);
     if (this.disposed) return;
     this.registerCaptureShortcut(snapshot.capture.config.hotkey, false);
     void this.reconcileClipLibrary();
@@ -255,8 +316,11 @@ export class AppController {
   }
 
   public setRendererActive(active: boolean): SystemSnapshot {
+    if (this.rendererActive === active) return this.store.get();
+    this.rendererActive = active;
     if (active) void this.refreshAudioDevices();
-    return this.store.setRendererActive(active);
+    this.performance.refresh();
+    return this.store.get();
   }
 
   public refreshAudioDevices(force = false): Promise<SystemSnapshot> {
@@ -304,7 +368,7 @@ export class AppController {
         target.development.status = 'ready';
         target.development.issues = target.development.issues.filter((issue) => issue.code !== 'runtime-error');
       });
-      await this.devices.refresh();
+      await this.devices.reconcileModuleState(input.moduleId, input.enabled);
       return this.store.get();
     }
 
@@ -317,7 +381,7 @@ export class AppController {
       target.installed = target.installed || input.enabled;
       target.enabled = input.enabled;
     });
-    await this.devices.refresh();
+    await this.devices.reconcileModuleState(input.moduleId, input.enabled);
     return this.store.get();
   }
 
@@ -886,6 +950,12 @@ export class AppController {
       this.registerCaptureShortcut(requestedHotkey, true);
     }
     const disabling = before.capture.config.enabled && !nextConfig.enabled;
+    const replayWindowChanged = before.capture.config.enabled
+      && nextConfig.enabled
+      && before.capture.config.replaySeconds !== nextConfig.replaySeconds;
+    if (disabling || replayWindowChanged) {
+      await this.autoCaptureCoordinator.flushBeforeCaptureStops(disabling ? 'capture-disabled' : 'replay-buffer-changed');
+    }
     if (disabling) {
       if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
       this.captureRestartTimer = null;
@@ -939,6 +1009,49 @@ export class AppController {
     return snapshot;
   }
 
+  public async updateAutoCaptureSettings(input: AutoCaptureSettingsPatch): Promise<SystemSnapshot> {
+    const patch = autoCaptureSettingsPatchSchema.parse(input);
+    const current = this.store.get().capture.autoCapture.settings;
+    const games = { ...current.games };
+    for (const [gameId, gamePatch] of Object.entries(patch.games ?? {})) {
+      games[gameId] = {
+        enabled: true,
+        useGlobalTiming: true,
+        ...games[gameId],
+        ...gamePatch,
+        events: { ...games[gameId]?.events, ...gamePatch.events },
+      };
+    }
+    const next = autoCaptureSettingsSchema.parse({
+      ...current,
+      ...patch,
+      games,
+      dismissedAvailability: {
+        ...current.dismissedAvailability,
+        ...patch.dismissedAvailability,
+      },
+    });
+    this.store.update((draft) => { draft.capture.autoCapture.settings = next; });
+    const snapshot = this.store.get();
+    await this.autoCaptureCoordinator.reconcile(
+      snapshot.capture.runtime.activeSource,
+      snapshot.capture.config.enabled,
+      snapshot.gameDetection.games,
+    );
+    return this.store.get();
+  }
+
+  public async setupAutoCaptureProvider(providerId: string): Promise<SystemSnapshot> {
+    await this.autoCaptureCoordinator.setup(providerId);
+    return this.store.get();
+  }
+
+  public async emitAutoCaptureTestEvent(input: AutoCaptureTestEventInput): Promise<SystemSnapshot> {
+    if (!this.store.get().prototypeMode) throw new Error('Auto Capture test events are available only in development builds.');
+    await this.autoCaptureCoordinator.emitTestEvent(input.type);
+    return this.store.get();
+  }
+
   public async saveReplay(): Promise<SystemSnapshot> {
     const snapshot = this.store.get();
     if (!snapshot.capture.config.enabled) {
@@ -952,11 +1065,46 @@ export class AppController {
       120_000,
     );
     const result = workerSavedClipSchema.parse(response);
+    return this.persistSavedClip(result);
+  }
+
+  private async preserveAutoCaptureWindow(request: AutoCapturePreserveRequest): Promise<void> {
+    const snapshot = this.store.get();
+    if (!snapshot.capture.config.enabled) throw new Error('Instant Replay stopped before the Auto Capture window could be preserved.');
+    const response = await this.engines.request<WorkerSavedClip>(
+      'capture',
+      'saveReplay',
+      { startedAt: request.startedAt, endedAt: request.endsAt },
+      120_000,
+    );
+    const result = workerSavedClipSchema.parse(response);
+    const provider = snapshot.capture.autoCapture.providers.find((candidate) => candidate.id === request.providerId);
+    const game = provider?.displayName ?? result.game ?? request.gameId;
+    const clipStartedAt = result.captureStartedAt
+      ?? Math.max(0, (result.captureEndedAt ?? request.endsAt) - result.durationMs);
+    const markers = markersForClip(request.events, clipStartedAt, result.durationMs);
+    this.persistSavedClip(result, {
+      game,
+      name: autoCaptureTitle(game, request.events),
+      autoCapture: {
+        autoCaptured: true,
+        providerId: request.providerId,
+        gameId: request.gameId,
+        events: markers,
+      },
+    });
+  }
+
+  private persistSavedClip(
+    result: WorkerSavedClip,
+    overrides: Pick<Clip, 'name' | 'game' | 'autoCapture'> | Partial<Pick<Clip, 'name' | 'game' | 'autoCapture'>> = {},
+  ): SystemSnapshot {
+    const game = overrides.game ?? result.game ?? undefined;
     const clip: Clip = {
       id: randomUUID(),
       path: result.path,
-      name: createDefaultClipTitle(result.game),
-      ...(result.game ? { game: result.game } : {}),
+      name: overrides.name ?? createDefaultClipTitle(game),
+      ...(game ? { game } : {}),
       createdAt: result.createdAt,
       durationMs: result.durationMs,
       fileSize: result.fileSize,
@@ -968,6 +1116,7 @@ export class AppController {
       favorite: false,
       titleEdited: false,
       canvasSize: 'original',
+      ...(overrides.autoCapture ? { autoCapture: overrides.autoCapture } : {}),
     };
     const updated = this.store.update((draft) => {
       draft.capture.runtime.lastSavedAt = new Date(result.createdAt).toISOString();
@@ -1425,10 +1574,12 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    this.performance.dispose();
     for (const controller of this.activeClipExports.values()) controller.abort();
     this.activeClipExports.clear();
     this.appUpdates.dispose();
     await this.initialization?.catch(() => undefined);
+    await this.autoCaptureCoordinator.dispose();
     if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
     this.audioRestartTimer = null;
     if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
@@ -1467,7 +1618,7 @@ export class AppController {
       for (const game of preservedGames) {
         if (!byIdentity.has(gameIdentityKey(game))) byIdentity.set(gameIdentityKey(game), game);
       }
-      return this.store.update((draft) => {
+      const updated = this.store.update((draft) => {
         draft.gameDetection.games = [...byIdentity.values()]
           .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }));
         draft.gameDetection.scanState = 'idle';
@@ -1477,6 +1628,8 @@ export class AppController {
           : undefined;
         draft.gameDetection.error = undefined;
       });
+      await this.autoCaptureCoordinator.refreshAvailability(updated.gameDetection.games);
+      return this.store.get();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.store.update((draft) => {
@@ -1618,6 +1771,7 @@ export class AppController {
       { persist: false },
     );
     if (status.kind === 'capture' && status.state === 'error') {
+      void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
       this.scheduleCaptureHostRecovery(status.message);
     } else if (status.kind === 'audio' && status.state === 'error') {
       this.scheduleAudioHostRecovery(status.message);
@@ -1826,6 +1980,14 @@ export class AppController {
       draft.capture.capabilities = snapshot.capabilities;
       draft.capture.sources = orderCaptureSourcesByDisplayPosition(snapshot.sources);
     }, { persist: false });
+    const current = this.store.get();
+    void this.autoCaptureCoordinator.reconcile(
+      snapshot.runtime.activeSource,
+      current.capture.config.enabled,
+      current.gameDetection.games,
+    ).catch((error) => {
+      console.warn('[autocapture] lifecycle_reconcile_failed', error);
+    });
   }
 
   private scheduleCaptureHostRecovery(reason?: string): void {

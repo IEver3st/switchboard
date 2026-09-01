@@ -281,6 +281,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
             audioChannels={clip.audioChannels}
             audioTrackLevels={clip.audioTrackLevels}
             audioTrackTrims={audioTrackTrims}
+            eventMarkers={clip.autoCapture?.events}
             startMs={startMs}
             endMs={endMs}
             dirty={dirty}

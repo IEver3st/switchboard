@@ -99,11 +99,11 @@ Do not turn the EQ into a decorative waveform. Every plotted value must come fro
 
 ### Capture workspace
 
-Capture has two distinct layers. Source, replay state, duration, quality, resolution, frame rate, storage estimate, and encoder status form the recorder. Clips form the library below it.
+Capture has two distinct layers. A compact, persistent two-row command header keeps clip identity, count, recorder status, and source in its top row, with the coherent library toolbar in its second row. Clips form the scrollable media library below it.
 
-The recorder stays visible because it explains whether new media can exist. The library may scale from empty state to hundreds of clips. Search, favorites, game filters, ordering, view selection, and montage entry belong in the library toolbar. They must operate on real indexed clips.
+The recorder stays visible because it explains whether new media can exist. Its closed state exposes replay readiness and the selected source; duration, quality, resolution, frame rate, storage estimate, encoder, and advanced audio or folder settings live in the replay popover. The library may scale from empty state to hundreds of clips. Search, favorites, game filters, ordering, view selection, and montage entry share one coherent toolbar and operate on real indexed clips.
 
-Clip thumbnails preserve the media aspect ratio. Duration, source, time, resolution, frame rate, and file size use a stable hierarchy. Selection for montage or bulk work changes both the thumbnail frame and its explicit selection control.
+Clip thumbnails preserve the media aspect ratio and dominate each tile. Grid mode keeps title, source, time, and duration visible; technical recording metadata belongs in list mode or an editing surface. Tiles sit directly on the workspace canvas instead of inside dashboard cards. Hover, overflow, and right-click actions share one command model. Selection for montage or bulk work changes both the thumbnail frame and its explicit selection control.
 
 ### Timeline and montage
 
@@ -119,24 +119,24 @@ Diagnostics can be technical. This is the proper home for VID/PID, HID paths, tr
 
 ## Materials and color
 
-The palette is nearly black with small cool-neutral steps. Exact values live at the top of `globals.css`.
+The palette is nearly black with small warm-neutral steps. Exact values live at the top of `globals.css`.
 
 | Role | Token | Value |
 | --- | --- | --- |
-| App background | `--background` | `#0d1015` |
-| Persistent chrome | `--chrome` | `#10141a` |
-| Primary surface | `--surface-1` | `#141920` |
-| Secondary surface | `--surface-2` | `#161c24` |
-| Interactive surface | `--surface-interactive` | `#181e27` |
-| Hover surface | `--surface-hover` | `#1d2530` |
-| Divider | `--border` | `#252d38` |
-| Strong divider | `--border-strong` | `#323c49` |
-| Primary text | `--text-primary` | `#f2f4f7` |
-| Secondary text | `--text-secondary` | `#a1aab7` |
-| Description text | `--text-description` | `#7d8795` |
-| Muted text | `--text-muted` | `#697586` |
+| App background | `--background` | `#11100f` |
+| Persistent chrome | `--chrome` | `#0d0c0c` |
+| Primary surface | `--surface-1` | `#171615` |
+| Secondary surface | `--surface-2` | `#1b1a18` |
+| Interactive surface | `--surface-interactive` | `#201f1d` |
+| Hover surface | `--surface-hover` | `#282622` |
+| Divider | `--border` | `#2c2925` |
+| Strong divider | `--border-strong` | `#3c3832` |
+| Primary text | `--text-primary` | `#f3f1ed` |
+| Secondary text | `--text-secondary` | `#b4afa7` |
+| Description text | `--text-description` | `#8e887f` |
+| Muted text | `--text-muted` | `#777168` |
 
-Baby blue is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path. It is not ambient decoration.
+A restrained periwinkle is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path. It is not ambient decoration.
 
 Semantic colors are reserved for actual meaning:
 

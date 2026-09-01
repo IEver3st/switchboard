@@ -56,6 +56,7 @@ const screens = [
   { name: 'settings-diagnostics', prepare: () => openSettingsCategory('Diagnostics') },
   { name: 'settings-noise-diagnostics', prepare: () => openNoiseDiagnostics() },
   { name: 'settings-clips', prepare: () => openSettingsCategory('Clips') },
+  { name: 'settings-search', prepare: () => openSettingsSearch('check') },
 ];
 const requestedScreens = new Set((process.env.SWITCHBOARD_REVIEW_SCREENS ?? '').split(',').filter(Boolean));
 const reviewScreens = requestedScreens.size > 0 ? screens.filter((screen) => requestedScreens.has(screen.name)) : screens;
@@ -302,6 +303,33 @@ async function openSettingsCategory(label) {
   if (!clicked) throw new Error(`Could not find the ${label} Settings category.`);
   await waitForCondition(`document.querySelector('[data-settings-category][aria-current="page"]')?.textContent?.trim() === ${JSON.stringify(label)}`, `${label} Settings category`);
   await scrollMainToTop();
+}
+
+async function openSettingsSearch(query) {
+  await openSettings();
+  const entered = await window.webContents.executeJavaScript(`
+    (() => {
+      const input = document.querySelector('.settings-search__input');
+      if (!(input instanceof HTMLInputElement)) return false;
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setValue?.call(input, ${JSON.stringify(query)});
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    })()
+  `);
+  if (!entered) throw new Error('Could not enter the Settings search query.');
+  await waitForSelector('[data-settings-result]');
+  const selected = await window.webContents.executeJavaScript(`
+    (() => {
+      const result = [...document.querySelectorAll('[data-settings-result]')]
+        .find((candidate) => candidate.textContent?.includes('Always keep Switchboard up to date'));
+      if (!(result instanceof HTMLButtonElement)) return false;
+      result.click();
+      return true;
+    })()
+  `);
+  if (!selected) throw new Error('Could not select the Settings search result.');
+  await waitForSelector('#setting-about\\.automaticAppUpdates.settings-row--highlighted');
 }
 
 async function openNoiseDiagnostics() {
