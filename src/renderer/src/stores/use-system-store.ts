@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import {
   pageIdSchema,
   type ApplyAudioPresetInput,
+  type AutoCaptureSettingsPatch,
+  type AutoCaptureTestEventInput,
   type AudioPresetIdInput,
   type CaptureConfig,
   type CreateModuleProjectInput,
@@ -105,6 +107,9 @@ interface SystemStore {
   chooseClipDirectory(): Promise<void>;
   openClipsDirectory(): Promise<void>;
   refreshCaptureSources(): Promise<void>;
+  updateAutoCaptureSettings(input: AutoCaptureSettingsPatch): Promise<void>;
+  setupAutoCaptureProvider(providerId: string): Promise<void>;
+  emitAutoCaptureTestEvent(input: AutoCaptureTestEventInput): Promise<void>;
   scanGames(): Promise<void>;
   addGame(): Promise<void>;
   checkAppUpdates(): Promise<void>;
@@ -250,6 +255,9 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
     },
     refreshCaptureSources: () => run(() => switchboardApi.refreshCaptureSources()),
+    updateAutoCaptureSettings: (input) => run(() => switchboardApi.updateAutoCaptureSettings(input)),
+    setupAutoCaptureProvider: (providerId) => run(() => switchboardApi.setupAutoCaptureProvider(providerId)),
+    emitAutoCaptureTestEvent: (input) => run(() => switchboardApi.emitAutoCaptureTestEvent(input)),
     scanGames: () => run(() => switchboardApi.scanGames()),
     addGame: () => run(() => switchboardApi.addGame()),
     checkAppUpdates: () => run(() => switchboardApi.checkAppUpdates()),

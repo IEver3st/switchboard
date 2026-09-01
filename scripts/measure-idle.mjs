@@ -1,6 +1,11 @@
 import { app, BrowserWindow } from 'electron';
+import { execFile } from 'node:child_process';
+import { cpus } from 'node:os';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const projectRoot = resolve(import.meta.dirname, '..');
 const isolatedUserData = process.env.SWITCHBOARD_IDLE_USER_DATA;
@@ -16,9 +21,8 @@ const trayCpuBudgetPercent = positiveNumber(process.env.SWITCHBOARD_IDLE_TRAY_CP
 app.setName('switchboard-idle-measure');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
-if (process.env.SWITCHBOARD_IDLE_DISABLE_GPU === '1') app.disableHardwareAcceleration();
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
-process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
+if (process.env.SWITCHBOARD_IDLE_REAL_DEVICES !== '1') process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
 await import('../out/main/index.js');
 
@@ -33,30 +37,35 @@ void app.whenReady().then(async () => {
   const tray = await measureState('tray-idle', warmupDurationMs, sampleDurationMs, sampleIntervalMs);
 
   const result = {
-    mode: 'isolated-native-fixtures',
+    mode: process.env.SWITCHBOARD_IDLE_REAL_DEVICES === '1' ? 'isolated-live-devices' : 'isolated-native-fixtures',
     sampleDurationMs,
     sampleIntervalMs,
     open: withBudget(open, openMemoryBudgetMb, openCpuBudgetPercent),
     tray: withBudget(tray, trayMemoryBudgetMb, trayCpuBudgetPercent),
   };
   console.log(`SWITCHBOARD_IDLE ${JSON.stringify(result)}`);
-  app.exit(result.open.withinBudget && result.tray.withinBudget ? 0 : 1);
+  process.env.SWITCHBOARD_REVIEW_EXIT_CODE = result.open.withinBudget && result.tray.withinBudget ? '0' : '1';
+  app.quit();
 }).catch((error) => {
   console.error('Idle performance measurement failed.', error);
-  app.exit(1);
+  process.env.SWITCHBOARD_REVIEW_EXIT_CODE = '1';
+  app.quit();
 });
 
 async function measureState(name, warmupMs, durationMs, intervalMs) {
   await delay(warmupMs);
-  app.getAppMetrics();
+  let previousMetrics = app.getAppMetrics();
+  let previousSampleAt = performance.now();
   await delay(intervalMs);
 
   const samples = [];
   const deadline = performance.now() + durationMs;
   while (performance.now() < deadline) {
     const metrics = app.getAppMetrics();
+    const sampledAt = performance.now();
+    const cpuByPid = calculateCpuByPid(previousMetrics, metrics, sampledAt - previousSampleAt);
     samples.push({
-      cpuPercent: sum(metrics.map((metric) => metric.cpu.percentCPUUsage)),
+      cpuPercent: sum([...cpuByPid.values()]),
       privateMemoryMb: sum(metrics.map((metric) => metric.memory.privateBytes ?? 0)) / 1_024,
       residentSetMb: sum(metrics.map((metric) => metric.memory.workingSetSize)) / 1_024,
       processCount: metrics.length,
@@ -64,16 +73,32 @@ async function measureState(name, warmupMs, durationMs, intervalMs) {
         pid: metric.pid,
         type: metric.type,
         name: metric.name ?? metric.serviceName ?? null,
-        cpuPercent: round(metric.cpu.percentCPUUsage),
+        cpuPercent: round(cpuByPid.get(metric.pid) ?? metric.cpu.percentCPUUsage),
         privateMemoryMb: round((metric.memory.privateBytes ?? 0) / 1_024),
         residentSetMb: round(metric.memory.workingSetSize / 1_024),
       })),
     });
+    previousMetrics = metrics;
+    previousSampleAt = sampledAt;
     await delay(intervalMs);
   }
 
   if (samples.length === 0) throw new Error(`${name} produced no samples.`);
   const last = samples.at(-1);
+  const processes = last.processes.map((process) => {
+    const observations = samples
+      .map((sample) => sample.processes.find((candidate) => candidate.pid === process.pid))
+      .filter(Boolean);
+    return {
+      pid: process.pid,
+      type: process.type,
+      name: process.name,
+      cpuPercent: summarize(observations.map((observation) => observation.cpuPercent)),
+      privateMemoryMb: summarize(observations.map((observation) => observation.privateMemoryMb)),
+      residentSetMb: summarize(observations.map((observation) => observation.residentSetMb)),
+    };
+  });
+  const windowsResources = await readWindowsResources(processes.map((process) => process.pid));
   return {
     name,
     sampleCount: samples.length,
@@ -81,8 +106,59 @@ async function measureState(name, warmupMs, durationMs, intervalMs) {
     residentSetMb: summarize(samples.map((sample) => sample.residentSetMb)),
     cpuPercent: summarize(samples.map((sample) => sample.cpuPercent)),
     processCount: summarize(samples.map((sample) => sample.processCount)),
-    processes: last.processes,
+    ...windowsResources,
+    processes,
   };
+}
+
+function calculateCpuByPid(previousMetrics, metrics, elapsedMs) {
+  const previousByProcess = new Map(previousMetrics.map((metric) => [`${metric.pid}:${metric.creationTime}`, metric]));
+  const logicalProcessorCount = Math.max(1, cpus().length);
+  return new Map(metrics.map((metric) => {
+    const previous = previousByProcess.get(`${metric.pid}:${metric.creationTime}`);
+    const before = previous?.cpu.cumulativeCPUUsage;
+    const after = metric.cpu.cumulativeCPUUsage;
+    const percent = typeof before === 'number' && typeof after === 'number' && elapsedMs > 0
+      ? Math.max(0, after - before) / (elapsedMs / 1_000) / logicalProcessorCount * 100
+      : metric.cpu.percentCPUUsage;
+    return [metric.pid, percent];
+  }));
+}
+
+async function readWindowsResources(processIds) {
+  if (process.platform !== 'win32' || processIds.length === 0) return {};
+  const ids = processIds.filter(Number.isInteger).join(',');
+  const source = `
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class SwitchboardGuiResources {
+  [DllImport("user32.dll")] public static extern int GetGuiResources(IntPtr process, int flags);
+}
+'@
+$items = Get-Process -Id ${ids} -ErrorAction SilentlyContinue | ForEach-Object {
+  [pscustomobject]@{
+    handles = $_.HandleCount
+    gdi = [SwitchboardGuiResources]::GetGuiResources($_.Handle, 0)
+    user = [SwitchboardGuiResources]::GetGuiResources($_.Handle, 1)
+  }
+}
+[pscustomobject]@{
+  handleCount = ($items | Measure-Object -Property handles -Sum).Sum
+  gdiObjects = ($items | Measure-Object -Property gdi -Sum).Sum
+  userObjects = ($items | Measure-Object -Property user -Sum).Sum
+} | ConvertTo-Json -Compress
+`;
+  try {
+    const encoded = Buffer.from(source, 'utf16le').toString('base64');
+    const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
+      windowsHide: true,
+      timeout: 10_000,
+    });
+    return JSON.parse(stdout.trim());
+  } catch (error) {
+    return { resourceSampleError: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 function withBudget(measurement, memoryBudgetMb, cpuBudgetPercent) {

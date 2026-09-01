@@ -132,6 +132,11 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
           actions={actions}
           replayEnabled={snapshot.capture.config.enabled}
           hotkey={snapshot.capture.config.hotkey}
+          captureUnavailableReason={snapshot.capture.capabilities.backend === 'unavailable'
+            ? 'Windows capture is not available for this system configuration.'
+            : snapshot.capture.storage.criticalSpace
+              ? 'Free disk space or choose another clip folder before saving replays.'
+              : null}
           controls={clipLibraryControls}
         />
       </div>

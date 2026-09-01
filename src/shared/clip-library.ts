@@ -1,13 +1,17 @@
-import type { Clip } from './contracts';
+import type { Clip, GameEventType } from './contracts';
 
 export type ClipSort = 'newest' | 'oldest' | 'largest' | 'smallest' | 'longest' | 'shortest';
 export type ClipDateFilter = 'any' | 'today' | 'yesterday' | 'last-7-days' | 'last-30-days';
+export type ClipSourceFilter = 'all' | 'manual' | 'auto-capture';
+export type ClipEventFilter = 'all' | GameEventType;
 
 export interface ClipLibraryQuery {
   query: string;
   game: string;
   date: ClipDateFilter;
   favoritesOnly: boolean;
+  source?: ClipSourceFilter;
+  event?: ClipEventFilter;
   sort: ClipSort;
   now?: number;
 }
@@ -54,6 +58,9 @@ export function filterAndSortClips(clips: readonly Clip[], query: ClipLibraryQue
     .filter((clip) => {
       const game = clipGameLabel(clip);
       if (query.favoritesOnly && !clip.favorite) return false;
+      if (query.source === 'manual' && clip.autoCapture) return false;
+      if (query.source === 'auto-capture' && !clip.autoCapture) return false;
+      if (query.event && query.event !== 'all' && !clip.autoCapture?.events.some((event) => event.type === query.event)) return false;
       if (query.game !== 'all' && game !== query.game) return false;
       if (!matchesClipDate(clip.createdAt, query.date, now)) return false;
       if (!normalizedQuery) return true;
@@ -64,6 +71,7 @@ export function filterAndSortClips(clips: readonly Clip[], query: ClipLibraryQue
         date.toLocaleDateString(),
         date.toLocaleTimeString(),
         date.toDateString(),
+        ...(clip.autoCapture?.events.map((event) => event.label ?? event.type) ?? []),
       ].join(' ').toLocaleLowerCase();
       return searchable.includes(normalizedQuery);
     })

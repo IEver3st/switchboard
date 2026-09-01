@@ -6,6 +6,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId, SystemSnapshot } from '../../../../shared/contracts';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 
 const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 'audio' | 'capture' }> = [
@@ -24,7 +25,7 @@ export function Sidebar({
   onNavigate: (page: PageId) => void;
 }) {
   return (
-    <aside className="flex w-[68px] shrink-0 flex-col items-center bg-chrome py-2">
+    <aside className="switchboard-sidebar flex w-[68px] shrink-0 flex-col items-center border-r border-border bg-chrome py-2">
       <div className="app-drag flex h-[54px] w-full shrink-0 items-center justify-center">
         <img src="./switchboard-mark.png" alt="" className="size-[44px] object-contain opacity-90" draggable={false} />
       </div>
@@ -62,20 +63,24 @@ export function Sidebar({
       </nav>
 
       <div className="mt-auto flex w-full flex-col items-center px-1.5 pb-1">
-        <button
-          type="button"
-          onClick={() => onNavigate('settings')}
-          aria-label="Settings"
-          aria-current={page === 'settings' || page === 'modules' ? 'page' : undefined}
-          title="Settings"
-          className={cn(
-            'relative grid size-9 place-items-center rounded-[6px] transition-colors duration-150 no-drag',
-            page === 'settings' || page === 'modules' ? 'bg-surface-interactive text-foreground' : 'text-text-muted hover:bg-surface-interactive hover:text-foreground',
-          )}
-        >
-          {page === 'settings' || page === 'modules' ? <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
-          <Settings className={cn('size-[18px]', (page === 'settings' || page === 'modules') && 'text-foreground')} strokeWidth={1.75} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => onNavigate('settings')}
+              aria-label="Settings"
+              aria-current={page === 'settings' || page === 'modules' ? 'page' : undefined}
+              className={cn(
+                'relative grid size-9 place-items-center rounded-[6px] transition-colors duration-150 no-drag',
+                page === 'settings' || page === 'modules' ? 'bg-surface-interactive text-foreground' : 'text-text-muted hover:bg-surface-interactive hover:text-foreground',
+              )}
+            >
+              {page === 'settings' || page === 'modules' ? <span className="absolute left-0 top-1/2 h-5 w-px -translate-y-1/2 bg-primary" /> : null}
+              <Settings className={cn('size-[18px]', (page === 'settings' || page === 'modules') && 'text-foreground')} strokeWidth={1.75} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Settings</TooltipContent>
+        </Tooltip>
       </div>
     </aside>
   );

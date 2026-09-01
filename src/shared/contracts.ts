@@ -1049,6 +1049,166 @@ export const captureHostSnapshotSchema = z.object({
 });
 export type CaptureHostSnapshot = z.infer<typeof captureHostSnapshotSchema>;
 
+export const gameEventTypeSchema = z.enum([
+  'kill',
+  'headshot',
+  'multi_kill',
+  'assist',
+  'death',
+  'round_win',
+  'round_loss',
+  'match_win',
+  'match_loss',
+  'objective',
+  'achievement',
+  'highlight',
+  'custom',
+]);
+export type GameEventType = z.infer<typeof gameEventTypeSchema>;
+
+export const gameEventSourceSchema = z.enum([
+  'telemetry',
+  'api',
+  'websocket',
+  'log',
+  'vision',
+  'ocr',
+  'manual',
+  'test',
+]);
+export type GameEventSource = z.infer<typeof gameEventSourceSchema>;
+
+// Event metadata is deliberately bounded and privacy-safe. Providers should add
+// a typed field here instead of persisting raw telemetry or player identities.
+export const gameEventMetadataSchema = z.object({
+  weapon: z.string().trim().min(1).max(64).optional(),
+  headshot: z.boolean().optional(),
+  count: z.number().int().min(2).max(20).optional(),
+  derived: z.boolean().optional(),
+  roundNumber: z.number().int().min(0).max(200).optional(),
+  team: z.enum(['CT', 'T', 'ally', 'enemy']).optional(),
+  scoreFor: z.number().int().min(0).max(999).optional(),
+  scoreAgainst: z.number().int().min(0).max(999).optional(),
+  objective: z.enum(['planted', 'defused', 'exploded', 'captured', 'completed', 'custom']).optional(),
+  code: z.string().trim().min(1).max(64).optional(),
+  sequence: z.number().int().nonnegative().optional(),
+}).strict();
+export type GameEventMetadata = z.infer<typeof gameEventMetadataSchema>;
+
+export const gameEventSchema = z.object({
+  id: z.string().min(1).max(160),
+  gameId: z.string().min(1).max(96),
+  providerId: z.string().min(1).max(96),
+  type: gameEventTypeSchema,
+  timestamp: z.number().int().nonnegative(),
+  confidence: z.number().min(0).max(1).optional(),
+  label: z.string().trim().min(1).max(80).optional(),
+  metadata: gameEventMetadataSchema.optional(),
+  source: gameEventSourceSchema,
+});
+export type GameEvent = z.infer<typeof gameEventSchema>;
+
+export const providerSupportLevelSchema = z.enum(['supported', 'experimental', 'unavailable']);
+export type ProviderSupportLevel = z.infer<typeof providerSupportLevelSchema>;
+
+export const providerAvailabilitySchema = z.object({
+  state: z.enum(['available', 'setup-required', 'unavailable']),
+  reason: z.string().trim().min(1).max(240).optional(),
+});
+export type ProviderAvailability = z.infer<typeof providerAvailabilitySchema>;
+
+export const providerStatusSchema = z.object({
+  state: z.enum(['stopped', 'starting', 'listening', 'degraded', 'error']),
+  message: z.string().trim().min(1).max(240).optional(),
+  lastEventAt: z.number().int().nonnegative().optional(),
+});
+export type ProviderStatus = z.infer<typeof providerStatusSchema>;
+
+export const autoCaptureProviderSchema = z.object({
+  id: z.string().min(1).max(96),
+  gameId: z.string().min(1).max(96),
+  displayName: z.string().trim().min(1).max(120),
+  supportLevel: providerSupportLevelSchema,
+  source: gameEventSourceSchema,
+  capabilities: z.object({
+    events: z.array(gameEventTypeSchema).max(gameEventTypeSchema.options.length),
+    nativeMultiKill: z.boolean(),
+  }),
+  availability: providerAvailabilitySchema,
+  status: providerStatusSchema,
+  developmentOnly: z.boolean().default(false),
+});
+export type AutoCaptureProvider = z.infer<typeof autoCaptureProviderSchema>;
+
+export const autoCaptureGameSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  useGlobalTiming: z.boolean().default(true),
+  preRollSeconds: z.number().int().min(5).max(120).optional(),
+  postRollSeconds: z.number().int().min(0).max(60).optional(),
+  events: z.partialRecord(gameEventTypeSchema, z.boolean()).default({}),
+});
+export type AutoCaptureGameSettings = z.infer<typeof autoCaptureGameSettingsSchema>;
+
+export const autoCaptureSettingsSchema = z.object({
+  enabled: z.boolean(),
+  preRollSeconds: z.number().int().min(5).max(120),
+  postRollSeconds: z.number().int().min(0).max(60),
+  mergeNearbyEvents: z.boolean(),
+  mergeThresholdSeconds: z.number().int().min(0).max(60),
+  notifyWhenSaved: z.boolean(),
+  games: z.record(z.string().min(1).max(96), autoCaptureGameSettingsSchema),
+  dismissedAvailability: z.record(z.string().min(1).max(96), z.boolean()),
+});
+export type AutoCaptureSettings = z.infer<typeof autoCaptureSettingsSchema>;
+
+export const autoCaptureSettingsPatchSchema = z.object({
+  enabled: z.boolean().optional(),
+  preRollSeconds: z.number().int().min(5).max(120).optional(),
+  postRollSeconds: z.number().int().min(0).max(60).optional(),
+  mergeNearbyEvents: z.boolean().optional(),
+  mergeThresholdSeconds: z.number().int().min(0).max(60).optional(),
+  notifyWhenSaved: z.boolean().optional(),
+  games: z.record(z.string().min(1).max(96), autoCaptureGameSettingsSchema.partial()).optional(),
+  dismissedAvailability: z.record(z.string().min(1).max(96), z.boolean()).optional(),
+}).strict();
+export type AutoCaptureSettingsPatch = z.infer<typeof autoCaptureSettingsPatchSchema>;
+
+export const autoCaptureProviderIdSchema = z.string().min(1).max(96);
+
+export const autoCaptureTestEventInputSchema = z.object({
+  type: z.enum(['kill', 'headshot', 'multi_kill', 'death', 'round_win', 'match_win']),
+}).strict();
+export type AutoCaptureTestEventInput = z.infer<typeof autoCaptureTestEventInputSchema>;
+
+export const autoCaptureRuntimeSchema = z.object({
+  state: z.enum(['disabled', 'idle', 'listening', 'pending', 'saving', 'degraded']),
+  activeGameId: z.string().max(96).nullable(),
+  activeProviderId: z.string().max(96).nullable(),
+  pendingCapture: z.object({
+    startedAt: z.number().int().nonnegative(),
+    endsAt: z.number().int().nonnegative(),
+    eventCount: z.number().int().positive().max(128),
+  }).nullable(),
+  eventsReceived: z.number().int().nonnegative(),
+  eventsDeduplicated: z.number().int().nonnegative(),
+  eventsIgnored: z.number().int().nonnegative(),
+  clipsCreated: z.number().int().nonnegative(),
+  lastEvent: z.object({
+    type: gameEventTypeSchema,
+    at: z.number().int().nonnegative(),
+    label: z.string().trim().min(1).max(80).optional(),
+  }).nullable(),
+  lastError: z.string().trim().min(1).max(320).nullable(),
+});
+export type AutoCaptureRuntime = z.infer<typeof autoCaptureRuntimeSchema>;
+
+export const autoCaptureStateSchema = z.object({
+  settings: autoCaptureSettingsSchema,
+  providers: z.array(autoCaptureProviderSchema).max(32),
+  runtime: autoCaptureRuntimeSchema,
+});
+export type AutoCaptureState = z.infer<typeof autoCaptureStateSchema>;
+
 export const clipAudioChannelSchema = z.enum(['game', 'chat', 'microphone', 'media']);
 export type ClipAudioChannel = z.infer<typeof clipAudioChannelSchema>;
 
@@ -1080,6 +1240,23 @@ export type ClipAudioTrackTrim = z.infer<typeof clipAudioTrackTrimSchema>;
 
 export const clipAudioTrackTrimsSchema = z.array(clipAudioTrackTrimSchema.nullable()).max(8);
 
+export const clipEventMarkerSchema = z.object({
+  id: z.string().min(1).max(160),
+  type: gameEventTypeSchema,
+  timestampMs: z.number().int().nonnegative(),
+  label: z.string().trim().min(1).max(80).optional(),
+  metadata: gameEventMetadataSchema.optional(),
+});
+export type ClipEventMarker = z.infer<typeof clipEventMarkerSchema>;
+
+export const clipAutoCaptureMetadataSchema = z.object({
+  autoCaptured: z.literal(true),
+  providerId: z.string().min(1).max(96),
+  gameId: z.string().min(1).max(96),
+  events: z.array(clipEventMarkerSchema).min(1).max(128),
+});
+export type ClipAutoCaptureMetadata = z.infer<typeof clipAutoCaptureMetadataSchema>;
+
 export const clipSchema = z.object({
   id: z.string().min(1),
   path: z.string().min(1),
@@ -1101,6 +1278,7 @@ export const clipSchema = z.object({
   audioChannels: z.array(clipAudioChannelSchema).max(4).optional(),
   audioTrackLevels: z.array(z.number().int().min(0).max(100)).max(8).optional(),
   audioTrackTrims: clipAudioTrackTrimsSchema.optional(),
+  autoCapture: clipAutoCaptureMetadataSchema.optional(),
 });
 export type Clip = z.infer<typeof clipSchema>;
 
@@ -1113,10 +1291,14 @@ export const performanceSnapshotSchema = z.object({
   coreMemoryMb: z.number().min(0),
   rendererMemoryMb: z.number().min(0),
   totalMemoryMb: z.number().min(0),
+  residentMemoryMb: z.number().min(0).default(0),
   totalCpuPercent: z.number().min(0),
   activeProcesses: z.number().int().min(1),
   budgetMemoryMb: z.number().min(1),
   budgetCpuPercent: z.number().min(0),
+  sampledAt: z.string().nullable().default(null),
+  guardState: z.enum(['disabled', 'collecting', 'within-budget', 'over-budget']).default('collecting'),
+  warning: z.string().nullable().default(null),
 });
 export type PerformanceSnapshot = z.infer<typeof performanceSnapshotSchema>;
 
@@ -1188,6 +1370,7 @@ export const systemSnapshotSchema = z.object({
     storage: captureStorageSchema,
     capabilities: captureCapabilitiesSchema,
     sources: z.array(captureSourceSchema),
+    autoCapture: autoCaptureStateSchema,
   }),
   clips: z.array(clipSchema),
   clipReview: clipReviewStateSchema,
@@ -1491,6 +1674,9 @@ export const ipcChannels = {
   chooseClipDirectory: 'capture:choose-clip-directory',
   openClipsDirectory: 'capture:open-clips-directory',
   refreshCaptureSources: 'capture:refresh-sources',
+  updateAutoCaptureSettings: 'capture:auto-capture:update-settings',
+  setupAutoCaptureProvider: 'capture:auto-capture:setup-provider',
+  emitAutoCaptureTestEvent: 'capture:auto-capture:emit-test-event',
   scanGames: 'games:scan',
   addGame: 'games:add',
   checkAppUpdates: 'updates:check',
@@ -1552,6 +1738,9 @@ export interface SwitchboardApi {
   chooseClipDirectory(): Promise<SystemSnapshot>;
   openClipsDirectory(): Promise<void>;
   refreshCaptureSources(): Promise<SystemSnapshot>;
+  updateAutoCaptureSettings(input: AutoCaptureSettingsPatch): Promise<SystemSnapshot>;
+  setupAutoCaptureProvider(providerId: string): Promise<SystemSnapshot>;
+  emitAutoCaptureTestEvent(input: AutoCaptureTestEventInput): Promise<SystemSnapshot>;
   scanGames(): Promise<SystemSnapshot>;
   addGame(): Promise<SystemSnapshot>;
   checkAppUpdates(): Promise<SystemSnapshot>;

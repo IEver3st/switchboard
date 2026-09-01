@@ -176,7 +176,9 @@ function BundledModuleRow({
       className="settings-row--module"
       controlClassName="settings-row__control--actions settings-module-control"
     >
-      <span className="settings-module-status" aria-live="polite">{module.enabled ? 'Enabled' : 'Off'}</span>
+      <span className="settings-module-status" aria-live="polite">
+        {module.enabled ? 'Enabled' : module.kind === 'device' ? 'Off · devices hidden' : 'Off'}
+      </span>
       <Switch
         checked={module.enabled}
         aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}

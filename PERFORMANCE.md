@@ -22,11 +22,31 @@ These are release gates, not marketing claims.
 - captured/dropped frames;
 - device reconnect count and leaked HID handles.
 
+`bun run measure:idle` builds the production bundles, launches an isolated
+native Electron instance, and samples both UI-open idle and close-to-tray idle
+for 60 seconds each. It reports median, p95, and maximum Electron private bytes,
+working set, normalized CPU, process count, Windows handles, GDI objects, and
+USER objects. The default path uses canonical fixtures and no engines so it is
+repeatable; set `SWITCHBOARD_IDLE_REAL_DEVICES=1` for a separate live-device
+measurement that includes the normal five-second discovery cycle.
+
+The in-product performance snapshot uses Electron's real per-process metrics,
+not fixed estimates. Collection remains at the five-second guard interval while
+renderer publication is limited to every 30 seconds or a guard-state change.
+This keeps Diagnostics current without turning the full canonical snapshot into
+a high-frequency renderer update. Private bytes and working set are reported
+separately; enabled native-host memory and CPU are added from host telemetry.
+
 ## Startup responsiveness
 
 `bun run measure:startup` builds the production Electron bundles and measures the isolated native review path from main-process JavaScript entry to a usable control plane. The budget is 1,500 ms; the harness uses canonical fixture devices so physical HID latency cannot make the result nondeterministic.
 
 Persisted state hydration is the only renderer-readiness gate. Hardware discovery, audio endpoint discovery, clip reconciliation, update scheduling, and optional engine restoration continue through Electron main and publish canonical snapshot updates when ready. A stalled peripheral must not keep the startup screen visible.
+
+Renderer routes and capability-heavy device editors are loaded on demand. The
+default Devices gallery does not parse Audio, Capture, Settings, or individual
+device-editor code before the user opens those workspaces. The new-clips review
+surface is loaded only when canonical clip state contains an unreviewed clip.
 
 Linked local modules follow the same rule. Persisted-state hydration publishes their last known project records, then manifest validation and sandbox preparation continue after renderer readiness. A local project path, entrypoint, or sandbox failure cannot hold the startup screen.
 

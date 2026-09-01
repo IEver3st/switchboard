@@ -1,18 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
+import { reviewableAutoCapturedClips } from '../../shared/clip-review';
 import { Sidebar } from '@/components/layout/sidebar';
-import { NewClipsReview } from '@/components/capture/NewClipsReview';
 import { StartupScreen } from '@/components/layout/startup-screen';
 import { TitleStrip } from '@/components/layout/title-strip';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AudioPage } from '@/pages/audio';
-import { CapturePage } from '@/pages/capture';
-import { DevicesPage } from '@/pages/devices';
-import { SettingsPage } from '@/pages/settings';
 import { manageAsyncCleanup } from '@/lib/async-cleanup';
 import { useSystemStore } from '@/stores/use-system-store';
+
+const AudioPage = lazy(() => import('@/pages/audio').then((module) => ({ default: module.AudioPage })));
+const CapturePage = lazy(() => import('@/pages/capture').then((module) => ({ default: module.CapturePage })));
+const DevicesPage = lazy(() => import('@/pages/devices').then((module) => ({ default: module.DevicesPage })));
+const NewClipsReview = lazy(() => import('@/components/capture/NewClipsReview').then((module) => ({ default: module.NewClipsReview })));
+const SettingsPage = lazy(() => import('@/pages/settings').then((module) => ({ default: module.SettingsPage })));
 
 const pageTitles: Record<PageId, string> = {
   devices: 'Devices',
@@ -32,6 +34,13 @@ export function App() {
   const clearError = useSystemStore((state) => state.clearError);
   const previousWorkspaceRef = useRef<Exclude<PageId, 'settings' | 'modules'>>('devices');
   const [requestedClipId, setRequestedClipId] = useState<string | null>(null);
+  const shouldOfferClipReview = snapshot
+    ? reviewableAutoCapturedClips(
+        snapshot.clips,
+        snapshot.clipReview.reviewedThrough,
+        snapshot.capture.autoCapture.runtime.activeGameId,
+      ).length > 0
+    : false;
 
   useEffect(() => manageAsyncCleanup(initialize()), [initialize]);
 
@@ -46,7 +55,9 @@ export function App() {
           {page === 'settings' || page === 'modules' ? (
             <main className="min-h-0 min-w-0 flex-1 bg-background">
               <h1 className="sr-only">{pageTitles[page]}</h1>
-              <SettingsPage snapshot={snapshot} onClose={() => setPage(previousWorkspaceRef.current)} />
+              <Suspense fallback={<PageLoading label="settings" />}>
+                <SettingsPage snapshot={snapshot} onClose={() => setPage(previousWorkspaceRef.current)} />
+              </Suspense>
             </main>
           ) : (
             <>
@@ -56,17 +67,19 @@ export function App() {
                 <section className="flex min-h-0 flex-1 flex-col">
                   <main className="min-h-0 flex-1 bg-background">
                     <h1 className="sr-only">{pageTitles[page]}</h1>
-                    <ScrollArea className="h-full">
-                      {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
-                      {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
-                      {page === 'capture' ? (
-                        <CapturePage
-                          snapshot={snapshot}
-                          requestedClipId={requestedClipId}
-                          onRequestedClipHandled={() => setRequestedClipId(null)}
-                        />
-                      ) : null}
-                    </ScrollArea>
+                    <Suspense fallback={<PageLoading label={pageTitles[page].toLocaleLowerCase()} />}>
+                      <ScrollArea className="h-full">
+                        {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
+                        {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
+                        {page === 'capture' ? (
+                          <CapturePage
+                            snapshot={snapshot}
+                            requestedClipId={requestedClipId}
+                            onRequestedClipHandled={() => setRequestedClipId(null)}
+                          />
+                        ) : null}
+                      </ScrollArea>
+                    </Suspense>
                   </main>
                 </section>
               </div>
@@ -83,13 +96,17 @@ export function App() {
             </div>
           ) : null}
 
-          <NewClipsReview
-            snapshot={snapshot}
-            onOpenClip={(id) => {
-              setRequestedClipId(id);
-              setPage('capture');
-            }}
-          />
+          {shouldOfferClipReview ? (
+            <Suspense fallback={null}>
+              <NewClipsReview
+                snapshot={snapshot}
+                onOpenClip={(id) => {
+                  setRequestedClipId(id);
+                  setPage('capture');
+                }}
+              />
+            </Suspense>
+          ) : null}
         </div>
       ) : null}
 
@@ -98,4 +115,8 @@ export function App() {
       </AnimatePresence>
     </LazyMotion>
   );
+}
+
+function PageLoading({ label }: { label: string }) {
+  return <div className="grid h-full place-items-center text-xs text-muted-foreground" role="status">Loading {label}…</div>;
 }

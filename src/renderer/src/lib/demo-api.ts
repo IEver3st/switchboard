@@ -26,7 +26,7 @@ import type {
   SystemSnapshot,
   UpdateSettingsInput,
 } from '../../../shared/contracts';
-import { channelProcessingSchema, micProcessorSchema } from '../../../shared/contracts';
+import { autoCaptureSettingsSchema, channelProcessingSchema, micProcessorSchema } from '../../../shared/contracts';
 import {
   applyAudioPathPreset,
   findMatchingAudioPresetId,
@@ -563,6 +563,28 @@ const demoApi: SwitchboardApi = {
   async chooseClipDirectory() { throw new Error('Folder selection requires the Switchboard desktop application.'); },
   async openClipsDirectory() { throw new Error('Opening the Clips folder requires the Switchboard desktop application.'); },
   async refreshCaptureSources() { return emit(); },
+  async updateAutoCaptureSettings(input) {
+    const current = snapshot.capture.autoCapture.settings;
+    const games = { ...current.games };
+    for (const [gameId, patch] of Object.entries(input.games ?? {})) {
+      games[gameId] = autoCaptureSettingsSchema.shape.games.valueType.parse({
+        enabled: true,
+        useGlobalTiming: true,
+        ...games[gameId],
+        ...patch,
+        events: { ...games[gameId]?.events, ...patch.events },
+      });
+    }
+    snapshot.capture.autoCapture.settings = autoCaptureSettingsSchema.parse({
+      ...current,
+      ...input,
+      games,
+      dismissedAvailability: { ...current.dismissedAvailability, ...input.dismissedAvailability },
+    });
+    return emit();
+  },
+  async setupAutoCaptureProvider() { throw new Error('Provider setup requires the Switchboard desktop application.'); },
+  async emitAutoCaptureTestEvent() { throw new Error('Test events require the Switchboard desktop capture host.'); },
   async scanGames() { return simulateGameScan(); },
   async addGame() { throw new Error('Selecting a game executable requires the Switchboard desktop application.'); },
   async checkAppUpdates() { return emit(); },

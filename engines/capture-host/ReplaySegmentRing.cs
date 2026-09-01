@@ -68,6 +68,28 @@ internal sealed class ReplaySegmentRing
         return SelectForReplayCore(segments, duration);
     }
 
+    public IReadOnlyList<ReplaySegmentInfo> SelectForWindow(
+        IReadOnlyList<ReplaySegmentInfo> segments,
+        DateTimeOffset startedAt,
+        DateTimeOffset endedAt)
+    {
+        return SelectForWindowCore(segments, startedAt, endedAt);
+    }
+
+    internal static IReadOnlyList<ReplaySegmentInfo> SelectForWindowCore(
+        IReadOnlyList<ReplaySegmentInfo> segments,
+        DateTimeOffset startedAt,
+        DateTimeOffset endedAt)
+    {
+        if (endedAt <= startedAt) return [];
+        return segments
+            .Where(segment => segment.Complete
+                              && segment.EndedAt > startedAt
+                              && segment.StartedAt < endedAt)
+            .OrderBy(segment => segment.StartedAt)
+            .ToArray();
+    }
+
     internal static IReadOnlyList<ReplaySegmentInfo> SelectForReplayCore(
         IReadOnlyList<ReplaySegmentInfo> segments,
         TimeSpan duration)

@@ -10,7 +10,8 @@ import {
   type RefObject,
 } from 'react';
 import { FastForward, Film, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX } from 'lucide-react';
-import type { ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveformTrack } from '../../../../shared/contracts';
+import type { ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveformTrack, ClipEventMarker } from '../../../../shared/contracts';
+import { singularEventLabel } from '../../../../shared/auto-capture';
 import { channelColor } from '@/components/audio/channel-identity';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -37,6 +38,7 @@ export function ClipTimeline({
   audioChannels,
   audioTrackLevels,
   audioTrackTrims,
+  eventMarkers,
   startMs,
   endMs,
   dirty,
@@ -54,6 +56,7 @@ export function ClipTimeline({
   audioChannels?: ClipAudioChannel[];
   audioTrackLevels?: number[];
   audioTrackTrims?: Array<ClipAudioTrackTrim | null>;
+  eventMarkers?: ClipEventMarker[];
   startMs: number;
   endMs: number;
   dirty: boolean;
@@ -525,6 +528,32 @@ export function ClipTimeline({
               </span>
             ))}
           </div>
+
+          {eventMarkers && eventMarkers.length > 0 ? (
+            <div className="clip-editor-event-markers" role="group" aria-label={`${eventMarkers.length} Auto Capture ${eventMarkers.length === 1 ? 'event' : 'events'}`}>
+              {eventMarkers.map((marker) => {
+                const label = marker.label ?? singularEventLabel(marker.type);
+                return (
+                  <Tooltip key={marker.id}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="clip-editor-event-marker"
+                        data-event-type={marker.type}
+                        style={{ left: `${marker.timestampMs / durationMs * 100}%` }}
+                        aria-label={`${label} at ${formatRulerTime(marker.timestampMs)}`}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={() => setPlayhead(marker.timestampMs)}
+                      >
+                        <span aria-hidden="true" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">{label} · {formatRulerTime(marker.timestampMs)}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          ) : null}
 
           <div className="clip-editor-timeline__tracks">
             <div className="clip-editor-timeline__clip-track" role="group" aria-label="Clip range">

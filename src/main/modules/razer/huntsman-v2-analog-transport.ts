@@ -61,6 +61,9 @@ const maximumAttempts = 3;
 const defaultOperationTimeoutMs = 2_000;
 
 export class HuntsmanV2AnalogTransport {
+  private handle: RazerHidHandle | null = null;
+  private handlePath: string | null = null;
+
   public constructor(
     private readonly hidIo: RazerHidIo = nativeHidIo,
     private readonly operationTimeoutMs = defaultOperationTimeoutMs,
@@ -127,20 +130,33 @@ export class HuntsmanV2AnalogTransport {
     });
   }
 
+  public async release(path?: string): Promise<void> {
+    if (!this.handle || (path && path !== this.handlePath)) return;
+    const handle = this.handle;
+    this.handle = null;
+    this.handlePath = null;
+    await withTimeout(handle.close(), this.operationTimeoutMs, 'Closing the Razer control endpoint timed out.')
+      .catch(() => undefined);
+  }
+
   private async withHandle<T>(path: string, operation: (handle: RazerHidHandle) => Promise<T>): Promise<T> {
+    const handle = await this.getHandle(path);
+    return operation(handle);
+  }
+
+  private async getHandle(path: string): Promise<RazerHidHandle> {
+    if (this.handle && this.handlePath === path) return this.handle;
+    if (this.handle) await this.release();
+
     const pendingHandle = this.hidIo.open(path);
-    let handle: RazerHidHandle;
     try {
-      handle = await withTimeout(pendingHandle, this.operationTimeoutMs, 'Opening the Razer control endpoint timed out.');
+      const handle = await withTimeout(pendingHandle, this.operationTimeoutMs, 'Opening the Razer control endpoint timed out.');
+      this.handle = handle;
+      this.handlePath = path;
+      return handle;
     } catch (error) {
       void pendingHandle.then((lateHandle) => lateHandle.close()).catch(() => undefined);
       throw error;
-    }
-    try {
-      return await operation(handle);
-    } finally {
-      await withTimeout(handle.close(), this.operationTimeoutMs, 'Closing the Razer control endpoint timed out.')
-        .catch(() => undefined);
     }
   }
 

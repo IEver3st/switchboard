@@ -81,6 +81,7 @@ export interface HuntsmanControlTransport {
   setEffect(path: string, effectId: HuntsmanLightingEffectId, color: string): Promise<{ effectId: HuntsmanLightingEffectId; color?: string }>;
   setGamingMode(path: string, enabled: boolean): Promise<boolean>;
   setActiveOnboardProfile(path: string, profileId: number): Promise<number>;
+  release?(path?: string): Promise<void>;
 }
 
 export interface HuntsmanModuleDependencies {
@@ -117,7 +118,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
       descriptor.vendorId === razerVendorId && descriptor.productId === huntsmanV2AnalogProductId
     ));
     if (descriptors.length === 0) {
-      this.release();
+      await this.release();
       return [];
     }
 
@@ -128,6 +129,7 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
       device.moduleId === this.id && device.identity.model === model
     ));
     if (nextPath !== this.path) {
+      await this.dependencies.transport.release?.(this.path ?? undefined);
       this.path = nextPath;
       this.probe = null;
       this.probeUpdatedAt = 0;
@@ -316,14 +318,13 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
     }
   }
 
-  public deactivate(): void {
-    this.release();
+  public deactivate(): Promise<void> {
+    return this.enqueue(() => this.release());
   }
 
   public async dispose(): Promise<void> {
     this.disposed = true;
-    this.release();
-    await this.operationQueue;
+    await this.enqueue(() => this.release());
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
@@ -340,7 +341,8 @@ export class RazerHuntsmanV2AnalogModule implements DeviceModule {
     this.probeUpdatedAt = this.dependencies.now();
   }
 
-  private release(): void {
+  private async release(): Promise<void> {
+    await this.dependencies.transport.release?.(this.path ?? undefined);
     this.path = null;
     this.deviceId = null;
     this.probe = null;

@@ -23,6 +23,11 @@ AssertSequence(
     "Replay selection must use the latest complete keyframe-aligned segments.");
 
 AssertSequence(
+    ReplaySegmentRing.SelectForWindowCore(segments, start.AddSeconds(1.2), start.AddSeconds(3.2)).Select(segment => segment.Path),
+    ["segment-1.mkv", "segment-2.mkv", "segment-3.mkv"],
+    "Replay window selection must preserve every completed keyframe segment intersecting the requested event range.");
+
+AssertSequence(
     ReplaySegmentRing.SelectEvictionCandidates(segments, TimeSpan.FromSeconds(3), 250).Select(segment => segment.Path),
     ["segment-0.mkv", "segment-1.mkv"],
     "Eviction must satisfy duration and byte bounds.");

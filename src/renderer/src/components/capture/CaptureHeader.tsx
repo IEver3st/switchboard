@@ -1,11 +1,16 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Monitor, RefreshCw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Monitor, RefreshCw, Settings2, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
 import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatReplayLength } from '@/lib/format';
@@ -35,9 +40,7 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
   const estimatedBytes = Math.round((estimate.lowerBoundBytes + estimate.upperBoundBytes) / 2);
   const notice = captureNotice(snapshot);
   const status = captureStatus(snapshot);
-  const sourceLabel = captureSourceLabel(config, snapshot.capture.sources);
   const setupProblem = captureSetupProblem(snapshot);
-  const summary = replaySummary(snapshot, sourceLabel, setupProblem, status);
   const clipCount = controls.hasFilters
     ? `${controls.clips.length} of ${controls.totalClipCount} clips`
     : `${controls.totalClipCount} ${controls.totalClipCount === 1 ? 'clip' : 'clips'}`;
@@ -65,11 +68,10 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
           estimatedBytes={estimatedBytes}
           setupProblem={setupProblem}
           status={status}
-          summary={summary}
           onSourceChange={changeSource}
         />
-        <ClipLibraryToolbar controls={controls} />
       </div>
+      <div className="capture-command-header__commands"><ClipLibraryToolbar controls={controls} /></div>
       {notice ? <div className={cn('capture-toolbar__notice border-t border-border text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
     </section>
   );
@@ -83,7 +85,6 @@ function ReplayConfiguration({
   estimatedBytes,
   setupProblem,
   status,
-  summary,
   onSourceChange,
 }: {
   snapshot: SystemSnapshot;
@@ -93,10 +94,10 @@ function ReplayConfiguration({
   estimatedBytes: number;
   setupProblem: string | null;
   status: ReturnType<typeof captureStatus>;
-  summary: ReturnType<typeof replaySummary>;
   onSourceChange: (value: string) => void;
 }) {
   const [replayOpen, setReplayOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const replayTriggerRef = useRef<HTMLButtonElement>(null);
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
@@ -108,135 +109,118 @@ function ReplayConfiguration({
   const encoderOptions = encoderChoices(snapshot);
 
   return (
-    <Popover open={replayOpen} onOpenChange={setReplayOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          ref={replayTriggerRef}
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="capture-replay-summary h-8"
-          data-tone={summary.tone}
-          aria-label={`${summary.label}. ${status.description} Open replay configuration`}
+    <ButtonGroup className="capture-replay-group" aria-label="Replay capture controls">
+      <Popover open={replayOpen} onOpenChange={setReplayOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            ref={replayTriggerRef}
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="capture-replay-summary h-8"
+            data-tone={status.tone}
+            aria-label={`Replay ${status.label}. ${status.description} Open replay settings`}
+          >
+            <span className="capture-replay-summary__dot" aria-hidden="true" />
+            <span className="capture-replay-summary__eyebrow">Replay</span>
+            <span className="capture-replay-summary__label">{status.label}</span>
+            <Settings2 className="capture-replay-summary__settings size-3.5" aria-hidden="true" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={7}
+          className="capture-replay-popover p-0"
+          aria-label="Replay configuration"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            replayTriggerRef.current?.focus();
+            window.requestAnimationFrame(() => replayTriggerRef.current?.focus());
+          }}
         >
-          <span className="capture-replay-summary__dot" aria-hidden="true" />
-          <span className="capture-replay-summary__label">{summary.label}</span>
-          <ChevronDown className="size-3.5 shrink-0" aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        className="capture-replay-popover p-0"
-        aria-label="Replay configuration"
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          replayTriggerRef.current?.focus();
-          window.requestAnimationFrame(() => replayTriggerRef.current?.focus());
-        }}
-      >
-        <div className="capture-replay-popover__header">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3>Replay configuration</h3>
-              <CaptureStatus status={status} />
-            </div>
-            <p>Changes apply immediately to the recorder.</p>
-          </div>
-          <label className="capture-replay-enable">
-            <span>{config.enabled ? 'On' : 'Off'}</span>
-            <Switch checked={config.enabled} aria-label="Instant Replay" onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
-          </label>
-        </div>
-
-        {setupProblem ? (
-          <div className="capture-replay-popover__warning" role="status">
-            <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
-            <span><strong>Setup required.</strong> {setupProblem}</span>
-          </div>
-        ) : null}
-
-        <div className="capture-replay-config-grid">
-          <CaptureControl label="Source" className="capture-replay-config-grid__source">
-            <CaptureSourcePicker value={selectedSourceValue} options={sourceOptions} active={config.enabled} onChange={onSourceChange} />
-          </CaptureControl>
-          <CaptureControl label="Replay length">
-            <CompactSelect value={String(config.replaySeconds)} onChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })} ariaLabel="Replay length" options={durationOptions.map((seconds) => ({ value: String(seconds), label: formatReplayLength(seconds) }))} />
-          </CaptureControl>
-          <CaptureControl label="Quality">
-            <CompactSelect value={String(config.quality)} onChange={(value) => void setCaptureConfig({ quality: Number(value) })} ariaLabel="Capture quality" options={[1, 2, 3, 4, 5].map((quality) => ({ value: String(quality), label: qualityLabels[quality]! }))} />
-          </CaptureControl>
-          <CaptureControl label="Resolution">
-            <CompactSelect value={config.resolution} onChange={(value) => void setCaptureConfig({ resolution: value as CaptureConfig['resolution'] })} ariaLabel="Capture resolution" options={['720p', '1080p', '1440p', '2160p', 'native'].map((value) => ({ value, label: value === 'native' ? 'Native' : value }))} />
-          </CaptureControl>
-          <CaptureControl label="Frame rate">
-            <CompactSelect value={String(config.fps)} onChange={(value) => void setCaptureConfig({ fps: Number(value) as CaptureConfig['fps'] })} ariaLabel="Capture frame rate" options={supportedFps.map((fps) => ({ value: String(fps), label: `${fps} FPS` }))} />
-          </CaptureControl>
-          <CaptureControl label="Encoder" className="capture-replay-config-grid__encoder">
-            <CompactSelect value={config.encoder} onChange={(value) => void setCaptureConfig({ encoder: value as CaptureConfig['encoder'] })} ariaLabel="Encoder" options={encoderOptions} />
-          </CaptureControl>
-        </div>
-
-        <dl className="capture-replay-storage">
-          <div><dt>Estimated per replay</dt><dd>~{formatBytes(estimatedBytes)}</dd></div>
-          <div><dt>Available on disk</dt><dd>{snapshot.capture.storage.availableBytes > 0 ? formatBytes(snapshot.capture.storage.availableBytes) : 'Calculating…'}</dd></div>
-        </dl>
-
-        <details className="capture-replay-advanced">
-          <summary>
-            <span><SlidersHorizontal className="size-3.5" aria-hidden="true" /> Advanced settings</span>
-            <ChevronDown className="capture-replay-advanced__chevron size-3.5" aria-hidden="true" />
-          </summary>
-          <div className="capture-replay-advanced__content">
-            <div className="capture-replay-advanced__grid">
-              <CaptureControl label="Codec"><CompactSelect value={config.codec} onChange={(value) => void setCaptureConfig({ codec: value as CaptureConfig['codec'] })} ariaLabel="Codec" options={codecOptions} /></CaptureControl>
-              <CaptureControl label="Save shortcut"><ShortcutRecorderButton value={config.hotkey} label="Save replay shortcut" className="h-8 px-2.5 text-[11px]" onValueChange={(hotkey) => void setCaptureConfig({ hotkey })} /></CaptureControl>
-            </div>
-
-            <div className="capture-replay-advanced__toggles">
-              <CaptureToggle
-                label="Game audio"
-                color="var(--channel-game)"
-                checked={snapshot.capture.capabilities.systemAudio && config.includeSystemAudio}
-                disabled={!snapshot.capture.capabilities.systemAudio}
-                unavailableReason={!snapshot.capture.capabilities.systemAudio ? 'Unavailable for this capture setup' : undefined}
-                onChange={(checked) => void setCaptureConfig({ includeSystemAudio: checked })}
-              />
-              <CaptureToggle
-                label="Microphone"
-                color="var(--channel-microphone)"
-                checked={snapshot.capture.capabilities.microphoneAudio && config.includeMic}
-                disabled={!snapshot.capture.capabilities.microphoneAudio}
-                unavailableReason={!snapshot.capture.capabilities.microphoneAudio ? 'Unavailable for this capture setup' : undefined}
-                onChange={(checked) => void setCaptureConfig({ includeMic: checked })}
-              />
-              <CaptureToggle label="Capture cursor" checked={config.includeCursor} disabled={false} onChange={(checked) => void setCaptureConfig({ includeCursor: checked })} />
-            </div>
-
-            <div className="capture-replay-folder">
-              <div className="min-w-0">
-                <div className="text-[11px] font-medium text-foreground">Clip folder</div>
-                <div className="mt-1 truncate text-[10px] text-muted-foreground" title={snapshot.capture.storage.clipsDirectory}>{snapshot.capture.storage.clipsDirectory || 'Windows Videos\\Switchboard\\Clips'}</div>
+          <div className="capture-replay-popover__header">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3>Replay Capture</h3>
+                <CaptureStatus status={status} />
               </div>
-              <div className="flex shrink-0 gap-2">
-                <Button type="button" variant="secondary" size="sm" onClick={() => void openClipsDirectory()}><FolderOpen className="size-3.5" /> Open</Button>
-                <Button type="button" variant="secondary" size="sm" onClick={() => void chooseClipDirectory()}>Change</Button>
-              </div>
+              <p>Changes apply to the recorder immediately.</p>
             </div>
-
-            <Button type="button" variant="ghost" size="sm" className="capture-replay-refresh" disabled={refreshPending} onClick={() => { setRefreshPending(true); void refreshCaptureSources().finally(() => setRefreshPending(false)); }}>
-              <RefreshCw className={cn('size-3.5', refreshPending && 'animate-spin motion-reduce:animate-none')} />
-              {refreshPending ? 'Refreshing sources…' : 'Refresh capture sources'}
-            </Button>
+            <label className="capture-replay-enable">
+              <span>{config.enabled ? 'On' : 'Off'}</span>
+              <Switch checked={config.enabled} aria-label="Instant Replay" onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
+            </label>
           </div>
-        </details>
-      </PopoverContent>
-    </Popover>
+
+          {setupProblem ? (
+            <div className="capture-replay-popover__warning" role="status">
+              <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+              <span><strong>Setup required.</strong> {setupProblem}</span>
+            </div>
+          ) : null}
+
+          <FieldGroup className="capture-replay-fields">
+            <ReplayField label="Source">
+              <CaptureSourcePicker value={selectedSourceValue} options={sourceOptions} active={config.enabled} onChange={onSourceChange} />
+            </ReplayField>
+            <ReplayField label="Replay length"><CompactSelect value={String(config.replaySeconds)} onChange={(value) => void setCaptureConfig({ replaySeconds: Number(value) })} ariaLabel="Replay length" options={durationOptions.map((seconds) => ({ value: String(seconds), label: formatReplayLength(seconds) }))} /></ReplayField>
+            <ReplayField label="Resolution"><CompactSelect value={config.resolution} onChange={(value) => void setCaptureConfig({ resolution: value as CaptureConfig['resolution'] })} ariaLabel="Capture resolution" options={['720p', '1080p', '1440p', '2160p', 'native'].map((value) => ({ value, label: value === 'native' ? 'Native' : value }))} /></ReplayField>
+            <ReplayField label="Frame rate"><CompactSelect value={String(config.fps)} onChange={(value) => void setCaptureConfig({ fps: Number(value) as CaptureConfig['fps'] })} ariaLabel="Capture frame rate" options={supportedFps.map((fps) => ({ value: String(fps), label: `${fps} FPS` }))} /></ReplayField>
+            <ReplayField label="Quality"><CompactSelect value={String(config.quality)} onChange={(value) => void setCaptureConfig({ quality: Number(value) })} ariaLabel="Capture quality" options={[1, 2, 3, 4, 5].map((quality) => ({ value: String(quality), label: qualityLabels[quality]! }))} /></ReplayField>
+            <ReplayField label="Encoder"><CompactSelect value={config.encoder} onChange={(value) => void setCaptureConfig({ encoder: value as CaptureConfig['encoder'] })} ariaLabel="Encoder" options={encoderOptions} /></ReplayField>
+          </FieldGroup>
+
+          <Separator />
+          <dl className="capture-replay-storage">
+            <div><dt>Estimated replay size</dt><dd>~{formatBytes(estimatedBytes)}</dd></div>
+            <div><dt>Available disk</dt><dd>{snapshot.capture.storage.availableBytes > 0 ? formatBytes(snapshot.capture.storage.availableBytes) : 'Calculating…'}</dd></div>
+          </dl>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="capture-replay-advanced">
+            <CollapsibleTrigger asChild>
+              <button type="button" className="capture-replay-advanced__trigger" aria-expanded={advancedOpen}>
+                <span><SlidersHorizontal className="size-3.5" aria-hidden="true" /> Advanced settings</span>
+                <ChevronDown className="capture-replay-advanced__chevron size-3.5" aria-hidden="true" />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="capture-replay-advanced__content">
+              <FieldGroup>
+                <ReplayField label="Codec"><CompactSelect value={config.codec} onChange={(value) => void setCaptureConfig({ codec: value as CaptureConfig['codec'] })} ariaLabel="Codec" options={codecOptions} /></ReplayField>
+                <Field orientation="horizontal" className="capture-replay-field">
+                  <FieldContent><FieldLabel>Save shortcut</FieldLabel><FieldDescription>Save the current replay buffer.</FieldDescription></FieldContent>
+                  <div className="flex items-center gap-2"><Kbd>{config.hotkey}</Kbd><ShortcutRecorderButton value={config.hotkey} label="Save replay shortcut" className="h-8 px-2.5 text-[11px]" onValueChange={(hotkey) => void setCaptureConfig({ hotkey })} /></div>
+                </Field>
+                <CaptureToggle label="Game audio" color="var(--channel-game)" checked={snapshot.capture.capabilities.systemAudio && config.includeSystemAudio} disabled={!snapshot.capture.capabilities.systemAudio} unavailableReason={!snapshot.capture.capabilities.systemAudio ? 'Unavailable for this capture setup' : undefined} onChange={(checked) => void setCaptureConfig({ includeSystemAudio: checked })} />
+                <CaptureToggle label="Microphone" color="var(--channel-microphone)" checked={snapshot.capture.capabilities.microphoneAudio && config.includeMic} disabled={!snapshot.capture.capabilities.microphoneAudio} unavailableReason={!snapshot.capture.capabilities.microphoneAudio ? 'Unavailable for this capture setup' : undefined} onChange={(checked) => void setCaptureConfig({ includeMic: checked })} />
+                <CaptureToggle label="Capture cursor" checked={config.includeCursor} disabled={false} onChange={(checked) => void setCaptureConfig({ includeCursor: checked })} />
+              </FieldGroup>
+
+              <div className="capture-replay-folder">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium text-foreground">Clip folder</div>
+                  <div className="mt-1 truncate text-[10px] text-muted-foreground" title={snapshot.capture.storage.clipsDirectory}>{snapshot.capture.storage.clipsDirectory || 'Windows Videos\\Switchboard\\Clips'}</div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => void openClipsDirectory()}><FolderOpen className="size-3.5" /> Open</Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => void chooseClipDirectory()}>Change</Button>
+                </div>
+              </div>
+
+              <Button type="button" variant="ghost" size="sm" className="capture-replay-refresh" disabled={refreshPending} onClick={() => { setRefreshPending(true); void refreshCaptureSources().finally(() => setRefreshPending(false)); }}>
+                <RefreshCw className={cn('size-3.5', refreshPending && 'animate-spin motion-reduce:animate-none')} />
+                {refreshPending ? 'Refreshing sources…' : 'Refresh capture sources'}
+              </Button>
+            </CollapsibleContent>
+          </Collapsible>
+        </PopoverContent>
+      </Popover>
+      <CaptureSourcePicker compact value={selectedSourceValue} options={sourceOptions} active={config.enabled} onChange={onSourceChange} />
+    </ButtonGroup>
   );
 }
 
-function CaptureControl({ label, status, className, children }: { label: string; status?: React.ReactNode; className?: string; children: React.ReactNode }) {
-  return <div className={cn('min-w-0', className)}><span className="capture-control-label mb-1 flex min-h-3.5 items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground"><span>{label}</span>{status}</span>{children}</div>;
+function ReplayField({ label, children }: { label: string; children: React.ReactNode }) {
+  return <Field orientation="horizontal" className="capture-replay-field"><FieldLabel>{label}</FieldLabel><div className="capture-replay-field__control">{children}</div></Field>;
 }
 
 function CaptureStatus({ status }: { status: ReturnType<typeof captureStatus> }) {
@@ -249,7 +233,7 @@ function CaptureStatus({ status }: { status: ReturnType<typeof captureStatus> })
 }
 
 function CompactSelect({ value, options, onChange, ariaLabel, disabled }: { value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void; ariaLabel: string; disabled?: boolean }) {
-  return <Select value={value} onValueChange={onChange} disabled={disabled}><SelectTrigger aria-label={ariaLabel} className="h-8 text-[11px]"><SelectValue /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select>;
+  return <Select value={value} onValueChange={onChange} disabled={disabled}><SelectTrigger aria-label={ariaLabel} className="h-8 min-w-32 text-[11px]"><SelectValue /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select>;
 }
 
 type CaptureSourceOption = Pick<CaptureSource, 'type' | 'available'> & {
@@ -261,11 +245,13 @@ function CaptureSourcePicker({
   value,
   options,
   active,
+  compact = false,
   onChange,
 }: {
   value: string;
   options: CaptureSourceOption[];
   active: boolean;
+  compact?: boolean;
   onChange: (value: string) => void;
 }) {
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
@@ -297,7 +283,7 @@ function CaptureSourcePicker({
         <button
           ref={triggerRef}
           type="button"
-          className="capture-source-trigger"
+          className={cn('capture-source-trigger', compact && 'capture-source-trigger--compact')}
           data-active={active ? 'true' : 'false'}
           aria-label={`Capture source: ${currentLabel}`}
         >
@@ -398,7 +384,7 @@ function SourceIcon({ type }: { type: CaptureSourceOption['type'] }) {
 
 function CaptureToggle({ label, color, checked, disabled, unavailableReason, onChange }: { label: string; color?: string; checked: boolean; disabled: boolean; unavailableReason?: string; onChange: (checked: boolean) => void }) {
   return (
-    <label className="flex min-h-11 items-center justify-between gap-3 border-b border-border px-1 py-1.5 last:border-b-0" style={color ? { '--control-accent': color } as CSSProperties : undefined}>
+    <label className="capture-replay-toggle" style={color ? { '--control-accent': color } as CSSProperties : undefined}>
       <span className="flex min-w-0 items-center gap-2">
         {color ? <span className="h-4 w-[3px] shrink-0 rounded-sm" style={{ backgroundColor: color }} aria-hidden="true" /> : null}
         <span className="min-w-0">
@@ -450,14 +436,6 @@ function sourceTypeLabel(type: CaptureSourceOption['type']): string {
   return type === 'display' ? 'Display' : 'Window';
 }
 
-function captureSourceLabel(config: CaptureConfig, sources: CaptureSource[]): string {
-  if (config.source === 'automatic-game') return 'Automatic game';
-  const sourceId = config.source === 'display' ? `display:${config.displayIndex}` : config.sourceId;
-  const selected = sources.find((source) => source.id === sourceId);
-  if (selected) return selected.name;
-  return config.source === 'display' ? `Display ${config.displayIndex + 1}` : 'Selected window';
-}
-
 function captureSetupProblem(snapshot: SystemSnapshot): string | null {
   const { capabilities, config } = snapshot.capture;
   if (!config.enabled) return null;
@@ -475,26 +453,6 @@ function captureSetupProblem(snapshot: SystemSnapshot): string | null {
   return available.includes(encoderMatch[config.encoder])
     ? null
     : 'The selected encoder is not available. Choose Automatic or another installed encoder.';
-}
-
-function replaySummary(
-  snapshot: SystemSnapshot,
-  sourceLabel: string,
-  setupProblem: string | null,
-  status: ReturnType<typeof captureStatus>,
-): { label: string; tone: ReturnType<typeof captureStatus>['tone'] } {
-  const { config, runtime } = snapshot.capture;
-  if (!config.enabled) return { label: 'Replay Off', tone: 'neutral' };
-  if (setupProblem) return { label: 'Replay · Setup required', tone: 'warning' };
-  if (runtime.state === 'error' || runtime.error) return { label: 'Replay · Error', tone: 'danger' };
-  if (runtime.state === 'recovering' || runtime.state === 'starting' || runtime.warning) return { label: 'Replay · Recovering', tone: 'warning' };
-  if (runtime.state === 'waiting') return { label: 'Replay · Waiting', tone: 'warning' };
-  if (runtime.state === 'saving') return { label: 'Replay · Saving clip', tone: 'ready' };
-  const resolutionAndRate = config.resolution === 'native' ? `Native · ${config.fps} FPS` : `${config.resolution}${config.fps}`;
-  return {
-    label: `Replay · ${sourceLabel} · ${formatReplayLength(config.replaySeconds)} · ${resolutionAndRate} · ${qualityLabels[config.quality] ?? `Quality ${config.quality}`}`,
-    tone: status.tone,
-  };
 }
 
 function captureNotice(snapshot: SystemSnapshot): { message: string; tone: 'danger' | 'warning' } | null {

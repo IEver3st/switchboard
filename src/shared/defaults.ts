@@ -1,6 +1,7 @@
 import type {
   AppUpdateState,
   AppSettings,
+  AutoCaptureState,
   AudioState,
   CaptureConfig,
   CaptureCapabilities,
@@ -648,6 +649,32 @@ export const defaultCaptureCapabilities: CaptureCapabilities = {
   exclusiveFullscreen: false,
 };
 
+export const defaultAutoCapture: AutoCaptureState = {
+  settings: {
+    enabled: false,
+    preRollSeconds: 20,
+    postRollSeconds: 10,
+    mergeNearbyEvents: true,
+    mergeThresholdSeconds: 15,
+    notifyWhenSaved: false,
+    games: {},
+    dismissedAvailability: {},
+  },
+  providers: [],
+  runtime: {
+    state: 'disabled',
+    activeGameId: null,
+    activeProviderId: null,
+    pendingCapture: null,
+    eventsReceived: 0,
+    eventsDeduplicated: 0,
+    eventsIgnored: 0,
+    clipsCreated: 0,
+    lastEvent: null,
+    lastError: null,
+  },
+};
+
 export const defaultGameDetection: GameDetectionState = {
   capability: 'available',
   scanState: 'idle',
@@ -702,13 +729,17 @@ export const stoppedEngines: EngineStatus[] = [
 ];
 
 export const defaultPerformance: PerformanceSnapshot = {
-  coreMemoryMb: 44,
-  rendererMemoryMb: 92,
-  totalMemoryMb: 136,
-  totalCpuPercent: 0.3,
-  activeProcesses: 2,
-  budgetMemoryMb: 240,
-  budgetCpuPercent: 2,
+  coreMemoryMb: 0,
+  rendererMemoryMb: 0,
+  totalMemoryMb: 0,
+  residentMemoryMb: 0,
+  totalCpuPercent: 0,
+  activeProcesses: 1,
+  budgetMemoryMb: 180,
+  budgetCpuPercent: 0.7,
+  sampledAt: null,
+  guardState: 'collecting',
+  warning: null,
 };
 
 export const seedClips: Clip[] = [];
@@ -728,6 +759,7 @@ export function createDefaultSnapshot(): SystemSnapshot {
       storage: structuredClone(defaultCaptureStorage),
       capabilities: structuredClone(defaultCaptureCapabilities),
       sources: [],
+      autoCapture: structuredClone(defaultAutoCapture),
     },
     clips: structuredClone(seedClips),
     clipReview: { reviewedThrough: 0 },

@@ -1178,6 +1178,70 @@
   left: auto;
 }
 
+.clip-editor-event-markers {
+  position: absolute;
+  z-index: 6;
+  inset: 8px 0 auto;
+  height: 24px;
+  pointer-events: none;
+}
+
+.clip-editor-event-marker {
+  position: absolute;
+  top: 0;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--timeline-playhead);
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateX(-9px);
+}
+
+.clip-editor-event-marker > span {
+  width: 7px;
+  height: 7px;
+  border: 1px solid color-mix(in srgb, currentColor 68%, var(--surface-1));
+  border-radius: 50%;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.clip-editor-event-marker::after {
+  position: absolute;
+  top: 14px;
+  width: 1px;
+  height: 15px;
+  background: color-mix(in srgb, currentColor 52%, transparent);
+  content: "";
+}
+
+.clip-editor-event-marker[data-event-type="multi_kill"],
+.clip-editor-event-marker[data-event-type="round_win"],
+.clip-editor-event-marker[data-event-type="match_win"] {
+  color: var(--status-success);
+}
+
+.clip-editor-event-marker[data-event-type="multi_kill"] > span {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.clip-editor-event-marker:hover > span,
+.clip-editor-event-marker:focus-visible > span {
+  background: currentColor;
+}
+
+.clip-editor-event-marker:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -1px;
+}
+
 .clip-editor-timeline__tracks {
   position: absolute;
   inset: 22px 0 3px;

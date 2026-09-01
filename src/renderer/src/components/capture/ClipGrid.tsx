@@ -1,4 +1,5 @@
 import type { Clip } from '../../../../shared/contracts';
+import { Separator } from '@/components/ui/separator';
 import { formatClipDateGroup } from '@/lib/format';
 import { ClipCard } from './ClipCard';
 import type { ClipActions } from './types';
@@ -28,9 +29,10 @@ export function ClipGrid({ clips, actions, grouped, selectionMode, selectedClipI
     <div className="capture-clip-groups">
       {groupClips(clips).map((group) => (
         <section key={group.label} aria-labelledby={`clip-group-${group.key}`}>
-          <div className="capture-clip-group__header flex items-baseline gap-2">
-            <h3 id={`clip-group-${group.key}`} className="m-0 text-[12px] font-semibold tracking-[-0.01em] text-text-secondary">{group.label}</h3>
-            <span className="text-[10px] tabular-nums text-text-muted">{group.clips.length}</span>
+          <div className="capture-clip-group__header flex items-center gap-2.5">
+            <h3 id={`clip-group-${group.key}`} className="m-0 text-[11px] font-semibold tracking-[-0.01em] text-text-secondary">{group.label}</h3>
+            <span className="text-[9.5px] tabular-nums text-text-description">{group.clips.length}</span>
+            <Separator className="min-w-6 flex-1" />
           </div>
           <ul className="capture-clip-grid m-0 list-none p-0">{group.clips.map(card)}</ul>
         </section>

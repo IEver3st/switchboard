@@ -1,14 +1,16 @@
 import { Search, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { ClipGrid } from './ClipGrid';
 import { ClipList } from './ClipList';
 import type { ClipLibraryControls } from './clip-library-model';
 import type { ClipActions } from './types';
 
-export function ClipLibrary({ actions, replayEnabled, hotkey, controls }: {
+export function ClipLibrary({ actions, replayEnabled, hotkey, captureUnavailableReason, controls }: {
   actions: ClipActions;
   replayEnabled: boolean;
   hotkey: string;
+  captureUnavailableReason?: string | null;
   controls: ClipLibraryControls;
 }) {
   const { clips, layout, montageSelectionMode, selectedClipIds } = controls;
@@ -23,32 +25,31 @@ export function ClipLibrary({ actions, replayEnabled, hotkey, controls }: {
             <ClipList clips={clips} actions={actions} selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} />
           )
         ) : controls.totalClipCount === 0 ? (
-          <EmptyLibrary replayEnabled={replayEnabled} hotkey={hotkey} />
+          <EmptyLibrary replayEnabled={replayEnabled} hotkey={hotkey} captureUnavailableReason={captureUnavailableReason} />
         ) : (
-          <div className="grid min-h-64 place-items-center border-y border-border py-12 text-center">
-            <div>
-              <Search className="mx-auto size-6 text-muted-foreground" strokeWidth={1.5} />
-              <h3 className="m-0 mt-3 text-[14px] font-semibold text-foreground">No clips found</h3>
-              <p className="m-0 mt-1 text-[12px] text-muted-foreground">Try another search or filter.</p>
-              <Button type="button" variant="ghost" size="sm" className="mt-3" onClick={controls.onClearFilters}>Clear filters</Button>
-            </div>
-          </div>
+          <Empty>
+            <EmptyHeader><EmptyMedia><Search strokeWidth={1.5} /></EmptyMedia><EmptyTitle>No clips match these filters</EmptyTitle><EmptyDescription>Clear the current search and filters to show your library.</EmptyDescription></EmptyHeader>
+            <EmptyContent><Button type="button" variant="secondary" size="sm" onClick={controls.onClearFilters}>Clear filters</Button></EmptyContent>
+          </Empty>
         )}
       </div>
     </section>
   );
 }
 
-function EmptyLibrary({ replayEnabled, hotkey }: { replayEnabled: boolean; hotkey: string }) {
+function EmptyLibrary({ replayEnabled, hotkey, captureUnavailableReason }: { replayEnabled: boolean; hotkey: string; captureUnavailableReason?: string | null }) {
+  if (captureUnavailableReason) {
+    return <Empty><EmptyHeader><EmptyMedia><Video strokeWidth={1.5} /></EmptyMedia><EmptyTitle>Capture unavailable</EmptyTitle><EmptyDescription>{captureUnavailableReason}</EmptyDescription></EmptyHeader></Empty>;
+  }
   return (
-    <div className="grid min-h-72 place-items-center border-y border-border py-12 text-center">
-      <div className="max-w-sm">
-        <Video className="mx-auto size-7 text-muted-foreground" strokeWidth={1.5} />
-        <h3 className="m-0 mt-3 text-[15px] font-semibold text-foreground">No clips yet</h3>
-        <p className="m-0 mt-1.5 text-[12px] leading-5 text-muted-foreground">
+    <Empty className="min-h-72">
+      <EmptyHeader>
+        <EmptyMedia><Video strokeWidth={1.5} /></EmptyMedia>
+        <EmptyTitle>No clips yet</EmptyTitle>
+        <EmptyDescription>
           {replayEnabled ? <>Press {hotkey} when something worth saving happens.</> : <>Turn on Instant Replay in Capture Settings.<br />Then press {hotkey} when something worth saving happens.</>}
-        </p>
-      </div>
-    </div>
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }

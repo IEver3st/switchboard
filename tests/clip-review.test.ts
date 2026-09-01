@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Clip } from '../src/shared/contracts';
-import { latestClipCreatedAt, unreviewedClips } from '../src/shared/clip-review';
+import { latestClipCreatedAt, reviewableAutoCapturedClips, unreviewedClips } from '../src/shared/clip-review';
 
 function clip(id: string, createdAt: number): Clip {
   return {
@@ -19,6 +19,18 @@ function clip(id: string, createdAt: number): Clip {
   };
 }
 
+function autoClip(id: string, createdAt: number, gameId = 'counter-strike-2'): Clip {
+  return {
+    ...clip(id, createdAt),
+    autoCapture: {
+      autoCaptured: true,
+      providerId: `${gameId}-provider`,
+      gameId,
+      events: [{ id: `${id}-event`, type: 'kill', timestampMs: 10_000 }],
+    },
+  };
+}
+
 describe('new clip review batches', () => {
   test('returns only clips newer than the durable marker in newest-first order', () => {
     const clips = [clip('older', 100), clip('newest', 400), clip('middle', 250), clip('reviewed', 200)];
@@ -29,5 +41,18 @@ describe('new clip review batches', () => {
   test('does not re-open clips recorded at the reviewed boundary', () => {
     expect(unreviewedClips([clip('same-time', 400)], 400)).toEqual([]);
     expect(latestClipCreatedAt([])).toBe(0);
+  });
+
+  test('offers only automatic clips, once, after the game session ends', () => {
+    const clips = [
+      clip('manual-shortcut', 500),
+      autoClip('automatic-newest', 400),
+      autoClip('automatic-reviewed', 200),
+    ];
+
+    expect(reviewableAutoCapturedClips(clips, 200, 'counter-strike-2')).toEqual([]);
+    expect(reviewableAutoCapturedClips(clips, 200, 'another-game')).toEqual([]);
+    expect(reviewableAutoCapturedClips(clips, 200, null).map((entry) => entry.id)).toEqual(['automatic-newest']);
+    expect(reviewableAutoCapturedClips(clips, 400, null)).toEqual([]);
   });
 });

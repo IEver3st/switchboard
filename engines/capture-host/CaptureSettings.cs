@@ -124,4 +124,21 @@ internal sealed record SavedReplay(
     int Height,
     double Fps,
     string? Codec,
-    string? ThumbnailPath = null);
+    string? ThumbnailPath = null,
+    long? CaptureStartedAt = null,
+    long? CaptureEndedAt = null);
+
+internal sealed record SaveReplayWindow(long StartedAt, long EndedAt)
+{
+    public (DateTimeOffset StartedAt, DateTimeOffset EndedAt) Validate(int maximumSeconds)
+    {
+        var startedAt = DateTimeOffset.FromUnixTimeMilliseconds(StartedAt);
+        var endedAt = DateTimeOffset.FromUnixTimeMilliseconds(EndedAt);
+        if (endedAt <= startedAt) throw new InvalidOperationException("The replay window end must be after its start.");
+        if (endedAt - startedAt > TimeSpan.FromSeconds(maximumSeconds))
+            throw new InvalidOperationException("The replay window exceeds the configured rolling buffer.");
+        if (endedAt > DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5))
+            throw new InvalidOperationException("The replay window ends in the future.");
+        return (startedAt, endedAt);
+    }
+}

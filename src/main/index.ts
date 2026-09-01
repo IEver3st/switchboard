@@ -70,7 +70,9 @@ function createWindow(): BrowserWindow {
   });
 
   controller?.setRendererActive(true);
-  window.once('ready-to-show', () => window.show());
+  window.once('ready-to-show', () => {
+    if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') window.show();
+  });
   window.on('focus', () => {
     void controller?.initialize().then(() => controller?.refreshAudioDevices()).catch(() => undefined);
   });
@@ -94,6 +96,7 @@ function createWindow(): BrowserWindow {
       controller.setRendererActive(false);
       window.destroy();
     } else {
+      controller.setRendererActive(false);
       window.hide();
     }
   });
@@ -114,7 +117,10 @@ function createWindow(): BrowserWindow {
 
 function showWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow();
-  else mainWindow.show();
+  else {
+    controller?.setRendererActive(true);
+    mainWindow.show();
+  }
   void controller?.initialize().then(() => controller?.refreshAudioDevices()).catch(() => undefined);
   mainWindow.focus();
 }
@@ -215,7 +221,11 @@ app.on('before-quit', (event) => {
   shutdownStarted = true;
   void shutdown()
     .catch((error) => console.error('Switchboard shutdown failed.', error))
-    .finally(() => app.exit(0));
+    .finally(() => {
+      const reviewFailed = process.env.SWITCHBOARD_NATIVE_REVIEW === '1'
+        && process.env.SWITCHBOARD_REVIEW_EXIT_CODE === '1';
+      app.exit(reviewFailed ? 1 : 0);
+    });
 });
 
 async function streamClip(path: string, rangeHeader: string | null): Promise<Response> {
