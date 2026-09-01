@@ -11,7 +11,7 @@ import type {
 import { estimateClipSize, getEncodingPreset } from '../../../shared/capture-presets';
 import { GameDetectionSettings } from '@/components/settings/game-detection';
 import { AutoCaptureSettings } from '@/components/settings/autocapture-settings';
-import { ModuleAuthoringWorkbench } from '@/components/settings/module-authoring-workbench';
+import { ModuleDeveloperTools } from '@/components/settings/module-developer-tools';
 import { ModuleManagement } from '@/components/settings/module-management';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import {
@@ -38,9 +38,11 @@ import { formatBytes, formatRelativeTime, percent } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
 const categoryStorageKey = 'switchboard.settings.category';
+type SettingsSubview = 'category' | 'module-developer-tools';
 
 export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; onClose: () => void }) {
   const [category, setCategory] = useState<SettingsCategoryId>(readInitialCategory);
+  const [subview, setSubview] = useState<SettingsSubview>(readInitialSubview);
   const [query, setQuery] = useState('');
   const [confirmation, setConfirmation] = useState<SettingsResetScope | null>(null);
   const [targetSetting, setTargetSetting] = useState<string | null>(null);
@@ -51,13 +53,30 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
 
   const changeCategory = useCallback((nextCategory: SettingsCategoryId) => {
     setCategory(nextCategory);
+    setSubview('category');
+    if (window.location.hash !== '#settings') window.history.replaceState(null, '', '#settings');
     window.sessionStorage.setItem(categoryStorageKey, nextCategory);
+  }, []);
+
+  const openModuleDeveloperTools = useCallback(() => {
+    setCategory('modules');
+    setSubview('module-developer-tools');
+    window.sessionStorage.setItem(categoryStorageKey, 'modules');
+    if (window.location.hash !== '#settings/modules/developer-tools') {
+      window.history.replaceState(null, '', '#settings/modules/developer-tools');
+    }
+  }, []);
+
+  const closeModuleDeveloperTools = useCallback(() => {
+    setSubview('category');
+    if (window.location.hash !== '#settings') window.history.replaceState(null, '', '#settings');
   }, []);
 
   const selectSearchResult = useCallback((result: SettingsSearchEntry) => {
     setTargetSetting(result.id);
-    changeCategory(result.category);
-  }, [changeCategory]);
+    if (result.id === 'modules.create' || result.id === 'modules.local') openModuleDeveloperTools();
+    else changeCategory(result.category);
+  }, [changeCategory, openModuleDeveloperTools]);
 
   useEffect(() => {
     if (!targetSetting) return;
@@ -71,7 +90,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
       setTargetSetting(null);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [category, targetSetting]);
+  }, [category, subview, targetSetting]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -83,12 +102,13 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
       if (event.key === 'Escape') {
         if (document.querySelector('[data-feedback-dialog]')) return;
         if (confirmation) setConfirmation(null);
+        else if (subview === 'module-developer-tools') closeModuleDeveloperTools();
         else onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmation, onClose]);
+  }, [closeModuleDeveloperTools, confirmation, onClose, subview]);
 
   const confirmReset = () => {
     if (!confirmation) return;
@@ -104,7 +124,13 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
           <img src="./switchboard-mark.png" alt="" draggable={false} />
           <span>Settings</span>
           <span aria-hidden>/</span>
-          <strong>{categoryDefinition?.label ?? category}</strong>
+          {subview === 'module-developer-tools' ? (
+            <>
+              <span>Modules</span>
+              <span aria-hidden>/</span>
+              <strong>Developer tools</strong>
+            </>
+          ) : <strong>{categoryDefinition?.label ?? category}</strong>}
         </div>
         <div className="settings-header__actions no-drag">
           <button type="button" className="settings-restore" onClick={() => setConfirmation('all')}>
@@ -136,7 +162,10 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
           <div key={category} className="settings-content">
             <SettingsCategory
               category={category}
+              subview={subview}
               snapshot={snapshot}
+              onOpenModuleDeveloperTools={openModuleDeveloperTools}
+              onCloseModuleDeveloperTools={closeModuleDeveloperTools}
               onReset={categoryDefinition?.resettable && resetScope ? () => setConfirmation(resetScope) : undefined}
             />
           </div>
@@ -148,11 +177,17 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
 
 function SettingsCategory({
   category,
+  subview,
   snapshot,
+  onOpenModuleDeveloperTools,
+  onCloseModuleDeveloperTools,
   onReset,
 }: {
   category: SettingsCategoryId;
+  subview: SettingsSubview;
   snapshot: SystemSnapshot;
+  onOpenModuleDeveloperTools: () => void;
+  onCloseModuleDeveloperTools: () => void;
   onReset?: () => void;
 }) {
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
@@ -161,7 +196,11 @@ function SettingsCategory({
   if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'clips') return <ClipsSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'games') return <GameDetectionSettings snapshot={snapshot} onReset={onReset} />;
-  if (category === 'modules') return <ModulesSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'modules') {
+    return subview === 'module-developer-tools'
+      ? <ModuleDeveloperTools snapshot={snapshot} onBack={onCloseModuleDeveloperTools} />
+      : <ModulesSettings snapshot={snapshot} onReset={onReset} onOpenDeveloperTools={onOpenModuleDeveloperTools} />;
+  }
   if (category === 'diagnostics') return <DiagnosticsSettings snapshot={snapshot} onReset={onReset} />;
   return <AboutSettings snapshot={snapshot} />;
 }
@@ -588,19 +627,22 @@ function ClipSelectField({
   );
 }
 
-function ModulesSettings({ snapshot, onReset }: CategoryProps) {
+function ModulesSettings({
+  snapshot,
+  onReset,
+  onOpenDeveloperTools,
+}: CategoryProps & { onOpenDeveloperTools: () => void }) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
 
   return (
     <div className="settings-category--modules">
-      <SettingsCategoryHeader title="Modules" description="Create sandboxed device add-ons, validate local projects, and manage bundled capability modules." onReset={onReset} />
-      <ModuleAuthoringWorkbench snapshot={snapshot} />
-      <ModuleManagement snapshot={snapshot} />
-      <SettingSection title="Maintenance">
+      <SettingsCategoryHeader title="Modules" description="Extend Switchboard with device integrations and capabilities." onReset={onReset} />
+      <ModuleManagement snapshot={snapshot} onOpenDeveloperTools={onOpenDeveloperTools} />
+      <SettingSection title="Module updates">
         <SettingSwitch
           settingId="modules.automaticUpdates"
-          title="Automatic bundled-module updates"
-          description="Verify signed packages, install atomically, and retain one rollback copy. Local authoring projects are never changed automatically."
+          title="Update installed modules automatically"
+          description="Verify signed packages, install safely, and retain one rollback copy. Local projects are never changed automatically."
           checked={snapshot.settings.automaticModuleUpdates}
           onCheckedChange={(automaticModuleUpdates) => void updateSettings({ automaticModuleUpdates })}
         />
@@ -615,6 +657,8 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
   const capturePreset = getEncodingPreset(snapshot.capture.config);
   const captureRuntime = snapshot.capture.runtime;
+  const autoCapture = snapshot.capture.autoCapture;
+  const autoCaptureProvider = autoCapture.providers.find((provider) => provider.id === autoCapture.runtime.activeProviderId);
   const noise = snapshot.audio.host?.noiseSuppression;
 
   return (
@@ -710,6 +754,34 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
             {captureRuntime.observedBitrateBps > 0 ? ` · ${formatBytes(captureRuntime.observedBitrateBps / 8)}/s observed` : ''}
           </span>
         </SettingRow>
+        <SettingRow
+          settingId="diagnostics.autocapture"
+          title="Auto Capture"
+          description={autoCapture.settings.enabled
+            ? `${autoCaptureProvider?.displayName ?? autoCapture.runtime.activeGameId ?? 'No active game'} · ${autoCapture.runtime.eventsReceived.toLocaleString()} events · ${autoCapture.runtime.eventsDeduplicated.toLocaleString()} deduplicated · ${autoCapture.runtime.clipsCreated.toLocaleString()} clips`
+            : 'Event providers are dormant until Auto Capture is enabled. Manual replay capture remains independent.'}
+        >
+          <span className="settings-row__value">
+            {autoCapture.settings.enabled ? autoCapture.runtime.state : 'Off'}
+            {autoCapture.runtime.lastEvent ? ` · ${autoCapture.runtime.lastEvent.label ?? autoCapture.runtime.lastEvent.type.replaceAll('_', ' ')} ${formatRelativeTime(autoCapture.runtime.lastEvent.at)}` : ''}
+          </span>
+        </SettingRow>
+        {autoCapture.runtime.pendingCapture ? (
+          <SettingValue
+            settingId="diagnostics.autocapture-pending"
+            title="Pending Auto Capture"
+            description={`${autoCapture.runtime.pendingCapture.eventCount} event${autoCapture.runtime.pendingCapture.eventCount === 1 ? '' : 's'} · preserving through ${new Date(autoCapture.runtime.pendingCapture.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`}
+            value="Post-roll"
+          />
+        ) : null}
+        {autoCapture.runtime.lastError ? (
+          <SettingValue
+            settingId="diagnostics.autocapture-error"
+            title="Auto Capture provider"
+            description={autoCapture.runtime.lastError}
+            value="Degraded"
+          />
+        ) : null}
       </SettingSection>
       <SettingSection title="Device identity">
         {snapshot.devices.map((device, index) => (
@@ -982,8 +1054,15 @@ type CategoryProps = {
 };
 
 function readInitialCategory(): SettingsCategoryId {
+  if (readInitialSubview() === 'module-developer-tools') return 'modules';
   const stored = window.sessionStorage.getItem(categoryStorageKey);
   return isSettingsCategory(stored) ? stored : 'general';
+}
+
+function readInitialSubview(): SettingsSubview {
+  return window.location.hash === '#settings/modules/developer-tools'
+    ? 'module-developer-tools'
+    : 'category';
 }
 
 function reducedMotionEnabled(): boolean {

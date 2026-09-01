@@ -1,4 +1,5 @@
 import { ChevronDown, FlaskConical, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
 import type { AutoCaptureGameSettings, AutoCaptureProvider, GameEventType, SystemSnapshot } from '../../../../shared/contracts';
 import {
   defaultAutoCaptureEventEnabled,
@@ -109,29 +110,38 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
   const game = settings.games[provider.gameId] ?? { enabled: true, useGlobalTiming: true, events: {} };
   const usable = provider.availability.state !== 'unavailable';
   const active = settings.enabled && game.enabled && provider.status.state === 'listening';
+  const [open, setOpen] = useState(false);
 
   return (
-    <details className="autocapture-provider" data-state={active ? 'active' : provider.availability.state}>
-      <summary>
-        <span className="autocapture-provider__identity" aria-hidden>
-          {provider.developmentOnly ? <FlaskConical /> : <ShieldCheck />}
-        </span>
-        <span className="autocapture-provider__copy">
-          <strong>{provider.displayName}</strong>
-          <span>{providerCapabilitySummary(provider)}</span>
-          <small>{providerStatusLabel(provider, active)}</small>
-        </span>
+    <div className="autocapture-provider" data-state={active ? 'active' : provider.availability.state} data-open={open}>
+      <div className="autocapture-provider__header">
+        <button
+          type="button"
+          className="autocapture-provider__summary"
+          aria-expanded={open}
+          aria-controls={`autocapture-provider-${provider.id}`}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <span className="autocapture-provider__identity" aria-hidden>
+            {provider.developmentOnly ? <FlaskConical /> : <ShieldCheck />}
+          </span>
+          <span className="autocapture-provider__copy">
+            <strong>{provider.displayName}</strong>
+            <span>{providerCapabilitySummary(provider)}</span>
+            <small>{providerStatusLabel(provider, active)}</small>
+          </span>
+          <ChevronDown className="autocapture-provider__chevron" aria-hidden />
+        </button>
         <Switch
+          className="autocapture-provider__toggle"
           checked={game.enabled}
           disabled={!usable || !settings.enabled}
-          onClick={(event) => event.stopPropagation()}
           onCheckedChange={(enabled) => onUpdate({ enabled })}
           aria-label={`Auto Capture for ${provider.displayName}`}
         />
-        <ChevronDown className="autocapture-provider__chevron" aria-hidden />
-      </summary>
+      </div>
 
-      <div className="autocapture-provider__details">
+      {open ? <div className="autocapture-provider__details" id={`autocapture-provider-${provider.id}`}>
         {provider.availability.state === 'setup-required' ? (
           <div className="autocapture-provider__setup">
             <p>{provider.availability.reason}</p>
@@ -183,8 +193,8 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
             </div>
           </div>
         ) : null}
-      </div>
-    </details>
+      </div> : null}
+    </div>
   );
 }
 

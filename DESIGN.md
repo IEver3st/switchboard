@@ -138,6 +138,8 @@ The palette is nearly black with small warm-neutral steps. Exact values live at 
 
 A restrained periwinkle is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path. It is not ambient decoration.
 
+Settings applies a scoped cooler-neutral treatment without changing the rest of the product workspaces. Inside `.settings-page`, the background steps are `#0b0c0e`, `#0e1013`, `#131519`, `#17191d`, and `#181b20`; primary text is `#f4f4f5`; secondary text is `#a3a7ae`; and the restrained Settings interaction accent is `#8b83f6` with `#9c95ff` for hover. These remain token overrides, not component-level hardcoded colors. Module category icons may borrow existing semantic channel colors in small amounts to improve scanning.
+
 Semantic colors are reserved for actual meaning:
 
 - `--status-success` confirms healthy or completed state.

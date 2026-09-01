@@ -3,13 +3,12 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { DetectedGame, GameEvent, ProviderAvailability, ProviderStatus } from '../../../../shared/contracts';
-import { matchDetectedGame } from '../../registry';
 import type {
   GameEventProvider,
   ProviderContext,
   ProviderDiscoveryContext,
 } from '../../provider';
-import { CS2TelemetryParser } from './parser';
+import { CS2TelemetryParser, readCS2AuthToken } from './parser';
 
 const cs2Port = 32_145;
 const maximumPayloadBytes = 256 * 1_024;
@@ -34,18 +33,27 @@ export class CS2Provider implements GameEventProvider {
   private invalidPayloads = 0;
   private eventsEmitted = 0;
 
-  public constructor(private readonly tokenPath: string) {}
+  public constructor(
+    private readonly tokenPath: string,
+    private readonly port = cs2Port,
+  ) {}
 
   public matchesGame(source: { name: string }, detectedGames: readonly DetectedGame[]): boolean {
     const name = normalize(source.name);
     return name.includes('counter strike 2')
       || name === 'cs2'
-      || Boolean(matchDetectedGame(this.gameId, detectedGames) && name.includes('counter strike'));
+      || name.startsWith('cs2 ')
+      || Boolean(this.findDetectedGame(detectedGames) && name.includes('counter strike'));
+  }
+
+  public findDetectedGame(detectedGames: readonly DetectedGame[]): DetectedGame | undefined {
+    return detectedGames.find((game) => game.launchUri?.toLocaleLowerCase() === 'steam://rungameid/730'
+      || normalize(game.name).includes('counter strike 2'));
   }
 
   public async detectAvailability(context: ProviderDiscoveryContext): Promise<ProviderAvailability> {
     if (context.platform !== 'win32') return { state: 'unavailable', reason: 'CS2 Game State Integration is supported on Windows.' };
-    const game = matchDetectedGame(this.gameId, context.detectedGames);
+    const game = this.findDetectedGame(context.detectedGames);
     if (!game) return { state: 'unavailable', reason: 'Counter-Strike 2 was not found in the detected game library.' };
     const integrationPath = getIntegrationPath(game);
     try {
@@ -56,7 +64,7 @@ export class CS2Provider implements GameEventProvider {
   }
 
   public async setup(context: ProviderDiscoveryContext): Promise<ProviderAvailability> {
-    const game = matchDetectedGame(this.gameId, context.detectedGames);
+    const game = this.findDetectedGame(context.detectedGames);
     if (!game) throw new Error('Counter-Strike 2 must be detected before its integration can be installed.');
     const integrationPath = getIntegrationPath(game);
     assertInside(game.installDirectory, integrationPath);
@@ -72,14 +80,21 @@ export class CS2Provider implements GameEventProvider {
   public async start(_context: ProviderContext): Promise<void> {
     if (this.server) return;
     this.status = { state: 'starting' };
-    this.token = (await readFile(this.tokenPath, 'utf8')).trim();
-    if (this.token.length < 32) throw new Error('The CS2 integration token is missing or invalid.');
+    try {
+      this.token = (await readFile(this.tokenPath, 'utf8')).trim();
+      if (this.token.length < 32) throw new Error('The CS2 integration token is missing or invalid.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.status = { state: 'error', message };
+      throw error;
+    }
     this.parser.reset();
 
     const server = createServer((request, response) => {
       void this.handleRequest(request, response).catch((error) => {
         this.invalidPayloads += 1;
-        response.writeHead(400).end();
+        if (!response.headersSent) response.writeHead(400);
+        if (!response.writableEnded) response.end();
         this.status = { state: 'degraded', message: error instanceof Error ? error.message : String(error) };
       });
     });
@@ -104,7 +119,7 @@ export class CS2Provider implements GameEventProvider {
       };
       server.once('error', onError);
       server.once('listening', onListening);
-      server.listen(cs2Port, '127.0.0.1');
+      server.listen(this.port, '127.0.0.1');
     });
   }
 
@@ -129,8 +144,9 @@ export class CS2Provider implements GameEventProvider {
   }
 
   public async getDiagnostics() {
+    const address = this.server?.address();
     return {
-      port: cs2Port,
+      port: typeof address === 'object' && address ? address.port : this.port,
       payloadsReceived: this.payloadsReceived,
       invalidPayloads: this.invalidPayloads,
       eventsEmitted: this.eventsEmitted,
@@ -151,8 +167,10 @@ export class CS2Provider implements GameEventProvider {
       if (bytes > maximumPayloadBytes) throw new Error('CS2 telemetry exceeded the local payload limit.');
       chunks.push(buffer);
     }
-    const parsed = this.parser.parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-    if (!this.token || !tokensMatch(parsed.token, this.token)) throw new Error('CS2 telemetry authentication failed.');
+    const payload: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    const suppliedToken = readCS2AuthToken(payload);
+    if (!this.token || !tokensMatch(suppliedToken, this.token)) throw new Error('CS2 telemetry authentication failed.');
+    const parsed = this.parser.parse(payload);
     this.payloadsReceived += 1;
     for (const event of parsed.events) {
       this.eventsEmitted += 1;

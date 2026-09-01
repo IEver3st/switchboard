@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Blocks, FolderInput, ShieldCheck } from 'lucide-react';
+import { Blocks, ShieldCheck } from 'lucide-react';
 import {
   createModuleProjectInputSchema,
   type CreateModuleProjectInput,
@@ -16,10 +16,9 @@ type Draft = Record<keyof CreateModuleProjectInput, string>;
 export function ModuleAuthoringWorkbench({ snapshot }: { snapshot: SystemSnapshot }) {
   const [draft, setDraft] = useState<Draft>(() => createInitialDraft(snapshot.devices));
   const [sourceDeviceId, setSourceDeviceId] = useState(() => initialSourceDeviceId(snapshot.devices));
-  const [pendingAction, setPendingAction] = useState<'create' | 'link' | null>(null);
+  const [creating, setCreating] = useState(false);
   const idEdited = useRef(false);
   const createModuleProject = useSystemStore((state) => state.createModuleProject);
-  const linkModuleProject = useSystemStore((state) => state.linkModuleProject);
   const globalError = useSystemStore((state) => state.error);
   const eligibleDevices = snapshot.devices.filter(hasUsbIdentity);
   const parsedDraft = useMemo(() => createModuleProjectInputSchema.safeParse(draft), [draft]);
@@ -48,15 +47,12 @@ export function ModuleAuthoringWorkbench({ snapshot }: { snapshot: SystemSnapsho
 
   const createProject = async () => {
     if (!parsedDraft.success) return;
-    setPendingAction('create');
-    await createModuleProject(parsedDraft.data);
-    setPendingAction(null);
-  };
-
-  const linkProject = async () => {
-    setPendingAction('link');
-    await linkModuleProject();
-    setPendingAction(null);
+    setCreating(true);
+    try {
+      await createModuleProject(parsedDraft.data);
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -68,18 +64,6 @@ export function ModuleAuthoringWorkbench({ snapshot }: { snapshot: SystemSnapsho
             <h3 id="module-workbench-title">Build a device add-on</h3>
             <p>Create a runnable starter with its manifest, sandbox entrypoint, schema, tests, and author guide.</p>
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={pendingAction !== null}
-            onClick={() => void linkProject()}
-            data-module-link
-            className="module-workbench__link no-drag"
-          >
-            <FolderInput aria-hidden />
-            {pendingAction === 'link' ? 'Linking…' : 'Link existing'}
-          </Button>
         </div>
 
         <form onSubmit={(event) => { event.preventDefault(); void createProject(); }}>
@@ -144,12 +128,12 @@ export function ModuleAuthoringWorkbench({ snapshot }: { snapshot: SystemSnapsho
                 <><Blocks aria-hidden /> Complete the highlighted project fields</>
               )}
             </div>
-            <Button type="submit" variant="primary" size="sm" disabled={!parsedDraft.success || pendingAction !== null} data-module-create className="no-drag">
+            <Button type="submit" variant="primary" size="sm" disabled={!parsedDraft.success || creating} data-module-create className="no-drag">
               <Blocks aria-hidden />
-              {pendingAction === 'create' ? 'Creating…' : 'Create starter project…'}
+              {creating ? 'Creating…' : 'Create starter project…'}
             </Button>
           </div>
-          {globalError && pendingAction === null ? <p className="module-workbench__error" role="alert">{globalError}</p> : null}
+          {globalError && !creating ? <p className="module-workbench__error" role="alert">{globalError}</p> : null}
         </form>
       </div>
 
@@ -159,6 +143,7 @@ export function ModuleAuthoringWorkbench({ snapshot }: { snapshot: SystemSnapsho
           <strong>{parsedDraft.success ? 'Valid draft' : 'Incomplete'}</strong>
         </div>
         <pre tabIndex={0}>{JSON.stringify(manifestPreview, null, 2)}</pre>
+        <div className="module-boundaries__title">Advanced runtime boundaries</div>
         <dl className="module-boundaries">
           <div><dt>Runtime</dt><dd>Sandboxed Chromium</dd></div>
           <div><dt>Device access</dt><dd>Matching HID metadata</dd></div>

@@ -127,8 +127,9 @@ export function NewClipsReview({ snapshot, onOpenClip }: { snapshot: SystemSnaps
               <span className="new-clips-review__size">{formatBytes(totalBytes)}</span>
             </DialogTitle>
             <DialogDescription>
-              Saved since you last reviewed Clips
-              {gameLabels.length === 1 ? ` · ${gameLabels[0]}` : gameLabels.length > 1 ? ` · ${gameLabels.length} games` : ''}
+              {gameLabels.length > 1
+                ? `Captured automatically across ${gameLabels.length} games`
+                : `Captured automatically during your last game${gameLabels[0] ? ` · ${gameLabels[0]}` : ''}`}
             </DialogDescription>
           </DialogHeader>
 

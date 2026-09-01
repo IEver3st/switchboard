@@ -89,6 +89,33 @@ describe('canonical clip metadata', () => {
     });
   });
 
+  test('persists Auto Capture markers while legacy clips remain manual', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-auto-clips-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const first = new StateStore(filePath);
+    await first.load();
+    first.update((draft) => {
+      draft.clips = [
+        clip(1, {
+          autoCapture: {
+            autoCaptured: true,
+            providerId: 'cs2-gsi',
+            gameId: 'cs2',
+            events: [{ id: 'kill-1', type: 'headshot', timestampMs: 20_000, label: 'Headshot' }],
+          },
+        }),
+        clip(2),
+      ];
+    });
+    await first.flush();
+
+    const restarted = new StateStore(filePath);
+    await restarted.load();
+    expect(restarted.get().clips[0]?.autoCapture?.events[0]).toMatchObject({ type: 'headshot', timestampMs: 20_000 });
+    expect(restarted.get().clips[1]?.autoCapture).toBeUndefined();
+  });
+
   test('validates saved trim ranges and file-size export presets at the shared boundary', () => {
     expect(clipTrimInputSchema.parse({ id: 'clip-1', startMs: 1_250, endMs: 9_000 })).toEqual({
       id: 'clip-1', startMs: 1_250, endMs: 9_000,
@@ -159,5 +186,20 @@ describe('large clip library filtering and sorting', () => {
     expect(shortest[0]!.durationMs).toBeLessThan(shortest.at(-1)!.durationMs);
     expect(largest[0]!.fileSize).toBeGreaterThan(largest.at(-1)!.fileSize);
     expect(clips[0]!.id).toBe(canonicalFirst);
+  });
+
+  test('filters manual and Auto Capture clips by source and event', () => {
+    const auto = clip(500, {
+      autoCapture: {
+        autoCaptured: true,
+        providerId: 'cs2-gsi',
+        gameId: 'cs2',
+        events: [{ id: 'round-1', type: 'round_win', timestampMs: 9_000, label: 'Round win' }],
+      },
+    });
+    const mixed = [clip(501), auto];
+    expect(filterAndSortClips(mixed, { query: '', game: 'all', date: 'any', source: 'manual', event: 'all', favoritesOnly: false, sort: 'newest' }).map((entry) => entry.id)).toEqual(['clip-501']);
+    expect(filterAndSortClips(mixed, { query: '', game: 'all', date: 'any', source: 'auto-capture', event: 'round_win', favoritesOnly: false, sort: 'newest' }).map((entry) => entry.id)).toEqual(['clip-500']);
+    expect(filterAndSortClips(mixed, { query: '', game: 'all', date: 'any', source: 'auto-capture', event: 'death', favoritesOnly: false, sort: 'newest' })).toEqual([]);
   });
 });

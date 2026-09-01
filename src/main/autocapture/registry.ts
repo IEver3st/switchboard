@@ -41,6 +41,13 @@ export class AutoCaptureRegistry {
       .find((provider) => !provider.developmentOnly && provider.matchesGame(source, detectedGames));
   }
 
+  public getDetectedGame(providerId: string, detectedGames: readonly DetectedGame[]): DetectedGame | undefined {
+    const provider = this.providers.get(providerId)?.provider;
+    if (!provider) return undefined;
+    return provider.findDetectedGame?.(detectedGames)
+      ?? detectedGames.find((game) => normalizeName(game.name) === normalizeName(provider.displayName));
+  }
+
   public snapshots(includeDevelopment: boolean): AutoCaptureProvider[] {
     return [...this.providers.values()]
       .filter(({ provider }) => includeDevelopment || !provider.developmentOnly)
@@ -108,11 +115,14 @@ export class AutoCaptureRegistry {
   public async stop(providerId: string): Promise<void> {
     const entry = this.providers.get(providerId);
     if (!entry) return;
+    const wasActive = entry.start !== null
+      || entry.unsubscribe !== null
+      || entry.provider.getStatus().state !== 'stopped';
     await entry.start?.catch(() => undefined);
     await entry.provider.stop();
     entry.unsubscribe?.();
     entry.unsubscribe = null;
-    this.log('provider_stopped', { game: entry.provider.gameId, provider: entry.provider.id });
+    if (wasActive) this.log('provider_stopped', { game: entry.provider.gameId, provider: entry.provider.id });
     this.emitChanged();
   }
 
@@ -123,14 +133,6 @@ export class AutoCaptureRegistry {
   private emitChanged(): void {
     for (const listener of this.changedListeners) listener();
   }
-}
-
-export function matchDetectedGame(providerGameId: string, detectedGames: readonly DetectedGame[]): DetectedGame | undefined {
-  if (providerGameId === 'counter-strike-2') {
-    return detectedGames.find((game) => game.launchUri?.toLocaleLowerCase() === 'steam://rungameid/730'
-      || normalizeName(game.name).includes('counter strike 2'));
-  }
-  return detectedGames.find((game) => normalizeName(game.name) === normalizeName(providerGameId));
 }
 
 function normalizeName(value: string): string {

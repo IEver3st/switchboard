@@ -17,6 +17,41 @@ if (currentStatePath) {
     const reviewState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
     if (reviewState.clips?.[0]) {
       reviewState.clips[0].audioChannels = ['game', 'chat', 'media', 'microphone'];
+      if (process.env.SWITCHBOARD_REVIEW_AUTOCAPTURE === '1') {
+        const duration = Math.max(1_000, reviewState.clips[0].durationMs ?? 30_000);
+        reviewState.capture.config.enabled = true;
+        reviewState.capture.config.replaySeconds = Math.max(60, reviewState.capture.config.replaySeconds ?? 60);
+        reviewState.capture.autoCapture = {
+          settings: {
+            enabled: true,
+            preRollSeconds: 20,
+            postRollSeconds: 10,
+            mergeNearbyEvents: true,
+            mergeThresholdSeconds: 15,
+            notifyWhenSaved: false,
+            games: {},
+            dismissedAvailability: {},
+          },
+          providers: [],
+          runtime: {
+            state: 'idle', activeGameId: null, activeProviderId: null, pendingCapture: null,
+            eventsReceived: 0, eventsDeduplicated: 0, eventsIgnored: 0, clipsCreated: 0,
+            lastEvent: null, lastError: null,
+          },
+        };
+        reviewState.clips[0].game = 'Counter-Strike 2';
+        reviewState.clips[0].name = 'Counter-Strike 2 - 3 Kills';
+        reviewState.clips[0].autoCapture = {
+          autoCaptured: true,
+          providerId: 'cs2-gsi',
+          gameId: 'cs2',
+          events: [
+            { id: 'review-kill-1', type: 'kill', timestampMs: Math.round(duration * 0.28), label: 'Kill' },
+            { id: 'review-headshot', type: 'headshot', timestampMs: Math.round(duration * 0.52), label: 'Headshot' },
+            { id: 'review-multi', type: 'multi_kill', timestampMs: Math.round(duration * 0.74), label: 'Triple Kill', metadata: { count: 3, derived: true } },
+          ],
+        };
+      }
       await writeFile(reviewStatePath, `${JSON.stringify(reviewState, null, 2)}\n`);
     }
   } catch (error) {
@@ -53,6 +88,8 @@ const screens = [
   { name: 'clip-editor', prepare: () => openClipEditor() },
   { name: 'modules', prepare: () => openSettingsCategory('Modules') },
   { name: 'settings', prepare: () => openSettingsCategory('General') },
+  { name: 'settings-capture', prepare: () => openSettingsCategory('Capture') },
+  { name: 'settings-autocapture-provider', prepare: () => openAutoCaptureProvider() },
   { name: 'settings-diagnostics', prepare: () => openSettingsCategory('Diagnostics') },
   { name: 'settings-noise-diagnostics', prepare: () => openNoiseDiagnostics() },
   { name: 'settings-clips', prepare: () => openSettingsCategory('Clips') },
@@ -86,6 +123,14 @@ async function runReview() {
     return;
   }
   await installReviewStyles(window);
+
+  if (process.env.SWITCHBOARD_VERIFY_AUTOCAPTURE_MARKER === '1') {
+    window.setContentSize(1420, 900, false);
+    await waitForViewport({ name: '1420x900', width: 1420, height: 900 });
+    const interaction = await verifyAutoCaptureMarker();
+    await writeFile(join(outputDirectory, 'autocapture-marker-workflow-report.json'), `${JSON.stringify(interaction, null, 2)}\n`);
+    console.log(JSON.stringify({ autoCaptureMarkerWorkflow: interaction }, null, 2));
+  }
 
   if (process.env.SWITCHBOARD_VERIFY_SETTINGS_BACK === '1') {
     window.setContentSize(1080, 720, false);
@@ -305,6 +350,53 @@ async function openSettingsCategory(label) {
   await scrollMainToTop();
 }
 
+async function openAutoCaptureProvider() {
+  await openSettingsCategory('Capture');
+  const opened = await window.webContents.executeJavaScript(`
+    (() => {
+      const button = document.querySelector('[aria-controls="autocapture-provider-cs2-gsi"]');
+      if (!(button instanceof HTMLButtonElement)) return false;
+      if (button.getAttribute('aria-expanded') !== 'true') button.click();
+      button.closest('.autocapture-provider')?.scrollIntoView({ block: 'center' });
+      return true;
+    })()
+  `);
+  if (!opened) throw new Error('Could not open the CS2 Auto Capture provider settings.');
+  await waitForSelector('#autocapture-provider-cs2-gsi');
+}
+
+async function verifyAutoCaptureMarker() {
+  await openClipEditor();
+  await waitForCondition(`document.querySelector('.clip-editor-preview video')?.readyState >= 1`, 'Auto Capture review clip metadata');
+  const result = await window.webContents.executeJavaScript(`
+    (async () => {
+      const snapshot = await window.switchboard.getSnapshot();
+      const marker = snapshot.clips[0]?.autoCapture?.events[1];
+      const buttons = [...document.querySelectorAll('.clip-editor-event-marker')];
+      const button = buttons[1];
+      const video = document.querySelector('.clip-editor-preview video');
+      if (!marker || !(button instanceof HTMLButtonElement) || !(video instanceof HTMLVideoElement)) return null;
+      button.focus();
+      button.click();
+      await new Promise((resolve) => {
+        const timeout = setTimeout(resolve, 500);
+        video.addEventListener('seeked', () => { clearTimeout(timeout); resolve(); }, { once: true });
+      });
+      return {
+        markerCount: buttons.length,
+        label: button.getAttribute('aria-label'),
+        expectedMs: marker.timestampMs,
+        actualMs: Math.round(video.currentTime * 1000),
+        focused: document.activeElement === button,
+      };
+    })()
+  `);
+  if (!result || result.markerCount < 3 || !result.focused || Math.abs(result.actualMs - result.expectedMs) > 100) {
+    throw new Error(`Auto Capture marker did not seek the native video element: ${JSON.stringify(result)}`);
+  }
+  return result;
+}
+
 async function openSettingsSearch(query) {
   await openSettings();
   const entered = await window.webContents.executeJavaScript(`
@@ -330,6 +422,17 @@ async function openSettingsSearch(query) {
   `);
   if (!selected) throw new Error('Could not select the Settings search result.');
   await waitForSelector('#setting-about\\.automaticAppUpdates.settings-row--highlighted');
+  await window.webContents.executeJavaScript(`
+    (() => {
+      const row = document.getElementById('setting-about.automaticAppUpdates');
+      if (!(row instanceof HTMLElement) || row.dataset.reviewHighlightPinned === 'true') return;
+      row.dataset.reviewHighlightPinned = 'true';
+      new MutationObserver(() => {
+        if (!row.classList.contains('settings-row--highlighted')) row.classList.add('settings-row--highlighted');
+      })
+        .observe(row, { attributes: true, attributeFilter: ['class'] });
+    })()
+  `);
 }
 
 async function openNoiseDiagnostics() {

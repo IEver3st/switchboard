@@ -57,6 +57,9 @@ function canonicalPageHash(page: PageId): string {
   if (page === 'audio' && /^#audio\/(mixer|game|chat|media|microphone)$/.test(window.location.hash)) {
     return window.location.hash;
   }
+  if (page === 'settings' && window.location.hash === '#settings/modules/developer-tools') {
+    return window.location.hash;
+  }
   return `#${page}`;
 }
 
