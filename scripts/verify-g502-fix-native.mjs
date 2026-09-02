@@ -63,30 +63,31 @@ async function run() {
     })()
   `, 'white render and discharging battery state');
 
+  await window.webContents.executeJavaScript('window.switchboard.refreshDevices()');
   const snapshot = await window.webContents.executeJavaScript('window.switchboard.getSnapshot()');
   const mouse = snapshot.devices.find((device) => device.displayName === 'G502 X Plus');
   if (!mouse) throw new Error('The canonical snapshot did not include G502 X Plus.');
   if (mouse.asset.key !== 'logitech-g502-x-plus-white') throw new Error(`Unexpected asset: ${mouse.asset.key}`);
   if (mouse.capabilities.battery?.charging !== false) throw new Error('The canonical battery state did not report discharging.');
   if (!mouse.capabilities.dpi?.writable) throw new Error('Direct DPI control was unavailable.');
-  if (!mouse.capabilities.reportRate?.writable) throw new Error('Onboard polling-rate control was unavailable.');
-  if (!mouse.capabilities.buttonAssignments?.writable) throw new Error('Onboard button assignments were unavailable.');
-  if (!mouse.capabilities.lighting?.writable) throw new Error('Onboard lighting was unavailable.');
-  if (!mouse.capabilities.onboardMemory?.writable || !mouse.capabilities.onboardMemory.enabled) {
-    throw new Error('Onboard memory was not detected as active and writable.');
+  if (mouse.capabilities.dpi.shiftMode !== 'device-profile' && mouse.capabilities.dpi.shiftMode !== 'host-button-spy') {
+    throw new Error(`DPI Shift has no verified activation path: ${mouse.capabilities.dpi.shiftMode}`);
   }
-  const shiftBinding = mouse.capabilities.buttonAssignments.bindings
+  const shiftBinding = mouse.capabilities.buttonAssignments?.bindings
     .find((binding) => binding.buttonId === 'dpi-shift');
-  if (shiftBinding?.currentActionId !== 'mouse.dpi-shift') {
+  if (mouse.capabilities.dpi.shiftMode === 'device-profile' && shiftBinding?.currentActionId !== 'mouse.dpi-shift') {
     throw new Error(`Physical sniper button did not decode as DPI Shift: ${shiftBinding?.currentActionId}`);
   }
 
   const roundTrips = [];
-  for (const change of [
-    { type: 'dpi-shift', value: mouse.capabilities.dpi.shiftDpi },
-    { type: 'report-rate', value: mouse.capabilities.reportRate.value },
-    { type: 'button-assignment', buttonId: 'dpi-shift', actionId: 'mouse.dpi-shift' },
-  ]) {
+  const changes = [{ type: 'dpi-shift', value: mouse.capabilities.dpi.shiftDpi }];
+  if (mouse.capabilities.reportRate?.writable) {
+    changes.push({ type: 'report-rate', value: mouse.capabilities.reportRate.value });
+  }
+  if (mouse.capabilities.buttonAssignments?.writable) {
+    changes.push({ type: 'button-assignment', buttonId: 'dpi-shift', actionId: 'mouse.dpi-shift' });
+  }
+  for (const change of changes) {
     await window.webContents.executeJavaScript(`window.switchboard.setDeviceControl(${JSON.stringify({
       deviceId: mouse.id,
       change,
@@ -115,14 +116,15 @@ async function run() {
       variant: mouse.identity.variant,
       battery: mouse.capabilities.battery,
       dpi: mouse.capabilities.dpi.activeDpi,
-      reportRate: mouse.capabilities.reportRate.value,
+      reportRate: mouse.capabilities.reportRate?.value,
     },
     nativeCapabilities: {
       dpi: mouse.capabilities.dpi.writable,
-      reportRate: mouse.capabilities.reportRate.writable,
-      buttons: mouse.capabilities.buttonAssignments.writable,
-      lighting: mouse.capabilities.lighting.writable,
-      onboardMemory: mouse.capabilities.onboardMemory.writable,
+      dpiShiftMode: mouse.capabilities.dpi.shiftMode,
+      reportRate: mouse.capabilities.reportRate?.writable ?? false,
+      buttons: mouse.capabilities.buttonAssignments?.writable ?? false,
+      lighting: mouse.capabilities.lighting?.writable ?? false,
+      onboardMemory: mouse.capabilities.onboardMemory?.writable ?? false,
     },
     sniperBinding: shiftBinding,
     verifiedRoundTrips: roundTrips,

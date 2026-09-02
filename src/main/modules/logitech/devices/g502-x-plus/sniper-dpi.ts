@@ -703,8 +703,8 @@ async function readOnboardSector(
   return data;
 }
 
-async function writeOnboardSector(
-  transport: HidppLongTransport,
+export async function writeOnboardSector(
+  transport: Pick<HidppLongTransport, 'request'>,
   deviceIndex: number,
   featureIndex: number,
   sector: number,
@@ -713,10 +713,8 @@ async function writeOnboardSector(
   const start = Array<number>(16).fill(0);
   start.splice(0, 6, sector >>> 8, sector & 0xff, 0, 0, data.length >>> 8, data.length & 0xff);
   await transport.request(deviceIndex, featureIndex, 6, start);
-  const padded = Buffer.alloc(Math.ceil(data.length / 16) * 16, 0xff);
-  data.copy(padded);
-  for (let offset = 0; offset < padded.length; offset += 16) {
-    await transport.request(deviceIndex, featureIndex, 7, [...padded.subarray(offset, offset + 16)]);
+  for (let offset = 0; offset < data.length; offset += 16) {
+    await transport.request(deviceIndex, featureIndex, 7, [...data.subarray(offset, offset + 16)]);
   }
   await transport.request(deviceIndex, featureIndex, 8);
 }
