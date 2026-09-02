@@ -25,6 +25,9 @@ internal sealed record CaptureSettings(
     string ThumbnailDirectory = "",
     string? ClipMixPipeName = null,
     string? ProcessedMicrophoneDeviceId = null,
+    bool ReactionClippingEnabled = false,
+    string ReactionSensitivity = "balanced",
+    int ReactionCooldownSeconds = 15,
     string? AudioFallbackReason = null)
 {
     public int SegmentSeconds => 1;
@@ -54,6 +57,10 @@ internal sealed record CaptureSettings(
             throw new InvalidOperationException("Capture storage paths are required.");
         if (ClipMixPipeName is not null && ClipMixPipeName != "switchboard-audio-clip-v1")
             throw new InvalidOperationException("The clip-mix pipe identity is invalid.");
+        if (ReactionSensitivity is not ("low" or "balanced" or "high"))
+            throw new ArgumentOutOfRangeException(nameof(ReactionSensitivity));
+        if (ReactionCooldownSeconds is < 5 or > 120)
+            throw new ArgumentOutOfRangeException(nameof(ReactionCooldownSeconds));
         return this;
     }
 }
@@ -103,6 +110,7 @@ internal sealed record CaptureRuntime(
     CaptureSource? ActiveSource,
     int SaveQueueDepth,
     bool ShortcutRegistered = false,
+    ReactionDetectionRuntime? ReactionClipping = null,
     string? Warning = null,
     string? Error = null,
     DateTimeOffset? LastSavedAt = null);

@@ -1,4 +1,5 @@
-import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
+import { join } from 'node:path';
 import { z } from 'zod';
 import {
   applyAudioPresetInputSchema,
@@ -17,6 +18,7 @@ import {
   ipcChannels,
   markClipsReviewedInputSchema,
   moduleProjectIdInputSchema,
+  prepareClipShareInputSchema,
   renameClipInputSchema,
   renameAudioPresetInputSchema,
   setAudioChannelProcessorInputSchema,
@@ -39,9 +41,10 @@ import {
   settingsResetScopeSchema,
 } from '../shared/contracts';
 import type { AppController } from './controller';
+import { getPreparedShareService } from './services/prepared-share';
 import { getStartupSnapshot } from './startup-readiness';
 
-function assertTrustedSender(event: IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null): void {
+function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null): void {
   const window = getMainWindow();
   if (!window || window.isDestroyed() || event.sender.id !== window.webContents.id) {
     throw new Error('Rejected IPC from an untrusted webContents instance.');
@@ -390,6 +393,33 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => controller.exportClip(input),
   );
   handle(
+    ipcChannels.prepareClipShare,
+    getMainWindow,
+    (input) => prepareClipShareInputSchema.parse(input),
+    (input) => controller.prepareClipShare(input),
+  );
+  ipcMain.on(ipcChannels.startPreparedShareDrag, (event, raw) => {
+    try {
+      assertTrustedSender(event, getMainWindow);
+      const id = z.string().uuid().parse(raw);
+      const prepared = getPreparedShareService().resolve(id);
+      if (!prepared) throw new Error('The prepared share file is no longer available. Prepare it again.');
+      const fallbackIconPath = app.isPackaged
+        ? join(process.resourcesPath, 'branding', 'switchboard-icon.png')
+        : join(app.getAppPath(), 'resources', 'branding', 'switchboard-icon.png');
+      const sourceIcon = nativeImage.createFromPath(prepared.iconPath ?? fallbackIconPath);
+      const fallbackIcon = sourceIcon.isEmpty() ? nativeImage.createFromPath(fallbackIconPath) : sourceIcon;
+      if (fallbackIcon.isEmpty()) throw new Error('Switchboard could not create the file drag icon.');
+      event.sender.startDrag({ file: prepared.path, icon: fallbackIcon.resize({ width: 48, height: 48, quality: 'best' }) });
+    } catch (error) {
+      console.error('Switchboard could not start the prepared file drag.', error);
+    }
+  });
+  ipcMain.handle(ipcChannels.revealPreparedShareFile, (event, raw) => {
+    assertTrustedSender(event, getMainWindow);
+    getPreparedShareService().reveal(z.string().uuid().parse(raw));
+  });
+  handle(
     ipcChannels.exportMontage,
     getMainWindow,
     (input) => exportMontageInputSchema.parse(input),
@@ -416,6 +446,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   return () => {
     unsubscribe();
     unsubscribeAudioMeters();
+    ipcMain.removeAllListeners(ipcChannels.startPreparedShareDrag);
     for (const channel of Object.values(ipcChannels)) {
       if (channel !== ipcChannels.snapshotUpdated) ipcMain.removeHandler(channel);
     }

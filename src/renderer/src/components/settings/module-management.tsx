@@ -281,6 +281,7 @@ function ModuleRow({
             type="button"
             variant="primary"
             size="sm"
+            className="module-list-row__install"
             disabled={pending}
             onClick={() => onStateChange(true)}
             aria-label={`Install ${module.name}`}

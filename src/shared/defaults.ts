@@ -625,6 +625,18 @@ export const defaultCaptureRuntime: CaptureRuntime = {
   activeSource: null,
   saveQueueDepth: 0,
   shortcutRegistered: false,
+  reactionClipping: {
+    state: 'disabled',
+    inputLevelDb: -96,
+    noiseFloorDb: -60,
+    triggerThresholdDb: -18,
+    reactionsDetected: 0,
+    analyzedFrames: 0,
+    analysisAverageMs: 0,
+    cooldownRemainingSeconds: 0,
+    lastReactionAt: null,
+    message: null,
+  },
 };
 
 export const defaultCaptureStorage: CaptureStorage = {
@@ -657,6 +669,13 @@ export const defaultAutoCapture: AutoCaptureState = {
     mergeNearbyEvents: true,
     mergeThresholdSeconds: 15,
     notifyWhenSaved: false,
+    reactionClipping: {
+      enabled: false,
+      sensitivity: 'balanced',
+      preRollSeconds: 20,
+      postRollSeconds: 10,
+      cooldownSeconds: 15,
+    },
     games: {},
     dismissedAvailability: {},
   },

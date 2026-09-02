@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Share2 } from 'lucide-react';
-import type { Clip, ClipExportPreset } from '../../../../shared/contracts';
+import { useState, type DragEvent as ReactDragEvent } from 'react';
+import { Check, FolderOpen, Grip, LoaderCircle, Share2, Video } from 'lucide-react';
+import type { Clip, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,9 +10,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/cn';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { switchboardApi } from '@/lib/demo-api';
 import { formatBytes, formatDuration } from '@/lib/format';
 
 const sharePresets: Array<{
@@ -21,11 +21,15 @@ const sharePresets: Array<{
   description: string;
   targetBytes?: number;
 }> = [
-  { id: '10mb', label: '10 MB', description: 'Chat and attachment limits', targetBytes: 10 * 1_024 * 1_024 },
-  { id: '25mb', label: '25 MB', description: 'Fast everyday sharing', targetBytes: 25 * 1_024 * 1_024 },
+  { id: 'original', label: 'Original', description: 'No size target' },
+  { id: '10mb', label: '10 MB', description: 'Works with smaller upload limits', targetBytes: 10 * 1_024 * 1_024 },
+  { id: '25mb', label: '25 MB', description: 'Balanced detail and upload size', targetBytes: 25 * 1_024 * 1_024 },
   { id: '50mb', label: '50 MB', description: 'More detail for longer clips', targetBytes: 50 * 1_024 * 1_024 },
-  { id: 'original', label: 'Original quality', description: 'Trim only, no size target' },
 ];
+
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
 
 export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled = false, projectType = 'single', segmentCount = 1, sourceBytes, selectedDurationMs, onExport, onCancelExport }: {
   clip: Clip;
@@ -37,95 +41,161 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
   segmentCount?: number;
   sourceBytes?: number;
   selectedDurationMs?: number;
-  onExport: (preset: ClipExportPreset, exportId: string) => Promise<boolean>;
+  onExport: (preset: ClipExportPreset, exportId: string) => Promise<boolean | PreparedShareFile | null>;
   onCancelExport?: (exportId: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<ClipExportPreset>('10mb');
   const [activeExportId, setActiveExportId] = useState<string | null>(null);
+  const [prepared, setPrepared] = useState<PreparedShareFile | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const durationMs = selectedDurationMs ?? endMs - startMs;
-  const selected = sharePresets.find((candidate) => candidate.id === preset) ?? sharePresets[0]!;
+  const selected = sharePresets.find((candidate) => candidate.id === preset) ?? sharePresets[1]!;
   const proportionalBytes = sourceBytes ?? clip.fileSize * durationMs / Math.max(1, clip.durationMs);
   const expectedBytes = selected.targetBytes ? Math.min(proportionalBytes, selected.targetBytes) : proportionalBytes;
+  const sourceName = clip.path.split(/[\\/]/).at(-1) ?? clip.name;
+  const visibleName = prepared?.name ?? sourceName;
+  const visibleBytes = prepared?.fileSize ?? expectedBytes;
+  const canDrag = projectType === 'single' && prepared !== null;
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && exportPending) return;
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setPrepared(null);
+      setError(null);
+      setActiveExportId(null);
+    }
+  };
 
   const createShareFile = async () => {
     const exportId = crypto.randomUUID();
     setActiveExportId(exportId);
-    const exported = await onExport(preset, exportId);
-    setActiveExportId(null);
-    if (exported) setOpen(false);
+    setPrepared(null);
+    setError(null);
+    try {
+      const result = await onExport(preset, exportId);
+      if (result && typeof result === 'object') setPrepared(result);
+      else if (result === true) setOpen(false);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setActiveExportId(null);
+    }
   };
 
   const cancelExport = async () => {
     if (!activeExportId || !onCancelExport) return;
     await onCancelExport(activeExportId);
-    setActiveExportId(null);
-    setOpen(false);
+  };
+
+  const selectPreset = (value: string) => {
+    if (!value) return;
+    setPreset(value as ClipExportPreset);
+    setPrepared(null);
+    setError(null);
+  };
+
+  const startFileDrag = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!prepared) return;
+    event.preventDefault();
+    switchboardApi.startPreparedShareDrag(prepared.id);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button type="button" variant="primary" size="sm" className="no-drag" disabled={exportPending || disabled} title={disabled ? 'Clip duration is unavailable' : undefined}>
           <Share2 className="size-4" aria-hidden="true" /> {exportPending ? 'Preparing…' : 'Share'}
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-[440px] overflow-hidden p-0 no-drag" data-share-clip-dialog>
-        <DialogHeader className="px-5 pb-4 pt-5 pr-12">
-          <DialogTitle>{projectType === 'montage' ? 'Export montage' : 'Create share file'}</DialogTitle>
+      <DialogContent className="max-w-[520px] overflow-hidden p-0 no-drag" data-share-clip-dialog data-share-state={exportPending ? 'preparing' : prepared ? 'ready' : error ? 'error' : 'idle'}>
+        <DialogHeader className="px-5 pb-3 pt-5 pr-12">
+          <DialogTitle>{projectType === 'montage' ? 'Export montage' : 'Share clip'}</DialogTitle>
           <DialogDescription>
-            {formatDuration(durationMs / 1_000)} selected{projectType === 'montage' ? ` across ${segmentCount} ${segmentCount === 1 ? 'clip' : 'clips'}` : ''}. Switchboard adjusts video bitrate automatically and keeps {projectType === 'montage' ? 'every source clip' : 'the original clip'} unchanged.
+            {projectType === 'montage'
+              ? `${formatDuration(durationMs / 1_000)} across ${segmentCount} ${segmentCount === 1 ? 'clip' : 'clips'}. Choose an output size and save a copy.`
+              : 'Prepare a share copy, then drag the clip straight into Discord or another app.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-4 pb-4">
-          <RadioGroup
-            value={preset}
-            onValueChange={(value) => setPreset(value as ClipExportPreset)}
-            disabled={exportPending}
-            aria-label="File size preset"
-            className="overflow-hidden rounded-md border border-border bg-surface-1/35"
+        <div className="px-5 pb-4">
+          <div
+            className="group overflow-hidden rounded-md border border-border bg-surface-1 data-[ready=true]:cursor-grab data-[ready=true]:border-primary/55 data-[ready=true]:active:cursor-grabbing"
+            data-ready={canDrag ? 'true' : 'false'}
+            draggable={canDrag}
+            onDragStart={startFileDrag}
+            role="group"
+            aria-label={canDrag ? `${visibleName}, ready to drag into another app` : `${visibleName} preview`}
           >
-            {sharePresets.map((candidate) => {
-              const active = candidate.id === preset;
-              const itemId = `share-preset-${candidate.id}`;
-              return (
-                <label
-                  key={candidate.id}
-                  htmlFor={itemId}
-                  data-state={active ? 'checked' : 'unchecked'}
-                  data-disabled={exportPending ? '' : undefined}
-                  className={cn(
-                    'grid min-h-[52px] cursor-pointer grid-cols-[minmax(0,1fr)_16px] items-center gap-3 border-b border-border/70 px-3 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-surface-hover focus-within:relative focus-within:z-10 focus-within:outline focus-within:outline-2 focus-within:outline-primary/75 focus-within:outline-offset-[-2px]',
-                    active && 'bg-[color-mix(in_srgb,var(--primary)_9%,transparent)]',
-                    exportPending && 'cursor-not-allowed opacity-45 hover:bg-transparent',
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[12px] font-semibold leading-4 text-foreground">{candidate.label}</span>
-                    <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">{candidate.description}</span>
-                  </span>
-                  <RadioGroupItem id={itemId} value={candidate.id} aria-label={candidate.label} />
-                </label>
-              );
-            })}
-          </RadioGroup>
+            <div className="relative aspect-video overflow-hidden bg-background">
+              {!thumbnailFailed && clip.thumbnailPath ? (
+                <img
+                  src={`switchboard-media://thumbnail/${encodeURIComponent(clip.id)}`}
+                  alt=""
+                  draggable={false}
+                  onError={() => setThumbnailFailed(true)}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <div className="grid size-full place-items-center text-muted-foreground" aria-hidden="true"><Video className="size-8" strokeWidth={1.4} /></div>
+              )}
+              {exportPending ? (
+                <div className="absolute inset-0 grid place-items-center bg-black/65 text-white" role="status" aria-live="polite">
+                  <span className="grid justify-items-center gap-2 text-[12px] font-semibold"><LoaderCircle className="size-6 animate-spin motion-reduce:animate-none" aria-hidden="true" />Preparing clip…</span>
+                </div>
+              ) : canDrag ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/72 px-3 py-2 text-white">
+                  <span className="flex items-center gap-2 text-[11px] font-semibold"><Grip className="size-4" aria-hidden="true" />Drag clip into Discord</span>
+                  <Check className="size-4 text-primary" aria-hidden="true" />
+                </div>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 items-center justify-between gap-3 border-t border-border px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-[12px] font-semibold text-foreground" title={visibleName}>{visibleName}</div>
+                <div className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">{formatDuration(durationMs / 1_000)} · {formatBytes(visibleBytes)}</div>
+              </div>
+              {prepared ? (
+                <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-[10px]" onClick={() => void switchboardApi.revealPreparedShareFile(prepared.id).catch((cause) => setError(errorMessage(cause)))}>
+                  <FolderOpen className="size-3.5" aria-hidden="true" /> Show in folder
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[11px] font-semibold text-foreground">File size</span>
+              <span className="text-[10px] text-muted-foreground">{selected.description}</span>
+            </div>
+            <ToggleGroup type="single" value={preset} onValueChange={selectPreset} disabled={exportPending} aria-label="File size preset" className="grid w-full grid-cols-4 bg-surface-interactive">
+              {sharePresets.map((candidate) => (
+                <ToggleGroupItem key={candidate.id} value={candidate.id} data-share-preset={candidate.id} className="h-9 min-w-0 px-2 text-[11px]" aria-label={candidate.label}>{candidate.label}</ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+
+          {error ? <p className="mt-3 rounded-sm border border-destructive/35 bg-destructive/10 px-3 py-2 text-[11px] leading-4 text-destructive" role="alert">{error}</p> : null}
         </div>
 
         <Separator />
         <footer className="flex items-center justify-between gap-4 px-5 py-3.5">
-          <div className="min-w-0 text-[10px] leading-4 text-muted-foreground">
-            <span className="block">Expected output</span>
+          <div className="min-w-0 text-[10px] leading-4 text-muted-foreground" aria-live="polite">
+            <span className="block">{prepared ? 'Share copy' : 'Expected output'}</span>
             <strong className="block text-[12px] font-semibold tabular-nums text-foreground">
-              {selected.targetBytes ? `Up to ${selected.label}` : `About ${formatBytes(expectedBytes)}`}
+              {prepared ? `${formatBytes(prepared.fileSize)} · Ready to drag` : selected.targetBytes ? `Up to ${selected.label}` : `About ${formatBytes(expectedBytes)}`}
             </strong>
           </div>
           {exportPending && activeExportId && onCancelExport ? (
-            <Button type="button" variant="secondary" size="sm" className="min-w-[148px]" onClick={() => void cancelExport().catch(() => undefined)}>Cancel export</Button>
+            <Button type="button" variant="secondary" size="sm" className="min-w-[132px]" onClick={() => void cancelExport().catch((cause) => setError(errorMessage(cause)))}>Cancel</Button>
+          ) : prepared ? (
+            <Button type="button" variant="primary" size="sm" className="min-w-[132px]" onClick={() => handleOpenChange(false)}>Done</Button>
           ) : (
-            <Button type="button" variant="primary" size="sm" className="min-w-[148px]" disabled={exportPending} onClick={() => void createShareFile().catch(() => { setActiveExportId(null); })}>
-              {exportPending ? 'Preparing…' : 'Choose destination'}
+            <Button type="button" variant="primary" size="sm" className="min-w-[132px]" disabled={exportPending} onClick={() => void createShareFile()}>
+              {projectType === 'montage' ? 'Choose destination' : 'Prepare clip'}
             </Button>
           )}
         </footer>

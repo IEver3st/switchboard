@@ -23,6 +23,14 @@ export type AutoCapturePreserveRequest = PendingCaptureWindow & {
   events: GameEvent[];
 };
 
+export type AutoCaptureEventPolicy = {
+  enabled: boolean;
+  preRollSeconds: number;
+  postRollSeconds: number;
+  mergeNearbyEvents: boolean;
+  mergeThresholdSeconds: number;
+};
+
 export type AutoCaptureEngineOptions = {
   getSettings: () => AutoCaptureSettings;
   getMaximumWindowMs: () => number;
@@ -80,7 +88,7 @@ export class AutoCaptureEngine {
     this.publish('degraded');
   }
 
-  public handleEvent(event: GameEvent): boolean {
+  public handleEvent(event: GameEvent, policy?: AutoCaptureEventPolicy): boolean {
     if (this.disposed) return false;
     this.runtime.eventsReceived += 1;
     this.runtime.lastEvent = {
@@ -92,9 +100,9 @@ export class AutoCaptureEngine {
     const settings = this.options.getSettings();
     const gameSettings = settings.games[event.gameId];
     const now = this.now();
-    if (!settings.enabled
-      || gameSettings?.enabled === false
-      || !eventEnabled(event.type, gameSettings?.events)
+    if (!(policy?.enabled ?? settings.enabled)
+      || (!policy && gameSettings?.enabled === false)
+      || (!policy && !eventEnabled(event.type, gameSettings?.events))
       || event.timestamp < now - maximumEventAgeMs
       || event.timestamp > now + maximumFutureSkewMs) {
       this.runtime.eventsIgnored += 1;
@@ -111,18 +119,21 @@ export class AutoCaptureEngine {
     }
 
     const maximumWindowMs = Math.max(15_000, this.options.getMaximumWindowMs());
-    const requestedPreMs = (gameSettings && !gameSettings.useGlobalTiming
+    const requestedPreMs = (policy?.preRollSeconds ?? (gameSettings && !gameSettings.useGlobalTiming
       ? gameSettings.preRollSeconds ?? settings.preRollSeconds
-      : settings.preRollSeconds) * 1_000;
-    const requestedPostMs = (gameSettings && !gameSettings.useGlobalTiming
+      : settings.preRollSeconds)) * 1_000;
+    const requestedPostMs = (policy?.postRollSeconds ?? (gameSettings && !gameSettings.useGlobalTiming
       ? gameSettings.postRollSeconds ?? settings.postRollSeconds
-      : settings.postRollSeconds) * 1_000;
+      : settings.postRollSeconds)) * 1_000;
     const postRollMs = Math.min(requestedPostMs, maximumWindowMs);
     const preRollMs = Math.min(requestedPreMs, Math.max(0, maximumWindowMs - postRollMs));
     const next = planCaptureWindow(event, preRollMs, postRollMs);
     const latest = [...this.pending.values()].at(-1);
-    const mergeThresholdMs = settings.mergeNearbyEvents ? settings.mergeThresholdSeconds * 1_000 : 0;
-    const merged = latest && settings.mergeNearbyEvents
+    const mergeNearbyEvents = policy?.mergeNearbyEvents ?? settings.mergeNearbyEvents;
+    const mergeThresholdMs = mergeNearbyEvents
+      ? (policy?.mergeThresholdSeconds ?? settings.mergeThresholdSeconds) * 1_000
+      : 0;
+    const merged = latest && mergeNearbyEvents
       ? mergeCaptureWindows(latest, next, mergeThresholdMs, maximumWindowMs)
       : null;
 
@@ -219,9 +230,10 @@ export class AutoCaptureEngine {
 
   private publish(forcedState?: AutoCaptureRuntime['state']): void {
     const settings = this.options.getSettings();
+    const automationEnabled = settings.enabled || settings.reactionClipping.enabled;
     const latest = [...this.pending.values()].at(-1);
     const state = forcedState
-      ?? (!settings.enabled || this.disposed
+      ?? (!automationEnabled || this.disposed
         ? 'disabled'
         : this.saving > 0
           ? 'saving'

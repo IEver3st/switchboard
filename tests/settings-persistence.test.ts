@@ -45,6 +45,13 @@ describe('settings persistence', () => {
         mergeNearbyEvents: true,
         mergeThresholdSeconds: 8,
         notifyWhenSaved: true,
+        reactionClipping: {
+          enabled: true,
+          sensitivity: 'high',
+          preRollSeconds: 18,
+          postRollSeconds: 7,
+          cooldownSeconds: 30,
+        },
         games: {
           cs2: {
             enabled: true,
@@ -83,6 +90,7 @@ describe('settings persistence', () => {
       enabled: true,
       preRollSeconds: 25,
       postRollSeconds: 12,
+      reactionClipping: { enabled: true, sensitivity: 'high', cooldownSeconds: 30 },
       games: {
         cs2: { useGlobalTiming: false, preRollSeconds: 30, events: { death: false } },
         'war-thunder': { playerName: 'Ever3st', events: { death: false, objective: true } },
@@ -135,6 +143,26 @@ describe('settings persistence', () => {
     expect(store.get().capture.autoCapture.settings.preRollSeconds).toBe(20);
     expect(store.get().capture.autoCapture.providers).toEqual([]);
     expect(store.get().capture.autoCapture.runtime.state).toBe('disabled');
+  });
+
+  it('fills new reaction diagnostics without discarding an older persisted snapshot', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-settings-legacy-reaction-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    const legacy = createDefaultSnapshot() as unknown as Record<string, unknown>;
+    const capture = legacy.capture as Record<string, unknown>;
+    const runtime = capture.runtime as Record<string, unknown>;
+    const reaction = runtime.reactionClipping as Record<string, unknown>;
+    delete reaction.analyzedFrames;
+    delete reaction.analysisAverageMs;
+    await writeFile(filePath, JSON.stringify(legacy));
+
+    const store = new StateStore(filePath);
+    await store.load();
+
+    expect(store.get().capture.runtime.reactionClipping.analyzedFrames).toBe(0);
+    expect(store.get().capture.runtime.reactionClipping.analysisAverageMs).toBe(0);
+    expect(store.get().capture.config.replaySeconds).toBe(60);
   });
 
   it('treats clips from before the review feature as already reviewed', async () => {

@@ -3,6 +3,7 @@ import {
   audioMeterFrameSchema,
   feedbackHandoffResultSchema,
   ipcChannels,
+  preparedShareFileSchema,
   type SwitchboardApi,
   type SystemSnapshot,
 } from '../shared/contracts';
@@ -76,6 +77,12 @@ const api: SwitchboardApi & MontageV2Api = {
   setClipAudioTrackLevel: (input) => ipcRenderer.invoke(ipcChannels.setClipAudioTrackLevel, input),
   loadClipAudioWaveform: (id) => ipcRenderer.invoke(ipcChannels.loadClipAudioWaveform, id),
   exportClip: (input) => ipcRenderer.invoke(ipcChannels.exportClip, input),
+  prepareClipShare: async (input) => {
+    const result = await ipcRenderer.invoke(ipcChannels.prepareClipShare, input);
+    return result === null ? null : preparedShareFileSchema.parse(result);
+  },
+  startPreparedShareDrag: (id) => ipcRenderer.postMessage(ipcChannels.startPreparedShareDrag, id),
+  revealPreparedShareFile: (id) => ipcRenderer.invoke(ipcChannels.revealPreparedShareFile, id),
   exportMontage: (input) => ipcRenderer.invoke(ipcChannels.exportMontage, input),
   cancelClipExport: (exportId) => ipcRenderer.invoke(ipcChannels.cancelClipExport, exportId),
   importMontageAudio: () => ipcRenderer.invoke(montageV2IpcChannels.importAudio),

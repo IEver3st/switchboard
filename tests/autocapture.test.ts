@@ -17,6 +17,13 @@ const baseSettings: AutoCaptureSettings = {
   mergeNearbyEvents: true,
   mergeThresholdSeconds: 15,
   notifyWhenSaved: false,
+  reactionClipping: {
+    enabled: false,
+    sensitivity: 'balanced',
+    preRollSeconds: 20,
+    postRollSeconds: 10,
+    cooldownSeconds: 15,
+  },
   games: {},
   dismissedAvailability: {},
 };
@@ -99,6 +106,34 @@ describe('Auto Capture event processing', () => {
     await engine.dispose();
     expect(preserved).toHaveLength(1);
     expect(preserved[0]!.endsAt).toBe(100_000);
+  });
+
+  test('accepts reaction events under their own policy while game providers are disabled', async () => {
+    const preserved: AutoCapturePreserveRequest[] = [];
+    const settings: AutoCaptureSettings = {
+      ...baseSettings,
+      enabled: false,
+      reactionClipping: { ...baseSettings.reactionClipping, enabled: true },
+    };
+    const engine = createEngine({
+      getSettings: () => settings,
+      preserve: async (request) => { preserved.push(request); },
+    });
+    const accepted = engine.handleEvent(gameEvent(100_000, {
+      providerId: 'microphone-reaction',
+      type: 'highlight',
+      source: 'microphone',
+    }), {
+      enabled: true,
+      preRollSeconds: 12,
+      postRollSeconds: 6,
+      mergeNearbyEvents: true,
+      mergeThresholdSeconds: 0,
+    });
+    await engine.flush('test');
+
+    expect(accepted).toBeTrue();
+    expect(preserved[0]).toMatchObject({ startedAt: 88_000, endsAt: 100_000 });
   });
 });
 

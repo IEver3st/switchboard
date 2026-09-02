@@ -14,7 +14,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private Process? systemAudioFfmpeg;
     private Process? microphoneFfmpeg;
     private IAudioPipeInput? systemAudio;
-    private IAudioPipeInput? microphoneAudio;
+    private AudioPipeCapture? microphoneAudio;
+    private readonly ReactionDetector reactionDetector = new();
     private ReplaySegmentRing? ring;
     private CaptureSettings? settings;
     private CaptureSource? activeSource;
@@ -41,8 +42,11 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private int restartAttempts;
     private IReadOnlyList<CaptureSource> cachedSources = [];
     private DateTimeOffset lastSourceRefresh;
+    private string? reactionUnavailableReason;
+    private DateTimeOffset reactionRetryAt;
 
     public event Action<CaptureHostSnapshot>? SnapshotChanged;
+    public event Action<ReactionDetection>? ReactionDetected;
 
     public int? FfmpegProcessId => ffmpeg is { HasExited: false } ? ffmpeg.Id : null;
     public TimeSpan ChildProcessorTime => ActiveProcesses()
@@ -82,6 +86,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
 
             settings = next;
+            reactionDetector.Configure(
+                next.ReactionClippingEnabled,
+                next.ReactionSensitivity,
+                next.ReactionCooldownSeconds);
             operationalState = "starting";
             error = null;
             warning = null;
@@ -132,6 +140,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
         {
             var previous = settings;
             settings = next;
+            reactionDetector.Configure(
+                next.ReactionClippingEnabled,
+                next.ReactionSensitivity,
+                next.ReactionCooldownSeconds);
             if (!HostActive) return GetSnapshot();
             if (previous is null || RequiresRestart(previous, next))
             {
@@ -157,6 +169,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
             else if (sessionDirectory is not null)
             {
+                await ReconcileReactionInputAsync(previous, next);
                 ring?.Evict(
                     sessionDirectory,
                     TimeSpan.FromSeconds(next.SegmentRetentionSeconds),
@@ -375,6 +388,11 @@ internal sealed class ReplayEngine : IAsyncDisposable
             ? "saving"
             : operationalState;
         var audioWarning = microphoneAudio?.Error ?? systemAudio?.Error ?? GetAudioBackpressureWarning();
+        var reactionRuntime = reactionDetector.Snapshot(
+            inputActive: activeSource is not null && microphoneAudio is { Error: null },
+            unavailableReason: capture?.ReactionClippingEnabled == true && activeSource is not null
+                ? reactionUnavailableReason ?? microphoneAudio?.Error
+                : null);
 
         return new CaptureHostSnapshot(
             new CaptureRuntime(
@@ -390,6 +408,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 GetAudioCorrectionCount(),
                 activeSource,
                 Math.Max(0, Volatile.Read(ref saveQueueDepth)),
+                ReactionClipping: reactionRuntime,
                 Warning: warning ?? audioWarning,
                 Error: error,
                 LastSavedAt: lastSavedAt),
@@ -473,6 +492,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             sessionDirectory = null;
         }
         sessionDirectory = ring.CreateSessionDirectory();
+        reactionDetector.Pause();
+        reactionUnavailableReason = null;
+        reactionRetryAt = DateTimeOffset.MinValue;
 
         try
         {
@@ -493,16 +515,17 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
             try
             {
-                microphoneAudio = !capture.IncludeMic
+                microphoneAudio = !capture.IncludeMic && !capture.ReactionClippingEnabled
                     ? null
-                    : capture.ProcessedMicrophoneDeviceId is { Length: > 0 } endpointId
-                        ? AudioPipeCapture.CreateEndpoint(endpointId, "Processed microphone")
-                        : AudioPipeCapture.CreateDefaultMicrophone();
+                    : CreateMicrophoneInput(capture);
             }
             catch (Exception microphoneError)
             {
                 microphoneAudio = null;
-                audioWarnings.Add($"Microphone track unavailable: {microphoneError.Message}");
+                if (capture.ReactionClippingEnabled) reactionUnavailableReason = microphoneError.Message;
+                audioWarnings.Add(capture.IncludeMic
+                    ? $"Microphone track unavailable: {microphoneError.Message}"
+                    : $"Reaction clipping unavailable: {microphoneError.Message}");
             }
 
             if (systemAudio is not null)
@@ -530,23 +553,38 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
             if (microphoneAudio is not null)
             {
-                try
+                if (!capture.IncludeMic)
                 {
-                    microphoneFfmpeg = childProcesses.Start(BuildAudioStartInfo(
-                        capture,
-                        sessionDirectory,
-                        microphoneAudio,
-                        "microphone",
-                        capture.MicrophoneBitrateBps), "microphone encoder");
-                    _ = DrainAsync(microphoneFfmpeg.StandardError, lifetime.Token);
-                    _ = DrainAsync(microphoneFfmpeg.StandardOutput, lifetime.Token);
+                    try { await microphoneAudio.StartAnalysisOnlyAsync(); }
+                    catch (Exception reactionInputError)
+                    {
+                        reactionUnavailableReason = reactionInputError.Message;
+                        await microphoneAudio.DisposeAsync();
+                        microphoneAudio = null;
+                        audioWarnings.Add($"Reaction clipping unavailable: {reactionInputError.Message}");
+                    }
                 }
-                catch (Exception microphoneEncoderError)
+                else
                 {
-                    microphoneFfmpeg = null;
-                    await microphoneAudio.DisposeAsync();
-                    microphoneAudio = null;
-                    audioWarnings.Add($"Microphone track unavailable: {microphoneEncoderError.Message}");
+                    try
+                    {
+                        microphoneFfmpeg = childProcesses.Start(BuildAudioStartInfo(
+                            capture,
+                            sessionDirectory,
+                            microphoneAudio,
+                            "microphone",
+                            capture.MicrophoneBitrateBps), "microphone encoder");
+                        _ = DrainAsync(microphoneFfmpeg.StandardError, lifetime.Token);
+                        _ = DrainAsync(microphoneFfmpeg.StandardOutput, lifetime.Token);
+                    }
+                    catch (Exception microphoneEncoderError)
+                    {
+                        microphoneFfmpeg = null;
+                        if (capture.ReactionClippingEnabled) reactionUnavailableReason = microphoneEncoderError.Message;
+                        await microphoneAudio.DisposeAsync();
+                        microphoneAudio = null;
+                        audioWarnings.Add($"Microphone track unavailable: {microphoneEncoderError.Message}");
+                    }
                 }
             }
 
@@ -603,6 +641,47 @@ internal sealed class ReplayEngine : IAsyncDisposable
         var arguments = BuildArguments(capture, source, outputDirectory);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         return start;
+    }
+
+    private AudioPipeCapture CreateMicrophoneInput(CaptureSettings capture) =>
+        capture.ProcessedMicrophoneDeviceId is { Length: > 0 } endpointId
+            ? AudioPipeCapture.CreateEndpoint(endpointId, "Processed microphone", reactionDetector)
+            : AudioPipeCapture.CreateDefaultMicrophone(reactionDetector);
+
+    private async Task ReconcileReactionInputAsync(
+        CaptureSettings? previous,
+        CaptureSettings next,
+        bool forceRestart = false)
+    {
+        if (activeSource is null || next.IncludeMic) return;
+        if (forceRestart && DateTimeOffset.UtcNow < reactionRetryAt) return;
+        var endpointChanged = previous?.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId;
+        var mustDispose = microphoneAudio is not null
+                          && (!next.ReactionClippingEnabled
+                              || forceRestart
+                              || endpointChanged);
+        if (mustDispose)
+        {
+            await microphoneAudio!.DisposeAsync();
+            microphoneAudio = null;
+            reactionDetector.Pause();
+        }
+        if (!next.ReactionClippingEnabled || microphoneAudio is not null) return;
+
+        try
+        {
+            microphoneAudio = CreateMicrophoneInput(next);
+            await microphoneAudio.StartAnalysisOnlyAsync();
+            reactionUnavailableReason = null;
+            reactionRetryAt = DateTimeOffset.MinValue;
+        }
+        catch (Exception inputError)
+        {
+            if (microphoneAudio is not null) await microphoneAudio.DisposeAsync();
+            microphoneAudio = null;
+            reactionUnavailableReason = inputError.Message;
+            reactionRetryAt = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
+        }
     }
 
     private ProcessStartInfo BuildAudioStartInfo(
@@ -799,6 +878,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             StopProcessAsync(process, cancellationToken),
             StopProcessAsync(systemAudioProcess, cancellationToken),
             StopProcessAsync(microphoneProcess, cancellationToken));
+        reactionDetector.Pause();
+        reactionUnavailableReason = null;
+        reactionRetryAt = DateTimeOffset.MinValue;
         activeSource = null;
         if (!preserveRing && sessionDirectory is not null)
         {
@@ -851,6 +933,14 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 {
                     var capture = settings;
                     if (capture is null || !HostActive) continue;
+
+                    if (capture.ReactionClippingEnabled
+                        && !capture.IncludeMic
+                        && activeSource is not null
+                        && (microphoneAudio is null || microphoneAudio.Error is not null))
+                    {
+                        await ReconcileReactionInputAsync(capture, capture, forceRestart: true);
+                    }
 
                     if (sessionDirectory is not null && ring is not null)
                     {
@@ -922,6 +1012,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
                             : sourceService.ResolveExplicit(capture);
                         if (detected?.Available == true) await StartFfmpegInternalAsync(detected, cancellationToken);
                     }
+
+                    if (activeSource is not null && reactionDetector.TryTakeDetection(out var reaction))
+                        ReactionDetected?.Invoke(reaction);
                 }
                 catch (Exception monitorError)
                 {
@@ -1211,6 +1304,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         || previous.MicrophoneBitrateBps != next.MicrophoneBitrateBps
         || previous.ClipMixPipeName != next.ClipMixPipeName
         || previous.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId
+           && (previous.IncludeMic || next.IncludeMic)
         || previous.CacheDirectory != next.CacheDirectory;
 
     private static IEnumerable<string> EncoderCandidates(string codec) => codec switch

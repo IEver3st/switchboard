@@ -996,6 +996,20 @@ export const replayStateSchema = z.enum([
 ]);
 export type ReplayState = z.infer<typeof replayStateSchema>;
 
+export const reactionDetectionRuntimeSchema = z.object({
+  state: z.enum(['disabled', 'waiting', 'calibrating', 'listening', 'cooldown', 'unavailable', 'error']),
+  inputLevelDb: z.number().min(-120).max(0),
+  noiseFloorDb: z.number().min(-120).max(0),
+  triggerThresholdDb: z.number().min(-120).max(0),
+  reactionsDetected: z.number().int().nonnegative(),
+  analyzedFrames: z.number().int().nonnegative(),
+  analysisAverageMs: z.number().nonnegative(),
+  cooldownRemainingSeconds: z.number().int().nonnegative(),
+  lastReactionAt: z.number().int().nonnegative().nullable().optional().transform((value) => value ?? null),
+  message: z.string().trim().min(1).max(240).nullable().optional().transform((value) => value ?? null),
+});
+export type ReactionDetectionRuntime = z.infer<typeof reactionDetectionRuntimeSchema>;
+
 export const captureStorageSchema = z.object({
   clipsDirectory: z.string(),
   cacheDirectory: z.string(),
@@ -1035,6 +1049,7 @@ export const captureRuntimeSchema = z.object({
   activeSource: captureSourceSchema.nullish().transform((source) => source ?? null),
   saveQueueDepth: z.number().int().min(0),
   shortcutRegistered: z.boolean(),
+  reactionClipping: reactionDetectionRuntimeSchema,
   warning: z.string().optional(),
   error: z.string().optional(),
   lastSavedAt: z.string().optional(),
@@ -1075,6 +1090,7 @@ export const gameEventSourceSchema = z.enum([
   'vision',
   'ocr',
   'manual',
+  'microphone',
   'test',
 ]);
 export type GameEventSource = z.infer<typeof gameEventSourceSchema>;
@@ -1152,6 +1168,15 @@ export const autoCaptureGameSettingsSchema = z.object({
 });
 export type AutoCaptureGameSettings = z.infer<typeof autoCaptureGameSettingsSchema>;
 
+export const reactionClippingSettingsSchema = z.object({
+  enabled: z.boolean(),
+  sensitivity: z.enum(['low', 'balanced', 'high']),
+  preRollSeconds: z.number().int().min(5).max(60),
+  postRollSeconds: z.number().int().min(0).max(30),
+  cooldownSeconds: z.number().int().min(5).max(120),
+});
+export type ReactionClippingSettings = z.infer<typeof reactionClippingSettingsSchema>;
+
 export const autoCaptureSettingsSchema = z.object({
   enabled: z.boolean(),
   preRollSeconds: z.number().int().min(5).max(120),
@@ -1159,6 +1184,7 @@ export const autoCaptureSettingsSchema = z.object({
   mergeNearbyEvents: z.boolean(),
   mergeThresholdSeconds: z.number().int().min(0).max(60),
   notifyWhenSaved: z.boolean(),
+  reactionClipping: reactionClippingSettingsSchema,
   games: z.record(z.string().min(1).max(96), autoCaptureGameSettingsSchema),
   dismissedAvailability: z.record(z.string().min(1).max(96), z.boolean()),
 });
@@ -1171,6 +1197,7 @@ export const autoCaptureSettingsPatchSchema = z.object({
   mergeNearbyEvents: z.boolean().optional(),
   mergeThresholdSeconds: z.number().int().min(0).max(60).optional(),
   notifyWhenSaved: z.boolean().optional(),
+  reactionClipping: reactionClippingSettingsSchema.partial().optional(),
   games: z.record(z.string().min(1).max(96), autoCaptureGameSettingsSchema.partial()).optional(),
   dismissedAvailability: z.record(z.string().min(1).max(96), z.boolean()).optional(),
 }).strict();
@@ -1698,6 +1725,9 @@ export const ipcChannels = {
   setClipAudioTrackLevel: 'clips:set-audio-track-level',
   loadClipAudioWaveform: 'clips:load-audio-waveform',
   exportClip: 'clips:export',
+  prepareClipShare: 'clips:prepare-share',
+  startPreparedShareDrag: 'clips:start-share-drag',
+  revealPreparedShareFile: 'clips:reveal-share-file',
   exportMontage: 'clips:export-montage',
   cancelClipExport: 'clips:cancel-export',
   snapshotUpdated: 'system:snapshot-updated',
@@ -1762,6 +1792,9 @@ export interface SwitchboardApi {
   setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): Promise<SystemSnapshot>;
   loadClipAudioWaveform(id: string): Promise<ClipAudioWaveform>;
   exportClip(input: ExportClipInput): Promise<boolean>;
+  prepareClipShare(input: PrepareClipShareInput): Promise<PreparedShareFile | null>;
+  startPreparedShareDrag(id: string): void;
+  revealPreparedShareFile(id: string): Promise<void>;
   exportMontage(input: ExportMontageInput): Promise<boolean>;
   cancelClipExport(exportId: string): Promise<void>;
   subscribe(listener: (snapshot: SystemSnapshot) => void): () => void;
@@ -1822,6 +1855,23 @@ export const exportClipInputSchema = z.object({
   path: ['endMs'],
 });
 export type ExportClipInput = z.infer<typeof exportClipInputSchema>;
+
+export const prepareClipShareInputSchema = z.object({
+  ...clipTrimInputShape,
+  preset: clipExportPresetSchema,
+  exportId: z.string().uuid(),
+}).refine((input) => input.endMs > input.startMs, {
+  message: 'The trim end must be after the trim start.',
+  path: ['endMs'],
+});
+export type PrepareClipShareInput = z.infer<typeof prepareClipShareInputSchema>;
+
+export const preparedShareFileSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(260),
+  fileSize: z.number().int().nonnegative(),
+});
+export type PreparedShareFile = z.infer<typeof preparedShareFileSchema>;
 
 export const montageProjectSegmentSchema = z.object({
   id: z.string().min(1).max(256),

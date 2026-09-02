@@ -11,6 +11,7 @@ import { parseByteRange } from './media-byte-range';
 import { loadDefaultAppUpdaterClient, type AppUpdaterClient } from './services/app-update-service';
 import { registerMontageV2Ipc } from './montage-v2-ipc';
 import { disposeMontageV2Service, getMontageV2Service } from './services/montage-v2';
+import { disposePreparedShareService } from './services/prepared-share';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -166,6 +167,7 @@ async function shutdown(): Promise<void> {
   cleanupIpc = null;
   disposeMontageV2Service();
   await controller?.dispose();
+  await disposePreparedShareService();
   controller = null;
   tray?.destroy();
   tray = null;

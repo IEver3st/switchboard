@@ -23,6 +23,10 @@ copiedState.clips[0].audioChannels = [];
 copiedState.audio.enabled = false;
 copiedState.capture.config.enabled = false;
 copiedState.capture.config.clipsDirectory = join(isolatedUserData, 'review-clips');
+if (copiedState.capture.runtime.reactionClipping) {
+  copiedState.capture.runtime.reactionClipping.analyzedFrames ??= 0;
+  copiedState.capture.runtime.reactionClipping.analysisAverageMs ??= 0;
+}
 for (const module of copiedState.modules ?? []) {
   if (module.id?.startsWith('device.')) module.enabled = false;
 }
@@ -38,6 +42,7 @@ let holdNextSaveDialog = false;
 let pendingSaveDialogResolve = null;
 const saveDialogCalls = [];
 const revealCalls = [];
+const nativeDragCalls = [];
 shell.showItemInFolder = (path) => { revealCalls.push(path); };
 dialog.showSaveDialog = async (options) => {
   saveDialogCalls.push(options);
@@ -58,6 +63,9 @@ void app.whenReady().then(run).catch((error) => {
 
 async function run() {
   const window = await waitForWindow();
+  window.webContents.startDrag = (options) => {
+    nativeDragCalls.push({ file: options.file, iconEmpty: options.icon?.isEmpty?.() ?? true });
+  };
   await waitForLoad(window);
   await waitForMissingSelector(window, '.startup-screen');
   const results = [];
@@ -180,8 +188,8 @@ async function run() {
       };
     })()`);
     if (dialogMetrics.role !== 'dialog' || dialogMetrics.ariaModal !== 'true') throw new Error(`Share surface is not modal: ${JSON.stringify(dialogMetrics)}`);
-    if (dialogMetrics.title !== 'Create share file') throw new Error(`Share dialog title is missing: ${JSON.stringify(dialogMetrics)}`);
-    if (!dialogMetrics.rect || dialogMetrics.rect.width > 440.5 || dialogMetrics.centerDelta.x > 1 || dialogMetrics.centerDelta.y > 1) {
+    if (dialogMetrics.title !== 'Share clip') throw new Error(`Share dialog title is missing: ${JSON.stringify(dialogMetrics)}`);
+    if (!dialogMetrics.rect || dialogMetrics.rect.width > 520.5 || dialogMetrics.centerDelta.x > 1 || dialogMetrics.centerDelta.y > 1) {
       throw new Error(`Share dialog is not centered at ${viewport.width}x${viewport.height}: ${JSON.stringify(dialogMetrics)}`);
     }
     if (!dialogMetrics.overlay || dialogMetrics.overlay.backgroundColor === 'rgba(0, 0, 0, 0)') {
@@ -189,10 +197,10 @@ async function run() {
     }
     if (!dialogMetrics.focusInside) throw new Error('Initial dialog focus escaped the modal.');
 
-    const presets = await evaluate(window, `[...document.querySelectorAll('[data-share-clip-dialog] [role="radio"]')].map((item) => item.getAttribute('value'))`);
-    if (presets.join(',') !== '10mb,25mb,50mb,original') throw new Error(`Share presets were incomplete: ${presets.join(',')}`);
+    const presets = await evaluate(window, `[...document.querySelectorAll('[data-share-clip-dialog] [data-share-preset]')].map((item) => item.dataset.sharePreset)`);
+    if (presets.join(',') !== 'original,10mb,25mb,50mb') throw new Error(`Share presets were incomplete: ${presets.join(',')}`);
     if (viewport.width === 1080) {
-      await evaluate(window, `document.querySelector('[data-share-clip-dialog] [role="radio"][data-state="checked"]')?.focus()`);
+      await evaluate(window, `document.querySelector('[data-share-clip-dialog] [data-share-preset][data-state="on"]')?.focus()`);
       await evaluate(window, `(() => {
         window.__shareDialogKey = null;
         document.activeElement?.addEventListener('keydown', (event) => { window.__shareDialogKey = { key: event.key, code: event.code }; }, { once: true });
@@ -200,12 +208,12 @@ async function run() {
       await pressKey(window, 'Down');
       const keyEvidence = await evaluate(window, `window.__shareDialogKey`);
       if (keyEvidence?.key !== 'ArrowDown') throw new Error(`Native ArrowDown was not delivered correctly: ${JSON.stringify(keyEvidence)}`);
-      await evaluate(window, `document.querySelector('label[for="share-preset-25mb"]')?.click()`);
-      await waitForSelector(window, '[data-share-clip-dialog] [role="radio"][value="25mb"][data-state="checked"]');
+      await evaluate(window, `document.querySelector('[data-share-clip-dialog] [data-share-preset="25mb"]')?.click()`);
+      await waitForSelector(window, '[data-share-clip-dialog] [data-share-preset="25mb"][data-state="on"]');
       const expectedOutput = await evaluate(window, `document.querySelector('[data-share-clip-dialog] footer')?.textContent?.replace(/\\s+/g, ' ').trim()`);
       if (!expectedOutput.includes('Expected output') || !expectedOutput.includes('Up to 25 MB')) throw new Error(`Keyboard radio selection did not update output: ${expectedOutput}`);
-      await evaluate(window, `document.querySelector('label[for="share-preset-50mb"]')?.click()`);
-      await waitForSelector(window, '[data-share-clip-dialog] [role="radio"][value="50mb"][data-state="checked"]');
+      await evaluate(window, `document.querySelector('[data-share-clip-dialog] [data-share-preset="50mb"]')?.click()`);
+      await waitForSelector(window, '[data-share-clip-dialog] [data-share-preset="50mb"][data-state="on"]');
       await evaluate(window, `document.querySelector('[data-share-clip-dialog] button')?.focus()`);
       for (let index = 0; index < 7; index += 1) {
         await pressKey(window, 'TAB');
@@ -239,33 +247,48 @@ async function run() {
 
   await openEditor(window);
   await clickButton(window, 'Share');
-  await evaluate(window, `document.querySelector('label[for="share-preset-25mb"]')?.click()`);
-  await waitForSelector(window, '[data-share-clip-dialog] [role="radio"][value="25mb"][data-state="checked"]');
+  await evaluate(window, `document.querySelector('[data-share-clip-dialog] [data-share-preset="25mb"]')?.click()`);
+  await waitForSelector(window, '[data-share-clip-dialog] [data-share-preset="25mb"][data-state="on"]');
   const saveDialogCallCount = saveDialogCalls.length;
-  holdNextSaveDialog = true;
-  await clickButton(window, 'Choose destination');
-  await waitForCondition(() => saveDialogCalls.length > saveDialogCallCount && pendingSaveDialogResolve !== null, 'destination chooser');
+  await clickButton(window, 'Prepare clip');
+  await waitForCondition(() => evaluate(window, `['preparing', 'ready'].includes(document.querySelector('[data-share-clip-dialog]')?.dataset.shareState)`), 'share preparation');
   const pendingState = await evaluate(window, `(() => {
-    const radios = [...document.querySelectorAll('[data-share-clip-dialog] [role="radio"]')];
-    const button = [...document.querySelectorAll('[data-share-clip-dialog] button')].find((candidate) => candidate.textContent?.trim() === 'Compressing…');
+    const presets = [...document.querySelectorAll('[data-share-clip-dialog] [data-share-preset]')];
+    const state = document.querySelector('[data-share-clip-dialog]')?.dataset.shareState;
     return {
-      radiosDisabled: radios.length === 4 && radios.every((radio) => radio.matches(':disabled')),
-      rowsDisabled: [...document.querySelectorAll('[data-share-clip-dialog] label[data-disabled]')].length,
-      buttonDisabled: button?.matches(':disabled') ?? false,
+      state,
+      presetsDisabled: state !== 'preparing' || (presets.length === 4 && presets.every((item) => item.matches(':disabled'))),
+      preparingStatus: state !== 'preparing' || document.querySelector('[data-share-clip-dialog] [role="status"]')?.textContent?.includes('Preparing clip'),
     };
   })()`);
-  if (!pendingState.radiosDisabled || pendingState.rowsDisabled !== 4 || !pendingState.buttonDisabled) {
+  if (!pendingState.presetsDisabled || !pendingState.preparingStatus) {
     throw new Error(`Pending export state was not disabled: ${JSON.stringify(pendingState)}`);
   }
-  pendingSaveDialogResolve({ canceled: true, filePath: undefined });
-  pendingSaveDialogResolve = null;
-  await waitForButton(window, 'Choose destination');
-  await waitForSelector(window, '[data-share-clip-dialog][role="dialog"]');
-  const destinationCall = saveDialogCalls.at(-1);
-  if (destinationCall?.title !== 'Create share file' || !destinationCall.defaultPath?.endsWith('-25mb.mp4')) {
-    throw new Error(`Destination action did not preserve the selected share preset: ${JSON.stringify(destinationCall)}`);
+  await waitForCondition(() => evaluate(window, `document.querySelector('[data-share-clip-dialog]')?.dataset.shareState === 'ready'`), 'prepared share ready', 120_000);
+  if (saveDialogCalls.length !== saveDialogCallCount) throw new Error('Preparing a draggable clip opened a save dialog.');
+  const readyState = await evaluate(window, `(() => {
+    const source = document.querySelector('[data-share-clip-dialog] [draggable="true"]');
+    return {
+      draggable: Boolean(source),
+      instruction: source?.textContent?.includes('Drag clip into Discord') ?? false,
+      summary: document.querySelector('[data-share-clip-dialog] footer')?.textContent?.replace(/\\s+/g, ' ').trim(),
+    };
+  })()`);
+  if (!readyState.draggable || !readyState.instruction || !readyState.summary?.includes('Ready to drag')) {
+    throw new Error(`Prepared share surface is incomplete: ${JSON.stringify(readyState)}`);
   }
-  await pressKey(window, 'ESC');
+  const readyScreenshot = join(outputDirectory, '1420x900-clip-editor-share-ready.png');
+  await writeFile(readyScreenshot, (await window.webContents.capturePage()).toPNG());
+  await clickButton(window, 'Show in folder');
+  await waitForCondition(() => revealCalls.length > 0, 'prepared share reveal');
+  const preparedPath = revealCalls.at(-1);
+  const preparedFile = await stat(preparedPath);
+  if (preparedFile.size > 25 * 1_024 * 1_024) throw new Error(`Prepared share file exceeded its target: ${preparedFile.size} bytes.`);
+  await evaluate(window, `document.querySelector('[data-share-clip-dialog] [draggable="true"]')?.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true }))`);
+  await waitForCondition(() => nativeDragCalls.length > 0, 'native prepared file drag');
+  const nativeDrag = nativeDragCalls.at(-1);
+  if (nativeDrag.file !== preparedPath || nativeDrag.iconEmpty) throw new Error(`Native drag did not carry the prepared file: ${JSON.stringify(nativeDrag)}`);
+  await clickButton(window, 'Done');
   await waitForMissingSelector(window, '[data-share-clip-dialog]');
 
   const interactionEvidence = await verifyTimelineInteractions(window);
@@ -335,7 +358,7 @@ async function run() {
   const exportEvidence = { sizeBytes: exportedFile.size, targetBytes: 10 * 1_024 * 1_024, durationSeconds: exportedDuration, width: exportedVideo.width, height: exportedVideo.height, audioStreams: exportedAudioStreams.length };
   await rm(exportDestination, { force: true });
 
-  process.stdout.write(`${JSON.stringify({ outputDirectory, results, workspaceEvidence, interactionEvidence, destinationAction: { title: destinationCall.title, defaultPath: destinationCall.defaultPath, pendingState, canceledDialogStayedOpen: true }, persistence: { originalEnd, adjustedEnd, reopenedEnd, trackStartAfter, reopenedTrackStart, reopenedAudioLevel, independentTrackTrimScreenshot }, exportEvidence }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ outputDirectory, results, workspaceEvidence, interactionEvidence, shareDrag: { pendingState, readyState, readyScreenshot, preparedPath, sizeBytes: preparedFile.size, nativeDrag }, persistence: { originalEnd, adjustedEnd, reopenedEnd, trackStartAfter, reopenedTrackStart, reopenedAudioLevel, independentTrackTrimScreenshot }, exportEvidence }, null, 2)}\n`);
   app.quit();
 }
 

@@ -766,6 +766,22 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
             {autoCapture.runtime.lastEvent ? ` · ${autoCapture.runtime.lastEvent.label ?? autoCapture.runtime.lastEvent.type.replaceAll('_', ' ')} ${formatRelativeTime(autoCapture.runtime.lastEvent.at)}` : ''}
           </span>
         </SettingRow>
+        <SettingRow
+          settingId="diagnostics.reaction-clipping"
+          title="Reaction clipping"
+          description={snapshot.capture.autoCapture.settings.reactionClipping.enabled
+            ? `${captureRuntime.reactionClipping.reactionsDetected.toLocaleString()} detected · ${captureRuntime.reactionClipping.analyzedFrames.toLocaleString()} frames at ${captureRuntime.reactionClipping.analysisAverageMs.toFixed(4)} ms average · input ${captureRuntime.reactionClipping.inputLevelDb.toFixed(1)} dBFS · learned floor ${captureRuntime.reactionClipping.noiseFloorDb.toFixed(1)} dBFS · trigger ${captureRuntime.reactionClipping.triggerThresholdDb.toFixed(1)} dBFS`
+            : 'The microphone detector is disabled and retains no capture session of its own.'}
+        >
+          <span className="settings-row__value">
+            {snapshot.capture.autoCapture.settings.reactionClipping.enabled
+              ? captureRuntime.reactionClipping.state
+              : 'Off'}
+            {captureRuntime.reactionClipping.lastReactionAt
+              ? ` · last ${formatRelativeTime(captureRuntime.reactionClipping.lastReactionAt)}`
+              : ''}
+          </span>
+        </SettingRow>
         {autoCapture.runtime.pendingCapture ? (
           <SettingValue
             settingId="diagnostics.autocapture-pending"

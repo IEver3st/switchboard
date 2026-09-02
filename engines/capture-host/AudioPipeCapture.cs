@@ -27,21 +27,30 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
 
     private readonly WasapiRecorder capture;
     private readonly MMDevice? heldEndpoint;
+    private readonly IAudioPacketObserver? observer;
+    private readonly PcmSampleFormat sampleFormat;
     private readonly NamedPipeServerStream pipe;
     private readonly Channel<AudioPacket> packets;
     private readonly CancellationTokenSource lifetime = new();
     private Task? writerTask;
     private bool started;
+    private int forwardPackets;
     private long droppedPackets;
     private long capturedPackets;
     private long writtenPackets;
     private long capturedBytes;
     private long writtenBytes;
 
-    private AudioPipeCapture(WasapiRecorder capture, string label, MMDevice? heldEndpoint = null)
+    private AudioPipeCapture(
+        WasapiRecorder capture,
+        string label,
+        MMDevice? heldEndpoint = null,
+        IAudioPacketObserver? observer = null)
     {
         this.capture = capture;
         this.heldEndpoint = heldEndpoint;
+        this.observer = observer;
+        sampleFormat = GetSampleFormat(capture.WaveFormat);
         Label = label;
         PipeName = $"switchboard-capture-{Environment.ProcessId}-{Guid.NewGuid():N}";
         pipe = new NamedPipeServerStream(
@@ -90,7 +99,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         return new AudioPipeCapture(capture, "System audio");
     }
 
-    public static AudioPipeCapture CreateDefaultMicrophone()
+    public static AudioPipeCapture CreateDefaultMicrophone(IAudioPacketObserver? observer = null)
     {
         using var enumerator = new MMDeviceEnumerator();
         var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
@@ -100,10 +109,13 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
             .WithEventSync()
             .WithBufferLength(50)
             .Build();
-        return new AudioPipeCapture(capture, "Microphone", endpoint);
+        return new AudioPipeCapture(capture, "Microphone", endpoint, observer);
     }
 
-    public static AudioPipeCapture CreateEndpoint(string endpointId, string label)
+    public static AudioPipeCapture CreateEndpoint(
+        string endpointId,
+        string label,
+        IAudioPacketObserver? observer = null)
     {
         using var enumerator = new MMDeviceEnumerator();
         var endpoint = enumerator.GetDevice(endpointId);
@@ -115,7 +127,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
                 .WithEventSync()
                 .WithBufferLength(50)
                 .Build();
-            return new AudioPipeCapture(capture, label, endpoint);
+            return new AudioPipeCapture(capture, label, endpoint, observer);
         }
         catch
         {
@@ -129,8 +141,17 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         if (started) return;
         await pipe.WaitForConnectionAsync(cancellationToken);
         writerTask = WritePacketsAsync(lifetime.Token);
+        Volatile.Write(ref forwardPackets, 1);
         capture.StartRecording();
         started = true;
+    }
+
+    public Task StartAnalysisOnlyAsync()
+    {
+        if (started) return Task.CompletedTask;
+        capture.StartRecording();
+        started = true;
+        return Task.CompletedTask;
     }
 
     public async ValueTask DisposeAsync()
@@ -161,6 +182,13 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         long qpcPosition)
     {
         if (buffer.IsEmpty) return;
+        observer?.Observe(
+            buffer,
+            (flags & AudioClientBufferFlags.Silent) != 0,
+            sampleFormat,
+            capture.WaveFormat.Channels,
+            capture.WaveFormat.SampleRate);
+        if (Volatile.Read(ref forwardPackets) == 0) return;
         Interlocked.Increment(ref capturedPackets);
         Interlocked.Add(ref capturedBytes, buffer.Length);
         var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
@@ -240,13 +268,23 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     }
 
     private static string GetFfmpegSampleFormat(WaveFormat format)
+        => GetSampleFormat(format) switch
+        {
+            PcmSampleFormat.Float32 => "f32le",
+            PcmSampleFormat.Signed16 => "s16le",
+            PcmSampleFormat.Signed24 => "s24le",
+            PcmSampleFormat.Signed32 => "s32le",
+            _ => throw new NotSupportedException($"Unsupported {format.BitsPerSample}-bit {format.Encoding} audio format."),
+        };
+
+    private static PcmSampleFormat GetSampleFormat(WaveFormat format)
     {
         var isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
                       || format is WaveFormatExtensible extensible && extensible.SubFormat == IeeeFloatSubFormat;
-        if (isFloat && format.BitsPerSample == 32) return "f32le";
-        if (format.BitsPerSample == 16) return "s16le";
-        if (format.BitsPerSample == 24) return "s24le";
-        if (format.BitsPerSample == 32) return "s32le";
+        if (isFloat && format.BitsPerSample == 32) return PcmSampleFormat.Float32;
+        if (format.BitsPerSample == 16) return PcmSampleFormat.Signed16;
+        if (format.BitsPerSample == 24) return PcmSampleFormat.Signed24;
+        if (format.BitsPerSample == 32) return PcmSampleFormat.Signed32;
         throw new NotSupportedException($"Unsupported {format.BitsPerSample}-bit {format.Encoding} audio format.");
     }
 

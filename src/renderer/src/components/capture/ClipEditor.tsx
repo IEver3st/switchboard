@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ArrowLeft, Clapperboard, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
-import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset } from '../../../../shared/contracts';
+import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { singularEventLabel } from '../../../../shared/auto-capture';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ type SingleClipEditorProps = {
   onCanvasSizeChange: (canvasSize: ClipCanvasSize) => void;
   onSaveTrim: (startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => Promise<void>;
   onAudioTrackLevelChange: (trackIndex: number, level: number) => Promise<void>;
-  onExport: (preset: ClipExportPreset, startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => Promise<boolean>;
+  onExport: (preset: ClipExportPreset, startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => Promise<PreparedShareFile | null>;
   onCancelExport: (exportId: string) => Promise<void>;
   onDelete: () => void;
 };

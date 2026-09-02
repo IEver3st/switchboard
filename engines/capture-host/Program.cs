@@ -19,6 +19,10 @@ engine.SnapshotChanged += snapshot =>
     _ = WriteAsync(new { type = "event", @event = "captureSnapshot", payload = snapshot });
     _ = WriteStatusAsync(snapshot);
 };
+engine.ReactionDetected += reaction =>
+{
+    _ = WriteAsync(new { type = "event", @event = "reactionDetected", payload = reaction });
+};
 
 await WriteStatusAsync(engine.GetSnapshot());
 

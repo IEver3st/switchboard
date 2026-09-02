@@ -13,6 +13,8 @@ import {
   type MarkClipsReviewedInput,
   type ModuleProjectIdInput,
   type PageId,
+  type PrepareClipShareInput,
+  type PreparedShareFile,
   type RenameClipInput,
   type SetClipCanvasSizeInput,
   type SetClipAudioTrackLevelInput,
@@ -126,6 +128,7 @@ interface SystemStore {
   setClipCanvasSize(input: SetClipCanvasSizeInput): Promise<void>;
   setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): Promise<void>;
   exportClip(input: ExportClipInput): Promise<boolean>;
+  prepareClipShare(input: PrepareClipShareInput): Promise<PreparedShareFile | null>;
   exportMontage(input: ExportMontageInput): Promise<boolean>;
   cancelClipExport(exportId: string): Promise<void>;
   updateSettings(input: UpdateSettingsInput): Promise<void>;
@@ -344,6 +347,14 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     exportClip: async (input) => {
       set({ error: null });
       try { return await switchboardApi.exportClip(input); }
+      catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) });
+        throw error;
+      }
+    },
+    prepareClipShare: async (input) => {
+      set({ error: null });
+      try { return await switchboardApi.prepareClipShare(input); }
       catch (error) {
         set({ error: error instanceof Error ? error.message : String(error) });
         throw error;

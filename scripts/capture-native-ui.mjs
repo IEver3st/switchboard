@@ -15,6 +15,9 @@ if (currentStatePath) {
   try {
     await copyFile(currentStatePath, reviewStatePath);
     const reviewState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
+    if (process.env.SWITCHBOARD_VERIFY_REACTION_SETTINGS === '1' && reviewState.capture?.config) {
+      reviewState.capture.config.enabled = false;
+    }
     if (reviewState.clips?.[0]) {
       reviewState.clips[0].audioChannels = ['game', 'chat', 'media', 'microphone'];
       if (process.env.SWITCHBOARD_REVIEW_AUTOCAPTURE === '1') {
@@ -59,8 +62,8 @@ if (currentStatePath) {
           ...reviewState.clips.map((clip) => clip.createdAt ?? 0),
         );
       }
-      await writeFile(reviewStatePath, `${JSON.stringify(reviewState, null, 2)}\n`);
     }
+    await writeFile(reviewStatePath, `${JSON.stringify(reviewState, null, 2)}\n`);
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
   }
@@ -95,6 +98,7 @@ const screens = [
   { name: 'modules', prepare: () => openSettingsCategory('Modules') },
   { name: 'settings', prepare: () => openSettingsCategory('General') },
   { name: 'settings-capture', prepare: () => openSettingsCategory('Capture') },
+  { name: 'settings-reaction-clipping', prepare: () => openReactionClippingSettings() },
   { name: 'settings-autocapture-provider', prepare: () => openAutoCaptureProvider() },
   { name: 'settings-battlefield6-provider', prepare: () => openAutoCaptureProvider('battlefield-6-overwolf-gep') },
   { name: 'settings-warthunder-provider', prepare: () => openAutoCaptureProvider('war-thunder-8111') },
@@ -162,6 +166,14 @@ async function runReview() {
     const interaction = await verifyWarThunderSettingsWorkflow();
     await writeFile(join(outputDirectory, 'warthunder-settings-workflow-report.json'), `${JSON.stringify(interaction, null, 2)}\n`);
     console.log(JSON.stringify({ warThunderSettingsWorkflow: interaction }, null, 2));
+  }
+
+  if (process.env.SWITCHBOARD_VERIFY_REACTION_SETTINGS === '1') {
+    window.setContentSize(1080, 720, false);
+    await waitForViewport({ name: '1080x720', width: 1080, height: 720 });
+    const interaction = await verifyReactionClippingSettings();
+    await writeFile(join(outputDirectory, 'reaction-clipping-settings-report.json'), `${JSON.stringify(interaction, null, 2)}\n`);
+    console.log(JSON.stringify({ reactionClippingSettings: interaction }, null, 2));
   }
 
   const report = [];
@@ -364,6 +376,19 @@ async function openSettingsCategory(label) {
   if (!clicked) throw new Error(`Could not find the ${label} Settings category.`);
   await waitForCondition(`document.querySelector('[data-settings-category][aria-current="page"]')?.textContent?.trim() === ${JSON.stringify(label)}`, `${label} Settings category`);
   await scrollMainToTop();
+}
+
+async function openReactionClippingSettings() {
+  await openSettingsCategory('Capture');
+  const found = await window.webContents.executeJavaScript(`
+    (() => {
+      const row = document.getElementById('setting-reactionClipping.enabled');
+      if (!row) return false;
+      row.scrollIntoView({ block: 'start' });
+      return true;
+    })()
+  `);
+  if (!found) throw new Error('Could not find the Reaction clipping Settings section.');
 }
 
 async function openAutoCaptureProvider(providerId = 'cs2-gsi') {
@@ -656,6 +681,90 @@ async function verifyWarThunderSettingsWorkflow() {
   assertReview(!afterReload.horizontalOverflow && !afterReload.settingsOverflow, 'Reloaded War Thunder Settings introduced horizontal overflow.');
 
   return { expectedPlayerName, beforeReload, afterReload, persisted: true };
+}
+
+async function verifyReactionClippingSettings() {
+  const captureConfig = await window.webContents.executeJavaScript(`window.switchboard.getSnapshot().then((value) => value.capture.config)`);
+  if (captureConfig.enabled) {
+    await window.webContents.executeJavaScript(`window.switchboard.setCaptureConfig({ enabled: false })`);
+    await waitForCondition(`window.switchboard.getSnapshot().then((value) => !value.capture.config.enabled)`, 'Capture engine to stop before reaction settings review');
+  }
+  await openSettingsCategory('Capture');
+  const toggled = await window.webContents.executeJavaScript(`
+    (async () => {
+      const toggle = document.querySelector('button[aria-label="Allow reaction clipping"]');
+      if (!(toggle instanceof HTMLButtonElement)) return false;
+      toggle.focus();
+      const snapshot = await window.switchboard.getSnapshot();
+      if (!snapshot.capture.autoCapture.settings.reactionClipping.enabled) toggle.click();
+      return document.activeElement === toggle;
+    })()
+  `);
+  assertReview(toggled, 'Reaction clipping toggle was unavailable or could not retain focus.');
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((value) => value.capture.autoCapture.settings.reactionClipping.enabled)`,
+    'Reaction clipping setting to reach canonical state',
+  );
+  await chooseSettingsOption('reactionClipping.sensitivity', 'High');
+  await chooseSettingsOption('reactionClipping.cooldown', '30 sec');
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((value) => {
+      const reaction = value.capture.autoCapture.settings.reactionClipping;
+      return reaction.sensitivity === 'high' && reaction.cooldownSeconds === 30;
+    })`,
+    'Reaction clipping controls to reach canonical state',
+  );
+  await delay(350);
+
+  const beforeReload = await getReactionSettingsState();
+  assertReview(beforeReload.enabled, 'Reaction clipping did not remain enabled.');
+  assertReview(beforeReload.enabledControls === 4, `Reaction clipping did not expose four enabled tuning controls: ${JSON.stringify(beforeReload)}`);
+  assertReview(!beforeReload.horizontalOverflow && !beforeReload.settingsOverflow, 'Reaction clipping Settings introduced horizontal overflow.');
+  const persistedFile = JSON.parse(await readFile(reviewStatePath, 'utf8'));
+  assertReview(persistedFile.capture?.autoCapture?.settings?.reactionClipping?.sensitivity === 'high', 'Reaction sensitivity was not persisted by Electron main.');
+  assertReview(persistedFile.capture?.autoCapture?.settings?.reactionClipping?.cooldownSeconds === 30, 'Reaction cooldown was not persisted by Electron main.');
+
+  const reload = new Promise((resolveLoad, rejectLoad) => {
+    const timeout = setTimeout(() => rejectLoad(new Error('Reaction clipping Settings reload timed out.')), 20_000);
+    window.webContents.once('did-finish-load', () => {
+      clearTimeout(timeout);
+      resolveLoad();
+    });
+  });
+  window.webContents.reload();
+  await reload;
+  await waitForCondition(`!document.querySelector('.startup-screen')`, 'startup sequence after reaction settings reload');
+  await installReviewStyles(window);
+  await openSettingsCategory('Capture');
+  const afterReload = await getReactionSettingsState();
+  assertReview(afterReload.enabled && afterReload.sensitivity === 'high' && afterReload.cooldownSeconds === 30,
+    `Reaction clipping settings did not restore after reload: ${JSON.stringify(afterReload)}`);
+  assertReview(!afterReload.horizontalOverflow && !afterReload.settingsOverflow, 'Reloaded reaction clipping Settings introduced horizontal overflow.');
+
+  return { beforeReload, afterReload, persisted: true, captureStayedDisabled: !afterReload.captureEnabled };
+}
+
+function getReactionSettingsState() {
+  return window.webContents.executeJavaScript(`
+    (async () => {
+      const snapshot = await window.switchboard.getSnapshot();
+      const reaction = snapshot.capture.autoCapture.settings.reactionClipping;
+      const settings = document.querySelector('[data-settings-content-scroll]');
+      const tuningControls = [
+        'reactionClipping.sensitivity', 'reactionClipping.preRoll',
+        'reactionClipping.postRoll', 'reactionClipping.cooldown',
+      ].map((id) => document.getElementById('setting-' + id)?.querySelector('[role="combobox"]'));
+      return {
+        enabled: reaction.enabled,
+        sensitivity: reaction.sensitivity,
+        cooldownSeconds: reaction.cooldownSeconds,
+        captureEnabled: snapshot.capture.config.enabled,
+        enabledControls: tuningControls.filter((control) => control instanceof HTMLButtonElement && !control.disabled).length,
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        settingsOverflow: settings ? settings.scrollWidth > settings.clientWidth : false,
+      };
+    })()
+  `);
 }
 
 function getWarThunderSettingsState() {

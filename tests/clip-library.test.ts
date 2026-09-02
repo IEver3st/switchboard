@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Clip } from '../src/shared/contracts';
-import { clipSchema, clipTrimInputSchema, exportClipInputSchema, setClipAudioTrackLevelInputSchema, setClipCanvasSizeInputSchema } from '../src/shared/contracts';
+import { clipSchema, clipTrimInputSchema, exportClipInputSchema, prepareClipShareInputSchema, preparedShareFileSchema, setClipAudioTrackLevelInputSchema, setClipCanvasSizeInputSchema } from '../src/shared/contracts';
 import {
   clipGameLabel,
   createDefaultClipTitle,
@@ -136,6 +136,10 @@ describe('canonical clip metadata', () => {
     })).toThrow();
     expect(exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '10mb' }).preset).toBe('10mb');
     expect(() => exportClipInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '5mb' })).toThrow();
+    const shareInput = prepareClipShareInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '25mb', exportId: '10000000-0000-4000-8000-000000000001' });
+    expect(shareInput.exportId).toBe('10000000-0000-4000-8000-000000000001');
+    expect(() => prepareClipShareInputSchema.parse({ id: 'clip-1', startMs: 0, endMs: 10_000, preset: '25mb' })).toThrow();
+    expect(preparedShareFileSchema.parse({ id: shareInput.exportId, name: 'clip-25mb.mp4', fileSize: 1_024 }).name).toBe('clip-25mb.mp4');
     expect(setClipAudioTrackLevelInputSchema.parse({ id: 'clip-1', trackIndex: 1, level: 42 })).toEqual({
       id: 'clip-1', trackIndex: 1, level: 42,
     });

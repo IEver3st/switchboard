@@ -10,6 +10,7 @@ describe('settings search metadata', () => {
     expect(searchSettings('clip quality')[0]?.category).toBe('clips');
     expect(searchSettings('renderer memory').map((entry) => entry.id)).toContain('diagnostics.memory');
     expect(searchSettings('white variant').map((entry) => entry.id)).toContain('devices.appearanceFallback');
+    expect(searchSettings('reaction voice').map((entry) => entry.id)).toContain('reactionClipping.enabled');
   });
 
   it('requires every search term and returns no results for unrelated input', () => {
@@ -31,6 +32,7 @@ describe('settings search metadata', () => {
       'diagnostics.telemetry', 'diagnostics.retention', 'diagnostics.guard',
       'diagnostics.memory', 'diagnostics.engines', 'diagnostics.capture-path',
       'diagnostics.capture-health', 'diagnostics.deviceIdentity',
+      'diagnostics.reaction-clipping',
       'about.version', 'about.updates', 'about.runtime', 'about.isolation',
       'about.automaticAppUpdates', 'about.automaticAppUpdateDownloads', 'about.installAppUpdatesOnNextStartup',
     ];

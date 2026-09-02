@@ -264,7 +264,13 @@ function migrateLegacyCaptureState(value: unknown): unknown {
         includeSystemAudio: typeof config.includeSystemAudio === 'boolean' ? config.includeSystemAudio : true,
         clipsDirectory: typeof config.clipsDirectory === 'string' ? config.clipsDirectory : null,
       },
-      runtime: { ...defaults.capture.runtime, ...runtime },
+      runtime: {
+        ...defaults.capture.runtime,
+        ...runtime,
+        reactionClipping: isRecord(runtime.reactionClipping)
+          ? { ...defaults.capture.runtime.reactionClipping, ...runtime.reactionClipping }
+          : defaults.capture.runtime.reactionClipping,
+      },
       storage: isRecord(capture.storage)
         ? { ...defaults.capture.storage, ...capture.storage }
         : defaults.capture.storage,
@@ -275,7 +281,16 @@ function migrateLegacyCaptureState(value: unknown): unknown {
       autoCapture: isRecord(capture.autoCapture)
         ? {
             settings: isRecord(capture.autoCapture.settings)
-              ? { ...defaults.capture.autoCapture.settings, ...capture.autoCapture.settings }
+              ? {
+                  ...defaults.capture.autoCapture.settings,
+                  ...capture.autoCapture.settings,
+                  reactionClipping: isRecord(capture.autoCapture.settings.reactionClipping)
+                    ? {
+                        ...defaults.capture.autoCapture.settings.reactionClipping,
+                        ...capture.autoCapture.settings.reactionClipping,
+                      }
+                    : defaults.capture.autoCapture.settings.reactionClipping,
+                }
               : defaults.capture.autoCapture.settings,
             providers: [],
             runtime: defaults.capture.autoCapture.runtime,

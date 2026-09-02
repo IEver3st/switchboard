@@ -16,6 +16,7 @@ import { SettingSection, SettingSelect, SettingSwitch } from './settings-primiti
 const preRollOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 const postRollOptions = [0, 5, 10, 15, 20, 30, 45, 60];
 const mergeOptions = [0, 5, 10, 15, 20, 30, 45, 60];
+const reactionCooldownOptions = [5, 10, 15, 30, 45, 60, 90, 120];
 
 export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) {
   const update = useSystemStore((state) => state.updateAutoCaptureSettings);
@@ -23,6 +24,7 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
   const emitTestEvent = useSystemStore((state) => state.emitAutoCaptureTestEvent);
   const autoCapture = snapshot.capture.autoCapture;
   const settings = autoCapture.settings;
+  const reaction = settings.reactionClipping;
   const timingExceedsBuffer = settings.preRollSeconds + settings.postRollSeconds > snapshot.capture.config.replaySeconds;
 
   return (
@@ -81,6 +83,58 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
           checked={settings.notifyWhenSaved}
           disabled={!settings.enabled}
           onCheckedChange={(notifyWhenSaved) => void update({ notifyWhenSaved })}
+        />
+      </SettingSection>
+
+      <SettingSection title="Reaction clipping">
+        <SettingSwitch
+          settingId="reactionClipping.enabled"
+          title="Allow reaction clipping"
+          description={reactionClippingDescription(snapshot)}
+          checked={reaction.enabled}
+          onCheckedChange={(enabled) => void update({ reactionClipping: { enabled } })}
+        />
+        <SettingSelect
+          settingId="reactionClipping.sensitivity"
+          title="Reaction sensitivity"
+          description="Balanced requires a sustained voice-shaped burst that is louder than your locally learned speaking baseline."
+          value={reaction.sensitivity}
+          options={[
+            { value: 'low', label: 'Low' },
+            { value: 'balanced', label: 'Balanced' },
+            { value: 'high', label: 'High' },
+          ]}
+          disabled={!reaction.enabled}
+          onValueChange={(sensitivity) => void update({
+            reactionClipping: { sensitivity: sensitivity as typeof reaction.sensitivity },
+          })}
+        />
+        <SettingSelect
+          settingId="reactionClipping.preRoll"
+          title="Before reaction"
+          description="Footage preserved from the rolling replay buffer before the detected voice reaction."
+          value={String(reaction.preRollSeconds)}
+          options={secondsOptions(preRollOptions.filter((seconds) => seconds <= 60))}
+          disabled={!reaction.enabled}
+          onValueChange={(value) => void update({ reactionClipping: { preRollSeconds: Number(value) } })}
+        />
+        <SettingSelect
+          settingId="reactionClipping.postRoll"
+          title="After reaction"
+          description="Additional footage retained after the reaction before the clip is finalized."
+          value={String(reaction.postRollSeconds)}
+          options={secondsOptions(postRollOptions.filter((seconds) => seconds <= 30))}
+          disabled={!reaction.enabled}
+          onValueChange={(value) => void update({ reactionClipping: { postRollSeconds: Number(value) } })}
+        />
+        <SettingSelect
+          settingId="reactionClipping.cooldown"
+          title="Minimum gap between reactions"
+          description="Prevents one loud exchange from producing a queue of nearly identical clips. Overlapping windows still merge."
+          value={String(reaction.cooldownSeconds)}
+          options={secondsOptions(reactionCooldownOptions)}
+          disabled={!reaction.enabled}
+          onValueChange={(value) => void update({ reactionClipping: { cooldownSeconds: Number(value) } })}
         />
       </SettingSection>
 
@@ -266,6 +320,20 @@ function autoCaptureStateDescription(state: SystemSnapshot['capture']['autoCaptu
   if (state === 'listening') return 'The active game provider is listening for supported gameplay events.';
   if (state === 'degraded') return 'The active provider needs attention. Manual replay capture remains available.';
   return 'Supported game providers start only while Auto Capture and Instant Replay are enabled.';
+}
+
+function reactionClippingDescription(snapshot: SystemSnapshot): string {
+  const runtime = snapshot.capture.runtime.reactionClipping;
+  if (!snapshot.capture.config.enabled) {
+    return 'Starts only while Instant Replay is capturing. Microphone analysis stays on this PC and does not require the microphone track to be recorded.';
+  }
+  if (runtime.state === 'unavailable' || runtime.state === 'error') {
+    return runtime.message ?? 'The microphone input is unavailable. Manual replay capture remains available.';
+  }
+  if (runtime.state === 'calibrating') return 'Learning the local noise and speaking baseline before reactions can create clips.';
+  if (runtime.state === 'cooldown') return `Reaction detected. Listening resumes in ${runtime.cooldownRemainingSeconds} seconds.`;
+  if (runtime.state === 'listening') return 'Listening locally for sustained, unusually energetic voice moments. No model, transcript, or audio sample leaves the capture host.';
+  return 'Uses the microphone only while a capture source is active, then saves from the existing replay buffer without starting another recorder.';
 }
 
 function providerStatusLabel(provider: AutoCaptureProvider, active: boolean): string {

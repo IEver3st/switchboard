@@ -184,6 +184,8 @@ Provider checklist:
 
 Providers must never use DLL/code injection, process memory access, memory scanning, process manipulation, kernel drivers, debugger attachment, packet interception/decryption, anti-cheat bypasses, or undocumented protected-process hooks. Screen/OCR providers, if ever needed, remain separate providers and must crop a small stable region, gate expensive recognition behind a cheap change detector, sample conservatively, and ship only after measured CPU/GPU validation.
 
+Reaction clipping is an auxiliary local event source rather than a game provider. It reuses the current Capture.Host microphone callback and the same bounded window planner. Its architecture, resource trade-offs, lifecycle, and accuracy boundary are documented in [REACTION_CLIPPING.md](./REACTION_CLIPPING.md).
+
 ## Provider research matrix
 
 Reviewed through 2026-09-01 against current first-party documentation where available. `GREEN` means a documented safe integration is a strong provider candidate; `YELLOW` means a non-invasive path may exist but needs format, coverage, policy, or retail-build validation; `RED` means do not implement from presently known approaches. Absence of a public API is not permission to inspect a protected process.

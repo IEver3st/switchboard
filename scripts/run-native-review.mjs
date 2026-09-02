@@ -48,6 +48,15 @@ if (command === 'capture') {
   await runElectron('scripts/verify-montage-ui.mjs');
 } else if (command === 'capture-scale') {
   await runElectron('scripts/capture-scale-qa.mjs', ...commandArguments);
+} else if (command === 'capture-window-previews') {
+  const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-window-previews-'));
+  cleanEnvironment.SWITCHBOARD_CAPTURE_WINDOW_PREVIEW_USER_DATA = isolatedUserData;
+  try {
+    await runElectron('scripts/verify-capture-window-previews.mjs');
+  } finally {
+    delete cleanEnvironment.SWITCHBOARD_CAPTURE_WINDOW_PREVIEW_USER_DATA;
+    await rm(isolatedUserData, { recursive: true, force: true });
+  }
 } else if (command === 'startup') {
   await runElectron('scripts/measure-startup.mjs', ...commandArguments);
 } else if (command === 'idle') {

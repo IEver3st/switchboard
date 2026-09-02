@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
 if (args.Contains("--job-child", StringComparer.Ordinal))
@@ -49,6 +50,10 @@ var validSettings = new CaptureSettings(
 _ = validSettings.Validate();
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { Fps = 59 }).Validate(), "Unsupported FPS must fail validation.");
 AssertThrows<InvalidOperationException>(() => (validSettings with { Source = "window", SourceId = null }).Validate(), "Window capture requires a target.");
+AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { ReactionSensitivity = "maximum" }).Validate(),
+    "Unknown reaction sensitivity must fail validation.");
+AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { ReactionCooldownSeconds = 2 }).Validate(),
+    "Reaction cooldown must remain inside the bounded range.");
 AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ClipMixPipeName = "switchboard-audio-clip-v1" }),
     "Switching replay system audio to the Audio.Host clip mix must rebuild the FFmpeg audio input.");
 AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ProcessedMicrophoneDeviceId = "processed-mic" }),
@@ -79,6 +84,7 @@ await Task.Yield();
 AssertValue(0, operations.Count, "Completed host requests must not remain tracked.");
 AssertValue(false, ReplayEngine.IsHostActiveState("error"), "An errored capture engine must be restartable.");
 AssertValue(true, ReplayEngine.IsHostActiveState("buffering"), "A buffering capture engine must remain active.");
+TestReactionDetector();
 
 var displaySource = new CaptureSource(
     "display:0", "display", "Display 1", null, null, "0", true, DisplayHandle: 12345);
@@ -198,6 +204,80 @@ finally
 }
 
 Console.WriteLine("Capture.Host deterministic tests passed.");
+
+static void TestReactionDetector()
+{
+    long now = 1_000;
+    var detector = new ReactionDetector(() => now);
+    detector.Configure(enabled: true, sensitivity: "balanced", cooldownSeconds: 15);
+
+    for (var index = 0; index < 34; index++) FeedTone(detector, ref now, rmsDb: -30);
+    for (var index = 0; index < 20; index++) FeedTone(detector, ref now, rmsDb: -29);
+    AssertValue(false, detector.TryTakeDetection(out _),
+        "Ordinary speech near the learned baseline must not create a reaction.");
+
+    FeedTone(detector, ref now, rmsDb: -8);
+    FeedSilence(detector, ref now);
+    AssertValue(false, detector.TryTakeDetection(out _),
+        "A single loud transient must not pass the reaction sustain gate.");
+
+    for (var index = 0; index < 5; index++) FeedTone(detector, ref now, rmsDb: -8);
+    AssertValue(true, detector.TryTakeDetection(out var first),
+        "A sustained voice-shaped burst above the learned baseline must create a reaction.");
+    AssertValue(true, first.Confidence >= 0.58 && first.Confidence <= 0.98,
+        "Reaction confidence must remain bounded.");
+
+    for (var index = 0; index < 20; index++) FeedTone(detector, ref now, rmsDb: -7);
+    AssertValue(false, detector.TryTakeDetection(out _),
+        "The detector cooldown must suppress repeated clips from one loud exchange.");
+
+    now += 16_000;
+    for (var index = 0; index < 5; index++) FeedTone(detector, ref now, rmsDb: -8);
+    AssertValue(true, detector.TryTakeDetection(out _),
+        "Reaction detection must resume after the bounded cooldown.");
+
+    var runtime = detector.Snapshot(inputActive: true);
+    AssertValue(true, runtime.AnalyzedFrames >= 80,
+        "Reaction diagnostics must count analyzed microphone frames.");
+    AssertValue(true, runtime.AnalysisAverageMs < 5,
+        "Reaction analysis must remain well below one 50 ms callback budget in the deterministic host test.");
+    Console.WriteLine($"Reaction detector analyzed {runtime.AnalyzedFrames:N0} frames at {runtime.AnalysisAverageMs:F4} ms average.");
+
+    detector.Configure(enabled: false, sensitivity: "balanced", cooldownSeconds: 15);
+    AssertEqual("disabled", detector.Snapshot(inputActive: false).State,
+        "Disabling reaction clipping must release the detector state.");
+}
+
+static void FeedTone(ReactionDetector detector, ref long now, double rmsDb)
+{
+    const int sampleRate = 48_000;
+    const int milliseconds = 50;
+    var samples = new float[sampleRate * milliseconds / 1_000];
+    var peak = Math.Min(0.95, Math.Pow(10, rmsDb / 20) * Math.Sqrt(2));
+    for (var index = 0; index < samples.Length; index++)
+        samples[index] = (float)(Math.Sin(2 * Math.PI * 220 * index / sampleRate) * peak);
+    now += milliseconds;
+    detector.Observe(
+        MemoryMarshal.AsBytes(samples.AsSpan()),
+        silent: false,
+        PcmSampleFormat.Float32,
+        channels: 1,
+        sampleRate);
+}
+
+static void FeedSilence(ReactionDetector detector, ref long now)
+{
+    const int sampleRate = 48_000;
+    const int milliseconds = 50;
+    var samples = new float[sampleRate * milliseconds / 1_000];
+    now += milliseconds;
+    detector.Observe(
+        MemoryMarshal.AsBytes(samples.AsSpan()),
+        silent: true,
+        PcmSampleFormat.Float32,
+        channels: 1,
+        sampleRate);
+}
 
 static void AssertSequence(IEnumerable<string> actual, IReadOnlyList<string> expected, string message)
 {

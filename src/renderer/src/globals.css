@@ -1894,71 +1894,96 @@ textarea:focus-visible {
 }
 
 .capture-clip-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 272px), 1fr));
-  gap: 18px 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 22px 14px;
 }
 
 .capture-clip-card {
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  contain-intrinsic-size: auto 220px;
-  transition: none;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 32%);
+  contain-intrinsic-size: auto 320px;
+  transition: border-color 140ms ease-out, box-shadow 140ms ease-out, transform 140ms ease-out;
 }
 
 .capture-clip-card:hover,
 .capture-clip-card:focus-within {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+  background: var(--surface-2);
 }
 
 .capture-clip-card__media {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
   background: #0b0a09;
-  box-shadow: 0 1px 0 rgb(0 0 0 / 34%);
-  transition: border-color 140ms ease-out, box-shadow 140ms ease-out, transform 140ms ease-out;
+  box-shadow: none;
+  transition: filter 140ms ease-out;
 }
 
-.capture-clip-card:hover .capture-clip-card__media {
+.capture-clip-card:hover {
   border-color: var(--border-strong);
   box-shadow: 0 8px 18px rgb(0 0 0 / 22%);
   transform: translateY(-1px);
 }
 
-.capture-clip-card:focus-within .capture-clip-card__media {
+.capture-clip-card:focus-within {
   border-color: color-mix(in srgb, var(--primary) 64%, var(--border));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 26%, transparent);
 }
 
-.capture-clip-card[data-selected="true"] .capture-clip-card__media {
+.capture-clip-card[data-selected="true"] {
   border-color: var(--primary);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 42%, transparent);
 }
 
 .capture-clip-card__footer {
-  min-height: 49px;
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   border: 0;
-  background: transparent;
-  padding: 7px 1px 1px;
+  background: var(--surface-2);
+  padding: 8px 9px 9px;
+}
+
+.capture-clip-card__details {
+  flex: 1 1 auto;
+}
+
+.capture-clip-card__game {
+  color: var(--text-description);
+  font-size: 8.5px;
+  font-weight: 650;
+  letter-spacing: 0.035em;
+  line-height: 13px;
+  text-transform: uppercase;
 }
 
 .capture-clip-card__metadata {
-  gap: 0;
-  margin-top: 0;
+  gap: 4px;
+  margin-top: 1px;
+  text-transform: uppercase;
 }
 
 .capture-clip-card__metadata > span + span::before {
-  content: '\00b7';
-  margin: 0 6px;
-  color: var(--text-muted);
+  content: none;
 }
 
 .capture-clip-duration {
   border: 1px solid rgb(255 255 255 / 13%);
   background: rgb(10 9 8 / 84%);
   box-shadow: 0 2px 7px rgb(0 0 0 / 24%);
+}
+
+.capture-clip-card .capture-clip-duration {
+  top: 8px;
+  right: 8px;
+  bottom: auto;
 }
 
 .capture-clip-action,
@@ -1971,7 +1996,35 @@ textarea:focus-visible {
 }
 
 .capture-clip-card__quick-actions {
+  display: flex;
+  flex: 0 0 auto;
   gap: 4px;
+  opacity: 1;
+}
+
+.capture-clip-card .capture-clip-action {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--surface-interactive) 78%, transparent);
+  color: var(--text-secondary);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.capture-clip-card .capture-clip-action:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.capture-clip-card .capture-clip-favorite {
+  opacity: 0;
+}
+
+.capture-clip-card:hover .capture-clip-favorite,
+.capture-clip-card:focus-within .capture-clip-favorite,
+.capture-clip-card .capture-clip-favorite:focus-visible,
+.capture-clip-card .capture-clip-favorite[data-favorite="true"] {
+  opacity: 1;
 }
 
 .capture-clip-list {
@@ -2016,8 +2069,8 @@ textarea:focus-visible {
 
 @media (hover: hover) and (pointer: fine) {
   .capture-clip-card:hover {
-    box-shadow: none;
-    transform: none;
+    box-shadow: 0 8px 18px rgb(0 0 0 / 22%);
+    transform: translateY(-1px);
   }
 }
 
@@ -2045,6 +2098,10 @@ textarea:focus-visible {
 
   .capture-tool-control--sort {
     width: 104px;
+  }
+
+  .capture-clip-card__share {
+    display: none;
   }
 }
 
@@ -5368,14 +5425,14 @@ textarea:focus-visible {
   padding: 10px 0 10px 12px;
 }
 
-.module-list-row__action > button {
+.module-list-row__install {
   min-width: 88px;
   height: 29px;
   padding: 0 10px;
   font-size: 10.5px;
 }
 
-.module-list-row__action > button svg {
+.module-list-row__install svg {
   width: 13px;
   height: 13px;
 }

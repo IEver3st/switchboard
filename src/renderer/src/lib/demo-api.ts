@@ -578,6 +578,7 @@ const demoApi: SwitchboardApi = {
     snapshot.capture.autoCapture.settings = autoCaptureSettingsSchema.parse({
       ...current,
       ...input,
+      reactionClipping: { ...current.reactionClipping, ...input.reactionClipping },
       games,
       dismissedAvailability: { ...current.dismissedAvailability, ...input.dismissedAvailability },
     });
@@ -710,6 +711,9 @@ const demoApi: SwitchboardApi = {
   },
   async loadClipAudioWaveform(id) { return { clipId: id, tracks: [] }; },
   async exportClip() { return false; },
+  async prepareClipShare() { return null; },
+  startPreparedShareDrag() {},
+  async revealPreparedShareFile() {},
   async exportMontage() { return false; },
   async cancelClipExport() {},
   subscribe(listener) {

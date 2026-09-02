@@ -27,6 +27,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   const deleteClip = useSystemStore((state) => state.deleteClip);
   const renameClip = useSystemStore((state) => state.renameClip);
   const exportClip = useSystemStore((state) => state.exportClip);
+  const prepareClipShare = useSystemStore((state) => state.prepareClipShare);
   const cancelClipExport = useSystemStore((state) => state.cancelClipExport);
   const setClipCanvasSize = useSystemStore((state) => state.setClipCanvasSize);
   const setClipTrim = useSystemStore((state) => state.setClipTrim);
@@ -199,9 +200,9 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
               showTransientToast('Timeline edits saved', setToast);
             })}
             onAudioTrackLevelChange={(trackIndex, level) => setClipAudioTrackLevel({ id: editorClip.id, trackIndex, level })}
-            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => runClipAction(`clip:${editorClip.id}:export`, () => exportClip({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims, exportId })).then((exported) => {
-              if (exported) showTransientToast('Share file created', setToast);
-              return exported;
+            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => runClipAction(`clip:${editorClip.id}:export`, () => prepareClipShare({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims, exportId })).then((prepared) => {
+              if (prepared) showTransientToast('Clip ready to drag', setToast);
+              return prepared;
             })}
             onCancelExport={async (exportId) => {
               await cancelClipExport(exportId);

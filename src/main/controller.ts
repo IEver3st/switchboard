@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
-import { dirname, extname, join, resolve } from 'node:path';
-import { app, clipboard, desktopCapturer, dialog, globalShortcut, screen, shell, type DesktopCapturerSource, type Display } from 'electron';
+import { basename, dirname, extname, join, resolve } from 'node:path';
+import { app, clipboard, desktopCapturer, dialog, globalShortcut, screen, shell, type Display } from 'electron';
 import { z } from 'zod';
 import projectPackage from '../../package.json';
 import {
@@ -33,8 +33,11 @@ import {
   type FeedbackHandoffResult,
   type FeedbackReportInput,
   type EngineStatus,
+  type GameEvent,
   type MarkClipsReviewedInput,
   type ModuleProjectIdInput,
+  type PrepareClipShareInput,
+  type PreparedShareFile,
   type CreateAudioPresetInput,
   type RenameAudioPresetInput,
   type RenameClipInput,
@@ -82,12 +85,14 @@ import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery
 import { performFeedbackHandoff } from './services/feedback-handoff';
 import { StateStore } from './services/state-store';
 import { PerformanceMonitor } from './services/performance-monitor';
+import { getPreparedShareService } from './services/prepared-share';
 import { AutoCaptureEngine, type AutoCapturePreserveRequest } from './autocapture/auto-capture-engine';
 import { AutoCaptureRegistry } from './autocapture/registry';
 import { AutoCaptureCoordinator } from './autocapture/coordinator';
 import { TestEventProvider } from './autocapture/providers/test-event-provider';
 import { CS2Provider } from './autocapture/providers/cs2/cs2-provider';
 import { WarThunderProvider } from './autocapture/providers/war-thunder/war-thunder-provider';
+import { desktopCaptureTypesForSources, matchDesktopCaptureSource } from './capture-source-previews';
 import { Battlefield6Provider } from './autocapture/providers/battlefield-6/battlefield-6-provider';
 import type { OverwolfRuntimeHost } from './autocapture/providers/battlefield-6/overwolf-gep-session';
 import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
@@ -114,10 +119,17 @@ const workerSavedClipSchema = z.object({
   captureStartedAt: z.number().int().nonnegative().nullable().optional(),
   captureEndedAt: z.number().int().nonnegative().nullable().optional(),
 });
+const workerReactionDetectionSchema = z.object({
+  timestamp: z.number().int().nonnegative(),
+  confidence: z.number().min(0).max(1),
+  levelDb: z.number().min(-120).max(0),
+  baselineDb: z.number().min(-120).max(0),
+}).strict();
 
 type WorkerSavedClip = z.infer<typeof workerSavedClipSchema>;
 const audioEndpointRefreshMinimumIntervalMs = 10_000;
 const captureSourceThumbnailRefreshMinimumIntervalMs = 10_000;
+const reactionClippingProviderId = 'microphone-reaction';
 
 function sameAudioChannels(left: readonly ClipAudioChannel[] | undefined, right: readonly ClipAudioChannel[]): boolean {
   return left?.length === right.length && left.every((channel, index) => channel === right[index]);
@@ -1038,6 +1050,10 @@ export class AppController {
     const next = autoCaptureSettingsSchema.parse({
       ...current,
       ...patch,
+      reactionClipping: {
+        ...current.reactionClipping,
+        ...patch.reactionClipping,
+      },
       games,
       dismissedAvailability: {
         ...current.dismissedAvailability,
@@ -1051,6 +1067,8 @@ export class AppController {
       snapshot.capture.config.enabled,
       snapshot.gameDetection.games,
     );
+    this.scheduleCaptureAudioIntegrationSync();
+    await this.captureAudioIntegrationUpdate;
     return this.store.get();
   }
 
@@ -1463,7 +1481,13 @@ export class AppController {
     return waveform;
   }
 
-  public async exportClip(input: ExportClipInput): Promise<boolean> {
+  private planClipExport(input: ExportClipInput): {
+    clip: Clip;
+    canCopyOriginal: boolean;
+    extension: string;
+    fileName: string;
+    expectedBytes: number;
+  } {
     const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
@@ -1483,38 +1507,83 @@ export class AppController {
       ? (fullRange ? (audioMixChanged || audioTrimChanged ? '-mixed' : '') : '-trimmed')
       : `-${input.preset}`;
     const canvasSuffix = clip.canvasSize === '9:16' ? '-9x16' : '';
-    const selection = await dialog.showSaveDialog({
-      title: 'Create share file',
-      defaultPath: join(app.getPath('videos'), `${sanitizeClipBaseName(clip.name)}${canvasSuffix}${presetSuffix}${extension}`),
-      filters: [{ name: 'Video', extensions: [extension.replace(/^\./, '')] }],
-    });
-    if (selection.canceled || !selection.filePath) return false;
-    const destinationIsSource = resolve(selection.filePath).toLocaleLowerCase() === resolve(clip.path).toLocaleLowerCase();
-    if (destinationIsSource && !canCopyOriginal) {
-      throw new Error('Choose a different file name so the original clip stays intact.');
-    }
-    if (canCopyOriginal) {
-      if (destinationIsSource) return true;
-      await ensureExportDiskSpace(selection.filePath, clip.fileSize + 64 * 1_024 * 1_024);
-      await copyFile(clip.path, selection.filePath);
+    const fileName = `${sanitizeClipBaseName(clip.name)}${canvasSuffix}${presetSuffix}${extension}`;
+    const expectedBytes = canCopyOriginal
+      ? clip.fileSize
+      : input.preset === 'original'
+        ? Math.ceil(clip.fileSize * (input.endMs - input.startMs) / Math.max(1, clip.durationMs))
+        : exportPresetTargetBytes(input.preset);
+    return { clip, canCopyOriginal, extension, fileName, expectedBytes };
+  }
+
+  private async writeClipExport(
+    input: ExportClipInput,
+    plan: ReturnType<AppController['planClipExport']>,
+    destination: string,
+  ): Promise<boolean> {
+    if (plan.canCopyOriginal) {
+      await ensureExportDiskSpace(dirname(destination), plan.clip.fileSize + 64 * 1_024 * 1_024);
+      await copyFile(plan.clip.path, destination);
       return true;
     }
-    const expectedBytes = input.preset === 'original'
-      ? Math.ceil(clip.fileSize * (input.endMs - input.startMs) / Math.max(1, clip.durationMs))
-      : exportPresetTargetBytes(input.preset);
-    await ensureExportDiskSpace(selection.filePath, expectedBytes + 64 * 1_024 * 1_024);
+    await ensureExportDiskSpace(dirname(destination), plan.expectedBytes + 64 * 1_024 * 1_024);
     const controller = input.exportId ? new AbortController() : null;
     if (input.exportId && controller) this.activeClipExports.set(input.exportId, controller);
     try {
-      await this.clipLibrary.renderExport(clip, selection.filePath, input, controller?.signal);
+      await this.clipLibrary.renderExport(plan.clip, destination, input, controller?.signal);
     } catch (error) {
-      await rm(selection.filePath, { force: true });
+      await rm(destination, { force: true });
       if (controller?.signal.aborted) return false;
       throw error;
     } finally {
       if (input.exportId) this.activeClipExports.delete(input.exportId);
     }
     return true;
+  }
+
+  public async exportClip(input: ExportClipInput): Promise<boolean> {
+    const plan = this.planClipExport(input);
+    const selection = await dialog.showSaveDialog({
+      title: 'Create share file',
+      defaultPath: join(app.getPath('videos'), plan.fileName),
+      filters: [{ name: 'Video', extensions: [plan.extension.replace(/^\./, '')] }],
+    });
+    if (selection.canceled || !selection.filePath) return false;
+    const destinationIsSource = resolve(selection.filePath).toLocaleLowerCase() === resolve(plan.clip.path).toLocaleLowerCase();
+    if (destinationIsSource && !plan.canCopyOriginal) {
+      throw new Error('Choose a different file name so the original clip stays intact.');
+    }
+    if (plan.canCopyOriginal) {
+      if (destinationIsSource) return true;
+      return this.writeClipExport(input, plan, selection.filePath);
+    }
+    return this.writeClipExport(input, plan, selection.filePath);
+  }
+
+  public async prepareClipShare(input: PrepareClipShareInput): Promise<PreparedShareFile | null> {
+    const plan = this.planClipExport(input);
+    const shares = getPreparedShareService();
+    if (plan.canCopyOriginal) {
+      return shares.register(input.exportId, plan.clip.path, basename(plan.clip.path), {
+        ...(plan.clip.thumbnailPath ? { iconPath: plan.clip.thumbnailPath } : {}),
+        temporary: false,
+      });
+    }
+    const destination = await shares.allocate(input.exportId, plan.fileName);
+    try {
+      const prepared = await this.writeClipExport(input, plan, destination);
+      if (!prepared) {
+        await shares.discard(input.exportId);
+        return null;
+      }
+      return await shares.register(input.exportId, destination, plan.fileName, {
+        ...(plan.clip.thumbnailPath ? { iconPath: plan.clip.thumbnailPath } : {}),
+        temporary: true,
+      });
+    } catch (error) {
+      await shares.discard(input.exportId);
+      throw error;
+    }
   }
 
   public async exportMontage(input: ExportMontageInput): Promise<boolean> {
@@ -1594,7 +1663,7 @@ export class AppController {
 
   public async getCaptureSourceThumbnail(id: string): Promise<Buffer | null> {
     const knownSource = this.store.get().capture.sources.find((source) => source.id === id);
-    if (!knownSource || knownSource.type !== 'display') return null;
+    if (!knownSource || knownSource.type === 'automatic-game') return null;
     await this.refreshCaptureSourceThumbnails(false);
     return this.captureSourceThumbnails.get(id) ?? null;
   }
@@ -1719,7 +1788,7 @@ export class AppController {
     if (!force && now - this.captureSourceThumbnailsRefreshedAt < captureSourceThumbnailRefreshMinimumIntervalMs) return;
 
     this.captureSourceThumbnailRefresh = (async () => {
-      const sources = this.store.get().capture.sources.filter((source) => source.type === 'display');
+      const sources = this.store.get().capture.sources.filter((source) => source.type !== 'automatic-game');
       if (sources.length === 0) {
         this.captureSourceThumbnails.clear();
         this.captureSourceThumbnailsRefreshedAt = Date.now();
@@ -1727,12 +1796,16 @@ export class AppController {
       }
 
       const nativeSources = await desktopCapturer.getSources({
-        types: ['screen'],
+        types: desktopCaptureTypesForSources(sources),
         thumbnailSize: { width: 320, height: 180 },
       });
       const next = new Map<string, Buffer>();
       for (const source of sources) {
-        const nativeSource = matchDesktopCaptureSource(source, nativeSources);
+        const nativeSource = matchDesktopCaptureSource(
+          source,
+          nativeSources,
+          captureIndexedDisplays().map((display) => display.id),
+        );
         if (!nativeSource || nativeSource.thumbnail.isEmpty()) continue;
         next.set(source.id, nativeSource.thumbnail.toPNG());
       }
@@ -1865,7 +1938,9 @@ export class AppController {
   }
 
   private toHostSettings(config: CaptureConfig, paths = this.capturePaths): Record<string, unknown> {
-    const audio = this.store.get().audio;
+    const current = this.store.get();
+    const audio = current.audio;
+    const reaction = current.capture.autoCapture.settings.reactionClipping;
     const switchboardAudioReady = audio.enabled
       && audio.host?.running === true
       && audio.capabilities.virtualChannels === 'available';
@@ -1879,8 +1954,13 @@ export class AppController {
       clipsDirectory: paths.clipsDirectory,
       thumbnailDirectory: paths.thumbnailDirectory,
       clipMixPipeName: switchboardAudioReady && config.includeSystemAudio ? 'switchboard-audio-clip-v1' : null,
-      processedMicrophoneDeviceId: switchboardAudioReady && config.includeMic ? processedMicrophone?.id ?? null : null,
-      audioFallbackReason: switchboardAudioReady || (!config.includeSystemAudio && !config.includeMic)
+      processedMicrophoneDeviceId: switchboardAudioReady && (config.includeMic || reaction.enabled)
+        ? processedMicrophone?.id ?? null
+        : null,
+      reactionClippingEnabled: reaction.enabled,
+      reactionSensitivity: reaction.sensitivity,
+      reactionCooldownSeconds: reaction.cooldownSeconds,
+      audioFallbackReason: switchboardAudioReady || (!config.includeSystemAudio && !config.includeMic && !reaction.enabled)
         ? null
         : 'Switchboard audio routing is unavailable; replay audio is using the current Windows default devices.',
     };
@@ -1892,6 +1972,9 @@ export class AppController {
       settings.clipMixPipeName ?? null,
       settings.processedMicrophoneDeviceId ?? null,
       settings.audioFallbackReason ?? null,
+      settings.reactionClippingEnabled,
+      settings.reactionSensitivity,
+      settings.reactionCooldownSeconds,
     ]);
   }
 
@@ -1946,6 +2029,10 @@ export class AppController {
       else console.warn('Capture.Host sent an invalid snapshot.', parsed.error);
       return;
     }
+    if (event === 'reactionDetected') {
+      this.handleReactionDetected(payload);
+      return;
+    }
     if (event === 'fatalCaptureError') {
       const parsed = z.object({ message: z.string() }).safeParse(payload);
       if (parsed.success) {
@@ -1955,6 +2042,38 @@ export class AppController {
         }, { persist: false });
       }
     }
+  }
+
+  private handleReactionDetected(payload: unknown): void {
+    const parsed = workerReactionDetectionSchema.safeParse(payload);
+    if (!parsed.success) {
+      console.warn('Capture.Host sent an invalid reaction event.', parsed.error);
+      return;
+    }
+    const snapshot = this.store.get();
+    const reaction = snapshot.capture.autoCapture.settings.reactionClipping;
+    const source = snapshot.capture.runtime.activeSource;
+    if (!reaction.enabled || !snapshot.capture.config.enabled || !source) return;
+
+    const gameProvider = this.autoCaptureRegistry.getForSource(source, snapshot.gameDetection.games);
+    const event: GameEvent = {
+      id: `${reactionClippingProviderId}-${parsed.data.timestamp}`,
+      gameId: gameProvider?.gameId ?? reactionGameId(source),
+      providerId: reactionClippingProviderId,
+      type: 'highlight',
+      timestamp: parsed.data.timestamp,
+      confidence: parsed.data.confidence,
+      label: 'Reaction',
+      metadata: { code: 'voice-reaction' },
+      source: 'microphone',
+    };
+    this.autoCaptureEngine.handleEvent(event, {
+      enabled: true,
+      preRollSeconds: reaction.preRollSeconds,
+      postRollSeconds: reaction.postRollSeconds,
+      mergeNearbyEvents: true,
+      mergeThresholdSeconds: 0,
+    });
   }
 
   private applyAudioHostSnapshot(snapshot: AudioHostSnapshot): void {
@@ -2123,19 +2242,6 @@ function nativeReviewPath(variable: string): string | null {
   return value ? resolve(value) : null;
 }
 
-function matchDesktopCaptureSource(
-  source: SystemSnapshot['capture']['sources'][number],
-  nativeSources: DesktopCapturerSource[],
-): DesktopCapturerSource | undefined {
-  if (source.type === 'display') {
-    const displays = nativeSources.filter((candidate) => candidate.id.startsWith('screen:'));
-    const displayIndex = Number(source.displayId ?? source.id.replace(/^display:/, ''));
-    const windowsDisplay = captureIndexedDisplays()[displayIndex];
-    return displays.find((candidate) => candidate.display_id === String(windowsDisplay?.id)) ?? displays[displayIndex];
-  }
-  return undefined;
-}
-
 function orderCaptureSourcesByDisplayPosition(sources: CaptureSource[]): CaptureSource[] {
   const windowsDisplays = captureIndexedDisplays();
   const displaySources = sources
@@ -2152,6 +2258,14 @@ function orderCaptureSourcesByDisplayPosition(sources: CaptureSource[]): Capture
     ...displaySources,
     ...sources.filter((source) => source.type === 'window'),
   ];
+}
+
+function reactionGameId(source: CaptureSource): string {
+  const normalized = source.name.toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80);
+  return `reaction-${normalized || 'captured-source'}`;
 }
 
 function captureIndexedDisplays(): Display[] {

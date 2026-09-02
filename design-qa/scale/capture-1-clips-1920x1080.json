@@ -1,0 +1,56 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "requestedClips": 1,
+  "cards": 1,
+  "rows": 0,
+  "columns": 5,
+  "cardWidths": {
+    "minimum": 347.19793701171875,
+    "maximum": 347.19793701171875
+  },
+  "libraryBounds": {
+    "left": 68,
+    "right": 1920,
+    "width": 1852
+  },
+  "toolbarBounds": {
+    "left": 98,
+    "right": 1890,
+    "width": 1792
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 138.33333587646484,
+    "height": 100.33333587646484
+  },
+  "commandTopBounds": {
+    "height": 50
+  },
+  "searchBounds": {
+    "width": 680
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": "false",
+    "game": "All games",
+    "filter": "Filter"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today"
+  ],
+  "lazyImages": 1,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": null,
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-1-clips-1920x1080.png",
+  "imageSize": {
+    "width": 2880,
+    "height": 1620
+  }
+}
