@@ -1,9 +1,40 @@
 import { describe, expect, test } from 'bun:test';
 import type { Device as HidDevice } from 'node-hid';
 import { LogitechDeviceModule } from '../src/main/modules/logitech';
+import type { LogitechAgentDevice } from '../src/main/modules/logitech/ghub-metadata';
 import type { Device, DeviceCapabilities } from '../src/shared/contracts';
 
 describe('Logitech service fallback', () => {
+  test('uses G HUB metadata for identity but routes controls through direct HID++', async () => {
+    const directWrites: string[] = [];
+    const agentWrites: string[] = [];
+    const module = new LogitechDeviceModule({
+      readAgentDevices: async () => [agentDevice],
+      readBattery: async () => ({ percentage: 72, charging: false }),
+      readCapabilities: async () => previousServiceDevice.capabilities,
+      writeControl: async (_agentDeviceId, _device, change) => { agentWrites.push(change.type); },
+      openDirectSession: async () => ({
+        isClosed: false,
+        getCapabilities: async () => structuredClone(directCapabilities),
+        setControl: async (change) => { directWrites.push(change.type); },
+        close: async () => undefined,
+      }),
+    });
+
+    const [device] = await module.discover({
+      hidDevices: [receiverDescriptor, longEndpointDescriptor],
+      previousDevices: [previousServiceDevice],
+      appearanceOverrides: {},
+    });
+
+    expect(device?.identity.variant).toBe('white');
+    expect(device?.capabilities.dpi?.shiftMode).toBe('host-button-spy');
+    await module.setControl(device!, { type: 'dpi-shift', value: 400 });
+    expect(directWrites).toEqual(['dpi-shift']);
+    expect(agentWrites).toEqual([]);
+    await module.dispose();
+  });
+
   test('keeps native G502 controls and DPI Shift active without G HUB', async () => {
     const writes: Array<{ type: string; value?: number }> = [];
     let openedPath: string | undefined;
@@ -101,6 +132,45 @@ describe('Logitech service fallback', () => {
     });
   });
 });
+
+const directCapabilities: DeviceCapabilities = {
+  dpi: {
+    writable: true,
+    min: 100,
+    max: 25_600,
+    step: 50,
+    stages: [400, 800, 1_600, 3_200],
+    activeDpi: 3_200,
+    defaultDpi: 3_200,
+    shiftDpi: 400,
+    shiftMode: 'host-button-spy',
+    maxStages: 5,
+    profileMode: 'onboard',
+  },
+};
+
+const agentDevice: LogitechAgentDevice = {
+  id: 'g502-agent-device',
+  pid: 0x4099,
+  state: 'ACTIVE',
+  connectionType: 'WIRELESS',
+  displayConnectionType: 'LIGHTSPEED',
+  deviceType: 'MOUSE',
+  deviceModel: 'g502x_plus',
+  deviceBaseModel: 'g502x_plus',
+  displayName: 'G502 X Plus',
+  deviceExt: 1,
+  deviceUnitId: 'switchboard-test-unit',
+  activeInterfaces: [{
+    type: 'DEVIO',
+    id: 'g502-devio',
+    pid: 0x4099,
+    extendedModel: 1,
+    serialNumber: 'switchboard-test-unit',
+    path: '\\\\?\\hid#vid_046d&pid_c547&mi_02#switchboard-test',
+    connectionType: 'WIRELESS',
+  }],
+};
 
 const receiverDescriptor = {
   vendorId: 0x046d,

@@ -57,15 +57,16 @@ export class LogitechDeviceModule implements DeviceModule {
     const agentDevices = await this.dependencies.readAgentDevices();
     const matchingAgentDevices = agentDevices
       .filter((device) => device.deviceBaseModel === g502XPlusDefinition.deviceBaseModel);
-    if (matchingAgentDevices.length > 0) {
-      await this.stopDirectSession();
-      return Promise.all(matchingAgentDevices.map((device) => this.createG502XPlus(device, logitechHid, context)));
-    }
-
     const receiver = logitechHid.find((device) => g502XPlusDefinition.receiverProductIds.includes(device.productId as 0xc547));
     const wired = logitechHid.find((device) => device.productId === g502XPlusDefinition.wiredProductId);
     const transport = wired ?? receiver;
     const directEndpoint = findLongHidppEndpoint(logitechHid, transport?.productId);
+    if (matchingAgentDevices.length > 0) {
+      return Promise.all(matchingAgentDevices.map((device) => (
+        this.createG502XPlus(device, logitechHid, directEndpoint, context)
+      )));
+    }
+
     return transport ? [await this.createG502XPlusFallback(transport, directEndpoint, context)] : [];
   }
 
@@ -91,6 +92,7 @@ export class LogitechDeviceModule implements DeviceModule {
   private async createG502XPlus(
     metadata: LogitechAgentDevice,
     hidDevices: HidDevice[],
+    directEndpoint: HidDevice | undefined,
     context: DeviceDiscoveryContext,
   ): Promise<Device> {
     const activeInterface = metadata.activeInterfaces.find((entry) => entry.type === 'DEVIO')
@@ -119,13 +121,22 @@ export class LogitechDeviceModule implements DeviceModule {
       context.appearanceOverrides[id],
     );
     const previous = findPreviousDevice(context.previousDevices, id, g502XPlusDefinition.model);
-    this.agentIds.set(id, metadata.id);
-
-    const [capabilities, batteryReading] = await Promise.all([
-      this.readCapabilities(metadata.id, previous, identity.connection),
-      this.readBattery(metadata.id, previous?.capabilities.battery),
-    ]);
-    const battery = withG502BatteryEstimate(batteryReading, capabilities.lighting?.enabled);
+    let capabilities: DeviceCapabilities;
+    if (directEndpoint?.path) {
+      capabilities = await this.readDirectCapabilities(directEndpoint, previous, id);
+      capabilities.battery = withG502BatteryEstimate(capabilities.battery, capabilities.lighting?.enabled);
+    } else {
+      await this.stopDirectSession();
+      this.agentIds.set(id, metadata.id);
+      const [agentCapabilities, batteryReading] = await Promise.all([
+        this.readCapabilities(metadata.id, previous, identity.connection),
+        this.readBattery(metadata.id, previous?.capabilities.battery),
+      ]);
+      capabilities = {
+        ...agentCapabilities,
+        battery: withG502BatteryEstimate(batteryReading, agentCapabilities.lighting?.enabled),
+      };
+    }
 
     return {
       id,
@@ -136,7 +147,7 @@ export class LogitechDeviceModule implements DeviceModule {
       identity: resolved.identity,
       variantResolution: resolved.resolution,
       asset: resolveProductAsset(resolved.identity, 'mouse'),
-      capabilities: { ...capabilities, battery },
+      capabilities,
       settings: withoutLegacyMouseSettings(previous?.settings),
     };
   }
@@ -177,19 +188,7 @@ export class LogitechDeviceModule implements DeviceModule {
     // last known controls visible but disabled with an ownership hint.
     let capabilities: DeviceCapabilities = {};
     if (directEndpoint?.path) {
-      try {
-        const session = await this.ensureDirectSession(directEndpoint, previous);
-        capabilities = await session.getCapabilities();
-        this.directDeviceId = id;
-      } catch (error) {
-        console.warn('Native G502 X Plus controls are temporarily unavailable.', error);
-        capabilities = disableControls(
-          previous?.capabilities,
-          'Native control is unavailable. Close G HUB, OpenLogi, or another app using the Logitech receiver, then reconnect the mouse.',
-        );
-        delete capabilities.battery;
-        await this.stopDirectSession();
-      }
+      capabilities = await this.readDirectCapabilities(directEndpoint, previous, id);
     } else {
       capabilities = disableControls(
         previous?.capabilities,
@@ -225,6 +224,28 @@ export class LogitechDeviceModule implements DeviceModule {
     this.directSession = session;
     this.directPath = endpoint.path ?? null;
     return session;
+  }
+
+  private async readDirectCapabilities(
+    endpoint: HidDevice,
+    previous: Device | undefined,
+    deviceId: string,
+  ): Promise<DeviceCapabilities> {
+    try {
+      const session = await this.ensureDirectSession(endpoint, previous);
+      const capabilities = await session.getCapabilities();
+      this.directDeviceId = deviceId;
+      return capabilities;
+    } catch (error) {
+      console.warn('Native G502 X Plus controls are temporarily unavailable.', error);
+      const capabilities = disableControls(
+        previous?.capabilities,
+        'Native control is unavailable. Close G HUB, OpenLogi, or another app using the Logitech receiver, then reconnect the mouse.',
+      );
+      delete capabilities.battery;
+      await this.stopDirectSession();
+      return capabilities;
+    }
   }
 
   private async stopDirectSession(): Promise<void> {

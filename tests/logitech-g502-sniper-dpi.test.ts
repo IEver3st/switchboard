@@ -6,9 +6,38 @@ import {
   parseAdjustableDpiListPayload,
   parseMouseButtonSpyNotification,
   SniperDpiRuntime,
+  writeOnboardSector,
 } from '../src/main/modules/logitech/devices/g502-x-plus/sniper-dpi';
 
 describe('G502 X Plus hold-to-shift DPI', () => {
+  test('writes a 255-byte onboard profile without overflowing the declared transfer', async () => {
+    let remaining = 0;
+    const chunkSizes: number[] = [];
+    const transport = {
+      request: async (
+        _deviceIndex: number,
+        _featureIndex: number,
+        functionId: number,
+        parameters: readonly number[] = [],
+      ): Promise<Buffer> => {
+        if (functionId === 6) {
+          remaining = ((parameters[4] ?? 0) << 8) | (parameters[5] ?? 0);
+        } else if (functionId === 7) {
+          if (parameters.length > remaining) throw new Error('HID++ rejected the request: out of range.');
+          remaining -= parameters.length;
+          chunkSizes.push(parameters.length);
+        } else if (functionId === 8 && remaining !== 0) {
+          throw new Error(`The transfer ended with ${remaining} bytes unwritten.`);
+        }
+        return Buffer.alloc(20);
+      },
+    };
+
+    await writeOnboardSector(transport, 1, 0x0c, 1, Buffer.alloc(255, 0xff));
+
+    expect(chunkSizes).toEqual([...Array<number>(15).fill(16), 15]);
+  });
+
   test('expands the device-reported DPI range encoding', () => {
     expect(parseAdjustableDpiListPayload(Uint8Array.from([
       0x00,
