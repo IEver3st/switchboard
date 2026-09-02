@@ -5,7 +5,7 @@ publish:
   - provider: github
     owner: IEver3st
     repo: switchboard
-    releaseType: release
+    releaseType: draft
 files:
   - out/**
   - package.json

@@ -1,13 +1,14 @@
 import { app, BrowserWindow, Menu, nativeImage, net, protocol, session, Tray } from 'electron';
-import { createReadStream } from 'node:fs';
+import { createReadStream, writeFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { extname, isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { AppController } from './controller';
 import { requestsDemoUpdate } from './development-flags';
 import { registerIpc } from './ipc';
 import { parseByteRange } from './media-byte-range';
+import { loadDefaultAppUpdaterClient, type AppUpdaterClient } from './services/app-update-service';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -16,13 +17,21 @@ let cleanupIpc: (() => void) | null = null;
 let quitting = false;
 let shutdownStarted = false;
 let demoUpdateRequested = requestsDemoUpdate(process.argv, app.isPackaged);
+const packagedUpdaterVerdictPath = process.env.SWITCHBOARD_PACKAGED_UPDATER_VERDICT;
+const packagedUpdaterTargetVersion = process.env.SWITCHBOARD_PACKAGED_UPDATER_TARGET_VERSION?.trim();
+const verifyPackagedUpdater = app.isPackaged
+  && process.platform === 'win32'
+  && process.env.SWITCHBOARD_VERIFY_PACKAGED_UPDATER === '1'
+  && typeof packagedUpdaterVerdictPath === 'string'
+  && isAbsolute(packagedUpdaterVerdictPath);
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'switchboard-media',
   privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
 }]);
 
-const hasSingleInstanceLock = process.env.SWITCHBOARD_NATIVE_REVIEW === '1'
+const hasSingleInstanceLock = verifyPackagedUpdater
+  || process.env.SWITCHBOARD_NATIVE_REVIEW === '1'
   || app.requestSingleInstanceLock({ demoUpdate: demoUpdateRequested });
 if (!hasSingleInstanceLock) app.quit();
 
@@ -158,7 +167,30 @@ async function shutdown(): Promise<void> {
   mainWindow = null;
 }
 
-if (hasSingleInstanceLock) {
+if (verifyPackagedUpdater) {
+  void app.whenReady().then(async () => {
+    const updater = await loadDefaultAppUpdaterClient();
+    if (packagedUpdaterTargetVersion) {
+      await verifyInstalledUpdate(updater, packagedUpdaterTargetVersion, packagedUpdaterVerdictPath);
+      return;
+    }
+    writeFileSync(packagedUpdaterVerdictPath, JSON.stringify({
+      ok: true,
+      updater: updater.constructor.name,
+    }));
+    app.exit(0);
+  }).catch((error) => {
+    try {
+      writeFileSync(packagedUpdaterVerdictPath, JSON.stringify({
+        ok: false,
+        error: error instanceof Error ? error.stack : String(error),
+      }));
+    } catch {
+      // The verifier treats a missing verdict as a failure too.
+    }
+    app.exit(1);
+  });
+} else if (hasSingleInstanceLock) {
   app.on('second-instance', (_event, arguments_, _workingDirectory, additionalData) => {
     if (requestsDemoUpdate(arguments_, app.isPackaged, additionalData)) {
       demoUpdateRequested = true;
@@ -208,6 +240,64 @@ if (hasSingleInstanceLock) {
     console.error('Switchboard failed to initialize.', error);
     app.exit(1);
   });
+}
+
+async function verifyInstalledUpdate(
+  updater: AppUpdaterClient,
+  targetVersion: string,
+  verdictPath: string,
+): Promise<void> {
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(targetVersion)) {
+    throw new Error(`Invalid packaged updater target version: ${targetVersion}`);
+  }
+
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = false;
+
+  let finished = false;
+  const fail = (error: unknown): void => {
+    if (finished) return;
+    finished = true;
+    writeFileSync(verdictPath, JSON.stringify({
+      ok: false,
+      error: error instanceof Error ? error.stack : String(error),
+    }));
+    app.exit(1);
+  };
+  const versionFrom = (payload: unknown): string | null => {
+    if (!payload || typeof payload !== 'object' || !('version' in payload)) return null;
+    const version = (payload as { version?: unknown }).version;
+    return typeof version === 'string' ? version : null;
+  };
+  const assertTarget = (payload: unknown, phase: string): boolean => {
+    const version = versionFrom(payload);
+    if (version === targetVersion) return true;
+    fail(new Error(`${phase} reported ${version ?? 'no version'} instead of ${targetVersion}.`));
+    return false;
+  };
+
+  updater.on('update-available', (payload) => {
+    assertTarget(payload, 'update-available');
+  });
+  updater.on('update-not-available', (payload) => {
+    fail(new Error(`No ${targetVersion} update was available; feed reported ${versionFrom(payload) ?? 'no version'}.`));
+  });
+  updater.on('error', (payload) => {
+    fail(payload instanceof Error ? payload : new Error(String(payload)));
+  });
+  updater.on('update-downloaded', (payload) => {
+    if (finished || !assertTarget(payload, 'update-downloaded')) return;
+    finished = true;
+    writeFileSync(verdictPath, JSON.stringify({
+      ok: true,
+      updater: updater.constructor.name,
+      version: targetVersion,
+    }));
+    updater.quitAndInstall(true, false);
+  });
+
+  setTimeout(() => fail(new Error(`Timed out downloading Switchboard ${targetVersion}.`)), 5 * 60_000).unref();
+  await updater.checkForUpdates();
 }
 
 app.on('window-all-closed', () => {
