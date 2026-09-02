@@ -6,8 +6,9 @@ import {
   type SwitchboardApi,
   type SystemSnapshot,
 } from '../shared/contracts';
+import { montageV2IpcChannels, type MontageV2Api } from '../shared/montage-v2';
 
-const api: SwitchboardApi = {
+const api: SwitchboardApi & MontageV2Api = {
   getSnapshot: () => ipcRenderer.invoke(ipcChannels.getSnapshot),
   refreshDevices: () => ipcRenderer.invoke(ipcChannels.refreshDevices),
   setModuleState: (input) => ipcRenderer.invoke(ipcChannels.setModuleState, input),
@@ -77,6 +78,13 @@ const api: SwitchboardApi = {
   exportClip: (input) => ipcRenderer.invoke(ipcChannels.exportClip, input),
   exportMontage: (input) => ipcRenderer.invoke(ipcChannels.exportMontage, input),
   cancelClipExport: (exportId) => ipcRenderer.invoke(ipcChannels.cancelClipExport, exportId),
+  importMontageAudio: () => ipcRenderer.invoke(montageV2IpcChannels.importAudio),
+  loadMontageAudioWaveform: (assetId) => ipcRenderer.invoke(montageV2IpcChannels.loadAudioWaveform, assetId),
+  listMontageDrafts: () => ipcRenderer.invoke(montageV2IpcChannels.listDrafts),
+  saveMontageDraft: (project) => ipcRenderer.invoke(montageV2IpcChannels.saveDraft, project),
+  deleteMontageDraft: (projectId) => ipcRenderer.invoke(montageV2IpcChannels.deleteDraft, projectId),
+  exportMontageV2: (input) => ipcRenderer.invoke(montageV2IpcChannels.export, input),
+  cancelMontageV2Export: (exportId) => ipcRenderer.invoke(montageV2IpcChannels.cancelExport, exportId),
   subscribe: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, snapshot: SystemSnapshot) => listener(snapshot);
     ipcRenderer.on(ipcChannels.snapshotUpdated, handler);

@@ -1,0 +1,119 @@
+name: Validate Montage V2
+
+on:
+  push:
+    branches:
+      - feat/montage-v2
+  pull_request:
+    paths:
+      - 'src/shared/montage-v2.ts'
+      - 'src/main/montage-v2-ipc.ts'
+      - 'src/main/services/montage-v2*.ts'
+      - 'src/renderer/src/components/capture/*Montage*.tsx'
+      - 'src/renderer/src/components/capture/montage-v2*.ts'
+      - 'src/renderer/src/components/capture/montage-v2.css'
+      - 'src/renderer/src/lib/montage-v2-api.ts'
+      - 'src/renderer/src/pages/capture.tsx'
+      - 'tests/montage-v2*.test.ts'
+      - '.github/workflows/validate-montage-v2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  montage:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create CI-only Sony workspace boundary
+        shell: bash
+        run: |
+          mkdir -p packages/sony-mdr/src/protocol packages/sony-mdr/src/transport packages/sony-mdr/src/wh1000xm6
+          cat > packages/sony-mdr/package.json <<'EOF'
+          {
+            "name": "@auri/sony-mdr",
+            "version": "0.1.0",
+            "private": true,
+            "type": "module",
+            "exports": {
+              ".": "./src/index.ts",
+              "./protocol": "./src/protocol/index.ts",
+              "./transport": "./src/transport/index.ts"
+            },
+            "dependencies": {
+              "zod": "^4.4.3"
+            }
+          }
+          EOF
+          cat > packages/sony-mdr/src/index.ts <<'EOF'
+          export type SonyHostDevice = {
+            token: string;
+            name: string;
+            connected: boolean;
+            authenticated?: boolean;
+            remembered?: boolean;
+          };
+
+          export type Xm6Event = Record<string, any>;
+
+          export class SonyHeadphonesHost {
+            public constructor(_resolve?: (...arguments_: any[]) => any) {}
+            public onDisconnect(_listener: (token: string, reason: string) => void): () => void { return () => undefined; }
+            public onData(_listener: (token: string, bytes: Uint8Array) => void): () => void { return () => undefined; }
+            public async scan(): Promise<SonyHostDevice[]> { return []; }
+            public async connect(_token: string): Promise<void> {}
+            public async write(_token: string, _bytes: Uint8Array): Promise<void> {}
+            public async dispose(): Promise<void> {}
+          }
+
+          export class SonyMdrSession {
+            public malformedFrameCount = 0;
+            public constructor(_host: SonyHeadphonesHost, _token: string, _listener: (frame: any) => void) {}
+            public async send(_payload: Uint8Array): Promise<void> {}
+            public dispose(): void {}
+          }
+
+          export class SonyFrameDecoder {
+            public malformedFrameCount = 0;
+            public push(_bytes: Uint8Array): any[] { return []; }
+          }
+
+          export const sonyFrameType = { ack: 1, dataMdr: 12 } as const;
+          export const encodeSonyFrame = (_frame: any): Uint8Array => new Uint8Array();
+          export const parseXm6Event = (_frame: any): Xm6Event | null => null;
+          export const xm6BatteryState = (..._arguments: any[]): any => ({});
+          export const xm6Dsee = (..._arguments: any[]): Uint8Array => new Uint8Array();
+          export const xm6EqualizerBands = (..._arguments: any[]): Uint8Array => new Uint8Array();
+          export const xm6EqualizerFrequencies = [400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000, 20000] as const;
+          export const xm6EqualizerPreset = (..._arguments: any[]): Uint8Array[] => [];
+          export const xm6EqualizerPresets: Array<readonly [string, number, string]> = [];
+          export const xm6InitialQueries: Uint8Array[] = [];
+          export const xm6ListeningMode = (..._arguments: any[]): Uint8Array[] => [];
+          export const xm6NoiseControl = (..._arguments: any[]): Uint8Array => new Uint8Array();
+          export const xm6SpeakToChat = (..._arguments: any[]): Uint8Array => new Uint8Array();
+          EOF
+          printf "export * from '../index.ts';\n" > packages/sony-mdr/src/protocol/index.ts
+          printf "export * from '../index.ts';\n" > packages/sony-mdr/src/transport/index.ts
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Locate FFmpeg tools
+        shell: pwsh
+        run: |
+          $ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
+          if (-not $ffmpeg) {
+            choco install ffmpeg -y --no-progress
+            $ffmpeg = Get-Command ffmpeg -ErrorAction Stop
+          }
+          $ffprobe = Get-Command ffprobe -ErrorAction Stop
+          "SWITCHBOARD_FFMPEG_INTEGRATION=$($ffmpeg.Source)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SWITCHBOARD_FFPROBE_INTEGRATION=$($ffprobe.Source)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - run: bun install
+      - run: bun run check
+      - run: bun run check:types
+      - run: bun test tests/montage-v2.test.ts tests/montage-v2-render.test.ts
+      - run: bun run build

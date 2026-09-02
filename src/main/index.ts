@@ -9,11 +9,14 @@ import { requestsDemoUpdate } from './development-flags';
 import { registerIpc } from './ipc';
 import { parseByteRange } from './media-byte-range';
 import { loadDefaultAppUpdaterClient, type AppUpdaterClient } from './services/app-update-service';
+import { registerMontageV2Ipc } from './montage-v2-ipc';
+import { disposeMontageV2Service, getMontageV2Service } from './services/montage-v2';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let controller: AppController | null = null;
 let cleanupIpc: (() => void) | null = null;
+let cleanupMontageV2Ipc: (() => void) | null = null;
 let quitting = false;
 let shutdownStarted = false;
 let demoUpdateRequested = requestsDemoUpdate(process.argv, app.isPackaged);
@@ -157,8 +160,11 @@ function createTray(): Tray {
 
 async function shutdown(): Promise<void> {
   if (protocol.isProtocolHandled('switchboard-media')) await protocol.unhandle('switchboard-media');
+  cleanupMontageV2Ipc?.();
+  cleanupMontageV2Ipc = null;
   cleanupIpc?.();
   cleanupIpc = null;
+  disposeMontageV2Service();
   await controller?.dispose();
   controller = null;
   tray?.destroy();
@@ -224,13 +230,19 @@ if (verifyPackagedUpdater) {
           },
         });
       }
+      const range = request.headers.get('range');
+      if (url.hostname === 'montage-audio') {
+        const path = await getMontageV2Service().resolveAssetPath(id);
+        if (!path) return new Response('Not found', { status: 404 });
+        return streamMedia(path, range, audioContentType(path));
+      }
       const path = controller?.getClipPath(id, url.hostname === 'thumbnail');
       if (!path) return new Response('Not found', { status: 404 });
-      const range = request.headers.get('range');
-      if (url.hostname === 'clip') return streamClip(path, range);
+      if (url.hostname === 'clip') return streamMedia(path, range, clipContentType(path));
       return net.fetch(pathToFileURL(path).toString(), range ? { headers: { Range: range } } : undefined);
     });
     cleanupIpc = registerIpc(controller, () => mainWindow);
+    cleanupMontageV2Ipc = registerMontageV2Ipc(controller, () => mainWindow);
     tray = createTray();
     showWindow();
     await initialization;
@@ -318,12 +330,12 @@ app.on('before-quit', (event) => {
     });
 });
 
-async function streamClip(path: string, rangeHeader: string | null): Promise<Response> {
+async function streamMedia(path: string, rangeHeader: string | null, contentType: string): Promise<Response> {
   const file = await stat(path);
   const headers = new Headers({
     'Accept-Ranges': 'bytes',
     'Cache-Control': 'no-store',
-    'Content-Type': clipContentType(path),
+    'Content-Type': contentType,
   });
   const range = parseByteRange(rangeHeader, file.size);
   if (rangeHeader && !range) {
@@ -344,5 +356,18 @@ function clipContentType(path: string): string {
     case '.mkv': return 'video/x-matroska';
     case '.webm': return 'video/webm';
     default: return 'video/mp4';
+  }
+}
+
+function audioContentType(path: string): string {
+  switch (extname(path).toLowerCase()) {
+    case '.mp3': return 'audio/mpeg';
+    case '.wav': return 'audio/wav';
+    case '.m4a': return 'audio/mp4';
+    case '.aac': return 'audio/aac';
+    case '.flac': return 'audio/flac';
+    case '.ogg': return 'audio/ogg';
+    case '.opus': return 'audio/ogg';
+    default: return 'application/octet-stream';
   }
 }
