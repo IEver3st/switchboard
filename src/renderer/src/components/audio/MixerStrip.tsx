@@ -1,5 +1,5 @@
 import { memo, type CSSProperties } from 'react';
-import { AppWindow, Gamepad2, MessageCircle, Music2, Power, SlidersHorizontal, SlidersVertical, Volume2, VolumeX } from 'lucide-react';
+import { AppWindow, Gamepad2, MessageCircle, Mic2, MoreHorizontal, Music2, Power, SlidersHorizontal, SlidersVertical, Volume2, VolumeX } from 'lucide-react';
 import type { AudioApplication, AudioBus, AudioDevice, AudioMixBus, AudioMixId, AudioMaster, AudioSupportLevel } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -71,10 +71,11 @@ function MasterStrip({
           <h3>Master</h3>
         </div>
       </header>
-      <div className="audio-strip__sub"><strong>{mixLabel} mix</strong></div>
+      <div className="audio-strip__sub"><span>{mixLabel} mix</span></div>
+      <div className="audio-strip__sub" aria-hidden="true" />
       <div className="audio-strip__body">
-        <div className="audio-strip__meter" aria-hidden="true" />
-        <div className={cn('audio-strip__fader', muted && 'is-dimmed')}>
+        <div className="audio-strip__meter audio-strip__meter--empty" aria-hidden="true" />
+        <div className="audio-strip__fader">
           <MixerFader
             value={masterState.gain}
             disabled={!masterState.enabled || pending}
@@ -84,7 +85,6 @@ function MasterStrip({
           />
         </div>
       </div>
-      <div className="audio-strip__readout" aria-hidden="true">Master output</div>
       <div className="audio-strip__foot">
         <MuteButton
           label={muted ? 'Unmute master output' : 'Mute master output'}
@@ -118,8 +118,10 @@ function BusStrip({
   const direction = bus.id === 'mic' ? 'input' : 'output';
   const muted = !control.enabled;
   const color = channelColor(bus.id);
-  const Icon = bus.id === 'game' ? Gamepad2 : bus.id === 'chat' ? MessageCircle : bus.id === 'media' ? Music2 : AppWindow;
+  const Icon = bus.id === 'game' ? Gamepad2 : bus.id === 'chat' ? MessageCircle : bus.id === 'media' ? Music2 : bus.id === 'mic' ? Mic2 : AppWindow;
   const settingsLabel = bus.id === 'mic' ? 'Voice settings' : 'Sound settings';
+  const hasSettings = bus.id !== 'aux';
+  const shortLabel = bus.id === 'mic' ? 'Mic' : bus.label;
   const canShowApps = bus.id === 'game' || bus.id === 'chat' || bus.id === 'media';
 
   if (!bus.enabled) {
@@ -134,7 +136,7 @@ function BusStrip({
           <strong>{bus.label}</strong>
           <span>Off</span>
           <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onChannelEnabledChange(true)} aria-label={`Enable ${bus.label} channel`}>
-            <Power className="size-3.5" aria-hidden="true" /> Enable channel
+            <Power className="size-3.5" aria-hidden="true" /> Turn on
           </Button>
         </div>
       </article>
@@ -148,26 +150,41 @@ function BusStrip({
       aria-busy={pending || undefined}
     >
       <header className="audio-strip__head">
-        <button type="button" className="audio-strip__identity audio-strip__identity--button" onClick={onOpen} aria-label={`Open ${bus.label} settings`}>
-          <Icon aria-hidden="true" />
-          <h3>{bus.label}</h3>
-        </button>
+        {hasSettings ? (
+          <button type="button" className="audio-strip__identity audio-strip__identity--button" onClick={onOpen} aria-label={`Open ${bus.label} settings`}>
+            <Icon aria-hidden="true" />
+            <h3>{shortLabel}</h3>
+          </button>
+        ) : (
+          <div className="audio-strip__identity">
+            <Icon aria-hidden="true" />
+            <h3>{shortLabel}</h3>
+          </div>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button type="button" variant="ghost" size="icon" className="audio-strip__menu" aria-label={`Open ${bus.label} channel menu`} disabled={pending}>
-              <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+              <MoreHorizontal className="size-3.5" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onOpen}><SlidersHorizontal className="size-3.5" />{settingsLabel}</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onChannelEnabledChange(false)}><Power className="size-3.5" />Disable channel</DropdownMenuItem>
+            {hasSettings ? (
+              <>
+                <DropdownMenuItem onSelect={onOpen}><SlidersHorizontal className="size-3.5" />{settingsLabel}</DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
+            <DropdownMenuItem onSelect={() => onChannelEnabledChange(false)}><Power className="size-3.5" />Turn channel off</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
-      <button type="button" className="audio-strip__sub audio-strip__sub--link" onClick={onOpen} aria-label={`Open ${bus.label} preset and ${settingsLabel.toLowerCase()}`}>
-        <span>{presetName ?? 'Flat'}</span>
-      </button>
+      {hasSettings ? (
+        <button type="button" className="audio-strip__sub audio-strip__sub--link" onClick={onOpen} aria-label={`Open ${bus.label} preset and ${settingsLabel.toLowerCase()}`}>
+          <span>{presetName ?? 'Flat'}</span>
+        </button>
+      ) : (
+        <div className="audio-strip__sub"><span>Line input</span></div>
+      )}
       <div className="audio-strip__sub audio-strip__sub--picker">
         <AudioDevicePicker
           value={bus.deviceId}
@@ -178,7 +195,7 @@ function BusStrip({
           onChange={onDeviceChange}
         />
       </div>
-      <div className={cn('audio-strip__body', muted && 'is-dimmed')}>
+      <div className="audio-strip__body">
         <div className="audio-strip__meter">
           <LevelMeter busId={bus.id} active={engineRunning && !muted} label={bus.label} accentColor={color} />
         </div>
@@ -197,7 +214,7 @@ function BusStrip({
           <Popover>
             <PopoverTrigger asChild>
               <Button type="button" variant="ghost" size="sm" className="audio-strip__apps" aria-label={`Show ${bus.label} applications`}>
-                {applications.length} apps
+                {applications.length} {applications.length === 1 ? 'app' : 'apps'}
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="audio-strip__apps-popover">

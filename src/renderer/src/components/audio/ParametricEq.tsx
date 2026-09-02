@@ -157,7 +157,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
       <div ref={stageRef} className="parametric-eq__stage">
         <svg
           viewBox={`0 0 ${geometry.width} ${geometry.height}`}
-          className="parametric-eq__graph"
+          className="audio-eq__graph parametric-eq__graph"
           aria-label="Equalizer response. Drag a band to change frequency and gain."
         >
           {FREQUENCY_TICKS.map((frequency) => {
@@ -226,7 +226,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
               key={band.id}
               cx={frequencyToX(band.frequency, geometry)}
               cy={gainToY(band.gainDb, geometry)}
-              r={band.id === selected.id ? 10 : 8}
+              r={band.id === selected.id ? 8 : 6}
               fill={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'transparent'}
               stroke={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--text-muted)'}
               strokeWidth={band.id === selected.id ? 2 : 1.5}

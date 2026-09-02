@@ -99,16 +99,6 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           onImport={() => runPending('preset', importAudioPreset)}
           onExport={(presetId) => runPending('preset', () => exportAudioPreset({ presetId }))}
         />
-        <MicrophoneTest
-          compact
-          support={snapshot.audio.capabilities.microphoneTest}
-          pending={microphoneTestPending}
-          onRecord={() => {
-            setMicrophoneTestPending(true);
-            void testMicrophone().finally(() => setMicrophoneTestPending(false));
-          }}
-        />
-        <span className="audio-channel__status" role="status">{monitoringDescription}</span>
       </div>
       <ParametricEq bands={equalizer.parameters.bands} disabled={unavailable || !equalizer.enabled || Boolean(pendingOperations['processor:equalizer'])} onCommit={(bands) => commitProcessor({ processorId: 'equalizer', parameters: { bands } })} />
       <div className="audio-processing audio-processing--microphone" aria-busy={processorPending}>
@@ -143,6 +133,14 @@ export function MicrophonePage({ snapshot }: { snapshot: SystemSnapshot }) {
           <div className="audio-proc__body audio-monitoring">
             <label><span>Hear your microphone through</span><AudioDevicePicker value={snapshot.audio.monitoringDeviceId} devices={snapshot.audio.devices} direction="output" label="Microphone monitoring device" disabled={monitoringUnavailable || monitoringPending} onChange={(deviceId) => runPending('monitoring', () => setAudioMonitoring({ deviceId }))} /></label>
             <PrimarySlider label="Monitor volume" value={snapshot.audio.monitoring * 100} min={0} max={100} step={1} unit="%" disabled={monitoringUnavailable || monitoringPending || !snapshot.audio.monitoringEnabled} onCommit={(level) => runPending('monitoring', () => setAudioMonitoring({ level: level / 100 }))} />
+            <MicrophoneTest
+              support={snapshot.audio.capabilities.microphoneTest}
+              pending={microphoneTestPending}
+              onRecord={() => {
+                setMicrophoneTestPending(true);
+                void testMicrophone().finally(() => setMicrophoneTestPending(false));
+              }}
+            />
           </div>
         </section>
       </div>

@@ -36,7 +36,6 @@ export const ChatMixSlider = memo(function ChatMixSlider({
   return (
     <section aria-labelledby="chatmix-heading" className={cn('audio-chatmix chatmix-control', inactive && 'is-disabled')}>
       <div className="audio-chatmix__label">
-        <Gamepad2 className="size-4" aria-hidden="true" />
         <h3 id="chatmix-heading">ChatMix</h3>
       </div>
 
@@ -66,7 +65,6 @@ export const ChatMixSlider = memo(function ChatMixSlider({
       </div>
 
       <div className="audio-chatmix__value">
-        <MessageCircle className="size-4" aria-hidden="true" />
         <output>Game {game} · Chat {chat}</output>
         <Tooltip>
           <TooltipTrigger asChild>
