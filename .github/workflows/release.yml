@@ -24,6 +24,8 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+          token: ${{ secrets.SONY_MDR_TOKEN }}
+          persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.0
