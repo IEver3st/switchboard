@@ -76,7 +76,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
 
             <Select value={controls.game} onValueChange={controls.onGameChange}>
               <SelectTrigger aria-label="Filter clips by game" className={cn('capture-tool-control capture-tool-control--game h-8 w-32 shrink-0 text-[11px]', controls.game !== 'all' && 'capture-filter-active')}><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">All games</SelectItem>{controls.games.map((label) => <SelectItem key={label} value={label}>{label}</SelectItem>)}</SelectContent>
+              <SelectContent className="capture-tool-menu"><SelectItem value="all">All games</SelectItem>{controls.games.map((label) => <SelectItem key={label} value={label}>{label}</SelectItem>)}</SelectContent>
             </Select>
 
             <ClipFilters
@@ -94,7 +94,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
           <div className="capture-tool-control capture-tool-control--sort w-28 shrink-0">
             <Select value={controls.sort} onValueChange={controls.onSortChange}>
               <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-8 text-[11px]"><ArrowDownUp className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
-              <SelectContent>{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+              <SelectContent className="capture-tool-menu">{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
@@ -138,7 +138,7 @@ function ClipFilters({ date, source, event, availableEvents, activeFilterCount, 
           {active ? <Badge variant="accent" className="capture-filter-count border-0 bg-transparent px-0 py-0 text-[9px] tracking-normal">{activeFilterCount}</Badge> : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 p-1.5">
+      <DropdownMenuContent align="end" className="capture-tool-menu w-48 p-1.5">
         <div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">Source</div>
         {([
           ['all', 'All clips'],
