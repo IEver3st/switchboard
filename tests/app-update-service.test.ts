@@ -51,7 +51,7 @@ describe('application update lifecycle', () => {
     let loaderCalled = false;
     const states: AppUpdateState[] = [];
     const service = new AppUpdateService({
-      currentVersion: '0.5.0',
+      currentVersion: '0.5.1',
       isPackaged: false,
       platform: 'win32',
       onStateChanged: (state) => states.push(state),
@@ -73,7 +73,7 @@ describe('application update lifecycle', () => {
   it('supports an explicit development-only pending update presentation', async () => {
     let loaderCalled = false;
     const service = new AppUpdateService({
-      currentVersion: '0.5.0',
+      currentVersion: '0.5.1',
       isPackaged: false,
       platform: 'win32',
       demoUpdate: true,
@@ -97,7 +97,7 @@ describe('application update lifecycle', () => {
 
   it('can activate the development update presentation after initialization', async () => {
     const service = new AppUpdateService({
-      currentVersion: '0.5.0',
+      currentVersion: '0.5.1',
       isPackaged: false,
       platform: 'win32',
       onStateChanged: () => undefined,
@@ -117,7 +117,7 @@ describe('application update lifecycle', () => {
     const states: AppUpdateState[] = [];
     const installRequests: boolean[] = [];
     const service = new AppUpdateService({
-      currentVersion: '0.5.0',
+      currentVersion: '0.5.1',
       isPackaged: true,
       platform: 'win32',
       onStateChanged: (state) => states.push(state),
@@ -155,7 +155,7 @@ describe('application update lifecycle', () => {
   it('applies download and next-startup preferences to the updater', async () => {
     const updater = new FakeUpdater();
     const service = new AppUpdateService({
-      currentVersion: '0.5.0',
+      currentVersion: '0.5.1',
       isPackaged: true,
       platform: 'win32',
       onStateChanged: () => undefined,
