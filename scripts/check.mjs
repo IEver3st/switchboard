@@ -44,6 +44,8 @@ const requiredFiles = [
   'preview/app.js',
   'scripts/build-standalone-preview.mjs',
   'scripts/worker-smoke.cjs',
+  'scripts/verify-packaged-updater.mjs',
+  'scripts/verify-installed-update.mjs',
   'AGENTS.md',
   'ARCHITECTURE.md',
   'PERFORMANCE.md',
@@ -68,16 +70,29 @@ assert(packageJson.scripts?.check && packageJson.scripts?.['check:source'] && pa
 assert(packageJson.dependencies?.['electron-updater'], 'Installed builds must include electron-updater.');
 assert(packageJson.scripts?.['dist:win']?.includes('electron-builder --win nsis'), 'Windows distribution must produce an NSIS installer.');
 assert(packageJson.scripts?.['release:win']?.includes('--publish always'), 'Windows releases must publish update metadata and artifacts.');
+assert(packageJson.scripts?.['verify:packaged-updater'], 'Windows releases must verify the packaged updater runtime.');
+assert(packageJson.scripts?.['verify:installed-update'], 'Windows releases must retain an installed update acceptance check.');
 
 const builderConfiguration = read('electron-builder.yml');
 assert(builderConfiguration.includes('provider: github'), 'Application updates must use the public GitHub release provider.');
 assert(builderConfiguration.includes('owner: IEver3st') && builderConfiguration.includes('repo: switchboard'), 'The update feed must target IEver3st/switchboard.');
 assert(builderConfiguration.includes('- nsis'), 'Windows packaging must retain the updater-compatible NSIS target.');
+assert(builderConfiguration.includes('releaseType: draft'), 'Windows releases must remain drafts until packaged updater verification passes.');
 
 const releaseWorkflow = read('.github/workflows/release.yml');
 assert(releaseWorkflow.includes("- 'v*.*.*'"), 'Windows releases must be triggered by semantic version tags.');
 assert(releaseWorkflow.includes('bun run release:win'), 'The release workflow must publish the Windows installer and update feed.');
 assert(releaseWorkflow.includes('latest.yml') && releaseWorkflow.includes('SHA256SUMS-Windows.txt'), 'The release workflow must verify update metadata and checksums.');
+assert(releaseWorkflow.includes('bun run verify:packaged-updater'), 'The release workflow must exercise the packaged updater runtime.');
+assert(releaseWorkflow.includes('gh release edit') && releaseWorkflow.includes('--draft=false'), 'The release workflow must publish only after draft verification.');
+assert(releaseWorkflow.includes('releases/latest/download/latest.yml'), 'The release workflow must verify the anonymous public update feed.');
+
+const defaultsSource = read('src/shared/defaults.ts');
+assert(
+  defaultsSource.includes(`currentVersion: '${packageJson.version}'`)
+    && defaultsSource.includes(`version: '${packageJson.version}'`),
+  'Shared default versions must match package.json.',
+);
 
 const mainSource = read('src/main/index.ts');
 assert(mainSource.includes('contextIsolation: true'), 'Electron renderer must use contextIsolation.');

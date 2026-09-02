@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { AppUpdateState } from '../src/shared/contracts';
-import { AppUpdateService } from '../src/main/services/app-update-service';
+import { AppUpdateService, resolveAppUpdaterClient } from '../src/main/services/app-update-service';
 
 type Listener = (payload?: unknown) => void;
 
@@ -47,6 +47,13 @@ class FakeUpdater {
 }
 
 describe('application update lifecycle', () => {
+  it('resolves autoUpdater from the CommonJS namespace returned by dynamic import', () => {
+    const updater = new FakeUpdater();
+
+    expect(resolveAppUpdaterClient({ default: { autoUpdater: updater } })).toBe(updater);
+    expect(resolveAppUpdaterClient({ autoUpdater: updater })).toBe(updater);
+  });
+
   it('does not load or schedule the updater outside an installed Windows build', async () => {
     let loaderCalled = false;
     const states: AppUpdateState[] = [];

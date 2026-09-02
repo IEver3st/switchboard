@@ -1,6 +1,6 @@
 {
   "name": "switchboard-prototype",
-  "version": "0.5.2",
+  "version": "0.5.4",
   "private": true,
   "description": "A modular, low-overhead Electron control plane for devices, capture, and audio routing.",
   "type": "module",
@@ -18,6 +18,8 @@
     "verify:razer-hardware": "bun ./scripts/verify-razer-hardware.ts",
     "verify:audio-noise-native": "bun run build && bun ./scripts/run-native-review.mjs audio-noise",
     "verify:packaged-audio-host": "node ./scripts/verify-packaged-audio-host.mjs",
+    "verify:packaged-updater": "node ./scripts/verify-packaged-updater.mjs",
+    "verify:installed-update": "node ./scripts/verify-installed-update.mjs",
     "preview:static": "node ./scripts/build-standalone-preview.mjs",
     "build:capture-host": "node ./scripts/publish-capture-host.mjs",
     "build:audio-host": "node ./scripts/publish-audio-host.mjs",
@@ -71,6 +73,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.3.0",
     "@types/react": "19.2.18",

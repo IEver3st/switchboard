@@ -9,7 +9,7 @@ type UpdaterEvent =
   | 'update-downloaded'
   | 'error';
 
-interface AppUpdaterClient {
+export interface AppUpdaterClient {
   autoDownload: boolean;
   autoInstallOnAppQuit: boolean;
   on(event: UpdaterEvent, listener: (payload?: unknown) => void): unknown;
@@ -18,6 +18,13 @@ interface AppUpdaterClient {
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
 }
+
+type AppUpdaterModuleNamespace = {
+  autoUpdater?: AppUpdaterClient;
+  default?: {
+    autoUpdater?: AppUpdaterClient;
+  };
+};
 
 export type AppUpdatePreferences = {
   automaticChecks: boolean;
@@ -94,7 +101,7 @@ export class AppUpdateService {
     }
 
     try {
-      const loadUpdater = this.options.loadUpdater ?? defaultUpdaterLoader;
+      const loadUpdater = this.options.loadUpdater ?? loadDefaultAppUpdaterClient;
       this.updater = await loadUpdater();
       if (this.disposed) {
         this.updater = null;
@@ -355,7 +362,15 @@ function getDemoAvailableVersion(currentVersion: string): string {
   return `${match[1]}.${Number(match[2]) + 1}.0`;
 }
 
-async function defaultUpdaterLoader(): Promise<AppUpdaterClient> {
-  const { autoUpdater } = await import('electron-updater');
-  return autoUpdater as unknown as AppUpdaterClient;
+export async function loadDefaultAppUpdaterClient(): Promise<AppUpdaterClient> {
+  const updaterModule = await import('electron-updater') as unknown as AppUpdaterModuleNamespace;
+  return resolveAppUpdaterClient(updaterModule);
+}
+
+export function resolveAppUpdaterClient(updaterModule: AppUpdaterModuleNamespace): AppUpdaterClient {
+  const autoUpdater = updaterModule.autoUpdater ?? updaterModule.default?.autoUpdater;
+  if (!autoUpdater) {
+    throw new Error('electron-updater did not expose autoUpdater.');
+  }
+  return autoUpdater;
 }
