@@ -153,7 +153,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
   if (!selected) return null;
 
   return (
-    <div className={cn('parametric-eq', disabled && 'is-disabled')}>
+    <div className={cn('audio-eq parametric-eq', disabled && 'is-disabled')}>
       <div ref={stageRef} className="parametric-eq__stage">
         <svg
           viewBox={`0 0 ${geometry.width} ${geometry.height}`}
@@ -165,7 +165,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
             return (
               <g key={frequency}>
                 <line x1={x} x2={x} y1={PLOT_TOP} y2={geometry.height - PLOT_BOTTOM} stroke="color-mix(in srgb, var(--border) 62%, transparent)" strokeWidth="1" />
-                <text x={x} y={geometry.height - 8} fill="var(--muted-foreground)" opacity="0.78" fontSize="9" textAnchor="middle">{frequencyLabel(frequency)}</text>
+                <text x={x} y={geometry.height - 8} fill="var(--text-muted)" opacity="0.9" fontSize="10" textAnchor="middle">{frequencyLabel(frequency)}</text>
               </g>
             );
           })}
@@ -178,10 +178,10 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
                   x2={geometry.width - PLOT_RIGHT}
                   y1={y}
                   y2={y}
-                  stroke={gain === 0 ? 'var(--input)' : 'color-mix(in srgb, var(--border) 62%, transparent)'}
+                  stroke={gain === 0 ? 'var(--border-strong)' : 'var(--border)'}
                   strokeWidth={gain === 0 ? 1.5 : 1}
                 />
-                <text x={PLOT_LEFT - 8} y={y + 3} fill="var(--muted-foreground)" opacity="0.82" fontSize="9" textAnchor="end">{gain > 0 ? '+' : ''}{gain} dB</text>
+                <text x={PLOT_LEFT - 8} y={y + 3} fill="var(--text-muted)" opacity="0.9" fontSize="10" textAnchor="end">{gain > 0 ? '+' : ''}{gain}</text>
               </g>
             );
           })}
@@ -193,7 +193,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
                 <text
                   x={(from + to) / 2}
                   y={22}
-                  fill="var(--muted-foreground)"
+                  fill="var(--text-muted)"
                   opacity="0.72"
                   fontSize="8.5"
                   fontWeight="620"
@@ -202,11 +202,9 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
                 >
                   {region.label.toUpperCase()}
                 </text>
-                {region.from > 20 ? <line x1={from} x2={from} y1={10} y2={REGION_STRIP_BOTTOM} stroke="var(--border)" strokeWidth="1" /> : null}
               </g>
             );
           })}
-          <line x1={PLOT_LEFT} x2={geometry.width - PLOT_RIGHT} y1={REGION_STRIP_BOTTOM} y2={REGION_STRIP_BOTTOM} stroke="var(--border)" strokeWidth="1" />
           <line
             x1={frequencyToX(selected.frequency, geometry)}
             x2={frequencyToX(selected.frequency, geometry)}
@@ -229,9 +227,9 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
               cx={frequencyToX(band.frequency, geometry)}
               cy={gainToY(band.gainDb, geometry)}
               r={band.id === selected.id ? 10 : 8}
-              fill={band.enabled && band.id === selected.id ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--surface-interactive)'}
-              stroke={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--input)'}
-              strokeWidth={band.id === selected.id ? 3 : 2}
+              fill={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'transparent'}
+              stroke={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--text-muted)'}
+              strokeWidth={band.id === selected.id ? 2 : 1.5}
               role="slider"
               tabIndex={disabled ? -1 : 0}
               aria-label={`EQ band ${index + 1}`}
@@ -257,7 +255,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
               }}
               onDoubleClick={() => updateBand(band.id, { gainDb: 0 }, true)}
               onKeyDown={(event) => handleNodeKeyDown(band, event)}
-              className={cn('parametric-eq__node', band.id === selected.id && 'is-selected')}
+              className={cn('audio-eq__node parametric-eq__node', band.id === selected.id && 'is-selected')}
             >
               <title>{`Band ${index + 1}: ${frequencyReadout(band.frequency)}, ${band.gainDb > 0 ? '+' : ''}${band.gainDb} dB`}</title>
             </circle>
@@ -265,26 +263,27 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
         </svg>
       </div>
 
-      <div className="parametric-eq__bands" role="list" aria-label="Equalizer bands">
+      <div className="audio-eq__bands parametric-eq__bands" role="list" aria-label="Equalizer bands">
         {draft.map((band, index) => (
           <button
             key={band.id}
             type="button"
             aria-pressed={band.id === selected.id}
+            aria-selected={band.id === selected.id}
             onClick={() => setSelectedId(band.id)}
             style={{ '--band-color': NODE_COLORS[index % NODE_COLORS.length] } as CSSProperties}
-            className={cn('parametric-eq__band', band.id === selected.id && 'is-selected')}
+            className={cn('audio-eq__band parametric-eq__band', band.id === selected.id && 'is-selected')}
           >
-            <span className="parametric-eq__band-dot" data-enabled={band.enabled} aria-hidden="true" />
-            <span className="parametric-eq__band-name">{index + 1}</span>
-            <span className="parametric-eq__band-freq">{frequencyReadout(band.frequency)}</span>
+            <span className="audio-eq__band-dot parametric-eq__band-dot" data-enabled={band.enabled} aria-hidden="true" />
+            <span className="audio-eq__band-name parametric-eq__band-name">{index + 1}</span>
+            <span className="audio-eq__band-freq parametric-eq__band-freq">{frequencyReadout(band.frequency)}</span>
           </button>
         ))}
       </div>
 
-      <div className="parametric-eq__inspector">
-        <div className="parametric-eq__inspector-heading">
-          <span className="parametric-eq__selected-dot" style={{ backgroundColor: NODE_COLORS[draft.indexOf(selected) % NODE_COLORS.length] }} aria-hidden="true" />
+      <div className="audio-eq__inspector parametric-eq__inspector">
+        <div className="audio-eq__inspector-heading parametric-eq__inspector-heading">
+          <span className="audio-eq__selected-dot parametric-eq__selected-dot" style={{ backgroundColor: NODE_COLORS[draft.indexOf(selected) % NODE_COLORS.length] }} aria-hidden="true" />
           <strong>Band {draft.indexOf(selected) + 1}</strong>
           <label className="parametric-eq__band-state">
             <Switch

@@ -27,7 +27,7 @@ export function ParameterControl({
   const text = `${current.toFixed(precision)}${unit}`;
 
   return (
-    <label className="parameter-control grid min-h-11 grid-cols-[112px_minmax(100px,1fr)_72px] items-center gap-3 text-[11px] text-muted-foreground max-[620px]:grid-cols-[96px_minmax(70px,1fr)_64px]">
+    <label className="audio-param parameter-control">
       <span>{label}</span>
       <Slider
         variant="fader"

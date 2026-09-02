@@ -34,13 +34,13 @@ export const ChatMixSlider = memo(function ChatMixSlider({
   };
 
   return (
-    <section aria-labelledby="chatmix-heading" className={cn('chatmix-control', inactive && 'is-disabled')}>
-      <div className="chatmix-control__label">
+    <section aria-labelledby="chatmix-heading" className={cn('audio-chatmix chatmix-control', inactive && 'is-disabled')}>
+      <div className="audio-chatmix__label">
+        <Gamepad2 className="size-4" aria-hidden="true" />
         <h3 id="chatmix-heading">ChatMix</h3>
-        <p>Game sound vs voice chat</p>
       </div>
 
-      <div className="chatmix-control__slider">
+      <div className="audio-chatmix__slider chatmix-control__slider">
         <Gamepad2 className="size-4 shrink-0 text-[var(--channel-game)]" aria-hidden="true" />
         <SliderPrimitive.Root
           min={-1}
@@ -65,8 +65,9 @@ export const ChatMixSlider = memo(function ChatMixSlider({
         <MessageCircle className="size-4 shrink-0 text-[var(--channel-chat)]" aria-hidden="true" />
       </div>
 
-      <div className="chatmix-control__value">
-        <output>{game} / {chat}</output>
+      <div className="audio-chatmix__value">
+        <MessageCircle className="size-4" aria-hidden="true" />
+        <output>Game {game} · Chat {chat}</output>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

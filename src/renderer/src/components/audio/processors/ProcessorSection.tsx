@@ -24,9 +24,9 @@ export function ProcessorSection({
 }) {
   const unavailable = support === 'unavailable';
   return (
-    <section id={id} aria-labelledby={`${id}-heading`} className={cn('advanced-processor scroll-mt-28', compact && 'advanced-processor--compact')}>
-      <header className="mb-3 flex min-w-0 items-center justify-between gap-3">
-        <h2 id={`${id}-heading`} className="m-0 min-w-0 text-[13px] font-semibold text-foreground">{title}</h2>
+    <section id={id} aria-labelledby={`${id}-heading`} className={cn('audio-proc advanced-processor scroll-mt-28', (!enabled || unavailable) && 'is-disabled', compact && 'advanced-processor--compact')}>
+      <header className="audio-proc__head">
+        <h2 id={`${id}-heading`}>{title}</h2>
         <label className="flex shrink-0 items-center text-[11px] text-muted-foreground">
           <Switch
             checked={enabled}
@@ -36,7 +36,7 @@ export function ProcessorSection({
           />
         </label>
       </header>
-      <div className={cn((!enabled || unavailable) && 'opacity-50')}>{children}</div>
+      <div className="audio-proc__body">{children}</div>
     </section>
   );
 }
