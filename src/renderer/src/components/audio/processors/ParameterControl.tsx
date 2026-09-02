@@ -41,7 +41,7 @@ export function ParameterControl({
         onValueChange={([next]) => typeof next === 'number' && setCurrent(next)}
         onValueCommit={([next]) => typeof next === 'number' && onCommit(next)}
       />
-      <output className="text-right text-xs font-semibold tabular-nums text-foreground">{text}</output>
+      <output>{text}</output>
     </label>
   );
 }

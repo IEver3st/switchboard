@@ -1,11 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Copy, Download, MoreHorizontal, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import type { AudioPathId, AudioPathPreset } from '../../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function PresetPicker({
   kind,
@@ -58,7 +57,6 @@ export function PresetPicker({
     <div className="preset-picker">
       <div className="preset-picker__primary">
         <label>
-          <span>{label}</span>
           <Select
             value={activeId ?? 'custom'}
             onValueChange={(value) => {
@@ -117,30 +115,5 @@ export function PresetPicker({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function PresetAction({
-  label,
-  tooltip,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  tooltip: string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" disabled={disabled} aria-label={label} onClick={onClick}>
-          <span className="[&>svg]:size-3.5">{children}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
   );
 }
