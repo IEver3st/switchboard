@@ -13,7 +13,7 @@ Switchboard uses `electron-updater` with the NSIS artifacts and `latest.yml` pub
 1. Update the version and release notes on a reviewed commit.
 2. Run the repository validation and build gates.
 3. Push a tag such as `v0.2.0` whose version exactly matches `package.json`.
-4. The workflow installs the pinned full FFmpeg packaging dependency, builds the native hosts and Electron app, runs the source and native test gates, and uploads the NSIS installer, block map, `latest.yml` update metadata, and a SHA-256 checksum manifest to a draft GitHub Release.
+4. The workflow installs the pinned full FFmpeg packaging dependency, builds the native hosts and Electron app, runs the source and native test gates, pre-creates one draft GitHub Release, and uploads the NSIS installer, block map, `latest.yml` update metadata, and a SHA-256 checksum manifest into that draft.
 5. Before publishing, CI opens the packaged `app.asar`, verifies the embedded provider and version, and resolves the real `NsisUpdater` in a hidden Electron main process. It then waits for every non-empty release asset, publishes the draft, and verifies the anonymous public `latest.yml` endpoint.
 6. Install the previous release, use **Settings → About → Check now**, and verify both automatic and manual download, renderer close/reopen survival, explicit **Restart to update**, and install-for-next-startup behavior.
 

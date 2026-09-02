@@ -84,6 +84,7 @@ assert(releaseWorkflow.includes("- 'v*.*.*'"), 'Windows releases must be trigger
 assert(releaseWorkflow.includes('bun run release:win'), 'The release workflow must publish the Windows installer and update feed.');
 assert(releaseWorkflow.includes('latest.yml') && releaseWorkflow.includes('SHA256SUMS-Windows.txt'), 'The release workflow must verify update metadata and checksums.');
 assert(releaseWorkflow.includes('bun run verify:packaged-updater'), 'The release workflow must exercise the packaged updater runtime.');
+assert(releaseWorkflow.includes('gh release create') && releaseWorkflow.includes('--verify-tag --draft'), 'The release workflow must pre-create one verified draft before parallel artifact uploads.');
 assert(releaseWorkflow.includes('gh release edit') && releaseWorkflow.includes('--draft=false'), 'The release workflow must publish only after draft verification.');
 assert(releaseWorkflow.includes('releases/latest/download/latest.yml'), 'The release workflow must verify the anonymous public update feed.');
 
