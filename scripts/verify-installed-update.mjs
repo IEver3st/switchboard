@@ -50,7 +50,7 @@ try {
     } catch {
       return false;
     }
-  }, 3 * 60_000, `The NSIS installer did not apply Switchboard ${targetVersion}.`);
+  }, 10 * 60_000, `The NSIS installer did not apply Switchboard ${targetVersion}.`);
 
   console.log(`Installed updater verified: Switchboard ${installedVersion} -> ${targetVersion} via ${verdict.updater}.`);
 } finally {

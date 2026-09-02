@@ -87,6 +87,7 @@ assert(releaseWorkflow.includes('bun run verify:packaged-updater'), 'The release
 assert(releaseWorkflow.includes('gh release create') && releaseWorkflow.includes('--verify-tag --draft'), 'The release workflow must pre-create one verified draft before parallel artifact uploads.');
 assert(releaseWorkflow.includes('gh release edit') && releaseWorkflow.includes('--draft=false'), 'The release workflow must publish only after draft verification.');
 assert(releaseWorkflow.includes('releases/latest/download/latest.yml'), 'The release workflow must verify the anonymous public update feed.');
+assert(releaseWorkflow.includes('Encoding]::UTF8.GetString'), 'The release workflow must decode GitHub octet-stream update metadata before validation.');
 
 const defaultsSource = read('src/shared/defaults.ts');
 assert(

@@ -164,7 +164,11 @@ jobs:
           while ($true) {
             try {
               $response = Invoke-WebRequest -Uri $feedUrl -Headers @{ 'Cache-Control' = 'no-cache' }
-              $content = $response.Content
+              $content = if ($response.Content -is [byte[]]) {
+                [System.Text.Encoding]::UTF8.GetString($response.Content)
+              } else {
+                [string]$response.Content
+              }
               $hasVersion = $content -match "(?m)^version:\s*$([regex]::Escape($releaseVersion))\s*$"
               $hasInstaller = $content.Contains($installerName)
               $hasChecksum = $content -match "(?m)^sha512:\s*\S+"
