@@ -1,9 +1,8 @@
 import type { AudioBus, AudioMixId, AudioPathId, SystemSnapshot } from '../../../../shared/contracts';
-import type { AudioWorkspaceTab } from './AudioTabs';
+import type { AudioWorkspaceTab } from './AudioHeader';
 import { ChatMixSlider } from './ChatMixSlider';
-import { channelIcons, mixerChannelOrder, type MixerChannelId } from './channel-identity';
-import { MixerChannelStrip } from './MixerChannelStrip';
-import { MixerMasterStrip } from './MixerMasterStrip';
+import { mixerChannelOrder, type MixerChannelId } from './channel-identity';
+import { MixerStrip } from './MixerStrip';
 import { useSystemStore } from '@/stores/use-system-store';
 
 export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: SystemSnapshot; selectedMixId: AudioMixId; onNavigate: (tab: AudioWorkspaceTab) => void }) {
@@ -36,11 +35,16 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
   };
 
   return (
-    <div className="mixer-workbench">
-      <div className="mixer-grid" data-testid="mixer-grid">
-        <MixerMasterStrip
-          master={selectedMix.master}
+    <div className="audio-desk">
+      <div className="audio-desk__surface">
+        <div className="audio-desk__strips" data-testid="mixer-grid">
+        <MixerStrip
+          master
+          masterState={selectedMix.master}
+          mixId={selectedMix.id}
           mixLabel={selectedMix.label}
+          devices={snapshot.audio.devices}
+          engineRunning={engineRunning}
           pending={false}
           onGainCommit={(gain) => void setAudioMasterGain({ mixId: selectedMix.id, gain })}
           onEnabledChange={(enabled) => void setAudioMasterEnabled({ mixId: selectedMix.id, enabled })}
@@ -50,13 +54,12 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
           const control = selectedMix.buses.find((candidate) => candidate.id === bus.id);
           if (!control) return null;
           return (
-            <MixerChannelStrip
+            <MixerStrip
               key={bus.id}
               bus={bus}
               control={control}
               mixId={selectedMix.id}
               devices={snapshot.audio.devices}
-              icon={channelIcons[channel]}
               engineRunning={engineRunning}
               pending={false}
               presetName={presetNameFor(channel)}
@@ -72,6 +75,7 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
             />
           );
         })}
+        </div>
       </div>
 
       <ChatMixSlider

@@ -73,9 +73,9 @@ export const LevelMeter = memo(function LevelMeter({
   }, [active, busId]);
 
   return (
-    <div className="flex min-w-12 flex-col items-center gap-2">
+    <div className="audio-meter">
       <ClipIndicator ref={clipRef} label={`${label} clipping indicator`} />
-      <div className="flex min-h-0 flex-1 items-stretch gap-1.5">
+      <div className="audio-meter__rail">
         <div
           ref={meterRef}
           role="meter"
@@ -83,7 +83,7 @@ export const LevelMeter = memo(function LevelMeter({
           aria-valuemin={-60}
           aria-valuemax={0}
           aria-valuenow={-60}
-          className="relative h-full w-[10px] overflow-hidden rounded-[2px] bg-input"
+          className="audio-meter__bar"
         >
           <div ref={goodRef} className="absolute inset-x-0 bottom-0" style={{ backgroundColor: accentColor }} />
           <div ref={warningRef} className="absolute inset-x-0 bottom-[72%] bg-warning" />
@@ -91,7 +91,7 @@ export const LevelMeter = memo(function LevelMeter({
           <div ref={peakRef} className="absolute inset-x-[-1px] h-px bg-foreground" />
         </div>
       </div>
-      <span ref={readoutRef} className="w-full text-center text-[10px] tabular-nums text-muted-foreground">−∞ dB</span>
+      <span ref={readoutRef} className="audio-meter__readout">−∞ dB</span>
     </div>
   );
 });

@@ -13,7 +13,7 @@ export function MicrophoneTest({ support, pending = false, compact = false, onRe
       <Button
         type="button"
         variant="secondary"
-        size="md"
+        size="sm"
         disabled={!recordable || pending}
         aria-describedby="microphone-test-status"
         onClick={onRecord}
