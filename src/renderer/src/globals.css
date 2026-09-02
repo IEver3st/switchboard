@@ -2,38 +2,38 @@
 
 :root {
   /* Canonical application palette. Component-library roles below alias these tokens. */
-  --background: #11100f;
-  --chrome: #0d0c0c;
-  --surface-1: #171615;
-  --surface-2: #1b1a18;
-  --surface-interactive: #201f1d;
-  --surface-hover: #282622;
-  --border: #2c2925;
-  --border-strong: #3c3832;
-  --text-primary: #f3f1ed;
-  --text-secondary: #b4afa7;
-  --text-description: #8e887f;
-  --text-muted: #777168;
-  --accent-brand: #a8a5ff;
-  --accent-hover: #bcb9ff;
+  --background: #0e1117;
+  --chrome: #090b0f;
+  --surface-1: #141821;
+  --surface-2: #191e28;
+  --surface-interactive: #1f2531;
+  --surface-hover: #28303e;
+  --border: #262d3a;
+  --border-strong: #374050;
+  --text-primary: #f4f6fb;
+  --text-secondary: #b7bfcd;
+  --text-description: #8b95a7;
+  --text-muted: #6b7587;
+  --accent-brand: #8f7dff;
+  --accent-hover: #a698ff;
   --accent-subtle: color-mix(in srgb, var(--accent-brand) 12%, transparent);
-  --status-success: #5cc69b;
-  --status-info: #9d9bf0;
-  --status-warning: #d8a764;
-  --status-danger: #df6f72;
-  --status-neutral: #69645d;
-  --channel-game: #53bfae;
-  --channel-chat: #6f9fe8;
-  --channel-media: #a889dc;
-  --channel-microphone: #dda65a;
-  --eq-band-1: #d9788d;
-  --eq-band-2: #c69a62;
-  --eq-band-3: #61b394;
-  --eq-band-4: #6f98c7;
-  --eq-band-5: #927fc9;
-  --eq-band-6: #b47791;
-  --eq-band-7: #8290a2;
-  --eq-band-8: #a98967;
+  --status-success: #4ed49d;
+  --status-info: #7f8dff;
+  --status-warning: #f0b05a;
+  --status-danger: #f26d73;
+  --status-neutral: #5d6678;
+  --channel-game: #3fd1bb;
+  --channel-chat: #5f9dff;
+  --channel-media: #b38bff;
+  --channel-microphone: #f5b24d;
+  --eq-band-1: #ef7b98;
+  --eq-band-2: #d9a45f;
+  --eq-band-3: #55c9a0;
+  --eq-band-4: #6ea3e6;
+  --eq-band-5: #9a86ec;
+  --eq-band-6: #c67ba4;
+  --eq-band-7: #8a9bb4;
+  --eq-band-8: #b9906a;
 
   --foreground: var(--text-primary);
   --card: var(--surface-1);
@@ -41,7 +41,7 @@
   --popover: var(--surface-interactive);
   --popover-foreground: var(--text-primary);
   --primary: var(--accent-brand);
-  --primary-foreground: #121116;
+  --primary-foreground: #0d0b1c;
   --secondary: var(--surface-interactive);
   --secondary-foreground: var(--text-primary);
   --muted: var(--surface-1);
@@ -2006,12 +2006,17 @@ textarea:focus-visible {
 }
 
 .switchboard-sidebar nav button[aria-current="page"] {
-  background: var(--surface-interactive);
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-interactive));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
 .switchboard-sidebar nav button[aria-current="page"] > span:first-child {
-  width: 1px;
-  border-radius: 0;
+  width: 2px;
+  border-radius: 999px;
+}
+
+.switchboard-sidebar nav button[aria-current="page"] svg {
+  color: var(--primary);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -4178,20 +4183,20 @@ textarea:focus-visible {
 /* Settings is a full-window takeover. The larger type scale is an explicit task exception for legibility. */
 .settings-page,
 .module-details-dialog {
-  --background: #0b0c0e;
-  --chrome: #0e1013;
-  --surface-1: #131519;
-  --surface-2: #15181c;
-  --surface-interactive: #17191d;
-  --surface-hover: #181b20;
+  --background: #0a0c11;
+  --chrome: #0e1117;
+  --surface-1: #12161e;
+  --surface-2: #161b24;
+  --surface-interactive: #1a2029;
+  --surface-hover: #1f2631;
   --border: rgb(255 255 255 / 7.5%);
   --border-strong: rgb(255 255 255 / 13%);
-  --text-primary: #f4f4f5;
-  --text-secondary: #a3a7ae;
-  --text-description: #858a93;
-  --text-muted: #717680;
-  --accent-brand: #8b83f6;
-  --accent-hover: #9c95ff;
+  --text-primary: #f4f6fb;
+  --text-secondary: #aab3c2;
+  --text-description: #8791a3;
+  --text-muted: #6b7587;
+  --accent-brand: #8f7dff;
+  --accent-hover: #a698ff;
 }
 
 .settings-page {
@@ -9812,6 +9817,7 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-1);
+  box-shadow: 0 18px 40px -24px rgb(0 0 0 / 70%);
 }
 
 .mixer-channel {
