@@ -1094,9 +1094,37 @@ internal sealed class ReplayEngine : IAsyncDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        var arguments = BuildRemuxArguments(
+            concatPath,
+            systemAudioConcatPath,
+            microphoneConcatPath,
+            temporaryOutputPath,
+            replayDuration,
+            settings?.ClipMixPipeName is not null ? "Switchboard Clip Mix" : "Game/System",
+            settings?.ProcessedMicrophoneDeviceId is not null ? "Processed Microphone" : "Microphone");
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        using var process = childProcesses.Start(start, "FFmpeg remux");
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        await outputTask;
+        var remuxError = await errorTask;
+        if (process.ExitCode != 0) throw new InvalidOperationException($"FFmpeg remux failed: {remuxError.Trim()}");
+    }
+
+    internal static IReadOnlyList<string> BuildRemuxArguments(
+        string concatPath,
+        string? systemAudioConcatPath,
+        string? microphoneConcatPath,
+        string temporaryOutputPath,
+        TimeSpan replayDuration,
+        string systemAudioTitle,
+        string microphoneTitle)
+    {
+        // Capture.Host stdin carries JSON commands. A remux must never compete for that pipe.
         var arguments = new List<string>
         {
-            "-hide_banner", "-loglevel", "error",
+            "-nostdin", "-hide_banner", "-loglevel", "error",
             "-f", "concat", "-safe", "0", "-i", concatPath,
         };
         if (systemAudioConcatPath is not null)
@@ -1109,16 +1137,14 @@ internal sealed class ReplayEngine : IAsyncDisposable
         if (systemAudioConcatPath is not null)
         {
             arguments.AddRange(["-map", $"{audioInputIndex}:a:0"]);
-            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}",
-                settings?.ClipMixPipeName is not null ? "title=Switchboard Clip Mix" : "title=Game/System"]);
+            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}", $"title={systemAudioTitle}"]);
             audioInputIndex++;
             audioOutputIndex++;
         }
         if (microphoneConcatPath is not null)
         {
             arguments.AddRange(["-map", $"{audioInputIndex}:a:0"]);
-            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}",
-                settings?.ProcessedMicrophoneDeviceId is not null ? "title=Processed Microphone" : "title=Microphone"]);
+            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}", $"title={microphoneTitle}"]);
         }
         arguments.AddRange([
             "-c", "copy",
@@ -1127,14 +1153,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-f", "mp4",
             temporaryOutputPath,
         ]);
-        foreach (var argument in arguments) start.ArgumentList.Add(argument);
-        using var process = childProcesses.Start(start, "FFmpeg remux");
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        await outputTask;
-        var remuxError = await errorTask;
-        if (process.ExitCode != 0) throw new InvalidOperationException($"FFmpeg remux failed: {remuxError.Trim()}");
+        return arguments;
     }
 
     private async Task ReadProgressAsync(StreamReader reader, CancellationToken cancellationToken)

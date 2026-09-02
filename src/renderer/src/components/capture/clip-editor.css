@@ -1329,34 +1329,14 @@
 }
 
 .clip-editor-timeline__audio-track {
-  --timeline-lane-surface: color-mix(in srgb, var(--track-color) 72%, #16242a);
-  --timeline-waveform-color: color-mix(in srgb, var(--track-color) 78%, white);
+  --timeline-lane-surface: var(--track-color);
+  --timeline-waveform-color: color-mix(in srgb, var(--track-color) 58%, white);
   position: relative;
   min-height: var(--audio-lane-height);
   overflow: visible;
-  border: 1px solid color-mix(in srgb, var(--timeline-waveform-color) 38%, var(--timeline-lane-surface));
+  border: 1px solid color-mix(in srgb, var(--track-color) 74%, white);
   border-radius: 2px;
   background: var(--timeline-lane-surface);
-}
-
-.clip-editor-timeline__audio-track[data-channel="game"] {
-  --timeline-lane-surface: #078f82;
-  --timeline-waveform-color: #19d7c5;
-}
-
-.clip-editor-timeline__audio-track[data-channel="chat"] {
-  --timeline-lane-surface: #2c7fac;
-  --timeline-waveform-color: #4db9ee;
-}
-
-.clip-editor-timeline__audio-track[data-channel="media"] {
-  --timeline-lane-surface: #6b54a1;
-  --timeline-waveform-color: #aa8be5;
-}
-
-.clip-editor-timeline__audio-track[data-channel="microphone"] {
-  --timeline-lane-surface: #a87529;
-  --timeline-waveform-color: #ffb62d;
 }
 
 .clip-editor-timeline__audio-track svg {

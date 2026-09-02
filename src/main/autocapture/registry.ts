@@ -11,6 +11,7 @@ type RegisteredProvider = {
   provider: GameEventProvider;
   availability: ProviderAvailability;
   unsubscribe: (() => void) | null;
+  unsubscribeStatus: (() => void) | null;
   start: Promise<void> | null;
 };
 
@@ -27,6 +28,7 @@ export class AutoCaptureRegistry {
       provider,
       availability: { state: 'unavailable', reason: 'Availability has not been checked yet.' },
       unsubscribe: null,
+      unsubscribeStatus: null,
       start: null,
     });
   }
@@ -87,6 +89,7 @@ export class AutoCaptureRegistry {
   public async start(providerId: string, context: ActiveGameContext): Promise<void> {
     const entry = this.providers.get(providerId);
     if (!entry) throw new Error(`Unknown Auto Capture provider: ${providerId}`);
+    if (context.gameSettings) await entry.provider.configure?.(context.gameSettings);
     if (entry.provider.getStatus().state === 'listening') return;
     if (entry.start) return entry.start;
 
@@ -99,6 +102,7 @@ export class AutoCaptureRegistry {
         for (const listener of this.eventListeners) listener(event);
         this.emitChanged();
       });
+      entry.unsubscribeStatus ??= entry.provider.subscribeStatus?.(() => this.emitChanged()) ?? null;
       await entry.provider.start({ ...context, log: this.log });
       this.log('provider_started', { game: entry.provider.gameId, provider: entry.provider.id });
       this.emitChanged();
@@ -117,11 +121,14 @@ export class AutoCaptureRegistry {
     if (!entry) return;
     const wasActive = entry.start !== null
       || entry.unsubscribe !== null
+      || entry.unsubscribeStatus !== null
       || entry.provider.getStatus().state !== 'stopped';
     await entry.start?.catch(() => undefined);
     await entry.provider.stop();
     entry.unsubscribe?.();
     entry.unsubscribe = null;
+    entry.unsubscribeStatus?.();
+    entry.unsubscribeStatus = null;
     if (wasActive) this.log('provider_stopped', { game: entry.provider.gameId, provider: entry.provider.id });
     this.emitChanged();
   }

@@ -12,7 +12,7 @@ import {
   normalizeClipRecord,
 } from '../src/shared/clip-library';
 import { StateStore } from '../src/main/services/state-store';
-import { buildClipVideoFilter, buildShareAudioArguments } from '../src/main/services/clip-library';
+import { audioStreamLabel, buildClipVideoFilter, buildShareAudioArguments } from '../src/main/services/clip-library';
 
 const temporaryDirectories: string[] = [];
 
@@ -41,6 +41,13 @@ function clip(index: number, overrides: Partial<Clip> = {}): Clip {
 }
 
 describe('canonical clip metadata', () => {
+  test('reads MP4 audio identities from the name tag used by Capture.Host', () => {
+    expect(audioStreamLabel({ name: 'Game/System', handler_name: 'SoundHandler' })).toBe('Game/System');
+    expect(audioStreamLabel({ name: 'Microphone', handler_name: 'SoundHandler' })).toBe('Microphone');
+    expect(audioStreamLabel({ title: 'Processed Microphone', name: 'Microphone' })).toBe('Processed Microphone');
+    expect(audioStreamLabel({ handler_name: 'SoundHandler' })).toBeUndefined();
+  });
+
   test('adds durable favorite and title defaults to legacy clip records', () => {
     const parsed = clipSchema.parse({
       id: 'legacy', path: 'C:\\Clips\\Display1_2026-08-26_01-33-08.mp4', name: 'Display1_2026-08-26_01-33-08',

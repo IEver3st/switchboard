@@ -65,7 +65,7 @@ describe('audio endpoint discovery', () => {
       },
       {
         id: 'sony-headphones',
-        name: 'Headphones (2- WH-1000XM6)',
+        name: 'Headphones (USB Audio Device)',
         direction: 'output',
         isDefault: false,
         available: true,
@@ -94,11 +94,11 @@ describe('audio endpoint discovery', () => {
 
     reconcileAudioDevices(audio, devices);
 
-    expect(audio.devices.map((device) => device.name)).toContain('Headphones (2- WH-1000XM6)');
+    expect(audio.devices.map((device) => device.name)).toContain('Headphones (USB Audio Device)');
     expect(audio.buses.filter((bus) => bus.id !== 'mic').every((bus) => bus.deviceId === 'sony-headphones')).toBeTrue();
     expect(audio.buses.find((bus) => bus.id === 'mic')?.deviceId).toBe('quadcast');
     expect(audio.monitoringDeviceId).toBe('sony-headphones');
-    expect(audio.outputDevice).toBe('Headphones (2- WH-1000XM6)');
+    expect(audio.outputDevice).toBe('Headphones (USB Audio Device)');
     expect(audio.microphoneDevice).toBe('Microphone (HyperX QuadCast 2)');
     expect(JSON.stringify(audio)).not.toContain('Arctis Nova Pro Wireless');
   });

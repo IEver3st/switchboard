@@ -26,6 +26,7 @@ import {
   type CaptureHostSnapshot,
   type CaptureSource,
   type Clip,
+  type ClipAudioChannel,
   type CreateModuleProjectInput,
   type ExportClipInput,
   type ExportMontageInput,
@@ -86,6 +87,9 @@ import { AutoCaptureRegistry } from './autocapture/registry';
 import { AutoCaptureCoordinator } from './autocapture/coordinator';
 import { TestEventProvider } from './autocapture/providers/test-event-provider';
 import { CS2Provider } from './autocapture/providers/cs2/cs2-provider';
+import { WarThunderProvider } from './autocapture/providers/war-thunder/war-thunder-provider';
+import { Battlefield6Provider } from './autocapture/providers/battlefield-6/battlefield-6-provider';
+import type { OverwolfRuntimeHost } from './autocapture/providers/battlefield-6/overwolf-gep-session';
 import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
 import {
   createModuleProject as scaffoldModuleProject,
@@ -114,6 +118,10 @@ const workerSavedClipSchema = z.object({
 type WorkerSavedClip = z.infer<typeof workerSavedClipSchema>;
 const audioEndpointRefreshMinimumIntervalMs = 10_000;
 const captureSourceThumbnailRefreshMinimumIntervalMs = 10_000;
+
+function sameAudioChannels(left: readonly ClipAudioChannel[] | undefined, right: readonly ClipAudioChannel[]): boolean {
+  return left?.length === right.length && left.every((channel, index) => channel === right[index]);
+}
 
 type AppControllerOptions = {
   demoUpdate?: boolean;
@@ -215,6 +223,11 @@ export class AppController {
     this.autoCaptureRegistry = new AutoCaptureRegistry(autoCaptureLog);
     this.testEventProvider = new TestEventProvider();
     this.autoCaptureRegistry.register(new CS2Provider(join(app.getPath('userData'), 'autocapture', 'cs2-gsi-token')));
+    this.autoCaptureRegistry.register(new Battlefield6Provider({
+      runtime: app as unknown as OverwolfRuntimeHost,
+      gameEventsEnabled: process.env.SWITCHBOARD_BF6_OVERWOLF_ENABLED === '1',
+    }));
+    this.autoCaptureRegistry.register(new WarThunderProvider());
     this.autoCaptureRegistry.register(this.testEventProvider);
     this.autoCaptureEngine = new AutoCaptureEngine({
       getSettings: () => this.store.get().capture.autoCapture.settings,
@@ -1437,7 +1450,17 @@ export class AppController {
     const clip = this.store.get().clips.find((candidate) => candidate.id === id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
-    return this.clipLibrary.loadAudioWaveform(clip);
+    const waveform = await this.clipLibrary.loadAudioWaveform(clip);
+    const audioChannels = waveform.tracks.flatMap((track) => track.channel ? [track.channel] : []);
+    if (audioChannels.length > 0
+      && audioChannels.length === waveform.tracks.length
+      && !sameAudioChannels(clip.audioChannels, audioChannels)) {
+      this.store.update((draft) => {
+        const current = draft.clips.find((candidate) => candidate.id === id);
+        if (current) current.audioChannels = audioChannels;
+      });
+    }
+    return waveform;
   }
 
   public async exportClip(input: ExportClipInput): Promise<boolean> {

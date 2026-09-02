@@ -6,6 +6,12 @@ if (args.Contains("--job-child", StringComparer.Ordinal))
     await Task.Delay(TimeSpan.FromMinutes(5));
     return;
 }
+if (args.Contains("--remux-stdin-only", StringComparer.Ordinal))
+{
+    AssertRemuxStdinIsolation();
+    Console.WriteLine("Capture.Host remux stdin isolation test passed.");
+    return;
+}
 
 var start = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 var segments = Enumerable.Range(0, 5)
@@ -65,6 +71,8 @@ AssertEqual(
     ValuesFollowing(surroundSystemAudioArguments, "-b:a").Single(),
     "Stereo system audio must retain the configured AAC bitrate.");
 
+AssertRemuxStdinIsolation();
+
 var operations = new OperationTracker();
 operations.Track(Task.CompletedTask);
 await Task.Yield();
@@ -94,6 +102,70 @@ if (OperatingSystem.IsWindows())
     AssertValue(discoveredDisplays.Length, discoveredDisplays.Select(source => source.DisplayHandle).Distinct().Count(),
         "Each discovered display must map to one distinct physical HMONITOR.");
 }
+
+var switchboardWindow = new WindowsCaptureSources.WindowInfo(
+    100,
+    1000,
+    "Switchboard",
+    @"C:\Program Files\Switchboard\Switchboard.exe",
+    "switchboard",
+    "Switchboard",
+    "Chrome_WidgetWin_1",
+    false,
+    true);
+var alreadyRunningGameWindow = new WindowsCaptureSources.WindowInfo(
+    200,
+    2000,
+    "Existing Game",
+    @"C:\Games\Steam\steamapps\common\Existing Game\game.exe",
+    "game",
+    "Existing Game",
+    "GameWindow",
+    true,
+    true);
+var automaticGameWindows = new Dictionary<nint, WindowsCaptureSources.WindowInfo>
+{
+    [switchboardWindow.Handle] = switchboardWindow,
+    [alreadyRunningGameWindow.Handle] = alreadyRunningGameWindow,
+};
+var automaticGameBackgroundScans = 0;
+var automaticGameSources = new WindowsCaptureSources(
+    () => true,
+    () => switchboardWindow.Handle,
+    (handle, _) => automaticGameWindows.GetValueOrDefault(handle),
+    _ =>
+    {
+        automaticGameBackgroundScans++;
+        return automaticGameWindows.Values.ToArray();
+    });
+var automaticGameStartedAt = DateTimeOffset.UtcNow;
+AssertValue(true, automaticGameSources.DetectAutomaticGame(automaticGameStartedAt) is null,
+    "An already-running background game must pass the stability window before capture starts.");
+AssertValue(
+    true,
+    automaticGameSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == alreadyRunningGameWindow.ProcessId,
+    "Automatic capture must detect a game that was already running when Switchboard started.");
+AssertValue(1, automaticGameBackgroundScans,
+    "A stable background candidate must not trigger another full window inventory scan.");
+
+var secondRunningGameWindow = alreadyRunningGameWindow with
+{
+    Handle = 300,
+    ProcessId = 3000,
+    Title = "Second Existing Game",
+    ExecutablePath = @"C:\Games\Steam\steamapps\common\Second Existing Game\game.exe",
+    ProductName = "Second Existing Game",
+};
+automaticGameWindows[secondRunningGameWindow.Handle] = secondRunningGameWindow;
+var ambiguousAutomaticGameSources = new WindowsCaptureSources(
+    () => true,
+    () => switchboardWindow.Handle,
+    (handle, _) => automaticGameWindows.GetValueOrDefault(handle),
+    _ => automaticGameWindows.Values.ToArray());
+AssertValue(true, ambiguousAutomaticGameSources.DetectAutomaticGame(automaticGameStartedAt) is null,
+    "Automatic capture must not guess when more than one background game process is running.");
+AssertValue(true, ambiguousAutomaticGameSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1)) is null,
+    "Automatic capture must wait for foreground intent when background game identity is ambiguous.");
 
 using (var childJob = new WindowsChildProcessJob())
 using (var child = childJob.Start(
@@ -130,6 +202,20 @@ Console.WriteLine("Capture.Host deterministic tests passed.");
 static void AssertSequence(IEnumerable<string> actual, IReadOnlyList<string> expected, string message)
 {
     if (!actual.SequenceEqual(expected)) throw new InvalidOperationException(message);
+}
+
+static void AssertRemuxStdinIsolation()
+{
+    var arguments = ReplayEngine.BuildRemuxArguments(
+        "video-concat.txt",
+        "system-concat.txt",
+        "microphone-concat.txt",
+        "clip.mp4.clip-writing",
+        TimeSpan.FromSeconds(22),
+        "Game/System",
+        "Microphone");
+    AssertValue(true, arguments.Contains("-nostdin"),
+        "Replay remux must not inherit Capture.Host stdin and consume shortcut commands.");
 }
 
 static void AssertEqual(string expected, string actual, string message)

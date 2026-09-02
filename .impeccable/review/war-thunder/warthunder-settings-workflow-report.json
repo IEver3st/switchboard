@@ -1,0 +1,18 @@
+{
+  "expectedPlayerName": "Ever3st",
+  "beforeReload": {
+    "playerName": "Ever3st",
+    "inputValue": "Ever3st",
+    "describedBy": "autocapture-provider-war-thunder-8111-player-name-description",
+    "horizontalOverflow": false,
+    "settingsOverflow": false
+  },
+  "afterReload": {
+    "playerName": "Ever3st",
+    "inputValue": "Ever3st",
+    "describedBy": "autocapture-provider-war-thunder-8111-player-name-description",
+    "horizontalOverflow": false,
+    "settingsOverflow": false
+  },
+  "persisted": true
+}

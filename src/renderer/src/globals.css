@@ -4851,6 +4851,32 @@ textarea:focus-visible {
   font-weight: 650;
 }
 
+.autocapture-provider__configuration {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.autocapture-provider__configuration > span {
+  display: grid;
+  gap: 3px;
+}
+
+.autocapture-provider__configuration strong {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.autocapture-provider__configuration small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .autocapture-events-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4938,6 +4964,11 @@ textarea:focus-visible {
 
   .autocapture-test-events > div:last-child {
     justify-content: flex-start;
+  }
+
+  .autocapture-provider__configuration {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 }
 
@@ -10997,7 +11028,7 @@ textarea:focus-visible {
   }
 }
 
-/* Sony headset control surface */
+/* Headset control surface */
 .headset-console {
   width: min(100%, 1260px);
   margin: 18px auto 0;
@@ -11087,7 +11118,7 @@ textarea:focus-visible {
 .headset-connection-message strong { color: var(--foreground); font-size: 10px; }
 .headset-inline-error { color: var(--destructive); }
 
-/* XM6 consumer control surface refinement */
+/* Headset consumer control surface refinement */
 .headset-console {
   width: min(100%, 1280px);
   margin-top: 12px;

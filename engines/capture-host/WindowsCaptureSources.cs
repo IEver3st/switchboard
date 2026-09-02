@@ -6,6 +6,15 @@ namespace Switchboard.CaptureHost;
 
 internal sealed class WindowsCaptureSources
 {
+    // ReplayEngine calls detection once per second only while automatic capture is waiting.
+    // Background inventory is capped further because process metadata can be expensive to read.
+    private static readonly TimeSpan BackgroundGameScanInterval = TimeSpan.FromSeconds(5);
+
+    private readonly Func<bool> isWindows;
+    private readonly Func<nint> getForegroundWindow;
+    private readonly Func<nint, bool, WindowInfo?> getWindowInfo;
+    private readonly Func<bool, IReadOnlyList<WindowInfo>> enumerateWindows;
+
     private static readonly HashSet<string> DeniedExecutables = new(StringComparer.OrdinalIgnoreCase)
     {
         "applicationframehost", "chrome", "msedge", "firefox", "brave", "opera",
@@ -28,10 +37,28 @@ internal sealed class WindowsCaptureSources
     private nint currentGameWindow;
     private nint candidateWindow;
     private DateTimeOffset candidateSince;
+    private DateTimeOffset? lastBackgroundScanAt;
+
+    public WindowsCaptureSources()
+        : this(OperatingSystem.IsWindows, GetForegroundWindow, GetWindowInfo, EnumerateWindows)
+    {
+    }
+
+    internal WindowsCaptureSources(
+        Func<bool> isWindows,
+        Func<nint> getForegroundWindow,
+        Func<nint, bool, WindowInfo?> getWindowInfo,
+        Func<bool, IReadOnlyList<WindowInfo>> enumerateWindows)
+    {
+        this.isWindows = isWindows;
+        this.getForegroundWindow = getForegroundWindow;
+        this.getWindowInfo = getWindowInfo;
+        this.enumerateWindows = enumerateWindows;
+    }
 
     public IReadOnlyList<CaptureSource> ListSources()
     {
-        if (!OperatingSystem.IsWindows()) return [];
+        if (!isWindows()) return [];
         var sources = new List<CaptureSource>
         {
             new("automatic-game", "automatic-game", "Automatic game", null, null, null, true),
@@ -46,7 +73,7 @@ internal sealed class WindowsCaptureSources
                 DisplayHandle: display.Handle.ToInt64()));
         }
 
-        foreach (var window in EnumerateWindows())
+        foreach (var window in enumerateWindows(false))
         {
             sources.Add(new CaptureSource(
                 $"window:{window.Handle}", "window", window.Title, window.ProcessId,
@@ -78,7 +105,7 @@ internal sealed class WindowsCaptureSources
             : settings.SourceId;
         if (!long.TryParse(handleText, out var rawHandle)) return null;
         var handle = (nint)rawHandle;
-        var window = GetWindowInfo(handle, includeGameSignals: false);
+        var window = getWindowInfo(handle, false);
         return window is null
             ? new CaptureSource(settings.SourceId, "window", "Window unavailable", null, handleText, null, false)
             : new CaptureSource(settings.SourceId, "window", window.Title, window.ProcessId, handleText, null, true);
@@ -86,11 +113,11 @@ internal sealed class WindowsCaptureSources
 
     public CaptureSource? DetectAutomaticGame(DateTimeOffset now)
     {
-        if (!OperatingSystem.IsWindows()) return null;
+        if (!isWindows()) return null;
 
         if (currentGameWindow != 0)
         {
-            var current = GetWindowInfo(currentGameWindow, includeGameSignals: true);
+            var current = getWindowInfo(currentGameWindow, true);
             if (current is not null)
             {
                 return ToAutomaticSource(current);
@@ -98,23 +125,44 @@ internal sealed class WindowsCaptureSources
             currentGameWindow = 0;
         }
 
-        var foreground = GetForegroundWindow();
-        var candidate = GetWindowInfo(foreground, includeGameSignals: true);
-        if (candidate is null || !IsLikelyGame(candidate))
+        if (candidateWindow != 0)
         {
+            var stableCandidate = getWindowInfo(candidateWindow, true);
+            if (stableCandidate is not null && IsLikelyGame(stableCandidate))
+                return AdvanceCandidate(stableCandidate, now);
             candidateWindow = 0;
-            return null;
         }
 
-        if (candidateWindow != foreground)
+        var foreground = getForegroundWindow();
+        var candidate = getWindowInfo(foreground, true);
+        if (candidate is not null && IsLikelyGame(candidate)) return AdvanceCandidate(candidate, now);
+
+        if (lastBackgroundScanAt is { } lastScan && now - lastScan < BackgroundGameScanInterval) return null;
+        lastBackgroundScanAt = now;
+        var backgroundGames = enumerateWindows(true)
+            .Where(window => window.Handle != foreground && HasStrongGameIdentity(window))
+            .GroupBy(window => window.ProcessId)
+            .Select(group => group
+                .OrderByDescending(window => window.CoversMostOfMonitor)
+                .ThenBy(window => window.Handle.ToInt64())
+                .First())
+            .Take(2)
+            .ToArray();
+        if (backgroundGames.Length != 1) return null;
+        return AdvanceCandidate(backgroundGames[0], now);
+    }
+
+    private CaptureSource? AdvanceCandidate(WindowInfo candidate, DateTimeOffset now)
+    {
+        if (candidateWindow != candidate.Handle)
         {
-            candidateWindow = foreground;
+            candidateWindow = candidate.Handle;
             candidateSince = now;
             return null;
         }
 
         if (now - candidateSince < TimeSpan.FromSeconds(2)) return null;
-        currentGameWindow = foreground;
+        currentGameWindow = candidate.Handle;
         candidateWindow = 0;
         return ToAutomaticSource(candidate);
     }
@@ -124,7 +172,7 @@ internal sealed class WindowsCaptureSources
         if (source.DisplayHandle is { } displayHandle)
             return EnumerateDisplays().Any(display => display.Handle.ToInt64() == displayHandle);
         if (source.WindowHandle is null) return true;
-        return long.TryParse(source.WindowHandle, out var handle) && GetWindowInfo((nint)handle, includeGameSignals: false) is not null;
+        return long.TryParse(source.WindowHandle, out var handle) && getWindowInfo((nint)handle, false) is not null;
     }
 
     private static CaptureSource ToAutomaticSource(WindowInfo window) => new(
@@ -156,19 +204,21 @@ internal sealed class WindowsCaptureSources
     private static bool IsLikelyGame(WindowInfo window)
     {
         if (DeniedExecutables.Contains(window.ExecutableName)) return false;
-        if (KnownGameWindowClasses.Any(marker => window.ClassName.Contains(marker, StringComparison.OrdinalIgnoreCase)))
-            return true;
-        if (KnownGamePathMarkers.Any(marker => window.ExecutablePath.Contains(marker, StringComparison.OrdinalIgnoreCase)))
-            return true;
+        if (HasStrongGameIdentity(window)) return true;
         return window.CoversMostOfMonitor && window.HasGpuStyle;
     }
 
-    private static IReadOnlyList<WindowInfo> EnumerateWindows()
+    private static bool HasStrongGameIdentity(WindowInfo window) =>
+        !DeniedExecutables.Contains(window.ExecutableName)
+        && (KnownGameWindowClasses.Any(marker => window.ClassName.Contains(marker, StringComparison.OrdinalIgnoreCase))
+            || KnownGamePathMarkers.Any(marker => window.ExecutablePath.Contains(marker, StringComparison.OrdinalIgnoreCase)));
+
+    private static IReadOnlyList<WindowInfo> EnumerateWindows(bool includeGameSignals)
     {
         var windows = new List<WindowInfo>();
         EnumWindows((handle, _) =>
         {
-            var info = GetWindowInfo(handle, includeGameSignals: false);
+            var info = GetWindowInfo(handle, includeGameSignals);
             if (info is not null) windows.Add(info);
             return true;
         }, 0);
@@ -206,10 +256,17 @@ internal sealed class WindowsCaptureSources
             var windowArea = Math.Max(0, rect.Right - rect.Left) * (long)Math.Max(0, rect.Bottom - rect.Top);
             var monitorArea = Math.Max(1, monitorInfo.Monitor.Right - monitorInfo.Monitor.Left)
                               * (long)Math.Max(1, monitorInfo.Monitor.Bottom - monitorInfo.Monitor.Top);
+            var coversMostOfMonitor = windowArea >= monitorArea * 0.82;
             var hasGpuStyle = false;
             try
             {
-                hasGpuStyle = includeGameSignals && process.Modules.Cast<ProcessModule>().Any(module =>
+                var hasStrongGameSignal = KnownGameWindowClasses.Any(marker => classBuilder.ToString().Contains(marker, StringComparison.OrdinalIgnoreCase))
+                                          || KnownGamePathMarkers.Any(marker => executablePath.Contains(marker, StringComparison.OrdinalIgnoreCase));
+                hasGpuStyle = includeGameSignals
+                              && coversMostOfMonitor
+                              && !hasStrongGameSignal
+                              && !DeniedExecutables.Contains(executableName)
+                              && process.Modules.Cast<ProcessModule>().Any(module =>
                 {
                     var name = module.ModuleName;
                     return name.Equals("dxgi.dll", StringComparison.OrdinalIgnoreCase)
@@ -225,7 +282,7 @@ internal sealed class WindowsCaptureSources
 
             return new WindowInfo(
                 handle, (int)processId, title, executablePath, executableName, productName!, classBuilder.ToString(),
-                windowArea >= monitorArea * 0.82, hasGpuStyle);
+                coversMostOfMonitor, hasGpuStyle);
         }
         catch
         {

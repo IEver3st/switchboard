@@ -52,6 +52,13 @@ if (currentStatePath) {
           ],
         };
       }
+      if ((process.env.SWITCHBOARD_REVIEW_SCREENS ?? '').split(',').includes('settings-warthunder-provider')) {
+        reviewState.clipReview ??= { reviewedThrough: 0 };
+        reviewState.clipReview.reviewedThrough = Math.max(
+          reviewState.clipReview.reviewedThrough ?? 0,
+          ...reviewState.clips.map((clip) => clip.createdAt ?? 0),
+        );
+      }
       await writeFile(reviewStatePath, `${JSON.stringify(reviewState, null, 2)}\n`);
     }
   } catch (error) {
@@ -78,7 +85,6 @@ const screens = [
   { name: 'g502-x-plus', prepare: () => openDevice('G502 X Plus') },
   { name: 'quadcast-2', prepare: () => openDevice('QuadCast 2') },
   { name: 'huntsman-v2-analog', prepare: () => openDevice('Huntsman V2 Analog') },
-  { name: 'wh-1000xm6', prepare: () => openDevice('WH-1000XM6') },
   { name: 'audio-mixer', prepare: () => openAudioTab('mixer') },
   { name: 'audio-game', prepare: () => openAudioTab('game') },
   { name: 'audio-chat', prepare: () => openAudioTab('chat') },
@@ -90,6 +96,8 @@ const screens = [
   { name: 'settings', prepare: () => openSettingsCategory('General') },
   { name: 'settings-capture', prepare: () => openSettingsCategory('Capture') },
   { name: 'settings-autocapture-provider', prepare: () => openAutoCaptureProvider() },
+  { name: 'settings-battlefield6-provider', prepare: () => openAutoCaptureProvider('battlefield-6-overwolf-gep') },
+  { name: 'settings-warthunder-provider', prepare: () => openAutoCaptureProvider('war-thunder-8111') },
   { name: 'settings-diagnostics', prepare: () => openSettingsCategory('Diagnostics') },
   { name: 'settings-noise-diagnostics', prepare: () => openNoiseDiagnostics() },
   { name: 'settings-clips', prepare: () => openSettingsCategory('Clips') },
@@ -146,6 +154,14 @@ async function runReview() {
     const interaction = await verifyClipSettingsControls();
     await writeFile(join(outputDirectory, 'settings-workflow-report.json'), `${JSON.stringify(interaction, null, 2)}\n`);
     console.log(JSON.stringify({ settingsWorkflow: interaction }, null, 2));
+  }
+
+  if (process.env.SWITCHBOARD_VERIFY_WARTHUNDER_SETTINGS === '1') {
+    window.setContentSize(1080, 720, false);
+    await waitForViewport({ name: '1080x720', width: 1080, height: 720 });
+    const interaction = await verifyWarThunderSettingsWorkflow();
+    await writeFile(join(outputDirectory, 'warthunder-settings-workflow-report.json'), `${JSON.stringify(interaction, null, 2)}\n`);
+    console.log(JSON.stringify({ warThunderSettingsWorkflow: interaction }, null, 2));
   }
 
   const report = [];
@@ -350,19 +366,20 @@ async function openSettingsCategory(label) {
   await scrollMainToTop();
 }
 
-async function openAutoCaptureProvider() {
+async function openAutoCaptureProvider(providerId = 'cs2-gsi') {
   await openSettingsCategory('Capture');
   const opened = await window.webContents.executeJavaScript(`
     (() => {
-      const button = document.querySelector('[aria-controls="autocapture-provider-cs2-gsi"]');
+      const providerId = ${JSON.stringify(providerId)};
+      const button = document.querySelector('[aria-controls="autocapture-provider-' + providerId + '"]');
       if (!(button instanceof HTMLButtonElement)) return false;
       if (button.getAttribute('aria-expanded') !== 'true') button.click();
       button.closest('.autocapture-provider')?.scrollIntoView({ block: 'center' });
       return true;
     })()
   `);
-  if (!opened) throw new Error('Could not open the CS2 Auto Capture provider settings.');
-  await waitForSelector('#autocapture-provider-cs2-gsi');
+  if (!opened) throw new Error(`Could not open the ${providerId} Auto Capture provider settings.`);
+  await waitForSelector(`#autocapture-provider-${providerId}`);
 }
 
 async function verifyAutoCaptureMarker() {
@@ -592,6 +609,70 @@ async function verifyClipSettingsControls() {
   if (closedHash !== '#devices') throw new Error(`Settings returned to ${closedHash} instead of the previous workspace.`);
 
   return { expected, persisted: true, storageButtons: controls.storageButtons, closedHash };
+}
+
+async function verifyWarThunderSettingsWorkflow() {
+  const expectedPlayerName = 'Ever3st';
+  await openAutoCaptureProvider('war-thunder-8111');
+  const entered = await window.webContents.executeJavaScript(`
+    (() => {
+      const input = document.querySelector('input[aria-label="War Thunder player nickname"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setValue?.call(input, ${JSON.stringify(expectedPlayerName)});
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+      input.blur();
+      return true;
+    })()
+  `);
+  assertReview(entered, 'War Thunder player nickname input was unavailable.');
+  await waitForCondition(
+    `window.switchboard.getSnapshot().then((value) => value.capture.autoCapture.settings.games['war-thunder']?.playerName === ${JSON.stringify(expectedPlayerName)})`,
+    'War Thunder nickname to reach canonical state',
+  );
+
+  const beforeReload = await getWarThunderSettingsState();
+  assertReview(beforeReload.playerName === expectedPlayerName, 'War Thunder nickname did not reach canonical state.');
+  assertReview(beforeReload.inputValue === expectedPlayerName, 'War Thunder nickname input did not retain the entered value.');
+  assertReview(beforeReload.describedBy === 'autocapture-provider-war-thunder-8111-player-name-description', 'War Thunder nickname input was not connected to its help text.');
+  assertReview(!beforeReload.horizontalOverflow && !beforeReload.settingsOverflow, 'War Thunder Settings introduced horizontal overflow.');
+
+  const reload = new Promise((resolveLoad, rejectLoad) => {
+    const timeout = setTimeout(() => rejectLoad(new Error('War Thunder Settings reload timed out.')), 20_000);
+    window.webContents.once('did-finish-load', () => {
+      clearTimeout(timeout);
+      resolveLoad();
+    });
+  });
+  window.webContents.reload();
+  await reload;
+  await waitForCondition(`!document.querySelector('.startup-screen')`, 'startup sequence after War Thunder Settings reload');
+  await installReviewStyles(window);
+  await openAutoCaptureProvider('war-thunder-8111');
+  const afterReload = await getWarThunderSettingsState();
+  assertReview(afterReload.playerName === expectedPlayerName, 'War Thunder nickname did not persist through reload.');
+  assertReview(afterReload.inputValue === expectedPlayerName, 'War Thunder nickname input did not restore after reload.');
+  assertReview(!afterReload.horizontalOverflow && !afterReload.settingsOverflow, 'Reloaded War Thunder Settings introduced horizontal overflow.');
+
+  return { expectedPlayerName, beforeReload, afterReload, persisted: true };
+}
+
+function getWarThunderSettingsState() {
+  return window.webContents.executeJavaScript(`
+    (async () => {
+      const snapshot = await window.switchboard.getSnapshot();
+      const input = document.querySelector('input[aria-label="War Thunder player nickname"]');
+      const settings = document.querySelector('[data-settings-content-scroll]');
+      return {
+        playerName: snapshot.capture.autoCapture.settings.games['war-thunder']?.playerName ?? null,
+        inputValue: input instanceof HTMLInputElement ? input.value : null,
+        describedBy: input instanceof HTMLInputElement ? input.getAttribute('aria-describedby') : null,
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        settingsOverflow: settings ? settings.scrollWidth > settings.clientWidth : false,
+      };
+    })()
+  `);
 }
 
 async function verifySettingsBackControl() {

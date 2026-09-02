@@ -83,7 +83,7 @@ This identity is also the retention boundary for a future “delete oldest auto 
 
 ## Settings and diagnostics
 
-Global defaults are off, 20 seconds before, 10 seconds after, merge enabled with a 15 second threshold, and saved-clip notifications off. Each game can be disabled, can override timing, and stores only preferences for capabilities it exposes. Death and loss events default off; positive highlights default on.
+Global defaults are off, 20 seconds before, 10 seconds after, merge enabled with a 15 second threshold, and saved-clip notifications off. Each game can be disabled, can override timing, and stores only preferences for capabilities it exposes. Knockdown, death, and loss events default off; positive highlights default on.
 
 Diagnostics expose enabled state, active game/provider, provider state, last normalized event, received/deduplicated/ignored counts, clips created, pending-window summary, and a bounded error. Production logs use structured summaries such as `provider_started`, `event_received`, `capture_window_extended`, and `clip_saved`. Raw telemetry and player-identifying values are never logged.
 
@@ -100,6 +100,41 @@ The development-only provider is available in prototype/development builds. Its 
 The parser establishes a baseline before emitting deltas, ignores duplicate/stale provider timestamps, and resets on reconnect, map/match changes, and round-counter rollback. It derives local kills, headshots, assists, deaths, round outcomes, and match outcomes. Player names and Steam IDs are used neither in normalized events nor persistence.
 
 Valve's Game State Integration documentation remains the contract reference, although the Valve Developer Community page returned an automated-access challenge during the 2026-08-31 review. Therefore, the implementation and deterministic packet tests are complete, but the exact current CS2 build still requires an owner-operated in-game telemetry validation before a release claim.
+
+### Battlefield 6 Overwolf Game Events
+
+`battlefield-6-overwolf-gep` adapts Battlefield 6's documented Overwolf Game Events Provider feed. It requests only `game_info` and `match_info`, then maps `elimination` to `kill`, the player's `knockdown` to a distinct knockdown marker, and `round_outcome` to round win or loss. Match-start and match-end signals do not create clips. Payloads cross a bounded Zod boundary, and no opponent name, player identity, raw event payload, or match identifier enters clip metadata or logs.
+
+Switchboard itself does not read `bf6.exe` memory, inject code, intercept packets, or attach a debugger. The provider subscribes only while Battlefield 6 is the active automatic-game source and both Instant Replay and Auto Capture are enabled. Stop, game exit, provider disable, or shutdown removes every listener owned by Switchboard. Nearby eliminations still use the shared event merger to produce multi-kill clips.
+
+The normal Electron build remains unchanged and reports this provider as unavailable. An optional Overwolf Electron build is declared separately:
+
+```powershell
+$env:SWITCHBOARD_BF6_OVERWOLF_ENABLED = '1' # only after Overwolf enables the game for this app
+bun run preview:overwolf
+bun run dist:win:overwolf
+```
+
+There is a current external platform gate. Overwolf documents Battlefield 6 events for its Native framework, while its Electron supported-environments dataset marks Battlefield 6 as not Electron-enabled. Switchboard must receive per-app Battlefield 6 Electron enablement from Overwolf, or Overwolf must add the game to its Electron environment, before this adapter can receive retail events. The provider therefore remains experimental and is not release-usable today.
+
+Local GEP development also requires an Overwolf developer credential (`OW_DEV_KEY`, or `OW_CLI_EMAIL` plus `OW_CLI_API_KEY`). A distributed build additionally requires a registered Overwolf application, Overwolf package signing, `OW_BUILD_KEY`, and a trusted code-signing certificate. After those gates are cleared, a current retail Battlefield 6 session still needs to confirm elimination, knockdown, outcome, restart, elevation, and listener-release behavior. Deterministic tests and an installed Steam manifest do not satisfy that live-game gate.
+
+### War Thunder localhost API
+
+`war-thunder-8111` reads War Thunder's built-in HTTP feed at `127.0.0.1:8111`. It does not inject into `aces.exe`, read process memory, inspect packets, modify game files, or expose the feed outside the machine. The provider is marked experimental until personal kill, death, and base-destruction transitions are exercised against a current retail match.
+
+War Thunder's `/hudmsg` feed contains the whole battle's combat log, so installation detection alone is not enough to identify personal events. The per-game Player nickname setting is required and is stored only in Switchboard's canonical local settings. It is used to match the actor or target in memory, and neither the nickname nor raw battle-feed messages are logged or copied into clip metadata.
+
+The provider establishes an ID baseline before emitting anything, then polls the incremental feed every 750 ms. That interval stays inside the endpoint's observed 1-2 Hz update guidance while leaving enough margin for short replay post-roll windows. Polling starts only while War Thunder is the active automatic-game capture source and both Instant Replay and Auto Capture are enabled. Stop, game exit, provider disable, or shutdown clears the timer and aborts the active request. Responses are capped at 1 MiB, time out after one second, and cross a strict Zod boundary.
+
+The current event vocabulary is deliberately narrow:
+
+- `kill`: the configured player destroyed a vehicle or shot down an aircraft;
+- `death`: the configured player was destroyed, shot down, or crashed;
+- `objective`: the configured player destroyed a base;
+- `multi_kill`: derived by the shared capture-window planner when nearby kills merge.
+
+Other players' kills, damage-only messages, achievements, disconnects, and unrecognized text are ignored. Game-language and feed-format variance remain retail validation boundaries, which is why the provider does not claim supported status yet.
 
 ## Adding a provider
 
@@ -151,11 +186,13 @@ Providers must never use DLL/code injection, process memory access, memory scann
 
 ## Provider research matrix
 
-Reviewed 2026-08-31 against current first-party documentation where available. `GREEN` means an official safe integration is a strong provider candidate; `YELLOW` means a non-invasive path may exist but needs format, coverage, policy, or retail-build validation; `RED` means do not implement from presently known approaches. Absence of a public API is not permission to inspect a protected process.
+Reviewed through 2026-09-01 against current first-party documentation where available. `GREEN` means a documented safe integration is a strong provider candidate; `YELLOW` means a non-invasive path may exist but needs format, coverage, policy, or retail-build validation; `RED` means do not implement from presently known approaches. Absence of a public API is not permission to inspect a protected process.
 
 | Game | Possible source | Official/documented? | Likely events | Reliability | Anti-cheat risk | Complexity | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Counter-Strike 2 | Local HTTP Game State Integration | Valve-documented GSI contract; current page was bot-protected during review | Local kill/headshot/assist/death counters, round and match state | High after current-build validation | Low; explicit loopback telemetry | Medium | GREEN; implemented, release validation pending |
+| Battlefield 6 | Overwolf Game Events Provider through a future enabled Overwolf Electron runtime | Overwolf Native documents `game_info` and `match_info`; the current Electron environment does not list Battlefield 6 as enabled | Eliminations, player knockdowns, round victory/defeat, round lifecycle | High only after Electron enablement and retail-session validation | Low for Switchboard; no direct protected-client access | Medium plus external enablement, registration, and signing | YELLOW; experimental adapter implemented, Electron enablement and live-game validation pending |
+| War Thunder | Built-in localhost HTTP feed on port 8111 | Endpoint is shipped by the game and used by its own browser map; no versioned formal schema found | Personal kills/deaths and base destruction after nickname matching | Medium; localized text and feed format need retail validation | Low; read-only loopback HTTP with no client inspection | Medium | YELLOW; experimental provider implemented, retail event validation pending |
 | Valorant | Riot web APIs after a match; otherwise small-region vision | Official APIs expose content, match history, ranked, and status, not a documented local live event feed | Post-match result/stats; live events only through unshipped vision | Low for timely buffer preservation | High for any process access; vision itself is low | High | RED for live provider; do not inspect the client |
 | Fortnite | Local replay files; Creative/UEFN events only inside authored islands | Replays are official, but the public documentation describes playback/content creation rather than a stable external live event API | Post-match/replay highlights if a documented file schema emerges | Medium-low, delayed and version-sensitive | Low for read-only documented files | High | YELLOW; validate replay format and policy first |
 | Apex Legends | No official public live telemetry found; bounded vision fallback | EA's official support and developer material does not publish a player-facing event API | HUD kills/knocks/wins via future vision only | Medium-low | High for hooks/memory; low for bounded screen analysis | High | RED for invasive approaches; YELLOW research-only vision |
@@ -176,3 +213,6 @@ Primary references:
 - Activision Support, [gameplay-data account setting](https://support.activision.com/articles/managing-your-activision-profile).
 - Ubisoft, [Rainbow Six Siege local Match Replay announcement](https://www.ubisoft.com/en-gb/game/rainbow-six/siege/news-updates/seasons/shadowlegacy) and [current replay update](https://www.ubisoft.com/en-us/game/rainbow-six/siege/news-updates/seasons/highstakes).
 - Rocket League, [official local Game Data / Stats API](https://www.rocketleague.com/developer/stats-api).
+- War Thunder official forum, [discussion of the built-in 8111 LAN API](https://forum.warthunder.com/t/why-dont-we-have-an-api-for-war-thunder/90815?page=3), and community-maintained [8111 endpoint reference](https://github.com/CreeperUX/WT-8111-Neo/blob/main/WT_8111_API_REFERENCE.md).
+- Overwolf, [Battlefield 6 Game Events](https://dev.overwolf.com/ow-native/live-game-data-gep/supported-games/battlefield-6/), [Overwolf Electron supported environments](https://dev.overwolf.com/ow-electron/live-game-data-gep/supported-environment/), [Overwolf Electron GEP overview](https://dev.overwolf.com/ow-electron/live-game-data-gep/live-game-data-gep-intro/), and [production signing requirements](https://dev.overwolf.com/ow-electron/guides/dev-tools/app-signing/).
+- Steam, [Battlefield 6 app page](https://store.steampowered.com/app/2807960/Battlefield_6/).

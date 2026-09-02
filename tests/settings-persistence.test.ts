@@ -53,6 +53,12 @@ describe('settings persistence', () => {
             postRollSeconds: 15,
             events: { kill: true, death: false, round_win: true },
           },
+          'war-thunder': {
+            enabled: true,
+            useGlobalTiming: true,
+            playerName: 'Ever3st',
+            events: { kill: true, death: false, objective: true },
+          },
         },
         dismissedAvailability: { cs2: true },
       };
@@ -77,7 +83,10 @@ describe('settings persistence', () => {
       enabled: true,
       preRollSeconds: 25,
       postRollSeconds: 12,
-      games: { cs2: { useGlobalTiming: false, preRollSeconds: 30, events: { death: false } } },
+      games: {
+        cs2: { useGlobalTiming: false, preRollSeconds: 30, events: { death: false } },
+        'war-thunder': { playerName: 'Ever3st', events: { death: false, objective: true } },
+      },
       dismissedAvailability: { cs2: true },
     });
   });

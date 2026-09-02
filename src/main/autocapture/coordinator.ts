@@ -157,6 +157,11 @@ export class AutoCaptureCoordinator {
       return;
     }
     if (this.activeProviderId === nextProviderId && nextProvider.getStatus().state === 'listening') {
+      await nextProvider.configure?.(settings.games[nextProvider.gameId] ?? {
+        enabled: true,
+        useGlobalTiming: true,
+        events: {},
+      });
       this.options.engine.setActiveProvider(nextProvider.gameId, nextProvider.id, true);
       return;
     }
@@ -170,6 +175,11 @@ export class AutoCaptureCoordinator {
         ...(detectedGame ? { detectedGame } : {}),
         detectedGames: this.detectedGames,
         platform: process.platform,
+        gameSettings: settings.games[nextProvider.gameId] ?? {
+          enabled: true,
+          useGlobalTiming: true,
+          events: {},
+        },
       });
       this.activeProviderId = nextProviderId;
       this.options.engine.setActiveProvider(nextProvider.gameId, nextProvider.id, true);

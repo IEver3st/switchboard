@@ -12,7 +12,7 @@ Switchboard remains a compact Windows control surface: deep neutral work surface
 
 ## Flow health
 
-1. **Devices and hardware editors - healthy.** The gallery and G502 X Plus, QuadCast 2, Huntsman V2 Analog, and WH-1000XM6 editors render at every audited viewport. The Huntsman remains legible with lighting off, and the headset's routine controls fit the 1080x720 minimum without page-level overflow.
+1. **Devices and hardware editors - healthy.** The gallery and G502 X Plus, QuadCast 2, and Huntsman V2 Analog editors render at every audited viewport. The Huntsman remains legible with lighting off.
 2. **Audio mixer and channel editors - healthy.** Mixer, Game, Chat, Media, and Microphone states are reachable deterministically. Disabled buses are enabled through the typed contract for their audit state, and the native noise-suppression workflow survives persistence, orderly restart, host termination, and recovery.
 3. **Capture and clip editing - healthy.** Source, encoder, replay, library, and editor states remain coherent. The capture toolbar now identifies the encoder value explicitly instead of presenting an ambiguous bare state.
 4. **Modules, settings, diagnostics, clips, and updates - healthy.** Primary settings, diagnostic views, clip settings, device popovers, and update states complete their native workflows across the required viewports.
@@ -24,14 +24,13 @@ Switchboard remains a compact Windows control surface: deep neutral work surface
 - Native review can reach disabled audio channels by establishing the required state through typed preload operations.
 - The Huntsman off-state render retains its silhouette on the dark device stage.
 - The capture footer labels its encoder state.
-- The WH-1000XM6 minimum-window layout now exposes the complete routine listening controls without vertical or horizontal page overflow.
 - Native interaction checks were updated to the current personal-mix, microphone, and lighting-editor contracts.
 - The native noise lifecycle workflow now establishes its own audio-engine preconditions and waits for canonical readiness before asserting state.
 
 ## Final evidence
 
 - [Native capture report](final-native/report.json): 68 captures, 17 product surfaces, and four viewports (1080x720, 1420x900, 1920x1080, and 2560x1440), with zero page-level horizontal-overflow findings.
-- Representative minimum-window evidence: [Devices](final-native/1080x720-devices.png), [WH-1000XM6](final-native/1080x720-wh-1000xm6.png), [Audio mixer](final-native/1080x720-audio-mixer.png), [Capture](final-native/1080x720-capture.png), and [Settings](final-native/1080x720-settings.png).
+- Representative minimum-window evidence: [Devices](final-native/1080x720-devices.png), [Audio mixer](final-native/1080x720-audio-mixer.png), [Capture](final-native/1080x720-capture.png), and [Settings](final-native/1080x720-settings.png).
 - `verify:native-ui`: 17 interaction steps passed through an application restart.
 - `verify:device-popovers`: passed.
 - `verify:app-update-ui`: passed at 1080x720, 1420x900, and 1920x1080.

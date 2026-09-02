@@ -36,6 +36,12 @@ type AudioStreamInfo = {
   channel: ClipAudioChannel | null;
 };
 
+type AudioStreamTags = {
+  title?: string;
+  name?: string;
+  handler_name?: string;
+};
+
 const waveformBucketCount = 180;
 const waveformSampleRate = 8_000;
 const waveformCacheLimit = 16;
@@ -334,7 +340,7 @@ export class ClipLibraryService {
     const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
     const output = await run(executable, [
       '-v', 'error', '-print_format', 'json', '-show_entries',
-      'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate:stream_tags=title', path,
+      'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate:stream_tags=title,name,handler_name', path,
     ]);
     const parsed = JSON.parse(output) as {
       format?: { duration?: string };
@@ -344,7 +350,7 @@ export class ClipLibraryService {
         width?: number;
         height?: number;
         avg_frame_rate?: string;
-        tags?: { title?: string };
+        tags?: AudioStreamTags;
       }>;
     };
     const video = parsed.streams?.find((stream) => stream.codec_type === 'video');
@@ -357,7 +363,7 @@ export class ClipLibraryService {
       ...(video.codec_name ? { codec: video.codec_name } : {}),
       audioChannels: [...new Set((parsed.streams ?? [])
         .filter((stream) => stream.codec_type === 'audio')
-        .map((stream) => audioChannelFromTitle(stream.tags?.title))
+        .map((stream) => audioChannelFromTitle(audioStreamLabel(stream.tags)))
         .filter((channel): channel is ClipAudioChannel => channel !== null))],
     };
   }
@@ -365,15 +371,15 @@ export class ClipLibraryService {
   private async getAudioStreams(path: string): Promise<AudioStreamInfo[]> {
     const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
     const output = await run(executable, [
-      '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index:stream_tags=title', '-of', 'json', path,
+      '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index:stream_tags=title,name,handler_name', '-of', 'json', path,
     ]);
-    const parsed = JSON.parse(output) as { streams?: Array<{ tags?: { title?: string } }> };
+    const parsed = JSON.parse(output) as { streams?: Array<{ tags?: AudioStreamTags }> };
     return (parsed.streams ?? []).slice(0, 8).map((stream, trackIndex) => {
-      const title = stream.tags?.title?.trim();
+      const label = audioStreamLabel(stream.tags);
       return {
         trackIndex,
-        label: title || `Audio ${trackIndex + 1}`,
-        channel: audioChannelFromTitle(title),
+        label: label || `Audio ${trackIndex + 1}`,
+        channel: audioChannelFromTitle(label),
       };
     });
   }
@@ -535,6 +541,12 @@ function audioChannelFromTitle(title: string | undefined): ClipAudioChannel | nu
   if (normalized.includes('media')) return 'media';
   if (normalized.includes('game') || normalized.includes('system')) return 'game';
   return null;
+}
+
+export function audioStreamLabel(tags: AudioStreamTags | undefined): string | undefined {
+  return [tags?.title, tags?.name, tags?.handler_name]
+    .map((value) => value?.trim())
+    .find((value) => value && value.toLocaleLowerCase() !== 'soundhandler');
 }
 
 function audioChannelLabel(channel: ClipAudioChannel): string {

@@ -1,5 +1,5 @@
 import { ChevronDown, FlaskConical, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AutoCaptureGameSettings, AutoCaptureProvider, GameEventType, SystemSnapshot } from '../../../../shared/contracts';
 import {
   defaultAutoCaptureEventEnabled,
@@ -7,6 +7,7 @@ import {
   providerCapabilitySummary,
 } from '../../../../shared/auto-capture';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useSystemStore } from '@/stores/use-system-store';
@@ -149,6 +150,14 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
           </div>
         ) : null}
 
+        {provider.requiresPlayerName ? (
+          <ProviderPlayerName
+            provider={provider}
+            value={game.playerName ?? ''}
+            onCommit={(playerName) => onUpdate({ playerName: playerName || undefined })}
+          />
+        ) : null}
+
         <fieldset disabled={!settings.enabled || !game.enabled || !usable}>
           <legend>Capture events</legend>
           <div className="autocapture-events-grid">
@@ -195,6 +204,43 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
         ) : null}
       </div> : null}
     </div>
+  );
+}
+
+function ProviderPlayerName({ provider, value, onCommit }: {
+  provider: AutoCaptureProvider;
+  value: string;
+  onCommit: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const descriptionId = `autocapture-provider-${provider.id}-player-name-description`;
+  const commit = () => {
+    const next = draft.trim();
+    if (next !== value) onCommit(next);
+  };
+
+  return (
+    <label className="autocapture-provider__configuration">
+      <span>
+        <strong>Player nickname</strong>
+        <small id={descriptionId}>Used only on this PC to match your own events in {provider.displayName}’s local battle feed.</small>
+      </span>
+      <Input
+        value={draft}
+        maxLength={64}
+        autoComplete="off"
+        spellCheck={false}
+        placeholder="Exact in-game nickname"
+        aria-label={`${provider.displayName} player nickname`}
+        aria-describedby={descriptionId}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+        }}
+      />
+    </label>
   );
 }
 

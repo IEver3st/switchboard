@@ -1,4 +1,5 @@
 import type {
+  AutoCaptureGameSettings,
   AutoCaptureProvider,
   CaptureSource,
   DetectedGame,
@@ -25,6 +26,7 @@ export type ActiveGameContext = ProviderDiscoveryContext & {
   displayName: string;
   source: CaptureSource;
   detectedGame?: DetectedGame;
+  gameSettings?: AutoCaptureGameSettings;
 };
 
 export type AutoCaptureLog = (
@@ -43,6 +45,7 @@ export interface GameEventProvider {
   readonly supportLevel: ProviderSupportLevel;
   readonly source: GameEventSource;
   readonly capabilities: ProviderCapabilities;
+  readonly requiresPlayerName?: boolean;
   readonly developmentOnly?: boolean;
 
   matchesGame(source: CaptureSource, detectedGames: readonly DetectedGame[]): boolean;
@@ -50,8 +53,10 @@ export interface GameEventProvider {
   detectAvailability(context: ProviderDiscoveryContext): Promise<ProviderAvailability>;
   setup?(context: ProviderDiscoveryContext): Promise<ProviderAvailability>;
   start(context: ProviderContext): Promise<void>;
+  configure?(settings: AutoCaptureGameSettings): Promise<void> | void;
   stop(): Promise<void>;
   subscribe(listener: (event: GameEvent) => void): () => void;
+  subscribeStatus?(listener: () => void): () => void;
   getStatus(): ProviderStatus;
   getDiagnostics?(): Promise<Readonly<Record<string, string | number | boolean | null>>>;
 }
@@ -72,6 +77,7 @@ export function providerSnapshot(
     },
     availability,
     status: provider.getStatus(),
+    requiresPlayerName: provider.requiresPlayerName ?? false,
     developmentOnly: provider.developmentOnly ?? false,
   };
 }

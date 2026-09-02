@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const execFileAsync = promisify(execFile);
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-clip-editor-qa-'));
 const outputDirectory = await mkdtemp(join(tmpdir(), 'switchboard-clip-editor-images-'));
@@ -15,9 +16,13 @@ await copyFile(sourceState, join(isolatedUserData, 'switchboard-state.json'));
 
 const copiedState = JSON.parse(await readFile(join(isolatedUserData, 'switchboard-state.json'), 'utf8'));
 if (!copiedState.clips?.some((clip) => clip.path)) throw new Error('Native clip editor verification requires one indexed clip.');
-copiedState.clips[0].audioChannels = ['game', 'microphone'];
+const reviewClipIndex = await findReviewClipIndex(copiedState.clips);
+if (reviewClipIndex < 0) throw new Error('Native clip editor verification requires one indexed clip at least 10 seconds long.');
+copiedState.clips = [copiedState.clips[reviewClipIndex]];
+copiedState.clips[0].audioChannels = [];
 copiedState.audio.enabled = false;
 copiedState.capture.config.enabled = false;
+copiedState.capture.config.clipsDirectory = join(isolatedUserData, 'review-clips');
 for (const module of copiedState.modules ?? []) {
   if (module.id?.startsWith('device.')) module.enabled = false;
 }
@@ -111,6 +116,7 @@ async function run() {
           waveform: track.querySelector('path')?.getAttribute('d')?.length ?? 0,
         })),
         audioLevelLabels: [...editor.querySelectorAll('.clip-editor-track-control [role="slider"]')].map((slider) => slider.getAttribute('aria-label')),
+        audioInspectorLabels: [...editor.querySelectorAll('.clip-editor-audio-tracks li')].map((item) => item.textContent?.trim()),
         waveformState: editor.querySelector('.clip-editor-timeline__desk')?.getAttribute('data-waveform-state'),
         interaction: editor.querySelector('.clip-editor-timeline')?.getAttribute('data-interaction'),
       };
@@ -131,10 +137,13 @@ async function run() {
     if (metrics.waveformState !== 'ready' || metrics.audioTracks.length < 2 || metrics.audioLevelLabels.length !== metrics.audioTracks.length) {
       throw new Error(`Separate audio tracks did not load: ${JSON.stringify({ waveformState: metrics.waveformState, audioTracks: metrics.audioTracks, audioLevelLabels: metrics.audioLevelLabels })}`);
     }
+    if (metrics.audioInspectorLabels.join(',') !== 'Game,Microphone') {
+      throw new Error(`Capture stream identities were not restored from embedded MP4 metadata: ${JSON.stringify(metrics.audioInspectorLabels)}`);
+    }
     if (metrics.audioTracks.some((track) => track.height < 38 || track.height > 54 || track.waveform < 100)) {
       throw new Error(`Audio lanes are not correctly sized or waveform-backed: ${JSON.stringify(metrics.audioTracks)}`);
     }
-    const expectedTimelineColors = { game: 'rgb(7, 143, 130)', microphone: 'rgb(168, 117, 41)' };
+    const expectedTimelineColors = { game: 'rgb(83, 191, 174)', microphone: 'rgb(221, 166, 90)' };
     if (metrics.audioTracks.some((track) => expectedTimelineColors[track.channel] !== track.backgroundColor || track.waveformFill === 'none' || track.waveformStroke !== 'none' || !track.waveformArea)) {
       throw new Error(`Audio lanes lost their permanent channel colors or filled waveform treatment: ${JSON.stringify(metrics.audioTracks)}`);
     }
@@ -311,7 +320,7 @@ async function run() {
   if (!exported) throw new Error('Compressed trim export was canceled unexpectedly.');
   const exportedFile = await stat(exportDestination);
   if (exportedFile.size > 10 * 1_024 * 1_024) throw new Error(`10 MB export exceeded its target: ${exportedFile.size} bytes.`);
-  const { stdout: probeOutput } = await promisify(execFile)('ffprobe', [
+  const { stdout: probeOutput } = await execFileAsync('ffprobe', [
     '-v', 'error', '-show_entries', 'format=duration:stream=codec_type,width,height', '-of', 'json', exportDestination,
   ], { windowsHide: true });
   const probe = JSON.parse(probeOutput);
@@ -799,4 +808,23 @@ function evaluate(window, expression) {
 
 function delay(milliseconds) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
+}
+
+async function findReviewClipIndex(clips) {
+  for (let index = 0; index < clips.length; index += 1) {
+    const clip = clips[index];
+    if (!clip?.path || clip.durationMs < 10_000) continue;
+    try {
+      const { stdout } = await execFileAsync('ffprobe', [
+        '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream_tags=title,name', '-of', 'json', clip.path,
+      ]);
+      const labels = (JSON.parse(stdout).streams ?? [])
+        .flatMap((stream) => [stream.tags?.title, stream.tags?.name])
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase();
+      if ((labels.includes('game') || labels.includes('system')) && labels.includes('microphone')) return index;
+    } catch { }
+  }
+  return -1;
 }

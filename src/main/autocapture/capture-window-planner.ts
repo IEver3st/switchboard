@@ -82,7 +82,7 @@ export function autoCaptureTitle(game: string, events: readonly GameEvent[]): st
   const kills = events.filter((event) => event.type === 'kill' || event.type === 'headshot').length;
   if (nativeOrDerivedMulti?.label) return `${game} - ${nativeOrDerivedMulti.label}`;
   if (kills > 1) return `${game} - ${kills} Kills`;
-  const priority = ['match_win', 'round_win', 'headshot', 'kill', 'objective', 'assist', 'death'] as const;
+  const priority = ['match_win', 'round_win', 'headshot', 'kill', 'objective', 'assist', 'knockdown', 'death'] as const;
   const highlight = priority.map((type) => events.find((event) => event.type === type)).find(Boolean) ?? events[0];
   return `${game} - ${highlight?.label ?? eventTypeLabel(highlight?.type ?? 'highlight')}`;
 }
@@ -93,6 +93,7 @@ export function eventTypeLabel(type: GameEvent['type']): string {
     headshot: 'Headshot',
     multi_kill: 'Multi-kill',
     assist: 'Assist',
+    knockdown: 'Knockdown',
     death: 'Death',
     round_win: 'Round Win',
     round_loss: 'Round Loss',
