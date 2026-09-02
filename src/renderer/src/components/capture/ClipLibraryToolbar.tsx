@@ -1,4 +1,4 @@
-import { ArrowDownUp, CalendarDays, Check, Clapperboard, Gamepad2, Grid2X2, List, Search, SlidersHorizontal, Star } from 'lucide-react';
+import { ArrowDownUp, CalendarDays, Check, Clapperboard, Gamepad2, Grid2X2, List, Search, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -60,19 +60,19 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
             <Star className={cn('size-3.5', controls.favoritesOnly && 'fill-warning text-warning')} /> Favorites
           </Button>
 
-          <div className="capture-tool-control capture-tool-control--game w-36 shrink-0">
+          <div className="capture-tool-control capture-tool-control--game w-44 shrink-0">
             <Select value={controls.game} onValueChange={controls.onGameChange}>
               <SelectTrigger aria-label="Filter clips by game" className={cn('h-9', controls.game !== 'all' && 'capture-filter-active')}><Gamepad2 className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">All games</SelectItem>{controls.games.map((label) => <SelectItem key={label} value={label}>{label}</SelectItem>)}</SelectContent>
+              <SelectContent className="capture-tool-menu"><div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">Game</div><SelectItem value="all">All games</SelectItem>{controls.games.map((label) => <SelectItem key={label} value={label}>{label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
           <DateFilter value={controls.date} onChange={controls.onDateChange} />
 
-          <div className="capture-tool-control capture-tool-control--sort w-32 shrink-0">
+          <div className="capture-tool-control capture-tool-control--sort w-40 shrink-0">
             <Select value={controls.sort} onValueChange={controls.onSortChange}>
               <SelectTrigger aria-label="Sort clips" className="capture-sort-trigger h-9"><ArrowDownUp className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
-              <SelectContent>{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+              <SelectContent className="capture-tool-menu"><div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">Sort by</div>{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
 
@@ -110,11 +110,11 @@ function DateFilter({ value, onChange }: { value: ClipDateFilter; onChange: (val
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="secondary" size="sm" className={cn('capture-tool-control capture-tool-control--date h-9 gap-1.5 px-2.5', active && 'capture-filter-active')}>
-          {active ? <CalendarDays className="size-3.5 text-primary" /> : <SlidersHorizontal className="size-3.5" />}
+          <CalendarDays className={cn('size-3.5', active && 'text-primary')} />
           {active ? dateOptions.find((option) => option.value === value)?.label : 'Filter'}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 p-1.5">
+      <DropdownMenuContent align="end" className="capture-tool-menu w-48 p-1.5">
         <div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">Date</div>
         {dateOptions.map((option) => (
           <DropdownMenuItem key={option.value} onSelect={() => onChange(option.value)} className={cn('justify-between text-xs', value === option.value && 'bg-accent text-foreground')}>

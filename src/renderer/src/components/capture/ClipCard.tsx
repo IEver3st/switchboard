@@ -17,7 +17,7 @@ export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggle
   const activate = () => selectionMode ? onToggleSelection(clip) : actions.open(clip);
   return (
     <li className="min-w-0">
-      <article className="capture-clip-card group overflow-hidden rounded-md border border-border bg-surface-1" data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
+      <article className="capture-clip-card group overflow-hidden rounded-lg border border-border bg-surface-1" data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
         <div className="capture-clip-card__media relative">
           <ClipThumbnail clip={clip} onOpen={activate} selectionMode={selectionMode} selected={selected} />
           {selectionMode ? (
@@ -32,13 +32,13 @@ export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggle
           </div>
         </div>
         <div className="capture-clip-card__footer min-w-0">
-          <h3 className="m-0 truncate text-[13px] font-semibold leading-5 text-foreground">
+          <h3 className="m-0 truncate text-[14px] font-semibold leading-5 text-foreground">
             <button type="button" onClick={activate} className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:underline">
               {clip.name}
             </button>
           </h3>
-          <p className="m-0 mt-0.5 truncate text-[11px] font-semibold leading-4 text-text-secondary">{clipGameLabel(clip)}</p>
-          <p className="capture-clip-card__metadata m-0 text-[10px] tabular-nums leading-4 text-muted-foreground">
+          <p className="m-0 mt-0.5 truncate text-[12px] font-semibold leading-4 text-text-secondary">{clipGameLabel(clip)}</p>
+          <p className="capture-clip-card__metadata m-0 text-[11px] tabular-nums leading-4 text-muted-foreground">
             <span>{formatClipTimestamp(clip.createdAt)}</span>
             <span>{formatVideoQuality(clip.width, clip.height, clip.fps)}</span>
             <span>{formatBytes(clip.fileSize)}</span>
