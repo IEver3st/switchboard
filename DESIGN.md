@@ -81,11 +81,11 @@ Each channel keeps a stable identity:
 
 | Channel | Token | Color |
 | --- | --- | --- |
-| Master and primary interaction | `--accent-brand` | `#89cff0` |
-| Game | `--channel-game` | `#53bfae` |
-| Chat | `--channel-chat` | `#6f9fe8` |
-| Media | `--channel-media` | `#a889dc` |
-| Microphone | `--channel-microphone` | `#dda65a` |
+| Master and primary interaction | `--accent-brand` | `#8f7dff` |
+| Game | `--channel-game` | `#3fd1bb` |
+| Chat | `--channel-chat` | `#5f9dff` |
+| Media | `--channel-media` | `#b38bff` |
+| Microphone | `--channel-microphone` | `#f5b24d` |
 
 Use channel color on meters, fader ranges, compact icons, and related readouts. Do not wash whole panels in color. Muted and unavailable channels change structure and copy as well as color.
 
@@ -119,26 +119,26 @@ Diagnostics can be technical. This is the proper home for VID/PID, HID paths, tr
 
 ## Materials and color
 
-The palette is nearly black with small warm-neutral steps. Exact values live at the top of `globals.css`.
+The palette is a cool graphite with a faint blue undertone and clearly stepped surfaces, all flat solids with no gradients. Exact values live at the top of `globals.css`.
 
 | Role | Token | Value |
 | --- | --- | --- |
-| App background | `--background` | `#11100f` |
-| Persistent chrome | `--chrome` | `#0d0c0c` |
-| Primary surface | `--surface-1` | `#171615` |
-| Secondary surface | `--surface-2` | `#1b1a18` |
-| Interactive surface | `--surface-interactive` | `#201f1d` |
-| Hover surface | `--surface-hover` | `#282622` |
-| Divider | `--border` | `#2c2925` |
-| Strong divider | `--border-strong` | `#3c3832` |
-| Primary text | `--text-primary` | `#f3f1ed` |
-| Secondary text | `--text-secondary` | `#b4afa7` |
-| Description text | `--text-description` | `#8e887f` |
-| Muted text | `--text-muted` | `#777168` |
+| App background | `--background` | `#0e1117` |
+| Persistent chrome | `--chrome` | `#090b0f` |
+| Primary surface | `--surface-1` | `#141821` |
+| Secondary surface | `--surface-2` | `#191e28` |
+| Interactive surface | `--surface-interactive` | `#1f2531` |
+| Hover surface | `--surface-hover` | `#28303e` |
+| Divider | `--border` | `#262d3a` |
+| Strong divider | `--border-strong` | `#374050` |
+| Primary text | `--text-primary` | `#f4f6fb` |
+| Secondary text | `--text-secondary` | `#b7bfcd` |
+| Description text | `--text-description` | `#8b95a7` |
+| Muted text | `--text-muted` | `#6b7587` |
 
-A restrained periwinkle is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path. It is not ambient decoration.
+An electric violet is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path. It is not ambient decoration.
 
-Settings applies a scoped cooler-neutral treatment without changing the rest of the product workspaces. Inside `.settings-page`, the background steps are `#0b0c0e`, `#0e1013`, `#131519`, `#17191d`, and `#181b20`; primary text is `#f4f4f5`; secondary text is `#a3a7ae`; and the restrained Settings interaction accent is `#8b83f6` with `#9c95ff` for hover. These remain token overrides, not component-level hardcoded colors. Module category icons may borrow existing semantic channel colors in small amounts to improve scanning.
+Settings applies a scoped cooler-neutral treatment without changing the rest of the product workspaces. Inside `.settings-page`, the background steps are `#0a0c11`, `#0e1117`, `#12161e`, `#1a2029`, and `#1f2631`; primary text is `#f4f6fb`; secondary text is `#aab3c2`; and the restrained Settings interaction accent is `#8f7dff` with `#a698ff` for hover. These remain token overrides, not component-level hardcoded colors. Module category icons may borrow existing semantic channel colors in small amounts to improve scanning.
 
 Semantic colors are reserved for actual meaning:
 
