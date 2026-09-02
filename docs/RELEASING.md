@@ -13,7 +13,7 @@ Switchboard uses `electron-updater` with the NSIS artifacts and `latest.yml` pub
 1. Update the version and release notes on a reviewed commit.
 2. Run the repository validation and build gates.
 3. Push a tag such as `v0.2.0` whose version exactly matches `package.json`.
-4. The workflow builds the native hosts and Electron app, runs the source and native test gates, creates the GitHub Release, and uploads the NSIS installer, block map, `latest.yml` update metadata, and a SHA-256 checksum manifest. The job fails if any required release asset is missing.
+4. The workflow installs the pinned full FFmpeg packaging dependency, builds the native hosts and Electron app, runs the source and native test gates, creates the GitHub Release, and uploads the NSIS installer, block map, `latest.yml` update metadata, and a SHA-256 checksum manifest. The job fails if any required release asset is missing.
 5. Install the previous release, use **Settings → About → Check now**, and verify both automatic and manual download, renderer close/reopen survival, explicit **Restart to update**, and install-for-next-startup behavior.
 
 Release tags normally belong to `main`. If the default branch has temporarily diverged from an already reviewed release revision, push that immutable revision to `release/vX.Y.Z` before its matching tag. The workflow accepts only `main` or that exact protected release branch; it does not publish arbitrary detached tags.
