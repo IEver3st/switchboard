@@ -1,6 +1,8 @@
 # Switchboard design
 
-Switchboard should feel like a piece of Windows equipment. It is quiet, compact, and built around the state of real devices and signal paths. The interface does not need to look exciting at rest. It needs to make the next action obvious and make a failure hard to misunderstand.
+Switchboard should feel like a quiet, well-made instrument that gets out of the way. It is calm, seamless, and built around the state of real devices and signal paths. The interface does not need to look exciting at rest. It needs to feel friendly and inviting, make the next action obvious, and make a failure hard to misunderstand.
+
+The standard is simple: nobody using Switchboard should ever have a moment of anger, confusion, or "who designed this?" Every decision in this document exists to prevent that moment.
 
 This document owns design intent. The current tokens and component implementations in `src/renderer/src/globals.css` and `src/renderer/src/components` own the exact code.
 
@@ -13,7 +15,22 @@ Switchboard is a continuous console, not a collection of cards. Hardware, audio,
 - Capture is a recorder and media library with clear storage and engine state.
 - Settings explain policy, recovery, updates, diagnostics, and limits without taking over the main product.
 
-The result should feel closer to studio equipment and Windows system tools than a gaming launcher or web admin panel.
+The result should feel closer to a calm, modern system utility than a gaming launcher, a web admin panel, or a rack of hard-edged studio gear. Soft, seamless, and unhurried.
+
+## Experience first
+
+User experience is the product. Visuals serve the task; they never compete with it.
+
+- The user should always know where they are, what is happening, and what to do next without reading a manual.
+- Every action gives immediate, honest feedback. Nothing silently fails, silently succeeds, or leaves the user guessing.
+- Recovering from a mistake is always possible and always obvious. Undo, cancel, and "go back" are never hidden.
+- Defaults are sensible so most people never need to configure anything. Configuration is available, not required.
+- Copy is plain, short, and kind. Explain what happened and what the user can do. Never blame the user, never use jargon where a normal word exists.
+- Nothing jumps, shifts, flashes, or reflows under the pointer. Layout is stable while the user is working.
+- Touch targets, hit areas, and spacing are generous enough that the user never misses or fights a control.
+- Respect the user's attention. No nags, no badges without a real reason, no interruptions for things that can wait.
+
+If a design choice looks good but adds a step, a surprise, or a question, the choice is wrong.
 
 ## Five rules
 
@@ -29,9 +46,11 @@ Every route has one dominant working area. A device page leads with the actual d
 
 Do not split routine work across nested tabs, modal chains, or repeated disclosure. Dialogs are for short, interrupting decisions, not ordinary operation.
 
-### Surfaces mean something
+### Seamless over segmented
 
-Background changes, borders, and spacing mark a real boundary such as application chrome, a device workbench, a signal stage, a clip, a transient overlay, or an editable field.
+The workspace reads as one continuous surface. Group related things with space, alignment, and gentle tonal shifts, not with lines. Constant divider rules, boxed sections, and outlined everything make an interface feel like a form to fill out; Switchboard should feel like a place to work.
+
+A one-pixel line is a last resort for a boundary that spacing and tone genuinely cannot express, such as the edge of a transient overlay or the boundary of an editable field. Even then it should be soft and close in value to its surroundings, never a high-contrast rule.
 
 Do not wrap content in a panel merely to make it look designed. Nested cards, decorative containers, floating bubbles, and icon tiles create noise without improving the task.
 
@@ -43,11 +62,11 @@ A hardware render may preview a supported whole-device state such as brightness 
 
 ### Density is earned
 
-Switchboard can be dense because its users adjust real systems. Density still needs rhythm. Align labels, readouts, controls, and dividers so the eye can scan a row without hunting. Keep descriptions short and put protocol details in diagnostics.
+Switchboard can be dense because its users adjust real systems, but density must never feel cramped or cluttered. Density needs rhythm and breathing room. Align labels, readouts, and controls so the eye can scan a row without hunting, and let whitespace do the separating. Keep descriptions short and put protocol details in diagnostics.
 
 ## Shell and navigation
 
-The persistent shell is dark, narrow, and subordinate to the workspace. It contains product identity, Devices, Audio, Capture, and Settings. Active navigation uses a clear structural marker and stronger text. It does not need a glowing background or oversized icon container.
+The persistent shell is dark, narrow, and subordinate to the workspace. It contains product identity, Devices, Audio, Capture, and Settings. It blends into the workspace rather than being fenced off from it by a hard edge. Active navigation uses a soft filled state and stronger text. It does not need a glowing background, an outline ring, or an oversized icon container.
 
 The title bar and navigation may form Electron drag regions. Every interactive descendant must opt out with `no-drag`.
 
@@ -75,17 +94,17 @@ Organize controls by the user's goal, not by packet or feature ID. Keep supporte
 
 ### Audio desk
 
-Audio is one continuous desk. Mixer channels share a frame and align vertically. The master stage, Game, Chat, Media, Aux, and Microphone remain visually related instead of becoming separate cards.
+Audio is one continuous desk. Mixer channels sit side by side on a single soft surface and align vertically, separated by spacing rather than column rules. The master stage, Game, Chat, Media, Aux, and Microphone remain visually related instead of becoming separate cards or fenced columns.
 
 Each channel keeps a stable identity:
 
 | Channel | Token | Color |
 | --- | --- | --- |
-| Master and primary interaction | `--accent-brand` | `#89cff0` |
-| Game | `--channel-game` | `#53bfae` |
-| Chat | `--channel-chat` | `#6f9fe8` |
-| Media | `--channel-media` | `#a889dc` |
-| Microphone | `--channel-microphone` | `#dda65a` |
+| Master and primary interaction | `--accent-brand` | `#8f7dff` |
+| Game | `--channel-game` | `#3fd1bb` |
+| Chat | `--channel-chat` | `#5f9dff` |
+| Media | `--channel-media` | `#b38bff` |
+| Microphone | `--channel-microphone` | `#f5b24d` |
 
 Use channel color on meters, fader ranges, compact icons, and related readouts. Do not wash whole panels in color. Muted and unavailable channels change structure and copy as well as color.
 
@@ -113,32 +132,32 @@ Single-clip and montage projects remain visibly different. Montage segments show
 
 ### Settings and diagnostics
 
-Settings uses compact rows and full-page groups. Routine policy stays visible. Destructive reset, update installation, and report handoff use clear confirmation and status.
+Settings uses comfortable rows and full-page groups separated by space and headings, not by rules between every row. Routine policy stays visible. Destructive reset, update installation, and report handoff use clear confirmation and status.
 
 Diagnostics can be technical. This is the proper home for VID/PID, HID paths, transport details, host PIDs, protocol failures, endpoint identifiers, checksums, and timestamps. It still needs readable grouping and copyable values.
 
 ## Materials and color
 
-The palette is nearly black with small warm-neutral steps. Exact values live at the top of `globals.css`.
+The palette is soft, cool graphite with a faint blue undertone, all flat solids with no gradients. Colors are chosen to recede: surfaces are close in value so the interface feels like one calm material, and text carries the hierarchy. Nothing in the neutral palette should draw attention to itself. Exact values live at the top of `globals.css`.
 
 | Role | Token | Value |
 | --- | --- | --- |
-| App background | `--background` | `#11100f` |
-| Persistent chrome | `--chrome` | `#0d0c0c` |
-| Primary surface | `--surface-1` | `#171615` |
-| Secondary surface | `--surface-2` | `#1b1a18` |
-| Interactive surface | `--surface-interactive` | `#201f1d` |
-| Hover surface | `--surface-hover` | `#282622` |
-| Divider | `--border` | `#2c2925` |
-| Strong divider | `--border-strong` | `#3c3832` |
-| Primary text | `--text-primary` | `#f3f1ed` |
-| Secondary text | `--text-secondary` | `#b4afa7` |
-| Description text | `--text-description` | `#8e887f` |
-| Muted text | `--text-muted` | `#777168` |
+| App background | `--background` | `#0e1117` |
+| Persistent chrome | `--chrome` | `#090b0f` |
+| Primary surface | `--surface-1` | `#141821` |
+| Secondary surface | `--surface-2` | `#191e28` |
+| Interactive surface | `--surface-interactive` | `#1f2531` |
+| Hover surface | `--surface-hover` | `#28303e` |
+| Divider | `--border` | `#262d3a` |
+| Strong divider | `--border-strong` | `#374050` |
+| Primary text | `--text-primary` | `#f4f6fb` |
+| Secondary text | `--text-secondary` | `#b7bfcd` |
+| Description text | `--text-description` | `#8b95a7` |
+| Muted text | `--text-muted` | `#6b7587` |
 
-A restrained periwinkle is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path. It is not ambient decoration.
+A soft violet is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path, in small amounts. It should feel friendly and gentle, never loud. It is not ambient decoration, and it never appears as a large filled area outside a primary button.
 
-Settings applies a scoped cooler-neutral treatment without changing the rest of the product workspaces. Inside `.settings-page`, the background steps are `#0b0c0e`, `#0e1013`, `#131519`, `#17191d`, and `#181b20`; primary text is `#f4f4f5`; secondary text is `#a3a7ae`; and the restrained Settings interaction accent is `#8b83f6` with `#9c95ff` for hover. These remain token overrides, not component-level hardcoded colors. Module category icons may borrow existing semantic channel colors in small amounts to improve scanning.
+Settings applies a scoped cooler-neutral treatment without changing the rest of the product workspaces. Inside `.settings-page`, the background steps are `#0a0c11`, `#0e1117`, `#12161e`, `#1a2029`, and `#1f2631`; primary text is `#f4f6fb`; secondary text is `#aab3c2`; and the restrained Settings interaction accent is `#8f7dff` with `#a698ff` for hover. These remain token overrides, not component-level hardcoded colors. Module category icons may borrow existing semantic channel colors in small amounts to improve scanning.
 
 Semantic colors are reserved for actual meaning:
 
@@ -148,7 +167,7 @@ Semantic colors are reserved for actual meaning:
 - `--status-danger` marks failure, destructive action, or unsafe state.
 - `--status-neutral` marks inactive or unknown state.
 
-Always pair a semantic color with readable text, an icon, or a structural cue.
+Semantic colors are muted enough to sit comfortably on the palette. Danger should be clear without alarming; warning should be noticeable without shouting. Always pair a semantic color with readable text, an icon, or a structural cue.
 
 ## Type and numbers
 
@@ -177,7 +196,9 @@ Corners stay restrained:
 
 Circular geometry belongs to knobs, EQ nodes, indicators, and switch thumbs. Text should not live in a pill unless the shape communicates a compact state with no better structural treatment.
 
-Persistent content is flat. Tone and one-pixel dividers create depth. Use shadow only for a transient overlay or a draggable control that needs a small tactile lift.
+Persistent content is flat. Spacing and gentle tonal steps create structure; dividers are rare and low-contrast when they exist at all. Use shadow only for a transient overlay or a draggable control that needs a small, soft tactile lift.
+
+When deciding how to separate two things, prefer in this order: whitespace, alignment, a heading, a tonal surface shift, and only then a line.
 
 ## Controls
 
@@ -193,11 +214,13 @@ Choose the control that matches the value:
 
 Primary buttons use the brand accent sparingly. Secondary and ghost buttons carry most routine actions. Destructive actions use danger styling and confirmation proportional to the consequence.
 
-Every control needs hover, active, focus, disabled, pending, and error behavior when those states apply. Disabled controls remain readable and explain why they cannot be used.
+Every control needs hover, active, focus, disabled, pending, and error behavior when those states apply. Hover and focus states are soft tonal changes, not outlines that appear and disappear. Disabled controls remain readable and explain why they cannot be used.
+
+Controls should be forgiving: generous hit areas, no accidental destructive actions, no tiny targets, and no controls that move or resize as they change state.
 
 ## Motion
 
-Motion explains change. It may show a pending command, a startup transition, a meter update, a playhead, or the physical response to a drag.
+Motion explains change and softens it. It may show a pending command, a startup transition, a meter update, a playhead, or the physical response to a drag. Transitions are short and eased so state changes feel smooth rather than abrupt.
 
 Do not add floating animation, particles, tilt, decorative waveform motion, breathing chrome, or ambient visualizers. Honor reduced motion. A static interface must retain every critical state and action.
 
@@ -238,6 +261,8 @@ At wider sizes, use the space to improve comparison and control precision. Do no
 Do not introduce:
 
 - gradients, glow, glassmorphism, neon chrome, decorative blur, or chromatic decoration;
+- divider lines between every row, column, or section, or high-contrast borders around ordinary content;
+- harsh, saturated, or attention-seeking neutrals and accents;
 - giant radii, routine pills, nested card grids, floating bubbles, or ornamental icon boxes;
 - generic SaaS dashboards, marketing heroes, launcher-style promotions, or a hyper-futuristic control room;
 - fake search, analytics, telemetry, meters, device state, clip state, or capability controls;
@@ -253,6 +278,9 @@ Reference products may inform information architecture. Switchboard keeps its ow
 Before accepting renderer work, verify:
 
 - The route has one obvious primary workspace.
+- The route feels seamless: sections are separated by space and tone, and any remaining divider is justified and low-contrast.
+- A first-time user could complete the route's main task without confusion, surprise, or a hidden step.
+- Every error and unavailable state says what happened and what to do next in plain language.
 - Every control maps to a supported capability and canonical state transition.
 - Pending, confirmed, unavailable, disabled, error, and disconnected states remain truthful.
 - Ordinary tasks stay visible without repeated disclosure.
