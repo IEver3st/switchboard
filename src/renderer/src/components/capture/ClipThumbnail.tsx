@@ -49,11 +49,11 @@ export function ClipThumbnail({ clip, onOpen, className, compact = false, select
       )}
       {!compact && !selectionMode ? (
         <span className="pointer-events-none absolute inset-0 grid place-items-center bg-black/0 opacity-0 transition-[background-color,opacity] duration-100 group-hover:bg-black/15 group-hover:opacity-100 motion-reduce:transition-none" aria-hidden="true">
-          <span className="grid size-9 place-items-center rounded-md border border-white/15 bg-black/75 text-white shadow-sm"><Play className="ml-0.5 size-4 fill-current" /></span>
+          <span className="grid size-11 place-items-center rounded-md border border-white/15 bg-black/75 text-white shadow-sm"><Play className="ml-0.5 size-5 fill-current" /></span>
         </span>
       ) : null}
       <span className={cn(
-        'capture-clip-duration absolute bottom-2 right-2 rounded-sm px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white',
+        'capture-clip-duration absolute bottom-2.5 right-2.5 rounded-sm px-2 py-0.5 text-[12px] font-semibold tabular-nums text-white',
         compact && 'bottom-1 right-1 px-1 text-[10px]',
       )}>
         {formatDuration(clip.durationMs / 1_000)}

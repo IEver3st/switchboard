@@ -336,6 +336,26 @@ textarea:focus-visible {
   letter-spacing: 0.01em;
 }
 
+.capture-tool-menu {
+  min-width: 12rem;
+  padding: 6px;
+  border-color: var(--border-strong);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 38%);
+}
+
+.capture-tool-menu [role="option"],
+.capture-tool-menu [role="menuitem"] {
+  min-height: 32px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.capture-tool-menu [role="option"][data-highlighted],
+.capture-tool-menu [role="option"][data-state="checked"] {
+  background: color-mix(in srgb, var(--primary) 12%, var(--accent));
+  color: var(--foreground);
+}
+
 .capture-runtime-status {
   display: inline-flex;
   min-width: 0;
@@ -881,22 +901,22 @@ textarea:focus-visible {
 
 .capture-clip-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 318px), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px 20px;
 }
 
 .capture-clip-groups {
   display: grid;
-  gap: 20px;
+  gap: 28px;
 }
 
 .capture-clip-group__header {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .capture-clip-card {
   content-visibility: auto;
-  contain-intrinsic-size: auto 260px;
+  contain-intrinsic-size: auto 360px;
   box-shadow: 0 1px 0 rgb(0 0 0 / 24%);
   transition: border-color 130ms ease-out, background-color 130ms ease-out, box-shadow 130ms ease-out, transform 130ms ease-out;
 }
@@ -972,10 +992,10 @@ textarea:focus-visible {
 }
 
 .capture-clip-card__footer {
-  min-height: 74px;
+  min-height: 78px;
   border-top: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
   background: var(--surface-2);
-  padding: 8px 10px 9px;
+  padding: 10px 12px 11px;
 }
 
 .capture-clip-card__metadata {
@@ -1214,9 +1234,21 @@ textarea:focus-visible {
   }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1900px) {
   .capture-clip-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1500px) {
+  .capture-clip-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .capture-clip-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
