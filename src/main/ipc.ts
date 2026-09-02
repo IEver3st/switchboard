@@ -41,6 +41,7 @@ import {
   settingsResetScopeSchema,
 } from '../shared/contracts';
 import type { AppController } from './controller';
+import { AudioMeterDeliveryGate } from './services/audio-meter-delivery';
 import { getPreparedShareService } from './services/prepared-share';
 import { getStartupSnapshot } from './startup-readiness';
 
@@ -75,6 +76,7 @@ function handle<TInput, TResult>(
 }
 
 export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null): () => void {
+  const audioMeterDelivery = new AudioMeterDeliveryGate();
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow);
     return getStartupSnapshot(controller);
@@ -419,6 +421,25 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     assertTrustedSender(event, getMainWindow);
     getPreparedShareService().reveal(z.string().uuid().parse(raw));
   });
+  ipcMain.on(ipcChannels.setAudioMeterSubscription, (event, raw) => {
+    try {
+      assertTrustedSender(event, getMainWindow);
+      const requested = z.boolean().parse(raw);
+      const sender = event.sender;
+      const senderId = sender.id;
+      const changed = audioMeterDelivery.setRequested(senderId, requested);
+      if (changed) controller.setAudioMeteringRequested(requested);
+      if (requested && changed) {
+        const clearDemand = () => {
+          if (audioMeterDelivery.clear(senderId)) controller.setAudioMeteringRequested(false);
+        };
+        sender.once('did-start-navigation', clearDemand);
+        sender.once('destroyed', clearDemand);
+      }
+    } catch (error) {
+      console.error('Switchboard rejected an audio meter subscription request.', error);
+    }
+  });
   handle(
     ipcChannels.exportMontage,
     getMainWindow,
@@ -439,7 +460,11 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   });
   const unsubscribeAudioMeters = controller.subscribeAudioMeters((frame) => {
     const window = getMainWindow();
-    if (!window || window.isDestroyed() || !window.isVisible()) return;
+    if (
+      !window
+      || window.isDestroyed()
+      || !audioMeterDelivery.shouldDeliver(window.webContents.id, window.isVisible())
+    ) return;
     window.webContents.send(ipcChannels.audioMeterUpdated, frame);
   });
   const unsubscribeClipExportProgress = controller.subscribeClipExportProgress((progress) => {
@@ -449,10 +474,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   });
 
   return () => {
+    controller.setAudioMeteringRequested(false);
     unsubscribe();
     unsubscribeAudioMeters();
     unsubscribeClipExportProgress();
     ipcMain.removeAllListeners(ipcChannels.startPreparedShareDrag);
+    ipcMain.removeAllListeners(ipcChannels.setAudioMeterSubscription);
     for (const channel of Object.values(ipcChannels)) {
       if (channel !== ipcChannels.snapshotUpdated) ipcMain.removeHandler(channel);
     }

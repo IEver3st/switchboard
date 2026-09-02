@@ -1,0 +1,114 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "settings-reaction-clipping",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "documentScrollTop": 0,
+      "settingsScrollTop": 773.3333129882812,
+      "settingsSidebarScrollTop": 0,
+      "settingsTop": 0,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-settings-reaction-clipping.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "settings-reaction-clipping",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "documentScrollTop": 0,
+      "settingsScrollTop": 777.066650390625,
+      "settingsSidebarScrollTop": 0,
+      "settingsTop": 0,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-settings-reaction-clipping.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "settings-reaction-clipping",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "documentScrollTop": 0,
+      "settingsScrollTop": 777.066650390625,
+      "settingsSidebarScrollTop": 0,
+      "settingsTop": 0,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-settings-reaction-clipping.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "settings-reaction-clipping",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": null,
+      "viewportScrollWidth": null,
+      "viewportHeight": null,
+      "viewportScrollHeight": null,
+      "documentScrollTop": 0,
+      "settingsScrollTop": 777.066650390625,
+      "settingsSidebarScrollTop": 0,
+      "settingsTop": 0,
+      "page": "#settings"
+    },
+    "imageSize": {
+      "width": 3840,
+      "height": 2160
+    },
+    "filename": "2560x1440-settings-reaction-clipping.png"
+  }
+]

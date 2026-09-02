@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Clip, SystemSnapshot } from '../../../../shared/contracts';
 import { latestClipCreatedAt, reviewableAutoCapturedClips } from '../../../../shared/clip-review';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { formatBytes, formatRelativeTime, formatVideoQuality } from '@/lib/format';
+import { formatRelativeTime } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 import { ClipThumbnail } from './ClipThumbnail';
 
@@ -84,8 +84,8 @@ export function NewClipsReview({ snapshot, onOpenClip }: { snapshot: SystemSnaps
     const clipsById = new Map(snapshot.clips.map((clip) => [clip.id, clip]));
     return batch.ids.map((id) => clipsById.get(id)).filter((clip): clip is Clip => Boolean(clip));
   }, [batch, snapshot.clips]);
-  const totalBytes = clips.reduce((total, clip) => total + clip.fileSize, 0);
   const gameLabels = [...new Set(clips.map(clipGameLabel))];
+  const reviewStyle = { '--new-clips-review-columns': Math.max(1, Math.min(3, clips.length)) } as CSSProperties;
 
   const finishReview = useCallback((openClipId?: string) => {
     const current = batchRef.current;
@@ -119,12 +119,10 @@ export function NewClipsReview({ snapshot, onOpenClip }: { snapshot: SystemSnaps
   return (
     <Dialog open={Boolean(batch)} onOpenChange={(open) => { if (!open && !deleting) finishReview(); }}>
       {batch ? (
-        <DialogContent className="new-clips-review no-drag" data-testid="new-clips-review">
+        <DialogContent className="new-clips-review no-drag" data-testid="new-clips-review" style={reviewStyle}>
           <DialogHeader className="new-clips-review__header">
             <DialogTitle className="new-clips-review__title">
               {clips.length} new {clips.length === 1 ? 'clip' : 'clips'}
-              <span aria-hidden="true"> · </span>
-              <span className="new-clips-review__size">{formatBytes(totalBytes)}</span>
             </DialogTitle>
             <DialogDescription>
               {gameLabels.length > 1
@@ -145,8 +143,6 @@ export function NewClipsReview({ snapshot, onOpenClip }: { snapshot: SystemSnaps
                         <p>{clipGameLabel(clip)}</p>
                         <div className="new-clips-review__metadata">
                           <span>{formatRelativeTime(clip.createdAt)}</span>
-                          <span>{formatVideoQuality(clip.width, clip.height, clip.fps)}</span>
-                          <span>{formatBytes(clip.fileSize)}</span>
                         </div>
                       </div>
                     </article>

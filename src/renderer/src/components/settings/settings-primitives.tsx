@@ -181,15 +181,23 @@ export function SettingFolder({
     <SettingRow
       settingId={settingId}
       title={title}
-      description={<span className="settings-path" title={path}>{path}</span>}
+      description={(
+        <button
+          type="button"
+          className="settings-path"
+          disabled={disabled}
+          onClick={onOpen}
+          title={`Open ${path} in File Explorer`}
+          aria-label={`Open ${title} in File Explorer: ${path}`}
+        >
+          <FolderOpen aria-hidden />
+          <span className="settings-path__text">{path}</span>
+        </button>
+      )}
       className={className}
       controlClassName="settings-row__control--actions"
     >
-      <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onOpen} aria-label={`Open ${title}`}>
-        <FolderOpen className="size-3.5" aria-hidden />
-        Open
-      </Button>
-      <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={onChange}>Change</Button>
+      <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={onChange}>Change folder</Button>
     </SettingRow>
   );
 }

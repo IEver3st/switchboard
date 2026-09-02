@@ -15,6 +15,14 @@ export type EngineKind = z.infer<typeof engineKindSchema>;
 export const engineStateSchema = z.enum(['stopped', 'starting', 'running', 'error']);
 export type EngineState = z.infer<typeof engineStateSchema>;
 
+export const engineProcessResourceSchema = z.object({
+  pid: z.number().int().positive(),
+  role: z.string().trim().min(1).max(32).regex(/^[a-z0-9-]+$/),
+  privateMemoryMb: z.number().min(0),
+  workingSetMb: z.number().min(0),
+});
+export type EngineProcessResource = z.infer<typeof engineProcessResourceSchema>;
+
 export const engineStatusSchema = z.object({
   kind: engineKindSchema,
   state: engineStateSchema,
@@ -24,6 +32,7 @@ export const engineStatusSchema = z.object({
   uptimeSeconds: z.number().min(0),
   message: z.string().optional(),
   updatedAt: z.string(),
+  processes: z.array(engineProcessResourceSchema).max(8).optional(),
 });
 export type EngineStatus = z.infer<typeof engineStatusSchema>;
 
@@ -1258,6 +1267,7 @@ export const appSettingsSchema = z.object({
   launchAtStartup: z.boolean(),
   closeToTray: z.boolean(),
   destroyRendererInTray: z.boolean(),
+  softwareRendering: z.boolean().default(false),
   automaticAppUpdates: z.boolean(),
   automaticAppUpdateDownloads: z.boolean(),
   installAppUpdatesOnNextStartup: z.boolean(),
@@ -1582,6 +1592,7 @@ export const ipcChannels = {
   testMicrophone: 'audio:test-microphone',
   setChatMix: 'audio:set-chat-mix',
   setMicProcessor: 'audio:set-mic-processor',
+  setAudioMeterSubscription: 'audio:set-meter-subscription',
   audioMeterUpdated: 'audio:meter-updated',
   setCaptureConfig: 'capture:set-config',
   saveReplay: 'capture:save-replay',
@@ -1619,6 +1630,7 @@ export const ipcChannels = {
 } as const;
 
 export interface SwitchboardApi {
+  setUiScale(percent: AppSettings['uiScalePercent']): void;
   getSnapshot(): Promise<SystemSnapshot>;
   refreshDevices(): Promise<SystemSnapshot>;
   setModuleState(input: SetModuleStateInput): Promise<SystemSnapshot>;

@@ -26,6 +26,7 @@ const requiredFiles = [
   'electron.vite.config.ts',
   '.github/workflows/release.yml',
   'src/main/index.ts',
+  'src/main/application-identity.ts',
   'src/main/ipc.ts',
   'src/preload/index.ts',
   'src/shared/contracts.ts',
@@ -97,6 +98,19 @@ assert(
 );
 
 const mainSource = read('src/main/index.ts');
+const applicationIdentitySource = read('src/main/application-identity.ts');
+assert(
+  applicationIdentitySource.includes("installedApplicationId = 'dev.switchboard.prototype'")
+    && applicationIdentitySource.includes("developmentApplicationId = 'dev.switchboard.prototype.dev'")
+    && applicationIdentitySource.includes("join(input.appDataPath, 'Switchboard Dev')"),
+  'Development launches must keep state and Windows identity separate from installed Switchboard.',
+);
+assert(
+  mainSource.includes("app.setPath('userData', applicationIdentity.userDataPath)")
+    && mainSource.includes("isNativeReview: process.env.SWITCHBOARD_NATIVE_REVIEW === '1'")
+    && mainSource.includes('app.setAppUserModelId(applicationIdentity.appUserModelId)'),
+  'Electron main must apply the environment-specific application identity before startup.',
+);
 assert(mainSource.includes('contextIsolation: true'), 'Electron renderer must use contextIsolation.');
 assert(mainSource.includes('sandbox: true'), 'Electron renderer must use Chromium sandboxing.');
 assert(mainSource.includes('nodeIntegration: false'), 'Electron renderer must disable Node integration.');

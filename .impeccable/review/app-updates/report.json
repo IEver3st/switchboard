@@ -13,17 +13,17 @@
       },
       "documentWidth": 1420,
       "content": {
-        "clientWidth": 1150,
-        "scrollWidth": 1150,
-        "clientHeight": 842,
-        "scrollHeight": 842,
+        "clientWidth": 1186,
+        "scrollWidth": 1186,
+        "clientHeight": 854,
+        "scrollHeight": 854,
         "rect": {
-          "top": 60,
+          "top": 48,
           "right": 1420,
           "bottom": 902,
-          "left": 260,
-          "width": 1160,
-          "height": 842
+          "left": 224,
+          "width": 1196,
+          "height": 854
         }
       },
       "updateRow": null,
@@ -34,11 +34,11 @@
       "updateActionReadyStyle": false,
       "updateDescription": null,
       "updateIndicator": {
-        "top": 774,
-        "right": 233.33334350585938,
-        "bottom": 808,
-        "left": 10,
-        "width": 223.33334350585938,
+        "top": 776,
+        "right": 202,
+        "bottom": 810,
+        "left": 6,
+        "width": 196,
         "height": 34
       },
       "updateIndicatorLabel": "Switchboard 0.6.0 is available. Open update settings.",
@@ -63,17 +63,17 @@
       },
       "documentWidth": 1420,
       "content": {
-        "clientWidth": 1150,
-        "scrollWidth": 1150,
-        "clientHeight": 842,
-        "scrollHeight": 842,
+        "clientWidth": 1186,
+        "scrollWidth": 1186,
+        "clientHeight": 854,
+        "scrollHeight": 854,
         "rect": {
-          "top": 60,
+          "top": 48,
           "right": 1420,
           "bottom": 902,
-          "left": 260,
-          "width": 1160,
-          "height": 842
+          "left": 224,
+          "width": 1196,
+          "height": 854
         }
       },
       "updateRow": null,
@@ -84,11 +84,11 @@
       "updateActionReadyStyle": false,
       "updateDescription": null,
       "updateIndicator": {
-        "top": 774,
-        "right": 233.33334350585938,
-        "bottom": 808,
-        "left": 10,
-        "width": 223.33334350585938,
+        "top": 776,
+        "right": 202,
+        "bottom": 810,
+        "left": 6,
+        "width": 196,
         "height": 34
       },
       "updateIndicatorLabel": "Switchboard 0.6.0 is available. Open update settings.",
@@ -113,32 +113,32 @@
       },
       "documentWidth": 1080,
       "content": {
-        "clientWidth": 840,
-        "scrollWidth": 840,
-        "clientHeight": 662,
-        "scrollHeight": 911,
+        "clientWidth": 874,
+        "scrollWidth": 874,
+        "clientHeight": 674,
+        "scrollHeight": 824,
         "rect": {
-          "top": 60,
+          "top": 48,
           "right": 1080,
           "bottom": 722,
-          "left": 230,
-          "width": 850,
-          "height": 662
+          "left": 196,
+          "width": 884,
+          "height": 674
         }
       },
       "updateRow": {
-        "top": 278.26043701171875,
-        "right": 1030,
-        "bottom": 350.26043701171875,
-        "left": 270,
-        "width": 760,
-        "height": 72
+        "top": 257.19793701171875,
+        "right": 1042,
+        "bottom": 321.19793701171875,
+        "left": 224,
+        "width": 818,
+        "height": 64
       },
       "updateAction": "Download update",
       "updateActionRect": {
-        "top": 298.26043701171875,
+        "top": 273.19793701171875,
         "right": 1030.0000305175781,
-        "bottom": 330.26043701171875,
+        "bottom": 305.19793701171875,
         "left": 856.4479370117188,
         "width": 173.55209350585938,
         "height": 32
@@ -148,11 +148,11 @@
       "updateActionReadyStyle": false,
       "updateDescription": "Development preview: version 0.6.0 is available.",
       "updateIndicator": {
-        "top": 594,
-        "right": 207.33334350585938,
-        "bottom": 628,
+        "top": 596,
+        "right": 174,
+        "bottom": 630,
         "left": 6,
-        "width": 201.33334350585938,
+        "width": 168,
         "height": 34
       },
       "updateIndicatorLabel": "Switchboard 0.6.0 is available. Open update settings.",
@@ -165,9 +165,9 @@
           "checked": true,
           "ariaLabel": "Always keep Switchboard up to date",
           "rect": {
-            "top": 433.21875,
+            "top": 393.1875,
             "right": 1030,
-            "bottom": 457.21875,
+            "bottom": 417.1875,
             "left": 988,
             "width": 42,
             "height": 24
@@ -177,9 +177,9 @@
           "checked": true,
           "ariaLabel": "Download updates automatically",
           "rect": {
-            "top": 522.6146240234375,
+            "top": 465.78125,
             "right": 1030,
-            "bottom": 546.6146240234375,
+            "bottom": 489.78125,
             "left": 988,
             "width": 42,
             "height": 24
@@ -189,9 +189,9 @@
           "checked": true,
           "ariaLabel": "Install for the next startup",
           "rect": {
-            "top": 612.0104370117188,
+            "top": 538.375,
             "right": 1030,
-            "bottom": 636.0104370117188,
+            "bottom": 562.375,
             "left": 988,
             "width": 42,
             "height": 24
@@ -214,33 +214,33 @@
       },
       "documentWidth": 1420,
       "content": {
-        "clientWidth": 1150,
-        "scrollWidth": 1150,
-        "clientHeight": 840,
-        "scrollHeight": 1055,
+        "clientWidth": 1186,
+        "scrollWidth": 1186,
+        "clientHeight": 852,
+        "scrollHeight": 852,
         "rect": {
-          "top": 60,
+          "top": 48,
           "right": 1420,
           "bottom": 900,
-          "left": 260,
-          "width": 1160,
-          "height": 840
+          "left": 224,
+          "width": 1196,
+          "height": 852
         }
       },
       "updateRow": {
-        "top": 306.76043701171875,
-        "right": 1339,
-        "bottom": 388.76043701171875,
-        "left": 331,
-        "width": 1008,
-        "height": 82
+        "top": 261.19793701171875,
+        "right": 1251,
+        "bottom": 325.19793701171875,
+        "left": 383,
+        "width": 868,
+        "height": 64
       },
       "updateAction": "Download update",
       "updateActionRect": {
-        "top": 331.76043701171875,
-        "right": 1339.0000915527344,
-        "bottom": 363.76043701171875,
-        "left": 1165.447998046875,
+        "top": 277.19793701171875,
+        "right": 1239.0000915527344,
+        "bottom": 309.19793701171875,
+        "left": 1065.447998046875,
         "width": 173.55209350585938,
         "height": 32
       },
@@ -249,11 +249,11 @@
       "updateActionReadyStyle": false,
       "updateDescription": "Development preview: version 0.6.0 is available.",
       "updateIndicator": {
-        "top": 772,
-        "right": 233.33334350585938,
-        "bottom": 806,
-        "left": 10,
-        "width": 223.33334350585938,
+        "top": 774,
+        "right": 202,
+        "bottom": 808,
+        "left": 6,
+        "width": 196,
         "height": 34
       },
       "updateIndicatorLabel": "Switchboard 0.6.0 is available. Open update settings.",
@@ -266,10 +266,10 @@
           "checked": true,
           "ariaLabel": "Always keep Switchboard up to date",
           "rect": {
-            "top": 487.71875,
-            "right": 1339,
-            "bottom": 511.71875,
-            "left": 1297,
+            "top": 397.1875,
+            "right": 1239,
+            "bottom": 421.1875,
+            "left": 1197,
             "width": 42,
             "height": 24
           }
@@ -278,10 +278,10 @@
           "checked": true,
           "ariaLabel": "Download updates automatically",
           "rect": {
-            "top": 585.1146240234375,
-            "right": 1339,
-            "bottom": 609.1146240234375,
-            "left": 1297,
+            "top": 469.78125,
+            "right": 1239,
+            "bottom": 493.78125,
+            "left": 1197,
             "width": 42,
             "height": 24
           }
@@ -290,10 +290,10 @@
           "checked": true,
           "ariaLabel": "Install for the next startup",
           "rect": {
-            "top": 682.5104370117188,
-            "right": 1339,
-            "bottom": 706.5104370117188,
-            "left": 1297,
+            "top": 542.375,
+            "right": 1239,
+            "bottom": 566.375,
+            "left": 1197,
             "width": 42,
             "height": 24
           }
@@ -315,33 +315,33 @@
       },
       "documentWidth": 1920,
       "content": {
-        "clientWidth": 1650,
-        "scrollWidth": 1650,
-        "clientHeight": 1020,
-        "scrollHeight": 1055,
+        "clientWidth": 1686,
+        "scrollWidth": 1686,
+        "clientHeight": 1032,
+        "scrollHeight": 1032,
         "rect": {
-          "top": 60,
+          "top": 48,
           "right": 1920,
           "bottom": 1080,
-          "left": 260,
-          "width": 1660,
-          "height": 1020
+          "left": 224,
+          "width": 1696,
+          "height": 1032
         }
       },
       "updateRow": {
-        "top": 306.76043701171875,
-        "right": 1639,
-        "bottom": 388.76043701171875,
-        "left": 531,
-        "width": 1108,
-        "height": 82
+        "top": 261.19793701171875,
+        "right": 1501,
+        "bottom": 325.19793701171875,
+        "left": 633,
+        "width": 868,
+        "height": 64
       },
       "updateAction": "Download update",
       "updateActionRect": {
-        "top": 331.76043701171875,
-        "right": 1639.0000915527344,
-        "bottom": 363.76043701171875,
-        "left": 1465.447998046875,
+        "top": 277.19793701171875,
+        "right": 1489.0000915527344,
+        "bottom": 309.19793701171875,
+        "left": 1315.447998046875,
         "width": 173.55209350585938,
         "height": 32
       },
@@ -350,11 +350,11 @@
       "updateActionReadyStyle": false,
       "updateDescription": "Development preview: version 0.6.0 is available.",
       "updateIndicator": {
-        "top": 952,
-        "right": 233.33334350585938,
-        "bottom": 986,
-        "left": 10,
-        "width": 223.33334350585938,
+        "top": 954,
+        "right": 202,
+        "bottom": 988,
+        "left": 6,
+        "width": 196,
         "height": 34
       },
       "updateIndicatorLabel": "Switchboard 0.6.0 is available. Open update settings.",
@@ -367,10 +367,10 @@
           "checked": true,
           "ariaLabel": "Always keep Switchboard up to date",
           "rect": {
-            "top": 487.71875,
-            "right": 1639,
-            "bottom": 511.71875,
-            "left": 1597,
+            "top": 397.1875,
+            "right": 1489,
+            "bottom": 421.1875,
+            "left": 1447,
             "width": 42,
             "height": 24
           }
@@ -379,10 +379,10 @@
           "checked": true,
           "ariaLabel": "Download updates automatically",
           "rect": {
-            "top": 585.1146240234375,
-            "right": 1639,
-            "bottom": 609.1146240234375,
-            "left": 1597,
+            "top": 469.78125,
+            "right": 1489,
+            "bottom": 493.78125,
+            "left": 1447,
             "width": 42,
             "height": 24
           }
@@ -391,10 +391,10 @@
           "checked": true,
           "ariaLabel": "Install for the next startup",
           "rect": {
-            "top": 682.5104370117188,
-            "right": 1639,
-            "bottom": 706.5104370117188,
-            "left": 1597,
+            "top": 542.375,
+            "right": 1489,
+            "bottom": 566.375,
+            "left": 1447,
             "width": 42,
             "height": 24
           }
@@ -416,33 +416,33 @@
       },
       "documentWidth": 1420,
       "content": {
-        "clientWidth": 1150,
-        "scrollWidth": 1150,
-        "clientHeight": 840,
-        "scrollHeight": 1055,
+        "clientWidth": 1186,
+        "scrollWidth": 1186,
+        "clientHeight": 852,
+        "scrollHeight": 852,
         "rect": {
-          "top": 60,
+          "top": 48,
           "right": 1420,
           "bottom": 900,
-          "left": 260,
-          "width": 1160,
-          "height": 840
+          "left": 224,
+          "width": 1196,
+          "height": 852
         }
       },
       "updateRow": {
-        "top": 306.76043701171875,
-        "right": 1339,
-        "bottom": 388.76043701171875,
-        "left": 331,
-        "width": 1008,
-        "height": 82
+        "top": 261.19793701171875,
+        "right": 1251,
+        "bottom": 325.19793701171875,
+        "left": 383,
+        "width": 868,
+        "height": 64
       },
       "updateAction": "Restart to update",
       "updateActionRect": {
-        "top": 331.76043701171875,
-        "right": 1339.0000915527344,
-        "bottom": 363.76043701171875,
-        "left": 1169.479248046875,
+        "top": 277.19793701171875,
+        "right": 1239.0000915527344,
+        "bottom": 309.19793701171875,
+        "left": 1069.479248046875,
         "width": 169.52084350585938,
         "height": 32
       },
@@ -451,11 +451,11 @@
       "updateActionReadyStyle": true,
       "updateDescription": "Version 0.6.0 is downloaded and will be installed when Switchboard closes.",
       "updateIndicator": {
-        "top": 772,
-        "right": 233.33334350585938,
-        "bottom": 806,
-        "left": 10,
-        "width": 223.33334350585938,
+        "top": 774,
+        "right": 202,
+        "bottom": 808,
+        "left": 6,
+        "width": 196,
         "height": 34
       },
       "updateIndicatorLabel": "Switchboard 0.6.0 is ready to install. Open update settings.",
@@ -468,10 +468,10 @@
           "checked": true,
           "ariaLabel": "Always keep Switchboard up to date",
           "rect": {
-            "top": 487.71875,
-            "right": 1339,
-            "bottom": 511.71875,
-            "left": 1297,
+            "top": 397.1875,
+            "right": 1239,
+            "bottom": 421.1875,
+            "left": 1197,
             "width": 42,
             "height": 24
           }
@@ -480,10 +480,10 @@
           "checked": false,
           "ariaLabel": "Download updates automatically",
           "rect": {
-            "top": 585.1146240234375,
-            "right": 1339,
-            "bottom": 609.1146240234375,
-            "left": 1297,
+            "top": 469.78125,
+            "right": 1239,
+            "bottom": 493.78125,
+            "left": 1197,
             "width": 42,
             "height": 24
           }
@@ -492,10 +492,10 @@
           "checked": true,
           "ariaLabel": "Install for the next startup",
           "rect": {
-            "top": 682.5104370117188,
-            "right": 1339,
-            "bottom": 706.5104370117188,
-            "left": 1297,
+            "top": 542.375,
+            "right": 1239,
+            "bottom": 566.375,
+            "left": 1197,
             "width": 42,
             "height": 24
           }

@@ -9,30 +9,30 @@
   "columns": 0,
   "cardWidths": null,
   "libraryBounds": {
-    "left": 72,
-    "right": 1080,
-    "width": 1008
+    "left": 79.19792175292969,
+    "right": 1080.0000457763672,
+    "width": 1000.8021240234375
   },
   "toolbarBounds": {
-    "left": 176,
-    "right": 1062,
-    "width": 886
+    "left": 98.98958587646484,
+    "right": 1060.2083358764648,
+    "width": 961.21875
   },
   "commandHeaderBounds": {
-    "top": 38,
-    "bottom": 143.59375,
-    "height": 105.59375
+    "top": 41.79166793823242,
+    "bottom": 130.88541793823242,
+    "height": 89.09375
   },
   "commandTopBounds": {
-    "height": 55.333335876464844
+    "height": 44.427085876464844
   },
   "searchBounds": {
-    "width": 280
+    "width": 572
   },
   "toolbarOverflow": false,
   "activeControls": {
-    "favorites": "false",
-    "game": "All games",
+    "favorites": false,
+    "game": "all",
     "filter": "Filter"
   },
   "emptyState": true,

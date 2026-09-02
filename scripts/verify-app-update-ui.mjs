@@ -37,6 +37,11 @@ async function runReview() {
     *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }
     html { scroll-behavior: auto !important; }
   `);
+  await evaluate(`window.switchboard.updateSettings({ uiScalePercent: 100 })`);
+  await waitFor(
+    () => evaluate(`innerWidth === 1420 && Math.abs(innerHeight - 900) <= 2`),
+    '100% review scale',
+  );
 
   const report = [];
   await openSettingsCategory('General');
@@ -101,8 +106,8 @@ async function runReview() {
     if (!about.metrics.updateDescription?.includes('Development preview: version') || !about.metrics.updateDescription?.endsWith('is available.')) {
       throw new Error(`Development update description was missing at ${viewport.width}x${viewport.height}.`);
     }
-    if (!about.metrics.updateIndicator || about.metrics.updateIndicator.width < 180 || about.metrics.updateIndicator.height !== 34) {
-      throw new Error(`Sidebar update indicator was missing at ${viewport.width}x${viewport.height}.`);
+    if (!about.metrics.updateIndicator || about.metrics.updateIndicator.width < 140 || about.metrics.updateIndicator.height !== 34) {
+      throw new Error(`Sidebar update indicator was missing or clipped at ${viewport.width}x${viewport.height}.`);
     }
     if (about.metrics.updateIndicatorSummary !== 'Update available' || about.metrics.updateIndicatorVersion !== null) {
       throw new Error(`Sidebar update indicator content was incomplete at ${viewport.width}x${viewport.height}.`);

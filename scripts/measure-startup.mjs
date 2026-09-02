@@ -1,13 +1,13 @@
 import { app, BrowserWindow } from 'electron';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 const startedAt = performance.now();
 const projectRoot = resolve(import.meta.dirname, '..');
-const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-startup-measure-'));
+const isolatedUserData = process.env.SWITCHBOARD_STARTUP_USER_DATA;
 const maximumReadyMs = Number.parseInt(process.env.SWITCHBOARD_STARTUP_MAX_MS ?? '1500', 10);
+
+if (!isolatedUserData) throw new Error('SWITCHBOARD_STARTUP_USER_DATA is required.');
 
 app.setName('switchboard-startup-measure');
 app.setAppPath(projectRoot);
@@ -25,8 +25,11 @@ void app.whenReady().then(async () => {
   const windowCreatedAt = performance.now();
   await waitForRendererLoad(window);
   const rendererLoadedAt = performance.now();
-  await waitForControlPlane(window);
+  await waitForShell(window);
   const controlPlaneReadyAt = performance.now();
+  const overlayDismissedAt = await waitForOverlayDismissal(window, 3_000)
+    ? performance.now()
+    : null;
   const result = {
     mode: 'isolated-native-fixtures',
     budgetMs: maximumReadyMs,
@@ -35,6 +38,7 @@ void app.whenReady().then(async () => {
     windowCreatedMs: round(windowCreatedAt - startedAt),
     rendererLoadedMs: round(rendererLoadedAt - startedAt),
     controlPlaneReadyMs: round(controlPlaneReadyAt - startedAt),
+    overlayDismissedMs: overlayDismissedAt === null ? null : round(overlayDismissedAt - startedAt),
   };
 
   console.log(`SWITCHBOARD_STARTUP ${JSON.stringify(result)}`);
@@ -70,16 +74,26 @@ async function waitForRendererLoad(window) {
   });
 }
 
-async function waitForControlPlane(window) {
+async function waitForShell(window) {
   const deadline = performance.now() + 30_000;
   while (performance.now() < deadline) {
     const ready = await window.webContents.executeJavaScript(
-      `Boolean(document.querySelector('main')) && !document.querySelector('.startup-screen')`,
+      `Boolean(document.querySelector('.app-shell main'))`,
     );
     if (ready) return;
     await delay(10);
   }
-  throw new Error('Control plane did not become ready.');
+  throw new Error('Control plane shell did not become ready.');
+}
+
+async function waitForOverlayDismissal(window, timeoutMs) {
+  const deadline = performance.now() + timeoutMs;
+  while (performance.now() < deadline) {
+    const dismissed = await window.webContents.executeJavaScript(`!document.querySelector('.startup-screen')`);
+    if (dismissed) return true;
+    await delay(10);
+  }
+  return false;
 }
 
 function delay(milliseconds) {

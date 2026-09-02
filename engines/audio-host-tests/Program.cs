@@ -58,6 +58,7 @@ AssertSequence(samples, [0.25f, -0.25f], "Bus and master gains must be applied t
 
 TestIndependentDestinationMixes();
 TestDisabledChannelLifecycle();
+TestMeterTelemetryDemand();
 
 TestChannelDsp();
 
@@ -73,6 +74,25 @@ TestMonitoringVolume();
 TestAudioGraphFailureBypass();
 
 Console.WriteLine("Audio.Host deterministic tests passed.");
+
+static void TestMeterTelemetryDemand()
+{
+    using var demand = new MeterTelemetryDemand();
+    Assert(!demand.Enabled, "Audio meter telemetry must default to dormant.");
+    using var dormantTimeout = new CancellationTokenSource(30);
+    var dormantWait = demand.WaitUntilEnabledAsync(dormantTimeout.Token).AsTask();
+    Assert(!dormantWait.IsCompleted, "Dormant audio metering must wait for demand instead of polling.");
+    Assert(demand.SetEnabled(true), "Enabling audio meter telemetry must report a transition.");
+    dormantWait.GetAwaiter().GetResult();
+    Assert(demand.Enabled, "Audio meter telemetry must be enabled after a request.");
+    Assert(!demand.SetEnabled(true), "Repeated audio meter requests must be idempotent.");
+    Assert(demand.SetEnabled(false), "Disabling audio meter telemetry must report a transition.");
+    Assert(!demand.Enabled, "Audio meter telemetry must stop when demand clears.");
+    using var clearedTimeout = new CancellationTokenSource(30);
+    AssertThrows<OperationCanceledException>(
+        () => demand.WaitUntilEnabledAsync(clearedTimeout.Token).AsTask().GetAwaiter().GetResult(),
+        "Cleared audio meter demand must return to a dormant wait.");
+}
 
 static AudioEndpoint Endpoint(string id, string name, string flow) => new(
     id, name, flow, false, flow == "capture" ? "microphone" : "speakers",

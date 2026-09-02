@@ -60,7 +60,7 @@ The development host defaults to simulation. Production capture claims require t
 - Electron-main-owned persistence for modules, devices, audio, capture, settings, diagnostics, and engine state.
 - Optional native hosts that exist only while their engines are enabled.
 - Tray lifecycle with optional renderer destruction.
-- GitHub Release update checks, optional background downloads, explicit restart, and install-on-next-startup policy for installed Windows builds.
+- GitHub Release update checks, default-on background downloads, explicit restart, and install-on-next-startup policy for installed Windows builds.
 - In-app bug and feature handoff that prepares a redacted report, copies it, and opens this repository's issue flow.
 
 ## Project status
@@ -73,7 +73,7 @@ The development host defaults to simulation. Production capture claims require t
 | Audio host | Native host implemented |
 | Virtual audio endpoints | Package builds; production signature and qualification remain |
 | Capture host | Native path implemented; production Windows capture qualification remains |
-| Application updates | Client flow implemented; no public release has been published yet |
+| Application updates | Live public feed; installed Windows builds check, download, and apply verified releases by default |
 | Windows installer | Buildable; currently unsigned |
 | Soak testing | Release suite remains |
 
@@ -90,7 +90,7 @@ Electron main process
   ├── canonical state and persistence
   ├── device registry and vendor modules
   ├── Audio.Host            .NET 10 + NAudio + native DSP
-  ├── Capture.Host          .NET 10 + FFmpeg
+  └── Capture.Host          .NET 10 + FFmpeg
           │
           ▼
 Signed virtual audio transport driver  C++ / WDK
@@ -108,6 +108,12 @@ Development currently targets Windows. Install [Bun](https://bun.sh/) and the .N
 bun install
 bun run dev
 ```
+
+The development launcher builds Capture.Host and Audio.Host into
+`.switchboard/dev-hosts` before Electron starts. This keeps a running host from
+locking the project output and prevents Electron from silently reusing a stale
+native executable after C# changes. Set `SWITCHBOARD_SKIP_NATIVE_BUILD=1` only
+when intentionally testing an already-built host.
 
 Build the Electron application:
 

@@ -23,4 +23,6 @@ Release tags normally belong to `main`. If the default branch has temporarily di
 
 Fresh installations check 15 seconds after launch, check every six hours, download releases in the background, and apply a downloaded update when Switchboard closes. The next launch then uses the new version. Each policy remains independently configurable in **Settings → About**. Disabling automatic checks removes the timer, and manual checks remain available. When **Install for the next startup** is disabled, installation begins only from **Restart to update**.
 
+`bun run dev` is intentionally a separate application identity named **Switchboard Dev**. It uses `<appData>/Switchboard Dev` for state, Chromium storage, caches, and its single-instance lock, and it has a distinct Windows AppUserModelID. It can run beside an installed desktop copy without reading its preferences or joining its process. Development builds do not load the production updater.
+
 An installed build whose About page says the updater could not start cannot repair itself. Install the current release manually once; subsequent releases can use the repaired updater path.

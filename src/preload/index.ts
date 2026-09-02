@@ -1,16 +1,43 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   audioMeterFrameSchema,
   clipExportProgressSchema,
   feedbackHandoffResultSchema,
   ipcChannels,
   preparedShareFileSchema,
+  type AudioMeterFrame,
   type SwitchboardApi,
   type SystemSnapshot,
 } from '../shared/contracts';
 import { montageV2IpcChannels, type MontageV2Api } from '../shared/montage-v2';
 
+const audioMeterListeners = new Set<(frame: AudioMeterFrame) => void>();
+const handleAudioMeter = (_event: Electron.IpcRendererEvent, raw: unknown): void => {
+  const parsed = audioMeterFrameSchema.safeParse(raw);
+  if (!parsed.success) return;
+  for (const listener of audioMeterListeners) listener(parsed.data);
+};
+
+function subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void {
+  if (audioMeterListeners.size === 0) {
+    ipcRenderer.on(ipcChannels.audioMeterUpdated, handleAudioMeter);
+    ipcRenderer.postMessage(ipcChannels.setAudioMeterSubscription, true);
+  }
+  audioMeterListeners.add(listener);
+
+  return () => {
+    audioMeterListeners.delete(listener);
+    if (audioMeterListeners.size !== 0) return;
+    ipcRenderer.postMessage(ipcChannels.setAudioMeterSubscription, false);
+    ipcRenderer.removeListener(ipcChannels.audioMeterUpdated, handleAudioMeter);
+  };
+}
+
 const api: SwitchboardApi & MontageV2Api = {
+  setUiScale: (percent) => {
+    if (![90, 100, 110, 125, 150].includes(percent)) throw new Error('Unsupported UI scale.');
+    webFrame.setZoomFactor(percent / 100);
+  },
   getSnapshot: () => ipcRenderer.invoke(ipcChannels.getSnapshot),
   refreshDevices: () => ipcRenderer.invoke(ipcChannels.refreshDevices),
   setModuleState: (input) => ipcRenderer.invoke(ipcChannels.setModuleState, input),
@@ -42,14 +69,7 @@ const api: SwitchboardApi & MontageV2Api = {
   testMicrophone: () => ipcRenderer.invoke(ipcChannels.testMicrophone),
   setChatMix: (value) => ipcRenderer.invoke(ipcChannels.setChatMix, value),
   setMicProcessor: (input) => ipcRenderer.invoke(ipcChannels.setMicProcessor, input),
-  subscribeAudioMeters: (listener) => {
-    const handler = (_event: Electron.IpcRendererEvent, raw: unknown) => {
-      const parsed = audioMeterFrameSchema.safeParse(raw);
-      if (parsed.success) listener(parsed.data);
-    };
-    ipcRenderer.on(ipcChannels.audioMeterUpdated, handler);
-    return () => ipcRenderer.removeListener(ipcChannels.audioMeterUpdated, handler);
-  },
+  subscribeAudioMeters,
   setCaptureConfig: (input) => ipcRenderer.invoke(ipcChannels.setCaptureConfig, input),
   saveReplay: () => ipcRenderer.invoke(ipcChannels.saveReplay),
   chooseClipDirectory: () => ipcRenderer.invoke(ipcChannels.chooseClipDirectory),

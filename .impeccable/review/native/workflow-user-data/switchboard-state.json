@@ -81,29 +81,6 @@
       "source": "bundled"
     },
     {
-      "id": "device.sony-mdr",
-      "name": "Sony Headphones",
-      "description": "Native Bluetooth control for supported Sony 1000X headphones, beginning with WH-1000XM6.",
-      "version": "0.1.0",
-      "kind": "device",
-      "sizeMb": 0.4,
-      "installed": true,
-      "enabled": true,
-      "official": true,
-      "restartRequired": false,
-      "capabilities": [
-        "headset",
-        "battery",
-        "noise-control",
-        "equalizer",
-        "sound-processing"
-      ],
-      "vendors": [
-        "054c"
-      ],
-      "source": "bundled"
-    },
-    {
       "id": "capability.replay",
       "name": "Instant Replay",
       "description": "Isolated capture process with a disk-backed rolling buffer and hardware encoder selection.",
@@ -221,7 +198,7 @@
           "charging": false,
           "fullyCharged": false,
           "estimatedMinutesRemaining": 2820,
-          "updatedAt": 1788335697909
+          "updatedAt": 1788336884234
         },
         "dpi": {
           "writable": true,
@@ -658,7 +635,7 @@
         "muteState": {
           "muted": false,
           "source": "hardware",
-          "updatedAt": "2026-09-02T07:54:57.909Z"
+          "updatedAt": "2026-09-02T08:14:44.234Z"
         }
       },
       "settings": {
@@ -888,248 +865,6 @@
         "lightingEffect": "spectrum",
         "lightingColor": "#44aaff"
       }
-    },
-    {
-      "id": "sony-wh1000xm6-1",
-      "moduleId": "device.sony-mdr",
-      "displayName": "WH-1000XM6",
-      "kind": "headset",
-      "connected": true,
-      "identity": {
-        "manufacturer": "Sony",
-        "productFamily": "1000X",
-        "model": "WH-1000XM6",
-        "variant": "black",
-        "colorway": "Black",
-        "connection": "bluetooth",
-        "connectionLabel": "Bluetooth",
-        "productString": "WH-1000XM6"
-      },
-      "variantResolution": {
-        "confidence": "user-override",
-        "source": "Preview color selection"
-      },
-      "asset": {
-        "key": "sony-wh1000xm6-black",
-        "matchedBy": "exact-variant",
-        "source": "bundled-official"
-      },
-      "capabilities": {
-        "battery": {
-          "percentage": 84,
-          "charging": false,
-          "fullyCharged": false,
-          "estimatedMinutesRemaining": 1512,
-          "updatedAt": 1788335697909
-        },
-        "headset": {
-          "platform": "sony-mdr",
-          "model": "wh-1000xm6",
-          "transportState": "connected",
-          "noiseControl": {
-            "writable": true,
-            "availability": "available",
-            "supportedModes": [
-              "noise-cancelling",
-              "ambient",
-              "off"
-            ],
-            "mode": "noise-cancelling",
-            "ambientLevel": 12,
-            "ambientLevelMin": 1,
-            "ambientLevelMax": 20,
-            "focusOnVoice": false
-          },
-          "equalizer": {
-            "writable": true,
-            "bandsWritable": true,
-            "availability": "available",
-            "activePresetId": "custom",
-            "bands": [
-              {
-                "frequencyHz": 31,
-                "gainDb": 1
-              },
-              {
-                "frequencyHz": 63,
-                "gainDb": 2
-              },
-              {
-                "frequencyHz": 125,
-                "gainDb": 1
-              },
-              {
-                "frequencyHz": 250,
-                "gainDb": 0
-              },
-              {
-                "frequencyHz": 500,
-                "gainDb": -1
-              },
-              {
-                "frequencyHz": 1000,
-                "gainDb": 0
-              },
-              {
-                "frequencyHz": 2000,
-                "gainDb": 2
-              },
-              {
-                "frequencyHz": 4000,
-                "gainDb": 3
-              },
-              {
-                "frequencyHz": 8000,
-                "gainDb": 2
-              },
-              {
-                "frequencyHz": 16000,
-                "gainDb": 1
-              }
-            ],
-            "presets": [
-              {
-                "id": "off",
-                "label": "Off",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "heavy",
-                "label": "Heavy",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "clear",
-                "label": "Clear",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "hard",
-                "label": "Hard",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "soft",
-                "label": "Soft",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "custom",
-                "label": "Custom",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "user-1",
-                "label": "User 1",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "user-2",
-                "label": "User 2",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "user-3",
-                "label": "User 3",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "user-4",
-                "label": "User 4",
-                "writable": true,
-                "storedOnHeadphones": true
-              },
-              {
-                "id": "user-5",
-                "label": "User 5",
-                "writable": true,
-                "storedOnHeadphones": true
-              }
-            ],
-            "gainMinDb": -6,
-            "gainMaxDb": 6
-          },
-          "dseeExtreme": {
-            "enabled": true,
-            "writable": true,
-            "availability": "available"
-          },
-          "speakToChat": {
-            "enabled": false,
-            "writable": true,
-            "availability": "available"
-          },
-          "listeningMode": {
-            "writable": true,
-            "availability": "available",
-            "supportedModes": [
-              "standard",
-              "background-music",
-              "cinema"
-            ],
-            "mode": "standard",
-            "backgroundRoom": "my-room"
-          },
-          "diagnostics": {
-            "protocol": "sony-mdr-v2",
-            "lastSyncAt": "2026-09-02T07:54:57.909Z",
-            "reconnectCount": 0,
-            "malformedFrameCount": 0,
-            "commandFailureCount": 0,
-            "lastErrorCode": null
-          }
-        }
-      },
-      "settings": {
-        "sonyPresetName1": "Local 1",
-        "sonyPresetBands1": [
-          1,
-          2,
-          1,
-          0,
-          -1,
-          0,
-          2,
-          3,
-          2,
-          1
-        ],
-        "sonyPresetName2": "Local 2",
-        "sonyPresetBands2": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "sonyPresetName3": "Local 3",
-        "sonyPresetBands3": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ]
-      }
     }
   ],
   "engines": [
@@ -1139,7 +874,7 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-09-02T07:54:57.998Z"
+      "updatedAt": "2026-09-02T08:14:44.322Z"
     },
     {
       "kind": "capture",
@@ -1147,12 +882,12 @@
       "cpuPercent": 0,
       "memoryMb": 0,
       "uptimeSeconds": 0,
-      "updatedAt": "2026-09-02T07:54:57.998Z"
+      "updatedAt": "2026-09-02T08:14:44.322Z"
     }
   ],
   "audio": {
     "enabled": false,
-    "outputDevice": "Headphones (2- WH-1000XM6)",
+    "outputDevice": "",
     "microphoneDevice": "Microphone (HyperX QuadCast 2)",
     "sampleRate": 48000,
     "mixes": [
@@ -1677,16 +1412,6 @@
         "isDefault": false,
         "available": true,
         "formFactor": "digital-display",
-        "isVirtual": false,
-        "isSwitchboard": false
-      },
-      {
-        "id": "{0.0.0.00000000}.{0dea8710-f66b-495d-8d6b-10e99b1108ac}",
-        "name": "Headphones (2- WH-1000XM6)",
-        "direction": "output",
-        "isDefault": false,
-        "available": true,
-        "formFactor": "headphones",
         "isVirtual": false,
         "isSwitchboard": false
       },
@@ -3027,10 +2752,10 @@
     "storage": {
       "clipsDirectory": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
       "cacheDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\replay",
-      "availableBytes": 2549222293504,
+      "availableBytes": 2559543013376,
       "volumeTotalBytes": 4096015724544,
-      "volumeAvailableBytes": 2549222293504,
-      "clipsBytes": 0,
+      "volumeAvailableBytes": 2559543013376,
+      "clipsBytes": 5773448312,
       "replayCacheBytes": 0,
       "lowSpace": false,
       "criticalSpace": false
@@ -3184,7 +2909,1027 @@
       }
     }
   },
-  "clips": [],
+  "clips": [
+    {
+      "id": "d65a8f67-508e-49b0-bbc3-4d26b48f1f93",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_03-12-56.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788336776678,
+      "durationMs": 30999,
+      "fileSize": 9796082,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.002,
+      "codec": "av1",
+      "thumbnailPath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\.impeccable\\review\\native\\workflow-user-data\\cache\\thumbnails\\d65a8f67-508e-49b0-bbc3-4d26b48f1f93.v2.jpg",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "53876c9e-2298-43b4-8a7c-8abc1ee4e5ef",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_03-11-40.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788336700464,
+      "durationMs": 30999,
+      "fileSize": 18938388,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.002,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "026f48e1-976d-4e54-83a5-47e1bdc5986e",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_03-09-25.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788336565103,
+      "durationMs": 60012,
+      "fileSize": 53864477,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "6e7ec960-ab1b-4849-b052-5d818958907a",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_02-58-50.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788335930324,
+      "durationMs": 29015,
+      "fileSize": 6704292,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.002,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "93b848fe-eafc-4123-8fe5-61fc5a5d855b",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_02-57-28.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788335848449,
+      "durationMs": 30017,
+      "fileSize": 15001112,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.002,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "f3f65063-d583-4938-84fb-d6daa1f52f3f",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_02-51-50.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788335510592,
+      "durationMs": 60012,
+      "fileSize": 27242365,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "44e3f194-0900-4bd5-aa01-e8f291b76255",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_02-51-29.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788335489501,
+      "durationMs": 60012,
+      "fileSize": 33379653,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "799a6927-7ffe-48a2-8543-d92022f3a5fd",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_02-51-15.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788335475658,
+      "durationMs": 60012,
+      "fileSize": 43915580,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "83c287fe-c2e1-4171-94fc-29b1cf95e783",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_02-34-28.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788334468824,
+      "durationMs": 60012,
+      "fileSize": 40926085,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "dceb55b8-0144-4503-a621-443aca9e7605",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_01-17-16.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788329836963,
+      "durationMs": 60012,
+      "fileSize": 64237443,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "2002d09a-b790-45e7-af74-3f2197987644",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_01-17-03.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788329823086,
+      "durationMs": 60012,
+      "fileSize": 59025278,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "69d6c294-2fec-4f94-80ff-a1915aff8ae4",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-16.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326476879,
+      "durationMs": 60012,
+      "fileSize": 216852534,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "9009fc92-403f-40cc-9ee6-16761fcfd8ac",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-15_2.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326476068,
+      "durationMs": 60012,
+      "fileSize": 216765118,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "471abffd-211d-402d-a30f-cd40e492cf69",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-15.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326475218,
+      "durationMs": 60012,
+      "fileSize": 216765118,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "f36f9fa2-c537-4cdb-8fd4-734c5d8bea9e",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-14.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326474442,
+      "durationMs": 60012,
+      "fileSize": 216765118,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "05777026-3178-41bb-ad5c-c14d053b3513",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-13.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326473537,
+      "durationMs": 60012,
+      "fileSize": 216763420,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "2989d4ec-1f8f-44a3-b830-b6dfccec27f0",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-12.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326472755,
+      "durationMs": 60012,
+      "fileSize": 216765209,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "833a867a-eaa6-4637-a462-ba03a4cf3de7",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-11.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326471912,
+      "durationMs": 60012,
+      "fileSize": 216930116,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "6914c578-76d7-4ee5-a7cd-1b3695c8a305",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-10_2.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326471019,
+      "durationMs": 60012,
+      "fileSize": 216930116,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "a8e14e61-a32b-43e4-aa26-4cd6c00e4c00",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-10.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326470209,
+      "durationMs": 60012,
+      "fileSize": 216930116,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "17c55d82-8ed0-4918-a409-ce96937ade3a",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-21-09.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326469359,
+      "durationMs": 60012,
+      "fileSize": 216937569,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "c6699413-c6e9-4bfd-a1ee-d47a3ea7a394",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-17-05.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326225109,
+      "durationMs": 60012,
+      "fileSize": 209043680,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "e607080d-418a-4a95-b92a-8a15994aef18",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-13-51.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788326031930,
+      "durationMs": 60012,
+      "fileSize": 216943164,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "c19751a7-ba0b-4cc2-81ca-90635ca86847",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-02-38.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788325358264,
+      "durationMs": 60012,
+      "fileSize": 247022362,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "9baabec8-d4b4-4d3b-ae36-d65f5d9d80e3",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-01-57.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788325317417,
+      "durationMs": 60012,
+      "fileSize": 335527031,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "a8af36ab-96dd-445f-bdf5-66cc43170fba",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-02_00-01-53.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788325314027,
+      "durationMs": 60012,
+      "fileSize": 333815978,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "b8e0a1ee-dfc3-4935-b72a-b1326d0a108c",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-01_23-58-25.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788325105349,
+      "durationMs": 60012,
+      "fileSize": 274174368,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "28fa7de6-8522-46af-a900-1ff7834cfa9f",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-01_23-51-59.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788324719779,
+      "durationMs": 60012,
+      "fileSize": 338435947,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "c7f11c96-44ea-40b3-abfc-068c7a6c4923",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-01_23-51-47.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788324707758,
+      "durationMs": 60012,
+      "fileSize": 335825761,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "60e6a0b8-b5af-46e0-8fae-268ec6cd2ca2",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-01_23-40-25.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788324025196,
+      "durationMs": 2032,
+      "fileSize": 4751757,
+      "width": 2560,
+      "height": 1440,
+      "fps": 58.563,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "e065c08f-bbf4-4faf-a65b-83da9100fe31",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\SteamClientWebHelper_2026-09-01_23-40-17.mp4",
+      "name": "SteamClientWebHelper clip",
+      "game": "SteamClientWebHelper",
+      "createdAt": 1788324017186,
+      "durationMs": 48032,
+      "fileSize": 23142918,
+      "width": 2560,
+      "height": 1440,
+      "fps": 59.939,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": []
+    },
+    {
+      "id": "c12dfd16-f3a3-4ff7-99a2-fec7edab8e34",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\SteamClientWebHelper_2026-09-01_23-40-04.mp4",
+      "name": "SteamClientWebHelper clip",
+      "game": "SteamClientWebHelper",
+      "createdAt": 1788324004336,
+      "durationMs": 48032,
+      "fileSize": 23142918,
+      "width": 2560,
+      "height": 1440,
+      "fps": 59.939,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": []
+    },
+    {
+      "id": "a421437f-dd26-46a5-917d-d9f951ef19e4",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\SteamClientWebHelper_2026-09-01_23-40-02.mp4",
+      "name": "SteamClientWebHelper clip",
+      "game": "SteamClientWebHelper",
+      "createdAt": 1788324002092,
+      "durationMs": 48032,
+      "fileSize": 23142918,
+      "width": 2560,
+      "height": 1440,
+      "fps": 59.939,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": []
+    },
+    {
+      "id": "12186cdb-08a7-4729-ba03-cffbc6247d89",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\SteamClientWebHelper_2026-09-01_23-34-24.mp4",
+      "name": "SteamClientWebHelper clip",
+      "game": "SteamClientWebHelper",
+      "createdAt": 1788323664708,
+      "durationMs": 39032,
+      "fileSize": 18270432,
+      "width": 2560,
+      "height": 1440,
+      "fps": 59.925,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "77b36922-57d6-49d4-8c08-032802a54eac",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-01_22-24-07.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788319447590,
+      "durationMs": 22032,
+      "fileSize": 90236082,
+      "width": 2560,
+      "height": 1440,
+      "fps": 59.867,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "6d0aac9c-b298-4544-bda1-91471627eb83",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-09-01_22-24-05.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788319445699,
+      "durationMs": 21032,
+      "fileSize": 84615989,
+      "width": 2560,
+      "height": 1440,
+      "fps": 59.861,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "732bac3c-67d9-4292-9870-9b73f8624e9c",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-31_20-28-27.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788226108139,
+      "durationMs": 60012,
+      "fileSize": 270734022,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "67cb90db-97a8-4abb-9e66-54ee9ef05223",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-31_19-43-43.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788223423870,
+      "durationMs": 60012,
+      "fileSize": 14093120,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "c5970443-69ab-462d-92d9-ed3d51ee7e3e",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-31_19-38-17.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788223097429,
+      "durationMs": 2049,
+      "fileSize": 1092684,
+      "width": 2560,
+      "height": 1440,
+      "fps": 58.565,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "292da559-85ec-4681-b57d-a84904927969",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-31_19-35-17.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1788222917459,
+      "durationMs": 60012,
+      "fileSize": 26743110,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "db0d9f62-b687-4ecb-93ea-0d221aad27ec",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-27_11-28-24.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787848104568,
+      "durationMs": 3049,
+      "fileSize": 1423300,
+      "width": 2560,
+      "height": 1440,
+      "fps": 59.036,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "db43370f-b8b1-4e76-a308-1f4362a53460",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-27_02-58-20.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787817500739,
+      "durationMs": 8144,
+      "fileSize": 10295962,
+      "width": 3840,
+      "height": 2160,
+      "fps": 60.008,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "6ffef401-3f83-4f2a-a53b-bf94f8fa6bf9",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-27_02-36-57.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787816217119,
+      "durationMs": 45921,
+      "fileSize": 24811487,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "dd02be8b-0b71-4bf6-b02e-6d4bdcae13c5",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-27_02-31-03.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787815863832,
+      "durationMs": 60012,
+      "fileSize": 31554777,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "6eccec2c-e18a-423a-b8d2-f58126a4903a",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-27_02-18-22.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787815102051,
+      "durationMs": 2026,
+      "fileSize": 1708055,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.03,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "bd049a65-c4c8-418b-b87a-98e9ecfbf24c",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-27_02-18-21.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787815101701,
+      "durationMs": 2026,
+      "fileSize": 1094997,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.06,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "1248b93e-f301-4e3e-af4c-3e573209ad0e",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display2_2026-08-26_23-49-14.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787806154730,
+      "durationMs": 60012,
+      "fileSize": 178457959,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "97833fc7-5ed9-40cc-b698-fc42565d69d1",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_22-09-57.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787800197203,
+      "durationMs": 59999,
+      "fileSize": 24797181,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": []
+    },
+    {
+      "id": "9671e2a4-9655-4dc7-9d74-161056d11f63",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_22-09-56.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787800196597,
+      "durationMs": 59999,
+      "fileSize": 24797181,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": []
+    },
+    {
+      "id": "5491ebb9-ba30-4332-a8ac-87469a7b63c6",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_22-09-55.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787800195863,
+      "durationMs": 59999,
+      "fileSize": 24797181,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": []
+    },
+    {
+      "id": "4b823681-f5cc-4321-aa4f-fb35ee157ab8",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_22-09-36.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787800176660,
+      "durationMs": 60012,
+      "fileSize": 24954169,
+      "width": 2560,
+      "height": 1440,
+      "fps": 60.001,
+      "codec": "av1",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "game",
+        "microphone"
+      ]
+    },
+    {
+      "id": "19971754-1693-4a35-b171-bb458f7f7855",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08_2.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725988692,
+      "durationMs": 30016,
+      "fileSize": 3227082,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "b469e5aa-38ba-4283-a8f5-e81f95896441",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-08.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725988342,
+      "durationMs": 30016,
+      "fileSize": 3227082,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "776cc217-7a9d-4abe-a14c-029a5c399a80",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-33-07.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725987982,
+      "durationMs": 30016,
+      "fileSize": 3251905,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    },
+    {
+      "id": "9b1bfcee-8e06-46fe-85ba-a6a62f251739",
+      "path": "C:\\Users\\User\\Videos\\Switchboard\\Clips\\Display1_2026-08-26_01-32-02.mp4",
+      "name": "Desktop clip",
+      "createdAt": 1787725922793,
+      "durationMs": 30017,
+      "fileSize": 2860564,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "codec": "h264",
+      "favorite": false,
+      "titleEdited": false,
+      "canvasSize": "original",
+      "audioChannels": [
+        "microphone"
+      ]
+    }
+  ],
   "clipReview": {
     "reviewedThrough": 0
   },
@@ -3200,7 +3945,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/3768760",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAABgcIBf/EAC0QAAEDAgUCBQMFAAAAAAAAAAECAwQFEQAGEiExIkEHExRRcTJhkVKBodHw/8QAFgEBAQEAAAAAAAAAAAAAAAAABAID/8QAHBEBAAMAAgMAAAAAAAAAAAAAAQACAxESISIy/9oADAMBAAIRAxEAPwBAU6Ep9wJQCSfYYKpVFnUtuM835QGkuuB0AnSNIG3yoY3qE1TKIwH3Ql54fSk91f1gIrleeeqzrs5L8h4KISHHFaUj7WIsNuMZVq2ZTYqSoMk0WDTKJFkSG2PVqaS46sCyUm19r/OCbLdWp1bC1U10vtt2usNqSje/CiADx24298SYc05mzCY4dXKlU9qzbjbIIQnUSkBRAO5sbE3xWGTkQ6Jl+FEaShsNIA8sHg8m57nANMej7PLE1v3+ZOdEo/qHEKeBJ2CEDf8AbAn4jQo4zM42wpJZRoC1DYX0i4B7743m61IjxtMdJC3dkq/Sngn5O4/PuMAWcZbqpyerr0gqsOT/AK2HUEsw1vIRo+FGZmoclugsFEdp9S7r7qIupNz9ur84ai61Ggp0tuea4O972xJVGqcmiVpqS4FBbZ6knmxFj/Bw0o2YUPIS425qSoXBvg2+SvJE43A4Z//Z",
-        "addedAt": "2026-09-02T07:54:58.198Z"
+        "addedAt": "2026-09-02T08:14:44.557Z"
       },
       {
         "id": "game-97ab369b6123679be160",
@@ -3210,7 +3955,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/270880",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJgAmAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQcIAwb/xAAqEAABBAEDBAICAQUAAAAAAAACAQMEBQYHERIACBMhFDEiI0EVJDJCUf/EABwBAAICAwEBAAAAAAAAAAAAAAEFAAQDBgcCCP/EACoRAAEDAwQABgEFAAAAAAAAAAECAxEABCEFEjFBEyJRcYGRMgZhodHw/9oADAMBAAIRAxEAPwCDdMGJ2Zabaq1TADMt5S1csHpEgG1XaYjSjyNUTcikB73/AI2297pCQBJopSpaglIkmi59qbztPFKHqdgTt8pOFKqpl+zXpHbRto2/2yVbQnFUnhIdkQfGKoZ8144UupcbDqMg8f40xfsHrS6csrobHEEhQIVgjngHEZniMzQfVfQi2wyHQpUNV2SA3AmnY2eLXMa5ZcKPKdI5B/GedVhtIzkVd3Eb/n1uhr1lnMUvKSEhfRn7ESPcSDjoilJCmvw5bL7DxsvNmhAYEqKKov2i9GvNVV2tYouVdrfcUDb6sOx5+KKIjGB9XvJNktePiSL/ALOCXpN1UBTqtdOqYYW4gSRwPmnmhWDGqaoxZXLnhtuEgq9AUnOaaGluPDj+teFM2+n8V56ff11dLlToPy2JZG8226IG6Rs/kPNP1bDt7T11qls7fNONsKO1vcB+P7+pE13jU7T9Katp17rNuhTl2ppxclawZ2kSUSB9g49RXZ5tKwi7vbsZOm2MxxKVZxkjt0r8RtGlcVFT+zkMKq/paTkq8vS7Km677ltAUVRnj6n+zXzh4zimkslR2AlQHQKgkE/ISmfYVH3dJpxW4lltdYYtip0OMvQYwPnFalrDGaquoYCch14kUvCZICuKuwrt9L0N6QoInJzHcev8iscGJ6px9u2P2NF236pUuLXbrub5bkmP0selbrneYGLpORnvlg5wbFwzfT8kVdopfW/4hxsOoLZ4PP3Vyyu12Fwi6b/JEkcclJAOZ4mferDw984eIYJDaxjT84MB+ktn8prSkPT348aTHmG8poxvzJtpeXIkT2X0nrpZb27yEoQtCBESQc47iOfmt31fV9MuXrm5tru4UXN5S2pPlG6YSVeIRAnBCOhxWi6I1WTrPuKjKXZ9eDzss3pNUMVEB4leTirsgPMnFf8AJsV3/wCb+unFc5mlRrrhH9SwLJp1PFxzMaKsoHI1jKuam0CXBlNnMmEoCLQNx3fHMYREdNV/AF2Hf3VcbcLgWgiO5n16jH3T6zvLJuydt7lK95JKSkNkZSBCirzYIkRxJ7qB9MtbMw0WzyjtIjr5BSWsWwep3iJtiW5GcM2xeEduSj5XURV3UfIW331ZpHTEre+fWHFtLq/E6zUCbYQXIz1dNrLeti2EX4XjBsGOMllxCFR5io/XH0u+/qUIoXM78Nf5NVFq2NR7OorYjARY0Ojjx61mOyAoINthGbbQBEUREQUREROpUil1lOrWo2qyx67JcwyXKwKQjrcW0sn5Yq9sgoaAZKnLiiDvtvsm311KNf/Z",
-        "addedAt": "2026-09-02T07:54:58.211Z"
+        "addedAt": "2026-09-02T08:14:44.573Z"
       },
       {
         "id": "game-0539c590f59724db68b9",
@@ -3220,7 +3965,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/1874880",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJgAmAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGgAAAgIDAAAAAAAAAAAAAAAABwgBBAMFBv/EACkQAAEDAwMEAQQDAAAAAAAAAAECAwQFBhEAEiEHEyIxURRSYYEyQUL/xAAXAQEBAQEAAAAAAAAAAAAAAAABAAID/8QAGBEBAQEBAQAAAAAAAAAAAAAAAQARAiH/2gAMAwEAAhEDEQA/AA128glXo+tShgJSPe8/H9a7a2unN13HTUVGi0xEmCtSkpX9S0k5BwQQpQI/Y0Xei3T6NSoNwzb0pMNx2O4Gu3IQ2+loIRvUQeRyFp9fbjW7iCy6JiLUjy+MAZ1gfg7k4SojnnOmZ6x2BGqkCgSbOpkNhchwtbIyG2A4Fo3pJ9D/ACff3Y0I7j6cXRQKU5UK1T0R4zagjuGQ0okk4AwlRJ1QiW56SXtSLeiTYtfdq4huFLjH0El1vav0rKUrSDkbefxoxXRd9oU3p/IYg1WO+zKKUvR2pgfklDrg7xPmVFW1S/Z/elIjrOUD4HOrain+PG73oyTrPJt6XeViVSy2Gm6mzFgxkJDUV+YGJKO0Rsx5hWfEYOedA3q7fVIuFmBEt12rqitqU6+J8l1wKX6ThKlqAwN3P50L3FeR4Oqzi9WZO7f/2Q==",
-        "addedAt": "2026-09-02T07:54:58.203Z"
+        "addedAt": "2026-09-02T08:14:44.564Z"
       },
       {
         "id": "game-8f6d059fff3c16393421",
@@ -3230,7 +3975,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/2807960",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHBAj/xAAtEAACAQMCBAQFBQAAAAAAAAABAgMEBREGIQAHEjEIE1FhFBYiQYEjQlJxof/EABkBAAMBAQEAAAAAAAAAAAAAAAMEBgcFAv/EACgRAAEEAQMCBgMBAAAAAAAAAAEAAgMEEQUSITFRExRxkdHwIkHBYf/aAAwDAQACEQMRAD8AVKfUN003a5aqnoKVQUMRaeJmSJSMHcHY+540CV2G5UkyNpdglGKCa5y1AqZ6amgYBiDRxFATggbHB744LkSMS+3Y7hU+y8yLrarPR296pvji2YqSYDrI7Bunv68K4rySFhIyPdMGCxHEJS0hp4BxwgGvtf1CVMVPPaEqaudCFr5ow8KY74DjGwPr/XBGBrTtzx96lD2Et3JM5xUd7loPiKahhlol+uUqT1Fs/uUEbe+/44UmkMjdoKeha1jtxCiE+qOY/kvUpc5Fo43Eb/pIFjUtgZyvbJA/z77z77WzNUuI+9+qom03HFxrQRnt/Oi20vNDXesLjb6yCqpIqijUILhRUUas2Aygk9O5AYgex441PT4aMxdE5xc7u4nqu1b1Czer+FIAIx1wO33jGArMz3/Wulmp57VEkjxGnNwlMYOOzkJ0rud+3bJxxcCQlu1QvhhjtxTHqLmTNzK5SXy0UljuFtrpqUrJVLb5Jvp+6hgigEgY6sZ32Gd+Ja1cbXGCefUD+qro6d5l2Tw30PwmWXkFZ73yDjnrrvKsb2xXq6yrpHgkWdZUZX6m22XrUjbJbIxgYzCxrtxljxBFud2Hz+1oMFGuXiln8SeDkcjB6jqEpcjeRHyrpyzSxRw3e1XAVBuEsEbmZpUdxHInUQAMBFbH8D6DPZZrbnytlcwtI744QZdFhgEtZsgIyMf79+Fu1NzFtOnKealmtNfTyQS9SU6AIrYY4Bbc4Pc4HcY7E8aBVt+OwOA9ln9zS/LvI3e64U0Xzg1Fp+HyILg9MhwxAklJbfO5DDtjP545k1eGwcyBO17U0A2sPCt9Z409W1WmZLDdJ7fV00y+XUhacJJKnUx6SAuxGRuCGIx78Fg0+jGB+AJHqgyXbJfuBx6JHovEfdrTcPMgnj8iAu9NSo7LAmWLEFcDO+fQ77cHfXp5y5gXtl65tIa9BdW+Ii9X66XKrjZKWGvRUaFI1UAhi3UpVQQclu+cBsZOM8ewWRcRjCXc98uDKcr/2Q==",
-        "addedAt": "2026-09-02T07:54:58.206Z"
+        "addedAt": "2026-09-02T08:14:44.568Z"
       },
       {
         "id": "game-c5b7bd193d60493b7317",
@@ -3240,7 +3985,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/1478500",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGAABAAMBAAAAAAAAAAAAAAAACAUGBwP/xAArEAABAwMDAgYBBQAAAAAAAAABAgMEBQYRACFBBzESIjJRYYETFJGhsdH/xAAXAQADAQAAAAAAAAAAAAAAAAADBAUC/8QAJBEAAgEDAwMFAAAAAAAAAAAAAQIDAAQRBTFBEiFhEzKh8PH/2gAMAwEAAhEDEQA/AC/ToEmoygxEbK1nc+wHuTxqxJsaoFGTIjBXtlX+avvSS2BUH6TTW1Bp6ouJLjhG4B3/AITqk3/U6nTL1rlObeeitQ5jsdtrO6UoWUjJ5OADnnU0TT3DsIcBR2781cNraWcam6BZmGcDgVCyLaqrExEcxytS/StByk/fH3qamWUY9JcfEoqlNpK1Jx5CBuQOfvWu1a3H6fZdp1yQktuVeGHHWiCPAsAebfhQIVjgk8YGsduu53pDr8CIksspUW3FH1LwcEfA0ITXUkvpDA6d6YNtp8Nsbg5YN7Qdx+Hn6dA6U3GKY7Raq0kOqgrSHG+SE7EfBKf70jZsrpPc0xFeq0ejPVBCQorls+F3bsFJI85Hbn40EKZUpdMkflhuFBPqSdwofI0l+nthya7bEGq1qUmM5MQHkMsN9mzukkk9yMH4zoVxK2mZcEFWPzWUltdRRVnyrqMZHIrv1ov6JcctpUQFqkU5CvApafCVk4yrHA2AA7/votzH/wBTMffIwXXFLx7ZOdI3q50icXQHqhQKhLdVEQXXIbxSUuJAySkgDzAZODnPGOTYBvo2lypcBpw2WO/ilNTmXCW8S4RdvPmv/9k=",
-        "addedAt": "2026-09-02T07:54:58.191Z"
+        "addedAt": "2026-09-02T08:14:44.528Z"
       },
       {
         "id": "game-fcb05e22dd323190701a",
@@ -3250,7 +3995,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/949230",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABAYCBQcD/8QAMBAAAQMCBAQDBwUAAAAAAAAAAQIDBAURAAYSMQchQZETMlEIFSIjYXGxJFKBocH/xAAYAQACAwAAAAAAAAAAAAAAAAACBgEEB//EACURAAIBAwMDBQEAAAAAAAAAAAEEAwACEUHB8AUhgRIxUXGRsf/aAAwDAQACEQMRAD8AXIFNkz5SI0Jhx99ZslDaSScapROECo9Il1DMb2lxthbiIrR2ISSNSv8AB3xaez+hpD9bCtHjFLOm/m03Xe308t/4wv8AEnNVXqVYqFMU+WYEd5bIaa+ELCVEXUeu222NCZdaZbuUXIsFuCTr3+OeaXLJYooBPJ3z7Ci6jwiM2gQKjl5/9Q7GbccjPHkpRSCdKun2PfGXVGlS6bLXGnx3I8hG6HE2OHzIea63Rp0aDDdEiM84lsR3ydAJNuR3Tv07HF7xlqAqbNKbkQnoVQYLgcadTfkdPNKxyUm4PMdhg1mnF2QvMRfbdnB1H3/N6i+eGSEy2diNNK68JqbT57lTjzVeHL+WuM4heh1BGvUUK36i4xDO3D+pxJEmosOmoMuKU64oJAcSSbkkDf7jsMKaAptYWglKkm4INiDh1pGfZzUB+FVEmW0tpSEu3s4m4tz/AHfnFKeNqOcsQHIOMg7c/aW1OppywBdkG0jOLhuOeKFyHkOozJsOpSbRYjTiHk6xdTliCLDoD6n+8XHG95l33ZHS4hT7ZcUpANykHTa/ptgCoZ7mmlxoFLSYqGmUtqdvdaiAAben5wluBTi1OOKKlqNypRuSfrgYYGJmQywQPTnAG9Gx1ZWBYqrZuN2M3Hbn7X//2Q==",
-        "addedAt": "2026-09-02T07:54:58.214Z"
+        "addedAt": "2026-09-02T08:14:44.575Z"
       },
       {
         "id": "game-c8b77f2a30f3151400b5",
@@ -3260,7 +4005,7 @@
         "executablePath": "C:\\Program Files\\Epic Games\\GTAVEnhanced\\PlayGTAV.exe",
         "launchUri": "com.epicgames.launcher://apps/8769e24080ea413b8ebca3f1b8c50951?action=launch",
         "iconDataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACo0lEQVR4nOxZS24TQRCtbmfpBVkjBLeAAyAkhJBYegdHICIWOBJKEBIrLOUYvgmbcAdOAAa8dVdm3J/qrumJJlN2Ji3Ns8f9tfrV9KuqtkdD4dBQOEYDhsZowNA4Wnw4ebud6MuJUg+gIKAxv4zCC41aXdx38q9ev2mUSusnlYAu1eLjKULBOKo/vnz9BiXi/PPZGIUGR/lhNNe5Wq1gs9kkfdPpFGazWdK3vPoPy5//qphm44AtcPeOS/RhAtF109jp02OYPzvutX6rAbmJOSyv/joenpCrA0b8uSHR3Kry/cfvhgFd1281oCvQEFnL1VaUrzd2pjmXtqcfRAaAIxkIgiUWmslu8F2ypTQJiXygSud5ncMNdzrMj9v91m81oLMGDZLOs04L1O/lxNsZCd2dDyDtgG1D6tBO96mkgCQFMKwPWCcGIoIZvTu5qOoVOzYZdgADOmuQO3FUcqdFwJQs0vd7rw9CHyAnhqam49Dp+xNpuT7Vf/0asjBqyFsx0Xg7aT8eDDUgwp6cGG7YgWbksaXzCWEmkPmAIdI2+0JiSFBH0HpEmuWLXuuD2AdIQlQ1wCNkShpSCQnWryE+SiC/kyFhAeWEXNKKQ64AwjxgiAww/fMjg5/Hk5mMv/AsxBJTfJQIJ1I/FgpMYj8eIpHd5izUFh6RtUNUiurWhxRIsB8J7Rqxg8Z96c74aOTHDrIDndEgjUn8t0NcYnV1m35fgD39HoAo+qSRJxlr8Ze9G9DZB7At0zpyYQ7rZ0ZLID4LYdvxOEtaHjY5RP8LfXr+0BKvpBRCqrEXhsvQsSJD/uzlY5BAtAOLF49215AY/1ocGnqLZr1e/4HSUHOun9Ko+fz9uwnoc/vEoxzUN776QXUiO4jcA4xOPDRGA4ZG8QZcAwAA//8/KzVVAAAABklEQVQDADRZluAtV95DAAAAAElFTkSuQmCC",
-        "addedAt": "2026-09-02T07:54:58.217Z"
+        "addedAt": "2026-09-02T08:14:44.567Z"
       },
       {
         "id": "game-e97f8964aab05e12ad0c",
@@ -3270,7 +4015,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/271590",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJgAmAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAABggDBQf/xAAtEAACAgEDAgQFBAMAAAAAAAABAgMEBQYHEQASCBQhMRMVIjJBFiNCcSRRc//EABoBAAIDAQEAAAAAAAAAAAAAAAIDBAUGAQD/xAAqEQACAgECAgoDAQAAAAAAAAABAgADBBExIUEFBhITUWFxgZGxodHw4f/aAAwDAQACEQMRAD8AU/SfgvyO5FWnk62skvTZGFLPxIY67q0jRLK8Yd7SdzoHAZeOR+QB0DuqDVpwkDeWF/wC5XGSrHPqO2JGJAWPHQSE8AsT9Ns+gAJJ9gASeOOkLlUswRW4+8AWKToDBjE+EqplLOqI4twad75Hdes64mCO3JJCkEcz2SgsKREokZSy9ygxvyQB093CKWO3z9QyQo1Mls+FRcFjbObra3nrR0FeRblvHx1oPiohkWIS+ZP1t2+igEnkenHUbHy6coE0nUDyI+xFV3JbxQ6/MDPDXua+hNefLbOT+VYfNvHBJdcnsx9tWJq3Tx+IpDw/Hq0Mk6fzPUplDqVPONI1Ghjoaj3FTKqpzmOliX/JxmZxIcCWIOj1btcH2D9rToG9geCOsC2Uej83Szkfwecoe+7i7RuUWba/ZPMaC3N1fH2nI3seV0/gJYV4XJWsnE8daaMH+Pk2nsrz+ViVvv63NlvZr7a8fDzJ2l4zaLqIAeIvcCHV+vVxGJuea0tppfleMeNiY7Haf37Q/wBmaQM4J9Qnwk9kHHMelcepal2H9r7zlaCtQomUP97f31IjI3G32sf19ozF52aTvyEJiwebBPJNhIiKdo/9q8RjY/mSmWPrKOsV1lwjZUMtN14H0/w/coulKNUFy7jf0hRuRuJktIbYS5q3PCrYurNgtNIkfbN5y4D5iw7e8nwaycI3vEzw8cAjp3V++zLx1Fm1ZIB8fD4BPyIfR1jXVjtbL/fj9RH0+9f7618upNdpT07c0E8LwzRuVdHUgqQfYjr09DfZvX8OgdSWlyiWpNOZeq2PykdRA8yxlleOeJWIBkhmSKZASATH2kgMegdFsUo41B4GCyhgVOxl1v8Abq09x8jhMfgvOHTmFqlIGu11ry2bMpD2LDxK8gQniOMAO30QR8nnnqLh4leFQtFewiaKVx6xWvKZdSpT3LcMEELzTSOFREUksSfYDqbJE//Z",
-        "addedAt": "2026-09-02T07:54:58.212Z"
+        "addedAt": "2026-09-02T08:14:44.574Z"
       },
       {
         "id": "game-b19aa3b5346e8a4a44b6",
@@ -3280,7 +4025,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/394360",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABQYCBAcD/8QALxAAAQMCBQIEBAcAAAAAAAAAAQIDBAURAAYSITFhgRQiQVEHE3GxFSNCUpGhov/EABgBAAIDAAAAAAAAAAAAAAAAAAEEAgMF/8QAHhEAAQUAAgMAAAAAAAAAAAAAAQACAxESIUFhgbH/2gAMAwEAAhEDEQA/AMlrsZcd2NGQlSnCCEpAuSSdgB3wfoeV6U3Kaar8uRIlLAPhIQulB9lr37249zihW5HhczQH3FLFjsoDdJtYHsSD2wWpVNrMWkyqlH+YGohGttCUqceX73IPGr2I242vhF7yAKWubI9D4rmc8pUODTUGIzJgzCCs3cLiRYA2N/TfofrxhRy5TkzY7zCx5m1kn+hghmCZXlU5h2pOLDMkqSy3JaCVG29vKAR3sDiOUJKWjUZflv4hplLKDcHWf3dNPe+AzQadG1DQojwumYqLKrWYGINLTrUUm7qtkI2BJJ9Pvh+dnsZdZYjT9RUtAdBSjy6rC9x6b3OGpybSvxDQyn8sG5UAVEfTk9hjOM5S5U6S46aW+iCEJSH3iAtW+6ygcX22/nnCz3mSm9KyOSjyhefnY8iO7NhriPpNgpSAoXJI5v8Aqtfrzir8PIZqDq0O6UstKDuhKbAlPH3552wBlwFTIo8NZcuKSFNIVe6NySketunPW2Gn4TuWVJsbXSb/AOcNAYjoIWJC4r//2Q==",
-        "addedAt": "2026-09-02T07:54:58.207Z"
+        "addedAt": "2026-09-02T08:14:44.569Z"
       },
       {
         "id": "game-791b8a5486008a78506f",
@@ -3290,7 +4035,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/220200",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2NjIpLCBxdWFsaXR5ID0gOTAK/9sAQwADAgIDAgIDAwMDBAMDBAUIBQUEBAUKBwcGCAwKDAwLCgsLDQ4SEA0OEQ4LCxAWEBETFBUVFQwPFxgWFBgSFBUU/9sAQwEDBAQFBAUJBQUJFA0LDRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU/8AAEQgAIAAgAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8A/LS4uLrUr+R3klubqeQ5JJZnYn9Sa97+HXw+1GC1bT9D8JW/i3XjD9ouPtWnm9KIDglF3BVUHgZyWwTjGAPDfD95Hp/iGyuJWKJHMCXBwV5659utfon+zLqcPhL4uaBJbwzubvS5EQ2ih/nVgULjJwpJxnjrntz52Y154XB1cRBJuCvq7LfvddNvMXNZpdz5w+KPwx1nw/pWnQeOfh/b+CzrC7tN1u0sjZCOTjBlQMVaM5AYAKVB3AHBB+dQb7Q9W2MZrO+tJtrDJV43U4I9iCK/V3/gpX4im8SeGdH0u7gmjMXmSsZIwIzlAAFbPzHrkY44r8sfFl8uoa55gbzJkRI5pScmSRRhmz3+vtXDkmYPNMDTxvKkql3o09Ol7N2dt1e6e6Rbd7+RiSffb6mvqH9m3TfHNlpOieJbbV9Q062v9SbR9KktmRpTtTfKwDgjy1woznrkY4r5kvbKezu5oJ4Xhmjcq8bqQVIPQivqHQv2gdHk+Bdt4fGgw28+haPLZWl41xsuI76ZgTcRJnkDauW4Ybm7UZzLFexjTw1JT5naSaTVrPdNq6va/W17a2PRwFLDVJS+sysktPN/c+lzuv2uP+E/1Pwxq73XiXVNfn8Mzwm/+2LGrRW064SeLYoypcBWOQVOOxJHw8n+sX619X+GP2ktN0T4b2Uut6Euv3V5ot54a1Od7zN1MrnzIZDHnnaSy72ycYxXyvZ2U95dwwQQvLNI4VI0UksSeAKxySOJownQxFFQUX7vKkota3sl5q+tnaSvrdlY+GFjySwsr3Wq6r+r200umf/Z",
-        "addedAt": "2026-09-02T07:54:58.210Z"
+        "addedAt": "2026-09-02T08:14:44.572Z"
       },
       {
         "id": "game-e57282fa72d277610ded",
@@ -3300,7 +4045,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/1966720",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGwAAAQQDAAAAAAAAAAAAAAAABQAEBgcBAwn/xAAnEAACAgEDBAAHAQAAAAAAAAABAgMEEQAFMQYSEyEiQWFxgcHRFP/EABsBAAEFAQEAAAAAAAAAAAAAAAACAwQFBgcB/8QAKREAAgEDAwMCBwEAAAAAAAAAAQIDABEhBAUxEkFRYbEycYGRocHxE//aAAwDAQACEQMRAD8A51SzCNIVWFXZlB+Jc517zVu7hAoCg3Hii239PbndiRoqdQ94yoZMsRphnReTV5ptr12oQNHEueMZ/dZv9PbnTikaWnUHYMsFTDAaFdG4NGp2vXadGaSJcc4z+qEQzCRJ1aFEZVJ+FcY0/wAVRI4cOCoFh4ovRgjXb7UuFMi1U7cgHlWz/fxpoc29au9OiiCR+4QfkH+/SrN6EpdN3aNkbnRg3C2txkBsWmXxxKAAAmQPnz99ZrcDrBIDDIVFuyg5+eftXTdk0e16uKQ6sBmDkZY4AtbFx7UuuqXTdKjWG2UINvttcVCa9pm8kTAggpkj5c/bRt51hkJmkLC3cAZ+ePtRvej2vSRRnSAKxcDDHIN74ufaqyuwRtt9WXtXyNVfuwAOFGP7+daW+betcynRDBG/cofwB/frQ7/dNBLCkLACWBI2BGRwR+zpSjkmqz/eSNkSM/EoB9qlFcVojEZUFx1lWJ1tRK3o59g4z6xwc86ZYMccA+K10JgUjrHWQwB6wDg3yDa+LcEnHfFKda0plMSLTd5TEi1YlX0MeycZ954BGhAwx480SmBi3QOgliB0KBjGSbXzfgEY75qLi9NPLPHMwIigeNQBgcY/Q08RxasiJ5HZ0kPwqQPatMsCyJCwlRSqgYduNL4qO6BwpDDAHJpxLYvWwnfuEJC+xmUD6aQCBwKlSSamcDrmGPWlDYvVA/j3CEd3sgSg/TRcHtRHJqYAeiYZ9abwQCJJ2MqMWUjCNzpfNRUQIHJYcdjX/9k=",
-        "addedAt": "2026-09-02T07:54:58.204Z"
+        "addedAt": "2026-09-02T08:14:44.565Z"
       },
       {
         "id": "game-d5fc5e38e424611bc5e1",
@@ -3310,7 +4055,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/4704690",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABAYBAwUH/8QALRAAAgECBQIFAgcAAAAAAAAAAQIDBBEABQYSITFRBxMUQWEWcSIyQoGRoeH/xAAZAQACAwEAAAAAAAAAAAAAAAABAwACBAX/xAAnEQACAgIBAgQHAAAAAAAAAAABAgARAxIhEzFRYbHwIkGBkaHB8f/aAAwDAQACEQMRAD8AF0/lsUNOilUgZf1eYWLdhb2GOYp8Z2sviDGULfL3KjbtBIMQUlxbkC/T2/rDL4iAKNw7THh7luqNCnPK3PZqSvmV5Y4IxT7ItgdtrJ+fonLdLnsOWDECtynXZX1A9YjpkUEiCR2aaVudjiPcB82OMms6YyED+zTTSEeYPHI6R1UkqXWCZjwLdV7X+QcGjKK6iyRYkrk0GXVa0dRT1CSVTWRBXyMLc8gLyB+2LgsJUDE/j7+s6lplsjbw6zLTeYVa5BTUwaopBJP6eFpCLkOXsDdyDY3ubnrh6nZSpmbJj0cMvb5wWi0pojSmiM1r8yrfqXUFWJfQJHVJIYRyEt5R2kcBiTft9zoioSe8X1MjPSniJOWV9Z5YmEck4BB2sigi4Jtfj29wMZBt3m89OquvvANQ5jmGb1lEaOmlSop5VLlCn4RyTcni9vbrg7E8QJiUfEDcs1XmNTJFFJvmdI2LPvjVltt97DvxfpiWZoKrrVD8y1Kw0lKNyCOKUAgBUXj7Hr/uLWRMmqMeP3EU6vfKMlqKiFmnIVREq04DDg9COO384C+UmRbHPrMo6mm1XXwLHVZnT0UMQLGiQoHktwTyTYfBHU4JNcmMUcaKePflIos8qPDrMRWL6qsyVpD50NWGkMW7ksrsWNjflbn4GLK3PaLZCARdiMUniJSytJSxGE0UlnhlQiUBCDY2a3a1rdMRmuBcWpsG5//Z",
-        "addedAt": "2026-09-02T07:54:58.213Z"
+        "addedAt": "2026-09-02T08:14:44.574Z"
       },
       {
         "id": "game-2d72f499a978ef41a320",
@@ -3320,7 +4065,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/1623730",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAwEBAQAAAAAAAAAAAAAABAUGBwED/8QAMBAAAgIBAgQEBQIHAAAAAAAAAQIDBBEFEgAGITEHE1FxFCIyQZFhgSMzYnKCodH/xAAYAQACAwAAAAAAAAAAAAAAAAAEBgACBf/EACcRAAEDAgMIAwAAAAAAAAAAAAECBBEAAwUGEhMhMUFRYZHxMnGx/9oADAMBAAIRAxEAPwDVdTv19MozW7b7YYl3HAyT+gH3J9OEVQ6tqy/E2LkmmwN/Lr11Qvj+t2Ddf7ce57kLxJtJXr6cbDbawtRtIfsOvQn/ACC8O66vYqUWqWNiDazbVDeYu0/L+nUg5HpwnZIwFo5bqeOUBZmADvAjt131MwPrzfTbtGJ50avL8yaf8TW166JQu7bKI5EJ9CCufwRx4aXqEstiSlfRI7kahwY87Jkzjcueo69CvXGR1IIJ7ZspXlmilDiWL64whLD9uFel3I9Y1yCzRWU16kUsckrxNH87Ff4YDAEn5CT6YX14PzTg2Fhhcv2wlC08IgT2gcZobCXb430ouJVoPUHzJoPxWgjl5QuPJjKLuX3BDD/ajgrwmrPp2kadHak8w+bu75CAnIA9u/54iOZ9avc+x/Bcv1JE0+Fg0rzMFaRu4GATgDGf+fe65P06fSOXqdO1IHnjByynI6kkAewwP240cn4U4Y4epDoaSszHMCI8mq4+8trUjZmSn3Vr4gvJU06K1XqVJGeZIJLE6k+QrHAchSCw3FRjI+rOcA8I9KoJp9Xykd5HZjJJI+Mu57k46D2HQAAcXd2pDq2jz1Lakw2oDHIB3wy4OPzxnHL2pSWVlo3kePU6SotjONrk5G9SCehKN3wRjtwnZrsOFWU3ETs0/LoDyJ/PdMDO6CdJP1X/2Q==",
-        "addedAt": "2026-09-02T07:54:58.202Z"
+        "addedAt": "2026-09-02T08:14:44.562Z"
       },
       {
         "id": "game-4cf9ee9d152b1f364153",
@@ -3330,7 +4075,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/218620",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABgcDBAgF/8QAKhAAAQMDAwIGAwEBAAAAAAAAAQIDBAUGEQASIQcTCBQxUWFxIkGRFlL/xAAZAQEBAQEBAQAAAAAAAAAAAAAGBwMECAX/xAAwEQABAgQEBQIFBQEAAAAAAAABAhEAAwQFBhIhMRNBUWFxFcEUIjKBoQdSYpGx0f/aAAwDAQACEQMRAD8Axfb9lVS7XC3SoSpCkDK1bglKc+nJIHOD/NJqK3VVwUUUyMzb9B9zpB24XWjtaAurmZQduZPgDWD20vD5LfqLiLgSuLEDe5CorySVKChwTg44J0yt2EZy5pFeMqW0YjfpzgBdcc08uQDbCFLfXMDtrry5xb6kdBFBinotKnF8oSvzK3ZQ3LPG0/moD39Ma7LxhVQEsWyW7Pm+bU7NufO0cNgxqkmabxNZyMoCSw3fYE9N4Tdbtyp2xLMWpwnYL+MhLycbh7pPoR8jU6qaOool8OoQUq7xVqOvpbhL4tLMC09vfp94afSzq1S7Kt+REmw5T8h2QXEuMBGNu1IAJKgc5B/umVgv9LaaZUqahRUVO4boBzI6QAxPhisvdWifImJCUpAYvu5L6A9RBxA64G6C/T7doNQk1VTR7ZdSgtNr/RcO7hOf3pdIxP8AH5pNDIUZhGjswPJ9doDVGDvTMtRcqhCZQIdicxHMJ+XeGdTvMCnxzLCPN9tPf7KSElePy255xnOM/rTaTn4SeJ9TB22fm3bzE6n8PirEonI5Z2dn0fu27QlPFPLbTbtCSobH1yVlKSOdu3nn7KdTrG60mnkg/U5/ptfaKv8Ap0hQq6ggunKP7fT3gK6PdKXOorLk+TM8rSY73ZWGuXXVAAkDPAGFDk5+tFsP4eN3BnTF5ZaSxbcnf7b7/iGeJ8UixkU8pGaaoOH+kByHPM7bfmNMW/bdLtinJh0uI3Fjj1CR+Sz7qPqo/J1aaSipqGVwqdASP989Y8+V1wq7jOM+qWVK/wA8DYfaILmmVtinrFAgxpU9WcKmvFtpHycAlX0Mfes6yZVJlkUaApf8iwH/AHx+Y0oJVEuaDXzClA/aHJ7dB518RkrrJbt3UeZHqN1zWJj0kltoMO7g0BztCcAJHPGNQ+/UdxkLTOuCwoq0DHZuTMGEejcMV9qqJaqe1oKQnUuGd+ZLkk+Y5Np9XrhsiA/Bo8htmK66XlJcaSslRAGcn4SNcNBe622yjJplAJJfYHXb2j6Vyw7b7tOE+qSSoBtCRo5PvDM6ceJOUqoSv9bObagtxz2g1H5W5uT/AMgn0z8aYWnFk3iK9RmfIBow5uOkA75giSJKfSpZzlWrq5Mepbdu8VL98UUx2VHTaS1xmkBXeXLjoO88bduSfn29dZ3LGE1Sk+nlgHdwNejbxtaMByUoUboAolmyqOnV9u3WFLdvUOt3v2hVXm3u2dyQ20lHOMZ40KrbpU3BhPLt2AihW6z0lqf4ZJD9yY//2Q==",
-        "addedAt": "2026-09-02T07:54:58.194Z"
+        "addedAt": "2026-09-02T08:14:44.531Z"
       },
       {
         "id": "game-42fd5e2d7330da84a3e7",
@@ -3340,7 +4085,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/1174180",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJgAmAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD8/PBXw6sNY0G1vblWaSTLdeMZ/wDrV4mJxk6dRwiftHDvCeEx+Ap4qutZX/M9Eu/AnhR/hv8AEC/ub+x0fWtM02G7023fy1a8ka8gieNQRlj5ckhwvIwT0U1ngnOtP327I7OMaWFynBKOEpwjOcrPRXSs3p2u+v3HlFrrtg/hXT7RbLz7+3mDsFgzvXccrkeqmtZUaixMpuVotd/L/M+doZrg5ZLh8MqPNWpyTfu7rmd1fzi9f+GDxFoeiX2k313okUpFufMeZlwmSfuD8OfbitaNStCcY1ev9XJzXL8qxWErYjKov3NXK1o6v4V8tfLQ+j/g38EtT1z4c+GdUYXUOnXsAxK1m0A3lm+VJLgxRy5G0/undjuwFYisquBlVqOd9GenlvG2GyrLqeEVFynGK6pJt6+v4Ho3hjw14P8AiB8cdBvfEGirNo13dWemJclt+nyS286oxRGVsFikhKSswIwu1EIVarVpU5ewa9H/AMA+ejlVPG4CecYareSbc4PVrW/xaN9OnXdtHNXfh3wh8CvjNrvhrxB4WsvEY0m6M5uVf/V4iMgMcbyKpwrqSp4zwMkmvFqUcRNW9pZ/1vY7nmGFjTjOFK6vfXv1te+3dd/u8S8YR2Nt4J1E2dotpZmFmitwP9WG6D6jNdFFyliU27u5+kY+hSwfDMqahZKmtPNrf1u9T234Ta9eXnwMvvENpCllq98bGG7khuJpPtSQQtDHIYTlEVfL2lTiNy2MDYgHpYjGVKEk2vdvY/IaGSYPE0oRpVH7SVPn12Tu1bb89iDxTr2oaZ8FZ/GDakI7vUNSitWFwkRkWRVDSHKvklihy6BCu8gHGa8zE1XWxi5Fey/ryvqevk+HWHwVSlVqum3d7dbpWeqbi0tTxvw9rcA1iXxPqh1LXfOi86WKS9P75gnyLICD5q9MDIyAVxnAPXJSq/u1K3y/q39M8mEYYSSq1KfPdcy10fbS2v4dU1fQpeLNdttS8BX869ZIARE3XlgAfpnv7Vz0KThiVHsz9YzfNqGYcO1cRH7UdvV2+aTvr5dyX4f+Nz4g+E9x4btdfg8Oa3pKJcWTvN5H2ny3ncRks21w32iQEdVZIcDaZGX3qlKE4uM43TPwWji6sZQnSqcsoq35/eu/5HnPiT4jeLNd0WHRtY8QXF/pUMsk8ViJ90SzEFC/1wzc89T61jSw9GnK9ONn3/E2xWLxdZJ4ipe99FbtbX+vzE8HeLZNNsJtNuRFNbj95C0mGMTdWC9xu55GCCeoyaivQvUVWG70fn5/L8j08tx18HPAYizS1g9Lxe7S8peW0rd2dD4z8U6bqfg3bbsgnk6xkgv97HIHQ8Nn/dB6MBXLSw0o4pVP62/r+kevWzuE8jnl80r7p9dZar8W7+Xmf//Z",
-        "addedAt": "2026-09-02T07:54:58.201Z"
+        "addedAt": "2026-09-02T08:14:44.561Z"
       },
       {
         "id": "game-cc5521a8140a7b6c7332",
@@ -3350,7 +4095,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/393380",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJgAmAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABwgFBgkD/8QAKxAAAgEDBAECBAcAAAAAAAAAAQIDBAUGBxESIQAIMQkTQVEUFRYiUoGR/8QAGAEBAQEBAQAAAAAAAAAAAAAAAAYFBwj/xAAsEQABBAEDAwIEBwAAAAAAAAABAAIDEQQFBiESMUETURVhcYEykaGxwfDx/9oADAMBAAIRAxEAPwDLKsrZ6yrmnnmeaaRyzyOxJYk+5PhFx5t/I/74RFPJPTvk2P4Ldc2SuttxxGjakWnutPUELXio3CmBWUMSjKyurBWUqwI6O0ni7lxMnMj04tc2d3VbSPw9PfqIJHIILSLBBHPIWlLgSRxmawWCqPvft9PPlDKjrKiiq4Z4JnhmjcMjoxBUg+4PlYs1Pj8NzSfC73p7rVqDkOAUep18xSkga3Y9XxiaNwySu+0ZVwWb5YAJRiOJC9k+ETOWfRb0zWCq1T1Zw3EsX1LsKVtnt9Naw6VFsoZZ5YopxCCropPz0kI4njtxXgCR4RXHVfQzG8ksmf6SxwLbsVgmhhtsUUSv+XI9PDMBEG9uEjOV+wbiOgPPL+9JRtjdcWpYIpzmh7hZAJJc038iALHuuh6TH8R010Ep7EgfSgR+VrKr1dYnjeD633PF8VxV8Wt1lihpmSWped6x+Ab8QSzsAHDLsAR0OwCSB2jZmVmZ+jx52bP6rpCTwAA0XXTwB2INk/biipPVI44MkwxM6Q39fN/3900Xw1NN8miXPM/wbIayHMcegp1hxOP5Zpr5A/JjFOHIO267K4IKHsHvY3CyE9mc6TWo2rWrF9PrbTPeLnfLFfa6z0ciRhJ2mpnkk4kgJzSmMh+55HsnwiBvrN16qNL9fZsYpK2qx2a61tvudwvIoUqlioBTiMoinfdmkhKseJ4ruQCevOWbm2kdaz36hJGJAyHpYzqLbf1ONkiuADYFizwaCo9P1MYkIgDi0l1k1fFD+R9gkE9SWrV59QGWJe7pa6O1wUURp6KnpgXeOLckh5CAXJPfYAH0A73o9sbag2xhnGhkLy424ngE/Ic17dzfklZ+oZ79Ql9RwoDt/qk8Br4bbBDVUNzms9zgURyNT1DU88TD3UlSGGxHlgsxW6zZhdMbvNXd7RmF0td3qxxqbhR3WWKonH0EkiuGf+yfCKQ1B1KuuqsVj/Vl7ivlZZ6Z6OnuNSymqeEtyCSyb7ycTy2Ld/uO5PhENcngttPb3Eckc07jhFDEQzyMfZVA7J38Iv/Z",
-        "addedAt": "2026-09-02T07:54:58.199Z"
+        "addedAt": "2026-09-02T08:14:44.558Z"
       },
       {
         "id": "game-c2d752e88393e8df56e3",
@@ -3360,7 +4105,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/228980",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJgAmAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/wAALCAAgACABAREA/8QAGQABAAIDAAAAAAAAAAAAAAAACQYIAAcK/8QAORAAAAMGAwQHBAsAAAAAAAAAAQIDBAUGBxESAAgUExYYMQkVIUFXltMXGSY4RUdhY2d2haa0xOT/2gAIAQEAAD8AP/hOnf4NzA8rt3pYikp4F9qE04Ng3XdWbxPpidGt2W10+oXIltLLi3W31tuCtKVDnhKvcY/jZ+1P9uKq558jHBduT8bb47y676J0Om0+n+/Vvu1H2Ut769jU8WMkPGSX/mhh9XAA5Tvmnk3+c3N/ORx0p4KvpzvqT/W/6GNFdETL2FZlZkokdkXQ054qdqUJNLSmxvtgSbESKg2MZQUAihTABgKc4XUrQwh3jhNMwuXqVkBSCmXE8MS0g+HIkcsMvN5Ot8OlwsrK2MDUiyqKIroLJpgdJUhylOU5RAxTFAQEBDAg8WM7/GSYHmhu9XEUjqbEcTQ0O+UZRBFuhv0nXr0XbdPfbfs9qc1t1hK0pW0teQYmuV/NBFWUyPnhF0Iu9zvF5NrsUdSiT7RVVRBI6qSomAE1UxuuRIFaiFBHs5CFgJhdLtOGZUAxLCLzhuB0Ha/3Y0upqVZGBsKsRJdIyRzEEzWYAMBTiICICFaVAeWKQYzH/9k=",
-        "addedAt": "2026-09-02T07:54:58.195Z"
+        "addedAt": "2026-09-02T08:14:44.532Z"
       },
       {
         "id": "game-31bf5bce1f91a9f35d68",
@@ -3370,7 +4115,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/1962700",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGAABAAMBAAAAAAAAAAAAAAAABgECBQT/xAAqEAACAQMCBQIHAQAAAAAAAAABAgMABBESIQUGEzFRIkEHFDJhcYGRsf/EABgBAAIDAAAAAAAAAAAAAAAAAAUGAgMH/8QAJREAAQMDAwMFAAAAAAAAAAAAAQIDBAAFMRETIQZRcRIiMmHR/9oADAMBAAIRAxEAPwArYQNI4wKacCsSCMDJxk0dt5ordMpufJrc5du/mpHQvMsi+tWVlC/sEfynJ57bQSKzVmCqe6EK9qSdKb2XDpWVZETqRAgnS43x7bGq36ZVpiNJL6Sp2Kj2/wAoRe/FJbC+WymnDiCQa9EeNvAOcAjzuPtXfac1rzDB10KEhQHaMnGod8ZP3H8NDo04uuhJGaJX7owW6EZDStQOTqPAz35x5oFwURXTZu7lbeBfqkI1fpV7k1scwW9xDAtpw2VuHq662MmGlcEenXj6T749ttjQDhRlWUOGII3yNjSQXMkzmSV2Z23ZmOST5NQWC5wrFMKlCGoLY+Xf8ozf8uDoSPNDIJYo9PUSRmM8jOMEDzjVsAOwplyrZNwfhHTk9M8uCy5zoUZwv53JP5qIr1VXY9qr82SSxNXRGG2l+sUHvFylTGNheNefuv/Z",
-        "addedAt": "2026-09-02T07:54:58.192Z"
+        "addedAt": "2026-09-02T08:14:44.529Z"
       },
       {
         "id": "game-b4dfcc1611460a1bdef9",
@@ -3380,7 +4125,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/460930",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJgAmAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAgACADAREAAhEBAxEB/8QAGgAAAQUBAAAAAAAAAAAAAAAABgQFBwgJA//EACsQAAEDAwMCBQQDAAAAAAAAAAECAwQFBhEAEiEHMQgTIkFhFBYyURUjcf/EABcBAQEBAQAAAAAAAAAAAAAAAAEAAgP/xAAXEQEBAQEAAAAAAAAAAAAAAAAAAREh/9oADAMBAAIRAxEAPwDMWSp+ZKdffdW684oqW4tRJUSe5OtYysp0s8NTd2WxTJKIwdmvo8x11eVDBJxgdgMa3kc7Sfqz4a3LUp8iUzEwGWyols7SMe+P1qyKWq+MMSKfJafadW082oKQ4hRBSQe41nG9ObFMIkf2oPl55wNODWs/hEk9P3+n1BpX3VQ5N1IZUqXSmpKA6xuWVIbIONykpIB25AORnIOrVkc/F1PsmmWVV6Q5V6TFuGUx5UWE/ISlxwkg8gZKQR7qwORpjN4ywqVJUwpaFjapKilXwc6qkvRbHZlRWpAbB9PI9tawFNu2dsqaXYUJT0+Pl6M3nISsfirnH4nn5476AMb/AE0OphFbumjS/u6oKBliFJSw28UehTiklKsFW0H04HP+akhS60tSn1PNR0xm9oSlpJzgDjk+5+dRiTLWuyNEjGPJTsWj0qSsYIOqVWHVF4xqdP8Aq4i0tuAbSc9we+kBi8rn/nqp5x5ATtTzoIGqqFSnEMtpK3HDtSEjJJ/WgyP/2Q==",
-        "addedAt": "2026-09-02T07:54:58.209Z"
+        "addedAt": "2026-09-02T08:14:44.570Z"
       },
       {
         "id": "game-873a0ddcbc328686360e",
@@ -3390,7 +4135,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/236390",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABgcDBAgF/8QALRAAAQMDAgUCBQUAAAAAAAAAAQIDBAUGEQchABITMVEiMhQWI0FiM0JDYXH/xAAWAQEBAQAAAAAAAAAAAAAAAAACAwH/xAAkEQACAQQBAgcAAAAAAAAAAAABAgMAERITQSFhBCIjMVGBof/aAAwDAQACEQMRAD8AStlabouaz5deduWlUlLU0QUNTecBbhRzjK0g8oIzg4/ae3Bzp9pQq1Zbt0ahsxlU2AoGBDbeQ6mpvYyggpJBaGxPnsRsRxLpLZjlJsusSL/kppNArzLaYcdxBVJW8lWW5CEdwlIUrJPuCvBGatOrNZ04rJo1biR6tRgsPfByPqR30Hs8yo+3I7KH+EHGOCQXBWM+amtomV5lOBPHNR64adochC+rVi9Omy0peqUBG6oDqxnmAH8as5HjP2BwEdxspivWomQ/dsS82afDmNiO7SHYIdV0wgI6JaC8kAAYOOX+8Z4T2oGljVTopvHTqM+7R3Ul2TTVIUHYuMhS2wd3GeYKGRuMHvg4MWzH1BYj9qniNOd4GuD156dvr5q5opf0F6htWVcC09VyV1KfOqSW5ESL6f01IWUlCTg7hR3I2G+TevWzdd2W1S0XFPtOn0eEw7JYlRihZcQFEqCOkDkJBAwnA2GcnjKfDV0a1CRSGZVp3NIc+VKr6FLB9UF0kYdT+OQOZP3G/kF3KglAL1IAOQshONFTGklZmIE+05lKuKK0sEhtfSUCD7VocCcZ8Z3HHf1jeuhGjCGpMNFsiNNUJsJtxCEzG3VqUkN8qiShC1KyjthQO+OFrq9fUaWwi0LSdKbYgLy6+nZVRfHd5f45HpHjB8YVfGq7so2e9F440kOq+Pev/9k=",
-        "addedAt": "2026-09-02T07:54:58.205Z"
+        "addedAt": "2026-09-02T08:14:44.566Z"
       },
       {
         "id": "game-37991765ea1f65a7424b",
@@ -3400,7 +4145,7 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/4809930",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/wAALCAAgACABAREA/8QAGAABAAMBAAAAAAAAAAAAAAAACAYHCQX/xAAqEAABBAIBAwMEAgMAAAAAAAACAQMEBQYRBwAIEgkUIRMiMUEVUTJhcf/aAAgBAQAAPwAxenV2i4f3bZjmFTmFpc1cWmr2pbLlM8y0RETnivmrjZprX9InUtyTjHtl457gqHFMAfyblJyvkHJupc12PNgg0wJOuMxWWmQ90+SNqA7VWvIhRUcTaIoeO/SI4n5H4+xvJrmXm2MWdpCCY9WhYxjNr6ik4CO+UX4dQDATQUEUIV0KfsVeon2lYl2k8g4tQ4jZXNlEtaspzx3LzThiaPEGhVtsERNCn5Rf+9cLt6y+IvC/J+ONwrPG4semfs7zKKazFl6cKKLUOA6Bsnto5DrYqDZtqSGZF5oCClH4JmV5gdjKtqNuM4XtyjSUnVrE+OrRqiKLjT4G3pVQdKqbRUTXz0ieAvUr5f4GdnMxpEPKaiWYElZelIdZiIm/tiiLooyK7/xRPH4T4+OpD3lc7x+7Hjyk5PyrHZWCZBD1SUkFiUkli5FDV2Q+gkAG0DSGIqWzQicEU/BqNL8U9xEDi3i2/wASTj2jyiZdWTE+RPv3X3GfFgCRhv27ZNoaCTjp6MiFVIdh9iL0ie27uG5I7j4DHBlVx3hl+dpapZuTJ9M21WU8RsAFD9nHFpvTa+ZeTimpk4I6Vdb12434DwXjKlr4lTitAzNjMiDtjFpYkR180T7nFRlsRFVX50KIifrrJj1kuQMazXnXFomP3kG5fp6c4lgMF5HUjPfXMvpmo7RCRFTY72n710Aekx2T971v2e5BZnHxqtyKjuSb/kWnBRmb4hvx+lIRFVETar4EhCv+lXfUr7pPU85R7gveU1K+WAYa7sP42qfX3MkP6fkJoiRU/IggiqLpUL89Dzr/2Q==",
-        "addedAt": "2026-09-02T07:54:58.200Z"
+        "addedAt": "2026-09-02T08:14:44.560Z"
       },
       {
         "id": "game-6c21b397f97ecdb596c3",
@@ -3410,25 +4155,26 @@
         "executablePath": null,
         "launchUri": "steam://rungameid/2964090",
         "iconDataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQIAJQAlAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAgACADASIAAhEBAxEB/8QAGQABAAIDAAAAAAAAAAAAAAAABwYIAgQF/8QAKxAAAQQCAgEDAwMFAAAAAAAAAQIDBAUGEQAhBxJBURQiMSMykWFjseHx/8QAFgEBAQEAAAAAAAAAAAAAAAAAAwEE/8QAIREAAgEDAwUAAAAAAAAAAAAAAQIAAwQhEUHwFDJRYeH/2gAMAwEAAhEDEQA/AC3xjjEfKcsZrZkl+LFUy68txpAUoBCCvQB671xFosAw66K01s/J5a2xtSW69KiBv8kAnmh4JhobzhhxKy4j6WT6iR+P0VcX/EcethWTe5j8OycB9MYo0iQ0Rsdkd/P+OSrekuFG8lKwAQs2dIfr8eYtUKS1Pm5M16/uQiRASjrfegSOQ7P8Yj43lcisiPOPx0NNuJccSEkhaArRA69+WB8kmvctXFJmyJVk2nuOlHqQw2BsnodfPCzzIlJzSXptTqjGYOgP7SeD1JLN6jLbgKPEw8TOsJu2pLLhWDEkEpPakkNK6/5xiw2fW5JT4rPrrGM8quYSHkIIUoEthJSrR2kg+x5TrHsgsKKc1Jq5rjT7f7VA61/rkzTnNTZzESb2udgWwHVxSufTP7+VpGkr/jiGyXXnNpnF+zDRsc+yx+e2dZjFBldjMmRW3rCMsMtuKCVLUGyAhOztRJ9hwC8v5E+jPXmUMNncSMrav6spPOY5nNXWy1SaOudm2R6NzcOfUySflCTtKORextpNzaLmT5BkynP3Ou/cs+38cRbKme4Q2v6i4pnM/9k=",
-        "addedAt": "2026-09-02T07:54:58.197Z"
+        "addedAt": "2026-09-02T08:14:44.547Z"
       }
     ],
-    "lastScanAt": "2026-09-02T07:54:58.223Z"
+    "lastScanAt": "2026-09-02T08:14:44.582Z"
   },
   "performance": {
-    "coreMemoryMb": 121.1,
-    "rendererMemoryMb": 19.8,
-    "totalMemoryMb": 140.9,
-    "residentMemoryMb": 368.5,
+    "coreMemoryMb": 115.1,
+    "rendererMemoryMb": 24.4,
+    "totalMemoryMb": 139.4,
+    "residentMemoryMb": 390,
     "totalCpuPercent": 0,
     "activeProcesses": 3,
     "budgetMemoryMb": 180,
     "budgetCpuPercent": 0.7,
-    "sampledAt": "2026-09-02T07:54:58.003Z",
+    "sampledAt": "2026-09-02T08:14:44.327Z",
     "guardState": "collecting",
     "warning": null
   },
   "settings": {
+    "uiScalePercent": 125,
     "launchAtStartup": false,
     "closeToTray": true,
     "destroyRendererInTray": true,

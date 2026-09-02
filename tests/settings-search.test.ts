@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { searchSettings, settingsSearchEntries } from '../src/renderer/src/components/settings/settings-catalog';
+import { searchSettings, settingsCategories, settingsSearchEntries } from '../src/renderer/src/components/settings/settings-catalog';
 
 describe('settings search metadata', () => {
   it('matches titles, aliases, and descriptions without crawling the DOM', () => {
@@ -9,7 +9,7 @@ describe('settings search metadata', () => {
     expect(clipResults).toContain('capture.duration');
     expect(searchSettings('clip quality')[0]?.category).toBe('clips');
     expect(searchSettings('renderer memory').map((entry) => entry.id)).toContain('diagnostics.memory');
-    expect(searchSettings('white variant').map((entry) => entry.id)).toContain('devices.appearanceFallback');
+    expect(searchSettings('white variant')).toEqual([]);
     expect(searchSettings('reaction voice').map((entry) => entry.id)).toContain('reactionClipping.enabled');
   });
 
@@ -21,8 +21,7 @@ describe('settings search metadata', () => {
   it('indexes every stable settings row and workspace action', () => {
     const ids = new Set(settingsSearchEntries.map((entry) => entry.id));
     const expectedIds = [
-      'general.startup', 'general.closeToTray', 'general.destroyRenderer',
-      'devices.connected', 'devices.appearanceFallback', 'devices.workspace',
+      'general.softwareRendering', 'general.startup', 'general.closeToTray', 'general.destroyRenderer',
       'audio.engine', 'audio.sampleRate', 'audio.output', 'audio.microphone', 'audio.mixer',
       'capture.engine', 'capture.storage', 'capture.duration', 'capture.shortcut', 'capture.source',
       'capture.resolution', 'capture.frameRate', 'capture.quality', 'capture.encoder',
@@ -38,5 +37,10 @@ describe('settings search metadata', () => {
     ];
 
     expect(expectedIds.filter((id) => !ids.has(id))).toEqual([]);
+  });
+
+  it('does not expose the Devices workspace as a duplicate settings category', () => {
+    expect(settingsCategories.some((category) => category.id === ('devices' as never))).toBe(false);
+    expect(settingsSearchEntries.some((entry) => entry.category === ('devices' as never))).toBe(false);
   });
 });

@@ -192,7 +192,6 @@ function SettingsCategory({
   onReset?: () => void;
 }) {
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
-  if (category === 'devices') return <DevicesSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'audio') return <AudioSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'clips') return <ClipsSettings snapshot={snapshot} onReset={onReset} />;
@@ -227,6 +226,13 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           ]}
           onValueChange={(value) => void updateSettings({ uiScalePercent: Number(value) as 90 | 100 | 110 | 125 | 150 })}
         />
+        <SettingSwitch
+          settingId="general.softwareRendering"
+          title="Low resource rendering"
+          description="Use software rendering on the next launch to reduce background memory. Leave off for smoother high-resolution clip playback."
+          checked={snapshot.settings.softwareRendering}
+          onCheckedChange={(checked) => void updateSettings({ softwareRendering: checked })}
+        />
       </SettingSection>
       <SettingSection title="Startup and window">
         <SettingSwitch
@@ -250,61 +256,6 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           checked={snapshot.settings.destroyRendererInTray}
           disabled={!snapshot.settings.closeToTray}
           onCheckedChange={(checked) => void updateSettings({ destroyRendererInTray: checked })}
-        />
-      </SettingSection>
-    </>
-  );
-}
-
-function DevicesSettings({ snapshot, onReset }: CategoryProps) {
-  const setPage = useSystemStore((state) => state.setPage);
-  const setDeviceAppearanceOverride = useSystemStore((state) => state.setDeviceAppearanceOverride);
-
-  return (
-    <>
-      <SettingsCategoryHeader title="Devices" description="Review connected hardware identity and appearance fallbacks." onReset={onReset} />
-      <SettingSection title="Hardware identity">
-        {snapshot.devices.map((device, index) => {
-          const hardwareResolved = device.variantResolution.confidence === 'hardware';
-          const appearanceOverride = snapshot.settings.deviceAppearanceOverrides[device.id];
-          return (
-            <div key={device.id} className="settings-device-identity">
-              <SettingRow
-                settingId={index === 0 ? 'devices.connected' : `devices.${device.id}.identity`}
-                title={device.displayName}
-                description={deviceSummary(device)}
-              >
-                <span className="settings-row__value">{device.connected ? 'Connected' : 'Disconnected'}</span>
-              </SettingRow>
-              <SettingSelect
-                settingId={index === 0 ? 'devices.appearanceFallback' : `devices.${device.id}.appearanceFallback`}
-                title={`Appearance fallback · ${device.displayName}`}
-                description={hardwareResolved
-                  ? `Disabled because ${device.variantResolution.source} identified an exact hardware variant.`
-                  : 'Used only when automatic hardware and module evidence cannot identify the cosmetic SKU. Stored against this stable device identity.'}
-                value={hardwareResolved ? 'automatic' : (appearanceOverride?.variant ?? 'automatic')}
-                options={[
-                  { value: 'automatic', label: 'Automatic' },
-                  { value: 'white', label: 'White' },
-                  { value: 'black', label: 'Black' },
-                ]}
-                disabled={hardwareResolved}
-                onValueChange={(value) => void setDeviceAppearanceOverride({
-                  deviceId: device.id,
-                  override: value === 'automatic'
-                    ? null
-                    : { variant: value, colorway: value === 'white' ? 'White' : 'Black' },
-                })}
-              />
-            </div>
-          );
-        })}
-        <SettingAction
-          settingId="devices.workspace"
-          title="Per-device controls"
-          description="Hardware gain, DPI, polling rate, lighting, and button assignments remain on each device workbench."
-          label="Open Devices"
-          onClick={() => setPage('devices')}
         />
       </SettingSection>
     </>
@@ -597,18 +548,15 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
           <span className="clip-storage__capacity">Possible clips: <strong>{possibleClips?.toLocaleString() ?? '—'}</strong></span>
         </div>
         {storage.warning ? <p className="clip-storage__warning"><AlertTriangle aria-hidden />{storage.warning}</p> : null}
-      </section>
-
-      <SettingSection title="Storage location">
         <SettingFolder
           settingId="capture.storage"
-          title="Clip folder"
+          title="Storage location"
           path={clipDirectory}
           onChange={() => void chooseClipDirectory()}
           onOpen={() => void openClipsDirectory()}
           className="clip-storage-location"
         />
-      </SettingSection>
+      </section>
     </div>
   );
 }
@@ -974,7 +922,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
               size="sm"
               className={cn('settings-update-action', update.status === 'downloaded' && 'settings-update-action--ready')}
               data-app-update-action={update.status}
-              disabled={updateBusy}
+              disabled={updateBusy || (automaticDownloads && update.status === 'available')}
               onClick={() => {
                 if (update.status === 'downloaded') void installAppUpdate();
                 else if (update.status === 'available') void downloadAppUpdate();

@@ -18,6 +18,7 @@ export interface ClipLibraryQuery {
 
 const generatedCaptureName = /^(.*?)[_ -]\d{4}-\d{2}-\d{2}(?:[_ -]\d{2}[-_:]\d{2}[-_:]\d{2})?(?:_\d+)?$/i;
 const desktopSourceName = /^(?:display|desktop|screen)\s*\d*$/i;
+const switchboardCaptureTitle = /^switchboard capture\s*·\s*/i;
 
 export function inferClipGame(name: string): string | undefined {
   const match = generatedCaptureName.exec(name.trim());
@@ -28,14 +29,22 @@ export function inferClipGame(name: string): string | undefined {
 
 export function clipGameLabel(clip: Pick<Clip, 'game' | 'path' | 'name'>): string {
   const explicit = clip.game?.trim();
-  if (explicit) return explicit;
+  if (explicit) return desktopSourceName.test(explicit) ? 'Desktop' : explicit;
   const fileName = clip.path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') ?? clip.name;
   return inferClipGame(fileName) ?? 'Desktop';
 }
 
-export function createDefaultClipTitle(game?: string | null): string {
-  const label = game?.trim() || 'Desktop';
-  return `${label} clip`;
+export function createDefaultClipTitle(_game?: string | null, createdAt = Date.now()): string {
+  const capturedAt = new Date(createdAt);
+  const timestamp = capturedAt.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  return `Switchboard Capture · ${timestamp}`;
 }
 
 export function isGeneratedClipTitle(name: string): boolean {
@@ -43,10 +52,17 @@ export function isGeneratedClipTitle(name: string): boolean {
 }
 
 export function normalizeClipRecord<T extends Clip>(clip: T): T {
-  if (clip.titleEdited || !isGeneratedClipTitle(clip.name)) return clip;
+  const legacyDefaultTitles = new Set([
+    `${clipGameLabel(clip)} clip`.toLocaleLowerCase(),
+    ...(clip.game?.trim() ? [`${clip.game.trim()} clip`.toLocaleLowerCase()] : []),
+  ]);
+  const generatedTitle = isGeneratedClipTitle(clip.name)
+    || legacyDefaultTitles.has(clip.name.trim().toLocaleLowerCase())
+    || switchboardCaptureTitle.test(clip.name.trim());
+  if (clip.titleEdited || !generatedTitle) return clip;
   return {
     ...clip,
-    name: createDefaultClipTitle(clipGameLabel(clip)),
+    name: createDefaultClipTitle(clipGameLabel(clip), clip.createdAt),
     titleEdited: false,
   };
 }

@@ -1,0 +1,35 @@
+{
+  "viewport": {
+    "width": 982,
+    "height": 656
+  },
+  "reviewCards": 2,
+  "dialogBounds": {
+    "width": 627.9923706054688,
+    "height": 370.8806457519531
+  },
+  "columns": 2,
+  "firstCard": {
+    "width": 283.5511169433594,
+    "height": 219.47915649414062
+  },
+  "scrollOwned": false,
+  "horizontalOverflow": false,
+  "title": "2 new clips",
+  "manualReviewOpened": null,
+  "interactions": {
+    "mode": "escape",
+    "reviewedThrough": 1788337796360,
+    "reopened": false,
+    "hash": "#capture",
+    "openedClipId": null,
+    "activeClipId": null,
+    "editorOpen": false
+  },
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\new-clips-review-2-1080x720.png",
+  "imageSize": {
+    "width": 1620,
+    "height": 1083
+  }
+}

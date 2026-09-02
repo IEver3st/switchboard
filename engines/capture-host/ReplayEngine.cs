@@ -55,6 +55,15 @@ internal sealed class ReplayEngine : IAsyncDisposable
     public bool HostActive => IsHostActiveState(operationalState);
     public TimeSpan Uptime => startedAt is null ? TimeSpan.Zero : DateTimeOffset.UtcNow - startedAt.Value;
 
+    public IReadOnlyList<ReplayProcessResource> GetProcessResources()
+    {
+        var resources = new List<ReplayProcessResource>(3);
+        AddProcessResource(resources, ffmpeg, "video-encoder");
+        AddProcessResource(resources, systemAudioFfmpeg, "system-audio-encoder");
+        AddProcessResource(resources, microphoneFfmpeg, "microphone-encoder");
+        return resources;
+    }
+
     private IEnumerable<Process> ActiveProcesses()
     {
         if (ffmpeg is { HasExited: false }) yield return ffmpeg;
@@ -70,6 +79,25 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private static long SafeWorkingSet(Process process)
     {
         try { return process.WorkingSet64; } catch { return 0; }
+    }
+
+    private static void AddProcessResource(List<ReplayProcessResource> resources, Process? process, string role)
+    {
+        if (process is null) return;
+        try
+        {
+            process.Refresh();
+            if (process.HasExited) return;
+            resources.Add(new ReplayProcessResource(
+                process.Id,
+                role,
+                process.PrivateMemorySize64,
+                process.WorkingSet64));
+        }
+        catch
+        {
+            // A child can exit between the capture snapshot and resource sample.
+        }
     }
 
     public async Task<CaptureHostSnapshot> StartAsync(CaptureSettings next, CancellationToken cancellationToken)
@@ -643,10 +671,22 @@ internal sealed class ReplayEngine : IAsyncDisposable
         return start;
     }
 
-    private AudioPipeCapture CreateMicrophoneInput(CaptureSettings capture) =>
-        capture.ProcessedMicrophoneDeviceId is { Length: > 0 } endpointId
-            ? AudioPipeCapture.CreateEndpoint(endpointId, "Processed microphone", reactionDetector)
-            : AudioPipeCapture.CreateDefaultMicrophone(reactionDetector);
+    internal static string? ResolveMicrophoneEndpointId(CaptureSettings capture) =>
+        capture.ProcessedMicrophoneDeviceId is { Length: > 0 } processedEndpointId
+            ? processedEndpointId
+            : capture.MicrophoneDeviceId is { Length: > 0 } selectedEndpointId
+                ? selectedEndpointId
+                : null;
+
+    private AudioPipeCapture CreateMicrophoneInput(CaptureSettings capture)
+    {
+        var endpointId = ResolveMicrophoneEndpointId(capture);
+        if (endpointId is null) return AudioPipeCapture.CreateDefaultMicrophone(reactionDetector);
+        var label = capture.ProcessedMicrophoneDeviceId is { Length: > 0 }
+            ? "Processed microphone"
+            : "Selected microphone";
+        return AudioPipeCapture.CreateEndpoint(endpointId, label, reactionDetector);
+    }
 
     private async Task ReconcileReactionInputAsync(
         CaptureSettings? previous,
@@ -759,8 +799,6 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return "-nostats";
         yield return "-progress";
         yield return "pipe:2";
-        yield return "-thread_queue_size";
-        yield return "256";
         yield return "-f";
         yield return "lavfi";
         yield return "-i";
@@ -827,7 +865,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         return $"ddagrab=output_idx={capture.DisplayIndex}:framerate={capture.Fps}:draw_mouse={(capture.IncludeCursor ? 1 : 0)}";
     }
 
-    private static IEnumerable<string> EncoderArguments(CaptureSettings capture, string encoder)
+    internal static IEnumerable<string> EncoderArguments(CaptureSettings capture, string encoder)
     {
         var target = capture.TargetVideoBitrateBps.ToString(CultureInfo.InvariantCulture);
         var maximum = capture.MaximumVideoBitrateBps.ToString(CultureInfo.InvariantCulture);
@@ -835,6 +873,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         {
             yield return "-preset"; yield return "p4";
             yield return "-tune"; yield return "hq";
+            yield return "-delay"; yield return "0";
             yield return "-rc"; yield return "vbr";
             yield return "-cq"; yield return Math.Clamp(27 - capture.Quality * 2, 15, 25).ToString(CultureInfo.InvariantCulture);
         }
@@ -924,11 +963,16 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private async Task MonitorAsync(CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        var telemetryTicks = 0;
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
                 await lifecycleGate.WaitAsync(cancellationToken);
+                var previousState = operationalState;
+                var previousError = error;
+                var previousWarning = warning;
+                var previousSourceId = activeSource?.Id;
                 try
                 {
                     var capture = settings;
@@ -1025,7 +1069,16 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 finally
                 {
                     lifecycleGate.Release();
-                    EmitSnapshot();
+                    telemetryTicks++;
+                    var transitionChanged = previousState != operationalState
+                        || previousError != error
+                        || previousWarning != warning
+                        || previousSourceId != activeSource?.Id;
+                    if (transitionChanged || telemetryTicks >= 5)
+                    {
+                        telemetryTicks = 0;
+                        EmitSnapshot();
+                    }
                 }
             }
         }
@@ -1225,22 +1278,35 @@ internal sealed class ReplayEngine : IAsyncDisposable
         if (microphoneConcatPath is not null)
             arguments.AddRange(["-f", "concat", "-safe", "0", "-i", microphoneConcatPath]);
         arguments.AddRange(["-map", "0:v:0"]);
-        var audioInputIndex = 1;
-        var audioOutputIndex = 0;
-        if (systemAudioConcatPath is not null)
+        var hasSystemAudio = systemAudioConcatPath is not null;
+        var hasMicrophoneAudio = microphoneConcatPath is not null;
+        if (hasSystemAudio && hasMicrophoneAudio)
         {
-            arguments.AddRange(["-map", $"{audioInputIndex}:a:0"]);
-            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}", $"title={systemAudioTitle}"]);
-            audioInputIndex++;
-            audioOutputIndex++;
+            // Chromium and most ordinary players select one MP4 audio track. Keeping the
+            // microphone as a second track made it present in the file but silent in clip
+            // playback, so combine the independently buffered inputs at save time.
+            arguments.AddRange([
+                "-filter_complex", "[1:a:0][2:a:0]amix=inputs=2:duration=longest:dropout_transition=0[clip_audio]",
+                "-map", "[clip_audio]",
+                "-metadata:s:a:0", $"title={systemAudioTitle} + {microphoneTitle}",
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "256000",
+            ]);
         }
-        if (microphoneConcatPath is not null)
+        else if (hasSystemAudio || hasMicrophoneAudio)
         {
-            arguments.AddRange(["-map", $"{audioInputIndex}:a:0"]);
-            arguments.AddRange([$"-metadata:s:a:{audioOutputIndex}", $"title={microphoneTitle}"]);
+            arguments.AddRange([
+                "-map", "1:a:0",
+                "-metadata:s:a:0", $"title={(hasSystemAudio ? systemAudioTitle : microphoneTitle)}",
+                "-c", "copy",
+            ]);
+        }
+        else
+        {
+            arguments.AddRange(["-c", "copy"]);
         }
         arguments.AddRange([
-            "-c", "copy",
             "-t", replayDuration.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
             "-movflags", "+faststart",
             "-f", "mp4",
@@ -1305,6 +1371,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         || previous.ClipMixPipeName != next.ClipMixPipeName
         || previous.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId
            && (previous.IncludeMic || next.IncludeMic)
+        || previous.MicrophoneDeviceId != next.MicrophoneDeviceId
+           && (previous.IncludeMic || next.IncludeMic || previous.ReactionClippingEnabled || next.ReactionClippingEnabled)
         || previous.CacheDirectory != next.CacheDirectory;
 
     private static IEnumerable<string> EncoderCandidates(string codec) => codec switch
@@ -1389,3 +1457,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
         stream.Flush(flushToDisk: true);
     }
 }
+
+internal sealed record ReplayProcessResource(
+    int Pid,
+    string Role,
+    long PrivateMemoryBytes,
+    long WorkingSetBytes);

@@ -81,6 +81,15 @@ export class AudioEndpointDiscovery {
       }
     }
 
+    const configuredExecutable = process.env.SWITCHBOARD_DEVELOPMENT_AUDIO_HOST;
+    if (configuredExecutable && existsSync(configuredExecutable)) {
+      return {
+        command: configuredExecutable,
+        arguments: ['--list-endpoints'],
+        cwd: dirname(configuredExecutable),
+      };
+    }
+
     return {
       command: 'dotnet',
       arguments: [

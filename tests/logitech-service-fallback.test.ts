@@ -101,12 +101,16 @@ describe('Logitech service fallback', () => {
   });
 
   test('keeps last-known controls visible and unavailable when another app owns HID++', async () => {
+    let openAttempts = 0;
     const module = new LogitechDeviceModule({
       readAgentDevices: async () => [],
       readBattery: async () => undefined,
       readCapabilities: async () => ({}),
       writeControl: async () => undefined,
-      openDirectSession: async () => { throw new Error('cannot open device with path'); },
+      openDirectSession: async () => {
+        openAttempts += 1;
+        throw new Error('cannot open device with path');
+      },
     });
 
     const [device] = await module.discover({
@@ -130,6 +134,14 @@ describe('Logitech service fallback', () => {
       },
       onboardMemory: { writable: false },
     });
+
+    const [rediscovered] = await module.discover({
+      hidDevices: [receiverDescriptor, longEndpointDescriptor],
+      previousDevices: [previousServiceDevice],
+      appearanceOverrides: {},
+    });
+    expect(openAttempts).toBe(1);
+    expect(rediscovered?.capabilities.dpi?.writable).toBe(false);
   });
 });
 

@@ -21,6 +21,7 @@ import {
 } from './ghub-metadata';
 
 const logitechVendorId = 0x046d;
+const directSessionRetryDelayMs = 30_000;
 export interface LogitechDeviceModuleDependencies {
   readAgentDevices(): Promise<LogitechAgentDevice[]>;
   readBattery(deviceId: string): Promise<LogitechBatteryState | undefined>;
@@ -43,6 +44,8 @@ export class LogitechDeviceModule implements DeviceModule {
   private directSession: G502DirectSession | null = null;
   private directPath: string | null = null;
   private directDeviceId: string | null = null;
+  private failedDirectPath: string | null = null;
+  private directRetryAfter = 0;
 
   public constructor(private readonly dependencies: LogitechDeviceModuleDependencies = defaultDependencies) {}
 
@@ -50,6 +53,7 @@ export class LogitechDeviceModule implements DeviceModule {
     const logitechHid = context.hidDevices.filter((device) => device.vendorId === logitechVendorId);
     this.agentIds.clear();
     if (logitechHid.length === 0) {
+      this.clearDirectRetry();
       await this.stopDirectSession();
       return [];
     }
@@ -61,6 +65,7 @@ export class LogitechDeviceModule implements DeviceModule {
     const wired = logitechHid.find((device) => device.productId === g502XPlusDefinition.wiredProductId);
     const transport = wired ?? receiver;
     const directEndpoint = findLongHidppEndpoint(logitechHid, transport?.productId);
+    if (this.failedDirectPath && directEndpoint?.path !== this.failedDirectPath) this.clearDirectRetry();
     if (matchingAgentDevices.length > 0) {
       return Promise.all(matchingAgentDevices.map((device) => (
         this.createG502XPlus(device, logitechHid, directEndpoint, context)
@@ -82,10 +87,12 @@ export class LogitechDeviceModule implements DeviceModule {
   }
 
   public deactivate(): Promise<void> {
+    this.clearDirectRetry();
     return this.stopDirectSession();
   }
 
   public dispose(): Promise<void> {
+    this.clearDirectRetry();
     return this.stopDirectSession();
   }
 
@@ -231,18 +238,24 @@ export class LogitechDeviceModule implements DeviceModule {
     previous: Device | undefined,
     deviceId: string,
   ): Promise<DeviceCapabilities> {
+    if (
+      endpoint.path
+      && endpoint.path === this.failedDirectPath
+      && Date.now() < this.directRetryAfter
+    ) {
+      return unavailableDirectCapabilities(previous);
+    }
     try {
       const session = await this.ensureDirectSession(endpoint, previous);
       const capabilities = await session.getCapabilities();
       this.directDeviceId = deviceId;
+      this.clearDirectRetry();
       return capabilities;
     } catch (error) {
       console.warn('Native G502 X Plus controls are temporarily unavailable.', error);
-      const capabilities = disableControls(
-        previous?.capabilities,
-        'Native control is unavailable. Close G HUB, OpenLogi, or another app using the Logitech receiver, then reconnect the mouse.',
-      );
-      delete capabilities.battery;
+      this.failedDirectPath = endpoint.path ?? null;
+      this.directRetryAfter = Date.now() + directSessionRetryDelayMs;
+      const capabilities = unavailableDirectCapabilities(previous);
       await this.stopDirectSession();
       return capabilities;
     }
@@ -254,6 +267,11 @@ export class LogitechDeviceModule implements DeviceModule {
     this.directPath = null;
     this.directDeviceId = null;
     if (session) await session.close();
+  }
+
+  private clearDirectRetry(): void {
+    this.failedDirectPath = null;
+    this.directRetryAfter = 0;
   }
 
   private async readCapabilities(
@@ -301,6 +319,15 @@ export class LogitechDeviceModule implements DeviceModule {
       : previous;
     return structuredClone(value);
   }
+}
+
+function unavailableDirectCapabilities(previous: Device | undefined): DeviceCapabilities {
+  const capabilities = disableControls(
+    previous?.capabilities,
+    'Native control is unavailable. Close G HUB, OpenLogi, or another app using the Logitech receiver, then reconnect the mouse.',
+  );
+  delete capabilities.battery;
+  return capabilities;
 }
 
 function disableControls(

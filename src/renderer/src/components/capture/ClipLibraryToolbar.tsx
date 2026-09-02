@@ -119,7 +119,6 @@ function ClipFilters({ favoritesOnly, game, games, date, source, event, availabl
   onClearFilters: () => void;
 }) {
   const active = activeFilterCount > 0;
-  const selectedDate = dateOptions.find((option) => option.value === date)?.label ?? 'Any date';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -128,7 +127,7 @@ function ClipFilters({ favoritesOnly, game, games, date, source, event, availabl
           variant="secondary"
           size="sm"
           className={cn('capture-tool-control capture-tool-control--date h-8 gap-1.5 px-2.5 text-[11px]', active && 'capture-filter-active')}
-          aria-label={active ? `Filters: ${activeFilterCount} active. Date: ${selectedDate}` : 'Filter clips by date'}
+          aria-label={active ? `Filters: ${activeFilterCount} active` : 'Filter clips'}
           aria-pressed={active}
           data-game={game}
           data-favorites={favoritesOnly || undefined}
@@ -138,7 +137,7 @@ function ClipFilters({ favoritesOnly, game, games, date, source, event, availabl
           {active ? <Badge variant="accent" className="capture-filter-count border-0 bg-transparent px-0 py-0 text-[9px] tracking-normal">{activeFilterCount}</Badge> : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="capture-tool-menu w-48 p-1.5">
+      <DropdownMenuContent align="end" className="capture-tool-menu capture-filter-menu w-48 p-1.5">
         <DropdownMenuItem onSelect={onFavoritesChange} className={cn('justify-between text-xs', favoritesOnly && 'bg-accent text-foreground')}>
           Favorites only
           {favoritesOnly ? <Check className="size-3.5 text-primary" aria-hidden="true" /> : null}
@@ -150,7 +149,7 @@ function ClipFilters({ favoritesOnly, game, games, date, source, event, availabl
             {game === value ? <Check className="size-3.5 text-primary" aria-hidden="true" /> : null}
           </DropdownMenuItem>
         ))}
-        <div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">Source</div>
+        <div className="mb-1 mt-2 border-t border-border px-2 pt-2 text-[10px] font-medium text-muted-foreground">Source</div>
         {([
           ['all', 'All clips'],
           ['manual', 'Manual captures'],

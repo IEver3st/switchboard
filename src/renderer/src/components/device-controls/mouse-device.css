@@ -396,6 +396,12 @@
   opacity: 0.48;
 }
 
+.lighting-editor__body[data-lighting-off="true"] .lighting-editor__primary > :not(:first-child),
+.lighting-editor__body[data-lighting-off="true"] .lighting-editor__parameters,
+.lighting-editor__body[data-lighting-off="true"] .lighting-zones {
+  opacity: 0.48;
+}
+
 .lighting-editor__primary,
 .lighting-editor__parameters {
   display: grid;

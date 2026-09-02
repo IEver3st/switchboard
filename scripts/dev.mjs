@@ -2,10 +2,14 @@ import { spawn } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getDevLaunchOptions } from './dev-options.mjs';
+import { buildDevelopmentHosts } from './development-hosts.mjs';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cliArguments = process.argv.slice(2);
-const { environment, forwardedArguments } = getDevLaunchOptions(cliArguments, process.env);
+const { environment: launchEnvironment, forwardedArguments } = getDevLaunchOptions(cliArguments, process.env);
+const environment = process.env.SWITCHBOARD_SKIP_NATIVE_BUILD === '1'
+  ? launchEnvironment
+  : await buildDevelopmentHosts(projectRoot, launchEnvironment);
 
 const child = spawn(
   process.execPath,

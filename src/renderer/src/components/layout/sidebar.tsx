@@ -19,10 +19,12 @@ export function Sidebar({
   snapshot,
   page,
   onNavigate,
+  onNavigateIntent,
 }: {
   snapshot: SystemSnapshot;
   page: PageId;
   onNavigate: (page: PageId) => void;
+  onNavigateIntent?: (page: PageId) => void;
 }) {
   return (
     <aside className="switchboard-sidebar flex w-[72px] shrink-0 flex-col items-center bg-chrome py-2">
@@ -38,6 +40,8 @@ export function Sidebar({
               key={id}
               type="button"
               onClick={() => onNavigate(id)}
+              onPointerEnter={() => onNavigateIntent?.(id)}
+              onFocus={() => onNavigateIntent?.(id)}
               aria-current={active ? 'page' : undefined}
               data-active={active || undefined}
               className="switchboard-sidebar__item no-drag"
@@ -66,6 +70,8 @@ export function Sidebar({
             <button
               type="button"
               onClick={() => onNavigate('settings')}
+              onPointerEnter={() => onNavigateIntent?.('settings')}
+              onFocus={() => onNavigateIntent?.('settings')}
               aria-label="Settings"
               aria-current={page === 'settings' || page === 'modules' ? 'page' : undefined}
               className="switchboard-sidebar__settings no-drag"

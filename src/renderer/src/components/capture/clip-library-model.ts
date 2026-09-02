@@ -25,7 +25,6 @@ export interface ClipLibraryControls {
   clips: Clip[];
   totalClipCount: number;
   hasFilters: boolean;
-  visibleBytes: number;
   montageSelectionMode: boolean;
   selectedClipIds: string[];
   selectedClipIdSet: ReadonlySet<string>;
@@ -60,7 +59,6 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
   const availableEvents = useMemo(() => [...new Set(allClips.flatMap((clip) => clip.autoCapture?.events.map((marker) => marker.type) ?? []))].sort(), [allClips]);
   const clips = useMemo(() => filterAndSortClips(allClips, { query, game, date, favoritesOnly, source, event, sort }), [allClips, date, event, favoritesOnly, game, query, sort, source]);
   const hasFilters = query.trim().length > 0 || game !== 'all' || date !== 'any' || favoritesOnly || source !== 'all' || event !== 'all';
-  const visibleBytes = clips.reduce((total, clip) => total + clip.fileSize, 0);
   const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
 
   useEffect(() => {
@@ -109,7 +107,6 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
     clips,
     totalClipCount: allClips.length,
     hasFilters,
-    visibleBytes,
     montageSelectionMode,
     selectedClipIds,
     selectedClipIdSet,

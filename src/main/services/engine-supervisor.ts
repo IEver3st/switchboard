@@ -361,6 +361,10 @@ export class EngineSupervisor {
       if (!existsSync(executable)) throw new Error('The Capture.Host executable is missing from this installation.');
       return { command: executable, arguments: [] };
     }
+    const configuredExecutable = process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST;
+    if (configuredExecutable && existsSync(configuredExecutable)) {
+      return { command: configuredExecutable, arguments: [] };
+    }
     const executable = join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
     if (existsSync(executable)) return { command: executable, arguments: [] };
     const project = join(app.getAppPath(), 'engines', 'capture-host', 'Capture.Host.csproj');
@@ -378,6 +382,10 @@ export class EngineSupervisor {
       if (reviewExecutable && existsSync(reviewExecutable)) {
         return { command: reviewExecutable, arguments: [] };
       }
+    }
+    const configuredExecutable = process.env.SWITCHBOARD_DEVELOPMENT_AUDIO_HOST;
+    if (configuredExecutable && existsSync(configuredExecutable)) {
+      return { command: configuredExecutable, arguments: [] };
     }
     const executable = join(app.getAppPath(), 'engines', 'audio-host', 'bin', 'Debug', 'net10.0-windows', 'Audio.Host.exe');
     if (existsSync(executable)) return { command: executable, arguments: [] };

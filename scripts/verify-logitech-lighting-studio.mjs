@@ -28,8 +28,16 @@ async function run() {
   await openG502(window);
   const original = (await mouseSnapshot(window)).capabilities.lighting;
   if (!original) throw new Error('The G502 X Plus fixture has no lighting capability.');
-  const report = { static: [], interactions: {} };
+  const report = { off: [], static: [], interactions: {} };
 
+  if (process.argv.includes('--off-option-only')) {
+    await verifyLightingOffOption(window);
+    console.log('Logitech lighting Off option verification passed.');
+    app.quit();
+    return;
+  }
+
+  await verifyLightingOffOption(window);
   await setControl(window, { type: 'lighting-enabled', enabled: true });
   await setControl(window, { type: 'lighting-effect', effectId: 'static' });
   if (process.argv.includes('--interaction-only')) {
@@ -52,6 +60,15 @@ async function run() {
     { width: 1920, height: 1080 },
   ]) {
     await setViewport(window, viewport);
+    await setControl(window, { type: 'lighting-enabled', enabled: false });
+    await revealStudio(window);
+    const offMetrics = await studioMetrics(window);
+    assertStudio(offMetrics, `${viewport.width}x${viewport.height} Off`);
+    const offFilename = `${viewport.width}x${viewport.height}-off.png`;
+    await capture(window, offFilename);
+    report.off.push({ viewport, filename: offFilename, metrics: offMetrics });
+
+    await setControl(window, { type: 'lighting-effect', effectId: 'static' });
     await revealStudio(window);
     const metrics = await studioMetrics(window);
     assertStudio(metrics, `${viewport.width}x${viewport.height}`);
@@ -115,6 +132,64 @@ async function run() {
   await writeFile(join(outputDirectory, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify({ outputDirectory, ...report }, null, 2));
   app.quit();
+}
+
+async function verifyLightingOffOption(window) {
+  await revealStudio(window);
+  const opened = await evaluate(window, `(() => {
+    const trigger = document.querySelector('[aria-label="Lighting effect"]');
+    trigger?.click();
+    return Boolean(trigger);
+  })()`);
+  if (!opened) throw new Error('The lighting effect selector was not found.');
+  await waitFor(window, `Boolean(document.querySelector('[role="listbox"]'))`, 2_000);
+  const options = await evaluate(window, `[...document.querySelectorAll('[role="option"]')]
+    .map((option) => option.textContent?.trim())
+    .filter(Boolean)`);
+  if (!options.includes('Off')) {
+    throw new Error(`The Logitech lighting effect selector does not expose Off: ${JSON.stringify(options)}`);
+  }
+  const selectedOff = await evaluate(window, `(() => {
+    const option = [...document.querySelectorAll('[role="option"]')]
+      .find((candidate) => candidate.textContent?.trim() === 'Off');
+    option?.click();
+    return Boolean(option);
+  })()`);
+  if (!selectedOff) throw new Error('The Logitech lighting Off option could not be selected.');
+  await waitFor(window, `(async () => {
+    const snapshot = await window.switchboard.getSnapshot();
+    const lighting = snapshot.devices.find((device) => device.displayName === 'G502 X Plus')?.capabilities.lighting;
+    const trigger = document.querySelector('[aria-label="Lighting effect"]');
+    const power = document.querySelector('[aria-label="Mouse lighting"]');
+    return lighting?.enabled === false
+      && trigger?.textContent?.trim() === 'Off'
+      && trigger?.hasAttribute('disabled') === false
+      && power?.getAttribute('aria-checked') === 'false';
+  })()`);
+
+  await evaluate(window, `document.querySelector('[aria-label="Lighting effect"]')?.click()`);
+  await waitFor(window, `Boolean(document.querySelector('[role="listbox"]'))`, 2_000);
+  const selectedStatic = await evaluate(window, `(() => {
+    const option = [...document.querySelectorAll('[role="option"]')]
+      .find((candidate) => candidate.textContent?.trim() === 'Static');
+    option?.click();
+    return Boolean(option);
+  })()`);
+  if (!selectedStatic) throw new Error('Static could not be selected after turning Logitech lighting off.');
+  await waitFor(window, `(async () => {
+    const snapshot = await window.switchboard.getSnapshot();
+    const lighting = snapshot.devices.find((device) => device.displayName === 'G502 X Plus')?.capabilities.lighting;
+    return lighting?.enabled === true
+      && lighting.activeEffectId === 'static'
+      && document.querySelector('[aria-label="Lighting effect"]')?.textContent?.trim() === 'Static';
+  })()`);
+
+  await evaluate(window, `document.querySelector('[aria-label="Lighting effect"]')?.focus()`);
+  pressKey(window, 'Enter');
+  await waitFor(window, `Boolean(document.querySelector('[role="listbox"]'))`, 2_000);
+  pressKey(window, 'Escape');
+  await waitFor(window, `!document.querySelector('[role="listbox"]')
+    && document.activeElement?.getAttribute('aria-label') === 'Lighting effect'`, 2_000);
 }
 
 async function verifyColorPopoverPersistence(window) {
@@ -226,9 +301,29 @@ function assertStudio(metrics, label) {
 }
 
 async function setViewport(window, viewport) {
-  if (window.isMaximized()) window.unmaximize();
+  if (window.isMaximized()) {
+    window.unmaximize();
+    const deadline = Date.now() + 5_000;
+    while (window.isMaximized() && Date.now() < deadline) await delay(40);
+    if (window.isMaximized()) throw new Error('The native review window did not leave its maximized state.');
+  }
   window.setContentSize(viewport.width, viewport.height, false);
-  await waitFor(window, `innerWidth === ${viewport.width} && Math.abs(innerHeight - ${viewport.height}) <= 2`, 5_000);
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const [width, height] = window.getContentSize();
+    if (width === viewport.width && Math.abs(height - viewport.height) <= 2) return;
+    await delay(40);
+  }
+  const renderer = await evaluate(window, `({ width: innerWidth, height: innerHeight, devicePixelRatio })`);
+  throw new Error(`Viewport resize failed: ${JSON.stringify({
+    requested: viewport,
+    renderer,
+    bounds: window.getBounds(),
+    contentSize: window.getContentSize(),
+    maximized: window.isMaximized(),
+    fullScreen: window.isFullScreen(),
+    resizable: window.isResizable(),
+  })}`);
 }
 
 async function capture(window, filename) {
@@ -284,6 +379,11 @@ async function paint(window) {
 
 function evaluate(window, expression) {
   return window.webContents.executeJavaScript(expression, true);
+}
+
+function pressKey(window, keyCode) {
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
 }
 
 function delay(milliseconds) {

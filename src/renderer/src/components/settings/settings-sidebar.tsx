@@ -7,7 +7,6 @@ import {
   Gamepad2,
   Headphones,
   Info,
-  Mouse,
   Search,
   Settings2,
   Video,
@@ -30,7 +29,6 @@ import {
 
 export const settingsCategoryIcons: Record<SettingsCategoryId, LucideIcon> = {
   general: Settings2,
-  devices: Mouse,
   audio: Headphones,
   capture: Video,
   clips: Film,

@@ -63,16 +63,20 @@ type AudioStreamTags = {
 const waveformBucketCount = 180;
 const waveformSampleRate = 8_000;
 const waveformCacheLimit = 16;
+const audioPreviewCacheLimit = 16;
+const persistedAudioPreviewLimit = 32;
 
 export class ClipLibraryService {
   private thumbnailQueue: Promise<void> = Promise.resolve();
   private readonly waveformCache = new Map<string, Promise<ClipAudioWaveform>>();
+  private readonly audioPreviewCache = new Map<string, Promise<string>>();
 
   public constructor(private readonly thumbnailDirectory: string) {}
 
   public async reconcile(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
     await mkdir(directory, { recursive: true });
     await mkdir(this.thumbnailDirectory, { recursive: true });
+    await this.pruneAudioPreviews().catch((error) => console.warn('Clip audio preview cleanup failed.', error));
     const existing: Clip[] = [];
     for (const indexedClip of indexed) {
       const clip = normalizeClipRecord(indexedClip);
@@ -147,6 +151,18 @@ export class ClipLibraryService {
 
   public async removeThumbnail(clip: Clip): Promise<void> {
     this.waveformCache.delete(clip.id);
+    const previewKeys = [...this.audioPreviewCache.keys()].filter((key) => key.startsWith(`${clip.id}:`));
+    const previewPaths = previewKeys.flatMap((key) => {
+      const pending = this.audioPreviewCache.get(key);
+      return pending ? [pending] : [];
+    });
+    for (const key of previewKeys) this.audioPreviewCache.delete(key);
+    await Promise.all(previewPaths.map(async (pending) => {
+      try {
+        const path = await pending;
+        await rm(path, { force: true });
+      } catch { }
+    }));
     if (clip.thumbnailPath) await rm(clip.thumbnailPath, { force: true });
   }
 
@@ -171,15 +187,41 @@ export class ClipLibraryService {
     return pending;
   }
 
+  public prepareAudioPreview(clip: Clip, trackIndex: number): Promise<string> {
+    if (!Number.isInteger(trackIndex) || trackIndex < 0 || trackIndex > 7) {
+      return Promise.reject(new Error('The clip audio track index is invalid.'));
+    }
+    const cacheKey = `${clip.id}:${trackIndex}`;
+    const cached = this.audioPreviewCache.get(cacheKey);
+    if (cached) {
+      this.audioPreviewCache.delete(cacheKey);
+      this.audioPreviewCache.set(cacheKey, cached);
+      return cached;
+    }
+
+    const pending = this.generateAudioPreview(clip, trackIndex).catch((error) => {
+      this.audioPreviewCache.delete(cacheKey);
+      throw error;
+    });
+    this.audioPreviewCache.set(cacheKey, pending);
+    while (this.audioPreviewCache.size > audioPreviewCacheLimit) {
+      const oldest = this.audioPreviewCache.keys().next().value as string | undefined;
+      if (!oldest) break;
+      this.audioPreviewCache.delete(oldest);
+    }
+    return pending;
+  }
+
   public async createClipFromFile(path: string): Promise<Clip> {
     const [file, media] = await Promise.all([stat(path), this.probe(path)]);
     const game = inferClipGame(parse(path).name);
+    const createdAt = file.birthtimeMs > 0 ? Math.round(file.birthtimeMs) : Math.round(file.mtimeMs);
     return {
       id: randomUUID(),
       path,
-      name: createDefaultClipTitle(game),
+      name: createDefaultClipTitle(game, createdAt),
       ...(game ? { game } : {}),
-      createdAt: file.birthtimeMs > 0 ? Math.round(file.birthtimeMs) : Math.round(file.mtimeMs),
+      createdAt,
       durationMs: Math.max(0, Math.round(media.durationMs)),
       fileSize: file.size,
       width: media.width,
@@ -423,6 +465,51 @@ export class ClipLibraryService {
       });
     }
     return { clipId: clip.id, tracks };
+  }
+
+  private async generateAudioPreview(clip: Clip, trackIndex: number): Promise<string> {
+    const streams = await this.getAudioStreams(clip.path);
+    if (!streams.some((stream) => stream.trackIndex === trackIndex)) {
+      throw new Error('The clip audio track no longer exists.');
+    }
+    const source = await stat(clip.path);
+    const identity = createHash('sha1')
+      .update(`${clip.id}\0${clip.path}\0${source.size}\0${source.mtimeMs}\0${trackIndex}`)
+      .digest('hex');
+    const previewDirectory = join(this.thumbnailDirectory, 'audio-preview');
+    const destination = join(previewDirectory, `${identity}.m4a`);
+    if (existsSync(destination)) return destination;
+
+    await mkdir(previewDirectory, { recursive: true });
+    const temporary = `${destination}.${randomUUID()}.tmp.m4a`;
+    const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
+    try {
+      await run(executable, [
+        '-hide_banner', '-loglevel', 'error', '-i', clip.path,
+        '-map', `0:a:${trackIndex}`, '-vn', '-c:a', 'aac', '-b:a', '192k',
+        '-movflags', '+faststart', '-y', temporary,
+      ]);
+      await rename(temporary, destination);
+      return destination;
+    } finally {
+      await rm(temporary, { force: true });
+    }
+  }
+
+  private async pruneAudioPreviews(): Promise<void> {
+    const previewDirectory = join(this.thumbnailDirectory, 'audio-preview');
+    await mkdir(previewDirectory, { recursive: true });
+    const handle = await opendir(previewDirectory);
+    const previews: Array<{ path: string; mtimeMs: number }> = [];
+    for await (const entry of handle) {
+      if (!entry.isFile() || extname(entry.name).toLocaleLowerCase() !== '.m4a') continue;
+      const path = join(previewDirectory, entry.name);
+      try {
+        previews.push({ path, mtimeMs: (await stat(path)).mtimeMs });
+      } catch { }
+    }
+    previews.sort((left, right) => right.mtimeMs - left.mtimeMs);
+    await Promise.all(previews.slice(persistedAudioPreviewLimit).map(({ path }) => rm(path, { force: true })));
   }
 
   private async generateThumbnail(path: string, thumbnailPath: string, durationMs: number): Promise<void> {

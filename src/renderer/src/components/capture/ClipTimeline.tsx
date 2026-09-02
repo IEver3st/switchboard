@@ -1,6 +1,8 @@
 import {
+  memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -28,6 +30,7 @@ import {
   type TimelineInteraction,
   type TimelineValues,
 } from './clip-timeline-model';
+import { clipPreviewNeedsSync, clipPreviewTrackVolume } from './clip-preview-audio';
 import './clip-editor.css';
 
 export function ClipTimeline({
@@ -69,22 +72,39 @@ export function ClipTimeline({
 }) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
+  const timecodeCurrentRef = useRef<HTMLSpanElement>(null);
+  const scrubTargetRef = useRef<HTMLDivElement>(null);
   const timelineWidthRef = useRef(720);
+  const timelineRectRef = useRef<{ left: number; width: number } | null>(null);
   const currentMsRef = useRef(startMs);
   const interactionRef = useRef<TimelineInteraction>('idle');
   const activeTrimTrackRef = useRef<'clip' | number | null>(null);
   const pendingSeekMsRef = useRef<number | null>(null);
+  const seekFrameRef = useRef<number | null>(null);
   const resumeAfterScrubRef = useRef(false);
   const playbackModeRef = useRef<'selection' | 'free'>('selection');
-  const [currentMs, setCurrentMs] = useState(startMs);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [interaction, setInteractionState] = useState<TimelineInteraction>('idle');
-  const [timelineWidth, setTimelineWidth] = useState(720);
+  const [rulerIntervalMs, setRulerIntervalMs] = useState(() => chooseTimelineTickInterval(durationMs, 720));
   const [waveformState, setWaveformState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [waveformTracks, setWaveformTracks] = useState<ClipAudioWaveformTrack[]>([]);
+  const [previewTrackLevels, setPreviewTrackLevels] = useState<number[]>(() => [...(audioTrackLevels ?? [])]);
+  const [readyPreviewTrackIndexes, setReadyPreviewTrackIndexes] = useState<ReadonlySet<number>>(() => new Set());
+  const previewAudioRefs = useRef(new Map<number, HTMLAudioElement>());
+  const previewTrackLevelsRef = useRef(previewTrackLevels);
+  const audioTrackTrimsRef = useRef(audioTrackTrims);
+  const mutedRef = useRef(muted);
+  const volumeRef = useRef(volume);
   const frameMs = Math.max(1, 1_000 / Math.max(1, fps));
+  const isolatedPreviewReady = waveformState === 'ready'
+    && waveformTracks.length > 0
+    && waveformTracks.every((track) => readyPreviewTrackIndexes.has(track.trackIndex));
+  previewTrackLevelsRef.current = previewTrackLevels;
+  audioTrackTrimsRef.current = audioTrackTrims;
+  mutedRef.current = muted;
+  volumeRef.current = volume;
 
   const positionPlayhead = useCallback((nextMs: number) => {
     const playhead = playheadRef.current;
@@ -94,10 +114,38 @@ export function ClipTimeline({
     playhead.style.transform = `translate3d(${offset}px, 0, 0)`;
   }, [durationMs]);
 
+  const updatePlayheadReadout = useCallback((nextMs: number) => {
+    const boundedMs = Math.min(durationMs, Math.max(0, nextMs));
+    const formatted = formatTimelineTime(boundedMs);
+    if (timecodeCurrentRef.current) timecodeCurrentRef.current.textContent = formatted;
+    if (scrubTargetRef.current) {
+      scrubTargetRef.current.setAttribute('aria-valuenow', String(Math.round(boundedMs)));
+      scrubTargetRef.current.setAttribute('aria-valuetext', formatted);
+    }
+  }, [durationMs]);
+
+  const seekVideo = useCallback((nextMs: number, immediate: boolean) => {
+    pendingSeekMsRef.current = nextMs;
+    const video = videoRef.current;
+    if (!video) return;
+    const commitSeek = () => {
+      seekFrameRef.current = null;
+      const targetMs = pendingSeekMsRef.current;
+      if (targetMs !== null) video.currentTime = targetMs / 1_000;
+    };
+    if (immediate) {
+      if (seekFrameRef.current !== null) window.cancelAnimationFrame(seekFrameRef.current);
+      commitSeek();
+    } else if (seekFrameRef.current === null) {
+      seekFrameRef.current = window.requestAnimationFrame(commitSeek);
+    }
+  }, [videoRef]);
+
   useEffect(() => {
     let active = true;
     setWaveformState('loading');
     setWaveformTracks([]);
+    setReadyPreviewTrackIndexes(new Set());
     void switchboardApi.loadClipAudioWaveform(clipId).then((waveform) => {
       if (!active) return;
       setWaveformTracks(waveform.tracks);
@@ -109,17 +157,106 @@ export function ClipTimeline({
     return () => { active = false; };
   }, [clipId]);
 
-  const setPlayhead = useCallback((nextMs: number) => {
+  useEffect(() => {
+    setPreviewTrackLevels([...(audioTrackLevels ?? [])]);
+  }, [audioTrackLevels]);
+
+  useEffect(() => {
+    const currentMs = (videoRef.current?.currentTime ?? 0) * 1_000;
+    for (const track of waveformTracks) {
+      const preview = previewAudioRefs.current.get(track.trackIndex);
+      if (!preview) continue;
+      preview.volume = clipPreviewTrackVolume(
+        previewTrackLevels[track.trackIndex] ?? 100,
+        volume,
+        muted,
+        currentMs,
+        audioTrackTrims?.[track.trackIndex],
+      );
+    }
+  }, [audioTrackTrims, muted, previewTrackLevels, videoRef, volume, waveformTracks]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isolatedPreviewReady) return;
+    const previews = waveformTracks.flatMap((track) => {
+      const preview = previewAudioRefs.current.get(track.trackIndex);
+      return preview ? [{ preview, trackIndex: track.trackIndex }] : [];
+    });
+    if (previews.length !== waveformTracks.length) return;
+
+    let playbackFrame: number | null = null;
+    const updatePreviews = (forcePosition: boolean) => {
+      const videoSeconds = video.currentTime;
+      const currentMs = videoSeconds * 1_000;
+      for (const { preview, trackIndex } of previews) {
+        preview.volume = clipPreviewTrackVolume(
+          previewTrackLevelsRef.current[trackIndex] ?? 100,
+          volumeRef.current,
+          mutedRef.current,
+          currentMs,
+          audioTrackTrimsRef.current?.[trackIndex],
+        );
+        preview.playbackRate = video.playbackRate;
+        if (preview.readyState >= HTMLMediaElement.HAVE_METADATA
+          && (forcePosition || clipPreviewNeedsSync(preview.currentTime, videoSeconds))) {
+          preview.currentTime = videoSeconds;
+        }
+      }
+    };
+    const stopPlaybackFrames = () => {
+      if (playbackFrame === null) return;
+      window.cancelAnimationFrame(playbackFrame);
+      playbackFrame = null;
+    };
+    const syncPlaybackFrame = () => {
+      playbackFrame = null;
+      if (video.paused || video.ended) return;
+      updatePreviews(false);
+      playbackFrame = window.requestAnimationFrame(syncPlaybackFrame);
+    };
+    const startPreviewPlayback = () => {
+      video.muted = true;
+      updatePreviews(true);
+      for (const { preview } of previews) void preview.play().catch(() => undefined);
+      if (playbackFrame === null) playbackFrame = window.requestAnimationFrame(syncPlaybackFrame);
+    };
+    const pausePreviewPlayback = () => {
+      stopPlaybackFrames();
+      updatePreviews(true);
+      for (const { preview } of previews) preview.pause();
+    };
+    const synchronizePosition = () => updatePreviews(true);
+
+    video.muted = true;
+    if (video.paused || video.ended) pausePreviewPlayback();
+    else startPreviewPlayback();
+    video.addEventListener('play', startPreviewPlayback);
+    video.addEventListener('pause', pausePreviewPlayback);
+    video.addEventListener('ended', pausePreviewPlayback);
+    video.addEventListener('seeking', synchronizePosition);
+    video.addEventListener('seeked', synchronizePosition);
+    video.addEventListener('ratechange', synchronizePosition);
+    return () => {
+      video.removeEventListener('play', startPreviewPlayback);
+      video.removeEventListener('pause', pausePreviewPlayback);
+      video.removeEventListener('ended', pausePreviewPlayback);
+      video.removeEventListener('seeking', synchronizePosition);
+      video.removeEventListener('seeked', synchronizePosition);
+      video.removeEventListener('ratechange', synchronizePosition);
+      stopPlaybackFrames();
+      for (const { preview } of previews) preview.pause();
+      video.muted = mutedRef.current;
+    };
+  }, [isolatedPreviewReady, videoRef, waveformTracks]);
+
+  const setPlayhead = useCallback((nextMs: number, immediateSeek = true) => {
     const boundedMs = Math.min(durationMs, Math.max(0, Math.round(nextMs)));
     currentMsRef.current = boundedMs;
-    setCurrentMs(boundedMs);
     positionPlayhead(boundedMs);
-    const video = videoRef.current;
-    if (video) {
-      pendingSeekMsRef.current = boundedMs;
-      video.currentTime = boundedMs / 1_000;
-    }
-  }, [durationMs, positionPlayhead, videoRef]);
+    updatePlayheadReadout(boundedMs);
+    seekVideo(boundedMs, immediateSeek);
+  }, [durationMs, positionPlayhead, seekVideo, updatePlayheadReadout]);
 
   const setInteraction = (next: TimelineInteraction) => {
     interactionRef.current = next;
@@ -133,14 +270,18 @@ export function ClipTimeline({
     durationMs,
   }), [durationMs, endMs, startMs]);
 
-  const timeAtPointer = (clientX: number) => {
-    const rect = timelineRef.current?.getBoundingClientRect();
+  const timeAtPointer = (clientX: number, refreshBounds = false) => {
+    if (refreshBounds || !timelineRectRef.current) {
+      const measured = timelineRef.current?.getBoundingClientRect();
+      timelineRectRef.current = measured ? { left: measured.left, width: measured.width } : null;
+    }
+    const rect = timelineRectRef.current;
     return rect ? timeFromTimelinePoint(clientX, rect.left, rect.width, durationMs) : currentMsRef.current;
   };
 
-  const scrubToPointer = (clientX: number) => {
-    const next = applyTimelineInteraction('scrubbing', timeAtPointer(clientX), values());
-    setPlayhead(next.currentMs);
+  const scrubToPointer = (clientX: number, refreshBounds = false, immediateSeek = false) => {
+    const next = applyTimelineInteraction('scrubbing', timeAtPointer(clientX, refreshBounds), values());
+    setPlayhead(next.currentMs, immediateSeek);
   };
 
   const trimValues = (track: 'clip' | number): TimelineValues => {
@@ -173,7 +314,7 @@ export function ClipTimeline({
     playbackModeRef.current = 'free';
     setInteraction('scrubbing');
     capturePointer(event.currentTarget, event.pointerId);
-    scrubToPointer(event.clientX);
+    scrubToPointer(event.clientX, true);
   };
 
   const continueScrubbing = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -183,8 +324,9 @@ export function ClipTimeline({
 
   const finishScrubbing = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (interactionRef.current !== 'scrubbing') return;
-    scrubToPointer(event.clientX);
+    scrubToPointer(event.clientX, false, true);
     releasePointer(event.currentTarget, event.pointerId);
+    timelineRectRef.current = null;
     setInteraction('idle');
     if (resumeAfterScrubRef.current) void videoRef.current?.play().catch(() => undefined);
     resumeAfterScrubRef.current = false;
@@ -198,6 +340,7 @@ export function ClipTimeline({
     if (event.button > 0 || event.isPrimary === false) return;
     event.preventDefault();
     event.stopPropagation();
+    timeAtPointer(event.clientX, true);
     activeTrimTrackRef.current = track;
     setInteraction(kind);
     capturePointer(event.currentTarget, event.pointerId);
@@ -221,12 +364,14 @@ export function ClipTimeline({
     trimToPointer(kind, track, event.clientX);
     releasePointer(event.currentTarget, event.pointerId);
     activeTrimTrackRef.current = null;
+    timelineRectRef.current = null;
     setInteraction('idle');
   };
 
   const cancelPointerInteraction = () => {
     resumeAfterScrubRef.current = false;
     activeTrimTrackRef.current = null;
+    timelineRectRef.current = null;
     setInteraction('idle');
   };
 
@@ -274,7 +419,9 @@ export function ClipTimeline({
     const video = videoRef.current;
     if (!video) return;
     if (video.volume === 0) video.volume = 0.5;
-    video.muted = !video.muted;
+    const nextMuted = !muted;
+    setMuted(nextMuted);
+    if (!isolatedPreviewReady) video.muted = nextMuted;
   };
 
   const updateVolume = (nextValue: number) => {
@@ -283,23 +430,32 @@ export function ClipTimeline({
     if (!video) return;
     setVolume(nextVolume);
     video.volume = nextVolume;
-    video.muted = nextVolume === 0;
+    setMuted(nextVolume === 0);
+    if (!isolatedPreviewReady) video.muted = nextVolume === 0;
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const timeline = timelineRef.current;
     if (!timeline) return;
-    const updateWidth = () => {
-      const width = timeline.getBoundingClientRect().width;
+    const updateWidth = (width: number) => {
       timelineWidthRef.current = width;
-      setTimelineWidth(width);
+      setRulerIntervalMs((current) => {
+        const next = chooseTimelineTickInterval(durationMs, width);
+        return next === current ? current : next;
+      });
       positionPlayhead(currentMsRef.current);
     };
-    updateWidth();
-    const observer = new ResizeObserver(updateWidth);
+    updateWidth(timeline.getBoundingClientRect().width);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) updateWidth(entry.contentRect.width);
+    });
     observer.observe(timeline);
     return () => observer.disconnect();
-  }, [positionPlayhead]);
+  }, [durationMs, positionPlayhead]);
+
+  useEffect(() => () => {
+    if (seekFrameRef.current !== null) window.cancelAnimationFrame(seekFrameRef.current);
+  }, []);
 
   useEffect(() => {
     const clearStalePointerState = () => {
@@ -324,10 +480,17 @@ export function ClipTimeline({
     if (!video) return;
     let playbackFrame: number | null = null;
     let positionedMs = -1;
-    const positionPlaybackFrame = (nextMs: number) => {
+    let lastReadoutAt = -Infinity;
+    const positionPlaybackFrame = (nextMs: number, forceReadout = false) => {
       if (Math.abs(nextMs - positionedMs) < 0.1) return;
       positionedMs = nextMs;
+      currentMsRef.current = nextMs;
       positionPlayhead(nextMs);
+      const now = performance.now();
+      if (forceReadout || now - lastReadoutAt >= 50) {
+        lastReadoutAt = now;
+        updatePlayheadReadout(nextMs);
+      }
     };
     const stopPlaybackFrames = () => {
       if (playbackFrame === null) return;
@@ -360,7 +523,7 @@ export function ClipTimeline({
       const pendingSeekMs = pendingSeekMsRef.current;
       if (pendingSeekMs !== null && Math.abs(nextMs - pendingSeekMs) > Math.max(80, frameMs * 2)) {
         currentMsRef.current = pendingSeekMs;
-        setCurrentMs(pendingSeekMs);
+        positionPlaybackFrame(pendingSeekMs, true);
         return;
       }
       pendingSeekMsRef.current = null;
@@ -369,16 +532,20 @@ export function ClipTimeline({
         setPlayhead(endMs);
         return;
       }
-      currentMsRef.current = nextMs;
-      setCurrentMs(nextMs);
+      positionPlaybackFrame(nextMs, true);
     };
     const updatePlayback = () => {
       const isPlaying = !video.paused && !video.ended;
       setPlaying(isPlaying);
       if (isPlaying) startPlaybackFrames();
-      else stopPlaybackFrames();
+      else {
+        stopPlaybackFrames();
+        const nextMs = Math.min(durationMs, Math.max(0, video.currentTime * 1_000));
+        positionPlaybackFrame(nextMs, true);
+      }
     };
     const updateVolumeState = () => {
+      if (isolatedPreviewReady) return;
       setMuted(video.muted || video.volume === 0);
       setVolume(video.volume);
     };
@@ -399,7 +566,7 @@ export function ClipTimeline({
       video.removeEventListener('volumechange', updateVolumeState);
       stopPlaybackFrames();
     };
-  }, [durationMs, endMs, frameMs, positionPlayhead, setPlayhead, videoRef]);
+  }, [durationMs, endMs, frameMs, isolatedPreviewReady, positionPlayhead, setPlayhead, updatePlayheadReadout, videoRef]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -423,15 +590,21 @@ export function ClipTimeline({
 
   const ruler = useMemo(() => {
     if (durationMs <= 0) return [];
-    const majorInterval = chooseTimelineTickInterval(durationMs, timelineWidth);
-    const minorInterval = majorInterval / 4;
+    const minorInterval = rulerIntervalMs / 4;
     const marks: Array<{ ms: number; major: boolean }> = [];
-    for (let ms = 0; ms < durationMs; ms += minorInterval) marks.push({ ms, major: Math.abs(ms % majorInterval) < 0.01 });
+    for (let ms = 0; ms < durationMs; ms += minorInterval) marks.push({ ms, major: Math.abs(ms % rulerIntervalMs) < 0.01 });
     const finalMark = marks.at(-1);
     if (finalMark && durationMs - finalMark.ms < minorInterval / 2) marks[marks.length - 1] = { ms: durationMs, major: true };
-    else marks.push({ ms: durationMs, major: true });
+    else {
+      const previousMajorIndex = marks.findLastIndex((mark) => mark.major);
+      const previousMajor = marks[previousMajorIndex];
+      if (previousMajor && durationMs - previousMajor.ms < rulerIntervalMs * 0.55) {
+        marks[previousMajorIndex] = { ...previousMajor, major: false };
+      }
+      marks.push({ ms: durationMs, major: true });
+    }
     return marks;
-  }, [durationMs, timelineWidth]);
+  }, [durationMs, rulerIntervalMs]);
 
   if (durationMs < minimumClipDurationMs) {
     return (
@@ -445,7 +618,7 @@ export function ClipTimeline({
     );
   }
 
-  const currentPercent = Math.min(100, Math.max(0, currentMs / durationMs * 100));
+  const currentMs = currentMsRef.current;
   const fallbackTracks: ClipAudioWaveformTrack[] = (audioChannels ?? []).map((channel, trackIndex) => ({
     trackIndex,
     channel,
@@ -455,12 +628,45 @@ export function ClipTimeline({
   const displayTracks = waveformState === 'ready' ? waveformTracks : (waveformTracks.length > 0 ? waveformTracks : fallbackTracks);
   const timelineStyle = { '--audio-track-count': Math.max(1, displayTracks.length) } as CSSProperties;
   const hasAudioTrackTrims = audioTrackTrims?.some(Boolean) ?? false;
+  const showSubsecondRuler = rulerIntervalMs < 1_000;
 
   return (
     <section className="clip-editor-timeline" aria-label="Clip timeline" data-interaction={interaction} data-playing={playing ? 'true' : undefined}>
+      {waveformState === 'ready' ? waveformTracks.map((track) => (
+        <audio
+          key={`preview-${track.trackIndex}`}
+          ref={(preview) => {
+            if (preview) previewAudioRefs.current.set(track.trackIndex, preview);
+            else previewAudioRefs.current.delete(track.trackIndex);
+          }}
+          src={`switchboard-media://clip-audio/${encodeURIComponent(clipId)}?track=${track.trackIndex}`}
+          preload="auto"
+          hidden
+          data-clip-preview-track={track.channel ?? `track-${track.trackIndex}`}
+          data-track-index={track.trackIndex}
+          onCanPlay={(event) => {
+            event.currentTarget.volume = clipPreviewTrackVolume(
+              previewTrackLevelsRef.current[track.trackIndex] ?? 100,
+              volumeRef.current,
+              mutedRef.current,
+              (videoRef.current?.currentTime ?? 0) * 1_000,
+              audioTrackTrimsRef.current?.[track.trackIndex],
+            );
+            setReadyPreviewTrackIndexes((current) => current.has(track.trackIndex)
+              ? current
+              : new Set(current).add(track.trackIndex));
+          }}
+          onError={() => setReadyPreviewTrackIndexes((current) => {
+            if (!current.has(track.trackIndex)) return current;
+            const next = new Set(current);
+            next.delete(track.trackIndex);
+            return next;
+          })}
+        />
+      )) : null}
       <div className="clip-editor-transport-bar">
-        <output className="clip-editor-timeline__timecode" aria-label={`Current time ${formatTimelineTime(currentMs)}`}>
-          {formatTimelineTime(currentMs)}
+        <output className="clip-editor-timeline__timecode" aria-label="Current playback time">
+          <span ref={timecodeCurrentRef}>{formatTimelineTime(currentMs)}</span>
           <span aria-hidden="true"> / {formatTimelineTime(durationMs)}</span>
         </output>
 
@@ -510,6 +716,12 @@ export function ClipTimeline({
                 key={track.trackIndex}
                 track={track}
                 level={audioTrackLevels?.[track.trackIndex] ?? 100}
+                onPreview={(trackIndex, level) => setPreviewTrackLevels((current) => {
+                  const next = [...current];
+                  while (next.length <= trackIndex) next.push(100);
+                  next[trackIndex] = level;
+                  return next;
+                })}
                 onCommit={onAudioTrackLevelChange}
               />
             )) : (
@@ -524,7 +736,7 @@ export function ClipTimeline({
           <div className="clip-editor-timeline__ruler" aria-hidden="true">
             {ruler.map((mark, index) => (
               <span key={`${mark.ms}-${index}`} className={[mark.major ? 'is-major' : '', index === ruler.length - 1 ? 'is-terminal' : ''].filter(Boolean).join(' ') || undefined} style={{ left: `${mark.ms / durationMs * 100}%` }}>
-                {mark.major ? <em>{formatRulerTime(mark.ms)}</em> : null}
+                {mark.major ? <em>{formatRulerTime(mark.ms, showSubsecondRuler)}</em> : null}
               </span>
             ))}
           </div>
@@ -540,15 +752,15 @@ export function ClipTimeline({
                         type="button"
                         className="clip-editor-event-marker"
                         data-event-type={marker.type}
-                        style={{ left: `${marker.timestampMs / durationMs * 100}%` }}
-                        aria-label={`${label} at ${formatRulerTime(marker.timestampMs)}`}
+                        style={{ left: `clamp(14px, ${marker.timestampMs / durationMs * 100}%, calc(100% - 14px))` }}
+                        aria-label={`${label} at ${formatRulerTime(marker.timestampMs, showSubsecondRuler)}`}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={() => setPlayhead(marker.timestampMs)}
                       >
                         <span aria-hidden="true" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top">{label} · {formatRulerTime(marker.timestampMs)}</TooltipContent>
+                    <TooltipContent side="top">{label} · {formatRulerTime(marker.timestampMs, showSubsecondRuler)}</TooltipContent>
                   </Tooltip>
                 );
               })}
@@ -583,11 +795,9 @@ export function ClipTimeline({
                 role="group"
                 aria-label={`${track.channel ? channelLabel(track.channel) : track.label} timeline`}
               >
-                {track.samples.length > 0 ? (
-                  <svg viewBox={`0 0 ${track.samples.length} 1`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
-                    <path d={waveformPath(track.samples)} vectorEffect="non-scaling-stroke" />
-                  </svg>
-                ) : <span className="clip-editor-timeline__empty-label">{waveformState === 'loading' ? 'Analyzing…' : waveformState === 'error' ? 'Waveform unavailable' : 'No audible activity'}</span>}
+                {track.samples.length > 0
+                  ? <AudioWaveform samples={track.samples} />
+                  : <span className="clip-editor-timeline__empty-label">{waveformState === 'loading' ? 'Analyzing…' : waveformState === 'error' ? 'Waveform unavailable' : 'No audible activity'}</span>}
                 <TimelineLaneTrim
                   startMs={audioTrackTrims?.[track.trackIndex]?.startMs ?? 0}
                   endMs={audioTrackTrims?.[track.trackIndex]?.endMs ?? durationMs}
@@ -609,6 +819,7 @@ export function ClipTimeline({
           </div>
 
           <div
+            ref={scrubTargetRef}
             role="slider"
             tabIndex={0}
             aria-label="Playhead"
@@ -626,7 +837,7 @@ export function ClipTimeline({
             onPointerCancel={cancelPointerInteraction}
           />
 
-          <div ref={playheadRef} className="clip-editor-playhead" style={{ transform: `translate3d(${currentPercent / 100 * timelineWidth}px, 0, 0)` }} aria-hidden="true">
+          <div ref={playheadRef} className="clip-editor-playhead" aria-hidden="true">
             <span className="clip-editor-playhead__cap" />
             <span className="clip-editor-playhead__line" />
           </div>
@@ -717,9 +928,19 @@ function TimelineLaneTrim({
   );
 }
 
-function AudioTrackControl({ track, level, onCommit }: {
+const AudioWaveform = memo(function AudioWaveform({ samples }: { samples: readonly number[] }) {
+  const path = useMemo(() => waveformPath(samples), [samples]);
+  return (
+    <svg viewBox={`0 0 ${samples.length} 1`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
+      <path d={path} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+});
+
+function AudioTrackControl({ track, level, onPreview, onCommit }: {
   track: ClipAudioWaveformTrack;
   level: number;
+  onPreview: (trackIndex: number, level: number) => void;
   onCommit: (trackIndex: number, level: number) => Promise<void>;
 }) {
   const [draftLevel, setDraftLevel] = useState(level);
@@ -750,11 +971,13 @@ function AudioTrackControl({ track, level, onCommit }: {
       committedLevelRef.current = level;
       draftLevelRef.current = level;
       setDraftLevel(level);
+      onPreview(track.trackIndex, level);
     });
   };
   const updateDraft = (nextLevel: number) => {
     draftLevelRef.current = nextLevel;
     setDraftLevel(nextLevel);
+    onPreview(track.trackIndex, nextLevel);
     if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current);
     commitTimerRef.current = window.setTimeout(commit, 160);
   };
@@ -771,7 +994,7 @@ function AudioTrackControl({ track, level, onCommit }: {
     <div className="clip-editor-track-control" data-muted={draftLevel === 0 ? 'true' : undefined} style={{ '--track-color': color, '--control-accent': color } as CSSProperties}>
       <span className="clip-editor-track-control__name"><i aria-hidden="true" />{label}</span>
       <output>{draftLevel}%</output>
-      <button type="button" className="clip-editor-track-control__mute" aria-label={draftLevel === 0 ? `Unmute ${label} export track` : `Mute ${label} export track`} aria-pressed={draftLevel === 0} onClick={toggleMute}>
+      <button type="button" className="clip-editor-track-control__mute" aria-label={draftLevel === 0 ? `Unmute ${label} track` : `Mute ${label} track`} aria-pressed={draftLevel === 0} onClick={toggleMute}>
         {draftLevel === 0 ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
       </button>
       <Slider
@@ -780,8 +1003,8 @@ function AudioTrackControl({ track, level, onCommit }: {
         max={100}
         step={1}
         value={[draftLevel]}
-        aria-label={`${label} export level`}
-        aria-valuetext={`${draftLevel} percent in exported mix`}
+        aria-label={`${label} level`}
+        aria-valuetext={`${draftLevel} percent in preview and exported mix`}
         onValueChange={([next]) => { if (typeof next === 'number') updateDraft(next); }}
         onValueCommit={([next]) => { if (typeof next === 'number') { updateDraft(next); commit(); } }}
         onKeyUp={commit}
@@ -800,7 +1023,7 @@ export function waveformPath(samples: readonly number[]): string {
   if (samples.length === 0) return '';
   const points = samples.map((sample, index) => ({
     x: index + 0.5,
-    amplitude: Math.min(0.15, Math.max(0, sample * 0.15)),
+    amplitude: Math.min(0.11, Math.max(0, sample * 0.11)),
   }));
   const top = points.map(({ x, amplitude }) => `L${x},${0.5 - amplitude}`).join('');
   const bottom = points.toReversed().map(({ x, amplitude }) => `L${x},${0.5 + amplitude}`).join('');
@@ -837,14 +1060,16 @@ function formatTimelineTime(milliseconds: number): string {
   return `${base}.${String(millis).padStart(3, '0')}`;
 }
 
-function formatRulerTime(milliseconds: number): string {
-  const totalSeconds = Math.max(0, Math.round(milliseconds / 1_000));
+function formatRulerTime(milliseconds: number, showTenths = false): string {
+  const totalTenths = Math.max(0, Math.round(milliseconds / 100));
+  const totalSeconds = Math.floor(totalTenths / 10);
   const hours = Math.floor(totalSeconds / 3_600);
   const minutes = Math.floor(totalSeconds / 60) % 60;
   const seconds = totalSeconds % 60;
-  return hours > 0
+  const base = hours > 0
     ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
     : `${minutes}:${String(seconds).padStart(2, '0')}`;
+  return showTenths ? `${base}.${totalTenths % 10}` : base;
 }
 
 function capturePointer(element: HTMLElement, pointerId: number): void {

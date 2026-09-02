@@ -86,6 +86,13 @@ import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery
 import { performFeedbackHandoff } from './services/feedback-handoff';
 import { StateStore } from './services/state-store';
 import { PerformanceMonitor } from './services/performance-monitor';
+import { ResourceJournal } from './services/resource-journal';
+import {
+  AudioMeterDemandGate,
+  AudioSnapshotUpdateGate,
+  CaptureSnapshotUpdateGate,
+  isMaterialEngineStatusChange,
+} from './services/runtime-update-gates';
 import { getPreparedShareService } from './services/prepared-share';
 import { AutoCaptureEngine, type AutoCapturePreserveRequest } from './autocapture/auto-capture-engine';
 import { AutoCaptureRegistry } from './autocapture/registry';
@@ -102,6 +109,7 @@ import {
 import { Battlefield6Provider } from './autocapture/providers/battlefield-6/battlefield-6-provider';
 import type { OverwolfRuntimeHost } from './autocapture/providers/battlefield-6/overwolf-gep-session';
 import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
+import { resolveCaptureMicrophoneDeviceId } from './capture-microphone-routing';
 import {
   createModuleProject as scaffoldModuleProject,
   moduleManifestFromProject,
@@ -144,6 +152,7 @@ function sameAudioChannels(left: readonly ClipAudioChannel[] | undefined, right:
 type AppControllerOptions = {
   demoUpdate?: boolean;
   onUpdateInstallRequested?: (installing: boolean) => void;
+  getRendererRuntime?: () => Promise<unknown>;
 };
 
 export class AppController {
@@ -158,6 +167,11 @@ export class AppController {
   private readonly gameDiscovery: GameDiscoveryService;
   private readonly appUpdates: AppUpdateService;
   private readonly performance: PerformanceMonitor;
+  private readonly resourceJournal: ResourceJournal;
+  private readonly appliedEngineStatuses = new Map<EngineStatus['kind'], EngineStatus>();
+  private readonly audioSnapshotUpdateGate = new AudioSnapshotUpdateGate();
+  private readonly audioMeterDemandGate = new AudioMeterDemandGate();
+  private readonly captureSnapshotUpdateGate = new CaptureSnapshotUpdateGate();
   private readonly autoCaptureRegistry: AutoCaptureRegistry;
   private readonly autoCaptureEngine: AutoCaptureEngine;
   private readonly autoCaptureCoordinator: AutoCaptureCoordinator;
@@ -186,6 +200,10 @@ export class AppController {
 
   public constructor(options: AppControllerOptions = {}) {
     this.store = new StateStore(join(app.getPath('userData'), 'switchboard-state.json'));
+    this.resourceJournal = new ResourceJournal({
+      directory: join(app.getPath('userData'), 'diagnostics', 'resources'),
+      getRetentionDays: () => this.store.get().settings.diagnosticsRetentionDays,
+    });
     this.appUpdates = new AppUpdateService({
       currentVersion: currentCoreVersion(),
       isPackaged: app.isPackaged,
@@ -232,6 +250,8 @@ export class AppController {
         engines: (['audio', 'capture'] as const).map((kind) => this.engines.getStatus(kind)),
       }),
       publish: (performance) => { this.store.setPerformance(performance); },
+      getRendererRuntime: options.getRendererRuntime,
+      recordSample: (sample) => this.resourceJournal.record(sample),
     });
     const autoCaptureLog = (
       event: string,
@@ -356,9 +376,14 @@ export class AppController {
   public setRendererActive(active: boolean): SystemSnapshot {
     if (this.rendererActive === active) return this.store.get();
     this.rendererActive = active;
+    if (this.audioMeterDemandGate.setRendererActive(active)) this.syncAudioMeterDemand();
     if (active) void this.refreshAudioDevices();
     this.performance.refresh();
     return this.store.get();
+  }
+
+  public setAudioMeteringRequested(requested: boolean): void {
+    if (this.audioMeterDemandGate.setRendererRequested(requested)) this.syncAudioMeterDemand();
   }
 
   public refreshAudioDevices(force = false): Promise<SystemSnapshot> {
@@ -1147,7 +1172,7 @@ export class AppController {
     const clip: Clip = {
       id: randomUUID(),
       path: result.path,
-      name: overrides.name ?? createDefaultClipTitle(game),
+      name: overrides.name ?? createDefaultClipTitle(game, result.createdAt),
       ...(game ? { game } : {}),
       createdAt: result.createdAt,
       durationMs: result.durationMs,
@@ -1348,6 +1373,7 @@ export class AppController {
         draft.settings.launchAtStartup = defaultSettings.launchAtStartup;
         draft.settings.closeToTray = defaultSettings.closeToTray;
         draft.settings.destroyRendererInTray = defaultSettings.destroyRendererInTray;
+        draft.settings.softwareRendering = defaultSettings.softwareRendering;
         draft.settings.automaticAppUpdates = defaultSettings.automaticAppUpdates;
         draft.settings.automaticAppUpdateDownloads = defaultSettings.automaticAppUpdateDownloads;
         draft.settings.installAppUpdatesOnNextStartup = defaultSettings.installAppUpdatesOnNextStartup;
@@ -1432,7 +1458,7 @@ export class AppController {
         draft.clips[index] = {
           ...current,
           name,
-          titleEdited: name !== createDefaultClipTitle(clipGameLabel(current)),
+          titleEdited: name !== createDefaultClipTitle(clipGameLabel(current), current.createdAt),
         };
       }
     });
@@ -1506,6 +1532,13 @@ export class AppController {
       });
     }
     return waveform;
+  }
+
+  public async getClipAudioPreviewPath(id: string, trackIndex: number): Promise<string | null> {
+    if (!Number.isInteger(trackIndex) || trackIndex < 0 || trackIndex > 7) return null;
+    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+    if (!clip || !existsSync(clip.path)) return null;
+    return this.clipLibrary.prepareAudioPreview(clip, trackIndex);
   }
 
   private planClipExport(input: ExportClipInput): {
@@ -1714,6 +1747,7 @@ export class AppController {
   public async dispose(): Promise<void> {
     this.disposed = true;
     this.performance.dispose();
+    await this.resourceJournal.dispose();
     for (const controller of this.activeClipExports.values()) controller.abort();
     this.activeClipExports.clear();
     this.clipExportProgressListeners.clear();
@@ -1789,6 +1823,7 @@ export class AppController {
         await this.engines.request('audio', 'start', this.store.get().audio, 30_000),
       );
       this.applyAudioHostSnapshot(snapshot);
+      this.syncAudioMeterDemand();
     } catch (error) {
       await this.engines.stop('audio');
       throw error;
@@ -1879,6 +1914,9 @@ export class AppController {
   }
 
   private applyEngineStatus(status: EngineStatus): void {
+    const previous = this.appliedEngineStatuses.get(status.kind);
+    if (!isMaterialEngineStatusChange(previous, status)) return;
+    this.appliedEngineStatuses.set(status.kind, structuredClone(status));
     this.store.update(
       (draft) => {
         const index = draft.engines.findIndex((engine) => engine.kind === status.kind);
@@ -1997,6 +2035,9 @@ export class AppController {
       endpoint.flow === 'capture' && endpoint.name === 'Switchboard Audio - Microphone'
     ));
     const processedMicrophoneRequested = config.includeMic || reaction.enabled;
+    const microphoneDeviceId = processedMicrophoneRequested
+      ? resolveCaptureMicrophoneDeviceId(audio)
+      : null;
     const requestedSwitchboardAudioReady = switchboardAudioReady
       && (!processedMicrophoneRequested || processedMicrophone !== undefined);
     return {
@@ -2009,6 +2050,7 @@ export class AppController {
       processedMicrophoneDeviceId: switchboardAudioReady && processedMicrophoneRequested
         ? processedMicrophone?.id ?? null
         : null,
+      microphoneDeviceId,
       reactionClippingEnabled: reaction.enabled,
       reactionSensitivity: reaction.sensitivity,
       reactionCooldownSeconds: reaction.cooldownSeconds,
@@ -2023,6 +2065,7 @@ export class AppController {
     return JSON.stringify([
       settings.clipMixPipeName ?? null,
       settings.processedMicrophoneDeviceId ?? null,
+      settings.microphoneDeviceId ?? null,
       settings.audioFallbackReason ?? null,
       settings.reactionClippingEnabled,
       settings.reactionSensitivity,
@@ -2129,6 +2172,7 @@ export class AppController {
   }
 
   private applyAudioHostSnapshot(snapshot: AudioHostSnapshot): void {
+    if (!this.audioSnapshotUpdateGate.shouldApply(snapshot)) return;
     if (snapshot.running) this.audioRestartAttempts = 0;
     this.store.update((draft) => {
       draft.audio.host = snapshot;
@@ -2138,6 +2182,10 @@ export class AppController {
       for (const bus of draft.audio.buses) bus.appCount = applicationCounts.get(bus.id) ?? 0;
     }, { persist: false });
     this.scheduleCaptureAudioIntegrationSync();
+  }
+
+  private syncAudioMeterDemand(): void {
+    this.engines.send('audio', 'setMetering', this.audioMeterDemandGate.enabled);
   }
 
   private scheduleAudioHostRecovery(reason?: string): void {
@@ -2168,6 +2216,7 @@ export class AppController {
   }
 
   private applyCaptureSnapshot(snapshot: CaptureHostSnapshot): void {
+    if (!this.captureSnapshotUpdateGate.shouldApply(snapshot)) return;
     if (snapshot.runtime.state === 'buffering' || snapshot.runtime.state === 'waiting') {
       this.captureRestartAttempts = 0;
     }

@@ -4,6 +4,7 @@ import { stat } from 'node:fs/promises';
 import { extname, isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
+import { resolveApplicationIdentity, shouldApplyDevelopmentIdentity } from './application-identity';
 import { AppController } from './controller';
 import { requestsDemoUpdate } from './development-flags';
 import { registerIpc } from './ipc';
@@ -12,6 +13,7 @@ import { loadDefaultAppUpdaterClient, type AppUpdaterClient } from './services/a
 import { registerMontageV2Ipc } from './montage-v2-ipc';
 import { disposeMontageV2Service, getMontageV2Service } from './services/montage-v2';
 import { disposePreparedShareService } from './services/prepared-share';
+import { readSoftwareRenderingPreference } from './startup-settings';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -20,6 +22,17 @@ let cleanupIpc: (() => void) | null = null;
 let cleanupMontageV2Ipc: (() => void) | null = null;
 let quitting = false;
 let shutdownStarted = false;
+const applicationIdentity = resolveApplicationIdentity({
+  appDataPath: app.getPath('appData'),
+  isPackaged: app.isPackaged,
+});
+if (applicationIdentity.userDataPath && shouldApplyDevelopmentIdentity({
+  isNativeReview: process.env.SWITCHBOARD_NATIVE_REVIEW === '1',
+  isPackaged: app.isPackaged,
+})) {
+  app.setName(applicationIdentity.displayName);
+  app.setPath('userData', applicationIdentity.userDataPath);
+}
 let demoUpdateRequested = requestsDemoUpdate(process.argv, app.isPackaged);
 const packagedUpdaterVerdictPath = process.env.SWITCHBOARD_PACKAGED_UPDATER_VERDICT;
 const packagedUpdaterTargetVersion = process.env.SWITCHBOARD_PACKAGED_UPDATER_TARGET_VERSION?.trim();
@@ -28,6 +41,12 @@ const verifyPackagedUpdater = app.isPackaged
   && process.env.SWITCHBOARD_VERIFY_PACKAGED_UPDATER === '1'
   && typeof packagedUpdaterVerdictPath === 'string'
   && isAbsolute(packagedUpdaterVerdictPath);
+
+const softwareRenderingEnabled = process.env.SWITCHBOARD_DISABLE_HARDWARE_ACCELERATION === '1'
+  || readSoftwareRenderingPreference(join(app.getPath('userData'), 'switchboard-state.json'));
+if (softwareRenderingEnabled) {
+  app.disableHardwareAcceleration();
+}
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'switchboard-media',
@@ -65,7 +84,7 @@ function createWindow(): BrowserWindow {
     show: false,
     icon: getBrandIconPath(process.platform === 'win32' ? 'ico' : 'png'),
     backgroundColor: '#0d1015',
-    title: 'Switchboard',
+    title: applicationIdentity.displayName,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#00000000',
@@ -138,6 +157,28 @@ function showWindow(): void {
   mainWindow.focus();
 }
 
+async function getRendererRuntimeProbe(): Promise<unknown> {
+  const window = mainWindow;
+  if (!window || window.isDestroyed() || window.webContents.isDestroyed() || window.webContents.isLoading()) return null;
+  return window.webContents.executeJavaScript(`(() => {
+    const heap = performance.memory;
+    const videos = Array.from(document.querySelectorAll('video'));
+    const route = location.hash.replace(/^#/, '').split('/')[0] || 'devices';
+    return {
+      route,
+      jsHeapUsedBytes: Number.isFinite(heap?.usedJSHeapSize) ? heap.usedJSHeapSize : null,
+      jsHeapTotalBytes: Number.isFinite(heap?.totalJSHeapSize) ? heap.totalJSHeapSize : null,
+      jsHeapLimitBytes: Number.isFinite(heap?.jsHeapSizeLimit) ? heap.jsHeapSizeLimit : null,
+      domNodes: document.getElementsByTagName('*').length,
+      canvasCount: document.querySelectorAll('canvas').length,
+      imageCount: document.images.length,
+      videoCount: videos.length,
+      playingVideoCount: videos.filter((video) => !video.paused && !video.ended).length,
+      resourceEntryCount: performance.getEntriesByType('resource').length,
+    };
+  })()`, true);
+}
+
 function requestQuit(): void {
   quitting = true;
   app.quit();
@@ -147,10 +188,10 @@ function createTray(): Tray {
   const icon = nativeImage.createFromPath(getBrandIconPath());
   if (icon.isEmpty()) throw new Error('Switchboard brand icon could not be loaded.');
   const created = new Tray(icon.resize({ width: 18, height: 18, quality: 'best' }));
-  created.setToolTip('Switchboard');
+  created.setToolTip(applicationIdentity.displayName);
   created.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Open Switchboard', click: showWindow },
+      { label: `Open ${applicationIdentity.displayName}`, click: showWindow },
       { type: 'separator' },
       { label: 'Quit', click: requestQuit },
     ]),
@@ -208,12 +249,13 @@ if (verifyPackagedUpdater) {
   });
 
   void app.whenReady().then(async () => {
-    app.setAppUserModelId('dev.switchboard.prototype');
+    app.setAppUserModelId(applicationIdentity.appUserModelId);
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController({
       demoUpdate: demoUpdateRequested,
+      getRendererRuntime: getRendererRuntimeProbe,
       onUpdateInstallRequested: (installing) => {
         quitting = installing;
       },
@@ -235,6 +277,12 @@ if (verifyPackagedUpdater) {
       const range = request.headers.get('range');
       if (url.hostname === 'montage-audio') {
         const path = await getMontageV2Service().resolveAssetPath(id);
+        if (!path) return new Response('Not found', { status: 404 });
+        return streamMedia(path, range, audioContentType(path));
+      }
+      if (url.hostname === 'clip-audio') {
+        const trackIndex = Number(url.searchParams.get('track'));
+        const path = await controller?.getClipAudioPreviewPath(id, trackIndex);
         if (!path) return new Response('Not found', { status: 404 });
         return streamMedia(path, range, audioContentType(path));
       }

@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Clip, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
 import type { MontageProjectV2 } from '../../../shared/montage-v2';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../shared/auto-capture';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
 import { DeleteClipDialog, RenameClipDialog } from '@/components/capture/ClipDialogs';
-import { ClipEditor } from '@/components/capture/ClipEditor';
 import { ClipLibrary } from '@/components/capture/ClipLibrary';
-import { MontageComposer } from '@/components/capture/MontageComposer';
 import { MontageDraftStrip } from '@/components/capture/MontageDraftStrip';
 import { createMontageProjectV2, reconcileMontageProject } from '@/components/capture/montage-v2-model';
 import { useClipLibraryControls } from '@/components/capture/clip-library-model';
@@ -16,6 +14,11 @@ import { formatBytes, formatDuration } from '@/lib/format';
 import { montageV2Api } from '@/lib/montage-v2-api';
 import { useSystemStore } from '@/stores/use-system-store';
 import { Button } from '@/components/ui/button';
+
+const loadClipEditor = () => import('@/components/capture/ClipEditor');
+const loadMontageComposer = () => import('@/components/capture/MontageComposer');
+const ClipEditor = lazy(() => loadClipEditor().then((module) => ({ default: module.ClipEditor })));
+const MontageComposer = lazy(() => loadMontageComposer().then((module) => ({ default: module.MontageComposer })));
 
 export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled }: {
   snapshot: SystemSnapshot;
@@ -58,6 +61,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
 
   const clipLibraryControls = useClipLibraryControls(snapshot.clips, (clips) => {
     try {
+      void loadMontageComposer();
       setEditorClipId(null);
       setMontageProject(createMontageProjectV2(clips));
     } catch (error) {
@@ -128,7 +132,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   }, [snapshot.capture.autoCapture.settings.notifyWhenSaved, snapshot.capture.runtime.lastSavedAt, snapshot.clips]);
 
   const actions = useMemo<ClipActions>(() => ({
-    open: (clip) => { setMontageProject(null); setEditorClipId(clip.id); },
+    open: (clip) => { void loadClipEditor(); setMontageProject(null); setEditorClipId(clip.id); },
     favorite: (clip, favorite) => void setClipFavorite({ id: clip.id, favorite }),
     rename: (clip) => setRenameTarget(clip),
     reveal: (clip) => void revealClip(clip.id),
@@ -182,7 +186,8 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
 
       {editorClip ? (
         <div className="contents" aria-hidden={dialogOpen ? true : undefined} inert={dialogOpen ? true : undefined}>
-          <ClipEditor
+          <Suspense fallback={<CaptureToolLoading label="Loading clip editor" />}>
+            <ClipEditor
             clip={editorClip}
             exportPending={pendingClipActions.has(`clip:${editorClip.id}:export`)}
             trimPending={pendingClipActions.has(`clip:${editorClip.id}:trim`)}
@@ -209,13 +214,15 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
               showTransientToast('Export cancelled', setToast);
             }}
             onDelete={() => setDeleteTarget(editorClip)}
-          />
+            />
+          </Suspense>
         </div>
       ) : null}
 
       {montageProject ? (
         <div className="contents" aria-hidden={dialogOpen ? true : undefined} inert={dialogOpen ? true : undefined}>
-          <MontageComposer
+          <Suspense fallback={<CaptureToolLoading label="Loading montage workspace" />}>
+            <MontageComposer
             key={montageProject.id}
             initialProject={montageProject}
             clips={snapshot.clips}
@@ -224,7 +231,8 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
             onReveal={(clip) => void revealClip(clip.id)}
             onInspectorOpenChange={(open) => void updateSettings({ clipEditorInspectorOpen: open })}
             onDraftsChanged={refreshMontageDrafts}
-          />
+            />
+          </Suspense>
         </div>
       ) : null}
 
@@ -282,6 +290,14 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function CaptureToolLoading({ label }: { label: string }) {
+  return (
+    <div className="absolute inset-0 z-50 grid place-items-center bg-background text-[12px] text-muted-foreground" role="status">
+      {label}
     </div>
   );
 }

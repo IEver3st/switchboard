@@ -24,6 +24,7 @@ if (args.Contains("--benchmark", StringComparer.OrdinalIgnoreCase))
 using var engine = new AudioEngine(endpoints);
 using var shutdown = new CancellationTokenSource();
 using var outputGate = new SemaphoreSlim(1, 1);
+using var meterTelemetryDemand = new MeterTelemetryDemand();
 var process = Process.GetCurrentProcess();
 var previousCpuTime = process.TotalProcessorTime;
 var previousCpuSampleAt = Stopwatch.GetTimestamp();
@@ -78,6 +79,7 @@ async Task<bool> HandleLineAsync(string line)
             "listEndpoints" => endpoints.List(),
             "listSessions" => ListSessions(),
             "routeApplication" => engine.RouteApplication(ParseRoute(payload)),
+            "setMetering" => meterTelemetryDemand.SetEnabled(ParseMeteringEnabled(payload)),
             "shutdown" => engine.Stop(),
             _ => throw new InvalidOperationException($"Unknown command: {command}"),
         };
@@ -121,16 +123,36 @@ AudioHostSettings ParseSettings(JsonElement payload)
            ?? throw new InvalidOperationException("Audio settings could not be parsed.");
 }
 
+bool ParseMeteringEnabled(JsonElement payload)
+{
+    if (payload.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        throw new InvalidOperationException("Audio meter demand must be a boolean.");
+    return payload.GetBoolean();
+}
+
 async Task PublishTelemetryAsync(CancellationToken cancellationToken)
 {
-    using var meterTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
-    var statusCounter = 0;
-    while (await meterTimer.WaitForNextTickAsync(cancellationToken))
+    await Task.WhenAll(
+        PublishMeterTelemetryAsync(cancellationToken),
+        PublishStatusTelemetryAsync(cancellationToken));
+}
+
+async Task PublishMeterTelemetryAsync(CancellationToken cancellationToken)
+{
+    while (true)
     {
-        if (engine.Running) await WriteAsync(new { type = "meters", frame = engine.GetMeterFrame() });
-        statusCounter++;
-        if (statusCounter < 100) continue;
-        statusCounter = 0;
+        await meterTelemetryDemand.WaitUntilEnabledAsync(cancellationToken);
+        await Task.Delay(50, cancellationToken);
+        if (engine.Running && meterTelemetryDemand.Enabled)
+            await WriteAsync(new { type = "meters", frame = engine.GetMeterFrame() });
+    }
+}
+
+async Task PublishStatusTelemetryAsync(CancellationToken cancellationToken)
+{
+    using var statusTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+    while (await statusTimer.WaitForNextTickAsync(cancellationToken))
+    {
         engine.RecoverIfNeeded();
         await WriteAsync(new { type = "event", @event = "audioSnapshot", payload = engine.GetSnapshot() });
         await WriteStatusAsync();
@@ -155,6 +177,17 @@ async Task WriteStatusAsync()
                   ?? (engine.Running
                       ? $"{snapshot.NoiseSuppression.Backend} microphone processing active"
                       : null);
+    var resourceProcesses = new List<object>();
+    if (engine.Running)
+    {
+        resourceProcesses.Add(new
+        {
+            pid = Environment.ProcessId,
+            role = "host",
+            privateMemoryMb = Math.Round(process.PrivateMemorySize64 / 1024d / 1024d, 1),
+            workingSetMb = Math.Round(process.WorkingSet64 / 1024d / 1024d, 1),
+        });
+    }
     await WriteAsync(new
     {
         type = "status",
@@ -168,6 +201,7 @@ async Task WriteStatusAsync()
             uptimeSeconds = Math.Max(0, engine.Uptime.TotalSeconds),
             message,
             updatedAt = DateTimeOffset.UtcNow,
+            processes = resourceProcesses,
         },
     });
 }

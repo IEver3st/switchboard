@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const count = Number(process.argv[2]);
-if (![0, 1, 15, 20, 240].includes(count)) throw new Error('Clip count must be 0, 1, 15, 20, or 240.');
+if (![0, 1, 2, 15, 20, 240].includes(count)) throw new Error('Clip count must be 0, 1, 2, 15, 20, or 240.');
 const requestedWidth = Number(process.argv[3] ?? 1420);
 const requestedHeight = Number(process.argv[4] ?? 900);
 if (!Number.isFinite(requestedWidth) || !Number.isFinite(requestedHeight) || requestedWidth < 1080 || requestedHeight < 720) {
@@ -18,12 +18,15 @@ const reviewViewAll = process.argv.includes('--view-all');
 const reviewOpenCard = process.argv.includes('--open-card');
 const reviewReplayPopover = process.argv.includes('--replay-popover');
 const reviewActiveControls = process.argv.includes('--active-controls');
+const reviewFilterMenu = process.argv.includes('--filter-menu');
 const reviewListView = process.argv.includes('--list-view');
 const reviewDeleteDialog = process.argv.includes('--delete-dialog');
 const reviewThumbnailLoading = process.argv.includes('--thumbnail-loading');
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const outputDirectory = join(projectRoot, 'design-qa', 'scale');
+const outputDirectory = process.env.SWITCHBOARD_CAPTURE_SCALE_OUTPUT
+  ? resolve(process.env.SWITCHBOARD_CAPTURE_SCALE_OUTPUT)
+  : join(projectRoot, 'design-qa', 'scale');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-capture-scale-'));
 const sourceStatePath = join(process.env.APPDATA, 'switchboard-prototype', 'switchboard-state.json');
 const state = JSON.parse(await readFile(sourceStatePath, 'utf8'));
@@ -41,7 +44,7 @@ for (let index = 0; index < count; index += 1) {
   const id = 'scale-qa-' + String(index).padStart(3, '0');
   const game = games[index % games.length];
   const thumbnailPath = join(isolatedUserData, 'cache', 'thumbnails', id + '.v2.jpg');
-  await copyFile(baseClip.thumbnailPath, thumbnailPath);
+  if (baseClip.thumbnailPath) await copyFile(baseClip.thumbnailPath, thumbnailPath);
   state.clips.push({
     ...baseClip,
     id,
@@ -52,7 +55,7 @@ for (let index = 0; index < count; index += 1) {
     fileSize: baseClip.fileSize + index * 65_536,
     favorite: index % 7 === 0,
     titleEdited: false,
-    thumbnailPath,
+    thumbnailPath: baseClip.thumbnailPath ? thumbnailPath : '',
     audioChannels: index % 3 === 0 ? ['game', 'microphone'] : ['game'],
     autoCapture: reviewMode ? {
       autoCaptured: true,
@@ -138,6 +141,10 @@ async function runReview() {
       await selectGame(window, 'FiveM');
       await waitFor(window, `document.querySelector('.capture-tool-control--date')?.getAttribute('data-game') === 'FiveM'`);
     }
+    if (reviewFilterMenu) {
+      await openDateFilter(window);
+      await waitFor(window, "document.querySelectorAll('[role=menuitem]').length > 0");
+    }
     if (reviewListView) {
       await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"List view\"]')?.click()");
       await waitFor(window, `document.querySelectorAll('.capture-clip-list__item').length === ${count}`);
@@ -216,7 +223,7 @@ const metricsExpression = [
   await delay(80);
   const image = await window.webContents.capturePage();
   const viewportSuffix = process.argv[3] ? '-' + requestedWidth + 'x' + requestedHeight : '';
-  const stateSuffix = reviewReplayPopover ? '-replay' : reviewActiveControls ? '-active' : reviewListView ? '-list' : reviewDeleteDialog ? '-delete' : reviewThumbnailLoading ? '-loading' : '';
+  const stateSuffix = reviewReplayPopover ? '-replay' : reviewFilterMenu ? '-filter-menu' : reviewActiveControls ? '-active' : reviewListView ? '-list' : reviewDeleteDialog ? '-delete' : reviewThumbnailLoading ? '-loading' : '';
   const reviewSuffix = reviewDeleteConfirmation ? '-delete-confirm' : reviewViewAll ? '-view-all' : reviewOpenCard ? '-open-card' : '';
   const imagePath = join(outputDirectory, (reviewMode ? 'new-clips-review-' + count + reviewSuffix : 'capture-' + count + '-clips') + viewportSuffix + stateSuffix + '.png');
   await writeFile(imagePath, image.toPNG());
@@ -228,6 +235,11 @@ const metricsExpression = [
     await toggleFavoritesFilter(window);
     await selectGame(window, 'All games');
     await waitForLibrary(window, count);
+  }
+  if (reviewFilterMenu) {
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+    await waitFor(window, "document.querySelectorAll('[role=menuitem]').length === 0");
   }
   if (reviewListView) {
     await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"Grid view\"]')?.click()");
@@ -295,11 +307,11 @@ async function verifyResizeTransitions(window) {
         screenWidth: width,
         screenHeight: height,
       });
-      await waitFor(window, `innerWidth === ${width} && innerHeight === ${height}`);
-      await delay(80);
+      await delay(120);
       results.push(await window.webContents.executeJavaScript(`(() => {
         const grid = document.querySelector('.capture-clip-grid');
         return {
+          requestedViewport: { width: ${width}, height: ${height} },
           viewport: { width: innerWidth, height: innerHeight },
           columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0,
           horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,

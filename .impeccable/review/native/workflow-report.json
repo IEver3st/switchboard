@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-02T07:54:55.505Z",
+  "startedAt": "2026-09-02T08:14:40.517Z",
   "steps": [
     {
       "name": "devices.open-g502",
@@ -222,5 +222,5 @@
     "microphoneTest": "available",
     "monitoring": "available"
   },
-  "completedAt": "2026-09-02T07:54:58.237Z"
+  "completedAt": "2026-09-02T08:14:44.539Z"
 }

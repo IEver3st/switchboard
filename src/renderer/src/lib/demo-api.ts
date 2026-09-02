@@ -233,6 +233,7 @@ function syncAudioMeterTimer(): void {
 }
 
 const demoApi: SwitchboardApi = {
+  setUiScale() {},
   async getSnapshot() {
     ensureTimer();
     return structuredClone(snapshot);
@@ -344,18 +345,6 @@ const demoApi: SwitchboardApi = {
     if (change.type === 'microphone-mute-lighting' && device.capabilities.lighting) {
       device.capabilities.lighting.muteLinked = change.enabled;
     }
-    const headset = device.capabilities.headset;
-    if (change.type === 'headset-noise-control' && headset?.noiseControl) headset.noiseControl.mode = change.mode;
-    if (change.type === 'headset-ambient-level' && headset?.noiseControl) Object.assign(headset.noiseControl, { mode: 'ambient', ambientLevel: change.level });
-    if (change.type === 'headset-focus-on-voice' && headset?.noiseControl) Object.assign(headset.noiseControl, { mode: 'ambient', focusOnVoice: change.enabled });
-    if (change.type === 'headset-equalizer-preset' && headset?.equalizer) headset.equalizer.activePresetId = change.presetId;
-    if (change.type === 'headset-equalizer-bands' && headset?.equalizer) {
-      headset.equalizer.activePresetId = 'custom';
-      headset.equalizer.bands.forEach((band, index) => { band.gainDb = change.gainsDb[index] ?? band.gainDb; });
-    }
-    if (change.type === 'headset-dsee-extreme' && headset?.dseeExtreme) headset.dseeExtreme.enabled = change.enabled;
-    if (change.type === 'headset-speak-to-chat' && headset?.speakToChat) headset.speakToChat.enabled = change.enabled;
-    if (change.type === 'headset-listening-mode' && headset?.listeningMode) Object.assign(headset.listeningMode, { mode: change.mode, backgroundRoom: change.backgroundRoom ?? headset.listeningMode.backgroundRoom });
     return emit();
   },
   async refreshDevices() {
@@ -615,6 +604,7 @@ const demoApi: SwitchboardApi = {
       snapshot.settings.launchAtStartup = defaults.settings.launchAtStartup;
       snapshot.settings.closeToTray = defaults.settings.closeToTray;
       snapshot.settings.destroyRendererInTray = defaults.settings.destroyRendererInTray;
+      snapshot.settings.softwareRendering = defaults.settings.softwareRendering;
       snapshot.settings.automaticAppUpdates = defaults.settings.automaticAppUpdates;
       snapshot.settings.automaticAppUpdateDownloads = defaults.settings.automaticAppUpdateDownloads;
       snapshot.settings.installAppUpdatesOnNextStartup = defaults.settings.installAppUpdatesOnNextStartup;

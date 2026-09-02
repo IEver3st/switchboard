@@ -134,6 +134,24 @@ async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
         : Math.Clamp(cpuSeconds / elapsedSeconds / Environment.ProcessorCount * 100, 0, 100);
     previousCpuTime = cpuTime;
     previousCpuSampleAt = sampledAt;
+    var resourceProcesses = new List<object>();
+    if (state != "stopped")
+    {
+        resourceProcesses.Add(new
+        {
+            pid = Environment.ProcessId,
+            role = "host",
+            privateMemoryMb = Math.Round(process.PrivateMemorySize64 / 1024d / 1024d, 1),
+            workingSetMb = Math.Round(process.WorkingSet64 / 1024d / 1024d, 1),
+        });
+        resourceProcesses.AddRange(engine.GetProcessResources().Select(resource => (object)new
+        {
+            pid = resource.Pid,
+            role = resource.Role,
+            privateMemoryMb = Math.Round(resource.PrivateMemoryBytes / 1024d / 1024d, 1),
+            workingSetMb = Math.Round(resource.WorkingSetBytes / 1024d / 1024d, 1),
+        }));
+    }
     await WriteAsync(new
     {
         type = "status",
@@ -147,6 +165,7 @@ async Task WriteStatusAsync(CaptureHostSnapshot snapshot)
             uptimeSeconds = Math.Max(0, engine.Uptime.TotalSeconds),
             message = snapshot.Runtime.Error ?? snapshot.Runtime.Warning,
             updatedAt = DateTimeOffset.UtcNow,
+            processes = resourceProcesses,
         },
     });
 }

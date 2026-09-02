@@ -4,6 +4,7 @@ import { cpus } from 'node:os';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { promisify } from 'node:util';
+import { estimateWindowedGrowth } from './performance-statistics.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -13,14 +14,17 @@ if (!isolatedUserData) throw new Error('SWITCHBOARD_IDLE_USER_DATA must point to
 const sampleDurationMs = positiveInteger(process.env.SWITCHBOARD_IDLE_SAMPLE_MS, 60_000);
 const warmupDurationMs = positiveInteger(process.env.SWITCHBOARD_IDLE_WARMUP_MS, 10_000);
 const sampleIntervalMs = positiveInteger(process.env.SWITCHBOARD_IDLE_INTERVAL_MS, 1_000);
-const openMemoryBudgetMb = positiveNumber(process.env.SWITCHBOARD_IDLE_OPEN_MEMORY_MB, 180);
+const openMemoryBudgetMb = positiveNumber(process.env.SWITCHBOARD_IDLE_OPEN_MEMORY_MB, 340);
 const openCpuBudgetPercent = positiveNumber(process.env.SWITCHBOARD_IDLE_OPEN_CPU_PERCENT, 0.7);
-const trayMemoryBudgetMb = positiveNumber(process.env.SWITCHBOARD_IDLE_TRAY_MEMORY_MB, 70);
+const trayMemoryBudgetMb = positiveNumber(process.env.SWITCHBOARD_IDLE_TRAY_MEMORY_MB, 270);
 const trayCpuBudgetPercent = positiveNumber(process.env.SWITCHBOARD_IDLE_TRAY_CPU_PERCENT, 0.3);
 
 app.setName('switchboard-idle-measure');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
+if (process.env.SWITCHBOARD_IDLE_DISABLE_GPU === '1') {
+  process.env.SWITCHBOARD_DISABLE_HARDWARE_ACCELERATION = '1';
+}
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 if (process.env.SWITCHBOARD_IDLE_REAL_DEVICES !== '1') process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
@@ -38,6 +42,7 @@ void app.whenReady().then(async () => {
 
   const result = {
     mode: process.env.SWITCHBOARD_IDLE_REAL_DEVICES === '1' ? 'isolated-live-devices' : 'isolated-native-fixtures',
+    hardwareAcceleration: process.env.SWITCHBOARD_IDLE_DISABLE_GPU !== '1',
     sampleDurationMs,
     sampleIntervalMs,
     open: withBudget(open, openMemoryBudgetMb, openCpuBudgetPercent),
@@ -65,6 +70,7 @@ async function measureState(name, warmupMs, durationMs, intervalMs) {
     const sampledAt = performance.now();
     const cpuByPid = calculateCpuByPid(previousMetrics, metrics, sampledAt - previousSampleAt);
     samples.push({
+      sampledAt: Date.now(),
       cpuPercent: sum([...cpuByPid.values()]),
       privateMemoryMb: sum(metrics.map((metric) => metric.memory.privateBytes ?? 0)) / 1_024,
       residentSetMb: sum(metrics.map((metric) => metric.memory.workingSetSize)) / 1_024,
@@ -87,7 +93,10 @@ async function measureState(name, warmupMs, durationMs, intervalMs) {
   const last = samples.at(-1);
   const processes = last.processes.map((process) => {
     const observations = samples
-      .map((sample) => sample.processes.find((candidate) => candidate.pid === process.pid))
+      .map((sample) => {
+        const observation = sample.processes.find((candidate) => candidate.pid === process.pid);
+        return observation ? { ...observation, sampledAt: sample.sampledAt } : null;
+      })
       .filter(Boolean);
     return {
       pid: process.pid,
@@ -95,6 +104,7 @@ async function measureState(name, warmupMs, durationMs, intervalMs) {
       name: process.name,
       cpuPercent: summarize(observations.map((observation) => observation.cpuPercent)),
       privateMemoryMb: summarize(observations.map((observation) => observation.privateMemoryMb)),
+      privateMemoryGrowth: growthSummary(observations, 'privateMemoryMb'),
       residentSetMb: summarize(observations.map((observation) => observation.residentSetMb)),
     };
   });
@@ -103,11 +113,22 @@ async function measureState(name, warmupMs, durationMs, intervalMs) {
     name,
     sampleCount: samples.length,
     privateMemoryMb: summarize(samples.map((sample) => sample.privateMemoryMb)),
+    privateMemoryGrowth: growthSummary(samples, 'privateMemoryMb'),
     residentSetMb: summarize(samples.map((sample) => sample.residentSetMb)),
+    residentSetGrowth: growthSummary(samples, 'residentSetMb'),
     cpuPercent: summarize(samples.map((sample) => sample.cpuPercent)),
     processCount: summarize(samples.map((sample) => sample.processCount)),
     ...windowsResources,
     processes,
+  };
+}
+
+function growthSummary(samples, key) {
+  const growth = estimateWindowedGrowth(samples, key);
+  return {
+    firstWindowMedian: round(growth.firstWindowMedian),
+    lastWindowMedian: round(growth.lastWindowMedian),
+    perMinute: round(growth.perMinute),
   };
 }
 

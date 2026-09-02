@@ -62,10 +62,10 @@ export function ClipList({ clips, actions, selectionMode, selectedClipIds, onTog
               </button>
             </h3>
             <p className="m-0 mt-0.5 truncate text-[11px] font-medium leading-4 text-text-secondary">
-              {clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ''}
+              {clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ' · Manual Capture'}
             </p>
             <p className="capture-clip-list__metadata">
-              <span>{formatRelativeTime(clip.createdAt)}</span>
+              <span><time dateTime={new Date(clip.createdAt).toISOString()} title={new Date(clip.createdAt).toLocaleString()}>{formatRelativeTime(clip.createdAt)}</time></span>
               <span>Video quality: {formatVideoQuality(clip.width, clip.height, clip.fps)}</span>
               <span>Size: {formatBytes(clip.fileSize)}</span>
             </p>

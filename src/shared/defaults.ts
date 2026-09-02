@@ -654,6 +654,7 @@ export const defaultSettings: AppSettings = {
   launchAtStartup: false,
   closeToTray: true,
   destroyRendererInTray: true,
+  softwareRendering: false,
   automaticAppUpdates: true,
   automaticAppUpdateDownloads: true,
   installAppUpdatesOnNextStartup: true,

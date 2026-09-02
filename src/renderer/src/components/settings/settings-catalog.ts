@@ -1,6 +1,5 @@
 export const settingsCategoryIds = [
   'general',
-  'devices',
   'audio',
   'capture',
   'clips',
@@ -26,7 +25,6 @@ export const settingsCategories: ReadonlyArray<{
   resettable: boolean;
 }> = [
   { id: 'general', label: 'General', resettable: true },
-  { id: 'devices', label: 'Devices', resettable: true },
   { id: 'audio', label: 'Audio', resettable: true },
   { id: 'capture', label: 'Capture', resettable: true },
   { id: 'clips', label: 'Clips', resettable: true },
@@ -43,6 +41,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Interface scale',
     description: 'Make text, controls, and workspaces larger or smaller throughout Switchboard.',
     keywords: ['ui', 'zoom', 'size', 'text', 'font', 'accessibility', 'display'],
+  },
+  {
+    id: 'general.softwareRendering',
+    category: 'general',
+    title: 'Low resource rendering',
+    description: 'Use software rendering after restart to reduce background memory.',
+    keywords: ['software', 'rendering', 'gpu', 'memory', 'ram', 'resource', 'restart'],
   },
   {
     id: 'general.startup',
@@ -85,27 +90,6 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Install for the next startup',
     description: 'Apply a downloaded release when Switchboard closes.',
     keywords: ['app', 'application', 'install', 'update', 'startup', 'restart', 'quit'],
-  },
-  {
-    id: 'devices.connected',
-    category: 'devices',
-    title: 'Connected hardware',
-    description: 'Review hardware identity and open per-device controls.',
-    keywords: ['device', 'hardware', 'connected', 'identity', 'manufacturer', 'model'],
-  },
-  {
-    id: 'devices.appearanceFallback',
-    category: 'devices',
-    title: 'Appearance fallback',
-    description: 'Override the cosmetic variant only when hardware evidence cannot identify it.',
-    keywords: ['device', 'variant', 'colorway', 'white', 'black', 'override', 'asset', 'render'],
-  },
-  {
-    id: 'devices.workspace',
-    category: 'devices',
-    title: 'Per-device controls',
-    description: 'Open the Devices workspace for hardware-specific configuration.',
-    keywords: ['gain', 'dpi', 'polling rate', 'lighting', 'buttons', 'device page'],
   },
   {
     id: 'audio.engine',

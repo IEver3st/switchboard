@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
@@ -8,13 +8,50 @@ import { StartupScreen } from '@/components/layout/startup-screen';
 import { TitleStrip } from '@/components/layout/title-strip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { manageAsyncCleanup } from '@/lib/async-cleanup';
+import { SettingsPage } from '@/pages/settings';
 import { useSystemStore } from '@/stores/use-system-store';
 
-const AudioPage = lazy(() => import('@/pages/audio').then((module) => ({ default: module.AudioPage })));
-const CapturePage = lazy(() => import('@/pages/capture').then((module) => ({ default: module.CapturePage })));
-const DevicesPage = lazy(() => import('@/pages/devices').then((module) => ({ default: module.DevicesPage })));
+let audioPagePromise: ReturnType<typeof importAudioPage> | null = null;
+let capturePagePromise: ReturnType<typeof importCapturePage> | null = null;
+let devicesPagePromise: ReturnType<typeof importDevicesPage> | null = null;
+let resolvedAudioPage: Awaited<ReturnType<typeof importAudioPage>> | null = null;
+let resolvedCapturePage: Awaited<ReturnType<typeof importCapturePage>> | null = null;
+let resolvedDevicesPage: Awaited<ReturnType<typeof importDevicesPage>> | null = null;
+
+function importAudioPage() {
+  return import('@/pages/audio').then((module) => ({ default: module.AudioPage }));
+}
+
+function importCapturePage() {
+  return import('@/pages/capture').then((module) => ({ default: module.CapturePage }));
+}
+
+function importDevicesPage() {
+  return import('@/pages/devices').then((module) => ({ default: module.DevicesPage }));
+}
+
+const loadAudioPage = () => audioPagePromise ??= importAudioPage().then((module) => {
+  resolvedAudioPage = module;
+  return module;
+});
+const loadCapturePage = () => capturePagePromise ??= importCapturePage().then((module) => {
+  resolvedCapturePage = module;
+  return module;
+});
+const loadDevicesPage = () => devicesPagePromise ??= importDevicesPage().then((module) => {
+  resolvedDevicesPage = module;
+  return module;
+});
+const AudioPage = lazy(loadAudioPage);
+const CapturePage = lazy(loadCapturePage);
+const DevicesPage = lazy(loadDevicesPage);
 const NewClipsReview = lazy(() => import('@/components/capture/NewClipsReview').then((module) => ({ default: module.NewClipsReview })));
-const SettingsPage = lazy(() => import('@/pages/settings').then((module) => ({ default: module.SettingsPage })));
+
+const workspaceLoaders: Partial<Record<PageId, () => Promise<unknown>>> = {
+  audio: loadAudioPage,
+  capture: loadCapturePage,
+  devices: loadDevicesPage,
+};
 
 const pageTitles: Record<PageId, string> = {
   devices: 'Devices',
@@ -34,6 +71,13 @@ export function App() {
   const clearError = useSystemStore((state) => state.clearError);
   const previousWorkspaceRef = useRef<Exclude<PageId, 'settings' | 'modules'>>('devices');
   const [requestedClipId, setRequestedClipId] = useState<string | null>(null);
+  const [, setPreloadRevision] = useState(0);
+  const preloadWorkspace = useCallback((target: PageId) => {
+    void workspaceLoaders[target]?.().then(() => setPreloadRevision((revision) => revision + 1));
+  }, []);
+  const AudioWorkspace = resolvedAudioPage?.default ?? AudioPage;
+  const CaptureWorkspace = resolvedCapturePage?.default ?? CapturePage;
+  const DevicesWorkspace = resolvedDevicesPage?.default ?? DevicesPage;
   const shouldOfferClipReview = snapshot
     ? reviewableAutoCapturedClips(
         snapshot.clips,
@@ -43,12 +87,35 @@ export function App() {
     : false;
 
   useLayoutEffect(() => {
-    const scale = (snapshot?.settings.uiScalePercent ?? 125) / 100;
-    document.documentElement.style.setProperty('zoom', String(scale));
+    const percent = snapshot?.settings.uiScalePercent ?? 125;
+    if (window.switchboard) {
+      document.documentElement.style.removeProperty('zoom');
+      window.switchboard.setUiScale(percent);
+      return;
+    }
+    document.documentElement.style.setProperty('zoom', String(percent / 100));
     return () => { document.documentElement.style.removeProperty('zoom'); };
   }, [snapshot?.settings.uiScalePercent]);
 
   useEffect(() => manageAsyncCleanup(initialize()), [initialize]);
+
+  useEffect(() => {
+    if (!snapshot) return;
+    let cancelled = false;
+    const preload = () => {
+      void loadAudioPage()
+        .then(() => {
+          if (!cancelled) setPreloadRevision((revision) => revision + 1);
+          return loadCapturePage();
+        })
+        .then(() => { if (!cancelled) setPreloadRevision((revision) => revision + 1); });
+    };
+    const idleCallback = window.requestIdleCallback(preload, { timeout: 1_000 });
+    return () => {
+      cancelled = true;
+      window.cancelIdleCallback(idleCallback);
+    };
+  }, [Boolean(snapshot)]);
 
   useEffect(() => {
     if (page !== 'settings' && page !== 'modules') previousWorkspaceRef.current = page;
@@ -61,13 +128,11 @@ export function App() {
           {page === 'settings' || page === 'modules' ? (
             <main className="min-h-0 min-w-0 flex-1 bg-background">
               <h1 className="sr-only">{pageTitles[page]}</h1>
-              <Suspense fallback={<PageLoading label="settings" />}>
-                <SettingsPage snapshot={snapshot} onClose={() => setPage(previousWorkspaceRef.current)} />
-              </Suspense>
+              <SettingsPage snapshot={snapshot} onClose={() => setPage(previousWorkspaceRef.current)} />
             </main>
           ) : (
             <>
-              <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} />
+              <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} onNavigateIntent={preloadWorkspace} />
               <div className="app-shell__workspace flex min-w-0 flex-1 flex-col">
                 <TitleStrip />
                 <section className="app-shell__content flex min-h-0 flex-1 flex-col">
@@ -75,10 +140,10 @@ export function App() {
                     <h1 className="sr-only">{pageTitles[page]}</h1>
                     <Suspense fallback={<PageLoading label={pageTitles[page].toLocaleLowerCase()} />}>
                       <ScrollArea className="h-full">
-                        {page === 'devices' ? <DevicesPage snapshot={snapshot} /> : null}
-                        {page === 'audio' ? <AudioPage snapshot={snapshot} /> : null}
+                        {page === 'devices' ? <DevicesWorkspace snapshot={snapshot} /> : null}
+                        {page === 'audio' ? <AudioWorkspace snapshot={snapshot} /> : null}
                         {page === 'capture' ? (
-                          <CapturePage
+                          <CaptureWorkspace
                             snapshot={snapshot}
                             requestedClipId={requestedClipId}
                             onRequestedClipHandled={() => setRequestedClipId(null)}

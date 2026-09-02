@@ -60,14 +60,47 @@ if (command === 'capture') {
     await rm(isolatedUserData, { recursive: true, force: true });
   }
 } else if (command === 'startup') {
-  await runElectron('scripts/measure-startup.mjs', ...commandArguments);
+  const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-startup-measure-'));
+  cleanEnvironment.SWITCHBOARD_STARTUP_USER_DATA = isolatedUserData;
+  cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
+  try {
+    await runElectron('scripts/measure-startup.mjs', ...commandArguments);
+  } finally {
+    delete cleanEnvironment.SWITCHBOARD_STARTUP_USER_DATA;
+    delete cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN;
+    await rm(isolatedUserData, { recursive: true, force: true });
+  }
+} else if (command === 'settings-navigation') {
+  const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-settings-measure-'));
+  cleanEnvironment.SWITCHBOARD_SETTINGS_MEASURE_USER_DATA = isolatedUserData;
+  cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
+  try {
+    await runElectron('scripts/measure-settings-navigation.mjs', ...commandArguments);
+  } finally {
+    delete cleanEnvironment.SWITCHBOARD_SETTINGS_MEASURE_USER_DATA;
+    delete cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN;
+    await rm(isolatedUserData, { recursive: true, force: true });
+  }
 } else if (command === 'idle') {
   const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-idle-measure-'));
   cleanEnvironment.SWITCHBOARD_IDLE_USER_DATA = isolatedUserData;
+  cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
   try {
     await runElectron('scripts/measure-idle.mjs', ...commandArguments);
   } finally {
     delete cleanEnvironment.SWITCHBOARD_IDLE_USER_DATA;
+    delete cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN;
+    await rm(isolatedUserData, { recursive: true, force: true });
+  }
+} else if (command === 'route-navigation') {
+  const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-route-measure-'));
+  cleanEnvironment.SWITCHBOARD_ROUTE_MEASURE_USER_DATA = isolatedUserData;
+  cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
+  try {
+    await runElectron('scripts/measure-route-navigation.mjs', ...commandArguments);
+  } finally {
+    delete cleanEnvironment.SWITCHBOARD_ROUTE_MEASURE_USER_DATA;
+    delete cleanEnvironment.SWITCHBOARD_NATIVE_REVIEW_HIDDEN;
     await rm(isolatedUserData, { recursive: true, force: true });
   }
 } else if (command === 'app-updates') {

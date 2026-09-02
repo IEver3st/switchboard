@@ -54,10 +54,7 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
       <div className="capture-command-header__capture-rail">
         <div className="capture-command-header__identity">
           <h2 id="clips-heading">Clips</h2>
-          <p aria-live="polite">
-            <span>{clipCount}</span>
-            {controls.clips.length > 0 ? <span className="capture-command-header__size"> <span aria-hidden="true">·</span> {formatBytes(controls.visibleBytes)}</span> : null}
-          </p>
+          <p aria-live="polite">{clipCount}</p>
         </div>
         <ReplayConfiguration
           snapshot={snapshot}
@@ -112,17 +109,14 @@ function ReplayConfiguration({
   return (
     <div className="capture-recorder-rail" role="group" aria-label="Replay capture controls">
       <div className="capture-recorder-status" data-tone={status.tone} title={status.description}>
-        <Monitor className="size-4 shrink-0" aria-hidden="true" />
         <span className="capture-recorder-status__dot" aria-hidden="true" />
-        <span>{captureRailStatusLabel(status.label)}</span>
+        <span>{status.label}</span>
       </div>
 
       <div className="capture-recorder-toggle">
-        <span>Instant Replay: <strong>{config.enabled ? 'Enabled' : 'Disabled'}</strong></span>
+        <span>Replay</span>
         <Switch checked={config.enabled} aria-label="Instant Replay" onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
       </div>
-
-      <CaptureSourcePicker compact value={selectedSourceValue} options={sourceOptions} active={config.enabled} onChange={onSourceChange} />
 
       <Popover open={replayOpen} onOpenChange={setReplayOpen}>
         <PopoverTrigger asChild>
@@ -493,10 +487,4 @@ function captureStatus(snapshot: SystemSnapshot): { label: string; description: 
     return { label: 'Saving', description: 'Instant Replay is saving a clip.', tone: 'ready' };
   }
   return { label: 'Ready', description: 'Instant Replay is buffering this source.', tone: 'ready' };
-}
-
-function captureRailStatusLabel(label: string): string {
-  if (label === 'Ready') return 'Ready to capture';
-  if (label === 'Off') return 'Capture off';
-  return `Capture ${label.toLocaleLowerCase()}`;
 }

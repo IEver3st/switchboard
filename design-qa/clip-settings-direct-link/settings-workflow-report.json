@@ -1,0 +1,20 @@
+{
+  "expected": {
+    "replaySeconds": 30,
+    "quality": 3,
+    "resolution": "1080p",
+    "fps": 30
+  },
+  "persisted": true,
+  "storageButtons": [
+    {
+      "text": "C:\\Users\\User\\Videos\\Switchboard\\Clips",
+      "disabled": false
+    },
+    {
+      "text": "Change folder",
+      "disabled": false
+    }
+  ],
+  "closedHash": "#devices"
+}

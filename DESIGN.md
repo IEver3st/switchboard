@@ -128,6 +128,10 @@ Clip thumbnails preserve the media aspect ratio and dominate each tile. Grid mod
 
 The timeline is an editing instrument, not decoration. Playhead, trim boundaries, segment boundaries, audio tracks, muted state, waveform availability, and keyboard focus need distinct shapes.
 
+Keep the ruler and clip-event lane compact and continuous. Canonical clip events render as blue diamonds inside the clip lane, seek the preview when activated, and expose their type and timestamp through an accessible name and tooltip. Kills, reactions, saved moments, and other event types share the same marker shape; the event list and label carry their meaning instead of assigning arbitrary marker colors.
+
+Audio lanes retain their Game, Chat, Media, and Microphone identities as persistent teal, blue, violet, and amber bands. Their filled waveforms come from analyzed per-track samples. Loading, silent, unavailable, muted, and trimmed states must remain explicit and may never be replaced with a decorative or fabricated waveform.
+
 Single-clip and montage projects remain visibly different. Montage segments show order and source boundaries. Missing media, analysis failure, export cancellation, and cleanup errors remain recoverable and explicit.
 
 ### Settings and diagnostics

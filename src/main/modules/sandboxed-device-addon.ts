@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { BrowserWindow, session } from 'electron';
 import type { Device as HidDevice } from 'node-hid';
@@ -9,6 +9,7 @@ import type {
   ModuleRuntimeStatus,
 } from '../../shared/contracts';
 import { resolveProductAsset } from '../../shared/product-assets';
+import { addonPartitionName } from './addon-partition';
 import type { DeviceDiscoveryContext, DeviceModule } from './device-module';
 
 const detectionTimeoutMs = 2_500;
@@ -140,7 +141,7 @@ export class SandboxedDeviceAddon implements DeviceModule {
   }
 
   private async createHost(): Promise<BrowserWindow> {
-    const partitionName = `switchboard-addon-${randomUUID()}`;
+    const partitionName = addonPartitionName(this.id);
     const isolatedSession = session.fromPartition(partitionName, { cache: false });
     isolatedSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     isolatedSession.setPermissionCheckHandler(() => false);

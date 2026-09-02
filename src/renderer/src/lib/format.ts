@@ -43,10 +43,11 @@ export function formatClipTimestamp(value: number, now = Date.now()): string {
 export function formatClipDateGroup(value: number, now = Date.now()): string {
   const date = new Date(value);
   const today = new Date(now);
-  if (sameDay(date, today)) return 'Today';
+  const calendarDate = date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  if (sameDay(date, today)) return `Today · ${calendarDate}`;
   const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-  if (sameDay(date, yesterday)) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  if (sameDay(date, yesterday)) return `Yesterday · ${calendarDate}`;
+  return calendarDate;
 }
 
 function sameDay(left: Date, right: Date): boolean {

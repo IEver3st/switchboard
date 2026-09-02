@@ -192,27 +192,6 @@ export class DeviceRegistry {
     if (change.type === 'keyboard-snap-tap' && device.capabilities.keyboard?.snapTap?.writable) {
       device.capabilities.keyboard.snapTap.enabled = change.enabled;
     }
-    const headset = device.capabilities.headset;
-    if (change.type === 'headset-noise-control' && headset?.noiseControl) headset.noiseControl.mode = change.mode;
-    if (change.type === 'headset-ambient-level' && headset?.noiseControl) {
-      headset.noiseControl.mode = 'ambient';
-      headset.noiseControl.ambientLevel = change.level;
-    }
-    if (change.type === 'headset-focus-on-voice' && headset?.noiseControl) {
-      headset.noiseControl.mode = 'ambient';
-      headset.noiseControl.focusOnVoice = change.enabled;
-    }
-    if (change.type === 'headset-equalizer-preset' && headset?.equalizer) headset.equalizer.activePresetId = change.presetId;
-    if (change.type === 'headset-equalizer-bands' && headset?.equalizer) {
-      headset.equalizer.activePresetId = 'custom';
-      headset.equalizer.bands.forEach((band, index) => { band.gainDb = change.gainsDb[index] ?? band.gainDb; });
-    }
-    if (change.type === 'headset-dsee-extreme' && headset?.dseeExtreme) headset.dseeExtreme.enabled = change.enabled;
-    if (change.type === 'headset-speak-to-chat' && headset?.speakToChat) headset.speakToChat.enabled = change.enabled;
-    if (change.type === 'headset-listening-mode' && headset?.listeningMode) {
-      headset.listeningMode.mode = change.mode;
-      if (change.backgroundRoom) headset.listeningMode.backgroundRoom = change.backgroundRoom;
-    }
     this.applyDevices(devices);
   }
 

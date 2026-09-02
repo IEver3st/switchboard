@@ -48,6 +48,9 @@ var validSettings = new CaptureSettings(
     CacheDirectory: Path.GetTempPath(),
     ClipsDirectory: Path.GetTempPath());
 _ = validSettings.Validate();
+var nvencArguments = ReplayEngine.EncoderArguments(validSettings, "av1_nvenc").ToArray();
+AssertValue(true, nvencArguments.Zip(nvencArguments.Skip(1)).Any(pair => pair.First == "-delay" && pair.Second == "0"),
+    "NVENC capture must not retain the encoder's automatic frame-delay allocation.");
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { Fps = 59 }).Validate(), "Unsupported FPS must fail validation.");
 AssertThrows<InvalidOperationException>(() => (validSettings with { Source = "window", SourceId = null }).Validate(), "Window capture requires a target.");
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { ReactionSensitivity = "maximum" }).Validate(),
@@ -58,6 +61,20 @@ AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with
     "Switching replay system audio to the Audio.Host clip mix must rebuild the FFmpeg audio input.");
 AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ProcessedMicrophoneDeviceId = "processed-mic" }),
     "Switching replay microphone capture to the processed endpoint must rebuild the FFmpeg audio input.");
+var selectedMicrophoneSettings = validSettings with { MicrophoneDeviceId = "hyperx-quadcast-endpoint" };
+AssertEqual(
+    "hyperx-quadcast-endpoint",
+    ReplayEngine.ResolveMicrophoneEndpointId(selectedMicrophoneSettings) ?? "",
+    "Replay capture must use the microphone selected in Switchboard instead of the Windows default input.");
+AssertEqual(
+    "switchboard-processed-microphone",
+    ReplayEngine.ResolveMicrophoneEndpointId(selectedMicrophoneSettings with
+    {
+        ProcessedMicrophoneDeviceId = "switchboard-processed-microphone",
+    }) ?? "",
+    "The processed microphone endpoint must take precedence when the virtual-audio path is available.");
+AssertValue(true, ReplayEngine.RequiresRestart(validSettings, selectedMicrophoneSettings),
+    "Changing the selected replay microphone must rebuild the FFmpeg audio input.");
 
 var surroundSystemAudio = new TestAudioPipeInput(SampleRate: 96_000, Channels: 8);
 var surroundSystemAudioArguments = ReplayEngine.BuildAudioArguments(
@@ -296,6 +313,12 @@ static void AssertRemuxStdinIsolation()
         "Microphone");
     AssertValue(true, arguments.Contains("-nostdin"),
         "Replay remux must not inherit Capture.Host stdin and consume shortcut commands.");
+    AssertValue(true, arguments.Contains("[1:a:0][2:a:0]amix=inputs=2:duration=longest:dropout_transition=0[clip_audio]"),
+        "A saved clip must mix system and microphone audio into the one playback track users hear.");
+    AssertSequence(
+        ValuesFollowing(arguments, "-map"),
+        ["0:v:0", "[clip_audio]"],
+        "A saved clip must expose one mixed audio track instead of mutually exclusive system and microphone tracks.");
 }
 
 static void AssertEqual(string expected, string actual, string message)

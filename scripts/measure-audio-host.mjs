@@ -9,9 +9,10 @@ const settingsPath = option('--settings');
 const durationSeconds = Number(option('--duration', '60'));
 const exerciseMicrophoneTest = process.argv.includes('--exercise-microphone-test');
 const outputPath = option('--output', '');
-const hostPath = resolve(option('--host', resolve(root, '.switchboard', 'build', 'audio-host', 'Audio.Host.exe')));
+const hostPath = resolve(option('--host', resolve(root, '.switchboard', 'dev-hosts', 'audio', 'Audio.Host.exe')));
 if (!Number.isFinite(durationSeconds) || durationSeconds < 60) throw new Error('--duration must be at least 60 seconds.');
-const settings = JSON.parse(await readFile(resolve(settingsPath), 'utf8'));
+const settingsDocument = JSON.parse(await readFile(resolve(settingsPath), 'utf8'));
+const settings = settingsDocument.audio ?? settingsDocument;
 
 const host = spawn(hostPath, [], { cwd: dirname(hostPath), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
 const responses = new Map();
@@ -19,6 +20,9 @@ const statuses = [];
 let latestSnapshot = null;
 let measuredSnapshot = null;
 let stderr = '';
+let meterFrames = 0;
+let dormantMeterFrames = 0;
+let requestedMeterFrames = 0;
 host.stderr.setEncoding('utf8');
 host.stderr.on('data', (chunk) => { stderr += chunk; });
 const lines = createInterface({ input: host.stdout });
@@ -27,6 +31,7 @@ lines.on('line', (line) => {
   try { message = JSON.parse(line); } catch { return; }
   if (message.type === 'status') statuses.push(message.status);
   if (message.type === 'event' && message.event === 'audioSnapshot') latestSnapshot = message.payload;
+  if (message.type === 'meters') meterFrames += 1;
   if (message.type !== 'response') return;
   const pending = responses.get(message.requestId);
   if (!pending) return;
@@ -53,6 +58,11 @@ try {
   latestSnapshot = await request('measurement-start', 'start', settings, 30_000);
   if (exerciseMicrophoneTest) await request('measurement-microphone-test', 'testMicrophone', undefined, 10_000);
   await new Promise((resolveDelay) => setTimeout(resolveDelay, durationSeconds * 1_000));
+  dormantMeterFrames = meterFrames;
+  await request('measurement-enable-meters', 'setMetering', true);
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 1_000));
+  await request('measurement-disable-meters', 'setMetering', false);
+  requestedMeterFrames = meterFrames - dormantMeterFrames;
   latestSnapshot = await request('measurement-status', 'status');
   measuredSnapshot = latestSnapshot;
   await request('measurement-shutdown', 'shutdown');
@@ -78,6 +88,8 @@ const report = {
   noiseSuppression: measuredSnapshot?.noiseSuppression ?? null,
   inputFormat: measuredSnapshot?.inputFormat ?? null,
   driver: measuredSnapshot?.driver ?? null,
+  dormantMeterFrames,
+  requestedMeterFrames,
 };
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
 if (outputPath) {
@@ -86,6 +98,9 @@ if (outputPath) {
   await writeFile(absoluteOutput, serialized);
 }
 console.log(serialized.trimEnd());
+if (dormantMeterFrames !== 0 || requestedMeterFrames < 10) {
+  throw new Error(`Audio meter demand gate failed: ${dormantMeterFrames} dormant frames and ${requestedMeterFrames} requested frames.`);
+}
 
 function option(name, fallback) {
   const index = process.argv.indexOf(name);

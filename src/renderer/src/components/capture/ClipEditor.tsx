@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ArrowLeft, Clapperboard, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
 import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
@@ -86,7 +86,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
     || endMs !== savedEndMs
     || !sameAudioTrackTrims(audioTrackTrims, savedAudioTrackTrims);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setStartMs(clip.trimStartMs ?? 0);
     setEndMs(clip.trimEndMs ?? clip.durationMs);
     setAudioTrackTrims([...(clip.audioTrackTrims ?? [])]);
@@ -96,6 +96,19 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
   useEffect(() => {
     backRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const markReady = () => setPreviewState('ready');
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) markReady();
+    video.addEventListener('loadeddata', markReady);
+    video.addEventListener('canplay', markReady);
+    return () => {
+      video.removeEventListener('loadeddata', markReady);
+      video.removeEventListener('canplay', markReady);
+    };
+  }, [clip.id]);
 
   useEffect(() => {
     if (!viewerFullscreen) return;
@@ -246,6 +259,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
               onLoadedMetadata={(event) => {
                 event.currentTarget.currentTime = startMs / 1_000;
               }}
+              onLoadedData={() => setPreviewState('ready')}
               onCanPlay={() => setPreviewState('ready')}
               onError={() => setPreviewState('error')}
             />

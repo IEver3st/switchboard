@@ -19,10 +19,21 @@ if (!copiedState.clips?.some((clip) => clip.path)) throw new Error('Native clip 
 const reviewClipIndex = await findReviewClipIndex(copiedState.clips);
 if (reviewClipIndex < 0) throw new Error('Native clip editor verification requires one indexed clip at least 10 seconds long.');
 copiedState.clips = [copiedState.clips[reviewClipIndex]];
-copiedState.clips[0].audioChannels = [];
+const reviewDurationMs = copiedState.clips[0].durationMs;
+copiedState.clips[0].autoCapture = {
+  autoCaptured: true,
+  providerId: 'native-review-events',
+  gameId: 'native-review',
+  events: [
+    { id: 'native-review-kill', type: 'kill', timestampMs: Math.round(reviewDurationMs * 0.18), label: 'Kill' },
+    { id: 'native-review-reaction', type: 'highlight', timestampMs: Math.round(reviewDurationMs * 0.54), label: 'Reaction', metadata: { code: 'voice-reaction' } },
+    { id: 'native-review-clip', type: 'custom', timestampMs: reviewDurationMs, label: 'Clip saved' },
+  ],
+};
 copiedState.audio.enabled = false;
 copiedState.capture.config.enabled = false;
 copiedState.capture.config.clipsDirectory = join(isolatedUserData, 'review-clips');
+copiedState.settings.uiScalePercent = 100;
 if (copiedState.capture.runtime.reactionClipping) {
   copiedState.capture.runtime.reactionClipping.analyzedFrames ??= 0;
   copiedState.capture.runtime.reactionClipping.analysisAverageMs ??= 0;
@@ -68,10 +79,32 @@ async function run() {
   };
   await waitForLoad(window);
   await waitForMissingSelector(window, '.startup-screen');
+  if (process.argv.includes('--microphone-only')) {
+    await openEditor(window);
+    const microphonePreview = await verifyMicrophonePreviewLevel(window);
+    process.stdout.write(`${JSON.stringify({ microphonePreview }, null, 2)}\n`);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--performance-only')) {
+    await openEditor(window);
+    const playbackPerformance = await measureTimelinePlayback(window);
+    process.stdout.write(`${JSON.stringify({ playbackPerformance }, null, 2)}\n`);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--interactions-only')) {
+    await openEditor(window);
+    const interactionEvidence = await verifyTimelineInteractions(window);
+    process.stdout.write(`${JSON.stringify({ interactionEvidence }, null, 2)}\n`);
+    app.quit();
+    return;
+  }
   const results = [];
   const timelineOnly = process.argv.includes('--timeline-only');
+  const allViewports = process.argv.includes('--all-viewports');
 
-  const reviewViewports = timelineOnly
+  const reviewViewports = timelineOnly && !allViewports
     ? [{ width: 1420, height: 900 }]
     : [
         { width: 1080, height: 720 },
@@ -121,6 +154,23 @@ async function run() {
           waveformArea: track.querySelector('path')?.getAttribute('d')?.endsWith('Z') ?? false,
           waveform: track.querySelector('path')?.getAttribute('d')?.length ?? 0,
         })),
+        clipTrack: (() => {
+          const track = editor.querySelector('.clip-editor-timeline__clip-track');
+          const bounds = track?.getBoundingClientRect();
+          return bounds ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom } : null;
+        })(),
+        eventMarkers: [...editor.querySelectorAll('.clip-editor-event-marker')].map((marker) => {
+          const glyph = marker.querySelector('span');
+          const bounds = glyph?.getBoundingClientRect();
+          const style = glyph ? getComputedStyle(glyph) : null;
+          return {
+            label: marker.getAttribute('aria-label'),
+            type: marker.getAttribute('data-event-type'),
+            bounds: bounds ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom } : null,
+            backgroundColor: style?.backgroundColor,
+            transform: style?.transform,
+          };
+        }),
         audioLevelLabels: [...editor.querySelectorAll('.clip-editor-track-control [role="slider"]')].map((slider) => slider.getAttribute('aria-label')),
         audioInspectorLabels: [...editor.querySelectorAll('.clip-editor-audio-tracks li')].map((item) => item.textContent?.trim()),
         waveformState: editor.querySelector('.clip-editor-timeline__desk')?.getAttribute('data-waveform-state'),
@@ -149,11 +199,32 @@ async function run() {
     if (metrics.audioTracks.some((track) => track.height < 38 || track.height > 54 || track.waveform < 100)) {
       throw new Error(`Audio lanes are not correctly sized or waveform-backed: ${JSON.stringify(metrics.audioTracks)}`);
     }
-    const saturatedTimelineColors = new Set(['rgb(63, 209, 187)', 'rgb(245, 178, 77)']);
-    if (metrics.audioTracks.some((track) => saturatedTimelineColors.has(track.backgroundColor) || track.waveformFill === 'none' || track.waveformStroke !== 'none' || !track.waveformArea)) {
-      throw new Error(`Audio lanes lost their neutral surfaces or channel-aware waveform treatment: ${JSON.stringify(metrics.audioTracks)}`);
+    if (metrics.audioTracks.some((track) => track.waveformFill === 'none' || track.waveformStroke !== 'none' || !track.waveformArea)) {
+      throw new Error(`Audio lanes lost their channel-aware filled waveform treatment: ${JSON.stringify(metrics.audioTracks)}`);
+    }
+    const eventLabels = metrics.eventMarkers.map((marker) => marker.label?.replace(/ at .*$/, ''));
+    if (eventLabels.join(',') !== 'Kill,Reaction,Clip saved' || !metrics.clipTrack) {
+      throw new Error(`The canonical event markers are incomplete: ${JSON.stringify(metrics.eventMarkers)}`);
+    }
+    if (metrics.eventMarkers.some((marker) => !marker.bounds
+      || marker.bounds.left < metrics.clipTrack.left
+      || marker.bounds.right > metrics.clipTrack.right
+      || marker.bounds.top < metrics.clipTrack.top
+      || marker.bounds.bottom > metrics.clipTrack.bottom
+      || marker.backgroundColor !== 'rgb(76, 169, 232)'
+      || marker.transform === 'none')) {
+      throw new Error(`Event diamonds are not blue, diamond-shaped, and contained by the event lane: ${JSON.stringify({ clipTrack: metrics.clipTrack, eventMarkers: metrics.eventMarkers })}`);
     }
     if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
+
+    const reactionMarkerLabel = metrics.eventMarkers.find((marker) => marker.label?.startsWith('Reaction at '))?.label;
+    if (!reactionMarkerLabel) throw new Error('The Reaction event marker has no accessible seek action.');
+    await clickButtonByLabel(window, reactionMarkerLabel);
+    await waitForCondition(async () => {
+      const state = await timelineState(window);
+      return Math.abs(state.currentMs - state.durationMs * 0.54) <= 180;
+    }, 'Reaction event marker seek');
+    metrics.eventSeek = await timelineState(window);
 
     await evaluate(window, `document.activeElement instanceof HTMLElement && document.activeElement.blur()`);
     const editorImage = await window.webContents.capturePage();
@@ -232,6 +303,12 @@ async function run() {
     await clickButton(window, 'Back to clips');
     await waitForMissingSelector(window, '[data-testid="clip-editor"]');
     await delay(120);
+  }
+
+  if (timelineOnly && allViewports) {
+    process.stdout.write(`${JSON.stringify({ outputDirectory, results }, null, 2)}\n`);
+    app.quit();
+    return;
   }
 
   window.setContentSize(1420, 900, false);
@@ -327,7 +404,8 @@ async function run() {
   if (reopenedEnd !== adjustedEnd) throw new Error(`Saved trim was not restored: ${adjustedEnd} -> ${reopenedEnd}.`);
   const reopenedTrackStart = Number(await evaluate(window, `document.querySelector('[data-testid="clip-track-0-trim-start"]')?.getAttribute('aria-valuenow')`));
   if (reopenedTrackStart !== trackStartAfter) throw new Error(`Saved audio track trim was not restored: ${trackStartAfter} -> ${reopenedTrackStart}.`);
-  const reopenedAudioLevel = Number(await evaluate(window, `document.querySelector('.clip-editor-track-control [role="slider"]')?.getAttribute('aria-valuenow')`));
+  await waitForCondition(() => evaluate(window, `Number(document.querySelector('.clip-editor-track-control [role="slider"][aria-label^="Microphone "]')?.getAttribute('aria-valuenow')) === 37`), 'restored microphone track level');
+  const reopenedAudioLevel = Number(await evaluate(window, `document.querySelector('.clip-editor-track-control [role="slider"][aria-label^="Microphone "]')?.getAttribute('aria-valuenow')`));
   if (reopenedAudioLevel !== 37) throw new Error(`Audio track level was not restored: 37 -> ${reopenedAudioLevel}.`);
 
   const exportClip = await evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0])`);
@@ -500,13 +578,17 @@ async function verifyEditorWorkspace(window) {
   await waitForCondition(() => evaluate(window, `(document.querySelector('video')?.volume ?? 0) < ${volumeBefore}`), 'playback volume adjustment');
   const volumeAfter = Number(await evaluate(window, `document.querySelector('video')?.volume ?? 0`));
   if (!(volumeAfter < volumeBefore)) throw new Error(`Playback volume did not respond to the keyboard: ${volumeBefore} -> ${volumeAfter}.`);
-  const mutedBefore = Boolean(await evaluate(window, `document.querySelector('video')?.muted`));
-  await waitForCondition(() => evaluate(window, `Boolean(document.querySelector('button[aria-label="${mutedBefore ? 'Unmute' : 'Mute'}"]'))`), 'mute control synchronization');
+  const mutedBefore = Boolean(await evaluate(window, `document.querySelector('button[aria-label="Unmute"]')`));
   await clickButtonByLabel(window, mutedBefore ? 'Unmute' : 'Mute');
-  await waitForCondition(() => evaluate(window, `document.querySelector('video')?.muted === ${!mutedBefore}`), 'mute toggle');
+  await waitForCondition(() => evaluate(window, `Boolean(document.querySelector('button[aria-label="${mutedBefore ? 'Mute' : 'Unmute'}"]'))`), 'mute toggle');
   await clickButtonByLabel(window, mutedBefore ? 'Mute' : 'Unmute');
 
-  await evaluate(window, `document.querySelector('.clip-editor-track-control [role="slider"]')?.focus()`);
+  const microphonePreviewVolumeBefore = Number(await evaluate(window, `(() => {
+    const preview = document.querySelector('[data-clip-preview-track="microphone"]');
+    if (!(preview instanceof HTMLAudioElement)) throw new Error('The microphone preview audio stream is missing.');
+    return preview.volume;
+  })()`));
+  await evaluate(window, `document.querySelector('.clip-editor-track-control [role="slider"][aria-label^="Microphone "]')?.focus()`);
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'HOME' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'HOME' });
   for (let step = 0; step < 37; step += 1) {
@@ -515,11 +597,18 @@ async function verifyEditorWorkspace(window) {
   }
   await delay(220);
   const audioLevel = await evaluate(window, `(() => {
-    const slider = document.querySelector('.clip-editor-track-control [role="slider"]');
+    const slider = document.querySelector('.clip-editor-track-control [role="slider"][aria-label^="Microphone "]');
     slider?.blur();
     return { label: slider?.getAttribute('aria-label'), value: slider?.getAttribute('aria-valuenow') };
   })()`);
-  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0].audioTrackLevels?.[0] === 37)`), 'audio track level persistence');
+  const microphoneTrackIndex = Number(await evaluate(window, `document.querySelector('[data-clip-preview-track="microphone"]')?.getAttribute('data-track-index') ?? -1`));
+  if (microphoneTrackIndex < 0) throw new Error('The microphone preview audio stream has no track index.');
+  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0].audioTrackLevels?.[${microphoneTrackIndex}] === 37)`), 'microphone track level persistence');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('[data-clip-preview-track="microphone"]')?.volume ?? 1) < ${microphonePreviewVolumeBefore}`), 'microphone preview volume adjustment');
+  const microphonePreviewVolumeAfter = Number(await evaluate(window, `document.querySelector('[data-clip-preview-track="microphone"]')?.volume ?? -1`));
+  if (!(microphonePreviewVolumeAfter < microphonePreviewVolumeBefore)) {
+    throw new Error(`Microphone preview volume did not respond: ${microphonePreviewVolumeBefore} -> ${microphonePreviewVolumeAfter}.`);
+  }
 
   const clipBefore = await evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0])`);
   await clickButtonByLabel(window, clipBefore.favorite ? 'Remove from favorites' : 'Add to favorites');
@@ -553,7 +642,42 @@ async function verifyEditorWorkspace(window) {
   await clickButton(window, 'Cancel');
   await waitForMissingSelector(window, '[role="alertdialog"]');
 
-  return { expanded, collapsed, cropGuide, verticalCanvasScreenshot, fullscreen, playbackAdvanced: true, smoothPlayback: { movingSamples: movingSamples.length, distinctPlayheadPositions, pausedStable: true }, keyboardShortcuts: true, transportControls: true, volume: { before: volumeBefore, after: volumeAfter }, audioLevel, favorite: { before: clipBefore.favorite, after: !clipBefore.favorite }, revealCount: revealCalls.length, renamed, menuItems };
+  return { expanded, collapsed, cropGuide, verticalCanvasScreenshot, fullscreen, playbackAdvanced: true, smoothPlayback: { movingSamples: movingSamples.length, distinctPlayheadPositions, pausedStable: true }, keyboardShortcuts: true, transportControls: true, volume: { before: volumeBefore, after: volumeAfter }, audioLevel, microphonePreviewVolume: { before: microphonePreviewVolumeBefore, after: microphonePreviewVolumeAfter }, favorite: { before: clipBefore.favorite, after: !clipBefore.favorite }, revealCount: revealCalls.length, renamed, menuItems };
+}
+
+async function verifyMicrophonePreviewLevel(window) {
+  const initial = await evaluate(window, `(() => {
+    const preview = document.querySelector('[data-clip-preview-track="microphone"]');
+    return preview instanceof HTMLAudioElement ? { found: true, volume: preview.volume } : { found: false, volume: null };
+  })()`);
+  if (!initial.found) throw new Error('The microphone preview audio stream is missing.');
+  const before = Number(initial.volume);
+  await waitForCondition(() => evaluate(window, `(() => {
+    const previews = [...document.querySelectorAll('[data-clip-preview-track]')];
+    return previews.length > 0 && previews.every((preview) => preview instanceof HTMLAudioElement && preview.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA);
+  })()`), 'isolated clip audio previews');
+  const playbackStart = Number(await evaluate(window, `document.querySelector('[data-clip-preview-track="microphone"]')?.currentTime ?? 0`));
+  await clickButtonByLabel(window, 'Play selection');
+  await waitForCondition(() => evaluate(window, `document.querySelector('[data-clip-preview-track="microphone"]')?.paused === false`), 'microphone preview playback');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('[data-clip-preview-track="microphone"]')?.currentTime ?? 0) > ${playbackStart + 0.05}`), 'microphone preview playback progress');
+  const focused = await evaluate(window, `(() => {
+    const slider = document.querySelector('.clip-editor-track-control [role="slider"][aria-label^="Microphone "]');
+    slider?.focus();
+    return slider === document.activeElement;
+  })()`);
+  if (!focused) throw new Error('The microphone level slider is missing or could not receive focus.');
+  await pressKey(window, 'HOME');
+  for (let step = 0; step < 37; step += 1) await pressKey(window, 'RIGHT');
+  const trackIndex = Number(await evaluate(window, `document.querySelector('[data-clip-preview-track="microphone"]')?.getAttribute('data-track-index') ?? -1`));
+  if (trackIndex < 0) throw new Error('The microphone preview audio stream has no track index.');
+  await waitForCondition(() => evaluate(window, `window.switchboard.getSnapshot().then((snapshot) => snapshot.clips[0].audioTrackLevels?.[${trackIndex}] === 37)`), 'microphone track level persistence');
+  await waitForCondition(() => evaluate(window, `(document.querySelector('[data-clip-preview-track="microphone"]')?.volume ?? 1) < ${before}`), 'microphone preview volume adjustment');
+  const after = Number(await evaluate(window, `document.querySelector('[data-clip-preview-track="microphone"]')?.volume ?? -1`));
+  if (!(after < before)) throw new Error(`Microphone preview volume did not respond: ${before} -> ${after}.`);
+  const synchronizationErrorMs = Number(await evaluate(window, `Math.abs((document.querySelector('[data-clip-preview-track="microphone"]')?.currentTime ?? 0) - (document.querySelector('video')?.currentTime ?? 0)) * 1000`));
+  if (synchronizationErrorMs > 100) throw new Error(`Microphone preview drifted ${synchronizationErrorMs}ms from the video.`);
+  await clickButtonByLabel(window, 'Pause');
+  return { before, after, trackIndex, synchronizationErrorMs };
 }
 
 async function editorGeometry(window) {
@@ -577,6 +701,73 @@ async function editorGeometry(window) {
       inspectorContentRight: inspectorContentRect?.right ?? 0,
     };
   })()`);
+}
+
+async function measureTimelinePlayback(window, durationMs = 2_000) {
+  await evaluate(window, `(() => {
+    const reset = document.querySelector('button[aria-label="Reset timeline edits"]');
+    if (reset && !reset.disabled) reset.click();
+  })()`);
+  await evaluate(window, `(() => {
+    const video = document.querySelector('video');
+    if (!video) throw new Error('Clip preview video is missing.');
+    const trimStartMs = Number(document.querySelector('[aria-label="Trim start"]')?.getAttribute('aria-valuenow') ?? 0);
+    video.pause();
+    video.currentTime = trimStartMs / 1000;
+    video.dispatchEvent(new Event('seeked'));
+  })()`);
+  await delay(100);
+  await clickButtonByLabel(window, 'Play selection');
+  await waitForCondition(() => evaluate(window, `document.querySelector('video')?.paused === false`), 'clip playback start');
+  const samples = await evaluate(window, `new Promise((resolve) => {
+    const video = document.querySelector('video');
+    const surface = document.querySelector('[data-testid="clip-timeline-surface"]');
+    const playhead = document.querySelector('.clip-editor-playhead');
+    const duration = Number(document.querySelector('[aria-label="Playhead"]')?.getAttribute('aria-valuemax'));
+    const width = surface?.getBoundingClientRect().width ?? 0;
+    const values = [];
+    const startedAt = performance.now();
+    const sample = (now) => {
+      const transform = playhead?.style.transform ?? '';
+      const match = /translate3d\\(([-+0-9.eE]+)px/.exec(transform);
+      values.push({
+        elapsedMs: now - startedAt,
+        playheadX: match ? Number(match[1]) : null,
+        expectedX: duration > 0 ? (video?.currentTime ?? 0) * 1000 / duration * width : 0,
+        videoMs: (video?.currentTime ?? 0) * 1000,
+        paused: video?.paused ?? true,
+        ended: video?.ended ?? false,
+      });
+      if (now - startedAt < ${durationMs}) requestAnimationFrame(sample);
+      else resolve(values);
+    };
+    requestAnimationFrame(sample);
+  })`);
+  if (await evaluate(window, `Boolean(document.querySelector('button[aria-label="Pause"]'))`)) await clickButtonByLabel(window, 'Pause');
+  const moving = samples.filter((sample) => sample.videoMs > 30 && sample.playheadX !== null);
+  const gaps = moving.slice(1).map((sample, index) => sample.elapsedMs - moving[index].elapsedMs);
+  const backwards = moving.slice(1).filter((sample, index) => sample.playheadX < moving[index].playheadX - 0.25).length;
+  const errors = moving.map((sample) => Math.abs(sample.playheadX - sample.expectedX));
+  const metrics = {
+    samples: moving.length,
+    backwards,
+    longFrames: gaps.filter((gap) => gap > 34).length,
+    maximumFrameGapMs: Math.max(0, ...gaps),
+    maximumTrackingErrorPx: Math.max(0, ...errors),
+    p95TrackingErrorPx: percentile(errors, 0.95),
+    pausedSamples: samples.filter((sample) => sample.paused).length,
+    endedSamples: samples.filter((sample) => sample.ended).length,
+  };
+  if (metrics.samples < 60 || metrics.backwards > 0 || metrics.maximumFrameGapMs > 50 || metrics.p95TrackingErrorPx > 2 || metrics.pausedSamples > 2 || metrics.endedSamples > 0) {
+    throw new Error(`Timeline playback did not meet the smoothness budget: ${JSON.stringify(metrics)}`);
+  }
+  return metrics;
+}
+
+function percentile(values, quantile) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * quantile))];
 }
 
 async function verifyTimelineInteractions(window) {
@@ -629,7 +820,14 @@ async function verifyTimelineInteractions(window) {
   assertNear(startTrimmed.currentMs, scrubbed.currentMs, 80, 'Left trim handle unexpectedly sought');
 
   const endRect = await sliderRect(window, 'Trim end');
-  await pointerDrag(window, Math.min(surface.x + surface.width - 6, endRect.x + endRect.width / 2), endRect.y + endRect.height / 2, surface.x + surface.width * 0.82, trackY);
+  const endPointerX = Math.min(surface.x + surface.width - 6, endRect.x + endRect.width / 2);
+  const endPointerY = endRect.y + endRect.height / 2;
+  const endHit = await evaluate(window, `(() => {
+    const target = document.elementFromPoint(${endPointerX}, ${endPointerY});
+    return target?.closest?.('[role="slider"]')?.getAttribute('aria-label') ?? null;
+  })()`);
+  if (endHit !== 'Trim end') throw new Error(`The trim end handle is obstructed by ${endHit ?? 'another timeline element'}.`);
+  await pointerDrag(window, endPointerX, endPointerY, surface.x + surface.width * 0.82, trackY);
   const endTrimmed = await timelineState(window);
   if (!(endTrimmed.endMs < initial.endMs)) throw new Error(`Right trim handle did not retreat: ${initial.endMs} -> ${endTrimmed.endMs}`);
   assertNear(endTrimmed.currentMs, startTrimmed.currentMs, 80, 'Right trim handle unexpectedly sought');
@@ -724,9 +922,25 @@ async function openEditor(window) {
 }
 
 async function waitForStablePreview(window) {
-  await waitForSelector(window, '.clip-editor-preview[data-state="ready"]');
+  try {
+    await waitForSelector(window, '.clip-editor-preview[data-state="ready"]');
+  } catch (error) {
+    const diagnostics = await evaluate(window, `(() => {
+      const preview = document.querySelector('.clip-editor-preview');
+      const video = document.querySelector('video');
+      return {
+        previewState: preview?.getAttribute('data-state') ?? null,
+        readyState: video?.readyState ?? null,
+        networkState: video?.networkState ?? null,
+        errorCode: video?.error?.code ?? null,
+        errorMessage: video?.error?.message ?? null,
+        currentSrc: video?.currentSrc ?? null,
+      };
+    })()`);
+    throw new Error(`${error instanceof Error ? error.message : String(error)} ${JSON.stringify(diagnostics)}`);
+  }
   await waitForMissingSelector(window, '.clip-editor-preview__status');
-  await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-timeline__desk')?.getAttribute('data-waveform-state') === 'ready'`), 'audio waveform analysis');
+  await waitForCondition(() => evaluate(window, `document.querySelector('.clip-editor-timeline__desk')?.getAttribute('data-waveform-state') === 'ready'`), 'audio waveform analysis', 30_000);
   await delay(160);
 }
 
@@ -832,16 +1046,21 @@ async function waitForLoad(window) {
 
 async function waitForViewport(window, viewport) {
   const deadline = Date.now() + 5_000;
+  let measured = null;
   while (Date.now() < deadline) {
-    const size = await evaluate(window, `({ width: innerWidth, height: innerHeight })`);
-    if (size.width === viewport.width && Math.abs(size.height - viewport.height) <= 2) return;
+    measured = await evaluate(window, `({ width: innerWidth, height: innerHeight })`);
+    if (measured.width === viewport.width && Math.abs(measured.height - viewport.height) <= 2) return;
     await delay(40);
   }
-  throw new Error(`Window did not reach ${viewport.width}x${viewport.height}.`);
+  throw new Error(`Window did not reach ${viewport.width}x${viewport.height}; renderer measured ${measured?.width ?? 'unknown'}x${measured?.height ?? 'unknown'}.`);
 }
 
-function evaluate(window, expression) {
-  return window.webContents.executeJavaScript(expression, true);
+async function evaluate(window, expression) {
+  try {
+    return await window.webContents.executeJavaScript(expression, true);
+  } catch (error) {
+    throw new Error(`${error instanceof Error ? error.message : String(error)} Expression: ${expression.slice(0, 240)}`);
+  }
 }
 
 function delay(milliseconds) {
@@ -854,14 +1073,21 @@ async function findReviewClipIndex(clips) {
     if (!clip?.path || clip.durationMs < 10_000) continue;
     try {
       const { stdout } = await execFileAsync('ffprobe', [
-        '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream_tags=title,name', '-of', 'json', clip.path,
+        '-v', 'error', '-show_entries', 'stream=codec_name,codec_type:stream_tags=title,name', '-of', 'json', clip.path,
       ]);
-      const labels = (JSON.parse(stdout).streams ?? [])
+      const streams = JSON.parse(stdout).streams ?? [];
+      const labels = streams
+        .filter((stream) => stream.codec_type === 'audio')
         .flatMap((stream) => [stream.tags?.title, stream.tags?.name])
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase();
-      if ((labels.includes('game') || labels.includes('system')) && labels.includes('microphone')) return index;
+      const codec = streams.find((stream) => stream.codec_type === 'video')?.codec_name?.toLocaleLowerCase();
+      if (
+        codec === 'h264'
+        && (labels.includes('game') || labels.includes('system'))
+        && labels.includes('microphone')
+      ) return index;
     } catch { }
   }
   return -1;

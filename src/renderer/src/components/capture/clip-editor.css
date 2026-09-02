@@ -1,4 +1,5 @@
 .clip-editor-shell {
+  --clip-event: #4ca9e8;
   position: fixed;
   z-index: 40;
   inset: 38px 0 0 68px;
@@ -6,6 +7,7 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
+  border-radius: 8px 0 0;
   background: var(--background);
 }
 
@@ -16,6 +18,7 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 12px;
+  border-top-left-radius: inherit;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   background: var(--surface-1);
   padding: 0 12px;
@@ -834,6 +837,7 @@
 
 .clip-editor-timeline {
   --timeline-playhead: #63cbe3;
+  --timeline-event: var(--clip-event);
   --timeline-selection: #8b98a9;
   --timeline-range-accent: #00cdb7;
   --timeline-range-surface: #10272a;
@@ -1165,15 +1169,15 @@
 
 .clip-editor-event-markers {
   position: absolute;
-  z-index: 6;
-  inset: 8px 0 auto;
-  height: 24px;
+  z-index: 7;
+  inset: 22px 0 auto;
+  height: 28px;
   pointer-events: none;
 }
 
 .clip-editor-event-marker {
   position: absolute;
-  top: 0;
+  top: 4px;
   display: grid;
   width: 18px;
   height: 18px;
@@ -1182,48 +1186,29 @@
   place-items: center;
   border: 0;
   background: transparent;
-  color: var(--timeline-playhead);
+  color: var(--timeline-event);
   cursor: pointer;
   pointer-events: auto;
   transform: translateX(-9px);
 }
 
 .clip-editor-event-marker > span {
-  width: 7px;
-  height: 7px;
-  border: 1px solid color-mix(in srgb, currentColor 68%, var(--surface-1));
-  border-radius: 50%;
-  background: var(--surface-1);
-  box-shadow: inset 0 0 0 2px currentColor;
-}
-
-.clip-editor-event-marker::after {
-  position: absolute;
-  top: 14px;
-  width: 1px;
-  height: 15px;
-  background: color-mix(in srgb, currentColor 52%, transparent);
-  content: "";
-}
-
-.clip-editor-event-marker[data-event-type="multi_kill"],
-.clip-editor-event-marker[data-event-type="round_win"],
-.clip-editor-event-marker[data-event-type="match_win"] {
-  color: var(--status-success);
-}
-
-.clip-editor-event-marker[data-event-type="multi_kill"] > span {
+  width: 8px;
+  height: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 78%, var(--surface-1));
   border-radius: 1px;
+  background: currentColor;
   transform: rotate(45deg);
 }
 
 .clip-editor-event-marker:hover > span,
 .clip-editor-event-marker:focus-visible > span {
-  background: currentColor;
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--surface-1);
 }
 
 .clip-editor-event-marker:focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 2px solid transparent;
   outline-offset: -1px;
 }
 
@@ -1262,18 +1247,11 @@
 }
 
 .clip-editor-events button > span {
-  width: 6px;
-  height: 6px;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  color: var(--timeline-playhead);
-}
-
-.clip-editor-events button > span[data-event-type="multi_kill"],
-.clip-editor-events button > span[data-event-type="round_win"],
-.clip-editor-events button > span[data-event-type="match_win"] {
+  width: 7px;
+  height: 7px;
+  border: 1px solid color-mix(in srgb, var(--clip-event) 78%, var(--surface-1));
   border-radius: 1px;
-  color: var(--status-success);
+  background: var(--clip-event);
   transform: rotate(45deg);
 }
 
@@ -1314,12 +1292,12 @@
 }
 
 .clip-editor-timeline__audio-track {
-  --timeline-lane-surface: color-mix(in srgb, var(--track-color) 8%, var(--surface-2));
-  --timeline-waveform-color: color-mix(in srgb, var(--track-color) 70%, var(--text-primary));
+  --timeline-lane-surface: color-mix(in srgb, var(--track-color) 70%, #111923);
+  --timeline-waveform-color: color-mix(in srgb, var(--track-color) 78%, var(--text-primary));
   position: relative;
   min-height: var(--audio-lane-height);
   overflow: visible;
-  border: 1px solid color-mix(in srgb, var(--track-color) 34%, var(--border-strong));
+  border: 1px solid color-mix(in srgb, var(--track-color) 78%, var(--border-strong));
   border-radius: 2px;
   background: var(--timeline-lane-surface);
 }
@@ -1339,8 +1317,8 @@
 }
 
 .clip-editor-timeline__audio-track > .clip-editor-timeline__selection {
-  border-block: 1px solid color-mix(in srgb, var(--timeline-waveform-color) 72%, transparent);
-  background: transparent;
+  border-block: 1px solid color-mix(in srgb, var(--timeline-waveform-color) 84%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
 }
 
 .clip-editor-timeline__audio-track > .clip-editor-timeline__inactive {
@@ -1407,9 +1385,7 @@
   left: 0;
   width: 0;
   pointer-events: none;
-}
-
-.clip-editor-timeline[data-playing="true"] .clip-editor-playhead {
+  transform: translate3d(0, 0, 0);
   will-change: transform;
 }
 
@@ -1438,7 +1414,7 @@
 
 .clip-editor-trim-handle {
   position: absolute;
-  z-index: 5;
+  z-index: 7;
   top: 0;
   bottom: 0;
   width: 30px;

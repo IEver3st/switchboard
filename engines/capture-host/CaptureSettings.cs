@@ -25,6 +25,7 @@ internal sealed record CaptureSettings(
     string ThumbnailDirectory = "",
     string? ClipMixPipeName = null,
     string? ProcessedMicrophoneDeviceId = null,
+    string? MicrophoneDeviceId = null,
     bool ReactionClippingEnabled = false,
     string ReactionSensitivity = "balanced",
     int ReactionCooldownSeconds = 15,
@@ -57,6 +58,8 @@ internal sealed record CaptureSettings(
             throw new InvalidOperationException("Capture storage paths are required.");
         if (ClipMixPipeName is not null && ClipMixPipeName != "switchboard-audio-clip-v1")
             throw new InvalidOperationException("The clip-mix pipe identity is invalid.");
+        if (MicrophoneDeviceId is { Length: > 512 } || ProcessedMicrophoneDeviceId is { Length: > 512 })
+            throw new InvalidOperationException("The microphone endpoint identity is invalid.");
         if (ReactionSensitivity is not ("low" or "balanced" or "high"))
             throw new ArgumentOutOfRangeException(nameof(ReactionSensitivity));
         if (ReactionCooldownSeconds is < 5 or > 120)

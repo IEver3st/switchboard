@@ -44,6 +44,7 @@ export function LightingControl({
     && (!hasExplicitControls || controls.has('direction'));
   const zonesVisible = (capability.zones?.length ?? 0) > 0 && (!hasExplicitControls || controls.has('zones'));
   const controlsDisabled = !capability.enabled || !capability.writable;
+  const selectedEffectId = capability.enabled ? capability.activeEffectId : 'off';
 
   useEffect(() => {
     setColor(capability.color ?? '#ff1744');
@@ -60,7 +61,7 @@ export function LightingControl({
           <p>{lightingModeCopy(capability)}</p>
         </div>
         <div className="lighting-editor__heading-actions">
-          <span className="lighting-editor__status" data-state={capability.state ?? 'unknown'}>
+          <span className="lighting-editor__status" data-state={capability.enabled ? capability.state ?? 'unknown' : 'off'}>
             <i aria-hidden /> {lightingStateLabel(capability)}
           </span>
           <Tooltip>
@@ -79,15 +80,24 @@ export function LightingControl({
         </div>
       </div>
 
-      <div className="lighting-editor__body" data-disabled={controlsDisabled || undefined}>
+      <div
+        className="lighting-editor__body"
+        data-disabled={!capability.writable || undefined}
+        data-lighting-off={!capability.enabled || undefined}
+      >
         <div className="lighting-editor__primary">
           <ControlField label="Effect">
-            <Select value={capability.activeEffectId} disabled={controlsDisabled} onValueChange={onEffectChange}>
+            <Select
+              value={selectedEffectId}
+              disabled={!capability.writable}
+              onValueChange={(effectId) => effectId === 'off' ? onEnabledChange(false) : onEffectChange(effectId)}
+            >
               <SelectTrigger aria-label="Lighting effect">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {capability.availableEffects.map((effect) => (
+                <SelectItem value="off">Off</SelectItem>
+                {capability.availableEffects.filter((effect) => effect.id !== 'off').map((effect) => (
                   <SelectItem key={effect.id} value={effect.id}>{effect.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -223,6 +233,7 @@ function lightingModeCopy(capability: LightingCapability): string {
 }
 
 function lightingStateLabel(capability: LightingCapability): string {
+  if (!capability.enabled) return 'Off';
   if (capability.state === 'maintained') return 'Read back';
   if (capability.state === 'acknowledged') return 'Acknowledged';
   return capability.source === 'firmware' ? 'Stored effect' : 'Ready';
