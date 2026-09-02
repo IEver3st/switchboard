@@ -1,9 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
-import { RotateCcw } from 'lucide-react';
-import type { EqBand, EqFilterType } from '../../../../shared/contracts';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import type { EqBand } from '../../../../shared/contracts';
 import { cn } from '@/lib/cn';
 import { equalizerResponseDb } from '@/lib/eq-response';
 
@@ -28,11 +24,6 @@ const FREQUENCY_REGIONS = [
   { label: 'Upper mids', from: 2_000, to: 6_000 },
   { label: 'Highs', from: 6_000, to: 20_000 },
 ];
-const FILTER_LABELS: Record<EqFilterType, string> = {
-  'low-shelf': 'Low shelf',
-  bell: 'Bell',
-  'high-shelf': 'High shelf',
-};
 const NODE_COLORS = [
   'var(--eq-band-1)',
   'var(--eq-band-2)',
@@ -263,105 +254,6 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
         </svg>
       </div>
 
-      <div className="audio-eq__bands parametric-eq__bands" role="list" aria-label="Equalizer bands">
-        {draft.map((band, index) => (
-          <button
-            key={band.id}
-            type="button"
-            aria-pressed={band.id === selected.id}
-            aria-selected={band.id === selected.id}
-            onClick={() => setSelectedId(band.id)}
-            style={{ '--band-color': NODE_COLORS[index % NODE_COLORS.length] } as CSSProperties}
-            className={cn('audio-eq__band parametric-eq__band', band.id === selected.id && 'is-selected')}
-          >
-            <span className="audio-eq__band-dot parametric-eq__band-dot" data-enabled={band.enabled} aria-hidden="true" />
-            <span className="audio-eq__band-name parametric-eq__band-name">{index + 1}</span>
-            <span className="audio-eq__band-freq parametric-eq__band-freq">{frequencyReadout(band.frequency)}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="audio-eq__inspector parametric-eq__inspector">
-        <div className="audio-eq__inspector-heading parametric-eq__inspector-heading">
-          <span className="audio-eq__selected-dot parametric-eq__selected-dot" style={{ backgroundColor: NODE_COLORS[draft.indexOf(selected) % NODE_COLORS.length] }} aria-hidden="true" />
-          <strong>Band {draft.indexOf(selected) + 1}</strong>
-          <label className="parametric-eq__band-state">
-            <Switch
-              checked={selected.enabled}
-              disabled={disabled}
-              aria-label={`Band ${draft.indexOf(selected) + 1} enabled`}
-              onCheckedChange={(enabled) => updateBand(selected.id, { enabled }, true)}
-            />
-            <span className="sr-only">{selected.enabled ? 'On' : 'Off'}</span>
-          </label>
-        </div>
-
-        <label className="eq-value-field">
-          <span>Filter</span>
-          <Select value={selected.type} onValueChange={(type) => updateBand(selected.id, { type: type as EqFilterType }, true)} disabled={disabled}>
-            <SelectTrigger aria-label="EQ filter type"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(FILTER_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </label>
-
-        <EqValueField label="Frequency" value={Math.round(selected.frequency)} min={20} max={20_000} step={1} unit="Hz" disabled={disabled} onChange={(frequency) => updateBand(selected.id, { frequency })} onCommit={() => onCommit(draft)} />
-        <EqValueField label="Gain" value={selected.gainDb} min={-12} max={12} step={0.1} unit="dB" disabled={disabled} onChange={(gainDb) => updateBand(selected.id, { gainDb })} onCommit={() => onCommit(draft)} />
-        <EqValueField label="Width" value={selected.q} min={0.2} max={10} step={0.1} unit="" disabled={disabled} onChange={(q) => updateBand(selected.id, { q })} onCommit={() => onCommit(draft)} />
-
-        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => updateBand(selected.id, { enabled: true, gainDb: 0, q: 1 }, true)}>
-          <RotateCcw className="size-3.5" /> Reset band
-        </Button>
-      </div>
     </div>
-  );
-}
-
-function EqValueField({
-  label,
-  value,
-  min,
-  max,
-  step,
-  unit,
-  disabled,
-  onChange,
-  onCommit,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  disabled?: boolean;
-  onChange: (value: number) => void;
-  onCommit: () => void;
-}) {
-  return (
-    <label className="eq-value-field">
-      <span>{label}</span>
-      <span className="eq-value-field__input">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          disabled={disabled}
-          aria-label={`EQ band ${label.toLowerCase()}`}
-          onChange={(event) => onChange(clamp(Number(event.target.value), min, max))}
-          onBlur={onCommit}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              onCommit();
-              event.currentTarget.blur();
-            }
-          }}
-        />
-        {unit ? <span>{unit}</span> : null}
-      </span>
-    </label>
   );
 }

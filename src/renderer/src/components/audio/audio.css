@@ -368,44 +368,6 @@
 .audio-eq__graph path { vector-effect: non-scaling-stroke; }
 .audio-eq__node { cursor: crosshair; outline: none; }
 .audio-eq__node:focus-visible { stroke: var(--ring); stroke-width: 3; }
-.audio-eq__bands { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
-.audio-eq__band {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  border-radius: 5px;
-  padding: 7px 8px;
-  color: var(--text-secondary);
-  background: transparent;
-  font-size: 10.5px;
-  cursor: pointer;
-}
-.audio-eq__band:hover,
-.audio-eq__band.is-selected { color: var(--foreground); background: var(--surface-2); }
-.audio-eq__band-dot { width: 6px; height: 6px; flex: 0 0 auto; border: 1px solid var(--band-color); border-radius: 50%; background: var(--band-color); }
-.audio-eq__band-dot[data-enabled='false'] { background: transparent; }
-.audio-eq__band-name { flex: 0 0 auto; }
-.audio-eq__band-freq { margin-left: 4px; font-variant-numeric: tabular-nums; }
-.audio-eq__inspector {
-  display: grid;
-  grid-template-columns: auto auto minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) auto;
-  align-items: end;
-  gap: 12px;
-  padding-top: 4px;
-}
-.audio-eq__inspector > button { height: 28px; font-size: 11px; }
-.audio-eq__inspector-heading { display: flex; align-items: center; gap: 7px; align-self: center; white-space: nowrap; font-size: 11px; }
-.audio-eq__inspector-heading strong { font-weight: 600; }
-.audio-eq__inspector-heading label { display: inline-flex; align-items: center; margin-left: 4px; }
-.audio-eq__selected-dot { width: 7px; height: 7px; border-radius: 50%; }
-.audio-eq__inspector label { display: flex; min-width: 0; flex-direction: column; gap: 4px; color: var(--text-secondary); font-size: 10px; }
-.audio-eq__inspector label > span:first-child { color: var(--text-muted); }
-.eq-value-field__input { display: flex; align-items: center; gap: 4px; }
-.eq-value-field__input input { width: 100%; min-width: 0; border: 0; border-bottom: 1px solid var(--border); padding: 4px 0; color: var(--foreground); background: transparent; font: inherit; }
-.eq-value-field__input > span { color: var(--text-muted); }
-
 .preset-picker { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .preset-picker__primary > label { display: flex; min-width: 110px; flex-direction: column; gap: 2px; color: var(--text-muted); font-size: 9.5px; }
 .preset-picker__primary { display: contents; }
@@ -423,9 +385,6 @@
   .mixer-mix-picker__label { display: none; }
   .mixer-mix-picker > [role='group'] > [role='radio'] { padding: 0 7px; font-size: 11px; }
   .audio-panel-grid { grid-template-columns: minmax(0, 1fr); }
-  .audio-eq__inspector { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .audio-eq__inspector-heading { grid-column: span 1; }
-  .audio-eq__inspector > button { justify-self: start; }
 }
 @media (max-width: 760px) {
   .audio-header { grid-template-columns: auto minmax(0, 1fr); }
@@ -434,8 +393,6 @@
   .audio-page__body { padding: 14px 16px 20px; }
   .audio-desk__strips { height: auto; min-height: 0; grid-template-columns: repeat(3, minmax(96px, 1fr)); }
   .audio-strip--master { padding-right: 0; border-right: 0; }
-  .audio-eq__bands { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .audio-eq__inspector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .audio-page * { transition: opacity 120ms linear !important; animation: none !important; }
