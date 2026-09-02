@@ -1291,6 +1291,8 @@ export class AppController {
         draft.settings.closeToTray = defaultSettings.closeToTray;
         draft.settings.destroyRendererInTray = defaultSettings.destroyRendererInTray;
         draft.settings.automaticAppUpdates = defaultSettings.automaticAppUpdates;
+        draft.settings.automaticAppUpdateDownloads = defaultSettings.automaticAppUpdateDownloads;
+        draft.settings.installAppUpdatesOnNextStartup = defaultSettings.installAppUpdatesOnNextStartup;
       }
       if (scope === 'devices') {
         draft.settings.deviceAppearanceOverrides = {};

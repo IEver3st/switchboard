@@ -13,7 +13,9 @@ Switchboard uses `electron-updater` with the NSIS artifacts and `latest.yml` pub
 1. Update the version and release notes on a reviewed commit.
 2. Run the repository validation and build gates.
 3. Push a tag such as `v0.2.0` whose version exactly matches `package.json`.
-4. The workflow builds the native hosts and Electron app, runs the source and test gates, creates the GitHub Release, and uploads the NSIS installer, block map, and `latest.yml` update metadata.
+4. The workflow builds the native hosts and Electron app, runs the source and native test gates, creates the GitHub Release, and uploads the NSIS installer, block map, `latest.yml` update metadata, and a SHA-256 checksum manifest. The job fails if any required release asset is missing.
 5. Install the previous release, use **Settings → About → Check now**, and verify both automatic and manual download, renderer close/reopen survival, explicit **Restart to update**, and install-for-next-startup behavior.
 
-The application checks 15 seconds after launch and every six hours while **Always keep Switchboard up to date** is enabled. Disabling it removes the timer; manual checks remain available. **Download updates automatically** controls background download after discovery. **Install for the next startup** applies a downloaded update when Switchboard closes so the next launch uses the new version; when disabled, installation begins only from **Restart to update**.
+Release tags normally belong to `main`. If the default branch has temporarily diverged from an already reviewed release revision, push that immutable revision to `release/vX.Y.Z` before its matching tag. The workflow accepts only `main` or that exact protected release branch; it does not publish arbitrary detached tags.
+
+Fresh installations check 15 seconds after launch, check every six hours, download releases in the background, and apply a downloaded update when Switchboard closes. The next launch then uses the new version. Each policy remains independently configurable in **Settings → About**. Disabling automatic checks removes the timer, and manual checks remain available. When **Install for the next startup** is disabled, installation begins only from **Restart to update**.

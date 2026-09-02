@@ -12,6 +12,14 @@ afterEach(async () => {
 });
 
 describe('settings persistence', () => {
+  it('defaults fresh installations to fully automatic application updates', () => {
+    const settings = createDefaultSnapshot().settings;
+
+    expect(settings.automaticAppUpdates).toBeTrue();
+    expect(settings.automaticAppUpdateDownloads).toBeTrue();
+    expect(settings.installAppUpdatesOnNextStartup).toBeTrue();
+  });
+
   it('persists app and capture preferences across a store restart', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'switchboard-settings-'));
     temporaryDirectories.push(directory);
@@ -97,7 +105,7 @@ describe('settings persistence', () => {
     expect(snapshot.settings.scanGamesAutomatically).toBeTrue();
     expect(snapshot.settings.automaticAppUpdates).toBeTrue();
     expect(snapshot.settings.automaticAppUpdateDownloads).toBeTrue();
-    expect(snapshot.settings.installAppUpdatesOnNextStartup).toBeFalse();
+    expect(snapshot.settings.installAppUpdatesOnNextStartup).toBeTrue();
     expect(snapshot.appUpdate.status).toBe('unavailable');
     expect(snapshot.gameDetection.games).toEqual([]);
     expect(snapshot.gameDetection.scanState).toBe('idle');

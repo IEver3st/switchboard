@@ -913,7 +913,16 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
         <SettingRow
           settingId="about.updates"
           title="Switchboard updates"
-          description={<span role="status" aria-live="polite">{appUpdateDescription(update, automaticDownloads, snapshot.prototypeMode)}</span>}
+          description={(
+            <span role="status" aria-live="polite">
+              {appUpdateDescription(
+                update,
+                automaticDownloads,
+                snapshot.settings.installAppUpdatesOnNextStartup,
+                snapshot.prototypeMode,
+              )}
+            </span>
+          )}
         >
           {update.capability === 'available' ? (
             <Button
@@ -985,7 +994,12 @@ function appUpdateActionLabel(update: AppUpdateState, automaticDownloads: boolea
   return 'Check now';
 }
 
-function appUpdateDescription(update: AppUpdateState, automaticDownloads: boolean, prototypeMode: boolean): string {
+function appUpdateDescription(
+  update: AppUpdateState,
+  automaticDownloads: boolean,
+  installOnNextStartup: boolean,
+  prototypeMode: boolean,
+): string {
   if (update.status === 'unavailable') return update.unavailableReason ?? 'Application updates are unavailable in this build.';
   if (update.status === 'checking') return 'Checking the Switchboard release feed.';
   if (update.status === 'available' && prototypeMode) return `Development preview: version ${update.availableVersion ?? 'new'} is available.`;
@@ -993,7 +1007,9 @@ function appUpdateDescription(update: AppUpdateState, automaticDownloads: boolea
     ? `Version ${update.availableVersion ?? 'new'} is available. The download will start automatically.`
     : `Version ${update.availableVersion ?? 'new'} is available. Download it when convenient.`;
   if (update.status === 'downloading') return `Downloading version ${update.availableVersion ?? 'new'} in the background.`;
-  if (update.status === 'downloaded') return `Version ${update.availableVersion ?? 'new'} is downloaded and ready. Restart when convenient to install it.`;
+  if (update.status === 'downloaded') return installOnNextStartup
+    ? `Version ${update.availableVersion ?? 'new'} is downloaded and will be installed when Switchboard closes.`
+    : `Version ${update.availableVersion ?? 'new'} is downloaded and ready. Restart when convenient to install it.`;
   if (update.status === 'installing') return 'Closing Switchboard and starting the verified installer.';
   if (update.status === 'error') return update.error ?? 'The update could not be completed.';
   if (update.checkedAt) return `Switchboard is up to date. Last checked ${new Date(update.checkedAt).toLocaleString()}.`;

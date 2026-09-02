@@ -21,6 +21,8 @@ jobs:
       CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.0
@@ -35,10 +37,63 @@ jobs:
           if ($releaseVersion -ne $packageVersion) {
             throw "Tag version $releaseVersion does not match package version $packageVersion."
           }
+          git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+          $tagIsOnMain = $LASTEXITCODE -eq 0
+          if (-not $tagIsOnMain) {
+            $releaseBranch = 'release/${{ github.ref_name }}'
+            git fetch origin "refs/heads/$releaseBranch`:refs/remotes/origin/$releaseBranch"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Release tag ${{ github.ref_name }} is not on main and its protected release branch is missing."
+            }
+            git merge-base --is-ancestor $env:GITHUB_SHA "origin/$releaseBranch"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Release tag ${{ github.ref_name }} is not on main or origin/$releaseBranch."
+            }
+          }
       - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun run check:source
       - run: bun run check:types
-      - run: bun test
+      - run: bun run test
       - run: bun run release:win
+      - name: Publish checksum manifest
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $releaseVersion = '${{ github.ref_name }}' -replace '^v', ''
+          $assetNames = @(
+            "Switchboard-$releaseVersion-x64.exe",
+            "Switchboard-$releaseVersion-x64.exe.blockmap",
+            "latest.yml"
+          )
+          $checksumLines = foreach ($assetName in $assetNames) {
+            $assetPath = Join-Path dist $assetName
+            if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf)) {
+              throw "Expected release artifact is missing: $assetPath"
+            }
+            $hash = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $assetName"
+          }
+          $checksumPath = Join-Path dist 'SHA256SUMS-Windows.txt'
+          $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding utf8
+          gh release upload '${{ github.ref_name }}' $checksumPath --repo '${{ github.repository }}' --clobber
+      - name: Verify published update feed
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $releaseVersion = '${{ github.ref_name }}' -replace '^v', ''
+          $publishedAssets = @(gh release view '${{ github.ref_name }}' --repo '${{ github.repository }}' --json assets --jq '.assets[].name')
+          $requiredAssets = @(
+            "Switchboard-$releaseVersion-x64.exe",
+            "Switchboard-$releaseVersion-x64.exe.blockmap",
+            "latest.yml",
+            "SHA256SUMS-Windows.txt"
+          )
+          foreach ($assetName in $requiredAssets) {
+            if ($publishedAssets -notcontains $assetName) {
+              throw "Published release is missing required asset: $assetName"
+            }
+          }
 

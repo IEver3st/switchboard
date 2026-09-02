@@ -50,7 +50,7 @@ export class AppUpdateService {
   private preferences: AppUpdatePreferences = {
     automaticChecks: true,
     automaticDownloads: true,
-    installOnNextStartup: false,
+    installOnNextStartup: true,
   };
   private demoUpdateEnabled: boolean;
   private initialized = false;

@@ -22,7 +22,9 @@ function read(relativePath) {
 
 const requiredFiles = [
   'package.json',
+  'electron-builder.yml',
   'electron.vite.config.ts',
+  '.github/workflows/release.yml',
   'src/main/index.ts',
   'src/main/ipc.ts',
   'src/preload/index.ts',
@@ -63,6 +65,19 @@ const packageJson = JSON.parse(read('package.json'));
 assert(packageJson.packageManager?.startsWith('bun@'), 'package.json must pin Bun through packageManager.');
 assert(packageJson.main === './out/main/index.js', 'package.json main must point at the Electron main bundle.');
 assert(packageJson.scripts?.check && packageJson.scripts?.['check:source'] && packageJson.scripts?.['check:types'], 'Validation scripts are missing from package.json.');
+assert(packageJson.dependencies?.['electron-updater'], 'Installed builds must include electron-updater.');
+assert(packageJson.scripts?.['dist:win']?.includes('electron-builder --win nsis'), 'Windows distribution must produce an NSIS installer.');
+assert(packageJson.scripts?.['release:win']?.includes('--publish always'), 'Windows releases must publish update metadata and artifacts.');
+
+const builderConfiguration = read('electron-builder.yml');
+assert(builderConfiguration.includes('provider: github'), 'Application updates must use the public GitHub release provider.');
+assert(builderConfiguration.includes('owner: IEver3st') && builderConfiguration.includes('repo: switchboard'), 'The update feed must target IEver3st/switchboard.');
+assert(builderConfiguration.includes('- nsis'), 'Windows packaging must retain the updater-compatible NSIS target.');
+
+const releaseWorkflow = read('.github/workflows/release.yml');
+assert(releaseWorkflow.includes("- 'v*.*.*'"), 'Windows releases must be triggered by semantic version tags.');
+assert(releaseWorkflow.includes('bun run release:win'), 'The release workflow must publish the Windows installer and update feed.');
+assert(releaseWorkflow.includes('latest.yml') && releaseWorkflow.includes('SHA256SUMS-Windows.txt'), 'The release workflow must verify update metadata and checksums.');
 
 const mainSource = read('src/main/index.ts');
 assert(mainSource.includes('contextIsolation: true'), 'Electron renderer must use contextIsolation.');
