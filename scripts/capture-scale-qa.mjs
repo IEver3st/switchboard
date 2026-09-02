@@ -143,7 +143,7 @@ async function runReview() {
       await waitFor(window, `document.querySelectorAll('.capture-clip-list__item').length === ${count}`);
     }
     if (reviewReplayPopover) {
-      await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+      await window.webContents.executeJavaScript("document.querySelector('.capture-recorder-settings-trigger')?.click()");
       await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
       await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced__trigger')?.click()");
     }
@@ -169,7 +169,7 @@ const metricsExpression = [
   "const library = document.querySelector('.capture-library');",
   "const tools = document.querySelector('.capture-library__tools');",
   "const commandHeader = document.querySelector('.capture-command-header');",
-  "const commandTop = document.querySelector('.capture-command-header__top');",
+  "const commandTop = document.querySelector('.capture-command-header__capture-rail');",
   "const search = document.querySelector('.capture-library__search');",
   'return {',
   'viewport: { width: window.innerWidth, height: window.innerHeight },',
@@ -221,7 +221,7 @@ const metricsExpression = [
   const imagePath = join(outputDirectory, (reviewMode ? 'new-clips-review-' + count + reviewSuffix : 'capture-' + count + '-clips') + viewportSuffix + stateSuffix + '.png');
   await writeFile(imagePath, image.toPNG());
   if (reviewReplayPopover) {
-    await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+    await window.webContents.executeJavaScript("document.querySelector('.capture-recorder-settings-trigger')?.click()");
     await waitFor(window, "!document.querySelector('.capture-replay-popover')");
   }
   if (reviewActiveControls) {
@@ -392,17 +392,17 @@ async function verifyLibraryInteractions(window, expectedCount) {
   await waitFor(window, "document.querySelector('[data-testid=\"montage-selection-toolbar\"]')?.textContent.includes('2 selected')");
   const montageSelection = await window.webContents.executeJavaScript("document.querySelector('[data-testid=\"montage-selection-toolbar\"]')?.textContent.includes('Create Montage · 2 clips') === true");
   await clickButton(window, 'Create Montage · 2 clips');
-  await waitFor(window, "Boolean(document.querySelector('[data-testid=\"clip-editor\"]'))");
-  const montageOpened = await window.webContents.executeJavaScript("document.querySelector('[data-testid=\"clip-editor\"]')?.textContent.includes('Montage') === true");
+  await waitFor(window, "Boolean(document.querySelector('.montage-v2-shell'))");
+  const montageOpened = await window.webContents.executeJavaScript("document.querySelector('.montage-v2-shell')?.textContent.includes('Montage') === true");
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-  await waitFor(window, "!document.querySelector('[data-testid=\"clip-editor\"]')");
+  await waitFor(window, "!document.querySelector('.montage-v2-shell')");
 
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
   await delay(80);
-  const replayTriggerFocused = await window.webContents.executeJavaScript("(() => { const trigger = document.querySelector('.capture-replay-summary'); trigger?.focus(); return document.activeElement === trigger; })()");
-  await waitFor(window, "document.activeElement?.classList.contains('capture-replay-summary') === true");
+  const replayTriggerFocused = await window.webContents.executeJavaScript("(() => { const trigger = document.querySelector('.capture-recorder-settings-trigger'); trigger?.focus(); return document.activeElement === trigger; })()");
+  await waitFor(window, "document.activeElement?.classList.contains('capture-recorder-settings-trigger') === true");
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Space' });
   await waitFor(window, "Boolean(document.querySelector('button[aria-label=\"Encoder\"]'))");
@@ -419,7 +419,7 @@ async function verifyLibraryInteractions(window, expectedCount) {
   const sourceFocusAfter = await window.webContents.executeJavaScript("({ tag: document.activeElement?.tagName, className: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label') })");
   const sourceFocusRestored = Boolean(sourceFocusAfter?.className?.includes?.('capture-source-trigger'));
   if (!await window.webContents.executeJavaScript("Boolean(document.querySelector('.capture-replay-popover'))")) {
-    await window.webContents.executeJavaScript("document.querySelector('.capture-replay-summary')?.click()");
+    await window.webContents.executeJavaScript("document.querySelector('.capture-recorder-settings-trigger')?.click()");
     await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
   }
   await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced__trigger')?.click()");
@@ -435,7 +435,7 @@ async function verifyLibraryInteractions(window, expectedCount) {
   await waitFor(window, "!document.querySelector('.capture-replay-popover')");
   await delay(160);
   const replayFocusAfter = await window.webContents.executeJavaScript("({ tag: document.activeElement?.tagName, className: document.activeElement?.className, label: document.activeElement?.getAttribute('aria-label') })");
-  const replayFocusRestored = Boolean(replayFocusAfter?.className?.includes?.('capture-replay-summary'));
+  const replayFocusRestored = Boolean(replayFocusAfter?.className?.includes?.('capture-recorder-settings-trigger'));
 
   const openedClipId = await window.webContents.executeJavaScript(`(() => {
     const target = document.querySelector('button[data-clip-id]');

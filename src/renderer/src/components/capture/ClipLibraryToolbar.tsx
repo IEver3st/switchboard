@@ -1,11 +1,9 @@
 import { ArrowDownUp, Check, Clapperboard, Grid2X2, List, Search, SlidersHorizontal, Star, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
@@ -47,7 +45,6 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" disabled={clips.length === 0 || clips.every((clip) => controls.selectedClipIdSet.has(clip.id))} onClick={controls.onSelectAllVisible}>Select all{hasFilters ? ' shown' : ''}</Button>
-          <Separator orientation="vertical" className="h-5" />
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" onClick={controls.onCancelMontage}>Cancel</Button>
           <Button type="button" variant="primary" size="sm" className="h-7 px-2.5 text-[11px]" disabled={controls.selectedClipIds.length < 2} onClick={controls.onCreateMontage}>
             <Clapperboard className="size-3.5" aria-hidden="true" />
@@ -69,7 +66,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
             </InputGroup>
           </label>
 
-          <ButtonGroup className="capture-filter-group" aria-label="Clip filters">
+          <div className="capture-filter-group" role="group" aria-label="Clip filters">
             <Button type="button" variant="secondary" size="sm" className={cn('capture-tool-control capture-tool-control--favorites h-8 gap-1.5 px-2.5 text-[11px]', controls.favoritesOnly && 'capture-filter-active')} aria-pressed={controls.favoritesOnly} onClick={controls.onFavoritesChange}>
               <Star className={cn('size-3.5', controls.favoritesOnly && 'fill-warning text-warning')} /> <span className="capture-tool-label">Favorites</span>
             </Button>
@@ -89,7 +86,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
               onSourceChange={controls.onSourceChange}
               onEventChange={controls.onEventChange}
             />
-          </ButtonGroup>
+          </div>
 
           <div className="capture-tool-control capture-tool-control--sort w-28 shrink-0">
             <Select value={controls.sort} onValueChange={controls.onSortChange}>

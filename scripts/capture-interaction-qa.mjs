@@ -153,9 +153,9 @@ results.editorTabLoop = await evaluate("(() => { const editor = document.querySe
 await clickButton('Back to clips');
 await waitFor("!document.querySelector('#clip-editor-title')");
 
-await click("document.querySelector('.capture-replay-summary')");
+await click("document.querySelector('.capture-recorder-settings-trigger')");
 await waitFor("document.querySelector('button[aria-label=Encoder]')");
-await click("document.querySelector('.capture-replay-advanced > summary')");
+await click("document.querySelector('.capture-replay-advanced__trigger')");
 results.replayConfiguration = await evaluate("['Replay length','Capture quality','Capture resolution','Capture frame rate','Encoder','Codec','Game audio','Microphone','Capture cursor'].every((label) => document.querySelector('[aria-label=\\\"' + label + '\\\"]')) && Boolean(document.querySelector('button[aria-label^=\\\"Capture source:\\\"]')) && Boolean(document.querySelector('[aria-label^=\\\"Save replay shortcut:\\\"]'))");
 results.audioCapabilityTruth = await evaluate("(() => { const game = document.querySelector('[aria-label=\"Game audio\"]'); const microphone = document.querySelector('[aria-label=\"Microphone\"]'); return { gameDisabled: game?.disabled === true, microphoneDisabled: microphone?.disabled === true, reasons: [...document.querySelectorAll('[data-radix-popper-content-wrapper] span')].filter((node) => node.textContent === 'Unavailable for this capture setup').length }; })()");
 await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");

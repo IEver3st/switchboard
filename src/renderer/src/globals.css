@@ -1566,11 +1566,166 @@ textarea:focus-visible {
   background: color-mix(in srgb, var(--surface-1) 96%, var(--background));
 }
 
-.capture-command-header__top {
-  min-height: 50px;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 8px clamp(20px, 1.6vw, 30px) 7px;
+.capture-command-header__capture-rail {
+  min-width: 0;
+  padding: 8px clamp(20px, 1.6vw, 30px) 4px;
+}
+
+.capture-recorder-rail {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(142px, 1fr) auto minmax(300px, 1.45fr) auto minmax(142px, 0.8fr) 32px;
+  align-items: center;
+  gap: 6px;
+}
+
+.capture-recorder-status,
+.capture-recorder-toggle,
+.capture-recorder-settings,
+.capture-recorder-shortcut {
+  min-height: 34px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface-interactive) 78%, transparent);
+}
+
+.capture-recorder-status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.015em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.capture-recorder-status > svg {
+  color: var(--text-description);
+}
+
+.capture-recorder-status__dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-neutral);
+}
+
+.capture-recorder-status[data-tone="ready"] {
+  color: var(--status-success);
+}
+
+.capture-recorder-status[data-tone="ready"] .capture-recorder-status__dot {
+  background: var(--status-success);
+}
+
+.capture-recorder-status[data-tone="warning"] {
+  color: var(--status-warning);
+}
+
+.capture-recorder-status[data-tone="warning"] .capture-recorder-status__dot {
+  background: var(--status-warning);
+}
+
+.capture-recorder-status[data-tone="danger"] {
+  color: var(--status-danger);
+}
+
+.capture-recorder-status[data-tone="danger"] .capture-recorder-status__dot {
+  background: var(--status-danger);
+}
+
+.capture-recorder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 12px;
+  color: var(--text-description);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.capture-recorder-toggle strong {
+  color: var(--status-success);
+  font-weight: 650;
+}
+
+.capture-recorder-toggle:has([data-state="unchecked"]) strong {
+  color: var(--text-secondary);
+}
+
+.capture-recorder-settings {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 4px 14px;
+}
+
+.capture-recorder-settings > div {
+  min-width: 0;
+}
+
+.capture-recorder-settings dt,
+.capture-recorder-settings dd {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capture-recorder-settings dt {
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.capture-recorder-settings dd {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.capture-recorder-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: var(--text-description);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.capture-recorder-shortcut kbd {
+  max-width: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.capture-recorder-settings-trigger {
+  width: 32px;
+  height: 32px;
+  color: var(--text-description);
+}
+
+.capture-command-header__library-row {
+  display: flex;
+  min-width: 0;
+  min-height: 46px;
+  align-items: center;
+  gap: 14px;
+  padding: 5px clamp(20px, 1.6vw, 30px) 9px;
 }
 
 .capture-command-header__identity {
@@ -1588,25 +1743,24 @@ textarea:focus-visible {
   font-size: 10px;
 }
 
-.capture-command-header__commands {
-  min-width: 0;
-  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  padding: 8px clamp(20px, 1.6vw, 30px) 9px;
-}
-
 .capture-command-header__tools {
   width: 100%;
+  justify-content: flex-end;
   gap: 7px;
 }
 
 .capture-library__search {
-  min-width: 210px;
-  max-width: 680px;
-  flex: 1 1 520px;
+  width: clamp(190px, 23vw, 340px);
+  min-width: 180px;
+  max-width: 340px;
+  flex: 0 1 340px;
 }
 
 .capture-filter-group {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
 }
 
 .capture-filter-group > button,
@@ -1655,6 +1809,8 @@ textarea:focus-visible {
 }
 
 .capture-montage-trigger {
+  order: -1;
+  margin-right: auto;
   box-shadow: 0 1px 0 rgb(0 0 0 / 28%);
 }
 
@@ -1671,51 +1827,17 @@ textarea:focus-visible {
   font-size: 11px;
 }
 
-.capture-replay-group {
-  min-width: 0;
-  margin-left: auto;
-}
-
-.capture-replay-summary {
-  min-width: 132px;
-  max-width: none;
-  flex: none;
-  justify-content: flex-start;
-  gap: 6px;
-  padding-inline: 10px 8px;
-  color: var(--text-secondary);
-  font-size: 10.5px;
-}
-
-.capture-replay-summary__eyebrow {
-  color: var(--text-description);
-}
-
-.capture-replay-summary__label {
-  color: var(--foreground);
-  font-weight: 650;
-}
-
-.capture-replay-summary__settings {
-  margin-left: 2px;
-  color: var(--text-muted);
-}
-
-.capture-replay-summary[data-tone="ready"] .capture-replay-summary__dot {
-  background: var(--status-success);
-}
-
 .capture-source-trigger--compact {
-  width: min(190px, 20vw);
-  border-color: var(--border);
+  width: 100%;
+  border-color: transparent;
   border-radius: 4px;
-  background: var(--surface-interactive);
+  background: color-mix(in srgb, var(--surface-interactive) 78%, transparent);
   box-shadow: none;
 }
 
 .capture-source-trigger--compact[data-active="true"] {
-  border-color: var(--border);
-  background: var(--surface-interactive);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--surface-interactive) 78%, transparent);
   box-shadow: none;
 }
 
@@ -1887,10 +2009,6 @@ textarea:focus-visible {
 .capture-clip-group__header {
   min-height: 17px;
   margin-bottom: 9px;
-}
-
-.capture-clip-group__header [role="separator"] {
-  opacity: 0.78;
 }
 
 .capture-clip-grid {
@@ -2087,6 +2205,18 @@ textarea:focus-visible {
 }
 
 @media (max-width: 1320px) {
+  .capture-recorder-rail {
+    grid-template-columns: minmax(134px, 0.9fr) auto minmax(230px, 1.15fr) auto minmax(132px, 0.72fr) 32px;
+  }
+
+  .capture-recorder-settings dt {
+    display: none;
+  }
+
+  .capture-recorder-settings dd {
+    margin-top: 0;
+  }
+
   .capture-library__search {
     min-width: 180px;
     flex-basis: 320px;
@@ -2106,11 +2236,25 @@ textarea:focus-visible {
 }
 
 @media (max-width: 1120px) {
-  .capture-command-header__top,
-  .capture-command-header__commands,
+  .capture-command-header__capture-rail,
+  .capture-command-header__library-row,
   .capture-toolbar__notice,
   .capture-library__content {
     padding-inline: 18px;
+  }
+
+  .capture-recorder-rail {
+    grid-template-columns: minmax(126px, 0.9fr) auto minmax(210px, 1fr) auto minmax(126px, 0.72fr) 32px;
+    gap: 5px;
+  }
+
+  .capture-recorder-settings {
+    gap: 9px;
+    padding-inline: 11px;
+  }
+
+  .capture-recorder-shortcut span {
+    display: none;
   }
 
   .capture-tool-control--favorites {
@@ -2123,7 +2267,7 @@ textarea:focus-visible {
   }
 
   .capture-source-trigger--compact {
-    width: 148px;
+    width: 100%;
   }
 }
 

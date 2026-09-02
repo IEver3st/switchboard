@@ -3,7 +3,6 @@ import { clipGameLabel } from '../../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../../shared/auto-capture';
 import { formatBytes, formatRelativeTime, formatVideoQuality } from '@/lib/format';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
 import { ClipActionsMenu, ClipContextMenu, ClipFavorite, ClipShare } from './ClipActions';
 import { groupClips } from './ClipGrid';
 import { ClipThumbnail } from './ClipThumbnail';
@@ -23,7 +22,6 @@ export function ClipList({ clips, actions, selectionMode, selectedClipIds, onTog
           <div className="capture-clip-group__header flex items-center gap-2.5">
             <h3 id={`clip-list-group-${group.key}`} className="m-0 text-[11px] font-semibold tracking-[-0.01em] text-text-secondary">{group.label}</h3>
             <span className="text-[9.5px] tabular-nums text-text-description">{group.clips.length}</span>
-            <Separator className="min-w-6 flex-1" />
           </div>
           <ul className="capture-clip-list" aria-label={`${group.label} clips in list view`}>
       {group.clips.map((clip) => {

@@ -14,15 +14,33 @@
     "width": 1012
   },
   "toolbarBounds": {
-    "left": 92,
-    "right": 1056,
-    "width": 964
+    "left": 138.30209350585938,
+    "right": 1062.0000305175781,
+    "width": 923.6979370117188
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 130,
+    "height": 92
+  },
+  "commandTopBounds": {
+    "height": 46
+  },
+  "searchBounds": {
+    "width": 320
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": "false",
+    "game": "All games",
+    "filter": "Filter"
   },
   "emptyState": true,
   "dateGroups": [],
   "lazyImages": 0,
   "decodedImages": 0,
   "horizontalOverflow": false,
+  "manualReviewOpened": null,
   "interactions": null,
   "resizeTransitions": null,
   "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-0-clips-1080x720.png",
