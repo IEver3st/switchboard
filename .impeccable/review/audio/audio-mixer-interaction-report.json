@@ -14,7 +14,7 @@
         "selectedMix": "Personal",
         "chatMixVisibleWithoutScroll": true,
         "verticalGeometry": {
-          "chatMixBottom": 519,
+          "chatMixBottom": 532,
           "viewportBottom": 722,
           "viewportClientHeight": 684,
           "viewportScrollHeight": 684
@@ -43,7 +43,7 @@
         "selectedMix": "Personal",
         "chatMixVisibleWithoutScroll": true,
         "verticalGeometry": {
-          "chatMixBottom": 795,
+          "chatMixBottom": 785,
           "viewportBottom": 900,
           "viewportClientHeight": 862,
           "viewportScrollHeight": 862
@@ -72,7 +72,7 @@
         "selectedMix": "Personal",
         "chatMixVisibleWithoutScroll": true,
         "verticalGeometry": {
-          "chatMixBottom": 855,
+          "chatMixBottom": 807,
           "viewportBottom": 1080,
           "viewportClientHeight": 1042,
           "viewportScrollHeight": 1042
@@ -103,7 +103,7 @@
       "selectedMix": "Personal",
       "chatMixVisibleWithoutScroll": true,
       "verticalGeometry": {
-        "chatMixBottom": 795,
+        "chatMixBottom": 785,
         "viewportBottom": 900,
         "viewportClientHeight": 862,
         "viewportScrollHeight": 862
@@ -125,7 +125,7 @@
       "selectedMix": "Stream",
       "chatMixVisibleWithoutScroll": true,
       "verticalGeometry": {
-        "chatMixBottom": 795,
+        "chatMixBottom": 785,
         "viewportBottom": 900,
         "viewportClientHeight": 862,
         "viewportScrollHeight": 862
@@ -147,7 +147,7 @@
       "selectedMix": "Clip",
       "chatMixVisibleWithoutScroll": true,
       "verticalGeometry": {
-        "chatMixBottom": 795,
+        "chatMixBottom": 785,
         "viewportBottom": 900,
         "viewportClientHeight": 862,
         "viewportScrollHeight": 862

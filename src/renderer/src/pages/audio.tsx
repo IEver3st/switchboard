@@ -54,7 +54,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
   };
 
   return (
-    <div className="min-h-full" data-testid="audio-console">
+    <div className="audio-console min-h-full" data-testid="audio-console" data-audio-tab={tab}>
       <AudioTabs
         value={tab}
         onChange={navigate}

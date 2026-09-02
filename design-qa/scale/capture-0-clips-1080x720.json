@@ -9,25 +9,25 @@
   "columns": 0,
   "cardWidths": null,
   "libraryBounds": {
-    "left": 68,
+    "left": 72,
     "right": 1080,
-    "width": 1012
+    "width": 1008
   },
   "toolbarBounds": {
-    "left": 138.30209350585938,
-    "right": 1062.0000305175781,
-    "width": 923.6979370117188
+    "left": 176,
+    "right": 1062,
+    "width": 886
   },
   "commandHeaderBounds": {
     "top": 38,
-    "bottom": 130,
-    "height": 92
+    "bottom": 143.59375,
+    "height": 105.59375
   },
   "commandTopBounds": {
-    "height": 46
+    "height": 55.333335876464844
   },
   "searchBounds": {
-    "width": 320
+    "width": 280
   },
   "toolbarOverflow": false,
   "activeControls": {

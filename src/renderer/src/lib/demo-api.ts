@@ -611,6 +611,7 @@ const demoApi: SwitchboardApi = {
       setEngine('capture', false);
     }
     if (scope === 'general') {
+      snapshot.settings.uiScalePercent = defaults.settings.uiScalePercent;
       snapshot.settings.launchAtStartup = defaults.settings.launchAtStartup;
       snapshot.settings.closeToTray = defaults.settings.closeToTray;
       snapshot.settings.destroyRendererInTray = defaults.settings.destroyRendererInTray;
@@ -716,6 +717,7 @@ const demoApi: SwitchboardApi = {
   async revealPreparedShareFile() {},
   async exportMontage() { return false; },
   async cancelClipExport() {},
+  subscribeClipExportProgress() { return () => {}; },
   subscribe(listener) {
     listeners.add(listener);
     return () => listeners.delete(listener);

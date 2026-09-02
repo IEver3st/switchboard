@@ -91,7 +91,6 @@ async function run() {
       const rect = editor?.getBoundingClientRect();
       const headerRect = header?.getBoundingClientRect();
       const titleRect = editor?.querySelector('.clip-editor-header__rename')?.getBoundingClientRect();
-      const metadataRect = editor?.querySelector('.clip-editor-metadata')?.getBoundingClientRect();
       const actionsRect = editor?.querySelector('.clip-editor-header__actions')?.getBoundingClientRect();
       return {
         viewport: { width: innerWidth, height: innerHeight },
@@ -100,13 +99,12 @@ async function run() {
         header: headerRect ? { top: headerRect.top, bottom: headerRect.bottom } : null,
         headerSections: {
           title: titleRect ? { left: titleRect.left, right: titleRect.right, width: titleRect.width } : null,
-          metadata: metadataRect ? { left: metadataRect.left, right: metadataRect.right, width: metadataRect.width } : null,
           actions: actionsRect ? { left: actionsRect.left, right: actionsRect.right, width: actionsRect.width } : null,
         },
         backNoDrag: back ? getComputedStyle(back).webkitAppRegion === 'no-drag' : false,
         metadataInHeader: editor.querySelector('.clip-editor-header > .clip-editor-metadata') !== null,
         workspaceTop: editor.querySelector('.clip-editor-layout')?.getBoundingClientRect().top ?? null,
-        metadata: [...editor.querySelectorAll('.clip-editor-metadata > div')].map((item) => ({
+        metadata: [...editor.querySelectorAll('.clip-editor-details > div')].map((item) => ({
           label: item.querySelector('dt')?.textContent?.trim(),
           value: item.querySelector('dd')?.textContent?.trim(),
         })),
@@ -134,11 +132,11 @@ async function run() {
       throw new Error(`Editor does not respect native chrome at ${viewport.width}x${viewport.height}: ${JSON.stringify(metrics.editor)}`);
     }
     if (metrics.header?.top !== 38 || !metrics.backNoDrag) throw new Error('Editor controls overlap or participate in the native drag region.');
-    if (!metrics.metadataInHeader || metrics.workspaceTop !== metrics.header?.bottom) throw new Error(`Clip metadata was not consolidated into the primary toolbar: ${JSON.stringify(metrics)}`);
-    if (!metrics.headerSections.title || metrics.headerSections.title.width < 100 || metrics.headerSections.title.right > metrics.headerSections.metadata?.left || metrics.headerSections.metadata?.right > metrics.headerSections.actions?.left) {
+    if (metrics.metadataInHeader || metrics.workspaceTop !== metrics.header?.bottom) throw new Error(`The compact editor header or workspace boundary is incorrect: ${JSON.stringify(metrics)}`);
+    if (!metrics.headerSections.title || metrics.headerSections.title.width < 80 || metrics.headerSections.title.right > metrics.headerSections.actions?.left) {
       throw new Error(`Clip toolbar sections are clipped or overlapping: ${JSON.stringify(metrics.headerSections)}`);
     }
-    if (metrics.metadata.map((item) => item.label).join(',') !== 'Created,Video quality,Size,Location') throw new Error(`Clip metadata strip is incomplete: ${JSON.stringify(metrics.metadata)}`);
+    if (metrics.metadata.map((item) => item.label).join(',') !== 'Game,Duration,Created,Video quality,Size,Location') throw new Error(`Clip inspector details are incomplete: ${JSON.stringify(metrics.metadata)}`);
     if (metrics.metadata.some((item) => !item.value) || !metrics.locationAction?.startsWith('Show ')) throw new Error(`Clip metadata values or location action are missing: ${JSON.stringify(metrics)}`);
     const timelineLabels = metrics.timelineSliders.map((item) => item.label);
     if (!['Playback volume', 'Playhead', 'Trim start', 'Trim end'].every((label) => timelineLabels.includes(label))) throw new Error('The accessible volume, playhead, and both trim handles were not rendered.');
@@ -151,9 +149,9 @@ async function run() {
     if (metrics.audioTracks.some((track) => track.height < 38 || track.height > 54 || track.waveform < 100)) {
       throw new Error(`Audio lanes are not correctly sized or waveform-backed: ${JSON.stringify(metrics.audioTracks)}`);
     }
-    const expectedTimelineColors = { game: 'rgb(83, 191, 174)', microphone: 'rgb(221, 166, 90)' };
-    if (metrics.audioTracks.some((track) => expectedTimelineColors[track.channel] !== track.backgroundColor || track.waveformFill === 'none' || track.waveformStroke !== 'none' || !track.waveformArea)) {
-      throw new Error(`Audio lanes lost their permanent channel colors or filled waveform treatment: ${JSON.stringify(metrics.audioTracks)}`);
+    const saturatedTimelineColors = new Set(['rgb(63, 209, 187)', 'rgb(245, 178, 77)']);
+    if (metrics.audioTracks.some((track) => saturatedTimelineColors.has(track.backgroundColor) || track.waveformFill === 'none' || track.waveformStroke !== 'none' || !track.waveformArea)) {
+      throw new Error(`Audio lanes lost their neutral surfaces or channel-aware waveform treatment: ${JSON.stringify(metrics.audioTracks)}`);
     }
     if (metrics.interaction !== 'idle') throw new Error(`Timeline did not begin idle: ${metrics.interaction}`);
 
@@ -258,7 +256,7 @@ async function run() {
     return {
       state,
       presetsDisabled: state !== 'preparing' || (presets.length === 4 && presets.every((item) => item.matches(':disabled'))),
-      preparingStatus: state !== 'preparing' || document.querySelector('[data-share-clip-dialog] [role="status"]')?.textContent?.includes('Preparing clip'),
+      preparingStatus: state !== 'preparing' || Boolean(document.querySelector('[data-share-clip-dialog] [data-share-progress][role="status"] [role="progressbar"]')),
     };
   })()`);
   if (!pendingState.presetsDisabled || !pendingState.preparingStatus) {
@@ -370,6 +368,9 @@ async function verifyEditorWorkspace(window) {
   await waitForSelector(window, '.clip-editor-layout[data-inspector="open"]');
   await delay(280);
   const expanded = await editorGeometry(window);
+  if (expanded.inspectorScrollWidth > expanded.inspectorClientWidth + 1 || expanded.inspectorContentRight > expanded.inspectorRight + 1) {
+    throw new Error(`The Inspector has horizontal overflow: ${JSON.stringify(expanded)}`);
+  }
 
   await clickButtonByLabel(window, 'Collapse Inspector');
   await waitForSelector(window, '.clip-editor-layout[data-inspector="closed"]');
@@ -560,7 +561,21 @@ async function editorGeometry(window) {
     const layout = document.querySelector('.clip-editor-layout');
     const viewer = document.querySelector('.clip-editor-preview')?.getBoundingClientRect();
     const timeline = document.querySelector('[data-testid="clip-timeline-surface"]')?.getBoundingClientRect();
-    return { inspector: layout?.dataset.inspector, columns: layout ? getComputedStyle(layout).gridTemplateColumns : null, layoutWidth: layout?.getBoundingClientRect().width ?? 0, viewerWidth: viewer?.width ?? 0, timelineWidth: timeline?.width ?? 0 };
+    const inspector = document.querySelector('.clip-editor-inspector');
+    const inspectorContent = document.querySelector('.clip-editor-inspector__content');
+    const inspectorRect = inspector?.getBoundingClientRect();
+    const inspectorContentRect = inspectorContent?.getBoundingClientRect();
+    return {
+      inspector: layout?.dataset.inspector,
+      columns: layout ? getComputedStyle(layout).gridTemplateColumns : null,
+      layoutWidth: layout?.getBoundingClientRect().width ?? 0,
+      viewerWidth: viewer?.width ?? 0,
+      timelineWidth: timeline?.width ?? 0,
+      inspectorClientWidth: inspector?.clientWidth ?? 0,
+      inspectorScrollWidth: inspector?.scrollWidth ?? 0,
+      inspectorRight: inspectorRect?.right ?? 0,
+      inspectorContentRight: inspectorContentRect?.right ?? 0,
+    };
   })()`);
 }
 

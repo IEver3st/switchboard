@@ -50,6 +50,7 @@ export function AudioTabs({ value, onChange, tools, tabs = audioWorkspaceTabs }:
               role="tab"
               aria-selected={value === tab}
               aria-controls={`audio-panel-${tab}`}
+              data-audio-tab={tab}
               tabIndex={value === tab ? 0 : -1}
               onClick={() => onChange(tab)}
               className={cn('audio-tabs__tab', value === tab && 'is-active')}

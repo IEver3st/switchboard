@@ -15,7 +15,11 @@ if (currentStatePath) {
   try {
     await copyFile(currentStatePath, reviewStatePath);
     const reviewState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
-    if (process.env.SWITCHBOARD_VERIFY_REACTION_SETTINGS === '1' && reviewState.capture?.config) {
+    if (
+      (process.env.SWITCHBOARD_VERIFY_REACTION_SETTINGS === '1'
+        || process.env.SWITCHBOARD_VERIFY_SHARE_PROGRESS === '1')
+      && reviewState.capture?.config
+    ) {
       reviewState.capture.config.enabled = false;
     }
     if (reviewState.clips?.[0]) {
@@ -135,6 +139,14 @@ async function runReview() {
     return;
   }
   await installReviewStyles(window);
+
+  if (process.env.SWITCHBOARD_VERIFY_SHARE_PROGRESS === '1') {
+    const workflow = await verifyShareProgressWorkflow();
+    await writeFile(join(outputDirectory, 'share-progress-workflow-report.json'), `${JSON.stringify(workflow, null, 2)}\n`);
+    console.log(JSON.stringify({ shareProgressWorkflow: workflow }, null, 2));
+    app.quit();
+    return;
+  }
 
   if (process.env.SWITCHBOARD_VERIFY_AUTOCAPTURE_MARKER === '1') {
     window.setContentSize(1420, 900, false);
@@ -340,6 +352,66 @@ async function openClipEditor() {
   `);
   if (!opened) throw new Error('Could not open a clip for editor review.');
   await waitForSelector('#clip-editor-title');
+}
+
+async function verifyShareProgressWorkflow() {
+  const captures = [];
+  for (const viewport of viewports.slice(0, 3)) {
+    if (window.isMaximized()) window.unmaximize();
+    window.setContentSize(viewport.width, viewport.height, false);
+    await waitForViewport(viewport);
+    await openClipEditor();
+    await clickButton('Share');
+    await waitForSelector('[data-share-clip-dialog]');
+    await clickButton('Prepare clip');
+    await waitForSelector('[data-share-progress]');
+    await waitForCondition(
+      `(() => { const value = Number(document.querySelector('[data-share-progress] [role="progressbar"]')?.getAttribute('aria-valuenow')); return value > 0 && value < 100; })()`,
+      `measured share progress at ${viewport.name}`,
+    );
+    await waitForPaint();
+    const state = await window.webContents.executeJavaScript(`
+      (() => {
+        const dialog = document.querySelector('[data-share-clip-dialog]');
+        const progress = dialog?.querySelector('[role="progressbar"]');
+        const dialogRect = dialog?.getBoundingClientRect();
+        const progressRect = progress?.getBoundingClientRect();
+        return {
+          state: dialog?.getAttribute('data-share-state'),
+          percent: Number(progress?.getAttribute('aria-valuenow')),
+          valueText: progress?.getAttribute('aria-valuetext'),
+          dialog: dialogRect ? { width: dialogRect.width, height: dialogRect.height, left: dialogRect.left, top: dialogRect.top } : null,
+          progress: progressRect ? { width: progressRect.width, height: progressRect.height } : null,
+          documentOverflowX: document.documentElement.scrollWidth > innerWidth,
+        };
+      })()
+    `);
+    const image = await window.webContents.capturePage();
+    const filename = `${viewport.name}-share-progress.png`;
+    await writeFile(join(outputDirectory, filename), image.toPNG());
+    const capture = { viewport, state, imageSize: image.getSize(), filename };
+    if (viewport === viewports[2]) {
+      await waitForCondition(`document.querySelector('[data-share-clip-dialog]')?.getAttribute('data-share-state') === 'ready'`, `completed share export at ${viewport.name}`);
+      await waitForPaint();
+      const readyImage = await window.webContents.capturePage();
+      const readyFilename = `${viewport.name}-share-ready.png`;
+      await writeFile(join(outputDirectory, readyFilename), readyImage.toPNG());
+      capture.ready = await window.webContents.executeJavaScript(`({
+        state: document.querySelector('[data-share-clip-dialog]')?.getAttribute('data-share-state'),
+        canDrag: document.querySelector('[data-share-clip-dialog] [draggable="true"]') !== null,
+        readyText: document.querySelector('[data-share-clip-dialog]')?.textContent?.includes('Ready to drag') ?? false
+      })`);
+      capture.ready.filename = readyFilename;
+      await clickButton('Done');
+    } else {
+      await clickButton('Cancel');
+      await waitForCondition(`!document.querySelector('[data-share-progress]')`, `share export cancellation at ${viewport.name}`);
+      await window.webContents.executeJavaScript(`document.querySelector('[data-share-clip-dialog] button[aria-label="Close"]')?.click()`);
+      await waitForCondition(`!document.querySelector('[data-share-clip-dialog]')`, `share dialog close at ${viewport.name}`);
+    }
+    captures.push(capture);
+  }
+  return captures;
 }
 
 async function openSettings() {

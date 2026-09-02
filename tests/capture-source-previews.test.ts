@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import type { DesktopCapturerSource } from 'electron';
 import type { CaptureSource } from '../src/shared/contracts';
-import { desktopCaptureTypesForSources, matchDesktopCaptureSource } from '../src/main/capture-source-previews';
+import {
+  desktopCaptureTypesForSources,
+  matchDesktopCaptureSource,
+  onlySourcesWithUsablePreviews,
+  preserveValidatedWindowSources,
+} from '../src/main/capture-source-previews';
 
 function nativeSource(id: string, name: string, displayId = ''): DesktopCapturerSource {
-  return { id, name, display_id: displayId } as DesktopCapturerSource;
+  return { id, name, display_id: displayId, thumbnail: { isEmpty: () => false } } as DesktopCapturerSource;
 }
 
 describe('capture source previews', () => {
@@ -32,5 +37,38 @@ describe('capture source previews', () => {
       nativeSource('window:108728466:0', 'SteelSeries GG'),
       expected,
     ], [])).toBe(expected);
+  });
+
+  test('keeps displays and open apps but removes system windows without a usable preview', () => {
+    const sources: CaptureSource[] = [
+      { id: 'display:0', type: 'display', name: 'Display 1', displayId: '0', available: true },
+      { id: 'window:10', type: 'window', name: 'Discord', windowHandle: '10', available: true },
+      { id: 'window:20', type: 'window', name: 'Program Manager', windowHandle: '20', available: true },
+      { id: 'window:30', type: 'window', name: 'Cua.AgentCursorOverlay.Default', windowHandle: '30', available: true },
+    ];
+    const nativeSources = [
+      nativeSource('screen:0:0', 'Display 1', '100'),
+      nativeSource('window:10:0', 'Discord'),
+      nativeSource('window:20:0', 'Program Manager'),
+      nativeSource('window:30:0', 'Cua.AgentCursorOverlay.Default'),
+    ] as DesktopCapturerSource[];
+
+    expect(onlySourcesWithUsablePreviews(sources, nativeSources, [100]).map((source) => source.id))
+      .toEqual(['display:0', 'window:10']);
+  });
+
+  test('runtime host snapshots cannot repopulate unvalidated system windows', () => {
+    const validated: CaptureSource[] = [
+      { id: 'display:0', type: 'display', name: 'Display 1', displayId: '0', available: true },
+      { id: 'window:10', type: 'window', name: 'Discord', windowHandle: '10', available: true },
+    ];
+    const incoming: CaptureSource[] = [
+      ...validated,
+      { id: 'window:20', type: 'window', name: 'Program Manager', windowHandle: '20', available: true },
+      { id: 'window:30', type: 'window', name: 'Cursor Overlay', windowHandle: '30', available: true },
+    ];
+
+    expect(preserveValidatedWindowSources(incoming, validated).map((source) => source.id))
+      .toEqual(['display:0', 'window:10']);
   });
 });

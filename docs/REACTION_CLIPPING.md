@@ -15,7 +15,7 @@ existing shared-mode WASAPI microphone callback
   -> normal Clip metadata with a Reaction timeline marker
 ```
 
-The detector observes the same microphone packets that Capture.Host already forwards to the microphone AAC encoder. If the microphone track is disabled, reaction clipping opens one event-driven shared-mode input only while a capture source is active. It discards samples immediately after computing frame features. It never sends PCM over Electron IPC and never creates another FFmpeg or video encoder process.
+The detector observes the same microphone packets that Capture.Host already forwards to the microphone AAC encoder. If the microphone track is disabled, reaction clipping opens one event-driven shared-mode input only while a capture source is active. It discards samples immediately after computing frame features and does not create an audio pipe. It never sends PCM over Electron IPC and never creates another FFmpeg or video encoder process.
 
 The realtime callback calculates only RMS level, peak-to-RMS crest factor, and zero-crossing rate from one channel. It allocates nothing, takes no lock, performs no I/O, and emits no IPC. The existing one-second host monitor drains at most one pending detection and publishes sparse state. A failed detector-only microphone input retries every five seconds while reaction clipping and the capture source remain active; disabling the setting, losing the source, stopping Capture, or shutting down disposes the input and stops retries.
 

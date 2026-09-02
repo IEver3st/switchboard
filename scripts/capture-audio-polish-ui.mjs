@@ -12,7 +12,7 @@ const viewports = [
   { name: '1420x900', width: 1420, height: 900 },
   { name: '1920x1080', width: 1920, height: 1080 },
 ];
-const tabs = ['game', 'chat', 'media', 'microphone'];
+const tabs = ['mixer', 'game', 'chat', 'media', 'microphone'];
 
 app.setName('switchboard-audio-polish-review');
 app.setAppPath(projectRoot);
@@ -52,7 +52,7 @@ async function run() {
       const filename = `${viewport.name}-audio-${tab}.png`;
       await writeFile(join(outputDirectory, filename), image.toPNG());
       let controlsFilename = null;
-      if (viewport.name === '1420x900') {
+      if (viewport.name === '1420x900' && tab !== 'mixer') {
         await window.webContents.executeJavaScript(`
           document.querySelector(${JSON.stringify(`#audio-panel-${tab} .audio-control-rail`)})?.scrollIntoView({ block: 'start' })
         `);
@@ -79,7 +79,7 @@ async function run() {
   }
 
   await writeFile(join(outputDirectory, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
-  console.log(JSON.stringify({ outputDirectory, captures: report.length + tabs.length + 1, report }, null, 2));
+  console.log(JSON.stringify({ outputDirectory, captures: report.length + (tabs.length - 1) + 1, report }, null, 2));
   app.quit();
 }
 
@@ -110,7 +110,7 @@ async function openAudioTab(tab) {
     })()
   `);
   await waitForSelector(`#audio-tab-${tab}[aria-selected="true"]`);
-  await waitForSelector(`#audio-panel-${tab} .audio-workbench`);
+  await waitForSelector(`#audio-panel-${tab} .${tab === 'mixer' ? 'mixer-workbench' : 'audio-workbench'}`);
 }
 
 function layoutMetrics(tab) {

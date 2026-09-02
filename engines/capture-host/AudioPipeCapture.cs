@@ -29,7 +29,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     private readonly MMDevice? heldEndpoint;
     private readonly IAudioPacketObserver? observer;
     private readonly PcmSampleFormat sampleFormat;
-    private readonly NamedPipeServerStream pipe;
+    private NamedPipeServerStream? pipe;
     private readonly Channel<AudioPacket> packets;
     private readonly CancellationTokenSource lifetime = new();
     private Task? writerTask;
@@ -53,14 +53,6 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         sampleFormat = GetSampleFormat(capture.WaveFormat);
         Label = label;
         PipeName = $"switchboard-capture-{Environment.ProcessId}-{Guid.NewGuid():N}";
-        pipe = new NamedPipeServerStream(
-            PipeName,
-            PipeDirection.Out,
-            1,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous,
-            512 * 1024,
-            512 * 1024);
         packets = Channel.CreateBounded<AudioPacket>(new BoundedChannelOptions(256)
         {
             SingleReader = true,
@@ -139,8 +131,17 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     public async Task ConnectAndStartAsync(CancellationToken cancellationToken)
     {
         if (started) return;
-        await pipe.WaitForConnectionAsync(cancellationToken);
-        writerTask = WritePacketsAsync(lifetime.Token);
+        var output = new NamedPipeServerStream(
+            PipeName,
+            PipeDirection.Out,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous,
+            512 * 1024,
+            512 * 1024);
+        pipe = output;
+        await output.WaitForConnectionAsync(cancellationToken);
+        writerTask = WritePacketsAsync(output, lifetime.Token);
         Volatile.Write(ref forwardPackets, 1);
         capture.StartRecording();
         started = true;
@@ -171,7 +172,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         capture.RecordingStopped -= OnRecordingStopped;
         capture.Dispose();
         heldEndpoint?.Dispose();
-        await pipe.DisposeAsync();
+        if (pipe is not null) await pipe.DisposeAsync();
         lifetime.Dispose();
     }
 
@@ -209,7 +210,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         packets.Writer.TryComplete();
     }
 
-    private async Task WritePacketsAsync(CancellationToken cancellationToken)
+    private async Task WritePacketsAsync(NamedPipeServerStream output, CancellationToken cancellationToken)
     {
         var batch = ArrayPool<byte>.Shared.Rent(512 * 1024);
         try
@@ -225,17 +226,17 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
                         {
                             if (length > 0)
                             {
-                                await pipe.WriteAsync(batch.AsMemory(0, length), cancellationToken);
+                                await output.WriteAsync(batch.AsMemory(0, length), cancellationToken);
                                 Interlocked.Add(ref writtenBytes, length);
                                 length = 0;
                             }
-                            await pipe.WriteAsync(packet.Buffer.AsMemory(0, packet.Length), cancellationToken);
+                            await output.WriteAsync(packet.Buffer.AsMemory(0, packet.Length), cancellationToken);
                             Interlocked.Add(ref writtenBytes, packet.Length);
                             continue;
                         }
                         if (length + packet.Length > batch.Length)
                         {
-                            await pipe.WriteAsync(batch.AsMemory(0, length), cancellationToken);
+                            await output.WriteAsync(batch.AsMemory(0, length), cancellationToken);
                             Interlocked.Add(ref writtenBytes, length);
                             length = 0;
                         }
@@ -250,11 +251,11 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
                 }
                 if (length > 0)
                 {
-                    await pipe.WriteAsync(batch.AsMemory(0, length), cancellationToken);
+                    await output.WriteAsync(batch.AsMemory(0, length), cancellationToken);
                     Interlocked.Add(ref writtenBytes, length);
                 }
             }
-            await pipe.FlushAsync(cancellationToken);
+            await output.FlushAsync(cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (IOException error)

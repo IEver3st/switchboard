@@ -33,6 +33,7 @@ import {
 } from '@/components/settings/settings-primitives';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatRelativeTime, percent } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
@@ -211,6 +212,22 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
   return (
     <>
       <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and releases the interface." onReset={onReset} />
+      <SettingSection title="Appearance">
+        <SettingSelect
+          settingId="general.uiScale"
+          title="Interface scale"
+          description="Make text, controls, and workspaces larger or smaller throughout Switchboard. Changes apply immediately."
+          value={String(snapshot.settings.uiScalePercent)}
+          options={[
+            { value: '90', label: '90% · Compact' },
+            { value: '100', label: '100%' },
+            { value: '110', label: '110%' },
+            { value: '125', label: '125% · Recommended' },
+            { value: '150', label: '150% · Large' },
+          ]}
+          onValueChange={(value) => void updateSettings({ uiScalePercent: Number(value) as 90 | 100 | 110 | 125 | 150 })}
+        />
+      </SettingSection>
       <SettingSection title="Startup and window">
         <SettingSwitch
           settingId="general.startup"
@@ -660,146 +677,124 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   const autoCapture = snapshot.capture.autoCapture;
   const autoCaptureProvider = autoCapture.providers.find((provider) => provider.id === autoCapture.runtime.activeProviderId);
   const noise = snapshot.audio.host?.noiseSuppression;
+  const processSample = snapshot.performance.sampledAt
+    ? `Sampled ${formatRelativeTime(new Date(snapshot.performance.sampledAt).getTime())}`
+    : 'Waiting for first sample';
 
   return (
-    <>
+    <div className="settings-diagnostics">
       <SettingsCategoryHeader title="Diagnostics" description="Inspect local health, retention, and the active resource budget." onReset={onReset} />
-      <SettingSection title="Collection">
-        <SettingValue
-          settingId="diagnostics.telemetry"
-          title="Telemetry"
-          description="Remote telemetry is hard-disabled in the current schema. Diagnostics stay local."
-          value="Off"
-        />
-        <SettingSelect
-          settingId="diagnostics.retention"
-          title="Local retention"
-          description="Retain engine crashes, process samples, and module load failures for local troubleshooting."
-          value={String(snapshot.settings.diagnosticsRetentionDays)}
-          options={[1, 3, 7, 14, 30].map((days) => ({ value: String(days), label: days === 1 ? '1 day' : `${days} days` }))}
-          onValueChange={(days) => void updateSettings({ diagnosticsRetentionDays: Number(days) })}
-        />
-        <SettingSwitch
-          settingId="diagnostics.guard"
-          title="Performance guard"
-          description="Warn when sustained resource use crosses the memory or idle CPU budget."
-          checked={snapshot.settings.performanceGuard}
-          onCheckedChange={(performanceGuard) => void updateSettings({ performanceGuard })}
-        />
-      </SettingSection>
-      <SettingSection title="Latest snapshot">
-        <SettingRow
-          settingId="diagnostics.memory"
-          title="Process usage"
-          description={`Private: core ${snapshot.performance.coreMemoryMb} MB · renderer ${snapshot.performance.rendererMemoryMb} MB · ${snapshot.performance.activeProcesses} processes${snapshot.performance.sampledAt ? ` · sampled ${formatRelativeTime(new Date(snapshot.performance.sampledAt).getTime())}` : ''}`}
-        >
-          <span className="settings-row__value">
-            {snapshot.performance.totalMemoryMb} MB private · {snapshot.performance.residentMemoryMb} MB working set · {snapshot.performance.totalCpuPercent.toFixed(1)}% CPU
-          </span>
-        </SettingRow>
-        {snapshot.performance.warning ? (
-          <SettingValue
-            settingId="diagnostics.performance-warning"
-            title="Sustained budget warning"
-            description={snapshot.performance.warning}
-            value="Over budget"
-          />
-        ) : null}
-        <SettingRow
-          settingId="diagnostics.engines"
-          title="Engine status"
-          description="Status updates are event-driven and sampled by the control plane; this page adds no high-frequency timer."
-        >
-          <span className="settings-engine-readout">
-            <span><i className={cn('settings-status-dot', statusDotClass(audioEngine?.state))} />Audio {engineStateLabel(audioEngine?.state)}</span>
-            <span><i className={cn('settings-status-dot', statusDotClass(captureEngine?.state))} />Capture {engineStateLabel(captureEngine?.state)}</span>
-          </span>
-        </SettingRow>
-        <SettingRow
+      <section className="diagnostics-overview" aria-label="Current health">
+        <article id="setting-diagnostics.memory" data-setting-id="diagnostics.memory" tabIndex={-1} className="diagnostics-overview__system">
+          <span className="diagnostics-eyebrow">System</span>
+          <strong>{snapshot.performance.totalMemoryMb} MB</strong>
+          <span>{snapshot.performance.totalCpuPercent.toFixed(1)}% CPU · {snapshot.performance.activeProcesses} processes</span>
+          <small title={`Core ${snapshot.performance.coreMemoryMb} MB · renderer ${snapshot.performance.rendererMemoryMb} MB · ${snapshot.performance.residentMemoryMb} MB working set · ${processSample}`}>
+            Core {snapshot.performance.coreMemoryMb} · renderer {snapshot.performance.rendererMemoryMb} · working set {snapshot.performance.residentMemoryMb} MB
+          </small>
+        </article>
+        <EngineSummary title="Audio" engineState={audioEngine?.state} />
+        <EngineSummary title="Capture" engineState={captureEngine?.state} />
+      </section>
+
+      {snapshot.performance.warning ? (
+        <div id="setting-diagnostics.performance-warning" data-setting-id="diagnostics.performance-warning" tabIndex={-1} className="diagnostics-warning" role="status">
+          <AlertTriangle aria-hidden />
+          <span><strong>Sustained budget warning</strong>{snapshot.performance.warning}</span>
+          <b>Over budget</b>
+        </div>
+      ) : null}
+
+      <DiagnosticsSection title="Live pipelines" description="Status updates are event-driven and sampled by the control plane; this page adds no high-frequency timer.">
+        <DiagnosticsReadout
           settingId="diagnostics.capture-path"
           title="Capture pipeline"
           description={`${captureRuntime.backendLabel} · ${captureRuntime.encoderLabel} · ${snapshot.capture.config.codec.toUpperCase()} · ${snapshot.capture.config.resolution} at ${snapshot.capture.config.fps} FPS`}
-        >
-          <span className="settings-row__value">{formatBytes(capturePreset.targetVideoBitrateBps / 8)}/s target</span>
-        </SettingRow>
-        <SettingRow
+          value={`${formatBytes(capturePreset.targetVideoBitrateBps / 8)}/s target`}
+        />
+        <DiagnosticsReadout
+          settingId="diagnostics.capture-health"
+          title="Replay health"
+          description={`${captureRuntime.encodedFrames.toLocaleString()} encoded · ${captureRuntime.droppedFrames.toLocaleString()} dropped · ${captureRuntime.audioSyncCorrections.toLocaleString()} audio corrections`}
+          value={`${formatBytes(captureRuntime.replayCacheBytes)} cache${captureRuntime.observedBitrateBps > 0 ? ` · ${formatBytes(captureRuntime.observedBitrateBps / 8)}/s observed` : ''}`}
+          tone={captureRuntime.droppedFrames > 0 ? 'warning' : 'default'}
+        />
+        <DiagnosticsReadout
           settingId="diagnostics.noise-suppression"
           title="Microphone noise removal"
           description={noise
             ? `${noise.backend} · ${noise.modelIdentifier ?? 'no model'} · ${noise.frameLength} samples at ${noise.processingSampleRate.toLocaleString()} Hz · ${noise.attenuationLimitDb.toFixed(1)} dB limit`
             : 'Start the audio engine to inspect the microphone noise-removal backend.'}
-        >
-          <span className="settings-row__value">
-            {noise ? `${noise.state} · p99 ${noise.p99Ms.toFixed(2)} ms` : 'Not loaded'}
-          </span>
-        </SettingRow>
-        <SettingRow
+          value={noise ? `${noise.state} · p99 ${noise.p99Ms.toFixed(2)} ms` : 'Not loaded'}
+          tone={noise?.lastError ? 'danger' : 'default'}
+        />
+        <DiagnosticsReadout
           settingId="diagnostics.microphone-realtime"
           title="Microphone realtime health"
           description={noise
             ? `${noise.captureOverruns.toLocaleString()} capture overruns · ${noise.monitorOverruns.toLocaleString()}/${noise.monitorUnderruns.toLocaleString()} monitor over/underruns · ${noise.droppedOrBypassedFrames.toLocaleString()} dropped or bypassed frames · callback p99 ${noise.captureCallbackP99Ms.toFixed(2)} ms`
             : 'Frame timing, callback timing, and overload counters are reported by Audio.Host.'}
-        >
-          <span className="settings-row__value">
-            {noise?.lastError ?? (noise ? `${noise.algorithmicLatencyMs.toFixed(1)} ms algorithmic` : 'No data')}
-          </span>
-        </SettingRow>
-        <SettingRow
-          settingId="diagnostics.capture-health"
-          title="Replay health"
-          description={`${captureRuntime.encodedFrames.toLocaleString()} encoded · ${captureRuntime.droppedFrames.toLocaleString()} dropped · ${captureRuntime.audioSyncCorrections.toLocaleString()} audio corrections`}
-        >
-          <span className="settings-row__value">
-            {formatBytes(captureRuntime.replayCacheBytes)} cache
-            {captureRuntime.observedBitrateBps > 0 ? ` · ${formatBytes(captureRuntime.observedBitrateBps / 8)}/s observed` : ''}
-          </span>
-        </SettingRow>
-        <SettingRow
+          value={noise?.lastError ?? (noise ? `${noise.algorithmicLatencyMs.toFixed(1)} ms algorithmic` : 'No data')}
+          tone={noise?.lastError ? 'danger' : 'default'}
+        />
+      </DiagnosticsSection>
+
+      <DiagnosticsSection title="Automation" description="Provider activity and local reaction analysis.">
+        <DiagnosticsReadout
           settingId="diagnostics.autocapture"
           title="Auto Capture"
           description={autoCapture.settings.enabled
             ? `${autoCaptureProvider?.displayName ?? autoCapture.runtime.activeGameId ?? 'No active game'} · ${autoCapture.runtime.eventsReceived.toLocaleString()} events · ${autoCapture.runtime.eventsDeduplicated.toLocaleString()} deduplicated · ${autoCapture.runtime.clipsCreated.toLocaleString()} clips`
             : 'Event providers are dormant until Auto Capture is enabled. Manual replay capture remains independent.'}
-        >
-          <span className="settings-row__value">
-            {autoCapture.settings.enabled ? autoCapture.runtime.state : 'Off'}
-            {autoCapture.runtime.lastEvent ? ` · ${autoCapture.runtime.lastEvent.label ?? autoCapture.runtime.lastEvent.type.replaceAll('_', ' ')} ${formatRelativeTime(autoCapture.runtime.lastEvent.at)}` : ''}
-          </span>
-        </SettingRow>
-        <SettingRow
+          value={`${autoCapture.settings.enabled ? autoCapture.runtime.state : 'Off'}${autoCapture.runtime.lastEvent ? ` · ${autoCapture.runtime.lastEvent.label ?? autoCapture.runtime.lastEvent.type.replaceAll('_', ' ')} ${formatRelativeTime(autoCapture.runtime.lastEvent.at)}` : ''}`}
+          tone={autoCapture.runtime.lastError ? 'danger' : 'default'}
+        />
+        <DiagnosticsReadout
           settingId="diagnostics.reaction-clipping"
           title="Reaction clipping"
           description={snapshot.capture.autoCapture.settings.reactionClipping.enabled
             ? `${captureRuntime.reactionClipping.reactionsDetected.toLocaleString()} detected · ${captureRuntime.reactionClipping.analyzedFrames.toLocaleString()} frames at ${captureRuntime.reactionClipping.analysisAverageMs.toFixed(4)} ms average · input ${captureRuntime.reactionClipping.inputLevelDb.toFixed(1)} dBFS · learned floor ${captureRuntime.reactionClipping.noiseFloorDb.toFixed(1)} dBFS · trigger ${captureRuntime.reactionClipping.triggerThresholdDb.toFixed(1)} dBFS`
             : 'The microphone detector is disabled and retains no capture session of its own.'}
-        >
-          <span className="settings-row__value">
-            {snapshot.capture.autoCapture.settings.reactionClipping.enabled
-              ? captureRuntime.reactionClipping.state
-              : 'Off'}
-            {captureRuntime.reactionClipping.lastReactionAt
-              ? ` · last ${formatRelativeTime(captureRuntime.reactionClipping.lastReactionAt)}`
-              : ''}
-          </span>
-        </SettingRow>
+          value={`${snapshot.capture.autoCapture.settings.reactionClipping.enabled ? captureRuntime.reactionClipping.state : 'Off'}${captureRuntime.reactionClipping.lastReactionAt ? ` · last ${formatRelativeTime(captureRuntime.reactionClipping.lastReactionAt)}` : ''}`}
+        />
         {autoCapture.runtime.pendingCapture ? (
-          <SettingValue
+          <DiagnosticsReadout
             settingId="diagnostics.autocapture-pending"
             title="Pending Auto Capture"
             description={`${autoCapture.runtime.pendingCapture.eventCount} event${autoCapture.runtime.pendingCapture.eventCount === 1 ? '' : 's'} · preserving through ${new Date(autoCapture.runtime.pendingCapture.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`}
             value="Post-roll"
+            tone="warning"
           />
         ) : null}
         {autoCapture.runtime.lastError ? (
-          <SettingValue
-            settingId="diagnostics.autocapture-error"
-            title="Auto Capture provider"
-            description={autoCapture.runtime.lastError}
-            value="Degraded"
-          />
+          <DiagnosticsReadout settingId="diagnostics.autocapture-error" title="Auto Capture provider" description={autoCapture.runtime.lastError} value="Degraded" tone="danger" />
         ) : null}
-      </SettingSection>
-      <SettingSection title="Device identity">
+      </DiagnosticsSection>
+
+      <section className="diagnostics-maintenance" aria-labelledby="diagnostics-maintenance-title">
+        <div className="diagnostics-section__heading">
+          <div>
+            <h3 id="diagnostics-maintenance-title">Local records</h3>
+            <p>Remote telemetry is hard-disabled in the current schema. Diagnostics stay local.</p>
+          </div>
+          <span id="setting-diagnostics.telemetry" data-setting-id="diagnostics.telemetry" tabIndex={-1} className="diagnostics-local-only">Telemetry off</span>
+        </div>
+        <div className="diagnostics-maintenance__controls">
+          <div id="setting-diagnostics.retention" data-setting-id="diagnostics.retention" tabIndex={-1} className="diagnostics-maintenance__control">
+            <span><strong>Local retention</strong><small>Retain engine crashes, process samples, and module load failures for local troubleshooting.</small></span>
+            <Select value={String(snapshot.settings.diagnosticsRetentionDays)} onValueChange={(days) => void updateSettings({ diagnosticsRetentionDays: Number(days) })}>
+              <SelectTrigger aria-label="Local retention"><SelectValue /></SelectTrigger>
+              <SelectContent>{[1, 3, 7, 14, 30].map((days) => <SelectItem key={days} value={String(days)}>{days === 1 ? '1 day' : `${days} days`}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div id="setting-diagnostics.guard" data-setting-id="diagnostics.guard" tabIndex={-1} className="diagnostics-maintenance__control">
+            <span><strong>Performance guard</strong><small>Warn when sustained resource use crosses the memory or idle CPU budget.</small></span>
+            <Switch checked={snapshot.settings.performanceGuard} onCheckedChange={(performanceGuard) => void updateSettings({ performanceGuard })} aria-label="Performance guard" />
+          </div>
+        </div>
+      </section>
+
+      <DiagnosticsSection title="Device identity" description="Hardware, transport, and asset-resolution evidence reported by enabled modules.">
         {snapshot.devices.map((device, index) => (
           <DeviceIdentityRecord
             key={device.id}
@@ -807,8 +802,46 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
             device={device}
           />
         ))}
-      </SettingSection>
-    </>
+      </DiagnosticsSection>
+    </div>
+  );
+}
+
+function EngineSummary({ title, engineState }: { title: string; engineState: SystemSnapshot['engines'][number]['state'] | undefined }) {
+  return (
+    <article id={title === 'Audio' ? 'setting-diagnostics.engines' : undefined} data-setting-id={title === 'Audio' ? 'diagnostics.engines' : undefined} tabIndex={title === 'Audio' ? -1 : undefined} className="diagnostics-overview__engine">
+      <span className="diagnostics-eyebrow">{title} host</span>
+      <strong><i className={cn('settings-status-dot', statusDotClass(engineState))} aria-hidden />{engineStateLabel(engineState)}</strong>
+      <span>{title === 'Audio' ? 'Signal processing and routing' : 'Replay buffer and encoding'}</span>
+      <small>Event-driven status</small>
+    </article>
+  );
+}
+
+function DiagnosticsSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  const headingId = `diagnostics-${title.toLocaleLowerCase().replaceAll(' ', '-')}`;
+  return (
+    <section className="diagnostics-section" aria-labelledby={headingId}>
+      <div className="diagnostics-section__heading">
+        <div><h3 id={headingId}>{title}</h3><p>{description}</p></div>
+      </div>
+      <div className="diagnostics-table">{children}</div>
+    </section>
+  );
+}
+
+function DiagnosticsReadout({ settingId, title, description, value, tone = 'default' }: {
+  settingId: string;
+  title: string;
+  description: React.ReactNode;
+  value: React.ReactNode;
+  tone?: 'default' | 'warning' | 'danger';
+}) {
+  return (
+    <article id={`setting-${settingId}`} data-setting-id={settingId} data-tone={tone} tabIndex={-1} className="diagnostics-readout">
+      <div><strong>{title}</strong><p>{description}</p></div>
+      <output>{value}</output>
+    </article>
   );
 }
 
@@ -822,8 +855,6 @@ function deviceSummary(device: Device): string {
 function DeviceIdentityRecord({ device, settingId }: { device: Device; settingId: string }) {
   const keyboard = device.capabilities.keyboard;
   const keyboardDiagnostics = keyboard?.diagnostics;
-  const headset = device.capabilities.headset;
-  const headsetDiagnostics = headset?.diagnostics;
   const failedReads = keyboardDiagnostics?.reads.filter((read) => !read.ok) ?? [];
   const fields = [
     ['Manufacturer', device.identity.manufacturer],
@@ -845,10 +876,6 @@ function DeviceIdentityRecord({ device, settingId }: { device: Device; settingId
     ['Failed readbacks', failedReads.length ? failedReads.map((read) => `${read.id}: ${read.error ?? 'unavailable'}`).join(' · ') : undefined],
     ['Last write error', keyboardDiagnostics?.lastControlError],
     ['External capabilities', keyboard?.features.filter((feature) => feature.status !== 'native').map((feature) => feature.label).join(' · ') || undefined],
-    ['Sony transport', headset ? `${headset.transportState} · ${headsetDiagnostics?.protocol ?? 'unknown protocol'}` : undefined],
-    ['Sony last sync', headsetDiagnostics?.lastSyncAt ?? undefined],
-    ['Sony transport health', headsetDiagnostics ? `${headsetDiagnostics.commandFailureCount} command failures · ${headsetDiagnostics.malformedFrameCount} malformed frames · ${headsetDiagnostics.reconnectCount} reconnects` : undefined],
-    ['Sony last error', headsetDiagnostics?.lastErrorCode ?? undefined],
   ].filter((field): field is [string, string] => Boolean(field[1]));
 
   return (

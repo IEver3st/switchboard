@@ -38,6 +38,13 @@ export const settingsCategories: ReadonlyArray<{
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   {
+    id: 'general.uiScale',
+    category: 'general',
+    title: 'Interface scale',
+    description: 'Make text, controls, and workspaces larger or smaller throughout Switchboard.',
+    keywords: ['ui', 'zoom', 'size', 'text', 'font', 'accessibility', 'display'],
+  },
+  {
     id: 'general.startup',
     category: 'general',
     title: 'Start Switchboard with Windows',

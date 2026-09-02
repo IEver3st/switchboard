@@ -29,7 +29,6 @@ This repository is an active Windows alpha. The control plane is real, several n
 - **Logitech G502 X Plus:** direct HID++ control for DPI stages, shift DPI, report rate, primary button assignments, onboard mode, battery state, supported LIGHTSYNC effects, and addressable zones. Onboard profile writes require a known layout and valid CRC.
 - **HyperX QuadCast 2:** event-driven mute state, maintained lighting, brightness, pulse timing, and hardware-backed lighting profiles.
 - **Razer Huntsman V2 Analog:** readback-backed brightness, firmware-reported quick effects, Gaming Mode, and onboard profile selection. Actuation, analog mapping, macros, Snap Tap, and per-key lighting remain outside Switchboard until their device protocols are independently verified.
-- **Sony WH-1000XM6:** an isolated RFCOMM host and canonical control model for noise control, ambient level, EQ, DSEE Extreme, Speak-to-Chat, and listening modes. Packet and UI validation are complete; powered-on write and readback acceptance is still pending.
 
 Switchboard shows a control only when the detected device reports a matching capability. Failed writes leave the last confirmed state intact.
 
@@ -71,7 +70,6 @@ The development host defaults to simulation. Production capture claims require t
 | Electron control plane | Implemented and persisted |
 | G502 X Plus and QuadCast 2 | Hardware-backed integration |
 | Huntsman V2 Analog | Supported controls implemented; clean-process physical revalidation remains |
-| WH-1000XM6 | Transport and UI implemented; powered-on acceptance remains |
 | Audio host | Native host implemented |
 | Virtual audio endpoints | Package builds; production signature and qualification remain |
 | Capture host | Native path implemented; production Windows capture qualification remains |
@@ -93,7 +91,6 @@ Electron main process
   ├── device registry and vendor modules
   ├── Audio.Host            .NET 10 + NAudio + native DSP
   ├── Capture.Host          .NET 10 + FFmpeg
-  └── Sony.Headphones.Host  .NET 10 + Bluetooth RFCOMM
           │
           ▼
 Signed virtual audio transport driver  C++ / WDK
@@ -162,7 +159,6 @@ Open `preview/index.html`, or use the generated single-file `preview/standalone.
 | `src/renderer/src` | React desktop interface |
 | `engines/audio-host` | Realtime Windows audio host |
 | `engines/capture-host` | FFmpeg-first Windows capture host |
-| `engines/sony-headphones-host` | Sony RFCOMM transport host |
 | `native/noise-bridge` | Packaged CPU noise-suppression bridge |
 | `drivers/virtual-audio` | Transport-only WDM driver source and release contract |
 | `docs` | Subsystem, release, and supply-chain notes |

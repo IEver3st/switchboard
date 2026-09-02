@@ -31,3 +31,32 @@ export function matchDesktopCaptureSource(
   }
   return undefined;
 }
+
+export function onlySourcesWithUsablePreviews(
+  sources: readonly CaptureSource[],
+  nativeSources: DesktopCapturerSource[],
+  captureIndexedDisplayIds: readonly number[],
+): CaptureSource[] {
+  return sources.filter((source) => {
+    if (source.type !== 'window') return true;
+    if (isSystemOrOverlayWindow(source.name)) return false;
+    const nativeSource = matchDesktopCaptureSource(source, nativeSources, captureIndexedDisplayIds);
+    return nativeSource !== undefined && !nativeSource.thumbnail.isEmpty();
+  });
+}
+
+function isSystemOrOverlayWindow(name: string): boolean {
+  const normalized = name.trim().toLocaleLowerCase();
+  return normalized === 'program manager'
+    || normalized.startsWith('cua.agentcursoroverlay.');
+}
+
+export function preserveValidatedWindowSources(
+  incomingSources: readonly CaptureSource[],
+  validatedSources: readonly CaptureSource[],
+): CaptureSource[] {
+  const validatedWindowIds = new Set(
+    validatedSources.filter((source) => source.type === 'window').map((source) => source.id),
+  );
+  return incomingSources.filter((source) => source.type !== 'window' || validatedWindowIds.has(source.id));
+}

@@ -15,6 +15,7 @@ describe('settings persistence', () => {
   it('defaults fresh installations to fully automatic application updates', () => {
     const settings = createDefaultSnapshot().settings;
 
+    expect(settings.uiScalePercent).toBe(125);
     expect(settings.automaticAppUpdates).toBeTrue();
     expect(settings.automaticAppUpdateDownloads).toBeTrue();
     expect(settings.installAppUpdatesOnNextStartup).toBeTrue();
@@ -28,6 +29,7 @@ describe('settings persistence', () => {
 
     await first.load();
     first.update((draft) => {
+      draft.settings.uiScalePercent = 150;
       draft.settings.closeToTray = false;
       draft.settings.diagnosticsRetentionDays = 14;
       draft.settings.scanGamesAutomatically = false;
@@ -77,6 +79,7 @@ describe('settings persistence', () => {
     const snapshot = restarted.get();
 
     expect(snapshot.settings.closeToTray).toBeFalse();
+    expect(snapshot.settings.uiScalePercent).toBe(150);
     expect(snapshot.settings.diagnosticsRetentionDays).toBe(14);
     expect(snapshot.settings.scanGamesAutomatically).toBeFalse();
     expect(snapshot.settings.automaticAppUpdates).toBeFalse();
@@ -106,6 +109,7 @@ describe('settings persistence', () => {
     const legacy = createDefaultSnapshot() as unknown as Record<string, unknown>;
     const settings = legacy.settings as Record<string, unknown>;
     settings.closeToTray = false;
+    delete settings.uiScalePercent;
     delete settings.scanGamesAutomatically;
     delete settings.automaticAppUpdates;
     delete settings.automaticAppUpdateDownloads;
@@ -119,6 +123,7 @@ describe('settings persistence', () => {
     const snapshot = store.get();
 
     expect(snapshot.settings.closeToTray).toBeFalse();
+    expect(snapshot.settings.uiScalePercent).toBe(125);
     expect(snapshot.settings.scanGamesAutomatically).toBeTrue();
     expect(snapshot.settings.automaticAppUpdates).toBeTrue();
     expect(snapshot.settings.automaticAppUpdateDownloads).toBeTrue();

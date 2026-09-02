@@ -1,6 +1,6 @@
-import { useState, type DragEvent as ReactDragEvent } from 'react';
-import { Check, FolderOpen, Grip, LoaderCircle, Share2, Video } from 'lucide-react';
-import type { Clip, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
+import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
+import { Check, FolderOpen, Grip, Share2, Video } from 'lucide-react';
+import type { Clip, ClipExportPreset, ClipExportProgress, PreparedShareFile } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { switchboardApi } from '@/lib/demo-api';
@@ -47,6 +48,8 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<ClipExportPreset>('10mb');
   const [activeExportId, setActiveExportId] = useState<string | null>(null);
+  const activeExportIdRef = useRef<string | null>(null);
+  const [exportProgress, setExportProgress] = useState<ClipExportProgress | null>(null);
   const [prepared, setPrepared] = useState<PreparedShareFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
@@ -58,6 +61,16 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
   const visibleName = prepared?.name ?? sourceName;
   const visibleBytes = prepared?.fileSize ?? expectedBytes;
   const canDrag = projectType === 'single' && prepared !== null;
+  const progressLabel = exportProgress?.stage === 'finalizing' || exportProgress?.stage === 'complete'
+    ? 'Finalizing share copy'
+    : projectType === 'montage'
+      ? 'Exporting montage'
+      : 'Compressing clip';
+
+  useEffect(() => switchboardApi.subscribeClipExportProgress((progress) => {
+    if (progress.exportId !== activeExportIdRef.current) return;
+    setExportProgress(progress);
+  }), []);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && exportPending) return;
@@ -66,12 +79,16 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
       setPrepared(null);
       setError(null);
       setActiveExportId(null);
+      activeExportIdRef.current = null;
+      setExportProgress(null);
     }
   };
 
   const createShareFile = async () => {
     const exportId = crypto.randomUUID();
+    activeExportIdRef.current = exportId;
     setActiveExportId(exportId);
+    setExportProgress(null);
     setPrepared(null);
     setError(null);
     try {
@@ -81,6 +98,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
+      activeExportIdRef.current = null;
       setActiveExportId(null);
     }
   };
@@ -95,6 +113,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
     setPreset(value as ClipExportPreset);
     setPrepared(null);
     setError(null);
+    setExportProgress(null);
   };
 
   const startFileDrag = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -143,8 +162,20 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
                 <div className="grid size-full place-items-center text-muted-foreground" aria-hidden="true"><Video className="size-8" strokeWidth={1.4} /></div>
               )}
               {exportPending ? (
-                <div className="absolute inset-0 grid place-items-center bg-black/65 text-white" role="status" aria-live="polite">
-                  <span className="grid justify-items-center gap-2 text-[12px] font-semibold"><LoaderCircle className="size-6 animate-spin motion-reduce:animate-none" aria-hidden="true" />Preparing clip…</span>
+                <div className="absolute inset-0 flex items-end bg-black/65 p-4 text-white" role="status" aria-live="polite" data-share-progress>
+                  <div className="w-full rounded-sm bg-black/45 px-3 py-2.5 shadow-sm">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-semibold">
+                      <span>{progressLabel}</span>
+                      <span className="tabular-nums text-white/80">{exportProgress ? `${exportProgress.percent}%` : 'Starting…'}</span>
+                    </div>
+                    <Progress
+                      value={exportProgress?.percent ?? 0}
+                      aria-label={`${progressLabel} progress`}
+                      aria-valuetext={exportProgress ? `${exportProgress.percent} percent` : 'Starting'}
+                      className="h-1.5 bg-white/20"
+                      indicatorClassName="bg-white"
+                    />
+                  </div>
                 </div>
               ) : canDrag ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/72 px-3 py-2 text-white">

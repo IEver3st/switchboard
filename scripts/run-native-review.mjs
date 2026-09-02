@@ -42,6 +42,8 @@ if (command === 'capture') {
   await runElectron('scripts/capture-native-ui.mjs', '--verify-audio-noise');
 } else if (command === 'audio-mixer') {
   await runElectron('scripts/verify-audio-mixer-ui.mjs');
+} else if (command === 'audio-polish') {
+  await runElectron('scripts/capture-audio-polish-ui.mjs');
 } else if (command === 'clip-editor') {
   await runElectron('scripts/verify-clip-editor-ui.mjs', ...commandArguments);
 } else if (command === 'montage') {

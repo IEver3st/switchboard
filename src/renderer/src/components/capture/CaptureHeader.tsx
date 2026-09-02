@@ -52,6 +52,13 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
   return (
     <section aria-label="Clips commands" className="capture-command-header capture-toolbar sticky top-0 z-20">
       <div className="capture-command-header__capture-rail">
+        <div className="capture-command-header__identity">
+          <h2 id="clips-heading">Clips</h2>
+          <p aria-live="polite">
+            <span>{clipCount}</span>
+            {controls.clips.length > 0 ? <span className="capture-command-header__size"> <span aria-hidden="true">·</span> {formatBytes(controls.visibleBytes)}</span> : null}
+          </p>
+        </div>
         <ReplayConfiguration
           snapshot={snapshot}
           sourceOptions={sourceOptions}
@@ -64,13 +71,6 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
         />
       </div>
       <div className="capture-command-header__library-row">
-        <div className="capture-command-header__identity">
-          <h2 id="clips-heading">Clips</h2>
-          <p aria-live="polite">
-            <span>{clipCount}</span>
-            {controls.clips.length > 0 ? <span className="capture-command-header__size"> <span aria-hidden="true">·</span> {formatBytes(controls.visibleBytes)}</span> : null}
-          </p>
-        </div>
         <ClipLibraryToolbar controls={controls} />
       </div>
       {notice ? <div className={cn('capture-toolbar__notice text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
@@ -120,18 +120,6 @@ function ReplayConfiguration({
       <div className="capture-recorder-toggle">
         <span>Instant Replay: <strong>{config.enabled ? 'Enabled' : 'Disabled'}</strong></span>
         <Switch checked={config.enabled} aria-label="Instant Replay" onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
-      </div>
-
-      <dl className="capture-recorder-settings" aria-label="Current replay settings">
-        <div><dt>Length</dt><dd>{formatReplayLength(config.replaySeconds)}</dd></div>
-        <div><dt>Quality</dt><dd>{qualityLabels[config.quality] ?? `Level ${config.quality}`}</dd></div>
-        <div><dt>Resolution</dt><dd>{config.resolution === 'native' ? 'Native' : config.resolution}</dd></div>
-        <div><dt>Frame rate</dt><dd>{config.fps} FPS</dd></div>
-      </dl>
-
-      <div className="capture-recorder-shortcut" aria-label={`Save replay shortcut ${config.hotkey}`}>
-        <Kbd>{config.hotkey}</Kbd>
-        <span>to clip</span>
       </div>
 
       <CaptureSourcePicker compact value={selectedSourceValue} options={sourceOptions} active={config.enabled} onChange={onSourceChange} />
@@ -296,7 +284,13 @@ function CaptureSourcePicker({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) void refresh();
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           ref={triggerRef}

@@ -12,7 +12,6 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSystemStore } from '@/stores/use-system-store';
 
-const HeadsetDeviceEditor = lazy(() => import('@/components/device-controls/HeadsetDeviceEditor').then((module) => ({ default: module.HeadsetDeviceEditor })));
 const KeyboardDeviceEditor = lazy(() => import('@/components/device-controls/KeyboardDeviceEditor').then((module) => ({ default: module.KeyboardDeviceEditor })));
 const MouseDeviceEditor = lazy(() => import('@/components/device-controls/MouseDeviceEditor').then((module) => ({ default: module.MouseDeviceEditor })));
 
@@ -174,8 +173,6 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
           <MouseDeviceEditor device={selected} />
         ) : selected.kind === 'keyboard' ? (
           <KeyboardDeviceEditor device={selected} />
-        ) : selected.kind === 'headset' && selected.capabilities.headset ? (
-          <HeadsetDeviceEditor device={selected} />
         ) : (
           <>
             <div className="device-workbench__hero">

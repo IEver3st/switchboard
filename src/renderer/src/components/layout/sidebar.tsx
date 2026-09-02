@@ -1,8 +1,8 @@
 import {
-  AudioLines,
-  Disc3,
+  AudioWaveform,
+  Cable,
+  CircleDot,
   Settings,
-  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId, SystemSnapshot } from '../../../../shared/contracts';
@@ -10,9 +10,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/cn';
 
 const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 'audio' | 'capture' }> = [
-  { id: 'devices', label: 'Devices', icon: SlidersHorizontal },
-  { id: 'audio', label: 'Audio', icon: AudioLines, engine: 'audio' },
-  { id: 'capture', label: 'Capture', icon: Disc3, engine: 'capture' },
+  { id: 'devices', label: 'Devices', icon: Cable },
+  { id: 'audio', label: 'Audio', icon: AudioWaveform, engine: 'audio' },
+  { id: 'capture', label: 'Capture', icon: CircleDot, engine: 'capture' },
 ];
 
 export function Sidebar({
@@ -25,11 +25,11 @@ export function Sidebar({
   onNavigate: (page: PageId) => void;
 }) {
   return (
-    <aside className="switchboard-sidebar flex w-[68px] shrink-0 flex-col items-center border-r border-border bg-chrome py-2">
-      <div className="app-drag flex h-[54px] w-full shrink-0 items-center justify-center">
-        <img src="./switchboard-mark.png" alt="" className="size-[44px] object-contain opacity-90" draggable={false} />
+    <aside className="switchboard-sidebar flex w-[72px] shrink-0 flex-col items-center bg-chrome py-2">
+      <div className="app-drag flex h-[46px] w-full shrink-0 items-center justify-center">
+        <img src="./switchboard-mark.png" alt="" className="size-10 object-contain opacity-90" draggable={false} />
       </div>
-      <nav aria-label="Primary" className="mt-4 flex w-full flex-col items-center gap-1.5 px-1.5">
+      <nav aria-label="Primary" className="mt-3 flex w-full flex-col items-center gap-1 px-2">
         {navigation.map(({ id, label, icon: Icon, engine }) => {
           const active = page === id;
           const running = engine ? snapshot.engines.find((candidate) => candidate.kind === engine)?.state === 'running' : undefined;
@@ -39,30 +39,28 @@ export function Sidebar({
               type="button"
               onClick={() => onNavigate(id)}
               aria-current={active ? 'page' : undefined}
-              className={cn(
-                'relative flex h-[56px] w-full flex-col items-center justify-center gap-1 rounded-[6px] transition-colors duration-150 no-drag',
-                active ? 'bg-surface-interactive text-foreground' : 'text-text-secondary hover:bg-surface-interactive hover:text-foreground',
-              )}
+              data-active={active || undefined}
+              className="switchboard-sidebar__item no-drag"
             >
-              {active ? <span className="absolute left-0 top-1/2 h-[18px] w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null}
-              <span className="relative">
-                <Icon className={cn('size-[20px] text-text-muted', active && 'text-foreground')} strokeWidth={1.75} />
+              <span className="switchboard-sidebar__icon">
+                <Icon aria-hidden="true" strokeWidth={active ? 2 : 1.65} />
                 {typeof running === 'boolean' ? (
                   <span
                     className={cn(
-                      'absolute -right-1 -top-1 size-[6px] rounded-full ring-2 ring-background',
+                      'switchboard-sidebar__engine-state',
                       running ? 'bg-success' : 'bg-status-neutral',
                     )}
+                    aria-hidden="true"
                   />
                 ) : null}
               </span>
-              <span className="text-[10px] font-medium leading-none tracking-[-0.01em]">{label}</span>
+              <span className="switchboard-sidebar__label">{label}</span>
             </button>
           );
         })}
       </nav>
 
-      <div className="mt-auto flex w-full flex-col items-center px-1.5 pb-1">
+      <div className="mt-auto flex w-full flex-col items-center px-2 pb-1">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -70,13 +68,9 @@ export function Sidebar({
               onClick={() => onNavigate('settings')}
               aria-label="Settings"
               aria-current={page === 'settings' || page === 'modules' ? 'page' : undefined}
-              className={cn(
-                'relative grid size-9 place-items-center rounded-[6px] transition-colors duration-150 no-drag',
-                page === 'settings' || page === 'modules' ? 'bg-surface-interactive text-foreground' : 'text-text-muted hover:bg-surface-interactive hover:text-foreground',
-              )}
+              className="switchboard-sidebar__settings no-drag"
             >
-              {page === 'settings' || page === 'modules' ? <span className="absolute left-0 top-1/2 h-5 w-px -translate-y-1/2 bg-primary" /> : null}
-              <Settings className={cn('size-[18px]', (page === 'settings' || page === 'modules') && 'text-foreground')} strokeWidth={1.75} />
+              <Settings aria-hidden="true" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>

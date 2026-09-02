@@ -414,115 +414,6 @@ export const onboardMemoryCapabilitySchema = z.object({
 });
 export type OnboardMemoryCapability = z.infer<typeof onboardMemoryCapabilitySchema>;
 
-export const headsetTransportStateSchema = z.enum([
-  'disconnected',
-  'connecting',
-  'connected',
-  'busy',
-  'unsupported',
-  'error',
-]);
-export type HeadsetTransportState = z.infer<typeof headsetTransportStateSchema>;
-
-export const headsetControlAvailabilitySchema = z.enum([
-  'available',
-  'temporarily-unavailable',
-  'read-only',
-]);
-export type HeadsetControlAvailability = z.infer<typeof headsetControlAvailabilitySchema>;
-
-export const headsetToggleCapabilitySchema = z.object({
-  enabled: z.boolean().nullable(),
-  writable: z.boolean(),
-  availability: headsetControlAvailabilitySchema.default('available'),
-  unavailableReason: z.string().optional(),
-});
-export type HeadsetToggleCapability = z.infer<typeof headsetToggleCapabilitySchema>;
-
-export const sonyNoiseControlModeSchema = z.enum(['noise-cancelling', 'ambient', 'off']);
-export type SonyNoiseControlMode = z.infer<typeof sonyNoiseControlModeSchema>;
-
-export const sonyNoiseControlCapabilitySchema = z.object({
-  writable: z.boolean(),
-  availability: headsetControlAvailabilitySchema.default('available'),
-  supportedModes: z.array(sonyNoiseControlModeSchema).min(1).default(['noise-cancelling', 'ambient', 'off']),
-  mode: sonyNoiseControlModeSchema.nullable(),
-  ambientLevel: z.number().int().min(1).max(20).nullable(),
-  ambientLevelMin: z.literal(1),
-  ambientLevelMax: z.literal(20),
-  focusOnVoice: z.boolean().nullable(),
-  unavailableReason: z.string().optional(),
-});
-export type SonyNoiseControlCapability = z.infer<typeof sonyNoiseControlCapabilitySchema>;
-
-export const sonyEqualizerBandSchema = z.object({
-  frequencyHz: z.number().int().positive(),
-  gainDb: z.number().int().min(-6).max(6),
-});
-export type SonyEqualizerBand = z.infer<typeof sonyEqualizerBandSchema>;
-
-export const sonyEqualizerPresetSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1),
-  writable: z.boolean(),
-  storedOnHeadphones: z.boolean(),
-});
-export type SonyEqualizerPreset = z.infer<typeof sonyEqualizerPresetSchema>;
-
-export const sonyEqualizerCapabilitySchema = z.object({
-  writable: z.boolean(),
-  bandsWritable: z.boolean().default(true),
-  availability: headsetControlAvailabilitySchema.default('available'),
-  activePresetId: z.string().min(1).nullable(),
-  bands: z.array(sonyEqualizerBandSchema).length(10),
-  presets: z.array(sonyEqualizerPresetSchema).min(1),
-  gainMinDb: z.literal(-6),
-  gainMaxDb: z.literal(6),
-  unavailableReason: z.string().optional(),
-});
-export type SonyEqualizerCapability = z.infer<typeof sonyEqualizerCapabilitySchema>;
-
-export const sonyListeningModeSchema = z.enum(['standard', 'background-music', 'cinema']);
-export type SonyListeningMode = z.infer<typeof sonyListeningModeSchema>;
-
-export const sonyBackgroundRoomSchema = z.enum(['my-room', 'living-room', 'cafe']);
-export type SonyBackgroundRoom = z.infer<typeof sonyBackgroundRoomSchema>;
-
-export const sonyListeningModeCapabilitySchema = z.object({
-  writable: z.boolean(),
-  availability: headsetControlAvailabilitySchema.default('available'),
-  supportedModes: z.array(sonyListeningModeSchema).min(1).default(['standard', 'background-music', 'cinema']),
-  mode: sonyListeningModeSchema.nullable(),
-  backgroundRoom: sonyBackgroundRoomSchema.nullable(),
-  unavailableReason: z.string().optional(),
-});
-export type SonyListeningModeCapability = z.infer<typeof sonyListeningModeCapabilitySchema>;
-
-export const sonyHeadsetDiagnosticsSchema = z.object({
-  protocol: z.literal('sony-mdr-v2'),
-  lastSyncAt: z.string().nullable(),
-  reconnectCount: z.number().int().nonnegative(),
-  malformedFrameCount: z.number().int().nonnegative(),
-  commandFailureCount: z.number().int().nonnegative(),
-  lastErrorCode: z.string().nullable(),
-});
-export type SonyHeadsetDiagnostics = z.infer<typeof sonyHeadsetDiagnosticsSchema>;
-
-export const sonyHeadsetCapabilitySchema = z.object({
-  platform: z.literal('sony-mdr'),
-  model: z.literal('wh-1000xm6'),
-  transportState: headsetTransportStateSchema,
-  transportMessage: z.string().optional(),
-  firmwareVersion: z.string().min(1).optional(),
-  codec: z.string().min(1).optional(),
-  noiseControl: sonyNoiseControlCapabilitySchema.optional(),
-  equalizer: sonyEqualizerCapabilitySchema.optional(),
-  dseeExtreme: headsetToggleCapabilitySchema.optional(),
-  speakToChat: headsetToggleCapabilitySchema.optional(),
-  listeningMode: sonyListeningModeCapabilitySchema.optional(),
-  diagnostics: sonyHeadsetDiagnosticsSchema,
-});
-export type SonyHeadsetCapability = z.infer<typeof sonyHeadsetCapabilitySchema>;
 
 export const deviceCapabilitiesSchema = z.object({
   battery: batteryCapabilitySchema.optional(),
@@ -536,7 +427,6 @@ export const deviceCapabilitiesSchema = z.object({
   mute: z.boolean().optional(),
   muteState: microphoneMuteStateCapabilitySchema.optional(),
   keyboard: keyboardCapabilitySchema.optional(),
-  headset: sonyHeadsetCapabilitySchema.optional(),
 });
 export type DeviceCapabilities = z.infer<typeof deviceCapabilitiesSchema>;
 
@@ -1358,6 +1248,13 @@ export const gameDetectionStateSchema = z.object({
 export type GameDetectionState = z.infer<typeof gameDetectionStateSchema>;
 
 export const appSettingsSchema = z.object({
+  uiScalePercent: z.union([
+    z.literal(90),
+    z.literal(100),
+    z.literal(110),
+    z.literal(125),
+    z.literal(150),
+  ]),
   launchAtStartup: z.boolean(),
   closeToTray: z.boolean(),
   destroyRendererInTray: z.boolean(),
@@ -1447,19 +1344,6 @@ export const deviceControlChangeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('keyboard-snap-tap'), enabled: z.boolean() }),
   z.object({ type: z.literal('keyboard-onboard-profile'), profileId: z.string().min(1) }),
   z.object({ type: z.literal('microphone-mute-lighting'), enabled: z.boolean() }),
-  z.object({ type: z.literal('headset-noise-control'), mode: sonyNoiseControlModeSchema }),
-  z.object({ type: z.literal('headset-ambient-level'), level: z.number().int().min(1).max(20) }),
-  z.object({ type: z.literal('headset-focus-on-voice'), enabled: z.boolean() }),
-  z.object({ type: z.literal('headset-equalizer-preset'), presetId: z.string().min(1) }),
-  z.object({ type: z.literal('headset-equalizer-bands'), gainsDb: z.array(z.number().int().min(-6).max(6)).length(10) }),
-  z.object({ type: z.literal('headset-dsee-extreme'), enabled: z.boolean() }),
-  z.object({ type: z.literal('headset-speak-to-chat'), enabled: z.boolean() }),
-  z.object({ type: z.literal('headset-reconnect') }),
-  z.object({
-    type: z.literal('headset-listening-mode'),
-    mode: sonyListeningModeSchema,
-    backgroundRoom: sonyBackgroundRoomSchema.optional(),
-  }),
 ]);
 export type DeviceControlChange = z.infer<typeof deviceControlChangeSchema>;
 
@@ -1730,6 +1614,7 @@ export const ipcChannels = {
   revealPreparedShareFile: 'clips:reveal-share-file',
   exportMontage: 'clips:export-montage',
   cancelClipExport: 'clips:cancel-export',
+  clipExportProgress: 'clips:export-progress',
   snapshotUpdated: 'system:snapshot-updated',
 } as const;
 
@@ -1797,6 +1682,7 @@ export interface SwitchboardApi {
   revealPreparedShareFile(id: string): Promise<void>;
   exportMontage(input: ExportMontageInput): Promise<boolean>;
   cancelClipExport(exportId: string): Promise<void>;
+  subscribeClipExportProgress(listener: (progress: ClipExportProgress) => void): () => void;
   subscribe(listener: (snapshot: SystemSnapshot) => void): () => void;
 }
 
@@ -1872,6 +1758,13 @@ export const preparedShareFileSchema = z.object({
   fileSize: z.number().int().nonnegative(),
 });
 export type PreparedShareFile = z.infer<typeof preparedShareFileSchema>;
+
+export const clipExportProgressSchema = z.object({
+  exportId: z.string().uuid(),
+  percent: z.number().int().min(0).max(100),
+  stage: z.enum(['compressing', 'finalizing', 'complete']),
+});
+export type ClipExportProgress = z.infer<typeof clipExportProgressSchema>;
 
 export const montageProjectSegmentSchema = z.object({
   id: z.string().min(1).max(256),

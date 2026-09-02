@@ -8,18 +8,6 @@ interface ProductAssetDefinition extends ProductAssetResolution {
 }
 
 const productAssets: ProductAssetDefinition[] = [
-  ...[
-    ['black', 'Black'],
-    ['platinum-silver', 'Platinum Silver'],
-    ['midnight-blue', 'Midnight Blue'],
-    ['sand-pink', 'Sand Pink'],
-    ['sandstone', 'Sandstone'],
-    ['olive-gray', 'Olive Gray'],
-  ].map(([variant, colorway]) => ({
-    key: `sony-wh1000xm6-${variant}`,
-    manufacturer: 'sony', model: 'wh-1000xm6', variant, colorway: colorway!.toLowerCase(),
-    matchedBy: 'exact-variant' as const, source: 'bundled-official' as const,
-  })),
   {
     key: 'logitech-g502-x-plus-white',
     manufacturer: 'logitech',

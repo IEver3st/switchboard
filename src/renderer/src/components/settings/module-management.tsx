@@ -4,7 +4,6 @@ import {
   Code2,
   Download,
   ExternalLink,
-  Headphones,
   Keyboard,
   LoaderCircle,
   Mic,
@@ -611,7 +610,6 @@ function moduleIcon(module: ModuleManifest): ComponentType<{ className?: string 
   if (module.id.includes('razer-huntsman')) return Keyboard;
   if (module.id.includes('quadcast')) return Mic;
   if (module.id.includes('logitech')) return Mouse;
-  if (module.id.includes('sony')) return Headphones;
   if (module.id.includes('replay')) return Video;
   if (module.id.includes('audio-router')) return Volume2;
   if (module.id.includes('steelseries')) return Usb;
@@ -624,7 +622,6 @@ function moduleIcon(module: ModuleManifest): ComponentType<{ className?: string 
 function moduleIconTone(module: ModuleManifest): string {
   if (module.id.includes('quadcast')) return 'microphone';
   if (module.id.includes('logitech')) return 'device';
-  if (module.id.includes('sony')) return 'headphones';
   if (module.kind === 'capture') return 'capture';
   if (module.kind === 'audio') return 'audio';
   if (module.kind === 'integration') return 'integration';

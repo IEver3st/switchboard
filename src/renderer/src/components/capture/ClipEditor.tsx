@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { channelColor } from '@/components/audio/channel-identity';
@@ -182,15 +181,18 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
   return (
     <section ref={editorRef} className="clip-editor-shell" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" onKeyDown={keepFocusInside}>
       <header className="clip-editor-header no-drag">
-        <Button ref={backRef} type="button" variant="ghost" size="sm" className="no-drag px-2" onClick={onClose}>
+        <Button ref={backRef} type="button" variant="ghost" size="sm" className="clip-editor-header__back no-drag" onClick={onClose}>
           <ArrowLeft className="size-4" /> Back to clips
         </Button>
         <div className="clip-editor-header__identity">
-          <h2 id="clip-editor-title">
-            <button type="button" className="clip-editor-header__rename no-drag" onClick={onRename} aria-label={`Rename ${clip.name}`}>
-              <span>{clip.name}</span><Pencil aria-hidden="true" />
-            </button>
-          </h2>
+          <div className="clip-editor-header__copy">
+            <span>{clipGameLabel(clip)} · {formatDuration(clip.durationMs / 1_000)}</span>
+            <h2 id="clip-editor-title">
+              <button type="button" className="clip-editor-header__rename no-drag" onClick={onRename} aria-label={`Rename ${clip.name}`}>
+                <span>{clip.name}</span><Pencil aria-hidden="true" />
+              </button>
+            </h2>
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="ghost" size="icon" className={cn('no-drag size-7', clip.favorite && 'text-primary')} aria-label={clip.favorite ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={clip.favorite} onClick={() => onFavorite(!clip.favorite)}>
@@ -200,19 +202,6 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
             <TooltipContent>{clip.favorite ? 'Remove from favorites' : 'Add to favorites'}</TooltipContent>
           </Tooltip>
         </div>
-        <dl className="clip-editor-metadata no-drag" aria-label="Clip file details">
-          <Metadata label="Created" value={new Date(clip.createdAt).toLocaleString()} />
-          <Metadata label="Video quality" value={formatVideoQuality(clip.width, clip.height, clip.fps)} />
-          <Metadata label="Size" value={formatBytes(clip.fileSize)} />
-          <div className="clip-editor-metadata__location">
-            <dt>Location</dt>
-            <dd>
-              <button type="button" className="clip-editor-metadata__path" title={clip.path} aria-label={`Show ${clip.path} in File Explorer`} onClick={onReveal}>
-                <FolderOpen aria-hidden="true" /><span>{clip.path}</span>
-              </button>
-            </dd>
-          </div>
-        </dl>
         <div className="clip-editor-header__actions">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -306,9 +295,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
         <aside className="clip-editor-inspector" aria-label="Clip inspector" aria-hidden={!inspectorOpen || undefined} inert={!inspectorOpen ? true : undefined}>
           <ScrollArea className="h-full">
             <div className="clip-editor-inspector__content">
-              <div className="clip-editor-inspector__heading">
-                <div><span>Inspector</span><h3>Adjustments</h3></div>
-              </div>
+              <div className="clip-editor-inspector__heading"><div><span>Inspector</span><h3>Adjustments</h3></div></div>
 
               <section className="clip-editor-inspector__section clip-editor-canvas" aria-labelledby="canvas-size-heading">
                 <div className="clip-editor-section-heading">
@@ -331,14 +318,28 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
                 <p>{clip.canvasSize === '9:16' ? 'Exports use the centered vertical crop shown in the preview.' : 'Exports keep the source frame.'}</p>
               </section>
 
-              <Separator />
-              <dl className="clip-editor-details">
-                <Detail label="Game" value={clipGameLabel(clip)} />
-                <Detail label="Duration" value={formatDuration(clip.durationMs / 1_000)} />
-              </dl>
+              <section className="clip-editor-inspector__section" aria-labelledby="clip-details-heading">
+                <div className="clip-editor-section-heading">
+                  <h3 id="clip-details-heading">Clip details</h3>
+                </div>
+                <dl className="clip-editor-details">
+                  <Detail label="Game" value={clipGameLabel(clip)} />
+                  <Detail label="Duration" value={formatDuration(clip.durationMs / 1_000)} />
+                  <Detail label="Created" value={new Date(clip.createdAt).toLocaleString()} />
+                  <Detail label="Video quality" value={formatVideoQuality(clip.width, clip.height, clip.fps)} />
+                  <Detail label="Size" value={formatBytes(clip.fileSize)} />
+                  <div className="clip-editor-details__location">
+                    <dt>Location</dt>
+                    <dd>
+                      <button type="button" className="clip-editor-metadata__path" title={clip.path} aria-label={`Show ${clip.path} in File Explorer`} onClick={onReveal}>
+                        <FolderOpen aria-hidden="true" /><span>{clip.path}</span>
+                      </button>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
               {clip.autoCapture?.events.length ? (
                 <>
-                  <Separator />
                   <section className="clip-editor-inspector__section clip-editor-events" aria-labelledby="clip-events-heading">
                     <div className="clip-editor-section-heading">
                       <h3 id="clip-events-heading">Events</h3>
@@ -358,7 +359,6 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
                   </section>
                 </>
               ) : null}
-              <Separator />
               <section className="clip-editor-inspector__section" aria-labelledby="audio-tracks-heading">
                 <h3 id="audio-tracks-heading"><Volume2 className="size-3.5" aria-hidden="true" /> Audio tracks</h3>
                 {clip.audioChannels && clip.audioChannels.length > 0 ? (
@@ -490,7 +490,7 @@ function MontageClipEditor({ project: initialProject, exportPending, inspectorOp
   return (
     <section ref={editorRef} className="clip-editor-shell" role="dialog" aria-modal="true" aria-labelledby="clip-editor-title" data-testid="clip-editor" data-project-type="montage" onKeyDown={keepFocusInside}>
       <header className="clip-editor-header no-drag">
-        <Button ref={backRef} type="button" variant="ghost" size="sm" className="no-drag px-2" onClick={onClose}>
+        <Button ref={backRef} type="button" variant="ghost" size="sm" className="clip-editor-header__back no-drag" onClick={onClose}>
           <ArrowLeft className="size-4" /> Back to clips
         </Button>
         <div className="clip-editor-header__identity clip-editor-header__identity--montage">
@@ -498,19 +498,6 @@ function MontageClipEditor({ project: initialProject, exportPending, inspectorOp
           <h2 id="clip-editor-title" title={project.name}>{project.name}</h2>
           <span>{project.segments.length} {project.segments.length === 1 ? 'clip' : 'clips'}</span>
         </div>
-        <dl className="clip-editor-metadata no-drag" aria-label="Montage details">
-          <Metadata label="Duration" value={formatDuration(project.durationMs / 1_000)} />
-          <Metadata label="Output" value={project.canvasSize === '9:16' ? '9:16 vertical' : formatVideoQuality(project.segments[0]?.source.width ?? 0, project.segments[0]?.source.height ?? 0, project.segments[0]?.source.fps ?? 0)} />
-          <Metadata label="Selected" value={selectedClip.name} />
-          <div className="clip-editor-metadata__location">
-            <dt>Source</dt>
-            <dd>
-              <button type="button" className="clip-editor-metadata__path" title={selectedClip.path} aria-label={`Show ${selectedClip.path} in File Explorer`} onClick={() => onReveal(selectedClip)}>
-                <FolderOpen aria-hidden="true" /><span>{selectedClip.path}</span>
-              </button>
-            </dd>
-          </div>
-        </dl>
         <div className="clip-editor-header__actions">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -600,14 +587,26 @@ function MontageClipEditor({ project: initialProject, exportPending, inspectorOp
                 <p>Every segment is normalized to this canvas during export.</p>
               </section>
 
-              <Separator />
-              <dl className="clip-editor-details">
-                <Detail label="Position" value={`${Math.max(0, project.segments.findIndex((segment) => segment.id === selectedSegmentId)) + 1} of ${project.segments.length}`} />
-                <Detail label="Trimmed duration" value={formatDuration(selectedSegment ? segmentDurationMs(selectedSegment) / 1_000 : 0)} />
-                <Detail label="Source" value={formatVideoQuality(selectedClip.width, selectedClip.height, selectedClip.fps)} />
-              </dl>
+              <section className="clip-editor-inspector__section" aria-labelledby="montage-details-heading">
+                <div className="clip-editor-section-heading">
+                  <h3 id="montage-details-heading">Segment details</h3>
+                  <span>{Math.max(0, project.segments.findIndex((segment) => segment.id === selectedSegmentId)) + 1} of {project.segments.length}</span>
+                </div>
+                <dl className="clip-editor-details">
+                  <Detail label="Trimmed duration" value={formatDuration(selectedSegment ? segmentDurationMs(selectedSegment) / 1_000 : 0)} />
+                  <Detail label="Source" value={formatVideoQuality(selectedClip.width, selectedClip.height, selectedClip.fps)} />
+                  <Detail label="Output" value={project.canvasSize === '9:16' ? '9:16 vertical' : formatVideoQuality(project.segments[0]?.source.width ?? 0, project.segments[0]?.source.height ?? 0, project.segments[0]?.source.fps ?? 0)} />
+                  <div className="clip-editor-details__location">
+                    <dt>Location</dt>
+                    <dd>
+                      <button type="button" className="clip-editor-metadata__path" title={selectedClip.path} aria-label={`Show ${selectedClip.path} in File Explorer`} onClick={() => onReveal(selectedClip)}>
+                        <FolderOpen aria-hidden="true" /><span>{selectedClip.path}</span>
+                      </button>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
 
-              <Separator />
               <section className="clip-editor-inspector__section" aria-labelledby="montage-audio-heading">
                 <h3 id="montage-audio-heading"><Volume2 className="size-3.5" aria-hidden="true" /> Segment audio</h3>
                 {selectedClip.audioChannels && selectedClip.audioChannels.length > 0 ? (
@@ -648,10 +647,6 @@ function sameAudioTrackTrims(
 
 function Detail({ label, value }: { label: string; value: string }) {
   return <div><dt>{label}</dt><dd>{value}</dd></div>;
-}
-
-function Metadata({ label, value }: { label: string; value: string }) {
-  return <div><dt>{label}</dt><dd title={value}>{value}</dd></div>;
 }
 
 function formatEventTime(milliseconds: number): string {

@@ -6,34 +6,101 @@
   "requestedClips": 20,
   "cards": 20,
   "rows": 0,
-  "columns": 3,
+  "columns": 5,
   "cardWidths": {
-    "minimum": 310.66668701171875,
-    "maximum": 310.66668701171875
+    "minimum": 175,
+    "maximum": 175
   },
   "libraryBounds": {
-    "left": 68,
+    "left": 90,
     "right": 1080,
-    "width": 1012
+    "width": 990
   },
   "toolbarBounds": {
-    "left": 92,
-    "right": 1056,
-    "width": 964
+    "left": 112.5,
+    "right": 1057.5,
+    "width": 945
+  },
+  "commandHeaderBounds": {
+    "top": 47.5,
+    "bottom": 163.25,
+    "height": 115.75
+  },
+  "commandTopBounds": {
+    "height": 60.083335876464844
+  },
+  "searchBounds": {
+    "width": 535.8958740234375
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter"
   },
   "emptyState": false,
   "dateGroups": [
-    "Today"
+    "Today",
+    "Yesterday"
   ],
   "lazyImages": 20,
-  "decodedImages": 18,
+  "decodedImages": 0,
   "horizontalOverflow": false,
+  "manualReviewOpened": null,
   "interactions": {
     "searchFocused": true,
     "searchMatches": 5,
     "favoriteMatches": 3,
+    "gameMatches": 5,
+    "dateFilterApplied": true,
+    "sortChangedOrder": true,
     "listItems": 20,
-    "moreControls": 5
+    "overflowMenuActions": [
+      "Open editor",
+      "Remove from favorites",
+      "Rename",
+      "Export for sharing",
+      "Show in folder",
+      "Delete…"
+    ],
+    "contextMenuActions": [
+      "Open editor",
+      "Remove from favorites",
+      "Rename",
+      "Export for sharing",
+      "Show in folder",
+      "Delete…"
+    ],
+    "deleteDialogText": "Delete clip?FiveM clip and its media file will be moved to the Recycle Bin.CancelDelete clip",
+    "montageSelection": true,
+    "montageOpened": true,
+    "openedClipId": "scale-qa-000",
+    "clipOpened": true,
+    "replayControls": {
+      "source": true,
+      "fields": 9,
+      "shortcut": true
+    },
+    "replayKeyboard": {
+      "replayTriggerFocused": true,
+      "replayFocusInside": true,
+      "sourceOptions": [
+        "Detect active gameAutomatic gameAutomatic",
+        "UnavailableDisplay 1Display · Selected"
+      ],
+      "sourceFocusRestored": true,
+      "sourceFocusAfter": {
+        "tag": "BUTTON",
+        "className": "capture-source-trigger",
+        "label": "Capture source: Display 1"
+      },
+      "replayFocusRestored": true,
+      "replayFocusAfter": {
+        "tag": "BUTTON",
+        "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-[13px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 text-muted-foreground hover:bg-accent hover:text-accent-foreground size-8 p-0 capture-recorder-settings-trigger",
+        "label": "Open replay settings. Replay Off. Instant Replay is turned off in Capture Settings."
+      }
+    }
   },
   "resizeTransitions": null,
   "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\scale\\capture-20-clips-1080x720.png",

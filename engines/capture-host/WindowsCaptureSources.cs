@@ -227,7 +227,7 @@ internal sealed class WindowsCaptureSources
 
     private static WindowInfo? GetWindowInfo(nint handle, bool includeGameSignals)
     {
-        if (handle == 0 || !IsWindow(handle) || !IsWindowVisible(handle) || IsIconic(handle)) return null;
+        if (!IsDesktopApplicationWindow(handle)) return null;
         var titleLength = GetWindowTextLength(handle);
         if (titleLength <= 0) return null;
         var titleBuilder = new StringBuilder(Math.Min(titleLength + 1, 512));
@@ -290,6 +290,29 @@ internal sealed class WindowsCaptureSources
         }
     }
 
+    private static bool IsDesktopApplicationWindow(nint handle)
+    {
+        if (handle == 0 || handle == GetShellWindow() || !IsWindow(handle) || !IsWindowVisible(handle) || IsIconic(handle))
+            return false;
+
+        if (DwmGetWindowAttribute(handle, 14, out var cloaked, Marshal.SizeOf<uint>()) == 0 && cloaked != 0)
+            return false;
+
+        var extendedStyle = GetWindowLongPtr(handle, -20).ToInt64(); // GWL_EXSTYLE
+        const long wsExToolWindow = 0x00000080L;
+        const long wsExAppWindow = 0x00040000L;
+        const long wsExNoActivate = 0x08000000L;
+        if ((extendedStyle & wsExNoActivate) != 0
+            || ((extendedStyle & wsExToolWindow) != 0 && (extendedStyle & wsExAppWindow) == 0))
+            return false;
+
+        var classBuilder = new StringBuilder(256);
+        GetClassName(handle, classBuilder, classBuilder.Capacity);
+        if (classBuilder.ToString() is "Progman" or "WorkerW") return false;
+
+        return GetWindowRect(handle, out var rect) && rect.Right > rect.Left && rect.Bottom > rect.Top;
+    }
+
     internal sealed record WindowInfo(
         nint Handle,
         int ProcessId,
@@ -316,6 +339,8 @@ internal sealed class WindowsCaptureSources
     [DllImport("user32.dll")] private static extern bool IsWindow(nint handle);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint handle);
     [DllImport("user32.dll")] private static extern bool IsIconic(nint handle);
+    [DllImport("user32.dll")] private static extern nint GetShellWindow();
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern nint GetWindowLongPtr(nint handle, int index);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(nint handle, StringBuilder text, int maximum);
     [DllImport("user32.dll")] private static extern int GetWindowTextLength(nint handle);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(nint handle, StringBuilder className, int maximum);
@@ -325,4 +350,5 @@ internal sealed class WindowsCaptureSources
     [DllImport("user32.dll")] private static extern nint MonitorFromWindow(nint handle, uint flags);
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(nint monitor, ref NativeMonitorInfo info);
     [DllImport("user32.dll")] private static extern bool EnumDisplayMonitors(nint hdc, nint clip, EnumDisplayMonitorsProc callback, nint parameter);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(nint handle, int attribute, out uint value, int size);
 }

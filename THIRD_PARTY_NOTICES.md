@@ -1,15 +1,5 @@
 # Third-party notices
 
-## Sony WH-1000XM6 product imagery
-
-The WH-1000XM6 renders are official Sony product images used only to identify
-the supported physical product and its retail finishes. Original color assets
-were obtained from Sony's public product CDN and Sony Electronics product
-pages; they have not been recolored or presented as Switchboard artwork.
-Sony, 1000X, WH-1000XM6, and their product imagery are property of Sony Group
-Corporation and its affiliates. Switchboard is not affiliated with or endorsed
-by Sony.
-
 ## Earmark application audio policy reference
 
 Switchboard's isolated Audio.Host application-routing boundary was adapted from

@@ -33,17 +33,14 @@ export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggle
           </div>
           <div className="capture-clip-card__footer min-w-0">
             <div className="capture-clip-card__details min-w-0">
-              <p className="capture-clip-card__game m-0 truncate">
-                {clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ''}
-              </p>
               <h3 className="m-0 truncate text-[12.5px] font-semibold leading-5 text-foreground">
                 <button type="button" onClick={activate} className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:underline focus-visible:underline-offset-4">
                   {clip.name}
                 </button>
               </h3>
               <p className="capture-clip-card__metadata m-0 flex min-w-0 items-center text-[9.5px] tabular-nums leading-4 text-muted-foreground">
-                <Clock className="size-3 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-                <span className="truncate">{formatRelativeTime(clip.createdAt)}</span>
+                <span className="capture-clip-card__game truncate">{clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ''}</span>
+                <span className="capture-clip-card__time shrink-0"><Clock className="size-3" strokeWidth={1.75} aria-hidden="true" />{formatRelativeTime(clip.createdAt)}</span>
               </p>
             </div>
             <div className="capture-clip-card__quick-actions" hidden={selectionMode}>

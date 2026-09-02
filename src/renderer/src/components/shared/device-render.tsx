@@ -4,12 +4,6 @@ import g502XPlusBlackUrl from '@/assets/device-renders/g502-x-plus.png';
 import g502XPlusWhiteUrl from '@/assets/device-renders/g502-x-plus-white.png';
 import quadCast2Url from '@/assets/device-renders/quadcast-2.png';
 import huntsmanV2AnalogUrl from '@/assets/device-renders/huntsman-v2-analog-official.jpg';
-import xm6BlackUrl from '@/assets/device-renders/wh1000xm6-black.png';
-import xm6MidnightBlueUrl from '@/assets/device-renders/wh1000xm6-midnight-blue.png';
-import xm6OliveGrayUrl from '@/assets/device-renders/wh1000xm6-olive-gray.png';
-import xm6PlatinumSilverUrl from '@/assets/device-renders/wh1000xm6-platinum-silver.png';
-import xm6SandPinkUrl from '@/assets/device-renders/wh1000xm6-sand-pink.webp';
-import xm6SandstoneUrl from '@/assets/device-renders/wh1000xm6-sandstone.webp';
 import { DeviceGlyph } from '@/components/shared/device-glyph';
 import {
   adaptBlackHardwareForDarkSurface,
@@ -53,12 +47,6 @@ interface ProcessedArtwork {
 const processedArtworkCache = new Map<string, ProcessedArtwork>();
 const maximumCachedArtwork = 6;
 const artworkByAssetKey: Record<string, DeviceArtwork> = {
-  'sony-wh1000xm6-black': { src: xm6BlackUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
-  'sony-wh1000xm6-platinum-silver': { src: xm6PlatinumSilverUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
-  'sony-wh1000xm6-midnight-blue': { src: xm6MidnightBlueUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
-  'sony-wh1000xm6-sand-pink': { src: xm6SandPinkUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
-  'sony-wh1000xm6-sandstone': { src: xm6SandstoneUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
-  'sony-wh1000xm6-olive-gray': { src: xm6OliveGrayUrl, presentation: { orientation: 'portrait', galleryScale: 1.06, heroScale: 1.08, groundWidth: '54%' } },
   'logitech-g502-x-plus-black': {
     src: g502XPlusBlackUrl,
     lightingMask: 'g502-rgb',

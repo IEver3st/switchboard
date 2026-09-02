@@ -9,6 +9,7 @@ import {
   type ReplaySegment,
 } from '../src/shared/capture-presets';
 import { captureRuntimeSchema } from '../src/shared/contracts';
+import { defaultCaptureRuntime } from '../src/shared/defaults';
 
 const baseConfig = {
   quality: 3 as const,
@@ -92,6 +93,7 @@ describe('capture filesystem and state rules', () => {
       audioSyncCorrections: 0,
       saveQueueDepth: 0,
       shortcutRegistered: false,
+      reactionClipping: defaultCaptureRuntime.reactionClipping,
     });
     expect(runtime.activeSource).toBeNull();
   });

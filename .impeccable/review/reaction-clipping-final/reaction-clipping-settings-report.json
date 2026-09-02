@@ -1,0 +1,22 @@
+{
+  "beforeReload": {
+    "enabled": true,
+    "sensitivity": "high",
+    "cooldownSeconds": 30,
+    "captureEnabled": false,
+    "enabledControls": 4,
+    "horizontalOverflow": false,
+    "settingsOverflow": false
+  },
+  "afterReload": {
+    "enabled": true,
+    "sensitivity": "high",
+    "cooldownSeconds": 30,
+    "captureEnabled": false,
+    "enabledControls": 4,
+    "horizontalOverflow": false,
+    "settingsOverflow": false
+  },
+  "persisted": true,
+  "captureStayedDisabled": true
+}

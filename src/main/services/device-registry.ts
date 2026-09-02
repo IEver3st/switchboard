@@ -4,11 +4,10 @@ import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
 import { RazerHuntsmanV2AnalogModule } from '../modules/razer';
-import { SonyDeviceModule } from '../modules/sony';
 import { enumerateWindowsHidDevices } from './windows-hid-enumerator';
 
 const discoveryIntervalMs = 5_000;
-const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1', 'razer-huntsman-v2-analog-1', 'sony-wh1000xm6-1']);
+const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1', 'razer-huntsman-v2-analog-1']);
 
 type DeviceRegistryOptions = {
   modules?: DeviceModule[];
@@ -40,7 +39,6 @@ export class DeviceRegistry {
       new RazerHuntsmanV2AnalogModule(),
       new LogitechDeviceModule(),
       new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
-      new SonyDeviceModule((devices, persist) => this.applyModuleDevices('device.sony-mdr', devices, persist)),
     ];
     this.additionalModules = options.additionalModules ?? (() => []);
     this.listHidDevices = options.listHidDevices

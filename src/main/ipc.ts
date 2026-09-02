@@ -442,10 +442,16 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     if (!window || window.isDestroyed() || !window.isVisible()) return;
     window.webContents.send(ipcChannels.audioMeterUpdated, frame);
   });
+  const unsubscribeClipExportProgress = controller.subscribeClipExportProgress((progress) => {
+    const window = getMainWindow();
+    if (!window || window.isDestroyed()) return;
+    window.webContents.send(ipcChannels.clipExportProgress, progress);
+  });
 
   return () => {
     unsubscribe();
     unsubscribeAudioMeters();
+    unsubscribeClipExportProgress();
     ipcMain.removeAllListeners(ipcChannels.startPreparedShareDrag);
     for (const channel of Object.values(ipcChannels)) {
       if (channel !== ipcChannels.snapshotUpdated) ipcMain.removeHandler(channel);

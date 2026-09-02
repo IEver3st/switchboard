@@ -11,12 +11,20 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useSystemStore } from '@/stores/use-system-store';
+import battlefield6Artwork from '@/assets/game-artwork/battlefield-6.webp';
+import counterStrike2Artwork from '@/assets/game-artwork/counter-strike-2.webp';
+import warThunderArtwork from '@/assets/game-artwork/war-thunder.webp';
 import { SettingSection, SettingSelect, SettingSwitch } from './settings-primitives';
 
 const preRollOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 const postRollOptions = [0, 5, 10, 15, 20, 30, 45, 60];
 const mergeOptions = [0, 5, 10, 15, 20, 30, 45, 60];
 const reactionCooldownOptions = [5, 10, 15, 30, 45, 60, 90, 120];
+const providerArtwork: Readonly<Record<string, string>> = {
+  'battlefield-6': battlefield6Artwork,
+  'counter-strike-2': counterStrike2Artwork,
+  'war-thunder': warThunderArtwork,
+};
 
 export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) {
   const update = useSystemStore((state) => state.updateAutoCaptureSettings);
@@ -26,6 +34,7 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
   const settings = autoCapture.settings;
   const reaction = settings.reactionClipping;
   const timingExceedsBuffer = settings.preRollSeconds + settings.postRollSeconds > snapshot.capture.config.replaySeconds;
+  const reactionTimingExceedsBuffer = reaction.preRollSeconds + reaction.postRollSeconds > snapshot.capture.config.replaySeconds;
 
   return (
     <div className="settings-autocapture">
@@ -97,7 +106,7 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
         <SettingSelect
           settingId="reactionClipping.sensitivity"
           title="Reaction sensitivity"
-          description="Balanced requires a sustained voice-shaped burst that is louder than your locally learned speaking baseline."
+          description={reactionSensitivityDescription(reaction.sensitivity)}
           value={reaction.sensitivity}
           options={[
             { value: 'low', label: 'Low' },
@@ -112,7 +121,9 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
         <SettingSelect
           settingId="reactionClipping.preRoll"
           title="Before reaction"
-          description="Footage preserved from the rolling replay buffer before the detected voice reaction."
+          description={reactionTimingExceedsBuffer
+            ? `The ${snapshot.capture.config.replaySeconds}-second replay buffer limits the combined reaction window; Switchboard keeps post-reaction footage first and uses the remaining history.`
+            : 'Footage preserved from the rolling replay buffer before the detected voice reaction.'}
           value={String(reaction.preRollSeconds)}
           options={secondsOptions(preRollOptions.filter((seconds) => seconds <= 60))}
           disabled={!reaction.enabled}
@@ -165,6 +176,7 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
   const game = settings.games[provider.gameId] ?? { enabled: true, useGlobalTiming: true, events: {} };
   const usable = provider.availability.state !== 'unavailable';
   const active = settings.enabled && game.enabled && provider.status.state === 'listening';
+  const artwork = providerArtwork[provider.gameId];
   const [open, setOpen] = useState(false);
 
   return (
@@ -178,7 +190,9 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
           onClick={() => setOpen((current) => !current)}
         >
           <span className="autocapture-provider__identity" aria-hidden>
-            {provider.developmentOnly ? <FlaskConical /> : <ShieldCheck />}
+            {artwork
+              ? <img src={artwork} alt="" width={160} height={100} decoding="async" />
+              : provider.developmentOnly ? <FlaskConical /> : <ShieldCheck />}
           </span>
           <span className="autocapture-provider__copy">
             <strong>{provider.displayName}</strong>
@@ -332,8 +346,14 @@ function reactionClippingDescription(snapshot: SystemSnapshot): string {
   }
   if (runtime.state === 'calibrating') return 'Learning the local noise and speaking baseline before reactions can create clips.';
   if (runtime.state === 'cooldown') return `Reaction detected. Listening resumes in ${runtime.cooldownRemainingSeconds} seconds.`;
-  if (runtime.state === 'listening') return 'Listening locally for sustained, unusually energetic voice moments. No model, transcript, or audio sample leaves the capture host.';
+  if (runtime.state === 'listening') return 'Listening locally for sustained, unusually energetic voice moments. No cloud service, transcript, or uploaded audio is used.';
   return 'Uses the microphone only while a capture source is active, then saves from the existing replay buffer without starting another recorder.';
+}
+
+function reactionSensitivityDescription(sensitivity: SystemSnapshot['capture']['autoCapture']['settings']['reactionClipping']['sensitivity']): string {
+  if (sensitivity === 'low') return 'Requires a louder, longer voice-shaped burst above your locally learned speaking baseline.';
+  if (sensitivity === 'high') return 'Reacts to smaller, shorter rises above your locally learned speaking baseline and may save more clips.';
+  return 'Requires a sustained voice-shaped burst that is clearly louder than your locally learned speaking baseline.';
 }
 
 function providerStatusLabel(provider: AutoCaptureProvider, active: boolean): string {

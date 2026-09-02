@@ -27,6 +27,7 @@ import {
   type CaptureSource,
   type Clip,
   type ClipAudioChannel,
+  type ClipExportProgress,
   type CreateModuleProjectInput,
   type ExportClipInput,
   type ExportMontageInput,
@@ -76,7 +77,7 @@ import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
 import type { FeedbackEnvironment } from '../shared/feedback-report';
 import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
-import { ClipLibraryService } from './services/clip-library';
+import { ClipLibraryService, selectShareVideoEncoder } from './services/clip-library';
 import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
 import { AppUpdateService, type AppUpdatePreferences } from './services/app-update-service';
 import { DeviceRegistry } from './services/device-registry';
@@ -92,7 +93,12 @@ import { AutoCaptureCoordinator } from './autocapture/coordinator';
 import { TestEventProvider } from './autocapture/providers/test-event-provider';
 import { CS2Provider } from './autocapture/providers/cs2/cs2-provider';
 import { WarThunderProvider } from './autocapture/providers/war-thunder/war-thunder-provider';
-import { desktopCaptureTypesForSources, matchDesktopCaptureSource } from './capture-source-previews';
+import {
+  desktopCaptureTypesForSources,
+  matchDesktopCaptureSource,
+  onlySourcesWithUsablePreviews,
+  preserveValidatedWindowSources,
+} from './capture-source-previews';
 import { Battlefield6Provider } from './autocapture/providers/battlefield-6/battlefield-6-provider';
 import type { OverwolfRuntimeHost } from './autocapture/providers/battlefield-6/overwolf-gep-session';
 import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
@@ -145,6 +151,7 @@ export class AppController {
   private readonly engines: EngineSupervisor;
   private readonly devices: DeviceRegistry;
   private readonly audioMeterListeners = new Set<(frame: AudioMeterFrame) => void>();
+  private readonly clipExportProgressListeners = new Set<(progress: ClipExportProgress) => void>();
   private readonly captureStorage: CaptureStorageService;
   private readonly clipLibrary: ClipLibraryService;
   private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
@@ -167,6 +174,7 @@ export class AppController {
   private audioDeviceRefresh: Promise<SystemSnapshot> | null = null;
   private audioDevicesRefreshedAt = 0;
   private readonly captureSourceThumbnails = new Map<string, Buffer>();
+  private readonly validatedCaptureWindowSourceIds = new Set<string>();
   private captureSourceThumbnailRefresh: Promise<void> | null = null;
   private captureSourceThumbnailsRefreshedAt = 0;
   private gameScan: Promise<SystemSnapshot> | null = null;
@@ -338,6 +346,11 @@ export class AppController {
   public subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void {
     this.audioMeterListeners.add(listener);
     return () => this.audioMeterListeners.delete(listener);
+  }
+
+  public subscribeClipExportProgress(listener: (progress: ClipExportProgress) => void): () => void {
+    this.clipExportProgressListeners.add(listener);
+    return () => this.clipExportProgressListeners.delete(listener);
   }
 
   public setRendererActive(active: boolean): SystemSnapshot {
@@ -1211,7 +1224,20 @@ export class AppController {
       const sources = z.array(captureSourceSchema).parse(
         await this.engines.request('capture', 'listSources', undefined, 15_000),
       );
-      const orderedSources = orderCaptureSourcesByDisplayPosition(sources);
+      const nativeSources = await desktopCapturer.getSources({
+        types: desktopCaptureTypesForSources(sources),
+        thumbnailSize: { width: 320, height: 180 },
+      });
+      const visibleSources = onlySourcesWithUsablePreviews(
+        sources,
+        nativeSources,
+        captureIndexedDisplays().map((display) => display.id),
+      );
+      this.validatedCaptureWindowSourceIds.clear();
+      for (const source of visibleSources) {
+        if (source.type === 'window') this.validatedCaptureWindowSourceIds.add(source.id);
+      }
+      const orderedSources = orderCaptureSourcesByDisplayPosition(visibleSources);
       const snapshot = this.store.update((draft) => { draft.capture.sources = orderedSources; }, { persist: false });
       await this.refreshCaptureSourceThumbnails(true);
       return snapshot;
@@ -1318,6 +1344,7 @@ export class AppController {
         return;
       }
       if (scope === 'general') {
+        draft.settings.uiScalePercent = defaultSettings.uiScalePercent;
         draft.settings.launchAtStartup = defaultSettings.launchAtStartup;
         draft.settings.closeToTray = defaultSettings.closeToTray;
         draft.settings.destroyRendererInTray = defaultSettings.destroyRendererInTray;
@@ -1524,13 +1551,29 @@ export class AppController {
     if (plan.canCopyOriginal) {
       await ensureExportDiskSpace(dirname(destination), plan.clip.fileSize + 64 * 1_024 * 1_024);
       await copyFile(plan.clip.path, destination);
+      if (input.exportId) this.emitClipExportProgress({ exportId: input.exportId, percent: 100, stage: 'complete' });
       return true;
     }
     await ensureExportDiskSpace(dirname(destination), plan.expectedBytes + 64 * 1_024 * 1_024);
     const controller = input.exportId ? new AbortController() : null;
     if (input.exportId && controller) this.activeClipExports.set(input.exportId, controller);
+    if (input.exportId) this.emitClipExportProgress({ exportId: input.exportId, percent: 0, stage: 'compressing' });
     try {
-      await this.clipLibrary.renderExport(plan.clip, destination, input, controller?.signal);
+      await this.clipLibrary.renderExport(plan.clip, destination, input, {
+        signal: controller?.signal,
+        encoder: selectShareVideoEncoder(this.store.get().capture.capabilities.encoders),
+        onProgress: input.exportId
+          ? (progress) => this.emitClipExportProgress({
+              exportId: input.exportId!,
+              percent: Math.min(98, Math.max(1, Math.round(progress * 98))),
+              stage: progress >= 0.98 ? 'finalizing' : 'compressing',
+            })
+          : undefined,
+      });
+      if (input.exportId) {
+        this.emitClipExportProgress({ exportId: input.exportId, percent: 99, stage: 'finalizing' });
+        this.emitClipExportProgress({ exportId: input.exportId, percent: 100, stage: 'complete' });
+      }
     } catch (error) {
       await rm(destination, { force: true });
       if (controller?.signal.aborted) return false;
@@ -1673,6 +1716,7 @@ export class AppController {
     this.performance.dispose();
     for (const controller of this.activeClipExports.values()) controller.abort();
     this.activeClipExports.clear();
+    this.clipExportProgressListeners.clear();
     this.appUpdates.dispose();
     await this.initialization?.catch(() => undefined);
     await this.autoCaptureCoordinator.dispose();
@@ -1776,6 +1820,11 @@ export class AppController {
       );
       this.captureAudioIntegrationSignature = this.getCaptureAudioIntegrationSignature(config);
       this.applyCaptureSnapshot(hostSnapshot);
+      try {
+        await this.refreshCaptureSources();
+      } catch (error) {
+        console.warn('Capture sources could not be validated after the recorder started.', error);
+      }
     } catch (error) {
       await this.engines.stop('capture');
       throw error;
@@ -1947,6 +1996,9 @@ export class AppController {
     const processedMicrophone = audio.host?.driver.endpoints.find((endpoint) => (
       endpoint.flow === 'capture' && endpoint.name === 'Switchboard Audio - Microphone'
     ));
+    const processedMicrophoneRequested = config.includeMic || reaction.enabled;
+    const requestedSwitchboardAudioReady = switchboardAudioReady
+      && (!processedMicrophoneRequested || processedMicrophone !== undefined);
     return {
       ...config,
       ...getEncodingPreset(config),
@@ -1954,15 +2006,15 @@ export class AppController {
       clipsDirectory: paths.clipsDirectory,
       thumbnailDirectory: paths.thumbnailDirectory,
       clipMixPipeName: switchboardAudioReady && config.includeSystemAudio ? 'switchboard-audio-clip-v1' : null,
-      processedMicrophoneDeviceId: switchboardAudioReady && (config.includeMic || reaction.enabled)
+      processedMicrophoneDeviceId: switchboardAudioReady && processedMicrophoneRequested
         ? processedMicrophone?.id ?? null
         : null,
       reactionClippingEnabled: reaction.enabled,
       reactionSensitivity: reaction.sensitivity,
       reactionCooldownSeconds: reaction.cooldownSeconds,
-      audioFallbackReason: switchboardAudioReady || (!config.includeSystemAudio && !config.includeMic && !reaction.enabled)
+      audioFallbackReason: requestedSwitchboardAudioReady || (!config.includeSystemAudio && !processedMicrophoneRequested)
         ? null
-        : 'Switchboard audio routing is unavailable; replay audio is using the current Windows default devices.',
+        : 'Switchboard audio routing is unavailable for one or more replay inputs; Windows default devices are being used where needed.',
     };
   }
 
@@ -2124,7 +2176,12 @@ export class AppController {
       draft.capture.runtime = { ...snapshot.runtime, shortcutRegistered };
       draft.capture.storage = snapshot.storage;
       draft.capture.capabilities = snapshot.capabilities;
-      draft.capture.sources = orderCaptureSourcesByDisplayPosition(snapshot.sources);
+      draft.capture.sources = orderCaptureSourcesByDisplayPosition(
+        preserveValidatedWindowSources(
+          snapshot.sources,
+          snapshot.sources.filter((source) => this.validatedCaptureWindowSourceIds.has(source.id)),
+        ),
+      );
     }, { persist: false });
     const current = this.store.get();
     void this.autoCaptureCoordinator.reconcile(
@@ -2201,6 +2258,10 @@ export class AppController {
 
   private emitAudioMeters(frame: AudioMeterFrame): void {
     for (const listener of this.audioMeterListeners) listener(frame);
+  }
+
+  private emitClipExportProgress(progress: ClipExportProgress): void {
+    for (const listener of this.clipExportProgressListeners) listener(progress);
   }
 }
 

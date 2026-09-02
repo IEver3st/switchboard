@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
   audioMeterFrameSchema,
+  clipExportProgressSchema,
   feedbackHandoffResultSchema,
   ipcChannels,
   preparedShareFileSchema,
@@ -85,6 +86,14 @@ const api: SwitchboardApi & MontageV2Api = {
   revealPreparedShareFile: (id) => ipcRenderer.invoke(ipcChannels.revealPreparedShareFile, id),
   exportMontage: (input) => ipcRenderer.invoke(ipcChannels.exportMontage, input),
   cancelClipExport: (exportId) => ipcRenderer.invoke(ipcChannels.cancelClipExport, exportId),
+  subscribeClipExportProgress: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, raw: unknown) => {
+      const parsed = clipExportProgressSchema.safeParse(raw);
+      if (parsed.success) listener(parsed.data);
+    };
+    ipcRenderer.on(ipcChannels.clipExportProgress, handler);
+    return () => ipcRenderer.removeListener(ipcChannels.clipExportProgress, handler);
+  },
   importMontageAudio: () => ipcRenderer.invoke(montageV2IpcChannels.importAudio),
   loadMontageAudioWaveform: (assetId) => ipcRenderer.invoke(montageV2IpcChannels.loadAudioWaveform, assetId),
   listMontageDrafts: () => ipcRenderer.invoke(montageV2IpcChannels.listDrafts),

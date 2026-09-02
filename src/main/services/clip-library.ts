@@ -30,6 +30,24 @@ type ProbeResult = {
 
 type ClipEnrichment = Pick<Clip, 'thumbnailPath' | 'audioChannels'>;
 
+export type ShareVideoEncoder = 'h264_nvenc' | 'h264_amf' | 'h264_qsv' | 'libx264';
+
+type ClipExportRenderOptions = {
+  signal?: AbortSignal;
+  encoder?: ShareVideoEncoder;
+  onProgress?: (progress: number) => void;
+};
+
+type FfmpegProgressOptions = {
+  durationSeconds: number;
+  onProgress: (progress: number) => void;
+};
+
+export type ShareVideoBounds = {
+  width: number;
+  height: number;
+};
+
 type AudioStreamInfo = {
   trackIndex: number;
   label: string;
@@ -175,7 +193,12 @@ export class ClipLibraryService {
     };
   }
 
-  public async renderExport(clip: Clip, destination: string, input: ExportClipInput, signal?: AbortSignal): Promise<void> {
+  public async renderExport(
+    clip: Clip,
+    destination: string,
+    input: ExportClipInput,
+    options: ClipExportRenderOptions = {},
+  ): Promise<void> {
     const startMs = Math.max(0, Math.min(input.startMs, clip.durationMs - 1));
     const endMs = Math.max(startMs + 1, Math.min(input.endMs, clip.durationMs));
     const durationSeconds = (endMs - startMs) / 1_000;
@@ -186,16 +209,19 @@ export class ClipLibraryService {
       '-hide_banner', '-loglevel', 'error', '-ss', seek, '-i', clip.path, '-t', duration,
       '-map', '0:v:0', '-map_metadata', '0',
     ];
-    const video = ['-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-vf', buildClipVideoFilter(clip.canvasSize)];
+    const originalVideo = ['-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-vf', buildClipVideoFilter(clip.canvasSize)];
+    const progress = options.onProgress
+      ? { durationSeconds, onProgress: options.onProgress }
+      : undefined;
 
     const audioLevels = clip.audioTrackLevels ?? [];
     const audioTrackTrims = input.audioTrackTrims ?? clip.audioTrackTrims ?? [];
     const audioEditChanged = audioLevels.some((level) => level !== 100) || audioTrackTrims.some(Boolean);
     if (input.preset === 'original' && !audioEditChanged) {
       await run(executable, [
-        ...common, '-map', '0:a?', ...video, '-crf', '18', '-c:a', 'aac', '-b:a', '160k',
+        ...common, '-map', '0:a?', ...originalVideo, '-crf', '18', '-c:a', 'aac', '-b:a', '160k',
         '-movflags', '+faststart', '-y', destination,
-      ], signal);
+      ], options.signal, progress);
       return;
     }
 
@@ -203,9 +229,9 @@ export class ClipLibraryService {
       const audioStreams = await this.getAudioStreams(clip.path);
       const audioArguments = buildShareAudioArguments(audioStreams.length, 160, audioLevels, audioTrackTrims, startMs, endMs);
       await run(executable, [
-        ...common, ...audioArguments, ...video, '-crf', '18',
+        ...common, ...audioArguments, ...originalVideo, '-crf', '18',
         '-movflags', '+faststart', '-y', destination,
-      ], signal);
+      ], options.signal, progress);
       return;
     }
 
@@ -221,24 +247,22 @@ export class ClipLibraryService {
       throw new Error('This clip is too long for the selected file size. Choose a larger share preset or shorten the trim.');
     }
 
-    const passLog = join(tmpdir(), `switchboard-export-${randomUUID()}`);
-    try {
-      await run(executable, [
-        ...common, ...video, '-b:v', `${videoKbps}k`, '-pass', '1', '-passlogfile', passLog,
-        '-an', '-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null',
-      ], signal);
+    const audioStreams = await this.getAudioStreams(clip.path);
+    const audioArguments = buildShareAudioArguments(audioStreams.length, audioKbps, audioLevels, audioTrackTrims, startMs, endMs);
+    const bounds = shareVideoBounds(clip, videoKbps);
+    const video = buildSizeLimitedShareVideoArguments(
+      options.encoder ?? 'libx264',
+      videoKbps,
+      buildClipVideoFilter(clip.canvasSize, bounds),
+    );
+    await run(executable, [
+      ...common, ...audioArguments, ...video,
+      '-movflags', '+faststart', '-y', destination,
+    ], options.signal, progress);
 
-      const audioStreams = await this.getAudioStreams(clip.path);
-      const audioArguments = buildShareAudioArguments(audioStreams.length, audioKbps, audioLevels, audioTrackTrims, startMs, endMs);
-      await run(executable, [
-        ...common, ...audioArguments, ...video, '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passLog,
-        '-movflags', '+faststart', '-y', destination,
-      ], signal);
-    } finally {
-      await Promise.all([
-        rm(`${passLog}-0.log`, { force: true }),
-        rm(`${passLog}-0.log.mbtree`, { force: true }),
-      ]);
+    const output = await stat(destination);
+    if (output.size > targetBytes) {
+      throw new Error('The compressed clip exceeded the selected file size. Shorten the clip or choose a larger preset.');
     }
   }
 
@@ -427,6 +451,50 @@ const exportPresetBytes = {
   '50mb': 50 * 1_024 * 1_024,
 } as const;
 
+export function selectShareVideoEncoder(encoders: readonly string[]): ShareVideoEncoder {
+  const available = new Set(encoders.map((encoder) => encoder.toLocaleLowerCase()));
+  for (const encoder of ['h264_nvenc', 'h264_amf', 'h264_qsv'] as const) {
+    if (available.has(encoder)) return encoder;
+  }
+  return 'libx264';
+}
+
+export function shareVideoBounds(
+  clip: Pick<Clip, 'width' | 'height' | 'fps' | 'canvasSize'>,
+  videoKbps: number,
+): ShareVideoBounds | undefined {
+  const fps = Math.max(1, clip.fps || 30);
+  const bitrateAt60Fps = videoKbps * 60 / fps;
+  const height = bitrateAt60Fps < 1_800
+    ? 720
+    : bitrateAt60Fps < 4_500
+      ? 1_080
+      : bitrateAt60Fps < 8_000
+        ? 1_440
+        : undefined;
+  if (!height) return undefined;
+  const portrait = clip.canvasSize === '9:16' || clip.height > clip.width;
+  return portrait
+    ? { width: height, height: Math.round(height * 16 / 9) }
+    : { width: Math.round(height * 16 / 9), height };
+}
+
+export function buildSizeLimitedShareVideoArguments(
+  encoder: ShareVideoEncoder,
+  videoKbps: number,
+  videoFilter: string,
+): string[] {
+  const rateControl = ['-b:v', `${videoKbps}k`, '-maxrate', `${videoKbps}k`, '-bufsize', `${videoKbps * 2}k`];
+  const codec = encoder === 'h264_nvenc'
+    ? ['-c:v', encoder, '-preset', 'p4', '-tune', 'hq', '-rc', 'vbr', '-multipass', 'qres']
+    : encoder === 'h264_amf'
+      ? ['-c:v', encoder, '-quality', 'balanced', '-rc', 'vbr_peak']
+      : encoder === 'h264_qsv'
+        ? ['-c:v', encoder, '-preset', 'medium']
+        : ['-c:v', 'libx264', '-preset', 'veryfast'];
+  return [...codec, ...rateControl, '-pix_fmt', 'yuv420p', '-vf', videoFilter];
+}
+
 type MontageVideoTarget = {
   width: number;
   height: number;
@@ -606,11 +674,14 @@ function readWaveformSamples(path: string, trackIndex: number, durationMs: numbe
   });
 }
 
-export function buildClipVideoFilter(canvasSize: ClipCanvasSize): string {
+export function buildClipVideoFilter(canvasSize: ClipCanvasSize, bounds?: ShareVideoBounds): string {
+  const scale = bounds
+    ? `scale=w='min(iw,${bounds.width})':h='min(ih,${bounds.height})':force_original_aspect_ratio=decrease:force_divisible_by=2`
+    : 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
   if (canvasSize === '9:16') {
-    return "crop='if(gte(iw/ih,0.5625),trunc(ih*0.5625/2)*2,iw)':'if(gte(iw/ih,0.5625),ih,trunc(iw/0.5625/2)*2)',scale=trunc(iw/2)*2:trunc(ih/2)*2";
+    return `crop='if(gte(iw/ih,0.5625),trunc(ih*0.5625/2)*2,iw)':'if(gte(iw/ih,0.5625),ih,trunc(iw/0.5625/2)*2)',${scale}`;
   }
-  return 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  return scale;
 }
 
 function findExecutable(environmentName: string, baseName: string): string {
@@ -626,22 +697,66 @@ function findExecutable(environmentName: string, baseName: string): string {
   return executable;
 }
 
-function run(executable: string, arguments_: string[], signal?: AbortSignal): Promise<string> {
+export function parseFfmpegProgressLine(line: string, durationSeconds: number): number | null {
+  const [key, rawValue] = line.trim().split('=', 2);
+  if (key === 'progress' && rawValue === 'end') return 1;
+  if (key !== 'out_time_us' && key !== 'out_time_ms') return null;
+  const elapsedMicroseconds = Number(rawValue);
+  if (!Number.isFinite(elapsedMicroseconds) || durationSeconds <= 0) return null;
+  return Math.min(1, Math.max(0, elapsedMicroseconds / 1_000_000 / durationSeconds));
+}
+
+function run(
+  executable: string,
+  arguments_: string[],
+  signal?: AbortSignal,
+  progress?: FfmpegProgressOptions,
+): Promise<string> {
   return new Promise((resolvePromise, reject) => {
     if (signal?.aborted) {
       reject(abortError());
       return;
     }
-    const child = spawn(executable, arguments_, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], signal });
+    const effectiveArguments = progress
+      ? ['-progress', 'pipe:1', '-nostats', ...arguments_]
+      : arguments_;
+    const child = spawn(executable, effectiveArguments, {
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...(signal ? { signal } : {}),
+    });
     let stdout = '';
     let stderr = '';
+    let progressBuffer = '';
+    let lastProgress = -1;
+    let processError: Error | null = null;
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => { stdout += chunk; });
-    child.stderr.on('data', (chunk: string) => { stderr += chunk; });
-    child.once('error', reject);
-    child.once('exit', (code) => {
-      if (code === 0) resolvePromise(stdout);
+    child.stdout.on('data', (chunk: string) => {
+      if (!progress) {
+        stdout += chunk;
+        return;
+      }
+      progressBuffer += chunk;
+      const lines = progressBuffer.split(/\r?\n/);
+      progressBuffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const value = parseFfmpegProgressLine(line, progress.durationSeconds);
+        if (value === null || value <= lastProgress) continue;
+        lastProgress = value;
+        progress.onProgress(value);
+      }
+    });
+    child.stderr.on('data', (chunk: string) => {
+      if (stderr.length < 65_536) stderr += chunk;
+    });
+    child.once('error', (error) => {
+      processError = error;
+    });
+    child.once('close', (code) => {
+      if (signal?.aborted) reject(abortError());
+      else if (processError) reject(processError);
+      else if (code === 0) resolvePromise(stdout);
       else reject(new Error(stderr.trim() || `${executable} exited with code ${code}`));
     });
   });

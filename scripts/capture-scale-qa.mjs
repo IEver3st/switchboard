@@ -133,10 +133,10 @@ async function runReview() {
     await waitForLibrary(window, count);
     await window.webContents.executeJavaScript("document.querySelectorAll('[data-radix-scroll-area-viewport]').forEach((element) => element.scrollTo(0, 0))");
     if (reviewActiveControls) {
-      await clickButton(window, 'Favorites');
-      await waitFor(window, `document.querySelector('.capture-tool-control--favorites')?.getAttribute('aria-pressed') === 'true'`);
+      await toggleFavoritesFilter(window);
+      await waitFor(window, `document.querySelector('.capture-tool-control--date')?.getAttribute('data-favorites') === 'true'`);
       await selectGame(window, 'FiveM');
-      await waitFor(window, `document.querySelector('[aria-label="Filter clips by game"]')?.textContent.includes('FiveM')`);
+      await waitFor(window, `document.querySelector('.capture-tool-control--date')?.getAttribute('data-game') === 'FiveM'`);
     }
     if (reviewListView) {
       await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"List view\"]')?.click()");
@@ -184,7 +184,7 @@ const metricsExpression = [
   "commandTopBounds: commandTop ? { height: commandTop.getBoundingClientRect().height } : null,",
   "searchBounds: search ? { width: search.getBoundingClientRect().width } : null,",
   "toolbarOverflow: tools ? tools.scrollWidth > tools.clientWidth : null,",
-  "activeControls: { favorites: document.querySelector('.capture-tool-control--favorites')?.getAttribute('aria-pressed'), game: document.querySelector('[aria-label=\"Filter clips by game\"]')?.textContent?.trim(), filter: document.querySelector('.capture-tool-control--date')?.textContent?.trim(), view: document.querySelector('.capture-tool-control--view [data-state=\"on\"]')?.getAttribute('aria-label') },",
+  "activeControls: { favorites: document.querySelector('.capture-tool-control--date')?.getAttribute('data-favorites') === 'true', game: document.querySelector('.capture-tool-control--date')?.getAttribute('data-game'), filter: document.querySelector('.capture-tool-control--date')?.textContent?.trim(), view: document.querySelector('.capture-tool-control--view [data-state=\"on\"]')?.getAttribute('aria-label') },",
   "emptyState: document.body.textContent.includes('No clips yet'),",
   "dateGroups: [...document.querySelectorAll('[id^=clip-group-]')].map((node) => node.textContent.trim()),",
   "lazyImages: images.filter((image) => image.loading === 'lazy').length,",
@@ -225,7 +225,7 @@ const metricsExpression = [
     await waitFor(window, "!document.querySelector('.capture-replay-popover')");
   }
   if (reviewActiveControls) {
-    await clickButton(window, 'Favorites');
+    await toggleFavoritesFilter(window);
     await selectGame(window, 'All games');
     await waitForLibrary(window, count);
   }
@@ -326,10 +326,10 @@ async function verifyLibraryInteractions(window, expectedCount) {
   await setSearch(window, '');
   await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
 
-  await clickButton(window, 'Favorites');
+  await toggleFavoritesFilter(window);
   await waitFor(window, `document.querySelectorAll('.capture-clip-card').length > 0 && document.querySelectorAll('.capture-clip-card').length < ${expectedCount}`);
   const favoriteMatches = await window.webContents.executeJavaScript("document.querySelectorAll('.capture-clip-card').length");
-  await clickButton(window, 'Favorites');
+  await toggleFavoritesFilter(window);
   await waitFor(window, `document.querySelectorAll('.capture-clip-card').length === ${expectedCount}`);
 
   await selectGame(window, 'FiveM');
@@ -474,11 +474,16 @@ async function clickButton(window, label) {
 }
 
 async function selectGame(window, label) {
-  const opened = await window.webContents.executeJavaScript("(() => { const trigger = document.querySelector('[aria-label=\\\"Filter clips by game\\\"]'); trigger?.click(); return Boolean(trigger); })()");
-  if (!opened) throw new Error('Game filter was unavailable.');
-  await waitFor(window, "document.querySelectorAll('[role=option]').length > 0");
-  const selected = await window.webContents.executeJavaScript("(() => { const label = " + JSON.stringify(label) + "; const option = [...document.querySelectorAll('[role=option]')].find((candidate) => candidate.textContent?.trim() === label); option?.click(); return Boolean(option); })()");
+  await openDateFilter(window);
+  await waitFor(window, "document.querySelectorAll('[role=menuitem]').length > 0");
+  const selected = await window.webContents.executeJavaScript("(() => { const label = " + JSON.stringify(label) + "; const option = [...document.querySelectorAll('[role=menuitem]')].find((candidate) => candidate.textContent?.trim() === label); option?.click(); return Boolean(option); })()");
   if (!selected) throw new Error(`Game filter option was unavailable: ${label}`);
+}
+
+async function toggleFavoritesFilter(window) {
+  await openDateFilter(window);
+  await waitFor(window, "[...document.querySelectorAll('[role=menuitem]')].some((item) => item.textContent?.trim() === 'Favorites only')");
+  await selectMenuItem(window, 'Favorites only');
 }
 
 async function selectToolbarOption(window, triggerLabel, optionLabel) {

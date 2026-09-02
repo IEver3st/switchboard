@@ -1,0 +1,92 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "state": {
+      "state": "preparing",
+      "percent": 6,
+      "valueText": "6 percent",
+      "dialog": {
+        "width": 520,
+        "height": 557.6666870117188,
+        "left": 280,
+        "top": 82.16667175292969
+      },
+      "progress": {
+        "width": 421.3333435058594,
+        "height": 6
+      },
+      "documentOverflowX": false
+    },
+    "imageSize": {
+      "width": 1620,
+      "height": 1083
+    },
+    "filename": "1080x720-share-progress.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "state": {
+      "state": "preparing",
+      "percent": 5,
+      "valueText": "5 percent",
+      "dialog": {
+        "width": 520,
+        "height": 557.6666870117188,
+        "left": 450,
+        "top": 171.1666717529297
+      },
+      "progress": {
+        "width": 421.3333435058594,
+        "height": 6
+      },
+      "documentOverflowX": false
+    },
+    "imageSize": {
+      "width": 2130,
+      "height": 1350
+    },
+    "filename": "1420x900-share-progress.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "state": {
+      "state": "preparing",
+      "percent": 5,
+      "valueText": "5 percent",
+      "dialog": {
+        "width": 520,
+        "height": 557.6666870117188,
+        "left": 700,
+        "top": 261.16668701171875
+      },
+      "progress": {
+        "width": 421.3333435058594,
+        "height": 6
+      },
+      "documentOverflowX": false
+    },
+    "imageSize": {
+      "width": 2880,
+      "height": 1620
+    },
+    "filename": "1920x1080-share-progress.png",
+    "ready": {
+      "state": "ready",
+      "canDrag": true,
+      "readyText": true,
+      "filename": "1920x1080-share-ready.png"
+    }
+  }
+]

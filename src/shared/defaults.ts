@@ -96,21 +96,6 @@ export const defaultModules: ModuleManifest[] = [
     source: 'bundled',
   },
   {
-    id: 'device.sony-mdr',
-    name: 'Sony Headphones',
-    description: 'Native Bluetooth control for supported Sony 1000X headphones, beginning with WH-1000XM6.',
-    version: '0.1.0',
-    kind: 'device',
-    sizeMb: 0.4,
-    installed: true,
-    enabled: true,
-    official: true,
-    restartRequired: false,
-    capabilities: ['headset', 'battery', 'noise-control', 'equalizer', 'sound-processing'],
-    vendors: ['054c'],
-    source: 'bundled',
-  },
-  {
     id: 'capability.replay',
     name: 'Instant Replay',
     description: 'Isolated capture process with a disk-backed rolling buffer and hardware encoder selection.',
@@ -471,43 +456,6 @@ export const defaultDevices: Device[] = [
       lightingColor: '#44aaff',
     },
   },
-  {
-    id: 'sony-wh1000xm6-1',
-    moduleId: 'device.sony-mdr',
-    displayName: 'WH-1000XM6',
-    kind: 'headset',
-    connected: true,
-    identity: {
-      manufacturer: 'Sony', productFamily: '1000X', model: 'WH-1000XM6', variant: 'black', colorway: 'Black',
-      connection: 'bluetooth', connectionLabel: 'Bluetooth', productString: 'WH-1000XM6',
-    },
-    variantResolution: { confidence: 'user-override', source: 'Preview color selection' },
-    asset: { key: 'sony-wh1000xm6-black', matchedBy: 'exact-variant', source: 'bundled-official' },
-    capabilities: {
-      battery: { percentage: 84, charging: false, fullyCharged: false, estimatedMinutesRemaining: 1_512, updatedAt: Date.now() },
-      headset: {
-        platform: 'sony-mdr', model: 'wh-1000xm6', transportState: 'connected',
-        noiseControl: { writable: true, availability: 'available', supportedModes: ['noise-cancelling', 'ambient', 'off'], mode: 'noise-cancelling', ambientLevel: 12, ambientLevelMin: 1, ambientLevelMax: 20, focusOnVoice: false },
-        equalizer: {
-          writable: true, bandsWritable: true, availability: 'available', activePresetId: 'custom', gainMinDb: -6, gainMaxDb: 6,
-          bands: [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000].map((frequencyHz, index) => ({ frequencyHz, gainDb: [1, 2, 1, 0, -1, 0, 2, 3, 2, 1][index] ?? 0 })),
-          presets: [
-            ['off', 'Off'], ['heavy', 'Heavy'], ['clear', 'Clear'], ['hard', 'Hard'], ['soft', 'Soft'],
-            ['custom', 'Custom'], ['user-1', 'User 1'], ['user-2', 'User 2'], ['user-3', 'User 3'], ['user-4', 'User 4'], ['user-5', 'User 5'],
-          ].map(([id, label]) => ({ id: id!, label: label!, writable: true, storedOnHeadphones: true })),
-        },
-        dseeExtreme: { enabled: true, writable: true, availability: 'available' },
-        speakToChat: { enabled: false, writable: true, availability: 'available' },
-        listeningMode: { writable: true, availability: 'available', supportedModes: ['standard', 'background-music', 'cinema'], mode: 'standard', backgroundRoom: 'my-room' },
-        diagnostics: { protocol: 'sony-mdr-v2', lastSyncAt: now(), reconnectCount: 0, malformedFrameCount: 0, commandFailureCount: 0, lastErrorCode: null },
-      },
-    },
-    settings: {
-      sonyPresetName1: 'Local 1', sonyPresetBands1: [1, 2, 1, 0, -1, 0, 2, 3, 2, 1],
-      sonyPresetName2: 'Local 2', sonyPresetBands2: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      sonyPresetName3: 'Local 3', sonyPresetBands3: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    },
-  },
 ];
 
 export const defaultAudio: AudioState = {
@@ -702,6 +650,7 @@ export const defaultGameDetection: GameDetectionState = {
 };
 
 export const defaultSettings: AppSettings = {
+  uiScalePercent: 125,
   launchAtStartup: false,
   closeToTray: true,
   destroyRendererInTray: true,

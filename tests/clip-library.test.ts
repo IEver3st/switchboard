@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Clip } from '../src/shared/contracts';
-import { clipSchema, clipTrimInputSchema, exportClipInputSchema, prepareClipShareInputSchema, preparedShareFileSchema, setClipAudioTrackLevelInputSchema, setClipCanvasSizeInputSchema } from '../src/shared/contracts';
+import { clipExportProgressSchema, clipSchema, clipTrimInputSchema, exportClipInputSchema, prepareClipShareInputSchema, preparedShareFileSchema, setClipAudioTrackLevelInputSchema, setClipCanvasSizeInputSchema } from '../src/shared/contracts';
 import {
   clipGameLabel,
   createDefaultClipTitle,
@@ -12,7 +12,15 @@ import {
   normalizeClipRecord,
 } from '../src/shared/clip-library';
 import { StateStore } from '../src/main/services/state-store';
-import { audioStreamLabel, buildClipVideoFilter, buildShareAudioArguments } from '../src/main/services/clip-library';
+import {
+  audioStreamLabel,
+  buildClipVideoFilter,
+  buildShareAudioArguments,
+  buildSizeLimitedShareVideoArguments,
+  parseFfmpegProgressLine,
+  selectShareVideoEncoder,
+  shareVideoBounds,
+} from '../src/main/services/clip-library';
 
 const temporaryDirectories: string[] = [];
 
@@ -64,6 +72,35 @@ describe('canonical clip metadata', () => {
     expect(() => setClipCanvasSizeInputSchema.parse({ id: 'clip-1', canvasSize: 'square' })).toThrow();
     expect(buildClipVideoFilter('original')).toBe('scale=trunc(iw/2)*2:trunc(ih/2)*2');
     expect(buildClipVideoFilter('9:16')).toContain("crop='if(gte(iw/ih,0.5625)");
+  });
+
+  test('uses a single hardware pass and an upload-appropriate resolution for compressed shares', () => {
+    const source = clip(1, { width: 2_560, height: 1_440, fps: 60 });
+    expect(selectShareVideoEncoder(['av1_nvenc', 'h264_nvenc', 'libx264'])).toBe('h264_nvenc');
+    expect(selectShareVideoEncoder(['libx264'])).toBe('libx264');
+    expect(shareVideoBounds(source, 1_218)).toEqual({ width: 1_280, height: 720 });
+    expect(shareVideoBounds(source, 3_200)).toEqual({ width: 1_920, height: 1_080 });
+
+    const filter = buildClipVideoFilter('original', { width: 1_280, height: 720 });
+    expect(filter).toContain("min(iw,1280)");
+    expect(filter).toContain("min(ih,720)");
+    const arguments_ = buildSizeLimitedShareVideoArguments('h264_nvenc', 1_218, filter);
+    expect(arguments_).toContain('h264_nvenc');
+    expect(arguments_).toContain('p4');
+    expect(arguments_).not.toContain('-pass');
+    expect(arguments_).toContain('-maxrate');
+  });
+
+  test('parses bounded FFmpeg progress for the share dialog contract', () => {
+    expect(parseFfmpegProgressLine('out_time_us=30000000', 60)).toBe(0.5);
+    expect(parseFfmpegProgressLine('out_time_us=90000000', 60)).toBe(1);
+    expect(parseFfmpegProgressLine('progress=end', 60)).toBe(1);
+    expect(parseFfmpegProgressLine('frame=120', 60)).toBeNull();
+    expect(clipExportProgressSchema.parse({
+      exportId: '10000000-0000-4000-8000-000000000001',
+      percent: 42,
+      stage: 'compressing',
+    }).percent).toBe(42);
   });
 
   test('keeps custom names and infers generated game identity without exposing filenames', () => {

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
@@ -42,6 +42,12 @@ export function App() {
       ).length > 0
     : false;
 
+  useLayoutEffect(() => {
+    const scale = (snapshot?.settings.uiScalePercent ?? 125) / 100;
+    document.documentElement.style.setProperty('zoom', String(scale));
+    return () => { document.documentElement.style.removeProperty('zoom'); };
+  }, [snapshot?.settings.uiScalePercent]);
+
   useEffect(() => manageAsyncCleanup(initialize()), [initialize]);
 
   useEffect(() => {
@@ -51,7 +57,7 @@ export function App() {
   return (
     <LazyMotion features={domAnimation} strict>
       {snapshot ? (
-        <div className="relative flex h-full bg-background">
+        <div className="app-shell relative flex h-full bg-chrome">
           {page === 'settings' || page === 'modules' ? (
             <main className="min-h-0 min-w-0 flex-1 bg-background">
               <h1 className="sr-only">{pageTitles[page]}</h1>
@@ -62,9 +68,9 @@ export function App() {
           ) : (
             <>
               <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} />
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div className="app-shell__workspace flex min-w-0 flex-1 flex-col">
                 <TitleStrip />
-                <section className="flex min-h-0 flex-1 flex-col">
+                <section className="app-shell__content flex min-h-0 flex-1 flex-col">
                   <main className="min-h-0 flex-1 bg-background">
                     <h1 className="sr-only">{pageTitles[page]}</h1>
                     <Suspense fallback={<PageLoading label={pageTitles[page].toLocaleLowerCase()} />}>

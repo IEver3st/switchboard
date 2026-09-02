@@ -51,9 +51,9 @@ export const MixerApplications = memo(function MixerApplications({
               : `${applications.length} assigned`}
           </Badge>
         ) : (
-          <Badge variant={routingSupport === 'simulation' ? 'warning' : 'default'}>
+          <span className="mixer-channel__apps-support" data-state={routingSupport}>
             {supportLabel(routingSupport)}
-          </Badge>
+          </span>
         )}
       </div>
 
