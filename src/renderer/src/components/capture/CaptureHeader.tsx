@@ -108,9 +108,16 @@ function ReplayConfiguration({
 
   return (
     <div className="capture-recorder-rail" role="group" aria-label="Replay capture controls">
-      <div className="capture-recorder-status" data-tone={status.tone} title={status.description}>
-        <span className="capture-recorder-status__dot" aria-hidden="true" />
-        <span>{status.label}</span>
+      <div className="capture-recorder-sentence">
+        <div className="capture-recorder-status" data-tone={status.tone} title={status.description}>
+          <span className="capture-recorder-status__dot" aria-hidden="true" />
+          <span>{status.label}</span>
+        </div>
+
+        <div className="capture-recorder-source">
+          <CaptureSourcePicker value={selectedSourceValue} options={sourceOptions} active={config.enabled} compact onChange={onSourceChange} />
+        </div>
+        <span className="capture-recorder-length" title={`Replay length ${formatReplayLength(config.replaySeconds)}`}>{formatReplayLength(config.replaySeconds)}</span>
       </div>
 
       <div className="capture-recorder-toggle">

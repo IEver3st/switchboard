@@ -67,6 +67,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
             </InputGroup>
           </label>
 
+          <div className="capture-library__actions">
           <ButtonGroup className="capture-library-menus" aria-label="Filter and sort clips">
             <ClipFilters
               favoritesOnly={controls.favoritesOnly}
@@ -98,6 +99,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
           <Button type="button" variant="secondary" size="sm" className="capture-montage-trigger h-8 shrink-0 gap-1.5 px-3 text-[11px]" aria-label="Create Montage" disabled={totalClipCount < 2} onClick={controls.onStartMontage}>
             <Clapperboard className="size-3.5" aria-hidden="true" /> <span><span className="capture-montage-create">Create </span>Montage</span>
           </Button>
+          </div>
       </div>
   );
 }

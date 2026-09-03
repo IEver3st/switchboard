@@ -481,19 +481,31 @@ textarea:focus-visible {
   min-width: 0;
   flex: 1 1 auto;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 0;
 }
 
 .capture-library__tools {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 
 .capture-library__search {
-  width: 100%;
-  min-width: min(180px, 100%);
-  max-width: none;
+  width: auto;
+  min-width: 200px;
+  max-width: 520px;
   flex: 1 1 480px;
+}
+
+.capture-library__actions {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .capture-library__content {
@@ -1596,7 +1608,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 4px clamp(20px, 1.6vw, 30px) 2px;
 }
 
@@ -1606,11 +1618,33 @@ textarea:focus-visible {
   flex: 0 1 auto;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px;
+  gap: 12px;
   border: 0;
   border-radius: 0;
   background: transparent;
   padding: 0;
+}
+
+.capture-recorder-sentence {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.capture-recorder-source {
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 240px;
+}
+
+.capture-recorder-length {
+  flex: none;
+  color: var(--text-description);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .capture-recorder-status,
@@ -1776,15 +1810,17 @@ textarea:focus-visible {
 
 .capture-command-header__tools {
   width: 100%;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 8px;
+  row-gap: 8px;
 }
 
 .capture-library__search {
-  width: clamp(220px, 34vw, 520px);
-  min-width: 120px;
+  width: auto;
+  min-width: 200px;
   max-width: 520px;
-  flex: 1 1 520px;
+  flex: 1 1 480px;
 }
 
 .capture-library-menus {
@@ -1880,11 +1916,16 @@ textarea:focus-visible {
 }
 
 .capture-source-trigger--compact {
-  width: 100%;
+  width: auto;
+  max-width: 240px;
+  height: 28px;
+  flex: 0 1 auto;
+  gap: 6px;
   border-color: var(--border);
   border-radius: 4px;
   background: var(--surface-interactive);
   box-shadow: none;
+  padding: 0 8px;
 }
 
 .capture-source-trigger--compact[data-active="true"] {
@@ -2439,8 +2480,12 @@ textarea:focus-visible {
     display: none;
   }
 
+  .capture-recorder-source {
+    max-width: 200px;
+  }
+
   .capture-source-trigger--compact {
-    width: 100%;
+    max-width: 200px;
   }
 }
 
@@ -2456,9 +2501,12 @@ textarea:focus-visible {
     gap: 10px;
   }
 
-  .capture-recorder-status,
-  .capture-recorder-toggle {
+  .capture-recorder-status {
     padding-inline: 5px;
+  }
+
+  .capture-recorder-toggle {
+    padding: 0 4px;
   }
 
   .capture-library__search {
@@ -2485,6 +2533,24 @@ textarea:focus-visible {
 
   .capture-montage-trigger > span {
     display: none;
+  }
+
+  .capture-recorder-sentence {
+    gap: 6px;
+  }
+
+  .capture-recorder-source {
+    max-width: 120px;
+  }
+
+  .capture-source-trigger--compact {
+    max-width: 120px;
+  }
+
+  .capture-recorder-length {
+    display: inline;
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
   }
 
   .capture-clip-grid {
