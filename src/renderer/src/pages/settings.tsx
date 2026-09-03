@@ -1001,7 +1001,7 @@ function appUpdateDescription(
   if (update.status === 'downloaded') return installOnNextStartup
     ? `Version ${update.availableVersion ?? 'new'} is downloaded and will be installed when Switchboard closes.`
     : `Version ${update.availableVersion ?? 'new'} is downloaded and ready. Restart when convenient to install it.`;
-  if (update.status === 'installing') return 'Closing Switchboard and starting the verified installer.';
+  if (update.status === 'installing') return 'Installing silently in the background and restarting.';
   if (update.status === 'error') return update.error ?? 'The update could not be completed.';
   if (update.checkedAt) return `Switchboard is up to date. Last checked ${new Date(update.checkedAt).toLocaleString()}.`;
   return 'Check GitHub Releases for a newer version of Switchboard.';

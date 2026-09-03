@@ -52,6 +52,8 @@ export class WarThunderProvider implements GameEventProvider {
     return name.includes('war thunder')
       || name === 'aces'
       || name === 'aces exe'
+      || name === 'aces be'
+      || name === 'aces be exe'
       || Boolean(this.findDetectedGame(detectedGames) && name.includes('war thunder'));
   }
 

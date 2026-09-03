@@ -153,7 +153,7 @@ describe('application update lifecycle', () => {
 
     expect(states.at(-1)?.status).toBe('installing');
     expect(installRequests).toEqual([true]);
-    expect(updater.installArguments).toEqual([false, true]);
+    expect(updater.installArguments).toEqual([true, true]);
 
     service.dispose();
     expect(updater.listenerCount()).toBe(0);

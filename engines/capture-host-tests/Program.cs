@@ -190,6 +190,94 @@ AssertValue(true, ambiguousAutomaticGameSources.DetectAutomaticGame(automaticGam
 AssertValue(true, ambiguousAutomaticGameSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1)) is null,
     "Automatic capture must wait for foreground intent when background game identity is ambiguous.");
 
+static WindowsCaptureSources CreateBackgroundSources(
+    WindowsCaptureSources.WindowInfo foreground,
+    params WindowsCaptureSources.WindowInfo[] windows)
+{
+    var table = windows.ToDictionary(window => window.Handle);
+    table[foreground.Handle] = foreground;
+    return new WindowsCaptureSources(
+        () => true,
+        () => foreground.Handle,
+        (handle, _) => table.GetValueOrDefault(handle),
+        _ => table.Values.ToArray());
+}
+
+var warThunderStandalone = new WindowsCaptureSources.WindowInfo(
+    400,
+    4000,
+    "War Thunder",
+    @"C:\WarThunder\win64\aces.exe",
+    "aces",
+    "War Thunder",
+    "DagorWClass",
+    true,
+    false);
+var warThunderSources = CreateBackgroundSources(switchboardWindow, warThunderStandalone);
+AssertValue(true, warThunderSources.DetectAutomaticGame(automaticGameStartedAt) is null,
+    "War Thunder standalone must pass the stability window before capture starts.");
+AssertValue(true, warThunderSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 4000,
+    "Automatic capture must detect War Thunder standalone installs outside steamapps.");
+
+var warThunderBattlEye = warThunderStandalone with
+{
+    Handle = 401,
+    ProcessId = 4001,
+    ExecutablePath = @"D:\SteamLibrary\steamapps\common\War Thunder\win64\aces_BE.exe",
+    ExecutableName = "aces_BE",
+};
+var warThunderBattlEyeSources = CreateBackgroundSources(switchboardWindow, warThunderBattlEye);
+warThunderBattlEyeSources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, warThunderBattlEyeSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 4001,
+    "Automatic capture must detect War Thunder BattlEye builds.");
+
+var warThunderProtected = warThunderStandalone with
+{
+    Handle = 402,
+    ProcessId = 4002,
+    ExecutablePath = string.Empty,
+    ExecutableName = "aces",
+    ProductName = "aces",
+    ClassName = string.Empty,
+};
+var warThunderProtectedSources = CreateBackgroundSources(switchboardWindow, warThunderProtected);
+warThunderProtectedSources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, warThunderProtectedSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 4002,
+    "Automatic capture must detect War Thunder when protected-process metadata hides its path.");
+
+var warThunderTitleOnly = warThunderStandalone with
+{
+    Handle = 403,
+    ProcessId = 4003,
+    ExecutablePath = string.Empty,
+    ExecutableName = string.Empty,
+    ProductName = "War Thunder",
+    ClassName = string.Empty,
+};
+var warThunderTitleOnlySources = CreateBackgroundSources(switchboardWindow, warThunderTitleOnly);
+warThunderTitleOnlySources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, warThunderTitleOnlySources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 4003,
+    "Automatic capture must detect War Thunder by title when process metadata is fully blocked.");
+
+var warThunderLauncher = new WindowsCaptureSources.WindowInfo(
+    404,
+    4004,
+    "War Thunder Launcher",
+    @"C:\WarThunder\launcher.exe",
+    "launcher",
+    "War Thunder Launcher",
+    "Qt5152QWindowIcon",
+    false,
+    false);
+var launcherOnlySources = CreateBackgroundSources(switchboardWindow, warThunderLauncher);
+launcherOnlySources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, launcherOnlySources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(5.1)) is null,
+    "The War Thunder launcher must not count as a game.");
+var gamePlusLauncherSources = CreateBackgroundSources(switchboardWindow, warThunderStandalone, warThunderLauncher);
+gamePlusLauncherSources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, gamePlusLauncherSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 4000,
+    "An open launcher must not block War Thunder game detection.");
+
 using (var childJob = new WindowsChildProcessJob())
 using (var child = childJob.Start(
            new ProcessStartInfo(Environment.ProcessPath!, "--job-child")

@@ -197,7 +197,9 @@ export class AppUpdateService {
     this.publish({ status: 'installing', error: null });
     this.options.onInstallRequested?.(true);
     try {
-      this.updater.quitAndInstall(false, true);
+      // Silent install is required for background updates. The packaged NSIS
+      // installer is oneClick so this restarts without the setup wizard.
+      this.updater.quitAndInstall(true, true);
     } catch (error) {
       this.options.onInstallRequested?.(false);
       console.error('Switchboard failed to launch the downloaded update.', error);

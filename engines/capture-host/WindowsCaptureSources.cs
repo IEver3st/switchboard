@@ -21,17 +21,39 @@ internal sealed class WindowsCaptureSources
         "1password", "keepass", "bitwarden", "discord", "slack", "teams", "telegram",
         "explorer", "searchhost", "startmenuexperiencehost", "textinputhost", "dwm",
         "switchboard", "electron", "code", "devenv", "powershell", "windowsterminal",
+        // Launchers and overlays share game install paths but are never capture targets.
+        // Without this, an open War Thunder launcher would make background identity ambiguous.
+        "launcher", "wt_launcher", "warthunder_launcher", "gaijin_launcher",
+        "steam", "steamwebhelper", "gameoverlayui",
+    };
+
+    private static readonly HashSet<string> KnownGameExecutables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // War Thunder ships as aces.exe (Steam and standalone) and aces_BE.exe (BattlEye/EAC builds).
+        // Standalone installs live outside \steamapps\common\ (for example C:\WarThunder\win64),
+        // and protected-game metadata reads can fail, so the bare executable name must count.
+        "aces", "aces_BE",
+        "cs2",
+        "bf6",
     };
 
     private static readonly string[] KnownGamePathMarkers =
     {
         "\\steamapps\\common\\", "\\epic games\\", "\\xboxgames\\", "\\gog games\\",
         "\\riot games\\", "\\ea games\\", "\\ubisoft\\", "\\rockstar games\\",
+        "\\war thunder\\", "\\warthunder\\", "\\gaijin\\",
     };
 
     private static readonly string[] KnownGameWindowClasses =
     {
         "UnityWndClass", "UnrealWindow", "SDL_app", "GLFW30", "CryENGINE", "grcWindow",
+        "Dagor",
+    };
+
+    private static readonly string[] KnownGameTitleMarkers =
+    {
+        // Last-resort signal when a protected game (EAC/BattlEye) denies process metadata reads.
+        "War Thunder",
     };
 
     private nint currentGameWindow;
@@ -210,8 +232,10 @@ internal sealed class WindowsCaptureSources
 
     private static bool HasStrongGameIdentity(WindowInfo window) =>
         !DeniedExecutables.Contains(window.ExecutableName)
-        && (KnownGameWindowClasses.Any(marker => window.ClassName.Contains(marker, StringComparison.OrdinalIgnoreCase))
-            || KnownGamePathMarkers.Any(marker => window.ExecutablePath.Contains(marker, StringComparison.OrdinalIgnoreCase)));
+        && (KnownGameExecutables.Contains(window.ExecutableName)
+            || KnownGameWindowClasses.Any(marker => window.ClassName.Contains(marker, StringComparison.OrdinalIgnoreCase))
+            || KnownGamePathMarkers.Any(marker => window.ExecutablePath.Contains(marker, StringComparison.OrdinalIgnoreCase))
+            || KnownGameTitleMarkers.Any(marker => window.Title.Contains(marker, StringComparison.OrdinalIgnoreCase)));
 
     private static IReadOnlyList<WindowInfo> EnumerateWindows(bool includeGameSignals)
     {
@@ -237,31 +261,80 @@ internal sealed class WindowsCaptureSources
 
         _ = GetWindowThreadProcessId(handle, out var processId);
         if (processId == 0 || processId == Environment.ProcessId) return null;
+
+        var classBuilder = new StringBuilder(256);
+        GetClassName(handle, classBuilder, classBuilder.Capacity);
+        var className = classBuilder.ToString();
+        if (!GetWindowRect(handle, out var rect)) return null;
+        var monitor = MonitorFromWindow(handle, 2); // MONITOR_DEFAULTTONEAREST
+        var monitorInfo = new NativeMonitorInfo { Size = Marshal.SizeOf<NativeMonitorInfo>() };
+        GetMonitorInfo(monitor, ref monitorInfo);
+        var windowArea = Math.Max(0, rect.Right - rect.Left) * (long)Math.Max(0, rect.Bottom - rect.Top);
+        var monitorArea = Math.Max(1, monitorInfo.Monitor.Right - monitorInfo.Monitor.Left)
+                          * (long)Math.Max(1, monitorInfo.Monitor.Bottom - monitorInfo.Monitor.Top);
+        var coversMostOfMonitor = windowArea >= monitorArea * 0.82;
+
+        // Protected games (EAC/BattlEye, for example War Thunder's aces.exe) can deny
+        // MainModule and module-list reads. Resolve identity best-effort and keep the
+        // window so path/exe/title signals still apply instead of dropping the game.
+        var executablePath = string.Empty;
+        var executableName = string.Empty;
+        var productName = string.Empty;
+        var hasGpuStyle = false;
         try
         {
             using var process = Process.GetProcessById((int)processId);
-            var executablePath = process.MainModule?.FileName ?? string.Empty;
-            var executableName = Path.GetFileNameWithoutExtension(executablePath);
-            var productName = string.IsNullOrWhiteSpace(executablePath)
-                ? executableName
-                : FileVersionInfo.GetVersionInfo(executablePath).ProductName;
-            if (string.IsNullOrWhiteSpace(productName)) productName = executableName;
-
-            var classBuilder = new StringBuilder(256);
-            GetClassName(handle, classBuilder, classBuilder.Capacity);
-            GetWindowRect(handle, out var rect);
-            var monitor = MonitorFromWindow(handle, 2); // MONITOR_DEFAULTTONEAREST
-            var monitorInfo = new NativeMonitorInfo { Size = Marshal.SizeOf<NativeMonitorInfo>() };
-            GetMonitorInfo(monitor, ref monitorInfo);
-            var windowArea = Math.Max(0, rect.Right - rect.Left) * (long)Math.Max(0, rect.Bottom - rect.Top);
-            var monitorArea = Math.Max(1, monitorInfo.Monitor.Right - monitorInfo.Monitor.Left)
-                              * (long)Math.Max(1, monitorInfo.Monitor.Bottom - monitorInfo.Monitor.Top);
-            var coversMostOfMonitor = windowArea >= monitorArea * 0.82;
-            var hasGpuStyle = false;
             try
             {
-                var hasStrongGameSignal = KnownGameWindowClasses.Any(marker => classBuilder.ToString().Contains(marker, StringComparison.OrdinalIgnoreCase))
-                                          || KnownGamePathMarkers.Any(marker => executablePath.Contains(marker, StringComparison.OrdinalIgnoreCase));
+                executablePath = process.MainModule?.FileName ?? string.Empty;
+            }
+            catch
+            {
+                executablePath = string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(executablePath))
+                executablePath = TryGetProcessImagePath(processId);
+
+            try
+            {
+                executableName = Path.GetFileNameWithoutExtension(executablePath);
+                if (string.IsNullOrWhiteSpace(executableName))
+                    executableName = process.ProcessName ?? string.Empty;
+            }
+            catch
+            {
+                try
+                {
+                    executableName = Path.GetFileNameWithoutExtension(executablePath);
+                }
+                catch
+                {
+                    executableName = string.Empty;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(executablePath))
+            {
+                try
+                {
+                    productName = FileVersionInfo.GetVersionInfo(executablePath).ProductName ?? string.Empty;
+                }
+                catch
+                {
+                    productName = string.Empty;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(productName)) productName = executableName;
+            if (string.IsNullOrWhiteSpace(productName)) productName = title;
+
+            try
+            {
+                var hasStrongGameSignal = KnownGameExecutables.Contains(executableName)
+                    || KnownGameWindowClasses.Any(marker => className.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                    || KnownGamePathMarkers.Any(marker => executablePath.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                    || KnownGameTitleMarkers.Any(marker => title.Contains(marker, StringComparison.OrdinalIgnoreCase));
                 hasGpuStyle = includeGameSignals
                               && coversMostOfMonitor
                               && !hasStrongGameSignal
@@ -277,16 +350,41 @@ internal sealed class WindowsCaptureSources
             }
             catch
             {
-                // Access to another process's module list may be denied. Path/class signals remain usable.
+                // Access to another process's module list may be denied. Path/class/exe/title signals remain usable.
             }
-
-            return new WindowInfo(
-                handle, (int)processId, title, executablePath, executableName, productName!, classBuilder.ToString(),
-                coversMostOfMonitor, hasGpuStyle);
         }
         catch
         {
-            return null;
+            // Opening the process itself failed (protected/exited). Keep geometry plus title
+            // so the War Thunder title fallback can still identify the game.
+            productName = title;
+        }
+
+        return new WindowInfo(
+            handle, (int)processId, title, executablePath, executableName, productName, className,
+            coversMostOfMonitor, hasGpuStyle);
+    }
+
+    private static string TryGetProcessImagePath(uint processId)
+    {
+        const uint processQueryLimitedInformation = 0x1000;
+        var processHandle = OpenProcess(processQueryLimitedInformation, false, processId);
+        if (processHandle == 0) return string.Empty;
+        try
+        {
+            var builder = new StringBuilder(1024);
+            var capacity = builder.Capacity;
+            return QueryFullProcessImageName(processHandle, 0, builder, ref capacity)
+                ? builder.ToString(0, capacity)
+                : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+        finally
+        {
+            CloseHandle(processHandle);
         }
     }
 
@@ -351,4 +449,7 @@ internal sealed class WindowsCaptureSources
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(nint monitor, ref NativeMonitorInfo info);
     [DllImport("user32.dll")] private static extern bool EnumDisplayMonitors(nint hdc, nint clip, EnumDisplayMonitorsProc callback, nint parameter);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(nint handle, int attribute, out uint value, int size);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern nint OpenProcess(uint desiredAccess, bool inheritHandle, uint processId);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern bool QueryFullProcessImageName(nint processHandle, int flags, StringBuilder exeName, ref int size);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool CloseHandle(nint handle);
 }

@@ -26,8 +26,12 @@ win:
     - nsis
   executableName: switchboard
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  # oneClick is required for silent background updates. Assisted installers
+  # always show the setup wizard during quitAndInstall, even when silent.
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  allowElevation: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   installerIcon: build/icon.ico
