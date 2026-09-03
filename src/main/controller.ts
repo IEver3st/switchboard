@@ -1049,11 +1049,25 @@ export class AppController {
       if (!before.capture.config.enabled && nextConfig.enabled) await this.startCaptureEngine(nextConfig);
       if (disabling) await this.engines.stop('capture');
       if (before.capture.config.enabled && nextConfig.enabled) {
-        const hostSnapshot = captureHostSnapshotSchema.parse(
-          await this.engines.request('capture', 'configure', this.toHostSettings(nextConfig), 45_000),
-        );
-        this.captureAudioIntegrationSignature = this.getCaptureAudioIntegrationSignature(nextConfig);
-        this.applyCaptureSnapshot(hostSnapshot);
+        const engineStatus = this.engines.getStatus('capture');
+        const engineAlive = engineStatus.state === 'running' || engineStatus.state === 'starting';
+        if (!engineAlive) {
+          await this.startCaptureEngine(nextConfig);
+        } else {
+          try {
+            const hostSnapshot = captureHostSnapshotSchema.parse(
+              await this.engines.request('capture', 'configure', this.toHostSettings(nextConfig), 45_000),
+            );
+            this.captureAudioIntegrationSignature = this.getCaptureAudioIntegrationSignature(nextConfig);
+            this.applyCaptureSnapshot(hostSnapshot);
+          } catch (configureError) {
+            if (nextConfig.enabled && isEngineNotRunningError(configureError)) {
+              await this.startCaptureEngine(nextConfig);
+            } else {
+              throw configureError;
+            }
+          }
+        }
       }
     } catch (operationError) {
       if (hotkeyChanged) this.registerCaptureShortcut(before.capture.config.hotkey, false);
@@ -1960,6 +1974,9 @@ export class AppController {
     if (status.kind === 'capture' && status.state === 'error') {
       void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
       this.scheduleCaptureHostRecovery(status.message);
+    } else if (status.kind === 'capture' && status.state === 'stopped' && this.store.get().capture.config.enabled) {
+      void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
+      this.scheduleCaptureHostRecovery(status.message ?? 'Capture.Host stopped unexpectedly while Instant Replay stayed enabled.');
     } else if (status.kind === 'audio' && status.state === 'error') {
       this.scheduleAudioHostRecovery(status.message);
     }
@@ -2376,6 +2393,11 @@ function reactionGameId(source: CaptureSource): string {
     .replace(/^-|-$/g, '')
     .slice(0, 80);
   return `reaction-${normalized || 'captured-source'}`;
+}
+
+function isEngineNotRunningError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('is not running') || message.includes('engine exited') || message.includes('could not accept');
 }
 
 function captureIndexedDisplays(): Display[] {

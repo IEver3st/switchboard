@@ -57,6 +57,7 @@ export class EngineSupervisor {
   private readonly pending = new Map<string, PendingRequest>();
   private readonly starts = new Map<EngineKind, Promise<EngineStatus>>();
   private readonly expectedStops = new Set<EngineKind>();
+  private readonly lastStderr = new Map<EngineKind, string>();
 
   public constructor(
     private readonly onStatus: StatusListener,
@@ -134,8 +135,9 @@ export class EngineSupervisor {
 
   public request<T>(kind: EngineKind, command: string, payload?: unknown, timeoutMs = 10_000): Promise<T> {
     const worker = this.processes.get(kind);
-    if (!worker?.pid) {
-      return Promise.reject(new Error(`${kind} engine is not running`));
+    if (!worker?.pid || worker.exitCode !== null || worker.signalCode !== null) {
+      const detail = this.describeUnavailable(kind);
+      return Promise.reject(new Error(`${kind} engine is not running${detail}`));
     }
 
     const requestId = randomUUID();
@@ -151,7 +153,14 @@ export class EngineSupervisor {
         reject,
         timeout,
       });
-      this.sendEnvelope(worker, { requestId, command, payload });
+      try {
+        this.sendEnvelope(worker, { requestId, command, payload });
+      } catch (error) {
+        clearTimeout(timeout);
+        this.pending.delete(requestId);
+        const detail = error instanceof Error ? `: ${error.message}` : '';
+        reject(new Error(`${kind} engine could not accept ${command}${detail}`));
+      }
     });
   }
 
@@ -165,6 +174,7 @@ export class EngineSupervisor {
   }
 
   private async startProcess(kind: EngineKind): Promise<EngineStatus> {
+    this.lastStderr.delete(kind);
     this.updateStatus({
       ...this.stoppedStatus(kind),
       state: 'starting',
@@ -236,19 +246,30 @@ export class EngineSupervisor {
     });
     worker.stderr.on('data', (chunk) => {
       const message = String(chunk).trim();
-      if (message) console.warn(`[${kind}] ${message}`);
+      if (message) {
+        const previous = this.lastStderr.get(kind) ?? '';
+        this.lastStderr.set(kind, `${previous}${previous ? '\n' : ''}${message}`.slice(-4096));
+        console.warn(`[${kind}] ${message}`);
+      }
+    });
+    worker.stdin.on('error', (streamError) => {
+      console.warn(`[${kind}] engine stdin error`, streamError);
     });
     worker.on('error', (processError) => this.handleProcessError(kind, processError));
 
-    (worker as unknown as EventEmitter).on('exit', (code: number | null) => {
+    (worker as unknown as EventEmitter).on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
       if (this.processes.get(kind) === worker) this.processes.delete(kind);
       const expected = this.expectedStops.delete(kind);
-      this.failPending(kind, new Error(`${kind} engine exited`));
+      const stderrTail = (this.lastStderr.get(kind) ?? '').trim().split('\n').slice(-3).join(' ').slice(0, 240);
+      const exitDetail = signal ? `signal ${signal}` : `code ${code ?? 'unknown'}`;
+      const detail = stderrTail ? ` (${exitDetail}; ${stderrTail})` : ` (${exitDetail})`;
+      this.failPending(kind, new Error(`${kind} engine exited${detail}`));
       this.updateStatus({
         ...this.stoppedStatus(kind),
         state: expected || code === 0 ? 'stopped' : 'error',
-        message: expected || code === 0 ? undefined : `Engine exited with code ${code}`,
+        message: expected || code === 0 ? undefined : `Engine exited with ${exitDetail}${stderrTail ? `: ${stderrTail}` : ''}`,
       });
+      if (expected) this.lastStderr.delete(kind);
     });
 
   }
@@ -302,8 +323,23 @@ export class EngineSupervisor {
     }
   }
 
+  private describeUnavailable(kind: EngineKind): string {
+    const status = this.statuses.get(kind);
+    if (status?.message) return `: ${status.message}`;
+    const stderrTail = (this.lastStderr.get(kind) ?? '').trim().split('\n').slice(-1)[0]?.slice(0, 240);
+    return stderrTail ? `: ${stderrTail}` : '';
+  }
+
   private sendEnvelope(worker: EngineProcess, message: Record<string, unknown>): void {
-    worker.stdin.write(`${JSON.stringify(message)}\n`, 'utf8');
+    if (worker.exitCode !== null || worker.signalCode !== null) {
+      throw new Error('engine process already exited');
+    }
+    const ok = worker.stdin.write(`${JSON.stringify(message)}\n`, 'utf8');
+    if (!ok) {
+      // Backpressure on a local pipe is unexpected; the write is buffered by Node.
+      // Throwing here would turn a slow host into a failed request, so just note it.
+      console.warn('[engine] stdin buffer full when sending', (message.command as string) ?? 'unknown command');
+    }
   }
 
   private waitForSpawn(worker: EngineProcess, timeoutMs: number): Promise<void> {

@@ -172,10 +172,13 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 next.ReactionClippingEnabled,
                 next.ReactionSensitivity,
                 next.ReactionCooldownSeconds);
-            if (!HostActive) return GetSnapshot();
-            if (previous is null || RequiresRestart(previous, next))
+            if (!HostActive && operationalState != "error") return GetSnapshot();
+            var recoveringFromError = operationalState == "error";
+            if (previous is null || RequiresRestart(previous, next) || recoveringFromError)
             {
                 operationalState = "recovering";
+                error = null;
+                warning = null;
                 EmitSnapshot();
                 await StopFfmpegInternalAsync(cancellationToken, preserveRing: false);
                 PrepareStorage(next);
@@ -186,6 +189,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 {
                     activeSource = null;
                     operationalState = "waiting";
+                    error = null;
                 }
                 else
                 {
@@ -194,6 +198,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         throw new InvalidOperationException("The selected capture source is no longer available.");
                     await StartFfmpegInternalAsync(source, cancellationToken);
                 }
+                if (recoveringFromError) StartMonitor();
             }
             else if (sessionDirectory is not null)
             {

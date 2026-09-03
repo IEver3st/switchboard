@@ -10,6 +10,24 @@ var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 var outputGate = new SemaphoreSlim(1, 1);
 var shutdown = new CancellationTokenSource();
 var requests = new OperationTracker();
+AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+{
+    try
+    {
+        var message = eventArgs.ExceptionObject switch
+        {
+            Exception exception => $"{exception.GetType().Name}: {exception.Message}",
+            _ => "Capture.Host encountered an unhandled error.",
+        };
+        Console.Error.WriteLine($"[capture-host] fatal: {message}");
+    }
+    catch { }
+};
+TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+{
+    try { Console.Error.WriteLine($"[capture-host] background task failed: {eventArgs.Exception.GetBaseException().Message}"); } catch { }
+    eventArgs.SetObserved();
+};
 await using var engine = new ReplayEngine();
 var previousCpuTime = Process.GetCurrentProcess().TotalProcessorTime + engine.ChildProcessorTime;
 var previousCpuSampleAt = Stopwatch.GetTimestamp();
