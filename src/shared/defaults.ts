@@ -561,6 +561,12 @@ export const defaultCaptureConfig: CaptureConfig = {
   chatAudioDeviceId: null,
   hotkey: 'Ctrl+Shift+F10',
   clipsDirectory: null,
+  defaultTrackLevels: {
+    game: 100,
+    chat: 100,
+    microphone: 100,
+    media: 100,
+  },
 };
 
 export const defaultCaptureRuntime: CaptureRuntime = {

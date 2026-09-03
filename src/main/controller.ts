@@ -46,6 +46,7 @@ import {
   type SetClipAudioTrackLevelInput,
   type SetClipFavoriteInput,
   type SetClipTrimInput,
+  type SetCaptureConfigInput,
   type SetAudioChannelProcessorInput,
   type SetAudioBusDeviceInput,
   type SetAudioApplicationRouteInput,
@@ -74,6 +75,7 @@ import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
 import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-presets';
 import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
+import { applyClipTrackLevel, hasEffectiveClipMixChanged } from '../shared/clip-track-levels';
 import type { FeedbackEnvironment } from '../shared/feedback-report';
 import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
@@ -106,6 +108,7 @@ import {
   onlySourcesWithUsablePreviews,
   preserveValidatedWindowSources,
 } from './capture-source-previews';
+import { WardogsProvider } from './autocapture/providers/wardogs/wardogs-provider';
 import { Battlefield6Provider } from './autocapture/providers/battlefield-6/battlefield-6-provider';
 import type { OverwolfRuntimeHost } from './autocapture/providers/battlefield-6/overwolf-gep-session';
 import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
@@ -268,6 +271,7 @@ export class AppController {
       gameEventsEnabled: process.env.SWITCHBOARD_BF6_OVERWOLF_ENABLED === '1',
     }));
     this.autoCaptureRegistry.register(new WarThunderProvider());
+    this.autoCaptureRegistry.register(new WardogsProvider());
     this.autoCaptureRegistry.register(this.testEventProvider);
     this.autoCaptureEngine = new AutoCaptureEngine({
       getSettings: () => this.store.get().capture.autoCapture.settings,
@@ -1003,9 +1007,16 @@ export class AppController {
     return this.configureAudioEngine(snapshot);
   }
 
-  public async setCaptureConfig(input: Partial<CaptureConfig>): Promise<SystemSnapshot> {
+  public async setCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot> {
     const before = this.store.get();
-    const nextConfig = captureConfigSchema.parse({ ...before.capture.config, ...input });
+    const mergedInput: SetCaptureConfigInput = { ...input };
+    if (input.defaultTrackLevels) {
+      mergedInput.defaultTrackLevels = {
+        ...before.capture.config.defaultTrackLevels,
+        ...input.defaultTrackLevels,
+      };
+    }
+    const nextConfig = captureConfigSchema.parse({ ...before.capture.config, ...mergedInput });
     const requestedHotkey = input.hotkey;
     const hotkeyChanged = typeof requestedHotkey === 'string' && requestedHotkey !== before.capture.config.hotkey;
 
@@ -1520,13 +1531,17 @@ export class AppController {
   public setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): SystemSnapshot {
     const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
+    const defaults = this.store.get().capture.config.defaultTrackLevels;
     return this.store.update((draft) => {
       const current = draft.clips.find((candidate) => candidate.id === input.id);
       if (!current) return;
-      const levels = [...(current.audioTrackLevels ?? [])];
-      while (levels.length <= input.trackIndex) levels.push(100);
-      levels[input.trackIndex] = input.level;
-      while (levels.at(-1) === 100) levels.pop();
+      const levels = applyClipTrackLevel(
+        current.audioTrackLevels,
+        current.audioChannels,
+        defaults,
+        input.trackIndex,
+        input.level,
+      );
       current.audioTrackLevels = levels.length > 0 ? levels : undefined;
     });
   }
@@ -1573,7 +1588,8 @@ export class AppController {
       if (trim.endMs - trim.startMs < 100) throw new Error('Keep at least 0.1 seconds in each audio track trim range.');
     }
     const fullRange = input.startMs === 0 && input.endMs === clip.durationMs;
-    const audioMixChanged = clip.audioTrackLevels?.some((level) => level !== 100) ?? false;
+    const defaults = this.store.get().capture.config.defaultTrackLevels;
+    const audioMixChanged = hasEffectiveClipMixChanged(clip.audioTrackLevels, clip.audioChannels, defaults);
     const audioTrimChanged = (input.audioTrackTrims ?? clip.audioTrackTrims)?.some(Boolean) ?? false;
     const canCopyOriginal = input.preset === 'original' && fullRange && clip.canvasSize === 'original' && !audioMixChanged && !audioTrimChanged;
     const extension = canCopyOriginal ? extname(clip.path) || '.mp4' : '.mp4';
@@ -1610,6 +1626,7 @@ export class AppController {
       await this.clipLibrary.renderExport(plan.clip, destination, input, {
         signal: controller?.signal,
         encoder: selectShareVideoEncoder(this.store.get().capture.capabilities.encoders),
+        defaultTrackLevels: this.store.get().capture.config.defaultTrackLevels,
         onProgress: input.exportId
           ? (progress) => this.emitClipExportProgress({
               exportId: input.exportId!,
@@ -1730,6 +1747,7 @@ export class AppController {
         selection.filePath,
         input,
         controller.signal,
+        { defaultTrackLevels: this.store.get().capture.config.defaultTrackLevels },
       );
     } catch (error) {
       await rm(selection.filePath, { force: true });
@@ -2066,8 +2084,10 @@ export class AppController {
     const requestedSwitchboardAudioReady = switchboardAudioReady
       && (!processedMicrophoneRequested || processedMicrophone !== undefined);
     const usesExplicitSystemDevice = config.includeSystemAudio && systemAudioDeviceId !== null;
+    const { defaultTrackLevels: _defaultTrackLevels, ...hostConfig } = config;
+    void _defaultTrackLevels;
     return {
-      ...config,
+      ...hostConfig,
       ...getEncodingPreset(config),
       cacheDirectory: paths.cacheDirectory,
       clipsDirectory: paths.clipsDirectory,

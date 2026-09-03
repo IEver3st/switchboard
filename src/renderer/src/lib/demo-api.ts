@@ -2,7 +2,6 @@ import type {
   ApplyAudioPresetInput,
   AudioPresetIdInput,
   AudioMeterFrame,
-  CaptureConfig,
   CreateAudioPresetInput,
   DetectedGame,
   FeedbackReportInput,
@@ -20,6 +19,7 @@ import type {
   SetDeviceSettingInput,
   SetMicProcessorInput,
   SetAudioMonitoringInput,
+  SetCaptureConfigInput,
   SetModuleStateInput,
   SettingsResetScope,
   SwitchboardApi,
@@ -35,6 +35,7 @@ import {
 import { resolveDeviceVariant } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
 import { createDefaultSnapshot } from '../../../shared/defaults';
+import { applyClipTrackLevel } from '../../../shared/clip-track-levels';
 import { buildFeedbackClipboardText, buildFeedbackIssueUrl } from '../../../shared/feedback-report';
 
 let snapshot = createDefaultSnapshot();
@@ -533,9 +534,16 @@ const demoApi: SwitchboardApi = {
       syncAudioMeterTimer();
     };
   },
-  async setCaptureConfig(input: Partial<CaptureConfig>) {
+  async setCaptureConfig(input: SetCaptureConfigInput) {
     if (input.enabled) throw new Error('Instant Replay is available only in the Switchboard desktop application.');
-    snapshot.capture.config = { ...snapshot.capture.config, ...input };
+    const { defaultTrackLevels, ...rest } = input;
+    snapshot.capture.config = {
+      ...snapshot.capture.config,
+      ...rest,
+      ...(defaultTrackLevels ? {
+        defaultTrackLevels: { ...snapshot.capture.config.defaultTrackLevels, ...defaultTrackLevels },
+      } : {}),
+    };
     if (typeof input.enabled === 'boolean') {
       const module = snapshot.modules.find((candidate) => candidate.id === 'capability.replay');
       if (module) {
@@ -693,10 +701,14 @@ const demoApi: SwitchboardApi = {
   async setClipAudioTrackLevel(input) {
     const clip = snapshot.clips.find((candidate) => candidate.id === input.id);
     if (clip) {
-      const levels = [...(clip.audioTrackLevels ?? [])];
-      while (levels.length <= input.trackIndex) levels.push(100);
-      levels[input.trackIndex] = input.level;
-      clip.audioTrackLevels = levels;
+      const levels = applyClipTrackLevel(
+        clip.audioTrackLevels,
+        clip.audioChannels,
+        snapshot.capture.config.defaultTrackLevels,
+        input.trackIndex,
+        input.level,
+      );
+      clip.audioTrackLevels = levels.length > 0 ? levels : undefined;
     }
     return emit();
   },

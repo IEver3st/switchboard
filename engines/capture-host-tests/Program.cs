@@ -278,6 +278,69 @@ gamePlusLauncherSources.DetectAutomaticGame(automaticGameStartedAt);
 AssertValue(true, gamePlusLauncherSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 4000,
     "An open launcher must not block War Thunder game detection.");
 
+var wardogsClient = new WindowsCaptureSources.WindowInfo(
+    500,
+    5000,
+    "Wardogs",
+    @"C:\Program Files (x86)\Steam\steamapps\common\WARDOGS Playtest\Wardogs\Binaries\Win64\WardogsClient-Win64-Shipping.exe",
+    "WardogsClient-Win64-Shipping",
+    "Wardogs",
+    "UnrealWindow",
+    true,
+    false);
+var wardogsSources = CreateBackgroundSources(switchboardWindow, wardogsClient);
+AssertValue(true, wardogsSources.DetectAutomaticGame(automaticGameStartedAt) is null,
+    "WARDOGS must pass the stability window before capture starts.");
+AssertValue(true, wardogsSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 5000,
+    "Automatic capture must detect the WARDOGS client.");
+
+var wardogsProtected = wardogsClient with
+{
+    Handle = 501,
+    ProcessId = 5001,
+    ExecutablePath = string.Empty,
+    ExecutableName = "WardogsClient-Win64-Shipping",
+    ProductName = "WardogsClient-Win64-Shipping",
+    ClassName = string.Empty,
+};
+var wardogsProtectedSources = CreateBackgroundSources(switchboardWindow, wardogsProtected);
+wardogsProtectedSources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, wardogsProtectedSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 5001,
+    "Automatic capture must detect WARDOGS when anti-cheat hides its path.");
+
+var wardogsTitleOnly = wardogsClient with
+{
+    Handle = 502,
+    ProcessId = 5002,
+    ExecutablePath = string.Empty,
+    ExecutableName = string.Empty,
+    ProductName = "Wardogs",
+    ClassName = string.Empty,
+};
+var wardogsTitleOnlySources = CreateBackgroundSources(switchboardWindow, wardogsTitleOnly);
+wardogsTitleOnlySources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, wardogsTitleOnlySources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 5002,
+    "Automatic capture must detect WARDOGS by title when process metadata is fully blocked.");
+
+var wardogsLauncher = new WindowsCaptureSources.WindowInfo(
+    503,
+    5003,
+    "WARDOGS Launcher",
+    @"C:\Program Files (x86)\Steam\steamapps\common\WARDOGS Playtest\WardogsLauncher-Shipping.exe",
+    "WardogsLauncher-Shipping",
+    "WARDOGS Launcher",
+    "UnrealWindow",
+    false,
+    false);
+var wardogsLauncherOnlySources = CreateBackgroundSources(switchboardWindow, wardogsLauncher);
+wardogsLauncherOnlySources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, wardogsLauncherOnlySources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(5.1)) is null,
+    "The WARDOGS launcher must not count as a game.");
+var wardogsGamePlusLauncherSources = CreateBackgroundSources(switchboardWindow, wardogsClient, wardogsLauncher);
+wardogsGamePlusLauncherSources.DetectAutomaticGame(automaticGameStartedAt);
+AssertValue(true, wardogsGamePlusLauncherSources.DetectAutomaticGame(automaticGameStartedAt.AddSeconds(2.1))?.ProcessId == 5000,
+    "An open launcher must not block WARDOGS game detection.");
+
 using (var childJob = new WindowsChildProcessJob())
 using (var child = childJob.Start(
            new ProcessStartInfo(Environment.ProcessPath!, "--job-child")

@@ -8,7 +8,7 @@ import {
   autoCaptureProviderIdSchema,
   autoCaptureSettingsPatchSchema,
   autoCaptureTestEventInputSchema,
-  captureConfigSchema,
+  setCaptureConfigInputSchema,
   clipTrimInputSchema,
   createModuleProjectInputSchema,
   createAudioPresetInputSchema,
@@ -259,7 +259,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   handle(
     ipcChannels.setCaptureConfig,
     getMainWindow,
-    (input) => captureConfigSchema.omit({ clipsDirectory: true }).partial().parse(input),
+    (input) => setCaptureConfigInputSchema.parse(input),
     (input) => controller.setCaptureConfig(input),
   );
   ipcMain.handle(ipcChannels.saveReplay, (event) => {

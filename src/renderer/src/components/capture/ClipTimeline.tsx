@@ -12,7 +12,8 @@ import {
   type RefObject,
 } from 'react';
 import { FastForward, Film, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipForward, Undo2, Volume2, VolumeX } from 'lucide-react';
-import type { ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveformTrack, ClipEventMarker } from '../../../../shared/contracts';
+import type { ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveformTrack, ClipEventMarker, DefaultClipTrackLevels } from '../../../../shared/contracts';
+import { defaultClipTrackLevelForChannel, resolveClipTrackLevel } from '../../../../shared/clip-track-levels';
 import { singularEventLabel } from '../../../../shared/auto-capture';
 import { channelColor } from '@/components/audio/channel-identity';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ export function ClipTimeline({
   audioChannels,
   audioTrackLevels,
   audioTrackTrims,
+  defaultTrackLevels,
   eventMarkers,
   startMs,
   endMs,
@@ -59,6 +61,7 @@ export function ClipTimeline({
   audioChannels?: ClipAudioChannel[];
   audioTrackLevels?: number[];
   audioTrackTrims?: Array<ClipAudioTrackTrim | null>;
+  defaultTrackLevels?: DefaultClipTrackLevels;
   eventMarkers?: ClipEventMarker[];
   startMs: number;
   endMs: number;
@@ -95,6 +98,7 @@ export function ClipTimeline({
   const previewAudioRefs = useRef(new Map<number, HTMLAudioElement>());
   const previewTrackLevelsRef = useRef(previewTrackLevels);
   const audioTrackTrimsRef = useRef(audioTrackTrims);
+  const defaultTrackLevelsRef = useRef(defaultTrackLevels);
   const mutedRef = useRef(muted);
   const volumeRef = useRef(volume);
   const frameMs = Math.max(1, 1_000 / Math.max(1, fps));
@@ -103,6 +107,7 @@ export function ClipTimeline({
     && waveformTracks.every((track) => readyPreviewTrackIndexes.has(track.trackIndex));
   previewTrackLevelsRef.current = previewTrackLevels;
   audioTrackTrimsRef.current = audioTrackTrims;
+  defaultTrackLevelsRef.current = defaultTrackLevels;
   mutedRef.current = muted;
   volumeRef.current = volume;
 
@@ -167,21 +172,21 @@ export function ClipTimeline({
       const preview = previewAudioRefs.current.get(track.trackIndex);
       if (!preview) continue;
       preview.volume = clipPreviewTrackVolume(
-        previewTrackLevels[track.trackIndex] ?? 100,
+        resolveClipTrackLevel(previewTrackLevels, track.trackIndex, track.channel, defaultTrackLevels),
         volume,
         muted,
         currentMs,
         audioTrackTrims?.[track.trackIndex],
       );
     }
-  }, [audioTrackTrims, muted, previewTrackLevels, videoRef, volume, waveformTracks]);
+  }, [audioTrackTrims, defaultTrackLevels, muted, previewTrackLevels, videoRef, volume, waveformTracks]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isolatedPreviewReady) return;
     const previews = waveformTracks.flatMap((track) => {
       const preview = previewAudioRefs.current.get(track.trackIndex);
-      return preview ? [{ preview, trackIndex: track.trackIndex }] : [];
+      return preview ? [{ preview, trackIndex: track.trackIndex, channel: track.channel }] : [];
     });
     if (previews.length !== waveformTracks.length) return;
 
@@ -189,9 +194,9 @@ export function ClipTimeline({
     const updatePreviews = (forcePosition: boolean) => {
       const videoSeconds = video.currentTime;
       const currentMs = videoSeconds * 1_000;
-      for (const { preview, trackIndex } of previews) {
+      for (const { preview, trackIndex, channel } of previews) {
         preview.volume = clipPreviewTrackVolume(
-          previewTrackLevelsRef.current[trackIndex] ?? 100,
+          resolveClipTrackLevel(previewTrackLevelsRef.current, trackIndex, channel, defaultTrackLevelsRef.current),
           volumeRef.current,
           mutedRef.current,
           currentMs,
@@ -626,6 +631,19 @@ export function ClipTimeline({
     samples: [],
   }));
   const displayTracks = waveformState === 'ready' ? waveformTracks : (waveformTracks.length > 0 ? waveformTracks : fallbackTracks);
+  const displayChannelByIndex = useMemo(() => {
+    const map = new Map<number, ClipAudioChannel>();
+    for (const track of displayTracks) {
+      if (track.channel) map.set(track.trackIndex, track.channel);
+    }
+    (audioChannels ?? []).forEach((channel, trackIndex) => {
+      if (!map.has(trackIndex)) map.set(trackIndex, channel);
+    });
+    return map;
+  }, [audioChannels, displayTracks]);
+  const resolveDisplayLevel = useCallback((levels: readonly number[] | undefined, trackIndex: number) => (
+    resolveClipTrackLevel(levels, trackIndex, displayChannelByIndex.get(trackIndex), defaultTrackLevels)
+  ), [defaultTrackLevels, displayChannelByIndex]);
   const timelineStyle = { '--audio-track-count': Math.max(1, displayTracks.length) } as CSSProperties;
   const hasAudioTrackTrims = audioTrackTrims?.some(Boolean) ?? false;
   const showSubsecondRuler = rulerIntervalMs < 1_000;
@@ -646,7 +664,7 @@ export function ClipTimeline({
           data-track-index={track.trackIndex}
           onCanPlay={(event) => {
             event.currentTarget.volume = clipPreviewTrackVolume(
-              previewTrackLevelsRef.current[track.trackIndex] ?? 100,
+              resolveClipTrackLevel(previewTrackLevelsRef.current, track.trackIndex, track.channel, defaultTrackLevelsRef.current),
               volumeRef.current,
               mutedRef.current,
               (videoRef.current?.currentTime ?? 0) * 1_000,
@@ -715,10 +733,13 @@ export function ClipTimeline({
               <AudioTrackControl
                 key={track.trackIndex}
                 track={track}
-                level={audioTrackLevels?.[track.trackIndex] ?? 100}
+                level={resolveDisplayLevel(audioTrackLevels, track.trackIndex)}
                 onPreview={(trackIndex, level) => setPreviewTrackLevels((current) => {
                   const next = [...current];
-                  while (next.length <= trackIndex) next.push(100);
+                  while (next.length <= trackIndex) {
+                    const fillIndex = next.length;
+                    next.push(defaultClipTrackLevelForChannel(displayChannelByIndex.get(fillIndex), defaultTrackLevels));
+                  }
                   next[trackIndex] = level;
                   return next;
                 })}
@@ -790,7 +811,7 @@ export function ClipTimeline({
                 key={track.trackIndex}
                 className="clip-editor-timeline__audio-track"
                 data-channel={track.channel}
-                data-muted={(audioTrackLevels?.[track.trackIndex] ?? 100) === 0 ? 'true' : undefined}
+                data-muted={resolveDisplayLevel(audioTrackLevels, track.trackIndex) === 0 ? 'true' : undefined}
                 style={{ '--track-color': track.channel ? channelColor(track.channel) : 'var(--text-description)' } as CSSProperties}
                 role="group"
                 aria-label={`${track.channel ? channelLabel(track.channel) : track.label} timeline`}

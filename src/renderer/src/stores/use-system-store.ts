@@ -5,7 +5,6 @@ import {
   type AutoCaptureSettingsPatch,
   type AutoCaptureTestEventInput,
   type AudioPresetIdInput,
-  type CaptureConfig,
   type CreateModuleProjectInput,
   type CreateAudioPresetInput,
   type ExportClipInput,
@@ -34,12 +33,14 @@ import {
   type SetDeviceSettingInput,
   type SetMicProcessorInput,
   type SetAudioMonitoringInput,
+  type SetCaptureConfigInput,
   type SetModuleStateInput,
   type SettingsResetScope,
   type SystemSnapshot,
   type UpdateSettingsInput,
 } from '../../../shared/contracts';
 import { switchboardApi } from '../lib/demo-api';
+import { applyClipTrackLevel } from '../../../shared/clip-track-levels';
 
 type AsyncAction = () => Promise<SystemSnapshot>;
 
@@ -107,7 +108,7 @@ interface SystemStore {
   testMicrophone(): Promise<void>;
   setChatMix(value: number): Promise<void>;
   setMicProcessor(input: SetMicProcessorInput): Promise<void>;
-  setCaptureConfig(input: Partial<CaptureConfig>): Promise<void>;
+  setCaptureConfig(input: SetCaptureConfigInput): Promise<void>;
   saveReplay(): Promise<void>;
   chooseClipDirectory(): Promise<void>;
   openClipsDirectory(): Promise<void>;
@@ -332,10 +333,13 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       const optimistic = structuredClone(before);
       const clip = optimistic.clips.find((candidate) => candidate.id === input.id);
       if (!clip) return;
-      const levels = [...(clip.audioTrackLevels ?? [])];
-      while (levels.length <= input.trackIndex) levels.push(100);
-      levels[input.trackIndex] = input.level;
-      while (levels.at(-1) === 100) levels.pop();
+      const levels = applyClipTrackLevel(
+        clip.audioTrackLevels,
+        clip.audioChannels,
+        before.capture.config.defaultTrackLevels,
+        input.trackIndex,
+        input.level,
+      );
       clip.audioTrackLevels = levels.length > 0 ? levels : undefined;
       set({ snapshot: optimistic, error: null });
       try { set({ snapshot: await switchboardApi.setClipAudioTrackLevel(input) }); }

@@ -24,6 +24,7 @@ internal sealed class WindowsCaptureSources
         // Launchers and overlays share game install paths but are never capture targets.
         // Without this, an open War Thunder launcher would make background identity ambiguous.
         "launcher", "wt_launcher", "warthunder_launcher", "gaijin_launcher",
+        "wardogslauncher", "wardogslauncher-shipping",
         "steam", "steamwebhelper", "gameoverlayui",
     };
 
@@ -35,6 +36,10 @@ internal sealed class WindowsCaptureSources
         "aces", "aces_BE",
         "cs2",
         "bf6",
+        // WARDOGS ships as WardogsClient-Win64-Shipping.exe (Steam retail and Playtest).
+        // Easy Anti-Cheat can deny process metadata reads entirely, so the bare
+        // executable name must count here as well.
+        "wardogsclient", "wardogsclient-win64-shipping",
     };
 
     private static readonly string[] KnownGamePathMarkers =
@@ -42,6 +47,7 @@ internal sealed class WindowsCaptureSources
         "\\steamapps\\common\\", "\\epic games\\", "\\xboxgames\\", "\\gog games\\",
         "\\riot games\\", "\\ea games\\", "\\ubisoft\\", "\\rockstar games\\",
         "\\war thunder\\", "\\warthunder\\", "\\gaijin\\",
+        "\\wardogs\\", "\\wardogs playtest\\",
     };
 
     private static readonly string[] KnownGameWindowClasses =
@@ -54,6 +60,9 @@ internal sealed class WindowsCaptureSources
     {
         // Last-resort signal when a protected game (EAC/BattlEye) denies process metadata reads.
         "War Thunder",
+        // Observed live window title for WardogsClient-Win64-Shipping while its
+        // process metadata reads were denied.
+        "Wardogs",
     };
 
     private nint currentGameWindow;

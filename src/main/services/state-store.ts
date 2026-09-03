@@ -267,6 +267,7 @@ function migrateLegacyCaptureState(value: unknown): unknown {
         systemAudioDeviceId: typeof config.systemAudioDeviceId === 'string' ? config.systemAudioDeviceId : null,
         chatAudioDeviceId: typeof config.chatAudioDeviceId === 'string' ? config.chatAudioDeviceId : null,
         clipsDirectory: typeof config.clipsDirectory === 'string' ? config.clipsDirectory : null,
+        defaultTrackLevels: sanitizeDefaultTrackLevels(config.defaultTrackLevels, defaults.capture.config.defaultTrackLevels),
       },
       runtime: {
         ...defaults.capture.runtime,
@@ -368,6 +369,25 @@ function migrateAppUpdateState(value: unknown): unknown {
   return {
     ...value,
     appUpdate: defaults.appUpdate,
+  };
+}
+
+function sanitizeDefaultTrackLevels(
+  value: unknown,
+  fallback: { game: number; chat: number; microphone: number; media: number },
+): { game: number; chat: number; microphone: number; media: number } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { ...fallback };
+  const candidate = value as Record<string, unknown>;
+  const sanitize = (entry: unknown, fallbackLevel: number): number => (
+    typeof entry === 'number' && Number.isInteger(entry) && entry >= 0 && entry <= 100
+      ? entry
+      : fallbackLevel
+  );
+  return {
+    game: sanitize(candidate.game, fallback.game),
+    chat: sanitize(candidate.chat, fallback.chat),
+    microphone: sanitize(candidate.microphone, fallback.microphone),
+    media: sanitize(candidate.media, fallback.media),
   };
 }
 

@@ -865,6 +865,17 @@ export type CaptureCodec = z.infer<typeof captureCodecSchema>;
 export const captureEncoderPreferenceSchema = z.enum(['auto', 'nvenc', 'amf', 'qsv', 'software']);
 export type CaptureEncoderPreference = z.infer<typeof captureEncoderPreferenceSchema>;
 
+export const clipTrackLevelSchema = z.number().int().min(0).max(100);
+export type ClipTrackLevel = z.infer<typeof clipTrackLevelSchema>;
+
+export const defaultClipTrackLevelsSchema = z.object({
+  game: clipTrackLevelSchema,
+  chat: clipTrackLevelSchema,
+  microphone: clipTrackLevelSchema,
+  media: clipTrackLevelSchema,
+});
+export type DefaultClipTrackLevels = z.infer<typeof defaultClipTrackLevelsSchema>;
+
 export const captureConfigSchema = z.object({
   enabled: z.boolean(),
   source: captureSourceTypeSchema,
@@ -885,8 +896,22 @@ export const captureConfigSchema = z.object({
   chatAudioDeviceId: z.string().min(1).max(512).nullable().default(null),
   hotkey: z.string().min(1).max(128),
   clipsDirectory: z.string().max(4_096).nullable(),
+  defaultTrackLevels: defaultClipTrackLevelsSchema.default({
+    game: 100,
+    chat: 100,
+    microphone: 100,
+    media: 100,
+  }),
 });
 export type CaptureConfig = z.infer<typeof captureConfigSchema>;
+
+export const setCaptureConfigInputSchema = captureConfigSchema
+  .omit({ clipsDirectory: true })
+  .partial()
+  .extend({
+    defaultTrackLevels: defaultClipTrackLevelsSchema.partial().optional(),
+  });
+export type SetCaptureConfigInput = z.infer<typeof setCaptureConfigInputSchema>;
 
 export const replayStateSchema = z.enum([
   'stopped',
@@ -1667,7 +1692,7 @@ export interface SwitchboardApi {
   setChatMix(value: number): Promise<SystemSnapshot>;
   setMicProcessor(input: SetMicProcessorInput): Promise<SystemSnapshot>;
   subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void;
-  setCaptureConfig(input: Partial<CaptureConfig>): Promise<SystemSnapshot>;
+  setCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot>;
   saveReplay(): Promise<SystemSnapshot>;
   chooseClipDirectory(): Promise<SystemSnapshot>;
   openClipsDirectory(): Promise<void>;

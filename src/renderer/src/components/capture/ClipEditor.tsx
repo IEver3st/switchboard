@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ArrowLeft, Clapperboard, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
-import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
+import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, DefaultClipTrackLevels, PreparedShareFile } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { singularEventLabel } from '../../../../shared/auto-capture';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ type SingleClipEditorProps = {
   trimPending: boolean;
   canvasPending: boolean;
   inspectorOpen: boolean;
+  defaultTrackLevels?: DefaultClipTrackLevels;
   onClose: () => void;
   onFavorite: (favorite: boolean) => void;
   onRename: () => void;
@@ -68,7 +69,7 @@ export function ClipEditor(props: SingleClipEditorProps | MontageClipEditorProps
   return 'project' in props ? <MontageClipEditor {...props} /> : <SingleClipEditor {...props} />;
 }
 
-function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, inspectorOpen, onClose, onFavorite, onRename, onReveal, onInspectorOpenChange, onCanvasSizeChange, onSaveTrim, onAudioTrackLevelChange, onExport, onCancelExport, onDelete }: SingleClipEditorProps) {
+function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, inspectorOpen, defaultTrackLevels, onClose, onFavorite, onRename, onReveal, onInspectorOpenChange, onCanvasSizeChange, onSaveTrim, onAudioTrackLevelChange, onExport, onCancelExport, onDelete }: SingleClipEditorProps) {
   const backRef = useRef<HTMLButtonElement>(null);
   const editorRef = useRef<HTMLElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -290,6 +291,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
             audioChannels={clip.audioChannels}
             audioTrackLevels={clip.audioTrackLevels}
             audioTrackTrims={audioTrackTrims}
+            defaultTrackLevels={defaultTrackLevels}
             eventMarkers={clip.autoCapture?.events}
             startMs={startMs}
             endMs={endMs}

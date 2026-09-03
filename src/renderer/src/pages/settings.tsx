@@ -27,6 +27,7 @@ import {
   SettingSection,
   SettingSelect,
   SettingShortcut,
+  SettingSlider,
   SettingSwitch,
   SettingValue,
   SettingsCategoryHeader,
@@ -521,6 +522,28 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
           <span>RAM usage: <strong className="clip-settings__memory">Low</strong> <small>Disk-backed replay ring</small></span>
         </div>
       </section>
+
+      <SettingSection title="Default track levels">
+        {([
+          { channel: 'game', label: 'Game' },
+          { channel: 'chat', label: 'Chat' },
+          { channel: 'microphone', label: 'Microphone' },
+          { channel: 'media', label: 'Media' },
+        ] as const).map(({ channel, label }) => (
+          <SettingSlider
+            key={channel}
+            settingId={`clips.defaultTrackLevel.${channel}`}
+            title={`Default ${label} volume`}
+            description={`New clips start the ${label} track here. Clips with a saved level keep it.`}
+            value={config.defaultTrackLevels[channel]}
+            min={0}
+            max={100}
+            step={1}
+            formatValue={(value) => `${value}%`}
+            onValueCommit={(level) => void setCaptureConfig({ defaultTrackLevels: { [channel]: level } as Partial<typeof config.defaultTrackLevels> })}
+          />
+        ))}
+      </SettingSection>
 
       <section className="clip-settings__section clip-storage" aria-labelledby="clip-storage-heading">
         <div className="clip-settings__section-heading clip-storage__heading">

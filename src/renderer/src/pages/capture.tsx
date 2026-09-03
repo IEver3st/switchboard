@@ -193,6 +193,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
             trimPending={pendingClipActions.has(`clip:${editorClip.id}:trim`)}
             canvasPending={pendingClipActions.has(`clip:${editorClip.id}:canvas`)}
             inspectorOpen={snapshot.settings.clipEditorInspectorOpen}
+            defaultTrackLevels={snapshot.capture.config.defaultTrackLevels}
             onClose={closeEditor}
             onFavorite={(favorite) => void setClipFavorite({ id: editorClip.id, favorite })}
             onRename={() => setRenameTarget(editorClip)}

@@ -11,11 +11,13 @@ import type {
   ClipAudioWaveform,
   ClipAudioWaveformTrack,
   ClipCanvasSize,
+  DefaultClipTrackLevels,
   ExportClipInput,
   ExportMontageInput,
   MontageProjectSegment,
 } from '../../shared/contracts';
 import { createDefaultClipTitle, inferClipGame, normalizeClipRecord } from '../../shared/clip-library';
+import { resolveClipTrackLevel } from '../../shared/clip-track-levels';
 
 const supportedExtensions = new Set(['.mp4', '.mkv', '.webm', '.mov']);
 
@@ -35,7 +37,12 @@ export type ShareVideoEncoder = 'h264_nvenc' | 'h264_amf' | 'h264_qsv' | 'libx26
 type ClipExportRenderOptions = {
   signal?: AbortSignal;
   encoder?: ShareVideoEncoder;
+  defaultTrackLevels?: DefaultClipTrackLevels;
   onProgress?: (progress: number) => void;
+};
+
+export type MontageExportRenderOptions = {
+  defaultTrackLevels?: DefaultClipTrackLevels;
 };
 
 type FfmpegProgressOptions = {
@@ -257,8 +264,15 @@ export class ClipLibraryService {
       : undefined;
 
     const audioLevels = clip.audioTrackLevels ?? [];
+    const audioChannels = clip.audioChannels;
+    const defaults = options.defaultTrackLevels;
     const audioTrackTrims = input.audioTrackTrims ?? clip.audioTrackTrims ?? [];
-    const audioEditChanged = audioLevels.some((level) => level !== 100) || audioTrackTrims.some(Boolean);
+    const audioEditChanged = audioLevels.some((level) => level !== 100)
+      || (audioChannels ?? []).some((channel, trackIndex) =>
+        (audioLevels[trackIndex] === undefined
+          ? resolveClipTrackLevel(audioLevels, trackIndex, channel, defaults)
+          : audioLevels[trackIndex]) !== 100)
+      || audioTrackTrims.some(Boolean);
     if (input.preset === 'original' && !audioEditChanged) {
       await run(executable, [
         ...common, '-map', '0:a?', ...originalVideo, '-crf', '18', '-c:a', 'aac', '-b:a', '160k',
@@ -269,7 +283,7 @@ export class ClipLibraryService {
 
     if (input.preset === 'original') {
       const audioStreams = await this.getAudioStreams(clip.path);
-      const audioArguments = buildShareAudioArguments(audioStreams.length, 160, audioLevels, audioTrackTrims, startMs, endMs);
+      const audioArguments = buildShareAudioArguments(audioStreams.length, 160, audioLevels, audioTrackTrims, startMs, endMs, audioChannels, defaults);
       await run(executable, [
         ...common, ...audioArguments, ...originalVideo, '-crf', '18',
         '-movflags', '+faststart', '-y', destination,
@@ -290,7 +304,7 @@ export class ClipLibraryService {
     }
 
     const audioStreams = await this.getAudioStreams(clip.path);
-    const audioArguments = buildShareAudioArguments(audioStreams.length, audioKbps, audioLevels, audioTrackTrims, startMs, endMs);
+    const audioArguments = buildShareAudioArguments(audioStreams.length, audioKbps, audioLevels, audioTrackTrims, startMs, endMs, audioChannels, defaults);
     const bounds = shareVideoBounds(clip, videoKbps);
     const video = buildSizeLimitedShareVideoArguments(
       options.encoder ?? 'libx264',
@@ -313,6 +327,7 @@ export class ClipLibraryService {
     destination: string,
     input: ExportMontageInput,
     signal?: AbortSignal,
+    options: MontageExportRenderOptions = {},
   ): Promise<void> {
     const first = entries[0];
     if (!first) throw new Error('Add at least one clip before exporting the montage.');
@@ -328,7 +343,7 @@ export class ClipLibraryService {
         if (signal?.aborted) throw abortError();
         const entry = entries[index]!;
         const segmentPath = join(temporaryDirectory, `segment-${String(index).padStart(4, '0')}.mp4`);
-        await this.renderMontageSegment(executable, entry.clip, entry.segment, segmentPath, target, signal);
+        await this.renderMontageSegment(executable, entry.clip, entry.segment, segmentPath, target, signal, options.defaultTrackLevels);
         renderedSegments.push(segmentPath);
       }
 
@@ -375,11 +390,12 @@ export class ClipLibraryService {
     destination: string,
     target: MontageVideoTarget,
     signal?: AbortSignal,
+    defaultTrackLevels?: DefaultClipTrackLevels,
   ): Promise<void> {
     const streams = await this.getAudioStreams(clip.path);
     const durationSeconds = (segment.trimEndMs - segment.trimStartMs) / 1_000;
     const videoFilter = buildMontageVideoFilter(segment, target);
-    const audio = buildMontageSegmentAudioFilter(streams.length, segment);
+    const audio = buildMontageSegmentAudioFilter(streams.length, segment, clip.audioChannels, defaultTrackLevels);
     const inputArguments = ['-i', clip.path];
     let filter: string;
     let audioMap: string;
@@ -616,10 +632,12 @@ export function buildMontageVideoFilter(segment: MontageProjectSegment, target: 
 export function buildMontageSegmentAudioFilter(
   streamCount: number,
   segment: MontageProjectSegment,
+  channels?: readonly (ClipAudioChannel | null | undefined)[],
+  defaults?: DefaultClipTrackLevels,
 ): { filter: string } | null {
   const active = Array.from({ length: streamCount }, (_, trackIndex) => ({
     trackIndex,
-    level: Math.min(100, Math.max(0, segment.audioTrackLevels?.[trackIndex] ?? 100)),
+    level: resolveClipTrackLevel(segment.audioTrackLevels, trackIndex, channels?.[trackIndex], defaults),
     startMs: Math.max(segment.trimStartMs, segment.audioTrackTrims?.[trackIndex]?.startMs ?? segment.trimStartMs),
     endMs: Math.min(segment.trimEndMs, segment.audioTrackTrims?.[trackIndex]?.endMs ?? segment.trimEndMs),
   })).filter((track) => track.level > 0 && track.endMs > track.startMs);
@@ -650,11 +668,13 @@ export function buildShareAudioArguments(
   trims: readonly (ClipAudioTrackTrim | null)[] = [],
   selectionStartMs = 0,
   selectionEndMs = Number.POSITIVE_INFINITY,
+  channels?: readonly (ClipAudioChannel | null | undefined)[],
+  defaults?: DefaultClipTrackLevels,
 ): string[] {
   if (streamCount <= 0) return ['-an'];
   const active = Array.from({ length: streamCount }, (_, trackIndex) => ({
     trackIndex,
-    level: Math.min(100, Math.max(0, levels[trackIndex] ?? 100)),
+    level: resolveClipTrackLevel(levels, trackIndex, channels?.[trackIndex], defaults),
     startMs: Math.max(selectionStartMs, trims[trackIndex]?.startMs ?? selectionStartMs),
     endMs: Math.min(selectionEndMs, trims[trackIndex]?.endMs ?? selectionEndMs),
   })).filter((track) => track.level > 0 && track.endMs > track.startMs);
