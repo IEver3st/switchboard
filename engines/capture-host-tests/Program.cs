@@ -397,16 +397,30 @@ static void AssertRemuxStdinIsolation()
         "microphone-concat.txt",
         "clip.mp4.clip-writing",
         TimeSpan.FromSeconds(22),
-        "Game/System",
+        "Game",
         "Microphone");
     AssertValue(true, arguments.Contains("-nostdin"),
         "Replay remux must not inherit Capture.Host stdin and consume shortcut commands.");
-    AssertValue(true, arguments.Contains("[1:a:0][2:a:0]amix=inputs=2:duration=longest:dropout_transition=0[clip_audio]"),
-        "A saved clip must mix system and microphone audio into the one playback track users hear.");
+    AssertValue(false, arguments.Any(argument => argument.Contains("amix")),
+        "Replay inputs must stay on separate tracks so the microphone can be muted without losing game audio.");
     AssertSequence(
         ValuesFollowing(arguments, "-map"),
-        ["0:v:0", "[clip_audio]"],
-        "A saved clip must expose one mixed audio track instead of mutually exclusive system and microphone tracks.");
+        ["0:v:0", "1:a:0", "2:a:0"],
+        "A saved clip must expose game and microphone as separate audio tracks.");
+    var chatArguments = ReplayEngine.BuildRemuxArguments(
+        "video-concat.txt",
+        "system-concat.txt",
+        "chat-concat.txt",
+        "microphone-concat.txt",
+        "clip.mp4.clip-writing",
+        TimeSpan.FromSeconds(22),
+        "Game",
+        "Chat",
+        "Microphone");
+    AssertSequence(
+        ValuesFollowing(chatArguments, "-map"),
+        ["0:v:0", "1:a:0", "2:a:0", "3:a:0"],
+        "Game, chat, and microphone must each keep their own clip track when chat capture is enabled.");
 }
 
 static void AssertEqual(string expected, string actual, string message)

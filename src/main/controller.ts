@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
-import { basename, dirname, extname, join, resolve } from 'node:path';
+import { basename, dirname, extname, join, parse, resolve } from 'node:path';
 import { app, clipboard, desktopCapturer, dialog, globalShortcut, screen, shell, type Display } from 'electron';
 import { z } from 'zod';
 import projectPackage from '../../package.json';
@@ -109,7 +109,7 @@ import {
 import { Battlefield6Provider } from './autocapture/providers/battlefield-6/battlefield-6-provider';
 import type { OverwolfRuntimeHost } from './autocapture/providers/battlefield-6/overwolf-gep-session';
 import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
-import { resolveCaptureMicrophoneDeviceId } from './capture-microphone-routing';
+import { resolveCaptureChatAudioDeviceId, resolveCaptureMicrophoneDeviceId, resolveCaptureSystemAudioDeviceId } from './capture-microphone-routing';
 import {
   createModuleProject as scaffoldModuleProject,
   moduleManifestFromProject,
@@ -1581,7 +1581,8 @@ export class AppController {
       ? (fullRange ? (audioMixChanged || audioTrimChanged ? '-mixed' : '') : '-trimmed')
       : `-${input.preset}`;
     const canvasSuffix = clip.canvasSize === '9:16' ? '-9x16' : '';
-    const fileName = `${sanitizeClipBaseName(clip.name)}${canvasSuffix}${presetSuffix}${extension}`;
+    const sourceStem = parse(clip.path).name.trim() || clip.name;
+    const fileName = `${sanitizeClipBaseName(sourceStem)}${canvasSuffix}${presetSuffix}${extension}`;
     const expectedBytes = canCopyOriginal
       ? clip.fileSize
       : input.preset === 'original'
@@ -2052,26 +2053,36 @@ export class AppController {
       endpoint.flow === 'capture' && endpoint.name === 'Switchboard Audio - Microphone'
     ));
     const processedMicrophoneRequested = config.includeMic || reaction.enabled;
+    const routingState = { ...audio, capture: config };
     const microphoneDeviceId = processedMicrophoneRequested
-      ? resolveCaptureMicrophoneDeviceId(audio)
+      ? resolveCaptureMicrophoneDeviceId(routingState)
+      : null;
+    const systemAudioDeviceId = config.includeSystemAudio
+      ? resolveCaptureSystemAudioDeviceId(routingState)
+      : null;
+    const chatAudioDeviceId = config.includeChatAudio
+      ? resolveCaptureChatAudioDeviceId(routingState)
       : null;
     const requestedSwitchboardAudioReady = switchboardAudioReady
       && (!processedMicrophoneRequested || processedMicrophone !== undefined);
+    const usesExplicitSystemDevice = config.includeSystemAudio && systemAudioDeviceId !== null;
     return {
       ...config,
       ...getEncodingPreset(config),
       cacheDirectory: paths.cacheDirectory,
       clipsDirectory: paths.clipsDirectory,
       thumbnailDirectory: paths.thumbnailDirectory,
-      clipMixPipeName: switchboardAudioReady && config.includeSystemAudio ? 'switchboard-audio-clip-v1' : null,
+      clipMixPipeName: switchboardAudioReady && config.includeSystemAudio && !usesExplicitSystemDevice ? 'switchboard-audio-clip-v1' : null,
       processedMicrophoneDeviceId: switchboardAudioReady && processedMicrophoneRequested
         ? processedMicrophone?.id ?? null
         : null,
       microphoneDeviceId,
+      systemAudioDeviceId,
+      chatAudioDeviceId,
       reactionClippingEnabled: reaction.enabled,
       reactionSensitivity: reaction.sensitivity,
       reactionCooldownSeconds: reaction.cooldownSeconds,
-      audioFallbackReason: requestedSwitchboardAudioReady || (!config.includeSystemAudio && !processedMicrophoneRequested)
+      audioFallbackReason: requestedSwitchboardAudioReady || (!config.includeSystemAudio && !config.includeChatAudio && !processedMicrophoneRequested)
         ? null
         : 'Switchboard audio routing is unavailable for one or more replay inputs; Windows default devices are being used where needed.',
     };
@@ -2083,6 +2094,9 @@ export class AppController {
       settings.clipMixPipeName ?? null,
       settings.processedMicrophoneDeviceId ?? null,
       settings.microphoneDeviceId ?? null,
+      settings.systemAudioDeviceId ?? null,
+      settings.chatAudioDeviceId ?? null,
+      settings.includeChatAudio ?? false,
       settings.audioFallbackReason ?? null,
       settings.reactionClippingEnabled,
       settings.reactionSensitivity,

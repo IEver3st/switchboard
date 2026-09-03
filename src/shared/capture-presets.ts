@@ -5,6 +5,7 @@ export type EncodingPreset = {
   maximumVideoBitrateBps: number;
   systemAudioBitrateBps: number;
   microphoneBitrateBps: number;
+  chatAudioBitrateBps: number;
 };
 
 export type ClipSizeEstimate = {
@@ -56,7 +57,7 @@ function inferredResolution(config: Pick<CaptureConfig, 'resolution'>): Exclude<
 }
 
 export function getEncodingPreset(
-  config: Pick<CaptureConfig, 'quality' | 'resolution' | 'fps' | 'codec' | 'includeMic'>,
+  config: Pick<CaptureConfig, 'quality' | 'resolution' | 'fps' | 'codec' | 'includeMic'> & Partial<Pick<CaptureConfig, 'includeChatAudio'>>,
 ): EncodingPreset {
   const resolution = inferredResolution(config);
   const qualityIndex = Math.max(0, Math.min(4, config.quality - 1));
@@ -70,18 +71,19 @@ export function getEncodingPreset(
     maximumVideoBitrateBps: Math.round(targetVideoBitrateBps * 1.28),
     systemAudioBitrateBps: 192_000,
     microphoneBitrateBps: config.includeMic ? 128_000 : 0,
+    chatAudioBitrateBps: config.includeChatAudio === true ? 128_000 : 0,
   };
 }
 
 export function estimateClipSize(
-  config: Pick<CaptureConfig, 'quality' | 'resolution' | 'fps' | 'codec' | 'includeMic' | 'replaySeconds'>,
+  config: Pick<CaptureConfig, 'quality' | 'resolution' | 'fps' | 'codec' | 'includeMic' | 'replaySeconds'> & Partial<Pick<CaptureConfig, 'includeChatAudio'>>,
   observedBitrateBps?: number,
 ): ClipSizeEstimate {
   const preset = getEncodingPreset(config);
   const hasObservation = typeof observedBitrateBps === 'number' && Number.isFinite(observedBitrateBps) && observedBitrateBps > 0;
   const videoAndAudio = hasObservation
     ? observedBitrateBps
-    : preset.targetVideoBitrateBps + preset.systemAudioBitrateBps + preset.microphoneBitrateBps;
+    : preset.targetVideoBitrateBps + preset.systemAudioBitrateBps + preset.microphoneBitrateBps + preset.chatAudioBitrateBps;
   const estimatedBytes = videoAndAudio * config.replaySeconds / 8 * 1.015;
   const spread = hasObservation ? 0.12 : 0.22;
 

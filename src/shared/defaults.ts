@@ -554,7 +554,11 @@ export const defaultCaptureConfig: CaptureConfig = {
   replaySeconds: 60,
   includeMic: true,
   includeSystemAudio: true,
+  includeChatAudio: false,
   includeCursor: false,
+  microphoneDeviceId: null,
+  systemAudioDeviceId: null,
+  chatAudioDeviceId: null,
   hotkey: 'Ctrl+Shift+F10',
   clipsDirectory: null,
 };
@@ -670,7 +674,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.6.4',
+  currentVersion: '0.6.5',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -715,7 +719,7 @@ export const seedClips: Clip[] = [];
 
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
-    version: '0.6.4',
+    version: '0.6.5',
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),
     modules: structuredClone(defaultModules),

@@ -91,6 +91,28 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         return new AudioPipeCapture(capture, "System audio");
     }
 
+    public static AudioPipeCapture CreateLoopbackEndpoint(string endpointId, string label)
+    {
+        using var enumerator = new MMDeviceEnumerator();
+        var endpoint = enumerator.GetDevice(endpointId);
+        try
+        {
+            var capture = new WasapiRecorderBuilder()
+                .WithDevice(endpoint)
+                .WithSharedMode()
+                .WithEventSync()
+                .WithBufferLength(50)
+                .WithLoopbackCapture()
+                .Build();
+            return new AudioPipeCapture(capture, label, endpoint);
+        }
+        catch
+        {
+            endpoint.Dispose();
+            throw;
+        }
+    }
+
     public static AudioPipeCapture CreateDefaultMicrophone(IAudioPacketObserver? observer = null)
     {
         using var enumerator = new MMDeviceEnumerator();

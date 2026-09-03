@@ -262,6 +262,10 @@ function migrateLegacyCaptureState(value: unknown): unknown {
         source,
         sourceId: typeof config.sourceId === 'string' ? config.sourceId : null,
         includeSystemAudio: typeof config.includeSystemAudio === 'boolean' ? config.includeSystemAudio : true,
+        includeChatAudio: typeof config.includeChatAudio === 'boolean' ? config.includeChatAudio : false,
+        microphoneDeviceId: typeof config.microphoneDeviceId === 'string' ? config.microphoneDeviceId : null,
+        systemAudioDeviceId: typeof config.systemAudioDeviceId === 'string' ? config.systemAudioDeviceId : null,
+        chatAudioDeviceId: typeof config.chatAudioDeviceId === 'string' ? config.chatAudioDeviceId : null,
         clipsDirectory: typeof config.clipsDirectory === 'string' ? config.clipsDirectory : null,
       },
       runtime: {

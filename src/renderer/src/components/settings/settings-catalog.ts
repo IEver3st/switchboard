@@ -263,8 +263,8 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'capture.microphone',
     category: 'capture',
     title: 'Record microphone',
-    description: 'Include the selected microphone as a separate replay input.',
-    keywords: ['mic', 'voice', 'track', 'audio'],
+    description: 'Include the selected microphone as its own replay track so it can be muted without losing game audio.',
+    keywords: ['mic', 'voice', 'track', 'audio', 'device', 'sonar'],
   },
   {
     id: 'capture.systemAudio',
@@ -272,6 +272,20 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Record system audio',
     description: 'Include desktop audio when the capture host supports it.',
     keywords: ['desktop audio', 'game audio', 'sound', 'track'],
+  },
+  {
+    id: 'capture.chatAudio',
+    category: 'capture',
+    title: 'Record chat audio separately',
+    description: 'Capture Discord or chat on its own track, for example Sonar Chat apart from Sonar Game.',
+    keywords: ['chat', 'discord', 'sonar', 'track', 'voice', 'device'],
+  },
+  {
+    id: 'capture.audioDevices',
+    category: 'capture',
+    title: 'Replay audio devices',
+    description: 'Choose which Game, Chat, and Microphone devices feed Instant Replay. Each stays on its own track.',
+    keywords: ['sonar', 'game', 'chat', 'mic', 'microphone', 'device', 'endpoint', 'track', 'routing'],
   },
   {
     id: 'capture.cursor',

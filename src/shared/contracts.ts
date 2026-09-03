@@ -878,7 +878,11 @@ export const captureConfigSchema = z.object({
   replaySeconds: z.number().int().min(15).max(300),
   includeMic: z.boolean(),
   includeSystemAudio: z.boolean(),
+  includeChatAudio: z.boolean().default(false),
   includeCursor: z.boolean(),
+  microphoneDeviceId: z.string().min(1).max(512).nullable().default(null),
+  systemAudioDeviceId: z.string().min(1).max(512).nullable().default(null),
+  chatAudioDeviceId: z.string().min(1).max(512).nullable().default(null),
   hotkey: z.string().min(1).max(128),
   clipsDirectory: z.string().max(4_096).nullable(),
 });

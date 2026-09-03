@@ -2060,6 +2060,26 @@ textarea:focus-visible {
   padding: 4px 1px;
 }
 
+.capture-replay-audio {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 1px;
+}
+
+.capture-replay-audio__row {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+.capture-replay-audio__row .capture-replay-toggle {
+  min-height: 32px;
+  padding: 2px 0;
+}
+
 .capture-replay-folder {
   border-top: 1px solid var(--border);
   padding-top: 10px;

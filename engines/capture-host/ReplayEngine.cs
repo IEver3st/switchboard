@@ -12,8 +12,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private readonly WindowsChildProcessJob childProcesses = new();
     private Process? ffmpeg;
     private Process? systemAudioFfmpeg;
+    private Process? chatAudioFfmpeg;
     private Process? microphoneFfmpeg;
     private IAudioPipeInput? systemAudio;
+    private IAudioPipeInput? chatAudio;
     private AudioPipeCapture? microphoneAudio;
     private readonly ReactionDetector reactionDetector = new();
     private ReplaySegmentRing? ring;
@@ -57,9 +59,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     public IReadOnlyList<ReplayProcessResource> GetProcessResources()
     {
-        var resources = new List<ReplayProcessResource>(3);
+        var resources = new List<ReplayProcessResource>(4);
         AddProcessResource(resources, ffmpeg, "video-encoder");
         AddProcessResource(resources, systemAudioFfmpeg, "system-audio-encoder");
+        AddProcessResource(resources, chatAudioFfmpeg, "chat-audio-encoder");
         AddProcessResource(resources, microphoneFfmpeg, "microphone-encoder");
         return resources;
     }
@@ -68,6 +71,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     {
         if (ffmpeg is { HasExited: false }) yield return ffmpeg;
         if (systemAudioFfmpeg is { HasExited: false }) yield return systemAudioFfmpeg;
+        if (chatAudioFfmpeg is { HasExited: false }) yield return chatAudioFfmpeg;
         if (microphoneFfmpeg is { HasExited: false }) yield return microphoneFfmpeg;
     }
 
@@ -254,6 +258,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         CaptureSettings capture;
         string snapshotDirectory;
         string? systemAudioSnapshotDirectory = null;
+        string? chatAudioSnapshotDirectory = null;
         string? microphoneSnapshotDirectory = null;
         CaptureSource? clipSource;
         DateTimeOffset captureStartedAt;
@@ -290,6 +295,18 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     if (IsAudioRangeCurrent(selectedSystemAudio, selected[^1].EndedAt))
                         systemAudioSnapshotDirectory = ring.Snapshot(selectedSystemAudio);
                 }
+                if (capture.IncludeChatAudio)
+                {
+                    var chatAudioSegments = ring.List(
+                        sessionDirectory,
+                        captureRunning: chatAudioFfmpeg is { HasExited: false },
+                        searchPattern: "chat-*.mka");
+                    var selectedChatAudio = window is { } chatWindow
+                        ? ring.SelectForWindow(chatAudioSegments, chatWindow.StartedAt, chatWindow.EndedAt)
+                        : ring.SelectForReplay(chatAudioSegments, TimeSpan.FromSeconds(capture.ReplaySeconds));
+                    if (IsAudioRangeCurrent(selectedChatAudio, selected[^1].EndedAt))
+                        chatAudioSnapshotDirectory = ring.Snapshot(selectedChatAudio);
+                }
                 if (capture.IncludeMic)
                 {
                     var microphoneSegments = ring.List(
@@ -308,6 +325,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 ReplaySegmentRing.TryDeleteDirectory(snapshotDirectory);
                 if (systemAudioSnapshotDirectory is not null)
                     ReplaySegmentRing.TryDeleteDirectory(systemAudioSnapshotDirectory);
+                if (chatAudioSnapshotDirectory is not null)
+                    ReplaySegmentRing.TryDeleteDirectory(chatAudioSnapshotDirectory);
+                if (microphoneSnapshotDirectory is not null)
+                    ReplaySegmentRing.TryDeleteDirectory(microphoneSnapshotDirectory);
                 throw;
             }
             clipSource = activeSource ?? lastCaptureSource;
@@ -335,12 +356,16 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 var systemAudioConcatPath = systemAudioSnapshotDirectory is null
                     ? null
                     : await WriteConcatFileAsync(systemAudioSnapshotDirectory, cancellationToken);
+                var chatAudioConcatPath = chatAudioSnapshotDirectory is null
+                    ? null
+                    : await WriteConcatFileAsync(chatAudioSnapshotDirectory, cancellationToken);
                 var microphoneConcatPath = microphoneSnapshotDirectory is null
                     ? null
                     : await WriteConcatFileAsync(microphoneSnapshotDirectory, cancellationToken);
                 await RunRemuxAsync(
                     concatPath,
                     systemAudioConcatPath,
+                    chatAudioConcatPath,
                     microphoneConcatPath,
                     temporaryPath,
                     captureEndedAt - captureStartedAt,
@@ -376,6 +401,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             ReplaySegmentRing.TryDeleteDirectory(snapshotDirectory);
             if (systemAudioSnapshotDirectory is not null)
                 ReplaySegmentRing.TryDeleteDirectory(systemAudioSnapshotDirectory);
+            if (chatAudioSnapshotDirectory is not null)
+                ReplaySegmentRing.TryDeleteDirectory(chatAudioSnapshotDirectory);
             if (microphoneSnapshotDirectory is not null)
                 ReplaySegmentRing.TryDeleteDirectory(microphoneSnapshotDirectory);
             Interlocked.Decrement(ref saveQueueDepth);
@@ -403,6 +430,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 captureRunning: systemAudioFfmpeg is { HasExited: false },
                 searchPattern: "system-*.mka")
             : [];
+        var chatAudioSegments = capture is not null && ring is not null && sessionDirectory is not null
+            ? ring.List(
+                sessionDirectory,
+                captureRunning: chatAudioFfmpeg is { HasExited: false },
+                searchPattern: "chat-*.mka")
+            : [];
         var microphoneSegments = capture is not null && ring is not null && sessionDirectory is not null
             ? ring.List(
                 sessionDirectory,
@@ -411,6 +444,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             : [];
         var cacheBytes = complete.Sum(segment => segment.SizeBytes)
                          + systemAudioSegments.Where(segment => segment.Complete).Sum(segment => segment.SizeBytes)
+                         + chatAudioSegments.Where(segment => segment.Complete).Sum(segment => segment.SizeBytes)
                          + microphoneSegments.Where(segment => segment.Complete).Sum(segment => segment.SizeBytes);
         var bufferedSeconds = complete.Length == 0
             ? 0
@@ -420,7 +454,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         var state = Volatile.Read(ref saveQueueDepth) > 0 && operationalState is "buffering" or "waiting"
             ? "saving"
             : operationalState;
-        var audioWarning = microphoneAudio?.Error ?? systemAudio?.Error ?? GetAudioBackpressureWarning();
+        var audioWarning = microphoneAudio?.Error ?? chatAudio?.Error ?? systemAudio?.Error ?? GetAudioBackpressureWarning();
         var reactionRuntime = reactionDetector.Snapshot(
             inputActive: activeSource is not null && microphoneAudio is { Error: null },
             unavailableReason: capture?.ReactionClippingEnabled == true && activeSource is not null
@@ -539,12 +573,27 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     ? null
                     : capture.ClipMixPipeName is { Length: > 0 } pipeName
                         ? new AudioHostPipeInput(pipeName, "Switchboard clip mix")
-                        : AudioPipeCapture.CreateSystemLoopback();
+                        : capture.SystemAudioDeviceId is { Length: > 0 } systemEndpointId
+                            ? AudioPipeCapture.CreateLoopbackEndpoint(systemEndpointId, "Game audio")
+                            : AudioPipeCapture.CreateSystemLoopback();
             }
             catch (Exception systemAudioError)
             {
                 systemAudio = null;
-                audioWarnings.Add($"System audio unavailable: {systemAudioError.Message}");
+                audioWarnings.Add($"Game audio unavailable: {systemAudioError.Message}");
+            }
+            try
+            {
+                chatAudio = !capture.IncludeChatAudio
+                    ? null
+                    : capture.ChatAudioDeviceId is { Length: > 0 } chatEndpointId
+                        ? AudioPipeCapture.CreateLoopbackEndpoint(chatEndpointId, "Chat audio")
+                        : AudioPipeCapture.CreateSystemLoopback();
+            }
+            catch (Exception chatAudioError)
+            {
+                chatAudio = null;
+                audioWarnings.Add($"Chat audio unavailable: {chatAudioError.Message}");
             }
             try
             {
@@ -580,7 +629,30 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     systemAudioFfmpeg = null;
                     await systemAudio.DisposeAsync();
                     systemAudio = null;
-                    audioWarnings.Add($"System audio unavailable: {systemEncoderError.Message}");
+                    audioWarnings.Add($"Game audio unavailable: {systemEncoderError.Message}");
+                }
+            }
+
+            if (chatAudio is not null)
+            {
+                try
+                {
+                    chatAudioFfmpeg = childProcesses.Start(BuildAudioStartInfo(
+                        capture,
+                        sessionDirectory,
+                        chatAudio,
+                        "chat",
+                        capture.ChatAudioBitrateBps,
+                        outputChannels: 2), "chat-audio encoder");
+                    _ = DrainAsync(chatAudioFfmpeg.StandardError, lifetime.Token);
+                    _ = DrainAsync(chatAudioFfmpeg.StandardOutput, lifetime.Token);
+                }
+                catch (Exception chatEncoderError)
+                {
+                    chatAudioFfmpeg = null;
+                    await chatAudio.DisposeAsync();
+                    chatAudio = null;
+                    audioWarnings.Add($"Chat audio unavailable: {chatEncoderError.Message}");
                 }
             }
 
@@ -623,9 +695,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
             using var pipeTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             pipeTimeout.CancelAfter(TimeSpan.FromSeconds(8));
-            var audioConnections = new[]
+            var audioConnections = new IAudioPipeInput?[]
                 {
                     systemAudioFfmpeg is { HasExited: false } ? systemAudio : null,
+                    chatAudioFfmpeg is { HasExited: false } ? chatAudio : null,
                     microphoneFfmpeg is { HasExited: false } ? microphoneAudio : null,
                 }
                 .Where(input => input is not null)
@@ -641,7 +714,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             if (ffmpeg.HasExited)
                 throw new InvalidOperationException($"FFmpeg capture exited during startup with code {ffmpeg.ExitCode}.");
             if (systemAudioFfmpeg is { HasExited: true })
-                audioWarnings.Add("The system-audio encoder exited during startup.");
+                audioWarnings.Add("The game-audio encoder exited during startup.");
+            if (chatAudioFfmpeg is { HasExited: true })
+                audioWarnings.Add("The chat-audio encoder exited during startup.");
             if (microphoneFfmpeg is { HasExited: true })
                 audioWarnings.Add("The microphone encoder exited during startup.");
             activeSource = source;
@@ -906,21 +981,27 @@ internal sealed class ReplayEngine : IAsyncDisposable
     {
         var process = ffmpeg;
         var systemAudioProcess = systemAudioFfmpeg;
+        var chatAudioProcess = chatAudioFfmpeg;
         var microphoneProcess = microphoneFfmpeg;
         var systemAudioCapture = systemAudio;
+        var chatAudioCapture = chatAudio;
         var microphoneCapture = microphoneAudio;
         ffmpeg = null;
         systemAudioFfmpeg = null;
+        chatAudioFfmpeg = null;
         microphoneFfmpeg = null;
         audioSyncCorrections = GetAudioCorrectionCount();
         systemAudio = null;
+        chatAudio = null;
         microphoneAudio = null;
         await Task.WhenAll(
             systemAudioCapture?.DisposeAsync().AsTask() ?? Task.CompletedTask,
+            chatAudioCapture?.DisposeAsync().AsTask() ?? Task.CompletedTask,
             microphoneCapture?.DisposeAsync().AsTask() ?? Task.CompletedTask);
         await Task.WhenAll(
             StopProcessAsync(process, cancellationToken),
             StopProcessAsync(systemAudioProcess, cancellationToken),
+            StopProcessAsync(chatAudioProcess, cancellationToken),
             StopProcessAsync(microphoneProcess, cancellationToken));
         reactionDetector.Pause();
         reactionUnavailableReason = null;
@@ -1003,12 +1084,22 @@ internal sealed class ReplayEngine : IAsyncDisposable
                             sessionDirectory,
                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
                             capture.MaximumCacheBytes,
+                            captureRunning: chatAudioFfmpeg is { HasExited: false },
+                            searchPattern: "chat-*.mka");
+                        ring.Evict(
+                            sessionDirectory,
+                            TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
+                            capture.MaximumCacheBytes,
                             captureRunning: microphoneFfmpeg is { HasExited: false },
                             searchPattern: "microphone-*.mka");
                         var audioBytes = ring.List(
                                 sessionDirectory,
                                 captureRunning: systemAudioFfmpeg is { HasExited: false },
                                 searchPattern: "system-*.mka")
+                            .Concat(ring.List(
+                                sessionDirectory,
+                                captureRunning: chatAudioFfmpeg is { HasExited: false },
+                                searchPattern: "chat-*.mka"))
                             .Concat(ring.List(
                                 sessionDirectory,
                                 captureRunning: microphoneFfmpeg is { HasExited: false },
@@ -1024,15 +1115,18 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
                     var storage = GetStorageStatus(capture, GetReplayCacheBytes());
                     var systemAudioProcessWarning = capture.IncludeSystemAudio && systemAudioFfmpeg is { HasExited: true }
-                        ? "The system-audio encoder stopped. Video is still buffering."
+                        ? "The game-audio encoder stopped. Video is still buffering."
+                        : null;
+                    var chatAudioProcessWarning = capture.IncludeChatAudio && chatAudioFfmpeg is { HasExited: true }
+                        ? "The chat-audio encoder stopped. Video and other audio are still buffering."
                         : null;
                     var microphoneProcessWarning = capture.IncludeMic && microphoneFfmpeg is { HasExited: true }
                         ? "The microphone encoder stopped. Video and system audio are still buffering."
                         : null;
                     warning = storage.LowSpace
                         ? storage.Warning
-                        : systemAudioProcessWarning ?? microphoneProcessWarning
-                          ?? microphoneAudio?.Error ?? systemAudio?.Error ?? GetAudioBackpressureWarning();
+                        : systemAudioProcessWarning ?? chatAudioProcessWarning ?? microphoneProcessWarning
+                          ?? microphoneAudio?.Error ?? chatAudio?.Error ?? systemAudio?.Error ?? GetAudioBackpressureWarning();
                     if (storage.CriticalSpace && ffmpeg is { HasExited: false })
                     {
                         await StopFfmpegInternalAsync(CancellationToken.None, preserveRing: true);
@@ -1184,18 +1278,24 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 searchPattern: "system-*.mka")
             .Where(segment => segment.Complete)
             .Sum(segment => segment.SizeBytes);
+        var chatAudioBytes = ring.List(
+                sessionDirectory,
+                captureRunning: chatAudioFfmpeg is { HasExited: false },
+                searchPattern: "chat-*.mka")
+            .Where(segment => segment.Complete)
+            .Sum(segment => segment.SizeBytes);
         var microphoneBytes = ring.List(
                 sessionDirectory,
                 captureRunning: microphoneFfmpeg is { HasExited: false },
                 searchPattern: "microphone-*.mka")
             .Where(segment => segment.Complete)
             .Sum(segment => segment.SizeBytes);
-        return mainBytes + systemAudioBytes + microphoneBytes;
+        return mainBytes + systemAudioBytes + chatAudioBytes + microphoneBytes;
     }
 
     private int GetAudioCorrectionCount()
     {
-        var liveDrops = (systemAudio?.DroppedPackets ?? 0) + (microphoneAudio?.DroppedPackets ?? 0);
+        var liveDrops = (systemAudio?.DroppedPackets ?? 0) + (chatAudio?.DroppedPackets ?? 0) + (microphoneAudio?.DroppedPackets ?? 0);
         return (int)Math.Min(int.MaxValue, audioSyncCorrections + liveDrops);
     }
 
@@ -1209,7 +1309,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     private string? GetAudioBackpressureWarning()
     {
-        var inputs = new[] { systemAudio, microphoneAudio }.Where(input => input is not null).Cast<IAudioPipeInput>();
+        var inputs = new IAudioPipeInput?[] { systemAudio, chatAudio, microphoneAudio }.Where(input => input is not null).Cast<IAudioPipeInput>();
         var audioInputs = inputs.ToArray();
         if (audioInputs.All(input => input.DroppedPackets == 0)) return null;
         var drops = audioInputs.Sum(input => input.DroppedPackets);
@@ -1233,6 +1333,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private async Task RunRemuxAsync(
         string concatPath,
         string? systemAudioConcatPath,
+        string? chatAudioConcatPath,
         string? microphoneConcatPath,
         string temporaryOutputPath,
         TimeSpan replayDuration,
@@ -1248,10 +1349,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
         var arguments = BuildRemuxArguments(
             concatPath,
             systemAudioConcatPath,
+            chatAudioConcatPath,
             microphoneConcatPath,
             temporaryOutputPath,
             replayDuration,
-            settings?.ClipMixPipeName is not null ? "Switchboard Clip Mix" : "Game/System",
+            settings?.ClipMixPipeName is not null ? "Switchboard Clip Mix" : "Game",
+            "Chat",
             settings?.ProcessedMicrophoneDeviceId is not null ? "Processed Microphone" : "Microphone");
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = childProcesses.Start(start, "FFmpeg remux");
@@ -1266,10 +1369,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
     internal static IReadOnlyList<string> BuildRemuxArguments(
         string concatPath,
         string? systemAudioConcatPath,
+        string? chatAudioConcatPath,
         string? microphoneConcatPath,
         string temporaryOutputPath,
         TimeSpan replayDuration,
         string systemAudioTitle,
+        string chatAudioTitle,
         string microphoneTitle)
     {
         // Capture.Host stdin carries JSON commands. A remux must never compete for that pipe.
@@ -1278,39 +1383,22 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-nostdin", "-hide_banner", "-loglevel", "error",
             "-f", "concat", "-safe", "0", "-i", concatPath,
         };
-        if (systemAudioConcatPath is not null)
-            arguments.AddRange(["-f", "concat", "-safe", "0", "-i", systemAudioConcatPath]);
-        if (microphoneConcatPath is not null)
-            arguments.AddRange(["-f", "concat", "-safe", "0", "-i", microphoneConcatPath]);
+        var audioTracks = new List<(string ConcatPath, string Title)>();
+        if (systemAudioConcatPath is not null) audioTracks.Add((systemAudioConcatPath, systemAudioTitle));
+        if (chatAudioConcatPath is not null) audioTracks.Add((chatAudioConcatPath, chatAudioTitle));
+        if (microphoneConcatPath is not null) audioTracks.Add((microphoneConcatPath, microphoneTitle));
+        foreach (var track in audioTracks)
+            arguments.AddRange(["-f", "concat", "-safe", "0", "-i", track.ConcatPath]);
         arguments.AddRange(["-map", "0:v:0"]);
-        var hasSystemAudio = systemAudioConcatPath is not null;
-        var hasMicrophoneAudio = microphoneConcatPath is not null;
-        if (hasSystemAudio && hasMicrophoneAudio)
+        // Each replay input stays on its own MP4 audio track so the clip editor
+        // can mute the microphone without losing game/chat audio. Shared exports
+        // mix the audible tracks back together.
+        for (var index = 0; index < audioTracks.Count; index++)
         {
-            // Chromium and most ordinary players select one MP4 audio track. Keeping the
-            // microphone as a second track made it present in the file but silent in clip
-            // playback, so combine the independently buffered inputs at save time.
-            arguments.AddRange([
-                "-filter_complex", "[1:a:0][2:a:0]amix=inputs=2:duration=longest:dropout_transition=0[clip_audio]",
-                "-map", "[clip_audio]",
-                "-metadata:s:a:0", $"title={systemAudioTitle} + {microphoneTitle}",
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-b:a", "256000",
-            ]);
+            arguments.AddRange(["-map", $"{index + 1}:a:0"]);
+            arguments.AddRange(["-metadata:s:a:" + index, $"title={audioTracks[index].Title}"]);
         }
-        else if (hasSystemAudio || hasMicrophoneAudio)
-        {
-            arguments.AddRange([
-                "-map", "1:a:0",
-                "-metadata:s:a:0", $"title={(hasSystemAudio ? systemAudioTitle : microphoneTitle)}",
-                "-c", "copy",
-            ]);
-        }
-        else
-        {
-            arguments.AddRange(["-c", "copy"]);
-        }
+        arguments.AddRange(audioTracks.Count > 0 ? ["-c:v", "copy", "-c:a", "copy"] : ["-c", "copy"]);
         arguments.AddRange([
             "-t", replayDuration.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
             "-movflags", "+faststart",
@@ -1319,6 +1407,25 @@ internal sealed class ReplayEngine : IAsyncDisposable
         ]);
         return arguments;
     }
+
+    internal static IReadOnlyList<string> BuildRemuxArguments(
+        string concatPath,
+        string? systemAudioConcatPath,
+        string? microphoneConcatPath,
+        string temporaryOutputPath,
+        TimeSpan replayDuration,
+        string systemAudioTitle,
+        string microphoneTitle)
+        => BuildRemuxArguments(
+            concatPath,
+            systemAudioConcatPath,
+            null,
+            microphoneConcatPath,
+            temporaryOutputPath,
+            replayDuration,
+            systemAudioTitle,
+            "Chat",
+            microphoneTitle);
 
     private async Task ReadProgressAsync(StreamReader reader, CancellationToken cancellationToken)
     {
@@ -1368,16 +1475,22 @@ internal sealed class ReplayEngine : IAsyncDisposable
         || previous.Quality != next.Quality
         || previous.IncludeMic != next.IncludeMic
         || previous.IncludeSystemAudio != next.IncludeSystemAudio
+        || previous.IncludeChatAudio != next.IncludeChatAudio
         || previous.IncludeCursor != next.IncludeCursor
         || previous.TargetVideoBitrateBps != next.TargetVideoBitrateBps
         || previous.MaximumVideoBitrateBps != next.MaximumVideoBitrateBps
         || previous.SystemAudioBitrateBps != next.SystemAudioBitrateBps
         || previous.MicrophoneBitrateBps != next.MicrophoneBitrateBps
+        || previous.ChatAudioBitrateBps != next.ChatAudioBitrateBps
         || previous.ClipMixPipeName != next.ClipMixPipeName
         || previous.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId
            && (previous.IncludeMic || next.IncludeMic)
         || previous.MicrophoneDeviceId != next.MicrophoneDeviceId
            && (previous.IncludeMic || next.IncludeMic || previous.ReactionClippingEnabled || next.ReactionClippingEnabled)
+        || previous.SystemAudioDeviceId != next.SystemAudioDeviceId
+           && (previous.IncludeSystemAudio || next.IncludeSystemAudio)
+        || previous.ChatAudioDeviceId != next.ChatAudioDeviceId
+           && (previous.IncludeChatAudio || next.IncludeChatAudio)
         || previous.CacheDirectory != next.CacheDirectory;
 
     private static IEnumerable<string> EncoderCandidates(string codec) => codec switch

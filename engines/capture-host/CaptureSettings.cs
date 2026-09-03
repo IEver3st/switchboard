@@ -15,17 +15,24 @@ internal sealed record CaptureSettings(
     int ReplaySeconds = 60,
     bool IncludeMic = true,
     bool IncludeSystemAudio = true,
+    bool IncludeChatAudio = false,
     bool IncludeCursor = false,
     int TargetVideoBitrateBps = 35_000_000,
     int MaximumVideoBitrateBps = 44_800_000,
     int SystemAudioBitrateBps = 192_000,
     int MicrophoneBitrateBps = 128_000,
+    int ChatAudioBitrateBps = 128_000,
     string CacheDirectory = "",
     string ClipsDirectory = "",
     string ThumbnailDirectory = "",
     string? ClipMixPipeName = null,
     string? ProcessedMicrophoneDeviceId = null,
     string? MicrophoneDeviceId = null,
+    string? SystemAudioDeviceId = null,
+    string? ChatAudioDeviceId = null,
+    // Legacy clients send MicrophoneDeviceId as a friendly name when the endpoint
+    // id is unknown. The host always prefers endpoint ids and ignores names.
+    string? MicrophoneDevice = null,
     bool ReactionClippingEnabled = false,
     string ReactionSensitivity = "balanced",
     int ReactionCooldownSeconds = 15,
@@ -34,7 +41,7 @@ internal sealed record CaptureSettings(
     public int SegmentSeconds => 1;
     public int SegmentRetentionSeconds => ReplaySeconds + SegmentSeconds * 3;
     public long EstimatedReplayBytes => (long)Math.Ceiling(
-        (TargetVideoBitrateBps + SystemAudioBitrateBps + (IncludeMic ? MicrophoneBitrateBps : 0))
+        (TargetVideoBitrateBps + SystemAudioBitrateBps + (IncludeMic ? MicrophoneBitrateBps : 0) + (IncludeChatAudio ? ChatAudioBitrateBps : 0))
         * ReplaySeconds / 8d * 1.2);
     public long MaximumCacheBytes => Math.Max(256L * 1024 * 1024, EstimatedReplayBytes * 2);
 
@@ -60,6 +67,8 @@ internal sealed record CaptureSettings(
             throw new InvalidOperationException("The clip-mix pipe identity is invalid.");
         if (MicrophoneDeviceId is { Length: > 512 } || ProcessedMicrophoneDeviceId is { Length: > 512 })
             throw new InvalidOperationException("The microphone endpoint identity is invalid.");
+        if (SystemAudioDeviceId is { Length: > 512 } || ChatAudioDeviceId is { Length: > 512 })
+            throw new InvalidOperationException("The system audio endpoint identity is invalid.");
         if (ReactionSensitivity is not ("low" or "balanced" or "high"))
             throw new ArgumentOutOfRangeException(nameof(ReactionSensitivity));
         if (ReactionCooldownSeconds is < 5 or > 120)

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Monitor, RefreshCw, Settings2, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
-import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
+import type { AudioDevice, CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -198,8 +198,7 @@ function ReplayConfiguration({
                   <FieldContent><FieldLabel>Save shortcut</FieldLabel><FieldDescription>Save the current replay buffer.</FieldDescription></FieldContent>
                   <div className="flex items-center gap-2"><Kbd>{config.hotkey}</Kbd><ShortcutRecorderButton value={config.hotkey} label="Save replay shortcut" className="h-8 px-2.5 text-[11px]" onValueChange={(hotkey) => void setCaptureConfig({ hotkey })} /></div>
                 </Field>
-                <CaptureToggle label="Game audio" color="var(--channel-game)" checked={snapshot.capture.capabilities.systemAudio && config.includeSystemAudio} disabled={!snapshot.capture.capabilities.systemAudio} unavailableReason={!snapshot.capture.capabilities.systemAudio ? 'Unavailable for this capture setup' : undefined} onChange={(checked) => void setCaptureConfig({ includeSystemAudio: checked })} />
-                <CaptureToggle label="Microphone" color="var(--channel-microphone)" checked={snapshot.capture.capabilities.microphoneAudio && config.includeMic} disabled={!snapshot.capture.capabilities.microphoneAudio} unavailableReason={!snapshot.capture.capabilities.microphoneAudio ? 'Unavailable for this capture setup' : undefined} onChange={(checked) => void setCaptureConfig({ includeMic: checked })} />
+                <CaptureAudioInputs snapshot={snapshot} />
                 <CaptureToggle label="Capture cursor" checked={config.includeCursor} disabled={false} onChange={(checked) => void setCaptureConfig({ includeCursor: checked })} />
               </FieldGroup>
 
@@ -407,6 +406,139 @@ function CaptureToggle({ label, color, checked, disabled, unavailableReason, onC
       </span>
       <Switch checked={checked} disabled={disabled} aria-label={label} onCheckedChange={onChange} />
     </label>
+  );
+}
+
+function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
+  const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
+  const config = snapshot.capture.config;
+  const capabilities = snapshot.capture.capabilities;
+  const devices = snapshot.audio.devices;
+  const systemAvailable = capabilities.systemAudio;
+  const micAvailable = capabilities.microphoneAudio;
+  const outputDevices = devices.filter((device) => device.direction === 'output' && device.available && !device.isSwitchboard);
+  const inputDevices = devices.filter((device) => device.direction === 'input' && device.available && !device.isSwitchboard);
+  const explicitMicUnavailable = Boolean(config.microphoneDeviceId) && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
+  const chatWithoutDevice = config.includeChatAudio && !config.chatAudioDeviceId;
+  const gameAndChatSame = config.includeSystemAudio && config.includeChatAudio
+    && (config.systemAudioDeviceId ?? 'auto') === (config.chatAudioDeviceId ?? 'auto');
+
+  return (
+    <div className="capture-replay-audio" role="group" aria-label="Replay audio inputs">
+      <div className="text-[11px] font-medium text-foreground">Audio inputs</div>
+      <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+        Each input is saved as its own track. Mute the microphone in the clip editor without losing game or chat audio.
+        Sonar users can assign Sonar Game, Sonar Chat, and the microphone to separate inputs.
+      </p>
+      <div className="mt-2 grid gap-2">
+        <div className="capture-replay-audio__row">
+          <CaptureToggle
+            label="Game audio"
+            color="var(--channel-game)"
+            checked={systemAvailable && config.includeSystemAudio}
+            disabled={!systemAvailable}
+            unavailableReason={!systemAvailable ? 'Unavailable for this capture setup' : undefined}
+            onChange={(checked) => void setCaptureConfig({ includeSystemAudio: checked })}
+          />
+          <CaptureAudioDeviceSelect
+            label="Game audio device"
+            value={config.systemAudioDeviceId}
+            devices={outputDevices}
+            automaticLabel={snapshot.audio.host?.running ? 'Automatic (Switchboard clip mix)' : 'Automatic (default system audio)'}
+            disabled={!systemAvailable || !config.includeSystemAudio}
+            onChange={(systemAudioDeviceId) => void setCaptureConfig({ systemAudioDeviceId })}
+          />
+        </div>
+        <div className="capture-replay-audio__row">
+          <CaptureToggle
+            label="Chat audio"
+            color="var(--channel-chat)"
+            checked={systemAvailable && config.includeChatAudio}
+            disabled={!systemAvailable}
+            unavailableReason={!systemAvailable ? 'Unavailable for this capture setup' : undefined}
+            onChange={(checked) => void setCaptureConfig({ includeChatAudio: checked })}
+          />
+          <CaptureAudioDeviceSelect
+            label="Chat audio device"
+            value={config.chatAudioDeviceId}
+            devices={outputDevices}
+            automaticLabel="Automatic (default system audio)"
+            disabled={!systemAvailable || !config.includeChatAudio}
+            onChange={(chatAudioDeviceId) => void setCaptureConfig({ chatAudioDeviceId })}
+          />
+        </div>
+        <div className="capture-replay-audio__row">
+          <CaptureToggle
+            label="Microphone"
+            color="var(--channel-microphone)"
+            checked={micAvailable && config.includeMic}
+            disabled={!micAvailable}
+            unavailableReason={!micAvailable ? 'Unavailable for this capture setup' : undefined}
+            onChange={(checked) => void setCaptureConfig({ includeMic: checked })}
+          />
+          <CaptureAudioDeviceSelect
+            label="Microphone device"
+            value={config.microphoneDeviceId}
+            devices={inputDevices}
+            automaticLabel={snapshot.audio.microphoneDevice ? `Automatic (${snapshot.audio.microphoneDevice})` : 'Automatic (follow Audio settings)'}
+            disabled={!micAvailable || !config.includeMic}
+            onChange={(microphoneDeviceId) => void setCaptureConfig({ microphoneDeviceId })}
+          />
+        </div>
+      </div>
+      {explicitMicUnavailable && config.includeMic ? (
+        <p className="mt-2 text-[10px] leading-4 text-warning" role="status">
+          The selected microphone is not currently available. Reconnect it or choose another input before saving clips.
+        </p>
+      ) : null}
+      {chatWithoutDevice ? (
+        <p className="mt-2 text-[10px] leading-4 text-muted-foreground" role="status">
+          Chat is using the default system output. For separate Discord audio with Sonar, choose Sonar Chat here and Sonar Game above.
+        </p>
+      ) : null}
+      {gameAndChatSame ? (
+        <p className="mt-2 text-[10px] leading-4 text-warning" role="status">
+          Game and chat are using the same output, so their tracks will contain the same sound. Choose different devices to keep them separate.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function CaptureAudioDeviceSelect({
+  label,
+  value,
+  devices,
+  automaticLabel,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string | null;
+  devices: AudioDevice[];
+  automaticLabel: string;
+  disabled: boolean;
+  onChange: (deviceId: string | null) => void;
+}) {
+  const selectedValue = value && devices.some((device) => device.id === value) ? value : 'auto';
+  return (
+    <Select
+      value={selectedValue}
+      disabled={disabled || (devices.length === 0 && selectedValue === 'auto')}
+      onValueChange={(next) => onChange(next === 'auto' ? null : next)}
+    >
+      <SelectTrigger aria-label={label} className="h-8 w-full min-w-0 text-[11px]">
+        <SelectValue placeholder={devices.length === 0 ? 'No available device' : automaticLabel} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="auto">{automaticLabel}</SelectItem>
+        {devices.map((device) => (
+          <SelectItem key={device.id} value={device.id}>
+            {device.name}{device.isDefault ? ' · Default' : ''}{device.isVirtual ? ' · Virtual' : ''}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

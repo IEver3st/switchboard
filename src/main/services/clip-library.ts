@@ -691,10 +691,14 @@ export function buildShareAudioArguments(
 function audioChannelFromTitle(title: string | undefined): ClipAudioChannel | null {
   const normalized = title?.trim().toLocaleLowerCase();
   if (!normalized) return null;
+  // Legacy mixed tracks (e.g. "Game/System + Microphone") cannot be mapped to a
+  // single channel. Keep the stream title so the editor does not mislabel them.
+  if (normalized.includes('+')) return null;
   if (normalized.includes('microphone') || normalized === 'mic') return 'microphone';
   if (normalized.includes('chat')) return 'chat';
   if (normalized.includes('media')) return 'media';
   if (normalized.includes('game') || normalized.includes('system')) return 'game';
+  if (normalized.includes('switchboard clip mix')) return 'game';
   return null;
 }
 
