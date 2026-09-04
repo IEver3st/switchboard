@@ -1,10 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  crcCcitt,
+} from '../src/main/modules/logitech/devices/g502-x-plus/onboard-profile';
+import {
   inferDpiStep,
   parseAdjustableReportRateListPayload,
   parseAdjustableReportRatePayload,
   parseAdjustableDpiListPayload,
   parseMouseButtonSpyNotification,
+  readOnboardState,
   SniperDpiRuntime,
   writeOnboardSector,
 } from '../src/main/modules/logitech/devices/g502-x-plus/sniper-dpi';
@@ -36,6 +40,48 @@ describe('G502 X Plus hold-to-shift DPI', () => {
     await writeOnboardSector(transport, 1, 0x0c, 1, Buffer.alloc(255, 0xff));
 
     expect(chunkSizes).toEqual([...Array<number>(15).fill(16), 15]);
+  });
+
+  test('retries a transient invalid onboard profile sector before publishing capabilities', async () => {
+    const valid = validOnboardSector();
+    const corrupt = Buffer.from(valid);
+    corrupt[40] ^= 1;
+    let profileRead = -1;
+    let activeProfileSector = corrupt;
+    const directory = Buffer.alloc(255, 0xff);
+    Buffer.from('0001010000020100000300000004000000050000ffff0000', 'hex').copy(directory);
+    const response = (payload: Uint8Array): Buffer => {
+      const report = Buffer.alloc(20);
+      report.set(payload.subarray(0, 16), 4);
+      return report;
+    };
+    const transport = {
+      request: async (
+        _deviceIndex: number,
+        _featureIndex: number,
+        functionId: number,
+        parameters: readonly number[] = [],
+      ): Promise<Buffer> => {
+        if (functionId === 0) return response(Uint8Array.from([1, 5, 1, 5, 2, 11, 16, 0, 255, 10, 4]));
+        if (functionId === 2) return response(Uint8Array.from([1]));
+        if (functionId === 4) return response(Uint8Array.from([0, 1]));
+        if (functionId !== 5) throw new Error(`Unexpected function ${functionId}.`);
+        const sector = ((parameters[0] ?? 0) << 8) | (parameters[1] ?? 0);
+        const offset = ((parameters[2] ?? 0) << 8) | (parameters[3] ?? 0);
+        if (sector === 0) return response(directory.subarray(offset, offset + 16));
+        if (offset === 0) {
+          profileRead += 1;
+          activeProfileSector = profileRead === 0 ? corrupt : valid;
+        }
+        return response(activeProfileSector.subarray(offset, offset + 16));
+      },
+    };
+
+    const onboard = await readOnboardState(transport, 1, 0x0b);
+
+    expect(onboard.activeSector).toBe(1);
+    expect(onboard.profile.defaultDpi).toBe(1_600);
+    expect(profileRead).toBe(1);
   });
 
   test('expands the device-reported DPI range encoding', () => {
@@ -146,3 +192,13 @@ describe('G502 X Plus hold-to-shift DPI', () => {
     expect(writes).toEqual([400, 3_200]);
   });
 });
+
+function validOnboardSector(): Buffer {
+  const sector = Buffer.alloc(255, 0xff);
+  sector.set([1, 0, 1]);
+  sector.writeUInt16LE(1_600, 3);
+  sector.writeUInt16LE(800, 5);
+  sector.fill(0, 219, 230);
+  sector.writeUInt16BE(crcCcitt(sector.subarray(0, 253)), 253);
+  return sector;
+}

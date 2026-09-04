@@ -36,6 +36,13 @@ export const settingsCategories: ReadonlyArray<{
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   {
+    id: 'general.workspace',
+    category: 'general',
+    title: 'Workspace',
+    description: 'Choose Just clipping or Full setup. Clipping hides Devices and Audio.',
+    keywords: ['workspace', 'clipping', 'full setup', 'onboarding', 'hide', 'devices', 'audio', 'capture'],
+  },
+  {
     id: 'general.uiScale',
     category: 'general',
     title: 'Interface scale',

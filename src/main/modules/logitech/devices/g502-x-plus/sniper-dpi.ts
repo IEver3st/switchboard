@@ -8,6 +8,7 @@ import type {
 } from '../../../../../shared/contracts';
 import { HidppLongTransport } from '../../hidpp-long-transport';
 import {
+  G502OnboardProfileCrcError,
   G502OnboardProfile,
   parseOnboardProfilesInfo,
   parseProfileDirectory,
@@ -654,8 +655,8 @@ class RgbOwnershipReleaseError extends Error {
   }
 }
 
-async function readOnboardState(
-  transport: HidppLongTransport,
+export async function readOnboardState(
+  transport: Pick<HidppLongTransport, 'request'>,
   deviceIndex: number,
   featureIndex: number,
 ): Promise<OnboardState> {
@@ -672,12 +673,23 @@ async function readOnboardState(
     ? reportedActive
     : addresses[0];
   if (activeSector === undefined) throw new Error('The mouse has no readable onboard profile.');
-  const sector = await readOnboardSector(transport, deviceIndex, featureIndex, activeSector, info.sectorSize);
+  let sector = await readOnboardSector(transport, deviceIndex, featureIndex, activeSector, info.sectorSize);
+  let profile: G502OnboardProfile;
+  try {
+    profile = new G502OnboardProfile(info, sector);
+  } catch (error) {
+    if (!(error instanceof G502OnboardProfileCrcError)) throw error;
+    // A sleeping or concurrently observed LIGHTSPEED receiver can return one
+    // incoherent multi-chunk sector. Never publish or mutate it; drain the
+    // serialized HID++ reply queue and require one complete CRC-valid reread.
+    sector = await readOnboardSector(transport, deviceIndex, featureIndex, activeSector, info.sectorSize);
+    profile = new G502OnboardProfile(info, sector);
+  }
   return {
     info,
     mode: modeResponse[4] === 1 ? 'onboard' : 'software',
     activeSector,
-    profile: new G502OnboardProfile(info, sector),
+    profile,
   };
 }
 

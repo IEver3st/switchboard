@@ -26,13 +26,18 @@ export function Sidebar({
   onNavigate: (page: PageId) => void;
   onNavigateIntent?: (page: PageId) => void;
 }) {
+  const clippingOnly = snapshot.settings.workspaceProfile === 'clipping';
+  const visibleNavigation = navigation.filter(({ id }) => {
+    if (!clippingOnly) return true;
+    return id === 'capture';
+  });
   return (
     <aside className="switchboard-sidebar flex w-[72px] shrink-0 flex-col items-center bg-chrome py-2">
       <div className="app-drag flex h-[46px] w-full shrink-0 items-center justify-center">
         <img src="./switchboard-mark.png" alt="" className="size-10 object-contain opacity-90" draggable={false} />
       </div>
       <nav aria-label="Primary" className="mt-3 flex w-full flex-col items-center gap-1 px-2">
-        {navigation.map(({ id, label, icon: Icon, engine }) => {
+        {visibleNavigation.map(({ id, label, icon: Icon, engine }) => {
           const active = page === id;
           const running = engine ? snapshot.engines.find((candidate) => candidate.kind === engine)?.state === 'running' : undefined;
           return (

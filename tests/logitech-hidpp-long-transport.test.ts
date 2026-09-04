@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { EventEmitter } from 'node:events';
-import { HidppLongTransport } from '../src/main/modules/logitech/hidpp-long-transport';
+import { HidppLongTransport, resolveHidppSoftwareId } from '../src/main/modules/logitech/hidpp-long-transport';
 
 class DuplicateReplyHandle extends EventEmitter {
   public async write(report: Buffer): Promise<number> {
@@ -21,6 +21,18 @@ class DuplicateReplyHandle extends EventEmitter {
   public async close(): Promise<void> {}
 }
 
+class EchoReplyHandle extends EventEmitter {
+  public lastReport: Buffer | null = null;
+
+  public async write(report: Buffer): Promise<number> {
+    this.lastReport = Buffer.from(report);
+    setTimeout(() => this.emit('data', Buffer.from(report)), 0);
+    return report.length;
+  }
+
+  public async close(): Promise<void> {}
+}
+
 describe('HID++ long transport', () => {
   test('drains a duplicate reply before starting the next same-address request', async () => {
     const handle = new DuplicateReplyHandle();
@@ -33,5 +45,28 @@ describe('HID++ long transport', () => {
     } finally {
       await transport.close();
     }
+  });
+
+  test('uses a caller-specific software ID so concurrent clients cannot consume each other replies', async () => {
+    const handle = new EchoReplyHandle();
+    const TransportConstructor = HidppLongTransport as unknown as new (
+      handle: EchoReplyHandle,
+      softwareId: number,
+    ) => HidppLongTransport;
+    const transport = new TransportConstructor(handle, 0x0a);
+
+    try {
+      await transport.request(1, 0x0b, 5, [0, 1, 0, 0]);
+      expect(handle.lastReport?.[3]).toBe(0x5a);
+    } finally {
+      await transport.close();
+    }
+  });
+
+  test('separates installed, development, and native-review HID++ clients', () => {
+    expect(resolveHidppSoftwareId({})).toBe(0x07);
+    expect(resolveHidppSoftwareId({ ELECTRON_RENDERER_URL: 'http://localhost:5173' })).toBe(0x08);
+    expect(resolveHidppSoftwareId({ SWITCHBOARD_NATIVE_REVIEW: '1' })).toBe(0x09);
+    expect(resolveHidppSoftwareId({ SWITCHBOARD_HIDPP_SOFTWARE_ID: 'a' })).toBe(0x0a);
   });
 });

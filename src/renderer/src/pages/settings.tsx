@@ -208,10 +208,31 @@ function SettingsCategory({
 
 function GeneralSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
+  const setPage = useSystemStore((state) => state.setPage);
 
   return (
     <>
       <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and releases the interface." onReset={onReset} />
+      <SettingSection title="Workspace">
+        <SettingSelect
+          settingId="general.workspace"
+          title="Workspace"
+          description={snapshot.settings.workspaceProfile === 'clipping'
+            ? 'Clipping hides Devices and Audio. Switch back to Full setup to show everything again.'
+            : 'Full setup shows Devices, Audio, and Capture. Just clipping hides Devices and Audio.'}
+          value={snapshot.settings.workspaceProfile ?? 'full'}
+          options={[
+            { value: 'clipping', label: 'Just clipping' },
+            { value: 'full', label: 'Full setup' },
+          ]}
+          onValueChange={(value) => {
+            const profile = value === 'clipping' ? 'clipping' : 'full';
+            void updateSettings({ workspaceProfile: profile, onboardingCompleted: true }).then(() => {
+              setPage(profile === 'clipping' ? 'capture' : 'devices');
+            });
+          }}
+        />
+      </SettingSection>
       <SettingSection title="Appearance">
         <SettingSelect
           settingId="general.uiScale"

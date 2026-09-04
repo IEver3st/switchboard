@@ -675,6 +675,8 @@ export const defaultSettings: AppSettings = {
   scanGamesAutomatically: true,
   clipEditorInspectorOpen: true,
   deviceAppearanceOverrides: {},
+  workspaceProfile: null,
+  onboardingCompleted: false,
 };
 
 export const defaultAppUpdate: AppUpdateState = {

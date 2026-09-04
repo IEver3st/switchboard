@@ -1285,6 +1285,9 @@ export const gameDetectionStateSchema = z.object({
 });
 export type GameDetectionState = z.infer<typeof gameDetectionStateSchema>;
 
+export const visibleWorkspaceSchema = z.enum(['devices', 'audio', 'capture']);
+export type VisibleWorkspace = z.infer<typeof visibleWorkspaceSchema>;
+
 export const appSettingsSchema = z.object({
   uiScalePercent: z.union([
     z.literal(90),
@@ -1307,6 +1310,8 @@ export const appSettingsSchema = z.object({
   scanGamesAutomatically: z.boolean(),
   clipEditorInspectorOpen: z.boolean(),
   deviceAppearanceOverrides: z.record(z.string(), deviceAppearanceOverrideSchema).default({}),
+  workspaceProfile: workspaceProfileSchema.nullable().default(null),
+  onboardingCompleted: z.boolean().default(false),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 

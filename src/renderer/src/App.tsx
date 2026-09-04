@@ -3,7 +3,9 @@ import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
 import { reviewableAutoCapturedClips } from '../../shared/clip-review';
+import { isPageVisibleForProfile } from '../../shared/workspace-profile';
 import { Sidebar } from '@/components/layout/sidebar';
+import { OnboardingFlow } from '@/components/layout/onboarding-flow';
 import { StartupScreen } from '@/components/layout/startup-screen';
 import { TitleStrip } from '@/components/layout/title-strip';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -121,9 +123,23 @@ export function App() {
     if (page !== 'settings' && page !== 'modules') previousWorkspaceRef.current = page;
   }, [page]);
 
+  const showOnboarding = Boolean(snapshot && snapshot.settings.onboardingCompleted !== true);
+
+  useEffect(() => {
+    if (!snapshot || showOnboarding) return;
+    if (!isPageVisibleForProfile(page, snapshot.settings)) {
+      setPage('capture');
+    }
+  }, [page, showOnboarding, snapshot, setPage]);
+
   return (
     <LazyMotion features={domAnimation} strict>
       {snapshot ? (
+        showOnboarding ? (
+          <div className="app-shell relative flex h-full bg-chrome">
+            <OnboardingFlow snapshot={snapshot} />
+          </div>
+        ) : (
         <div className="app-shell relative flex h-full bg-chrome">
           {page === 'settings' || page === 'modules' ? (
             <main className="min-h-0 min-w-0 flex-1 bg-background">
@@ -179,6 +195,7 @@ export function App() {
             </Suspense>
           ) : null}
         </div>
+        )
       ) : null}
 
       <AnimatePresence initial={false}>

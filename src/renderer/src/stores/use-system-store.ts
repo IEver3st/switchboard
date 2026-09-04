@@ -177,6 +177,12 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       if (window.location.hash !== initialHash) window.history.replaceState(null, '', initialHash);
       const onHashChange = () => {
         const page = pageFromHash();
+        const profile = get().snapshot?.settings.workspaceProfile;
+        if (profile === 'clipping' && (page === 'devices' || page === 'audio')) {
+          window.history.replaceState(null, '', '#capture');
+          set({ page: 'capture', selectedDeviceId: null });
+          return;
+        }
         const nextHash = canonicalPageHash(page);
         if (window.location.hash !== nextHash) window.history.replaceState(null, '', nextHash);
         set({ page, selectedDeviceId: null });
@@ -188,7 +194,13 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       };
     },
     setPage: (page) => {
+      const snapshot = get().snapshot;
       const nextPage = page === 'modules' ? 'settings' : page;
+      if (snapshot?.settings.workspaceProfile === 'clipping' && (nextPage === 'devices' || nextPage === 'audio')) {
+        if (window.location.hash !== '#capture') window.location.hash = '#capture';
+        set({ page: 'capture' });
+        return;
+      }
       if (page === 'modules') window.sessionStorage.setItem(settingsCategoryStorageKey, 'modules');
       if (window.location.hash !== `#${nextPage}`) window.location.hash = nextPage;
       set({ page: nextPage });

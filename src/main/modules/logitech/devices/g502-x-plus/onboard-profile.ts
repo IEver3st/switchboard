@@ -26,6 +26,13 @@ export interface OnboardProfilesInfo {
   variousInfo: number;
 }
 
+export class G502OnboardProfileCrcError extends Error {
+  public constructor() {
+    super('The onboard profile CRC is invalid.');
+    this.name = 'G502OnboardProfileCrcError';
+  }
+}
+
 const directButtonSlots: Record<string, number> = {
   primary: 0,
   secondary: 1,
@@ -104,7 +111,7 @@ export class G502OnboardProfile {
     }
     const storedCrc = ((sector[sector.length - 2] ?? 0) << 8) | (sector[sector.length - 1] ?? 0);
     const computedCrc = crcCcitt(sector.subarray(0, sector.length - 2));
-    if (storedCrc !== computedCrc) throw new Error('The onboard profile CRC is invalid.');
+    if (storedCrc !== computedCrc) throw new G502OnboardProfileCrcError();
     if ((sector[1] ?? profileDpiCount) >= profileDpiCount || (sector[2] ?? profileDpiCount) >= profileDpiCount) {
       throw new Error('The onboard profile contains an invalid DPI stage index.');
     }

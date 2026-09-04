@@ -2,7 +2,9 @@ import { HIDAsync } from 'node-hid';
 
 const longReportId = 0x11;
 const longReportLength = 20;
-const softwareId = 0x07;
+const installedSoftwareId = 0x07;
+const developmentSoftwareId = 0x08;
+const nativeReviewSoftwareId = 0x09;
 const defaultRequestTimeoutMs = 1_200;
 // Some LIGHTSPEED receivers repeat a reply after the matching request has
 // already resolved. HID++ has no transaction ID beyond feature/function/SW ID,
@@ -34,7 +36,13 @@ export class HidppLongTransport {
   private readonly notificationListeners = new Set<NotificationListener>();
   private closed = false;
 
-  private constructor(private readonly handle: HIDAsync) {
+  private constructor(
+    private readonly handle: HIDAsync,
+    private readonly softwareId = resolveHidppSoftwareId(),
+  ) {
+    if (!Number.isInteger(softwareId) || softwareId < 1 || softwareId > 0x0f) {
+      throw new Error('The HID++ software ID must be a non-zero four-bit value.');
+    }
     this.handle.on('data', this.onData);
     this.handle.on('error', this.onError);
   }
@@ -96,7 +104,7 @@ export class HidppLongTransport {
     timeoutMs: number,
   ): Promise<Buffer> {
     if (this.closed) return Promise.reject(new Error('The HID++ channel is closed.'));
-    const address = (functionId << 4) | softwareId;
+    const address = (functionId << 4) | this.softwareId;
     const report = Buffer.alloc(longReportLength);
     report.set([longReportId, deviceIndex, featureIndex, address, ...parameters]);
 
@@ -148,6 +156,14 @@ export class HidppLongTransport {
     this.pending = null;
     reject(error);
   }
+}
+
+export function resolveHidppSoftwareId(environment: NodeJS.ProcessEnv = process.env): number {
+  const configured = Number.parseInt(environment.SWITCHBOARD_HIDPP_SOFTWARE_ID ?? '', 16);
+  if (Number.isInteger(configured) && configured >= 1 && configured <= 0x0f) return configured;
+  if (environment.SWITCHBOARD_NATIVE_REVIEW === '1') return nativeReviewSoftwareId;
+  if (environment.ELECTRON_RENDERER_URL) return developmentSoftwareId;
+  return installedSoftwareId;
 }
 
 function waitForReplyDrain(): Promise<void> {
