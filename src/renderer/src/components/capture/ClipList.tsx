@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import type { Clip } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../../shared/auto-capture';
@@ -7,30 +8,37 @@ import { ClipActionsMenu, ClipContextMenu, ClipFavorite, ClipShare } from './Cli
 import { groupClips } from './ClipGrid';
 import { ClipThumbnail } from './ClipThumbnail';
 import type { ClipActions } from './types';
+import { useVirtualClipRows } from './use-virtual-clip-rows';
 
-export function ClipList({ clips, actions, selectionMode, selectedClipIds, onToggleSelection }: {
+export const ClipList = memo(function ClipList({ clips, actions, selectionMode, selectedClipIds, onToggleSelection, retainedClipId }: {
+  retainedClipId?: string | null;
   clips: Clip[];
   actions: ClipActions;
   selectionMode: boolean;
   selectedClipIds: string[];
   onToggleSelection: (clip: Clip) => void;
 }) {
+  const groups = useMemo(() => groupClips(clips), [clips]);
+  const virtual = useVirtualClipRows(groups, 'list', retainedClipId);
+  const selectionOrder = useMemo(() => new Map(selectedClipIds.map((id, index) => [id, index + 1])), [selectedClipIds]);
   return (
-    <div className="capture-clip-list-groups">
-      {groupClips(clips).map((group) => (
+    <div className="capture-clip-list-groups" {...virtual.rootProps}>
+      {groups.map((group, groupIndex) => (
         <section key={group.key} aria-labelledby={`clip-list-group-${group.key}`}>
           <div className="capture-clip-group__header flex items-center gap-2.5">
             <h3 id={`clip-list-group-${group.key}`} className="m-0 text-[11px] font-semibold tracking-[-0.01em] text-text-secondary">{group.label}</h3>
             <span className="text-[9.5px] tabular-nums text-text-description">{group.clips.length}</span>
           </div>
-          <ul className="capture-clip-list" aria-label={`${group.label} clips in list view`}>
-      {group.clips.map((clip) => {
-        const selectedOrder = selectedClipIds.includes(clip.id) ? selectedClipIds.indexOf(clip.id) + 1 : null;
+          <ul className="capture-clip-list capture-virtual-group" data-virtual-clip-group={group.key} style={virtual.listStyle(group.clips.length)} aria-label={`${group.label} clips in list view`}>
+      {virtual.indexes(groupIndex).map((index) => {
+        const clip = group.clips[index];
+        if (!clip) return null;
+        const selectedOrder = selectionOrder.get(clip.id) ?? null;
         const selected = selectedOrder !== null;
         const activate = () => selectionMode ? onToggleSelection(clip) : actions.open(clip);
         const autoCaptureSummary = autoCaptureClipSummary(clip);
         return (
-        <ClipContextMenu key={clip.id} clip={clip} actions={actions}><li className="capture-clip-list__item group" data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
+        <ClipContextMenu key={clip.id} clip={clip} actions={actions}><li className="capture-clip-list__item group" style={virtual.itemStyle(index)} aria-posinset={index + 1} aria-setsize={group.clips.length} data-library-clip-id={clip.id} data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
           <div className="capture-clip-list__preview">
             <ClipThumbnail
               clip={clip}
@@ -86,4 +94,4 @@ export function ClipList({ clips, actions, selectionMode, selectedClipIds, onTog
       ))}
     </div>
   );
-}
+});

@@ -8,6 +8,7 @@ import { DeviceGlyph } from '@/components/shared/device-glyph';
 import {
   adaptBlackHardwareForDarkSurface,
   applyLighting,
+  mattePhotographicBackdrop,
   type LightingMask,
 } from '@/components/shared/device-lighting';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -213,6 +214,20 @@ function ProductCanvas({
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = 'high';
       context.clearRect(0, 0, canvas.width, canvas.height);
+      context.save();
+      if (artwork.lightingMask === 'photographic-rgb') {
+        // Trace the physical silhouette of this exact official 1500 x 1000
+        // photograph. Its colored studio halo is background, not hardware.
+        const x = (value: number) => (value / 1500 * image.naturalWidth - crop.left) * processingScale;
+        const y = (value: number) => (value / 1000 * image.naturalHeight - crop.top) * processingScale;
+        const w = (value: number) => value / 1500 * image.naturalWidth * processingScale;
+        const h = (value: number) => value / 1000 * image.naturalHeight * processingScale;
+        context.beginPath();
+        context.roundRect(x(200), y(217), w(1104), h(348), w(14));
+        context.roundRect(x(200), y(564), w(1104), h(224), w(10));
+        context.rect(x(267), y(120), w(41), h(98));
+        context.clip();
+      }
       context.drawImage(
         image,
         crop.left,
@@ -224,15 +239,26 @@ function ProductCanvas({
         canvas.width,
         canvas.height,
       );
+      context.restore();
 
       try {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+        if (artwork.lightingMask === 'photographic-rgb') {
+          // Only the cable still needs a photographic matte. Flood-filling
+          // from the clipped body edge eats into dark wrist-rest texture.
+          const cableRows = Math.max(0, Math.min(canvas.height,
+            Math.floor((217 / 1000 * image.naturalHeight - crop.top) * processingScale),
+          ));
+          if (cableRows > 0) mattePhotographicBackdrop(
+            pixels.data.subarray(0, canvas.width * cableRows * 4), canvas.width, cableRows,
+          );
+        }
         if (artwork.lightingMask && (!lighting.preserveSourceColor || !lighting.enabled)) {
           applyLighting(pixels.data, artwork.lightingMask, lighting.enabled, lighting.color, lighting.brightness);
         }
         if (
           artwork.toneProfile === 'black-hardware-on-dark'
-          || (artwork.toneProfile === 'black-hardware-on-dark-when-unlit' && !lighting.enabled)
+          || (artwork.toneProfile === 'black-hardware-on-dark-when-unlit' && (!lighting.enabled || lighting.brightness <= 0))
         ) {
           adaptBlackHardwareForDarkSurface(pixels.data);
         }

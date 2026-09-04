@@ -1,10 +1,11 @@
+import { debugDiagnostics } from './services/debug-diagnostics';
 import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { join } from 'node:path';
 import { z } from 'zod';
 import {
   applyAudioPresetInputSchema,
   audioPresetIdInputSchema,
-  appSettingsSchema,
+  updateSettingsInputSchema,
   autoCaptureProviderIdSchema,
   autoCaptureSettingsPatchSchema,
   autoCaptureTestEventInputSchema,
@@ -71,19 +72,20 @@ function handle<TInput, TResult>(
 ): void {
   ipcMain.handle(channel, async (event, input) => {
     assertTrustedSender(event, getMainWindow);
-    return action(parse(input));
+    return debugDiagnostics.measureAsync(`ipc:${channel}`, async () => action(parse(input)));
   });
 }
 
 export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null): () => void {
+  handle(ipcChannels.exportResourceDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.exportResourceDiagnostics());
   const audioMeterDelivery = new AudioMeterDeliveryGate();
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow);
-    return getStartupSnapshot(controller);
+    return debugDiagnostics.measureAsync('ipc:snapshot:get', async () => { return getStartupSnapshot(controller); });
   });
   ipcMain.handle(ipcChannels.refreshDevices, async (event) => {
     assertTrustedSender(event, getMainWindow);
-    return controller.refreshDevices();
+    return debugDiagnostics.measureAsync('ipc:devices:refresh', () => controller.refreshDevices());
   });
 
   handle(
@@ -319,7 +321,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   handle(
     ipcChannels.updateSettings,
     getMainWindow,
-    (input) => appSettingsSchema.partial().parse(input),
+    (input) => updateSettingsInputSchema.parse(input),
     (input) => controller.updateSettings(input),
   );
   handle(
@@ -456,7 +458,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   const unsubscribe = controller.subscribe((snapshot) => {
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
-    window.webContents.send(ipcChannels.snapshotUpdated, snapshot);
+    debugDiagnostics.measure('ipc:snapshot:send', () => window.webContents.send(ipcChannels.snapshotUpdated, snapshot));
   });
   const unsubscribeAudioMeters = controller.subscribeAudioMeters((frame) => {
     const window = getMainWindow();

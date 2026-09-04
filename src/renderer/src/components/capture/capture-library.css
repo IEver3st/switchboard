@@ -1,0 +1,230 @@
+/* Capture's command surface shares a 32px control rhythm. */
+.capture-command-header.capture-toolbar {
+  border-bottom: 0;
+}
+
+.capture-command-header button,
+.capture-command-header input {
+  font-size: 11px;
+  font-weight: 500;
+  -webkit-app-region: no-drag;
+}
+
+.capture-replay-popover :is(button, input),
+.capture-tool-menu :is([role="menuitem"], [role="option"]) {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.capture-command-header .capture-command-header__capture-rail {
+  min-height: 48px;
+  padding-block: 8px 4px;
+}
+
+.capture-command-header .capture-command-header__library-row {
+  min-height: 44px;
+  padding-block: 4px 8px;
+}
+
+.capture-command-header .capture-command-header__identity p {
+  display: block;
+}
+
+.capture-command-header .capture-library__tools {
+  gap: 8px 12px;
+}
+
+.capture-command-header .capture-library__search {
+  flex: 1 1 240px;
+  max-width: 520px;
+}
+
+.capture-command-header .capture-library__search [data-slot="input-group"] {
+  border-color: transparent;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.capture-command-header .capture-library__search [data-slot="input-group"]:focus-within {
+  border-color: var(--primary);
+  background: var(--surface-interactive);
+}
+
+.capture-command-header input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+
+.capture-command-header .capture-library-menus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.capture-command-header .capture-montage-selection {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.capture-command-header .capture-montage-selection > div:last-child {
+  width: auto;
+}
+
+.capture-command-header .capture-montage-selection button {
+  height: 32px;
+  border-radius: 4px;
+}
+
+.capture-command-header .capture-tool-control--sort {
+  width: 120px;
+}
+
+.capture-command-header .capture-tool-control--sort .capture-tool-icon {
+  display: block;
+}
+
+.capture-command-header .capture-tool-control--date {
+  width: auto;
+  padding-inline: 10px;
+}
+
+.capture-command-header .capture-tool-label {
+  display: inline;
+}
+
+.capture-command-header :is(.capture-tool-control--date, .capture-tool-control--sort, .capture-montage-trigger, .capture-recorder-settings-trigger, .capture-source-trigger--compact) {
+  height: 32px;
+  gap: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.capture-command-header :is(.capture-tool-control--date, .capture-tool-control--sort, .capture-montage-trigger, .capture-recorder-settings-trigger, .capture-source-trigger--compact):is(:hover, [data-state="open"]):not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.capture-command-header .capture-filter-active {
+  background: var(--accent-subtle);
+  color: var(--accent-hover);
+}
+
+.capture-command-header :is(.capture-recorder-rail, .capture-recorder-sentence) {
+  gap: 8px;
+}
+
+.capture-command-header .capture-recorder-status {
+  min-width: 68px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.capture-command-header .capture-recorder-toggle {
+  min-height: 32px;
+  padding-inline: 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.capture-command-header .capture-recorder-settings-trigger {
+  width: auto;
+  padding-inline: 10px;
+}
+
+.capture-command-header .capture-recorder-length {
+  color: inherit;
+  font-size: inherit;
+}
+
+.capture-command-header .capture-tool-control--view {
+  height: 32px;
+  gap: 2px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--surface-2);
+  padding: 3px;
+}
+
+.capture-command-header .capture-tool-control--view > button {
+  height: 26px;
+  min-width: 28px;
+  border: 0;
+  border-radius: 2px;
+}
+
+.capture-command-header .capture-tool-control--view > button[data-state="on"] {
+  background: var(--accent-subtle);
+  color: var(--accent-hover);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+.capture-library .capture-clip-card__footer {
+  align-items: flex-start;
+}
+
+.capture-library .capture-clip-card__details > h3 {
+  min-height: 40px;
+}
+
+.capture-library .capture-clip-card__title {
+  min-height: 0;
+}
+
+@media (max-width: 1120px) {
+  .capture-library .capture-clip-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-command-header *,
+  .capture-library * {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Explicit tracks preserve the native scroll range with only nearby items mounted. */
+.capture-library .capture-clip-grid.capture-virtual-group {
+  --capture-virtual-columns: 5;
+  grid-template-columns: repeat(var(--capture-virtual-columns), minmax(0, 1fr));
+}
+
+@media (max-width: 1320px) {
+  .capture-library .capture-clip-grid.capture-virtual-group { --capture-virtual-columns: 4; }
+}
+
+@media (max-width: 1120px) {
+  .capture-library .capture-clip-grid.capture-virtual-group { --capture-virtual-columns: 3; }
+}
+
+.capture-library .capture-virtual-group {
+  display: grid;
+  overflow-anchor: none;
+  align-items: start;
+}
+
+.capture-library .capture-clip-list.capture-virtual-group {
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0;
+}
+
+.capture-virtual-group .capture-clip-card,
+.capture-virtual-group .capture-clip-list__item {
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}
+
+.capture-virtual-group .capture-clip-list__item {
+  border-top-width: 1px;
+}
+
+.capture-virtual-group .capture-clip-list__item[aria-posinset="1"] {
+  border-top-width: 0;
+}

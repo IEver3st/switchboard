@@ -1,3 +1,4 @@
+import { debugDiagnostics } from './debug-diagnostics';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -130,10 +131,14 @@ export class EngineSupervisor {
   public send(kind: EngineKind, command: string, payload?: unknown): void {
     const worker = this.processes.get(kind);
     if (!worker?.pid) return;
-    this.sendEnvelope(worker, { command, payload });
+    debugDiagnostics.measure(`host.send:${kind}:${command}`, () => this.sendEnvelope(worker, { command, payload }));
   }
 
   public request<T>(kind: EngineKind, command: string, payload?: unknown, timeoutMs = 10_000): Promise<T> {
+    return debugDiagnostics.measureAsync(`host.request:${kind}:${command}`, () => this.requestUnmeasured<T>(kind, command, payload, timeoutMs));
+  }
+
+  private requestUnmeasured<T>(kind: EngineKind, command: string, payload: unknown, timeoutMs: number): Promise<T> {
     const worker = this.processes.get(kind);
     if (!worker?.pid || worker.exitCode !== null || worker.signalCode !== null) {
       const detail = this.describeUnavailable(kind);

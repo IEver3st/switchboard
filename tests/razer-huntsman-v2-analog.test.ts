@@ -282,6 +282,12 @@ describe('Razer Huntsman V2 Analog module', () => {
     });
     expect(device?.capabilities.keyboard?.rapidTrigger).toBeUndefined();
     expect(device?.capabilities.keyboard?.snapTap).toBeUndefined();
+    expect(device?.capabilities.keyboard?.features.find((feature) => feature.id === 'rapid-trigger')).toMatchObject({
+      label: 'Rapid Trigger', status: 'synapse',
+    });
+    expect(device?.capabilities.keyboard?.features.find((feature) => feature.id === 'rapid-input')).toMatchObject({
+      label: 'Snap Tap', status: 'unsupported',
+    });
     expect(resolveProductAsset(device!.identity, 'keyboard').key).toBe('razer-huntsman-v2-analog');
 
     await module.setControl(device!, { type: 'lighting-effect', effectId: 'static' });

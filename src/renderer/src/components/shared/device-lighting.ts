@@ -1,5 +1,33 @@
 export type LightingMask = 'red-dominant' | 'g502-rgb' | 'photographic-rgb';
 
+/** Remove only dark backdrop connected to the photograph's edge, before lifting hardware tones. */
+export function mattePhotographicBackdrop(data: Uint8ClampedArray, width: number, height: number): void {
+  const visited = new Uint8Array(width * height);
+  const queue = new Int32Array(width * height);
+  let head = 0;
+  let tail = 0;
+  const visit = (pixel: number) => {
+    if (visited[pixel]) return;
+    visited[pixel] = 1;
+    const offset = pixel * 4;
+    const maximum = Math.max(data[offset]!, data[offset + 1]!, data[offset + 2]!);
+    const minimum = Math.min(data[offset]!, data[offset + 1]!, data[offset + 2]!);
+    if (maximum > 24 || maximum - minimum > 8) return;
+    data[offset + 3] = Math.round(data[offset + 3]! * smoothstep(14, 24, maximum));
+    queue[tail++] = pixel;
+  };
+  for (let x = 0; x < width; x++) { visit(x); visit((height - 1) * width + x); }
+  for (let y = 0; y < height; y++) { visit(y * width); visit(y * width + width - 1); }
+  while (head < tail) {
+    const pixel = queue[head++]!;
+    const x = pixel % width;
+    if (x > 0) visit(pixel - 1);
+    if (x < width - 1) visit(pixel + 1);
+    if (pixel >= width) visit(pixel - width);
+    if (pixel < width * (height - 1)) visit(pixel + width);
+  }
+}
+
 interface RgbColor {
   red: number;
   green: number;
@@ -78,14 +106,14 @@ function applyPhotographicLighting(data: Uint8ClampedArray, target: RgbColor, in
     const sourceHsl = rgbToHsl(source);
     const colorized = hslToRgb({
       hue: targetHsl.hue,
-      saturation: targetHsl.saturation,
+      saturation: sourceHsl.saturation * targetHsl.saturation,
       lightness: sourceHsl.lightness,
     });
     // Keep the vendor photograph opaque. The RGB spill is part of the product
     // silhouette as well as its illumination, so alpha-keying it makes an unlit
     // black keyboard disappear against Switchboard's dark canvas. Neutralize
     // emitted color while retaining enough luminance to show keys and edges.
-    const neutralValue = relativeLuminance(source) * 0.55;
+    const neutralValue = minimum + chroma * 0.1;
     const neutral = { red: neutralValue, green: neutralValue, blue: neutralValue };
     const lit = mixColor(neutral, colorized, intensity);
     const output = mixColor(source, lit, maskStrength);
@@ -110,7 +138,7 @@ function applyG502Lighting(data: Uint8ClampedArray, target: RgbColor, intensity:
     const maximum = Math.max(source.red, source.green, source.blue);
     const minimum = Math.min(source.red, source.green, source.blue);
     const chroma = maximum - minimum;
-    if (maximum <= 0 || chroma <= 6) continue;
+    if (maximum <= 0) continue;
 
     // The official G502 artwork already contains a clean, shaded diffuser.
     // Use its chroma as a soft matte instead of turning every loosely saturated
@@ -118,7 +146,6 @@ function applyG502Lighting(data: Uint8ClampedArray, target: RgbColor, intensity:
     // translucent edge falloff, and shell antialiasing from the source render.
     const saturation = chroma / maximum;
     const maskStrength = smoothstep(6, 16, chroma) * smoothstep(0.025, 0.075, saturation);
-    if (maskStrength <= 0) continue;
 
     const sourceHsl = rgbToHsl(source);
     const colorized = hslToRgb({
@@ -126,10 +153,14 @@ function applyG502Lighting(data: Uint8ClampedArray, target: RgbColor, intensity:
       saturation: sourceHsl.saturation * targetHsl.saturation,
       lightness: sourceHsl.lightness,
     });
-    const neutralValue = relativeLuminance(source) * 0.24;
+    // Remove the colored emission, not the material underneath it. Scaling
+    // luminance by a constant made a one-channel color variation turn pale
+    // plastic nearly black, exposing compression noise along the diffuser.
+    const neutralValue = minimum + chroma * 0.1;
     const neutral = { red: neutralValue, green: neutralValue, blue: neutralValue };
-    const lit = mixColor(neutral, colorized, intensity);
-    const output = mixColor(source, lit, maskStrength);
+    // Off shading is continuous even where the chroma mask starts. Blending
+    // a darkened value through that threshold created the jagged black band.
+    const output = mixColor(neutral, mixColor(source, colorized, maskStrength), intensity);
 
     data[offset] = Math.round(output.red);
     data[offset + 1] = Math.round(output.green);
@@ -167,10 +198,6 @@ export function adaptBlackHardwareForDarkSurface(data: Uint8ClampedArray): void 
     data[offset + 1] = Math.min(255, green + lift);
     data[offset + 2] = Math.min(255, blue + lift);
   }
-}
-
-function relativeLuminance(color: RgbColor): number {
-  return color.red * 0.2126 + color.green * 0.7152 + color.blue * 0.0722;
 }
 
 interface HslColor {

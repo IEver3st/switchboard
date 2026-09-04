@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Clip, GameEventType } from '../../../../shared/contracts';
 import {
   clipGameLabel,
@@ -63,7 +63,10 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
 
   useEffect(() => {
     const available = new Set(allClips.map((clip) => clip.id));
-    setSelectedClipIds((current) => current.filter((id) => available.has(id)));
+    setSelectedClipIds((current) => {
+      const next = current.filter((id) => available.has(id));
+      return next.length === current.length ? current : next;
+    });
   }, [allClips]);
 
   useEffect(() => {
@@ -78,6 +81,12 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
     window.addEventListener('keydown', cancelOnEscape);
     return () => window.removeEventListener('keydown', cancelOnEscape);
   }, [montageSelectionMode]);
+
+  const toggleClipSelection = useCallback((clip: Clip) => {
+    setSelectedClipIds((current) => current.includes(clip.id)
+      ? current.filter((id) => id !== clip.id)
+      : [...current, clip.id]);
+  }, []);
 
   const cancelMontage = () => {
     setMontageSelectionMode(false);
@@ -127,9 +136,7 @@ export function useClipLibraryControls(allClips: Clip[], onCreateMontage: (clips
       return next;
     }),
     onCreateMontage: createMontage,
-    onToggleClipSelection: (clip) => setSelectedClipIds((current) => current.includes(clip.id)
-      ? current.filter((id) => id !== clip.id)
-      : [...current, clip.id]),
+    onToggleClipSelection: toggleClipSelection,
     onClearFilters: () => {
       setQuery('');
       setGame('all');

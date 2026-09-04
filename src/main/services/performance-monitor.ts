@@ -1,7 +1,8 @@
+import { debugDiagnostics } from './debug-diagnostics';
 import type { ProcessMetric } from 'electron';
 import { freemem, totalmem } from 'node:os';
 import { z } from 'zod';
-import type { EngineStatus, PerformanceSnapshot } from '../../shared/contracts';
+import type { DebugDiagnostics, EngineStatus, PerformanceSnapshot } from '../../shared/contracts';
 import type { ResourceTelemetrySample } from './resource-journal';
 
 const sampleIntervalMs = 5_000;
@@ -21,6 +22,7 @@ export const performanceMemoryBudgetsMb = {
 export type PerformanceRuntimeContext = {
   rendererActive: boolean;
   guardEnabled: boolean;
+  detailedDiagnostics?: boolean;
   engines: EngineStatus[];
 };
 
@@ -96,6 +98,15 @@ export class PerformanceMonitor {
   private sequence = 0;
   private sampling = false;
   private disposed = false;
+  private pendingRendererProbe: Promise<unknown> | null = null;
+  private debugEpoch = 0;
+  private debugHistory: ResourceTelemetrySample[] = [];
+
+  public getDebugHistory(): ResourceTelemetrySample[] { return structuredClone(this.debugHistory); }
+
+  public clearDebugHistory(): void { this.debugEpoch++; this.debugHistory = []; }
+
+  public invalidateDebugSample(): void { this.debugEpoch++; }
 
   public constructor(private readonly options: PerformanceMonitorOptions) {
     this.now = options.now ?? Date.now;
@@ -126,17 +137,20 @@ export class PerformanceMonitor {
     this.sampling = true;
     try {
       const context = this.options.getContext();
+      const debugEpoch = this.debugEpoch;
+      const debugGeneration = context.detailedDiagnostics === true;
       const measuredAt = this.now();
       const metrics = this.options.getProcessMetrics();
       const measured = measurePerformance(metrics, context, measuredAt);
       const guard = this.guard.evaluate(measured, context.guardEnabled);
-      const snapshot = { ...measured, ...guard };
+      const snapshot: PerformanceSnapshot = { ...measured, ...guard };
+      if (debugGeneration) snapshot.debug = debugDiagnostics.snapshot();
       const guardChanged = this.lastGuardState !== snapshot.guardState;
       const rapidGrowth = this.previousTotalMemoryMb !== null
         && measured.totalMemoryMb - this.previousTotalMemoryMb >= Math.max(32, measured.budgetMemoryMb * 0.1);
       const overBudget = measured.totalMemoryMb >= measured.budgetMemoryMb;
       this.previousTotalMemoryMb = measured.totalMemoryMb;
-      const recordInterval = overBudget || rapidGrowth ? anomalyRecordIntervalMs : resourceRecordIntervalMs;
+      const recordInterval = debugGeneration ? sampleIntervalMs : overBudget || rapidGrowth ? anomalyRecordIntervalMs : resourceRecordIntervalMs;
       const shouldRecord = Boolean(this.options.recordSample)
         && (forcePublish || guardChanged || measuredAt - this.lastResourceRecordedAt >= recordInterval);
 
@@ -149,16 +163,25 @@ export class PerformanceMonitor {
           rapidGrowth,
           guardState: snapshot.guardState,
         });
-        if (shouldProbeRenderer && this.options.getRendererRuntime) {
+        if ((shouldProbeRenderer || (debugGeneration && context.rendererActive)) && this.options.getRendererRuntime) {
           try {
-            rendererRuntime = await this.options.getRendererRuntime();
+            if (!this.pendingRendererProbe) {
+              const probe = this.options.getRendererRuntime();
+              this.pendingRendererProbe = probe;
+              const clear = () => { if (this.pendingRendererProbe === probe) this.pendingRendererProbe = null; };
+              void probe.then(clear, clear);
+              rendererRuntime = await boundedRendererProbe(() => probe);
+            }
           } catch {
             // Renderer teardown can race a sample. The Electron process metrics remain useful.
           }
         }
         this.lastResourceRecordedAt = measuredAt;
         this.sequence += 1;
-        this.options.recordSample?.(buildResourceTelemetrySample({
+        if (this.disposed || debugEpoch !== this.debugEpoch) return;
+        // A disable while awaiting a renderer probe must not publish stale debug data.
+        if (debugGeneration && !this.options.getContext().detailedDiagnostics) return;
+        const resourceSample = buildResourceTelemetrySample({
           metrics,
           context,
           performance: snapshot,
@@ -167,7 +190,19 @@ export class PerformanceMonitor {
           flags: [overBudget ? 'over-budget' : null, rapidGrowth ? 'rapid-growth' : null].filter(
             (flag): flag is ResourceTelemetrySample['flags'][number] => flag !== null,
           ),
-        }));
+        });
+        if (snapshot.debug) {
+          snapshot.debug.processes = [
+            ...resourceSample.electronProcesses.map(p => ({ ...p, role: p.type })),
+            ...resourceSample.engines.filter(e => e.state === 'running' || e.state === 'starting').flatMap<DebugDiagnostics['processes'][number]>(e => e.processes.length
+              ? e.processes.map(p => ({ pid: p.pid, role: `${e.kind}:${p.role}`, privateMb: p.privateMemoryMb, workingSetMb: p.workingSetMb, cpuPercent: null }))
+              : [{ pid: e.pid ?? 0, role: e.kind, privateMb: e.reportedMemoryMb, workingSetMb: e.reportedMemoryMb, cpuPercent: e.cpuPercent }]),
+          ].sort((a, b) => b.privateMb - a.privateMb);
+          resourceSample.debug = snapshot.debug;
+          this.debugHistory.push(resourceSample);
+          if (this.debugHistory.length > 120) this.debugHistory.shift();
+        }
+        this.options.recordSample?.(resourceSample);
       }
       if (forcePublish || guardChanged || measuredAt - this.lastPublishedAt >= publishIntervalMs) {
         this.lastPublishedAt = measuredAt;
@@ -195,6 +230,7 @@ export function shouldCollectRendererRuntime(input: {
 }
 
 const rendererRuntimeProbeSchema = z.object({
+  longTasks: z.object({ supported: z.boolean(), count: z.number().int().nonnegative(), totalMs: z.number().finite().nonnegative(), maxMs: z.number().finite().nonnegative() }).strict().nullable().optional(),
   route: z.string().trim().min(1).max(32),
   jsHeapUsedBytes: z.number().finite().nonnegative().nullable(),
   jsHeapTotalBytes: z.number().finite().nonnegative().nullable(),
@@ -232,6 +268,7 @@ export function buildResourceTelemetrySample(input: {
   const rendererProbe = rendererRuntimeProbeSchema.safeParse(input.rendererRuntime);
   const rendererRuntime = rendererProbe.success ? {
     route: rendererProbe.data.route,
+    longTasks: rendererProbe.data.longTasks ?? null,
     jsHeapUsedMb: bytesToMbOrNull(rendererProbe.data.jsHeapUsedBytes),
     jsHeapTotalMb: bytesToMbOrNull(rendererProbe.data.jsHeapTotalBytes),
     jsHeapLimitMb: bytesToMbOrNull(rendererProbe.data.jsHeapLimitBytes),
@@ -374,4 +411,14 @@ function sum(values: number[]): number {
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+async function boundedRendererProbe(probe: () => Promise<unknown>): Promise<unknown> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      probe(),
+      new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 1500); timer.unref(); }),
+    ]);
+  } finally { if (timer) clearTimeout(timer); }
 }

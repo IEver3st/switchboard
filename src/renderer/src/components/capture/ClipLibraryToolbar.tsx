@@ -1,12 +1,10 @@
 import { ArrowDownUp, Check, Clapperboard, Grid2X2, List, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 import { gameEventTypeLabel } from '../../../../shared/auto-capture';
 import type { ClipDateFilter, ClipEventFilter, ClipSort, ClipSourceFilter } from '../../../../shared/clip-library';
@@ -41,8 +39,8 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
     return (
       <div className="capture-montage-selection" role="region" aria-label="Montage selection" data-testid="montage-selection-toolbar">
         <div className="min-w-0">
-          <strong>{controls.selectedClipIds.length > 0 ? `${controls.selectedClipIds.length} selected` : 'Select clips for a montage'}</strong>
-          <span aria-live="polite">Choose at least 2 clips</span>
+          <strong aria-live="polite">{controls.selectedClipIds.length > 0 ? `${controls.selectedClipIds.length} selected` : 'Select clips for a montage'}</strong>
+          {controls.selectedClipIds.length < 2 ? <span>Choose at least 2 clips</span> : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" disabled={clips.length === 0 || clips.every((clip) => controls.selectedClipIdSet.has(clip.id))} onClick={controls.onSelectAllVisible}>Select all{hasFilters ? ' shown' : ''}</Button>
@@ -68,7 +66,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
           </label>
 
           <div className="capture-library__actions">
-          <ButtonGroup className="capture-library-menus" aria-label="Filter and sort clips">
+          <div className="capture-library-menus" role="group" aria-label="Filter and sort clips">
             <ClipFilters
               favoritesOnly={controls.favoritesOnly}
               game={controls.game}
@@ -89,11 +87,11 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
               <SelectTrigger aria-label="Sort clips" className="capture-tool-control capture-tool-control--sort capture-sort-trigger h-8 w-28 shrink-0 text-[11px]"><ArrowDownUp className="capture-tool-icon size-3.5 shrink-0" aria-hidden="true" /><SelectValue /></SelectTrigger>
               <SelectContent className="capture-tool-menu">{sortOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
             </Select>
-          </ButtonGroup>
+          </div>
 
           <ToggleGroup type="single" value={controls.layout} onValueChange={(value) => { if (value) controls.onLayoutChange(value as 'grid' | 'list'); }} aria-label="Clip view" className="capture-tool-control capture-tool-control--view h-8 shrink-0 bg-surface-interactive">
-            <Tooltip><TooltipTrigger asChild><ToggleGroupItem value="grid" aria-label="Grid view" className="h-8 min-w-8 px-0"><Grid2X2 className="size-3.5" /></ToggleGroupItem></TooltipTrigger><TooltipContent>Grid view</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><ToggleGroupItem value="list" aria-label="List view" className="h-8 min-w-8 px-0"><List className="size-3.5" /></ToggleGroupItem></TooltipTrigger><TooltipContent>List view</TooltipContent></Tooltip>
+            <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid view" className="h-8 min-w-8 px-0"><Grid2X2 className="size-3.5" /></ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" title="List view" className="h-8 min-w-8 px-0"><List className="size-3.5" /></ToggleGroupItem>
           </ToggleGroup>
 
           <Button type="button" variant="secondary" size="sm" className="capture-montage-trigger h-8 shrink-0 gap-1.5 px-3 text-[11px]" aria-label="Create Montage" disabled={totalClipCount < 2} onClick={controls.onStartMontage}>

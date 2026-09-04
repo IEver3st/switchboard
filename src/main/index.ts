@@ -163,9 +163,10 @@ async function getRendererRuntimeProbe(): Promise<unknown> {
   return window.webContents.executeJavaScript(`(() => {
     const heap = performance.memory;
     const videos = Array.from(document.querySelectorAll('video'));
-    const route = location.hash.replace(/^#/, '').split('/')[0] || 'devices';
+    const route = document.querySelector('.settings-page') ? 'settings' : location.hash.replace(/^#/, '').split('/')[0] || 'devices';
     return {
       route,
+      longTasks: window.switchboardDebugRuntime ?? null,
       jsHeapUsedBytes: Number.isFinite(heap?.usedJSHeapSize) ? heap.usedJSHeapSize : null,
       jsHeapTotalBytes: Number.isFinite(heap?.totalJSHeapSize) ? heap.totalJSHeapSize : null,
       jsHeapLimitBytes: Number.isFinite(heap?.jsHeapSizeLimit) ? heap.jsHeapSizeLimit : null,

@@ -6,6 +6,21 @@ The standard is simple: nobody using Switchboard should ever have a moment of an
 
 This document owns design intent. The current tokens and component implementations in `src/renderer/src/globals.css` and `src/renderer/src/components` own the exact code.
 
+## Decision standard
+
+Apply this order: clarity, navigation, hierarchy, product truth, robustness, polish, distinctiveness, decoration. A beautiful control that obscures state or harms task continuity has failed.
+
+Switchboard's signature is physical hardware presented as equipment, continuous signal paths, media-first capture surfaces, and calm high-density workspaces joined by one shared state grammar. These are siblings within one utility, not identical dashboards.
+
+- Give each workspace one leading task and keep its status and recovery path in view.
+- Use type, alignment, meters, timelines, device imagery, and spatial relationships before cards or chrome.
+- Show canonical device, audio, and capture state. Never decorate with fabricated telemetry or unsupported capability.
+- Containment must express a real boundary: device, channel, media item, inspector, dialog, or selected object.
+- Add motion only when it explains signal flow, selection, panel continuity, progress, or state change.
+- If two generic patterns cluster together, such as card grids, decorative pills, glow, repeated marketing headings, or redundant helper copy, stop and subtract.
+
+Before handoff, test compact and wide native windows, long device names, empty and large collections, missing imagery, disconnected and unavailable engines, pending and failed operations, keyboard-only use, forced contrast where practical, and reduced motion. Browser fixtures do not prove Electron, native-host, or physical-device behavior.
+
 ## The product character
 
 Switchboard is a continuous console, not a collection of cards. Hardware, audio, and capture each get a workspace shaped around the job:

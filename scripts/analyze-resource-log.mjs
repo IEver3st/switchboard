@@ -76,8 +76,22 @@ for (const sample of samples) {
   }
 }
 
+const debugSamples = samples.filter(sample => sample.debug);
+const latestDebug = debugSamples.at(-1);
+
 const report = {
   directory,
+  debug: latestDebug ? {
+    samples: debugSamples.length,
+    startedAt: latestDebug.debug.startedAt,
+    sampledAt: latestDebug.sampledAt,
+    eventLoopUtilizationPercent: latestDebug.debug.eventLoopUtilizationPercent,
+    eventLoopDelayP99Ms: latestDebug.debug.eventLoopDelayP99Ms,
+    eventLoopDelayMaxMs: latestDebug.debug.eventLoopDelayMaxMs,
+    operations: latestDebug.debug.operations,
+    rendererLongTasks: latestDebug.rendererRuntime?.longTasks ?? null,
+    timingMeaning: 'Inclusive wall time since recording began, not CPU attribution. Nested operations overlap.',
+  } : null,
   samples: samples.length,
   sampledFrom: first.sampledAt,
   sampledThrough: last.sampledAt,

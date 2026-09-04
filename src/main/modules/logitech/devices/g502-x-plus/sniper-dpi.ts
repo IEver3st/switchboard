@@ -694,7 +694,7 @@ export async function readOnboardState(
 }
 
 async function readOnboardSector(
-  transport: HidppLongTransport,
+  transport: Pick<HidppLongTransport, 'request'>,
   deviceIndex: number,
   featureIndex: number,
   sector: number,

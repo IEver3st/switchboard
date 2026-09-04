@@ -1,5 +1,6 @@
+import { ResourceDiagnostics } from '@/components/settings/resource-diagnostics';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { AlertTriangle, Download, LoaderCircle, RefreshCw, RotateCcw } from 'lucide-react';
+import { AlertTriangle, AudioWaveform, Cable, CircleDot, Download, LoaderCircle, RefreshCw, RotateCcw, type LucideIcon } from 'lucide-react';
 import type {
   AppUpdateState,
   CaptureConfig,
@@ -7,7 +8,16 @@ import type {
   Device,
   SettingsResetScope,
   SystemSnapshot,
+  VisibleWorkspace,
 } from '../../../shared/contracts';
+import {
+  defaultPageForProfile,
+  fullWorkspacesForDeveloperMode,
+  isPageVisibleForProfile,
+  normalizeVisibleWorkspaces,
+  workspaceOrder,
+  workspacePreset,
+} from '../../../shared/workspace-profile';
 import { estimateClipSize, getEncodingPreset } from '../../../shared/capture-presets';
 import { GameDetectionSettings } from '@/components/settings/game-detection';
 import { AutoCaptureSettings } from '@/components/settings/autocapture-settings';
@@ -15,8 +25,16 @@ import { ModuleDeveloperTools } from '@/components/settings/module-developer-too
 import { ModuleManagement } from '@/components/settings/module-management';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import {
+  CaptureAudioDeviceSelect,
+  captureInputDevices,
+  captureOutputDevices,
+  chatAutomaticLabel,
+  gameAutomaticLabel,
+  micAutomaticLabel,
+} from '@/components/capture/capture-audio-device-select';
+import {
   isSettingsCategory,
-  settingsCategories,
+  visibleSettingsCategories,
   type SettingsCategoryId,
   type SettingsSearchEntry,
 } from '@/components/settings/settings-catalog';
@@ -50,15 +68,26 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
   const [targetSetting, setTargetSetting] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resetSettings = useSystemStore((state) => state.resetSettings);
-  const categoryDefinition = settingsCategories.find((candidate) => candidate.id === category);
+  const developerMode = snapshot.settings.developerMode === true;
+  const visibleCategories = visibleSettingsCategories(snapshot.settings);
+  const categoryDefinition = visibleCategories.find((candidate) => candidate.id === category);
   const resetScope = categoryResetScope(category);
 
   const changeCategory = useCallback((nextCategory: SettingsCategoryId) => {
+    if (nextCategory === 'audio' && snapshot.settings.developerMode !== true) return;
     setCategory(nextCategory);
     setSubview('category');
     if (window.location.hash !== '#settings') window.history.replaceState(null, '', '#settings');
     window.sessionStorage.setItem(categoryStorageKey, nextCategory);
-  }, []);
+  }, [snapshot.settings.developerMode]);
+
+  useEffect(() => {
+    if (category === 'audio' && snapshot.settings.developerMode !== true) {
+      setCategory('general');
+      setSubview('category');
+      window.sessionStorage.setItem(categoryStorageKey, 'general');
+    }
+  }, [category, snapshot.settings.developerMode]);
 
   const openModuleDeveloperTools = useCallback(() => {
     setCategory('modules');
@@ -151,8 +180,9 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
 
       <div className="settings-shell">
         <SettingsSidebar
-          category={category}
+          category={categoryDefinition?.id ?? 'general'}
           appUpdate={snapshot.appUpdate}
+          developerMode={developerMode}
           query={query}
           searchInputRef={searchInputRef}
           onCategoryChange={changeCategory}
@@ -161,9 +191,9 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
           onBack={onClose}
         />
         <div className="settings-content-scroll" data-settings-content-scroll>
-          <div key={category} className="settings-content">
+          <div key={categoryDefinition?.id ?? category} className="settings-content">
             <SettingsCategory
-              category={category}
+              category={categoryDefinition?.id ?? 'general'}
               subview={subview}
               snapshot={snapshot}
               onOpenModuleDeveloperTools={openModuleDeveloperTools}
@@ -193,7 +223,10 @@ function SettingsCategory({
   onReset?: () => void;
 }) {
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
-  if (category === 'audio') return <AudioSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'audio') {
+    if (snapshot.settings.developerMode !== true) return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
+    return <AudioSettings snapshot={snapshot} onReset={onReset} />;
+  }
   if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'clips') return <ClipsSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'games') return <GameDetectionSettings snapshot={snapshot} onReset={onReset} />;
@@ -206,29 +239,137 @@ function SettingsCategory({
   return <AboutSettings snapshot={snapshot} />;
 }
 
+function WorkspaceSettings({ snapshot }: { snapshot: SystemSnapshot }) {
+  const updateSettings = useSystemStore((state) => state.updateSettings);
+  const developerMode = snapshot.settings.developerMode === true;
+  const stored = normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces) ?? fullWorkspacesForDeveloperMode(developerMode);
+  const workspaces = developerMode ? stored : stored.filter((entry) => entry !== 'audio');
+  const preset = workspacePreset(workspaces, developerMode);
+
+  const applyWorkspaces = (next: VisibleWorkspace[]) => {
+    const filtered = developerMode ? next : next.filter((entry) => entry !== 'audio');
+    void updateSettings({ visibleWorkspaces: filtered }).then(() => {
+      const state = useSystemStore.getState();
+      const current = state.snapshot;
+      if (current && !isPageVisibleForProfile(state.page, current.settings)) {
+        state.setPage(defaultPageForProfile(current.settings));
+      }
+    });
+  };
+
+  const toggle = (workspace: VisibleWorkspace) => {
+    if (workspace === 'capture') return;
+    if (workspace === 'audio' && !developerMode) return;
+    const selected = new Set(workspaces);
+    if (selected.has(workspace)) selected.delete(workspace);
+    else selected.add(workspace);
+    applyWorkspaces(workspaceOrder.filter((entry) => selected.has(entry)));
+  };
+
+  return (
+    <div
+      id="setting-general.workspace"
+      data-setting-id="general.workspace"
+      tabIndex={-1}
+      className="settings-row settings-row--stacked settings-workspaces-block"
+    >
+      <div className="settings-row__copy">
+        <div className="settings-row__title">Workspaces</div>
+        <div className="settings-row__description">{developerMode
+          ? 'Choose which parts of Switchboard stay visible. Capture stays on.'
+          : 'Choose which parts of Switchboard stay visible. Capture stays on. Audio appears only with Developer mode.'}
+        </div>
+      </div>
+      <div className="settings-row__control settings-workspaces">
+        <div className="settings-workspaces__presets">
+          <div className="settings-segmented" role="group" aria-label="Workspace presets">
+            <button
+              type="button"
+              className="settings-segmented__option"
+              data-active={preset === 'clipping' || undefined}
+              aria-pressed={preset === 'clipping'}
+              onClick={() => applyWorkspaces(['capture'])}
+            >
+              Just clipping
+            </button>
+            <button
+              type="button"
+              className="settings-segmented__option"
+              data-active={preset === 'full' || undefined}
+              aria-pressed={preset === 'full'}
+              onClick={() => applyWorkspaces(fullWorkspacesForDeveloperMode(developerMode))}
+            >
+              Full setup
+            </button>
+          </div>
+          {preset === 'custom' ? <span className="settings-workspaces__custom">Custom</span> : null}
+        </div>
+        <div className="settings-workspaces__list">
+          {workspaceOptions
+            .filter(({ id }) => developerMode || id !== 'audio')
+            .map(({ id, title, description, icon: Icon }) => {
+              if (id === 'capture') {
+                return (
+                  <div key={id} className="settings-workspaces__item" data-locked>
+                    <Icon aria-hidden="true" />
+                    <span className="settings-workspaces__copy">
+                      <strong>{title}</strong>
+                      <small>{description}</small>
+                    </span>
+                    <span className="settings-workspaces__locked">Always on</span>
+                  </div>
+                );
+              }
+              const checked = workspaces.includes(id);
+              return (
+                <div key={id} className="settings-workspaces__item">
+                  <Icon aria-hidden="true" />
+                  <span className="settings-workspaces__copy">
+                    <strong>{title}</strong>
+                    <small>{description}</small>
+                  </span>
+                  <Switch
+                    checked={checked}
+                    onCheckedChange={() => toggle(id)}
+                    aria-label={title}
+                  />
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const workspaceOptions: ReadonlyArray<{ id: VisibleWorkspace; title: string; description: string; icon: LucideIcon }> = [
+  { id: 'devices', title: 'Devices', description: 'Connected hardware and its controls.', icon: Cable },
+  { id: 'audio', title: 'Audio', description: 'Unfinished routing, mixes, and processing. Developer mode only.', icon: AudioWaveform },
+  { id: 'capture', title: 'Capture', description: 'Replay, clips, and recording.', icon: CircleDot },
+];
+
 function GeneralSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
-  const setPage = useSystemStore((state) => state.setPage);
 
   return (
     <>
       <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and releases the interface." onReset={onReset} />
       <SettingSection title="Workspace">
-        <SettingSelect
-          settingId="general.workspace"
-          title="Workspace"
-          description={snapshot.settings.workspaceProfile === 'clipping'
-            ? 'Clipping hides Devices and Audio. Switch back to Full setup to show everything again.'
-            : 'Full setup shows Devices, Audio, and Capture. Just clipping hides Devices and Audio.'}
-          value={snapshot.settings.workspaceProfile ?? 'full'}
-          options={[
-            { value: 'clipping', label: 'Just clipping' },
-            { value: 'full', label: 'Full setup' },
-          ]}
-          onValueChange={(value) => {
-            const profile = value === 'clipping' ? 'clipping' : 'full';
-            void updateSettings({ workspaceProfile: profile, onboardingCompleted: true }).then(() => {
-              setPage(profile === 'clipping' ? 'capture' : 'devices');
+        <WorkspaceSettings snapshot={snapshot} />
+      </SettingSection>
+      <SettingSection title="Developer">
+        <SettingSwitch
+          settingId="general.developerMode"
+          title="Developer mode"
+          description="Show unfinished Audio routing, mixes, and processing. Audio settings do not work yet. Turning this off hides Audio and stops its engine."
+          checked={snapshot.settings.developerMode === true}
+          onCheckedChange={(developerMode) => {
+            void updateSettings({ developerMode }).then(() => {
+              const state = useSystemStore.getState();
+              const current = state.snapshot;
+              if (current && !isPageVisibleForProfile(state.page, current.settings)) {
+                state.setPage(defaultPageForProfile(current.settings));
+              }
             });
           }}
         />
@@ -300,7 +441,7 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <>
-      <SettingsCategoryHeader title="Audio" description="Set the Audio host lifecycle and default Windows endpoints." onReset={onReset} />
+      <SettingsCategoryHeader title="Audio" description="Unfinished Developer mode area. Set the Audio host lifecycle and default Windows endpoints." onReset={onReset} />
       <SettingSection title="Engine">
         <SettingSwitch
           settingId="audio.engine"
@@ -443,6 +584,17 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
         ) : (
           <SettingValue settingId="capture.systemAudio" title="Record system audio" description="The current capture host has not reported system-audio support." value="Unavailable" />
         )}
+        {capabilities.systemAudio ? (
+          <SettingSwitch
+            settingId="capture.chatAudio"
+            title="Record chat audio separately"
+            description="Capture Discord or voice chat on its own track, apart from the game mix."
+            checked={config.includeChatAudio}
+            onCheckedChange={(includeChatAudio) => void setCaptureConfig({ includeChatAudio })}
+          />
+        ) : (
+          <SettingValue settingId="capture.chatAudio" title="Record chat audio separately" description="The current capture host has not reported system-audio support." value="Unavailable" />
+        )}
         <SettingSwitch
           settingId="capture.cursor"
           title="Capture cursor"
@@ -450,6 +602,13 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           checked={config.includeCursor}
           onCheckedChange={(includeCursor) => void setCaptureConfig({ includeCursor })}
         />
+      </SettingSection>
+
+      <SettingSection title="Replay audio devices">
+        <CaptureAudioDeviceSettings snapshot={snapshot} />
+      </SettingSection>
+
+      <SettingSection title="Workspace">
         <SettingAction
           settingId="capture.workspace"
           title="Capture workspace"
@@ -459,6 +618,88 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
         />
       </SettingSection>
     </>
+  );
+}
+
+function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) {
+  const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
+  const config = snapshot.capture.config;
+  const capabilities = snapshot.capture.capabilities;
+  const outputDevices = captureOutputDevices(snapshot);
+  const inputDevices = captureInputDevices(snapshot);
+  const systemAvailable = capabilities.systemAudio;
+  const micAvailable = capabilities.microphoneAudio;
+  const explicitMicUnavailable = Boolean(config.microphoneDeviceId)
+    && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
+  const gameAndChatSame = config.includeSystemAudio && config.includeChatAudio
+    && (config.systemAudioDeviceId ?? 'auto') === (config.chatAudioDeviceId ?? 'auto');
+
+  return (
+    <SettingRow
+      settingId="capture.audioDevices"
+      title="Replay audio devices"
+      description="Choose which Game, Chat, and Microphone devices feed Instant Replay. Each stays on its own track."
+      className="settings-capture-devices-block"
+      controlClassName="settings-capture-devices-control"
+    >
+      <div className="settings-capture-devices">
+        <div className="settings-capture-devices__field">
+          <span id="capture-device-game-label">Game device</span>
+          <CaptureAudioDeviceSelect
+            label="Game audio device"
+            triggerId="capture-device-game-label"
+            value={config.systemAudioDeviceId}
+            devices={outputDevices}
+            automaticLabel={gameAutomaticLabel(snapshot)}
+            disabled={!systemAvailable || !config.includeSystemAudio}
+            onChange={(systemAudioDeviceId) => void setCaptureConfig({ systemAudioDeviceId })}
+          />
+        </div>
+        <div className="settings-capture-devices__field">
+          <span id="capture-device-chat-label">Chat device</span>
+          <CaptureAudioDeviceSelect
+            label="Chat audio device"
+            triggerId="capture-device-chat-label"
+            value={config.chatAudioDeviceId}
+            devices={outputDevices}
+            automaticLabel={chatAutomaticLabel()}
+            disabled={!systemAvailable || !config.includeChatAudio}
+            onChange={(chatAudioDeviceId) => void setCaptureConfig({ chatAudioDeviceId })}
+          />
+        </div>
+        <div className="settings-capture-devices__field">
+          <span id="capture-device-mic-label">Microphone device</span>
+          <CaptureAudioDeviceSelect
+            label="Microphone device"
+            triggerId="capture-device-mic-label"
+            value={config.microphoneDeviceId}
+            devices={inputDevices}
+            automaticLabel={micAutomaticLabel(snapshot)}
+            disabled={!micAvailable || !config.includeMic}
+            onChange={(microphoneDeviceId) => void setCaptureConfig({ microphoneDeviceId })}
+          />
+        </div>
+        {!systemAvailable && !micAvailable ? (
+          <p className="settings-capture-devices__note" role="status">
+            The capture host has not reported audio support yet. Device choices unlock once support is available.
+          </p>
+        ) : (
+          <p className="settings-capture-devices__note">
+            Sonar users can assign Sonar Game, Sonar Chat, and the microphone to separate inputs.
+          </p>
+        )}
+        {explicitMicUnavailable && config.includeMic ? (
+          <p className="settings-capture-devices__note settings-capture-devices__note--warning" role="status">
+            The selected microphone is not currently available. Reconnect it or choose another input.
+          </p>
+        ) : null}
+        {gameAndChatSame ? (
+          <p className="settings-capture-devices__note settings-capture-devices__note--warning" role="status">
+            Game and chat are using the same output, so their tracks will contain the same sound. Choose different devices to keep them separate.
+          </p>
+        ) : null}
+      </div>
+    </SettingRow>
   );
 }
 
@@ -662,6 +903,7 @@ function ModulesSettings({
 
 function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
+  const developerMode = snapshot.settings.developerMode === true;
   const audioEngine = snapshot.engines.find((engine) => engine.kind === 'audio');
   const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
   const capturePreset = getEncodingPreset(snapshot.capture.config);
@@ -676,6 +918,7 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   return (
     <div className="settings-diagnostics">
       <SettingsCategoryHeader title="Diagnostics" description="Inspect local health, retention, and the active resource budget." onReset={onReset} />
+      <ResourceDiagnostics snapshot={snapshot} />
       <section className="diagnostics-overview" aria-label="Current health">
         <article id="setting-diagnostics.memory" data-setting-id="diagnostics.memory" tabIndex={-1} className="diagnostics-overview__system">
           <span className="diagnostics-eyebrow">System</span>
@@ -685,7 +928,7 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
             Core {snapshot.performance.coreMemoryMb} · renderer {snapshot.performance.rendererMemoryMb} · working set {snapshot.performance.residentMemoryMb} MB
           </small>
         </article>
-        <EngineSummary title="Audio" engineState={audioEngine?.state} />
+        {developerMode ? <EngineSummary title="Audio" engineState={audioEngine?.state} /> : null}
         <EngineSummary title="Capture" engineState={captureEngine?.state} />
       </section>
 
@@ -711,24 +954,28 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
           value={`${formatBytes(captureRuntime.replayCacheBytes)} cache${captureRuntime.observedBitrateBps > 0 ? ` · ${formatBytes(captureRuntime.observedBitrateBps / 8)}/s observed` : ''}`}
           tone={captureRuntime.droppedFrames > 0 ? 'warning' : 'default'}
         />
-        <DiagnosticsReadout
-          settingId="diagnostics.noise-suppression"
-          title="Microphone noise removal"
-          description={noise
-            ? `${noise.backend} · ${noise.modelIdentifier ?? 'no model'} · ${noise.frameLength} samples at ${noise.processingSampleRate.toLocaleString()} Hz · ${noise.attenuationLimitDb.toFixed(1)} dB limit`
-            : 'Start the audio engine to inspect the microphone noise-removal backend.'}
-          value={noise ? `${noise.state} · p99 ${noise.p99Ms.toFixed(2)} ms` : 'Not loaded'}
-          tone={noise?.lastError ? 'danger' : 'default'}
-        />
-        <DiagnosticsReadout
-          settingId="diagnostics.microphone-realtime"
-          title="Microphone realtime health"
-          description={noise
-            ? `${noise.captureOverruns.toLocaleString()} capture overruns · ${noise.monitorOverruns.toLocaleString()}/${noise.monitorUnderruns.toLocaleString()} monitor over/underruns · ${noise.droppedOrBypassedFrames.toLocaleString()} dropped or bypassed frames · callback p99 ${noise.captureCallbackP99Ms.toFixed(2)} ms`
-            : 'Frame timing, callback timing, and overload counters are reported by Audio.Host.'}
-          value={noise?.lastError ?? (noise ? `${noise.algorithmicLatencyMs.toFixed(1)} ms algorithmic` : 'No data')}
-          tone={noise?.lastError ? 'danger' : 'default'}
-        />
+        {developerMode ? (
+          <>
+            <DiagnosticsReadout
+              settingId="diagnostics.noise-suppression"
+              title="Microphone noise removal"
+              description={noise
+                ? `${noise.backend} · ${noise.modelIdentifier ?? 'no model'} · ${noise.frameLength} samples at ${noise.processingSampleRate.toLocaleString()} Hz · ${noise.attenuationLimitDb.toFixed(1)} dB limit`
+                : 'Start the audio engine to inspect the microphone noise-removal backend.'}
+              value={noise ? `${noise.state} · p99 ${noise.p99Ms.toFixed(2)} ms` : 'Not loaded'}
+              tone={noise?.lastError ? 'danger' : 'default'}
+            />
+            <DiagnosticsReadout
+              settingId="diagnostics.microphone-realtime"
+              title="Microphone realtime health"
+              description={noise
+                ? `${noise.captureOverruns.toLocaleString()} capture overruns · ${noise.monitorOverruns.toLocaleString()}/${noise.monitorUnderruns.toLocaleString()} monitor over/underruns · ${noise.droppedOrBypassedFrames.toLocaleString()} dropped or bypassed frames · callback p99 ${noise.captureCallbackP99Ms.toFixed(2)} ms`
+                : 'Frame timing, callback timing, and overload counters are reported by Audio.Host.'}
+              value={noise?.lastError ?? (noise ? `${noise.algorithmicLatencyMs.toFixed(1)} ms algorithmic` : 'No data')}
+              tone={noise?.lastError ? 'danger' : 'default'}
+            />
+          </>
+        ) : null}
       </DiagnosticsSection>
 
       <DiagnosticsSection title="Automation" description="Provider activity and local reaction analysis.">
@@ -941,7 +1188,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
         <img src="./switchboard-mark.png" alt="" draggable={false} />
         <div>
           <h3>Switchboard</h3>
-          <p>A compact Windows utility for hardware, audio routing, and game capture.</p>
+          <p>A compact Windows utility for hardware and game capture{snapshot.settings.developerMode === true ? ', with unfinished audio routing behind Developer mode' : ''}.</p>
         </div>
       </div>
       <SettingSection title="Updates">

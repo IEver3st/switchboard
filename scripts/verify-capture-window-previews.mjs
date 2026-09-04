@@ -25,7 +25,9 @@ void app.whenReady().then(run).catch((error) => {
 async function run() {
   const nativeWindowSources = await desktopCapturer.getSources({
     types: ['window'],
-    thumbnailSize: { width: 320, height: 180 },
+    thumbnailSize: process.platform === 'win32'
+      ? { width: 0, height: 0 }
+      : { width: 320, height: 180 },
   });
   const window = await waitForWindow();
   await waitForLoad(window);
@@ -79,7 +81,7 @@ async function run() {
   console.log(JSON.stringify(metrics, null, 2));
   if (
     metrics.windowOptionCount === 0
-    || metrics.expectedPreviewableWindowCount === 0
+    || (process.platform !== 'win32' && metrics.expectedPreviewableWindowCount === 0)
     || metrics.windowPreviewCount !== metrics.expectedPreviewableWindowCount
     || metrics.loadedWindowPreviewCount !== metrics.expectedPreviewableWindowCount
     || metrics.unavailableWindowPreviewCount !== metrics.windowOptionCount - metrics.expectedPreviewableWindowCount

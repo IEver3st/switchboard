@@ -21,8 +21,8 @@ The integration deliberately does not stream realtime RGB frames. Discovery uses
 | Adjustable actuation / dual-step input | Hardware capability; unsupported by Switchboard | The keyboard supports it, but the profile payload and safe write protocol are not verified. No control is rendered. |
 | Analog controller mapping | Hardware capability; unsupported by Switchboard | Joystick/trigger mapping remains outside the verified integration. No per-key editor is rendered. |
 | Remaps, macros, and Hypershift | Unsupported by Switchboard | No undocumented key-map or macro payload is written. |
-| Rapid Trigger | Unsupported/unverified for this model | Current Razer Rapid Trigger guidance does not list the Huntsman V2 Analog, and the attached V2 firmware rejected the newer standalone command. No control or capability claim is rendered. |
-| Snap Tap | Synapse-owned | Razer lists the Huntsman V2 Analog as supported through Synapse 4, but no independent device command is verified here. It appears only as diagnostic capability context, not as a device-page toggle. |
+| Rapid Trigger | Synapse-owned | Razer supports Rapid Trigger on Huntsman V2 Analog while Synapse is running. Switchboard has no verified independent command path; the device page explains that ownership. |
+| Snap Tap | Unsupported on this model | Razer explicitly excludes Huntsman V2 Analog from Snap Tap support. The device page shows this model limitation without a toggle. |
 | Per-key lighting / custom animation | Deliberately unsupported | No high-frequency frame stream or fake keyboard selection surface is exposed. |
 | Polling rate | Product metadata only | Reported as 1,000 Hz; Switchboard does not present a polling-rate control. |
 
@@ -47,7 +47,7 @@ The primary page exposes only capabilities backed by a real state transition:
 - brightness;
 - a color picker only for effects that accept a color.
 
-The keyboard render previews the current whole-device quick effect, brightness, enabled state, and in-progress color choice. It is not clickable because the backend cannot persist per-key or zone state. Rapid Trigger, Snap Tap, analog mapping, actuation, remapping, and per-key lighting are absent rather than represented by inert or permanently excused controls.
+The keyboard render previews the current whole-device quick effect, brightness, enabled state, and in-progress color choice. It is not clickable because the backend cannot persist per-key or zone state. Input features explain Synapse ownership of Rapid Trigger, actuation, analog input, and key mapping, and the model limitation for Snap Tap. These features have no Switchboard toggles. Production discovery and review fixtures use the same shared feature catalog.
 
 ## Evidence and remaining physical proof
 
@@ -67,3 +67,5 @@ Visual appearance, power-cycle persistence, analog mappings, and per-key behavio
 - [OpenRazer keyboard driver implementation](https://github.com/openrazer/openrazer/blob/master/driver/razerkbd_driver.c)
 - [OpenRazer analog-keyboard protocol investigation](https://github.com/openrazer/openrazer/issues/1579)
 - [OpenRGB high-frequency update issue for this keyboard](https://gitlab.com/CalcProgrammer1/OpenRGB/-/issues/3538)
+
+Support classification rechecked September 4, 2026 against [Razer Snap Tap](https://www.razer.com/technology/razer-snap-tap) and [Razer Rapid Trigger](https://www.razer.com/technology/rapid-trigger-mode).

@@ -357,6 +357,9 @@ const demoApi: SwitchboardApi = {
     return emit();
   },
   async setAudioEnabled(enabled: boolean) {
+    if (enabled && snapshot.settings.developerMode !== true) {
+      throw new Error('Audio is available only when Developer mode is enabled in Settings, General.');
+    }
     snapshot.audio.enabled = enabled;
     const module = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');
     if (module) {
@@ -588,8 +591,15 @@ const demoApi: SwitchboardApi = {
   async checkAppUpdates() { return emit(); },
   async downloadAppUpdate() { throw new Error('Application updates require the Switchboard desktop application.'); },
   async installAppUpdate() { throw new Error('Application updates require an installed Switchboard build.'); },
+  async exportResourceDiagnostics() { throw new Error('Resource diagnostics require the native app.'); },
   async updateSettings(input: UpdateSettingsInput) {
     const enableAutomaticScan = input.scanGamesAutomatically === true && !snapshot.settings.scanGamesAutomatically;
+    if (input.developerMode === false) {
+      snapshot.audio.enabled = false;
+      const module = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');
+      if (module) module.enabled = false;
+      setEngine('audio', false);
+    }
     snapshot.settings = { ...snapshot.settings, ...input };
     return enableAutomaticScan ? simulateGameScan() : emit();
   },
@@ -616,6 +626,13 @@ const demoApi: SwitchboardApi = {
       snapshot.settings.automaticAppUpdates = defaults.settings.automaticAppUpdates;
       snapshot.settings.automaticAppUpdateDownloads = defaults.settings.automaticAppUpdateDownloads;
       snapshot.settings.installAppUpdatesOnNextStartup = defaults.settings.installAppUpdatesOnNextStartup;
+      snapshot.settings.developerMode = defaults.settings.developerMode;
+      if (defaults.settings.developerMode !== true) {
+        snapshot.audio.enabled = false;
+        const audioModule = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');
+        if (audioModule) audioModule.enabled = false;
+        setEngine('audio', false);
+      }
     }
     if (scope === 'devices') snapshot.settings.deviceAppearanceOverrides = {};
     if (scope === 'audio') {

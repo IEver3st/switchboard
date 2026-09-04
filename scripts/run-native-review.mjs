@@ -34,6 +34,10 @@ if (command === 'capture') {
   await runElectron('scripts/verify-g502-fix-native.mjs');
 } else if (command === 'mouse') {
   await runElectron('scripts/verify-mouse-device-polish-ui.mjs');
+} else if (command === 'equipment') {
+  await runElectron('scripts/verify-keyboard-workbench.mjs');
+  await runElectron('scripts/verify-microphone-workbench.mjs');
+  await runElectron('scripts/verify-equipment-states.mjs');
 } else if (command === 'huntsman') {
   await runElectron('scripts/verify-huntsman-ui.mjs');
 } else if (command === 'games') {
@@ -48,6 +52,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-clip-editor-ui.mjs', ...commandArguments);
 } else if (command === 'montage') {
   await runElectron('scripts/verify-montage-ui.mjs');
+} else if (command === 'montage-redesign') {
+  await runElectron('scripts/verify-montage-redesign.mjs');
 } else if (command === 'capture-scale') {
   await runElectron('scripts/capture-scale-qa.mjs', ...commandArguments);
 } else if (command === 'capture-window-previews') {
@@ -59,6 +65,10 @@ if (command === 'capture') {
     delete cleanEnvironment.SWITCHBOARD_CAPTURE_WINDOW_PREVIEW_USER_DATA;
     await rm(isolatedUserData, { recursive: true, force: true });
   }
+} else if (command === 'onboarding') {
+  await runElectron('scripts/capture-onboarding-review.mjs');
+} else if (command === 'onboarding-animation') {
+  await runElectron('scripts/measure-onboarding-animation.mjs', ...commandArguments);
 } else if (command === 'startup') {
   const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-startup-measure-'));
   cleanEnvironment.SWITCHBOARD_STARTUP_USER_DATA = isolatedUserData;

@@ -38,6 +38,7 @@ const api: SwitchboardApi & MontageV2Api = {
     if (![90, 100, 110, 125, 150].includes(percent)) throw new Error('Unsupported UI scale.');
     webFrame.setZoomFactor(percent / 100);
   },
+  exportResourceDiagnostics: () => ipcRenderer.invoke(ipcChannels.exportResourceDiagnostics),
   getSnapshot: () => ipcRenderer.invoke(ipcChannels.getSnapshot),
   refreshDevices: () => ipcRenderer.invoke(ipcChannels.refreshDevices),
   setModuleState: (input) => ipcRenderer.invoke(ipcChannels.setModuleState, input),

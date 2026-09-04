@@ -6,6 +6,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId, SystemSnapshot } from '../../../../shared/contracts';
+import { visiblePagesForProfile } from '../../../../shared/workspace-profile';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 
@@ -26,11 +27,8 @@ export function Sidebar({
   onNavigate: (page: PageId) => void;
   onNavigateIntent?: (page: PageId) => void;
 }) {
-  const clippingOnly = snapshot.settings.workspaceProfile === 'clipping';
-  const visibleNavigation = navigation.filter(({ id }) => {
-    if (!clippingOnly) return true;
-    return id === 'capture';
-  });
+  const visible = new Set<PageId>(visiblePagesForProfile(snapshot.settings));
+  const visibleNavigation = navigation.filter(({ id }) => visible.has(id));
   return (
     <aside className="switchboard-sidebar flex w-[72px] shrink-0 flex-col items-center bg-chrome py-2">
       <div className="app-drag flex h-[46px] w-full shrink-0 items-center justify-center">

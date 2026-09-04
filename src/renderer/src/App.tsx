@@ -1,9 +1,10 @@
+import { observeDebugRuntime } from './lib/debug-runtime';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
 import { reviewableAutoCapturedClips } from '../../shared/clip-review';
-import { isPageVisibleForProfile } from '../../shared/workspace-profile';
+import { defaultPageForProfile, isPageVisibleForProfile } from '../../shared/workspace-profile';
 import { Sidebar } from '@/components/layout/sidebar';
 import { OnboardingFlow } from '@/components/layout/onboarding-flow';
 import { StartupScreen } from '@/components/layout/startup-screen';
@@ -65,6 +66,7 @@ const pageTitles: Record<PageId, string> = {
 
 export function App() {
   const snapshot = useSystemStore((state) => state.snapshot);
+  useEffect(() => observeDebugRuntime(snapshot?.settings.detailedDiagnostics === true), [snapshot?.settings.detailedDiagnostics]);
   const page = useSystemStore((state) => state.page);
   const loading = useSystemStore((state) => state.loading);
   const error = useSystemStore((state) => state.error);
@@ -75,8 +77,9 @@ export function App() {
   const [requestedClipId, setRequestedClipId] = useState<string | null>(null);
   const [, setPreloadRevision] = useState(0);
   const preloadWorkspace = useCallback((target: PageId) => {
+    if (target === 'audio' && snapshot?.settings.developerMode !== true) return;
     void workspaceLoaders[target]?.().then(() => setPreloadRevision((revision) => revision + 1));
-  }, []);
+  }, [snapshot?.settings.developerMode]);
   const AudioWorkspace = resolvedAudioPage?.default ?? AudioPage;
   const CaptureWorkspace = resolvedCapturePage?.default ?? CapturePage;
   const DevicesWorkspace = resolvedDevicesPage?.default ?? DevicesPage;
@@ -103,21 +106,32 @@ export function App() {
 
   useEffect(() => {
     if (!snapshot) return;
+    if (snapshot.settings.developerMode === true) {
+      let cancelled = false;
+      const preload = () => {
+        void loadAudioPage()
+          .then(() => {
+            if (!cancelled) setPreloadRevision((revision) => revision + 1);
+            return loadCapturePage();
+          })
+          .then(() => { if (!cancelled) setPreloadRevision((revision) => revision + 1); });
+      };
+      const idleCallback = window.requestIdleCallback(preload, { timeout: 1_000 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleCallback);
+      };
+    }
     let cancelled = false;
     const preload = () => {
-      void loadAudioPage()
-        .then(() => {
-          if (!cancelled) setPreloadRevision((revision) => revision + 1);
-          return loadCapturePage();
-        })
-        .then(() => { if (!cancelled) setPreloadRevision((revision) => revision + 1); });
+      void loadCapturePage().then(() => { if (!cancelled) setPreloadRevision((revision) => revision + 1); });
     };
     const idleCallback = window.requestIdleCallback(preload, { timeout: 1_000 });
     return () => {
       cancelled = true;
       window.cancelIdleCallback(idleCallback);
     };
-  }, [Boolean(snapshot)]);
+  }, [Boolean(snapshot), snapshot?.settings.developerMode]);
 
   useEffect(() => {
     if (page !== 'settings' && page !== 'modules') previousWorkspaceRef.current = page;
@@ -128,7 +142,7 @@ export function App() {
   useEffect(() => {
     if (!snapshot || showOnboarding) return;
     if (!isPageVisibleForProfile(page, snapshot.settings)) {
-      setPage('capture');
+      setPage(defaultPageForProfile(snapshot.settings));
     }
   }, [page, showOnboarding, snapshot, setPage]);
 

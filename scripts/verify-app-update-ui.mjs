@@ -37,7 +37,8 @@ async function runReview() {
     *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }
     html { scroll-behavior: auto !important; }
   `);
-  await evaluate(`window.switchboard.updateSettings({ uiScalePercent: 100 })`);
+  await evaluate(`window.switchboard.updateSettings({ uiScalePercent: 100, onboardingCompleted: true })`);
+  await waitFor(() => evaluate(`!document.querySelector('.onboarding-screen')`), 'completed onboarding');
   await waitFor(
     () => evaluate(`innerWidth === 1420 && Math.abs(innerHeight - 900) <= 2`),
     '100% review scale',

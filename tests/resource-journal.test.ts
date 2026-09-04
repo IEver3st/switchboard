@@ -11,6 +11,19 @@ afterEach(async () => {
 });
 
 describe('resource journal', () => {
+  test('bounds queued writes and reports dropped records', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-resource-queue-'));
+    temporaryDirectories.push(directory);
+    const journal = new ResourceJournal({ directory, getRetentionDays: () => 1 });
+    for (let index = 0; index < 100; index++) journal.record(sample(index));
+    expect(journal.getDroppedWrites()).toBe(96);
+    await journal.dispose();
+    const files = await readdir(directory);
+    const lines = (await readFile(join(directory, files[0]!), 'utf8')).trim().split('\n');
+    expect(lines).toHaveLength(4);
+    journal.record(sample(101));
+    expect(journal.getDroppedWrites()).toBe(96);
+  });
   test('writes bounded JSONL parts and removes only expired resource journals', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'switchboard-resource-journal-'));
     temporaryDirectories.push(directory);

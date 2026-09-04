@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, mock, spyOn, test } from 'bun:test';
 import type { DeviceModule } from '../src/main/modules/device-module';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 
@@ -12,6 +12,67 @@ mock.module('electron', () => ({
 const { DeviceRegistry, selectHidDeviceEnumerator } = await import('../src/main/services/device-registry');
 
 describe('device registry lifecycle', () => {
+  test('does not enumerate HID when every device module is disabled, and resumes on enable', async () => {
+    let snapshot = createDefaultSnapshot();
+    snapshot.modules = snapshot.modules.map(module => ({ ...module, enabled: false }));
+    let enumerations = 0;
+    const registry = new DeviceRegistry(
+      () => snapshot,
+      devices => { snapshot = { ...snapshot, devices }; },
+      {
+        modules: [{ id: 'device.logitech-hidpp', discover: async () => [] }],
+        listHidDevices: async () => { enumerations++; return []; },
+      },
+    );
+    try {
+      await registry.start();
+      await registry.refresh();
+      expect(enumerations).toBe(0);
+      snapshot.modules.find(module => module.id === 'device.logitech-hidpp')!.enabled = true;
+      await registry.reconcileModuleState('device.logitech-hidpp', true);
+      expect(enumerations).toBe(1);
+      snapshot.modules.find(module => module.id === 'device.logitech-hidpp')!.enabled = false;
+      await registry.reconcileModuleState('device.logitech-hidpp', false);
+      await registry.refresh();
+      expect(enumerations).toBe(1);
+    } finally { await registry.dispose(); }
+  });
+
+  test('arms one discovery timer on enable and clears it on disable and repeated disposal', async () => {
+    const snapshot = createDefaultSnapshot();
+    snapshot.modules.forEach(module => { module.enabled = false; });
+    const setTimer = spyOn(globalThis, 'setInterval');
+    const clearTimer = spyOn(globalThis, 'clearInterval');
+    const registry = new DeviceRegistry(() => snapshot, () => {}, {
+      modules: [{ id: 'device.logitech-hidpp', discover: async () => [] }],
+      listHidDevices: async () => [],
+    });
+    try {
+      await registry.start();
+      expect(setTimer).not.toHaveBeenCalled();
+      snapshot.modules.find(module => module.id === 'device.logitech-hidpp')!.enabled = true;
+      await registry.reconcileModuleState('device.logitech-hidpp', true);
+      await registry.start();
+      expect(setTimer).toHaveBeenCalledTimes(1);
+      const timer = setTimer.mock.results[0]!.value;
+      snapshot.modules.find(module => module.id === 'device.logitech-hidpp')!.enabled = false;
+      await registry.reconcileModuleState('device.logitech-hidpp', false);
+      expect(clearTimer).toHaveBeenCalledWith(timer);
+      snapshot.modules.find(module => module.id === 'device.logitech-hidpp')!.enabled = true;
+      await registry.reconcileModuleState('device.logitech-hidpp', true);
+      expect(setTimer).toHaveBeenCalledTimes(2);
+      const rearmed = setTimer.mock.results[1]!.value;
+      await registry.dispose();
+      await registry.dispose();
+      expect(clearTimer).toHaveBeenCalledWith(rearmed);
+      expect(clearTimer).toHaveBeenCalledTimes(2);
+    } finally {
+      await registry.dispose();
+      setTimer.mockRestore();
+      clearTimer.mockRestore();
+    }
+  });
+
   test('uses Windows PnP discovery instead of whole-bus HIDAPI enumeration', () => {
     const windowsEnumerator = async () => [];
     const portableEnumerator = async () => [];
@@ -42,7 +103,7 @@ describe('device registry lifecycle', () => {
       createDefaultSnapshot,
       () => undefined,
       {
-        modules: [],
+        modules: [{ id: 'device.logitech-hidpp', discover: async () => [] }],
         enumerationTimeoutMs: 5,
         listHidDevices: async () => {
           enumerationCount += 1;

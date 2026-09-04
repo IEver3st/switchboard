@@ -2,7 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { copyFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const count = Number(process.argv[2]);
 if (![0, 1, 2, 15, 20, 240].includes(count)) throw new Error('Clip count must be 0, 1, 2, 15, 20, or 240.');
@@ -22,13 +22,16 @@ const reviewFilterMenu = process.argv.includes('--filter-menu');
 const reviewListView = process.argv.includes('--list-view');
 const reviewDeleteDialog = process.argv.includes('--delete-dialog');
 const reviewThumbnailLoading = process.argv.includes('--thumbnail-loading');
+const reviewNoMatches = process.argv.includes('--no-matches');
+const reviewSelection = process.argv.includes('--selection');
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = process.env.SWITCHBOARD_CAPTURE_SCALE_OUTPUT
   ? resolve(process.env.SWITCHBOARD_CAPTURE_SCALE_OUTPUT)
   : join(projectRoot, 'design-qa', 'scale');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-capture-scale-'));
-const sourceStatePath = join(process.env.APPDATA, 'switchboard-prototype', 'switchboard-state.json');
+const sourceStatePath = process.env.SWITCHBOARD_CAPTURE_SCALE_STATE
+  ?? join(process.env.APPDATA, 'switchboard-prototype', 'switchboard-state.json');
 const state = JSON.parse(await readFile(sourceStatePath, 'utf8'));
 const baseClip = state.clips[0];
 if (count > 0 && !baseClip) throw new Error('A real clip is required to seed the scale review.');
@@ -69,6 +72,8 @@ if (reviewThumbnailLoading) {
   state.clips.slice(0, 8).forEach((clip) => { clip.thumbnailPath = ''; });
 }
 state.capture.config.enabled = false;
+state.settings.onboardingCompleted = true;
+if (process.env.SWITCHBOARD_CAPTURE_SCALE_ZOOM) state.settings.uiScalePercent = Number(process.env.SWITCHBOARD_CAPTURE_SCALE_ZOOM);
 state.audio.enabled = false;
 state.capture.config.clipsDirectory = join(isolatedUserData, 'Clips');
 state.capture.runtime = {
@@ -99,8 +104,9 @@ app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 process.stdout.write(`scale ${count}: importing main\n`);
-await import('../out/main/index.js');
+await import(pathToFileURL(join(process.env.SWITCHBOARD_CAPTURE_SCALE_BUILD ?? join(projectRoot, 'out'), 'main', 'index.js')).href);
 process.stdout.write(`scale ${count}: waiting for ready\n`);
 void app.whenReady().then(runReview).catch((error) => {
   console.error(error);
@@ -110,12 +116,30 @@ void app.whenReady().then(runReview).catch((error) => {
 async function runReview() {
   process.stdout.write(`scale ${count}: waiting for window\n`);
   const window = await waitForWindow();
+  const rendererErrors = [];
+  window.webContents.on('console-message', (event) => {
+    if (event.level === 'error') rendererErrors.push(event.message);
+  });
   process.stdout.write(`scale ${count}: window found\n`);
   if (window.webContents.isLoading()) {
     await new Promise((resolveLoad) => window.webContents.once('did-finish-load', resolveLoad));
   }
+  window.setMinimumSize(1, 1);
   window.setContentSize(requestedWidth, requestedHeight, false);
+  if (process.argv.includes('--offscreen-render')) {
+    // Paint transient compositor layers without covering a display or taking focus.
+    window.setSkipTaskbar(true);
+    window.setPosition(-30000, -30000, false);
+    window.webContents.setBackgroundThrottling(false);
+    window.showInactive();
+    await delay(150);
+    window.setContentSize(requestedWidth, requestedHeight, false);
+  }
   await waitForApp(window);
+  window.webContents.debugger.attach('1.3');
+  await window.webContents.debugger.sendCommand('Emulation.setDeviceMetricsOverride', {
+    width: requestedWidth, height: requestedHeight, deviceScaleFactor: 1, mobile: false,
+  });
   let manualReviewOpened = null;
   if (manualNoReview) {
     await window.webContents.executeJavaScript("window.dispatchEvent(new Event('focus'))");
@@ -149,6 +173,16 @@ async function runReview() {
       await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"List view\"]')?.click()");
       await waitFor(window, `document.querySelectorAll('.capture-clip-list__item').length === ${count}`);
     }
+    if (reviewNoMatches) {
+      await setSearch(window, 'no-matching-clip-for-review');
+      await waitFor(window, "document.body.textContent.includes('No clips match these filters')");
+    }
+    if (reviewSelection) {
+      await clickButton(window, 'Create Montage');
+      await waitFor(window, "Boolean(document.querySelector('[data-testid=\"montage-selection-toolbar\"]'))");
+      await window.webContents.executeJavaScript("[...document.querySelectorAll('button[data-clip-id]')].slice(0, 2).forEach((button) => button.click())");
+      await waitFor(window, "document.querySelector('[data-testid=\"montage-selection-toolbar\"]')?.textContent.includes('2 selected')");
+    }
     if (reviewReplayPopover) {
       await window.webContents.executeJavaScript("document.querySelector('.capture-recorder-settings-trigger')?.click()");
       await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
@@ -167,6 +201,22 @@ async function runReview() {
     }
   }
   await delay(250);
+  if (process.argv.includes('--reduced-motion')) {
+    await window.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    });
+  }
+  // Hidden review windows do not reliably schedule native lazy image loading.
+  // Decode just the first viewport for visual evidence, keeping production lazy.
+  if (process.argv.includes('--decode-visible')) {
+    await window.webContents.executeJavaScript(`Promise.all([...document.querySelectorAll('.capture-library img')].filter((image) => {
+      const bounds = image.getBoundingClientRect();
+      return bounds.top < innerHeight && bounds.bottom > 0;
+    }).map(async (image) => {
+      image.loading = 'eager';
+      await Promise.race([image.decode().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 2000))]);
+    }))`);
+  }
 
 const metricsExpression = [
   '(() => {',
@@ -221,12 +271,17 @@ const metricsExpression = [
   window.webContents.invalidate();
   await window.webContents.executeJavaScript('new Promise((resolvePaint) => requestAnimationFrame(() => requestAnimationFrame(resolvePaint)))');
   await delay(80);
-  const image = await window.webContents.capturePage();
+  const image = await window.webContents.capturePage(undefined, { stayHidden: true });
   const viewportSuffix = process.argv[3] ? '-' + requestedWidth + 'x' + requestedHeight : '';
-  const stateSuffix = reviewReplayPopover ? '-replay' : reviewFilterMenu ? '-filter-menu' : reviewActiveControls ? '-active' : reviewListView ? '-list' : reviewDeleteDialog ? '-delete' : reviewThumbnailLoading ? '-loading' : '';
+  const stateSuffix = reviewReplayPopover ? '-replay' : reviewFilterMenu ? '-filter-menu' : reviewActiveControls ? '-active' : reviewListView ? '-list' : reviewDeleteDialog ? '-delete' : reviewThumbnailLoading ? '-loading' : reviewNoMatches ? '-no-matches' : reviewSelection ? '-selection' : process.argv.includes('--reduced-motion') ? '-reduced-motion' : '';
   const reviewSuffix = reviewDeleteConfirmation ? '-delete-confirm' : reviewViewAll ? '-view-all' : reviewOpenCard ? '-open-card' : '';
   const imagePath = join(outputDirectory, (reviewMode ? 'new-clips-review-' + count + reviewSuffix : 'capture-' + count + '-clips') + viewportSuffix + stateSuffix + '.png');
   await writeFile(imagePath, image.toPNG());
+  if (reviewNoMatches) {
+    await setSearch(window, '');
+    await waitForLibrary(window, count);
+  }
+  if (reviewSelection) await clickButton(window, 'Cancel');
   if (reviewReplayPopover) {
     await window.webContents.executeJavaScript("document.querySelector('.capture-recorder-settings-trigger')?.click()");
     await waitFor(window, "!document.querySelector('.capture-replay-popover')");
@@ -250,11 +305,68 @@ const metricsExpression = [
     await waitFor(window, "!document.querySelector('[role=alertdialog]')");
   }
   const interactions = reviewMode ? await verifyReviewDismissal(window) : count > 1 ? await verifyLibraryInteractions(window, count) : null;
+  const selectionPerformance = process.argv.includes('--measure-selection') ? await measureSelection(window) : null;
+  const preferences = process.argv.includes('--verify-preferences') ? await verifyReplayPreference(window, count) : null;
+  const motion = await window.webContents.executeJavaScript(`({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, animations: document.getAnimations().filter((animation) => animation.playState === 'running').length })`);
   const resizeTransitions = process.argv[5] === 'resize-sequence' ? await verifyResizeTransitions(window) : null;
-  const report = { ...metrics, manualReviewOpened, interactions, resizeTransitions, imagePath, imageSize: image.getSize() };
+  const report = { ...metrics, manualReviewOpened, interactions, selectionPerformance, preferences, motion, rendererErrors, resizeTransitions, imagePath, imageSize: image.getSize() };
+  if (metrics.horizontalOverflow || metrics.toolbarOverflow) throw new Error('Capture overflowed the review viewport');
+  if (rendererErrors.length) throw new Error(`Renderer errors: ${rendererErrors.join('; ')}`);
+  if (process.argv.includes('--reduced-motion') && (!motion.reduced || motion.animations !== 0)) throw new Error('Reduced motion retained running animations');
   await writeFile(join(outputDirectory, 'capture-' + count + '-clips' + viewportSuffix + stateSuffix + '.json'), JSON.stringify(report, null, 2) + '\n');
   process.stdout.write(JSON.stringify(report) + '\n');
   app.quit();
+}
+
+async function verifyReplayPreference(window, count) {
+  await window.webContents.executeJavaScript("document.querySelector('.capture-recorder-settings-trigger').click()");
+  await waitFor(window, "Boolean(document.querySelector('[aria-label=\"Replay length\"]'))");
+  await selectToolbarOption(window, 'Replay length', '45 sec');
+  await waitFor(window, "document.querySelector('[aria-label=\"Replay length\"]')?.textContent.includes('45 sec')");
+  const confirmed = await window.webContents.executeJavaScript('window.switchboard.getSnapshot().then((snapshot) => snapshot.capture.config.replaySeconds)');
+  if (confirmed !== 45) throw new Error('Replay length was not confirmed by main');
+  window.webContents.reload();
+  await new Promise((resolveLoad) => window.webContents.once('did-finish-load', resolveLoad));
+  await waitForApp(window);
+  await window.webContents.executeJavaScript("[...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Capture')?.click()");
+  await waitForLibrary(window, count);
+  await waitFor(window, "document.querySelector('.capture-recorder-settings-trigger')?.textContent.includes('45 sec')");
+  const persisted = JSON.parse(await readFile(join(isolatedUserData, 'switchboard-state.json'), 'utf8')).capture.config.replaySeconds;
+  if (persisted !== 45) throw new Error('Replay length was not persisted');
+  return { confirmed, persisted, restoredAfterReload: true };
+}
+
+async function measureSelection(window) {
+  await clickButton(window, 'Create Montage');
+  await waitFor(window, "Boolean(document.querySelector('[data-testid=\"montage-selection-toolbar\"]'))");
+  try {
+    await window.webContents.debugger.sendCommand('Profiler.enable');
+    await window.webContents.debugger.sendCommand('Profiler.startPreciseCoverage', { callCount: true, detailed: false });
+    const samples = await window.webContents.executeJavaScript(`(async () => {
+      const samples = [];
+      const target = document.querySelector('button[data-clip-id]');
+      for (let index = 0; index < 10; index++) {
+        samples.push(await new Promise((resolve, reject) => {
+          const start = performance.now();
+          const timeout = setTimeout(() => { observer.disconnect(); reject(new Error('Selection did not commit')); }, 3000);
+          const observer = new MutationObserver(() => {
+            observer.disconnect(); clearTimeout(timeout); resolve(performance.now() - start);
+          });
+          observer.observe(target, { attributes: true, attributeFilter: ['aria-pressed'] });
+          target.click();
+        }));
+      }
+      return samples;
+    })()`);
+    const coverage = await window.webContents.debugger.sendCommand('Profiler.takePreciseCoverage');
+    const renders = coverage.result.flatMap((script) => script.functions)
+      .filter((fn) => ['ClipCard', 'ClipGrid'].includes(fn.functionName))
+      .map((fn) => ({ name: fn.functionName, calls: fn.ranges[0].count }));
+    await window.webContents.debugger.sendCommand('Profiler.stopPreciseCoverage');
+    return { samplesMs: samples, medianMs: [...samples].sort((a, b) => a - b)[5], renders };
+  } finally {
+    await clickButton(window, 'Cancel');
+  }
 }
 
 async function verifyReviewDismissal(window) {
@@ -296,7 +408,6 @@ async function verifyReviewDismissal(window) {
 
 async function verifyResizeTransitions(window) {
   const results = [];
-  window.webContents.debugger.attach('1.3');
   try {
     for (const [width, height] of [[1280, 720], [1440, 900], [1920, 1080], [2560, 1440], [3440, 1440], [3840, 2160], [1440, 900]]) {
       await window.webContents.debugger.sendCommand('Emulation.setDeviceMetricsOverride', {
@@ -434,7 +545,7 @@ async function verifyLibraryInteractions(window, expectedCount) {
     await window.webContents.executeJavaScript("document.querySelector('.capture-recorder-settings-trigger')?.click()");
     await waitFor(window, "Boolean(document.querySelector('.capture-replay-popover'))");
   }
-  await window.webContents.executeJavaScript("document.querySelector('.capture-replay-advanced__trigger')?.click()");
+  await window.webContents.executeJavaScript("(() => { const trigger = document.querySelector('.capture-replay-advanced__trigger'); if (trigger?.getAttribute('aria-expanded') !== 'true') trigger?.click(); })()");
   await waitFor(window, "Boolean(document.querySelector('.capture-replay-advanced__content'))");
   const replayControls = await window.webContents.executeJavaScript(`(() => ({
     source: Boolean(document.querySelector('button[aria-label^="Capture source:"]')),
@@ -542,7 +653,7 @@ async function waitForLibrary(target, expected) {
   while (Date.now() < deadline) {
     const ready = await target.webContents.executeJavaScript(
       expected === 0
-        ? "document.body.textContent.includes('No clips yet')"
+        ? "Boolean(document.querySelector('.capture-library [data-slot=\"empty\"]')) || document.body.textContent.includes('No clips yet') || document.body.textContent.includes('Capture unavailable')"
         : "document.querySelectorAll('.capture-clip-card').length === " + expected,
     );
     if (ready) return;

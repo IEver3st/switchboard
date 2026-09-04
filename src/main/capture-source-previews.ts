@@ -10,6 +10,33 @@ export function desktopCaptureTypesForSources(
   return types;
 }
 
+export interface DesktopCaptureSourceRequest {
+  types: Array<'screen' | 'window'>;
+  thumbnailSize: { width: number; height: number };
+}
+
+export function desktopCaptureRequestsForSources(
+  sources: readonly CaptureSource[],
+  platform: NodeJS.Platform = process.platform,
+): DesktopCaptureSourceRequest[] {
+  const types = desktopCaptureTypesForSources(sources);
+  if (types.length === 0) return [];
+  if (platform !== 'win32' || !types.includes('window')) {
+    return [{ types, thumbnailSize: { width: 320, height: 180 } }];
+  }
+
+  const requests: DesktopCaptureSourceRequest[] = [];
+  if (types.includes('screen')) {
+    requests.push({ types: ['screen'], thumbnailSize: { width: 320, height: 180 } });
+  }
+  // Electron 42+ asks Chromium's WGC capturer to instantiate every enumerated
+  // window when thumbnails are non-zero. Protected and system HWNDs then emit
+  // errors before application-level filtering can run. A zero-sized request
+  // still enumerates and identifies the windows without starting WGC.
+  requests.push({ types: ['window'], thumbnailSize: { width: 0, height: 0 } });
+  return requests;
+}
+
 export function matchDesktopCaptureSource(
   source: CaptureSource,
   nativeSources: DesktopCapturerSource[],
@@ -32,7 +59,7 @@ export function matchDesktopCaptureSource(
   return undefined;
 }
 
-export function onlySourcesWithUsablePreviews(
+export function onlySourcesAvailableToElectron(
   sources: readonly CaptureSource[],
   nativeSources: DesktopCapturerSource[],
   captureIndexedDisplayIds: readonly number[],
@@ -41,7 +68,7 @@ export function onlySourcesWithUsablePreviews(
     if (source.type !== 'window') return true;
     if (isSystemOrOverlayWindow(source.name)) return false;
     const nativeSource = matchDesktopCaptureSource(source, nativeSources, captureIndexedDisplayIds);
-    return nativeSource !== undefined && !nativeSource.thumbnail.isEmpty();
+    return nativeSource !== undefined;
   });
 }
 

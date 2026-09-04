@@ -1,0 +1,198 @@
+/* A bounded equipment stage, with routine controls on either side. */
+.device-workbench[data-device-kind="mouse"] {
+  height: calc(100dvh - 38px);
+  min-height: 0;
+  padding: 20px clamp(24px, 3vw, 48px) 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mouse-workspace {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(240px, 300px) minmax(300px, 1fr) minmax(240px, 300px);
+  gap: clamp(20px, 3vw, 48px);
+  align-items: center;
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+}
+
+.device-workbench[data-device-kind="mouse"] .device-workbench__toolbar {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-config {
+  display: contents;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-config__sensitivity {
+  display: block;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-config__lighting-group {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-stage {
+  --callout-overlap: 0px;
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 24px 20px;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  max-height: 740px;
+  max-width: 510px;
+  justify-self: center;
+  margin: 0;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-stage__device {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 510px;
+  justify-self: center;
+}
+
+.mouse-workspace .device-render__media {
+  position: absolute;
+  inset: 0;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-stage__callouts {
+  position: static;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  height: auto;
+  grid-row: 2;
+  padding: 0;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-stage__callouts--left { grid-column: 1; }
+.device-workbench[data-device-kind="mouse"] .mouse-stage__callouts--right { grid-column: 2; }
+
+.device-workbench[data-device-kind="mouse"] .mouse-callout {
+  position: static;
+  width: 100%;
+  min-height: 36px;
+  translate: none;
+  flex-direction: row;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-callout__copy {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  gap: 3px;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-callout__line,
+.device-workbench[data-device-kind="mouse"] .device-hotspot__leader {
+  display: none;
+}
+
+.device-workbench[data-device-kind="mouse"] .device-hotspot__dot { opacity: 0; }
+.device-workbench[data-device-kind="mouse"] .mouse-stage__device:hover .device-hotspot__dot,
+.device-workbench[data-device-kind="mouse"] .device-hotspot[data-linked-active="true"] .device-hotspot__dot { opacity: 1; }
+
+.device-workbench[data-device-kind="mouse"] .mouse-config__section-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.device-workbench[data-device-kind="mouse"] .dpi-control { margin-top: 20px; }
+.device-workbench[data-device-kind="mouse"] .dpi-control__toolbar {
+  display: grid;
+  gap: 24px;
+  margin-top: 16px;
+}
+.device-workbench[data-device-kind="mouse"] .dpi-presets {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.device-workbench[data-device-kind="mouse"] .dpi-presets__label { grid-column: 1 / -1; }
+.device-workbench[data-device-kind="mouse"] .dpi-presets [role="group"] { flex-wrap: wrap; }
+.device-workbench[data-device-kind="mouse"] .dpi-presets [data-radix-collection-item] {
+  flex: 1;
+  min-width: 38px;
+  padding-inline: 6px;
+}
+.device-workbench[data-device-kind="mouse"] .report-rate-control {
+  display: grid;
+  justify-content: stretch;
+  gap: 6px;
+}
+.device-workbench[data-device-kind="mouse"] .report-rate-control .control-heading { min-height: 24px; justify-content: start; }
+.device-workbench[data-device-kind="mouse"] .report-rate-control [role="group"] { display: flex; }
+.device-workbench[data-device-kind="mouse"] .report-rate-control [data-radix-collection-item] { flex: 1; min-width: 0; padding-inline: 6px; }
+.device-workbench[data-device-kind="mouse"] .dpi-shift-control {
+  margin-top: 24px;
+  padding-top: 0;
+  border: 0;
+  gap: 8px;
+}
+.device-workbench[data-device-kind="mouse"] .mouse-config__device-group { margin-top: 32px; }
+.mouse-workspace .onboard-memory-control__profile { border: 0; padding: 0; }
+.mouse-workspace .lighting-editor__heading { flex-wrap: wrap; gap: 12px; }
+.mouse-workspace .lighting-editor__heading-actions { width: 100%; justify-content: space-between; }
+.mouse-workspace .lighting-editor__body { gap: 24px; margin-top: 20px; }
+.mouse-workspace .lighting-editor__primary { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.mouse-workspace .lighting-editor__parameters,
+.mouse-workspace .lighting-editor__parameters:has(> :nth-child(3)) { grid-template-columns: minmax(0, 1fr); gap: 16px; border: 0; padding: 0; }
+.mouse-workspace .lighting-editor__state-reason { border: 0; padding: 0; font-size: 10px; }
+.lighting-zones-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 36px; padding: 8px 10px; border-radius: 4px; background: var(--surface-interactive); color: var(--text-secondary); font-size: 11px; text-align: left; }
+.lighting-zones-trigger small { margin-left: 8px; color: var(--text-description); font-size: 10px; }
+.lighting-zones-trigger:hover:not(:disabled) { background: var(--surface-hover); }
+.lighting-zones-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.lighting-zones-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
+.lighting-zones-popover { width: 360px; }
+.lighting-zones-popover .lighting-zones__list { margin-top: 16px; grid-template-columns: repeat(6, minmax(30px, 1fr)); }
+
+@media (max-height: 760px) and (min-width: 1000px) {
+  .device-workbench[data-device-kind="mouse"] { padding-top: 16px; padding-bottom: 20px; gap: 16px; }
+  .device-workbench[data-device-kind="mouse"] .mouse-stage { gap: 16px; }
+  .mouse-workspace .lighting-editor__body { gap: 16px; }
+}
+
+@media (min-width: 820px) and (max-width: 1100px) {
+  .device-workbench[data-device-kind="mouse"] { padding-inline: 24px; gap: 12px; }
+  .mouse-workspace { grid-template-columns: minmax(190px, 1fr) minmax(230px, 1.1fr) minmax(190px, 1fr); gap: 20px; }
+  .device-workbench[data-device-kind="mouse"] .dpi-control__toolbar { gap: 12px; margin-top: 12px; }
+  .device-workbench[data-device-kind="mouse"] .dpi-shift-control { margin-top: 16px; }
+  .device-workbench[data-device-kind="mouse"] .mouse-config__device-group { margin-top: 20px; }
+  .mouse-workspace .lighting-editor__body { gap: 16px; margin-top: 12px; }
+  .mouse-workspace .lighting-editor__primary { gap: 12px; }
+}
+
+@media (max-width: 819px) {
+  .device-workbench[data-device-kind="mouse"] { height: auto; min-height: calc(100dvh - 38px); }
+  .mouse-workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .device-workbench[data-device-kind="mouse"] .mouse-stage { grid-column: 1 / -1; grid-row: 1; height: 520px; }
+  .device-workbench[data-device-kind="mouse"] .mouse-config__sensitivity { grid-row: 2; }
+  .device-workbench[data-device-kind="mouse"] .mouse-config__lighting-group { grid-column: 2; grid-row: 2; }
+}
+
+@media (max-width: 600px) {
+  .mouse-workspace { grid-template-columns: minmax(0, 1fr); }
+  .device-workbench[data-device-kind="mouse"] .mouse-config__lighting-group { grid-column: 1; grid-row: 3; }
+}

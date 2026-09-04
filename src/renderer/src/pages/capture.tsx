@@ -4,6 +4,7 @@ import type { MontageProjectV2 } from '../../../shared/montage-v2';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../shared/auto-capture';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
+import '@/components/capture/capture-library.css';
 import { DeleteClipDialog, RenameClipDialog } from '@/components/capture/ClipDialogs';
 import { ClipLibrary } from '@/components/capture/ClipLibrary';
 import { MontageDraftStrip } from '@/components/capture/MontageDraftStrip';
@@ -172,6 +173,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
           />
         ) : null}
         <ClipLibrary
+          retainedClipId={editorClipId}
           actions={actions}
           replayEnabled={snapshot.capture.config.enabled}
           hotkey={snapshot.capture.config.hotkey}

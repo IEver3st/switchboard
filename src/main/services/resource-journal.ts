@@ -1,3 +1,4 @@
+import type { DebugDiagnostics } from '../../shared/contracts';
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -6,6 +7,7 @@ const defaultMaximumFileBytes = 8 * 1_024 * 1_024;
 const pruneIntervalMs = 6 * 60 * 60 * 1_000;
 
 export type ResourceTelemetrySample = {
+  debug?: DebugDiagnostics;
   schemaVersion: 1;
   kind: 'resource-sample';
   sampledAt: string;
@@ -58,6 +60,7 @@ export type ResourceTelemetrySample = {
     activeResources: Record<string, number>;
   };
   rendererRuntime: {
+    longTasks?: { supported: boolean; count: number; totalMs: number; maxMs: number } | null;
     route: string;
     jsHeapUsedMb: number | null;
     jsHeapTotalMb: number | null;
@@ -92,6 +95,10 @@ export class ResourceJournal {
   private part = 0;
   private lastPrunedAt = 0;
   private disposed = false;
+  private pendingWrites = 0;
+  private droppedWrites = 0;
+
+  public getDroppedWrites(): number { return this.droppedWrites; }
 
   public constructor(private readonly options: ResourceJournalOptions) {
     this.maximumFileBytes = options.maximumFileBytes ?? defaultMaximumFileBytes;
@@ -101,7 +108,9 @@ export class ResourceJournal {
 
   public record(sample: ResourceTelemetrySample): void {
     if (this.disposed) return;
+    if (this.pendingWrites >= 4) { this.droppedWrites++; return; }
     const line = `${JSON.stringify(sample)}\n`;
+    this.pendingWrites++;
     const lineBytes = Buffer.byteLength(line);
     this.writeChain = this.writeChain
       .then(async () => {
@@ -115,8 +124,9 @@ export class ResourceJournal {
         this.fileBytes += lineBytes;
       })
       .catch((error) => {
+        this.droppedWrites++;
         console.warn('Resource journal write failed.', error);
-      });
+      }).finally(() => { this.pendingWrites--; });
   }
 
   public async dispose(): Promise<void> {

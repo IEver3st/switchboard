@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { Device, MouseAction } from '../../../../shared/contracts';
 import { DeviceRender } from '@/components/shared/device-render';
-import { Separator } from '@/components/ui/separator';
 import { useSystemStore } from '@/stores/use-system-store';
 import { DeviceCallout } from './DeviceCallout';
 import { DeviceHotspot } from './DeviceHotspot';
@@ -10,15 +9,16 @@ import { LightingControl } from './LightingControl';
 import { OnboardMemoryControl } from './OnboardMemoryControl';
 import { ReportRateControl } from './ReportRateControl';
 import './mouse-device.css';
+import './device-workbench.css';
 
 export function MouseDeviceEditor({ device }: { device: Device }) {
   const [lightingPreview, setLightingPreview] = useState<string | null>(null);
   const handleLightingPreview = useCallback((color: string | null) => setLightingPreview(color), []);
   return (
-    <>
+    <div className="mouse-workspace">
       <MouseStage device={device} lightingPreview={lightingPreview} />
       <MouseControls device={device} onLightingPreview={handleLightingPreview} />
-    </>
+    </div>
   );
 }
 
@@ -106,33 +106,31 @@ function MouseControls({ device, onLightingPreview }: { device: Device; onLighti
 
   return (
     <section className="device-controls mouse-config" aria-label="Mouse configuration">
-      <div className="mouse-config__section-heading">
-        <h3>Sensitivity</h3>
-        <p>{dpi?.profileMode === 'onboard' ? 'Using settings stored on the mouse.' : 'Changes apply to the current profile.'}</p>
-      </div>
-      {dpi ? (
-        <DpiControl
-          capability={dpi}
-          reportRateControl={reportRate ? (
-            <ReportRateControl
-              capability={reportRate}
-              onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'report-rate', value } })}
-            />
-          ) : null}
-          onChange={(value) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi', value } })}
-          onStagesChange={(stages) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi-stages', stages } })}
-          onShiftChange={(value) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi-shift', value } })}
-        />
-      ) : reportRate ? (
-        <ReportRateControl
-          capability={reportRate}
-          onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'report-rate', value } })}
-        />
-      ) : null}
+      <div className="mouse-config__sensitivity">
+        <div className="mouse-config__section-heading">
+          <h3>Sensitivity</h3>
+          <p>{dpi?.profileMode === 'onboard' ? 'Using settings stored on the mouse.' : 'Changes apply to the current profile.'}</p>
+        </div>
+        {dpi ? (
+          <DpiControl
+            capability={dpi}
+            reportRateControl={reportRate ? (
+              <ReportRateControl
+                capability={reportRate}
+                onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'report-rate', value } })}
+              />
+            ) : null}
+            onChange={(value) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi', value } })}
+            onStagesChange={(stages) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi-stages', stages } })}
+            onShiftChange={(value) => setDeviceControl({ deviceId: device.id, change: { type: 'dpi-shift', value } })}
+          />
+        ) : reportRate ? (
+          <ReportRateControl
+            capability={reportRate}
+            onChange={(value) => void setDeviceControl({ deviceId: device.id, change: { type: 'report-rate', value } })}
+          />
+        ) : null}
 
-      {(onboardMemory || lighting) ? <Separator className="mouse-config__separator" /> : null}
-
-      <div className="mouse-config__secondary">
         {onboardMemory ? (
           <div className="mouse-config__device-group">
             <OnboardMemoryControl
@@ -144,25 +142,25 @@ function MouseControls({ device, onLightingPreview }: { device: Device; onLighti
             />
           </div>
         ) : null}
-        {lighting ? (
-          <div className="mouse-config__lighting-group">
-            <LightingControl
-              capability={lighting}
-              onColorPreview={onLightingPreview}
-              onEnabledChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-enabled', enabled } })}
-              onColorChange={(color) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-color', color } })}
-              onBrightnessChange={(brightness) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } })}
-              onEffectChange={(effectId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-effect', effectId } })}
-              onSpeedChange={(speed) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-speed', speed } })}
-              onDirectionChange={(direction) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-direction', direction } })}
-              onZoneColorChange={(zoneId, color) => void setDeviceControl({
-                deviceId: device.id,
-                change: { type: 'lighting-zone-color', zoneId, color },
-              })}
-            />
-          </div>
-        ) : null}
       </div>
+      {lighting ? (
+        <div className="mouse-config__lighting-group">
+          <LightingControl
+            capability={lighting}
+            onColorPreview={onLightingPreview}
+            onEnabledChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-enabled', enabled } })}
+            onColorChange={(color) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-color', color } })}
+            onBrightnessChange={(brightness) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } })}
+            onEffectChange={(effectId) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-effect', effectId } })}
+            onSpeedChange={(speed) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-speed', speed } })}
+            onDirectionChange={(direction) => void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-direction', direction } })}
+            onZoneColorChange={(zoneId, color) => void setDeviceControl({
+              deviceId: device.id,
+              change: { type: 'lighting-zone-color', zoneId, color },
+            })}
+          />
+        </div>
+      ) : null}
     </section>
   );
 }

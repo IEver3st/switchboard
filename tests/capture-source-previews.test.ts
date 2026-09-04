@@ -5,12 +5,12 @@ import {
   desktopCaptureRequestsForSources,
   desktopCaptureTypesForSources,
   matchDesktopCaptureSource,
-  onlySourcesWithUsablePreviews,
+  onlySourcesAvailableToElectron,
   preserveValidatedWindowSources,
 } from '../src/main/capture-source-previews';
 
-function nativeSource(id: string, name: string, displayId = ''): DesktopCapturerSource {
-  return { id, name, display_id: displayId, thumbnail: { isEmpty: () => false } } as DesktopCapturerSource;
+function nativeSource(id: string, name: string, displayId = '', thumbnailEmpty = false): DesktopCapturerSource {
+  return { id, name, display_id: displayId, thumbnail: { isEmpty: () => thumbnailEmpty } } as DesktopCapturerSource;
 }
 
 describe('capture source previews', () => {
@@ -52,7 +52,7 @@ describe('capture source previews', () => {
     ], [])).toBe(expected);
   });
 
-  test('keeps displays and open apps but removes system windows without a usable preview', () => {
+  test('keeps displays and Electron-enumerated apps but removes system windows', () => {
     const sources: CaptureSource[] = [
       { id: 'display:0', type: 'display', name: 'Display 1', displayId: '0', available: true },
       { id: 'window:10', type: 'window', name: 'Discord', windowHandle: '10', available: true },
@@ -61,12 +61,12 @@ describe('capture source previews', () => {
     ];
     const nativeSources = [
       nativeSource('screen:0:0', 'Display 1', '100'),
-      nativeSource('window:10:0', 'Discord'),
+      nativeSource('window:10:0', 'Discord', '', true),
       nativeSource('window:20:0', 'Program Manager'),
       nativeSource('window:30:0', 'Cua.AgentCursorOverlay.Default'),
     ] as DesktopCapturerSource[];
 
-    expect(onlySourcesWithUsablePreviews(sources, nativeSources, [100]).map((source) => source.id))
+    expect(onlySourcesAvailableToElectron(sources, nativeSources, [100]).map((source) => source.id))
       .toEqual(['display:0', 'window:10']);
   });
 

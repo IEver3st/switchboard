@@ -1,9 +1,9 @@
+import { huntsmanKeyboardFeatures } from '../../../shared/huntsman-features';
 import type { Device as HidDevice } from 'node-hid';
 import type {
   Device,
   DeviceControlChange,
   DeviceSettingValue,
-  KeyboardFeature,
   LightingEffect,
 } from '../../../shared/contracts';
 import { resolveProductAsset } from '../../../shared/product-assets';
@@ -15,6 +15,8 @@ import {
   type HuntsmanLightingEffectId,
 } from './huntsman-v2-analog-protocol';
 import { HuntsmanV2AnalogTransport, type HuntsmanProbe } from './huntsman-v2-analog-transport';
+
+export { huntsmanKeyboardFeatures } from '../../../shared/huntsman-features';
 
 const probeCacheDurationMs = 15_000;
 const model = 'Huntsman V2 Analog';
@@ -29,43 +31,6 @@ export const huntsmanLightingEffects: readonly LightingEffect[] = [
   { id: 'starlight', label: 'Starlight', controls: ['color', 'brightness'] },
   { id: 'wave-left', label: 'Wave left', controls: ['brightness'] },
   { id: 'wave-right', label: 'Wave right', controls: ['brightness'] },
-] as const;
-
-export const huntsmanKeyboardFeatures: readonly KeyboardFeature[] = [
-  {
-    id: 'lighting',
-    label: 'Quick lighting',
-    summary: 'Brightness and device-firmware quick effects use the native HID control endpoint.',
-    status: 'native',
-  },
-  {
-    id: 'actuation',
-    label: 'Per-key actuation',
-    summary: 'Adjustable 1.5–3.6 mm actuation and two-stage inputs are supported by the keyboard.',
-    status: 'synapse',
-    unavailableReason: 'The actuation protocol is not safely documented or verified for direct writes yet.',
-  },
-  {
-    id: 'analog',
-    label: 'Analog input',
-    summary: 'Selected keys can emulate joystick axes and controller triggers.',
-    status: 'synapse',
-    unavailableReason: 'Analog mapping remains owned by Synapse until its native profile format is verified.',
-  },
-  {
-    id: 'mapping',
-    label: 'Key mapping',
-    summary: 'Remapping, macros, Hypershift, and analog controller bindings remain in Synapse.',
-    status: 'synapse',
-    unavailableReason: 'Switchboard does not write undocumented key maps or macro payloads.',
-  },
-  {
-    id: 'rapid-input',
-    label: 'Snap Tap',
-    summary: 'Snap Tap is available for this keyboard through Synapse 4.',
-    status: 'synapse',
-    unavailableReason: 'Switchboard does not expose Snap Tap because no independent device command is verified for this model.',
-  },
 ] as const;
 
 interface HuntsmanSettings {

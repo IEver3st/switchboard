@@ -1,6 +1,9 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { debugDiagnostics } from './debug-diagnostics';
+import { randomUUID } from 'node:crypto';
+import { mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { systemSnapshotSchema, type EngineKind, type PerformanceSnapshot, type SystemSnapshot } from '../../shared/contracts';
+import { migrateVisibleWorkspaces } from '../../shared/workspace-profile';
 import { latestClipCreatedAt } from '../../shared/clip-review';
 import { createDefaultSnapshot } from '../../shared/defaults';
 
@@ -17,25 +20,41 @@ export class StateStore {
   private snapshot: SystemSnapshot = createDefaultSnapshot();
   private readonly listeners = new Set<Listener>();
   private persistChain: Promise<void> = Promise.resolve();
+  private persistedPayload: string | null = null;
 
   public constructor(private readonly filePath: string) {}
 
   public async load(): Promise<void> {
+    let raw: string | null = null;
     try {
-      const raw = await readFile(this.filePath, 'utf8');
-      const parsed = systemSnapshotSchema.safeParse(
-        migrateAppUpdateState(migrateGameDetectionState(migrateClipReviewState(migrateLegacyCaptureState(migrateAudioMixState(migrateLegacyDeviceState(JSON.parse(raw))))))),
-      );
-      if (parsed.success) {
-        this.snapshot = this.resetRuntimeState(parsed.data);
-        return;
-      }
-
-      console.warn('Switchboard state did not match the current schema. Defaults will be used.', parsed.error);
+      raw = await readFile(this.filePath, 'utf8');
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'ENOENT') {
-        console.warn('Failed to load Switchboard state. Defaults will be used.', error);
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+
+    if (raw !== null) {
+      try {
+        this.snapshot = this.resetRuntimeState(parsePersistedState(raw));
+        this.persistedPayload = raw;
+        return;
+      } catch (error) {
+        // Preserve original bytes before recovery. If preservation fails, do not overwrite them.
+        const preservedPath = `${this.filePath}.corrupt-${Date.now()}-${randomUUID()}`;
+        await rename(this.filePath, preservedPath);
+        console.warn('Switchboard state was invalid. The original file was preserved; trying the backup.', preservedPath, error);
+      }
+    }
+
+    try {
+      const backup = await readFile(`${this.filePath}.bak`, 'utf8');
+      this.snapshot = this.resetRuntimeState(parsePersistedState(backup));
+      this.persistedPayload = backup;
+      await this.persist();
+      console.warn('Switchboard state was recovered from its last valid backup.');
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.warn('Switchboard state backup could not be loaded. Defaults will be used.', error);
       }
     }
 
@@ -44,8 +63,10 @@ export class StateStore {
   }
 
   public get(): SystemSnapshot {
-    return structuredClone(this.snapshot);
+    return debugDiagnostics.measure('state.clone', () => structuredClone(this.snapshot));
   }
+
+  public getDetailedDiagnosticsEnabled(): boolean { return this.snapshot.settings.detailedDiagnostics; }
 
   public getPerformanceGuardEnabled(): boolean {
     return this.snapshot.settings.performanceGuard;
@@ -53,11 +74,11 @@ export class StateStore {
 
   public update(mutator: (draft: SystemSnapshot) => void, options: UpdateOptions = {}): SystemSnapshot {
     const { persist = true, emit = true } = options;
-    const next = structuredClone(this.snapshot);
+    const next = debugDiagnostics.measure('state.clone-update', () => structuredClone(this.snapshot));
     mutator(next);
-    this.snapshot = systemSnapshotSchema.parse(next);
+    this.snapshot = debugDiagnostics.measure('state.validate', () => systemSnapshotSchema.parse(next));
 
-    if (emit) this.emit();
+    if (emit) debugDiagnostics.measure('state.emit', () => this.emit());
     if (persist) void this.persist();
     return this.get();
   }
@@ -182,20 +203,50 @@ export class StateStore {
   }
 
   private persist(): Promise<void> {
-    const payload = JSON.stringify(this.snapshot, null, 2);
+    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot, performance: { ...this.snapshot.performance, debug: undefined } }, null, 2));
     this.persistChain = this.persistChain
       .catch(() => undefined)
       .then(async () => {
         await mkdir(dirname(this.filePath), { recursive: true });
-        const temporaryPath = `${this.filePath}.tmp`;
-        await writeFile(temporaryPath, payload, 'utf8');
-        await rename(temporaryPath, this.filePath);
+        // Commit the previous validated generation before replacing the primary.
+        if (this.persistedPayload !== null) {
+          const previousPayload = this.persistedPayload;
+          await debugDiagnostics.measureAsync('state.backup-write', () => writeDurableState(`${this.filePath}.bak`, previousPayload));
+        }
+        await debugDiagnostics.measureAsync('state.disk-write', () => writeDurableState(this.filePath, payload));
+        this.persistedPayload = payload;
       })
       .catch((error) => {
         console.error('Failed to persist Switchboard state.', error);
       });
 
     return this.persistChain;
+  }
+}
+
+function parsePersistedState(raw: string): SystemSnapshot {
+  let value: unknown = JSON.parse(raw.replace(/^\uFEFF/, ''));
+  value = migrateLegacyDeviceState(value);
+  value = migrateAudioMixState(value);
+  value = migrateLegacyCaptureState(value);
+  value = migrateClipReviewState(value);
+  value = migrateGameDetectionState(value);
+  return systemSnapshotSchema.parse(migrateAppUpdateState(value));
+}
+
+async function writeDurableState(filePath: string, payload: string): Promise<void> {
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    const file = await open(temporaryPath, 'wx');
+    try {
+      await file.writeFile(payload, 'utf8');
+      await file.sync();
+    } finally {
+      await file.close();
+    }
+    await rename(temporaryPath, filePath);
+  } finally {
+    await rm(temporaryPath, { force: true });
   }
 }
 
@@ -338,7 +389,11 @@ function migrateGameDetectionState(value: unknown): unknown {
   const gameDetection = isRecord(value.gameDetection) ? value.gameDetection : {};
   return {
     ...value,
-    settings: { ...defaults.settings, ...settings },
+    settings: {
+      ...defaults.settings,
+      ...settings,
+      visibleWorkspaces: migrateVisibleWorkspaces(settings.visibleWorkspaces, settings.workspaceProfile),
+    },
     gameDetection: {
       ...defaults.gameDetection,
       ...gameDetection,

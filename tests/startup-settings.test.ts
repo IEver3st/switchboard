@@ -11,6 +11,16 @@ afterEach(async () => {
 });
 
 describe('startup settings', () => {
+  test('recovers the rendering preference from backup only when the primary is unreadable', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-startup-backup-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'switchboard-state.json');
+    await writeFile(`${filePath}.bak`, JSON.stringify({ settings: { softwareRendering: true } }));
+    await writeFile(filePath, '\0\0\0');
+    expect(readSoftwareRenderingPreference(filePath)).toBe(true);
+    await writeFile(filePath, '\uFEFF' + JSON.stringify({ settings: { softwareRendering: false } }));
+    expect(readSoftwareRenderingPreference(filePath)).toBe(false);
+  });
   test('enables software rendering only for an explicit valid persisted preference', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'switchboard-startup-settings-'));
     temporaryDirectories.push(directory);

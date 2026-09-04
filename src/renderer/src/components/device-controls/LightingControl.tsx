@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { LightingCapability, LightingDirection } from '../../../../shared/contracts';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -183,29 +184,35 @@ export function LightingControl({
         ) : null}
 
         {zonesVisible ? (
-          <section className="lighting-zones" aria-labelledby="lighting-zones-label">
-            <div>
-              <div className="lighting-editor__section-label" id="lighting-zones-label">Device zones</div>
-              <p>Static color can be set per addressable zone.</p>
-            </div>
-            <div className="lighting-zones__list">
-              {capability.zones?.map((zone) => (
-                <Popover key={zone.id}>
-                  <PopoverTrigger asChild>
-                    <button type="button" className="lighting-zone" disabled={controlsDisabled || !zone.colorWritable} aria-label={`${zone.label} color ${zone.color}`}>
-                      <span style={{ backgroundColor: zone.color }} aria-hidden />
-                      <small>{zone.label.replace(/^Zone\s+/i, '')}</small>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent align="center" className="lighting-color-popover">
-                    <div className="popover-heading">{zone.label}</div>
-                    <p className="popover-description">Applies Static to this reported lighting zone.</p>
-                    <ColorPicker value={zone.color} onCommit={(next) => onZoneColorChange(zone.id, next)} />
-                  </PopoverContent>
-                </Popover>
-              ))}
-            </div>
-          </section>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className="lighting-zones-trigger" disabled={controlsDisabled}>
+                <span>Device zones <small>{capability.zones?.length} zones</small></span>
+                <ChevronRight aria-hidden className="size-3.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="lighting-zones-popover" aria-label="Device zones">
+              <div className="popover-heading">Device zones</div>
+              <p className="popover-description">Static color can be set per addressable zone.</p>
+              <div className="lighting-zones__list">
+                {capability.zones?.map((zone) => (
+                  <Popover key={zone.id}>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="lighting-zone" disabled={controlsDisabled || !zone.colorWritable} aria-label={`${zone.label} color ${zone.color}`}>
+                        <span style={{ backgroundColor: zone.color }} aria-hidden />
+                        <small>{zone.label.replace(/^Zone\s+/i, '')}</small>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="center" className="lighting-color-popover">
+                      <div className="popover-heading">{zone.label}</div>
+                      <p className="popover-description">Applies Static to this reported lighting zone.</p>
+                      <ColorPicker value={zone.color} onCommit={(next) => onZoneColorChange(zone.id, next)} />
+                    </PopoverContent>
+                  </Popover>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         ) : null}
 
         {capability.stateReason ? <p className="lighting-editor__state-reason" role="status">{capability.stateReason}</p> : null}

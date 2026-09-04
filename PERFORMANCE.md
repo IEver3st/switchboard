@@ -59,6 +59,37 @@ This keeps Diagnostics current without turning the full canonical snapshot into
 a high-frequency renderer update. Private bytes and working set are reported
 separately; enabled native-host memory and CPU are added from host telemetry.
 
+The renderer reconciles incoming IPC snapshots against its previous projection,
+reusing unchanged branches and ID-matched collection items. A performance sample
+therefore does not invalidate every clip card, sorted library, or media effect.
+This does not reduce IPC payload size or the number of initially mounted cards.
+Settings patches use the canonical partial-input schema without hydration
+defaults, so unrelated changes preserve the software-rendering preference.
+
+The clip grid and list virtualize their React controls within the existing native
+scroll viewport. Date headings and explicit CSS grid tracks preserve the scroll
+range; only intersecting rows, 300 px of overscan, and one retained interaction
+row mount cards and thumbnails. Scroll and resize events share one cancellable
+animation frame, with no idle polling. Unmount disconnects the observer and
+scroll listener. Native Tab navigation crosses unmounted rows, while context
+menus and editor return focus retain their originating row. Search, filtering,
+favorites, and montage selection continue to operate on the full canonical
+library, independently of which rows are mounted.
+
+`scripts/measure-library-idle.mjs` measures a copied library in an isolated profile.
+Set `SWITCHBOARD_LIBRARY_STATE` to the source state file and launch the script
+through Electron after building. It copies thumbnails before reconciliation,
+disables engines and physical-device modules, exercises 20 canonical updates,
+then samples Settings memory for 60 seconds. The native window is placed offscreen
+with throttling disabled: use this for controlled renderer comparisons, not a
+foreground CPU release gate. `--verify` checks canonical favorite/settings state,
+renderer reload, the three supported native sizes, and reduced motion. See
+`design-qa/library-performance/REPORT.md` for the measured comparison and limits.
+`--verify-virtual` additionally sweeps the complete grid/list library, checks
+bounded mounting at all three sizes, and exercises keyboard focus, menus,
+search, selection, and editor restoration. The virtualization comparison is in
+`design-qa/library-virtualization/REPORT.md`.
+
 The same sampler maintains a local resource journal under
 `<userData>/diagnostics/resources`. It writes one compact JSONL sample every 30
 seconds and temporarily samples the journal every 15 seconds while memory is
@@ -102,6 +133,10 @@ Logitech HID++ endpoint that fails to open is retried at most once every 30
 seconds. The last confirmed controls remain visible but disabled during the
 cooldown. Removing or changing the endpoint clears the cooldown so reconnecting
 hardware can recover immediately.
+
+When every device module is disabled, the registry skips HID enumeration and
+removes its discovery timer. Enabling a module performs immediate discovery and
+rearms one timer. Repeated start/disposal cannot accumulate timers.
 
 ## Startup responsiveness
 
@@ -153,3 +188,12 @@ An enabled local device-discovery add-on creates at most one hidden sandboxed Ch
 The G502 X Plus native-control path holds one non-exclusive HID++ long-report handle only while the Logitech module and matching device are active. Sniper-button edges are notification-driven; the session adds no button or lighting polling timer. Device-reported live RGB effects and zone frames are written only after an explicit user change; software RGB ownership is retained for the session and released deterministically when onboard mode takes over or the session closes. Onboard profile sectors are read during discovery and written only in response to an explicit stored-setting change, with CRC validation and immediate readback rather than background flash traffic. Release, module disable, disconnect, and application shutdown close the handle deterministically and restore the pre-hold DPI when the device remains reachable.
 
 The QuadCast 2 path holds one non-exclusive blocking-read handle for absolute tap-mute events and one non-exclusive feature-report handle only while maintained lighting is active. Lighting refreshes every 55 ms because the researched display frame expires on-device; the timer is unreferenced and stops on module disable, disconnect, write failure, or shutdown. A failed mute read closes its handle and retries after one second while the device remains present.
+
+## Opt-in resource debugging
+
+Settings > Diagnostics provides detailed resource recording and local JSON export.
+It reuses the five-second sampler, keeps renderer publication at 30 seconds, and
+adds bounded operation counters plus a 20 ms main-loop probe only while enabled.
+The export retains the latest 120 samples; disabling stops the extra probes and
+retains the report for export. See [Resource diagnostics](docs/resource-diagnostics.md)
+for measurement semantics, limits, and the comparison workflow.

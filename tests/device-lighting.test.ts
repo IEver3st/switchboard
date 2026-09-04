@@ -1,3 +1,4 @@
+import { mattePhotographicBackdrop } from '../src/renderer/src/components/shared/device-lighting';
 import { describe, expect, test } from 'bun:test';
 import { applyLighting } from '../src/renderer/src/components/shared/device-lighting';
 
@@ -27,11 +28,11 @@ describe('device render lighting masks', () => {
     applyLighting(pixels, 'g502-rgb', false, '#ff1744');
 
     expect([...pixels.slice(0, 8)]).toEqual([
-      31, 31, 31, 255,
-      44, 44, 44, 255,
+      102, 102, 102, 255,
+      95, 95, 95, 255,
     ]);
     expect(Math.max(...pixels.slice(8, 11)) - Math.min(...pixels.slice(8, 11))).toBeLessThanOrEqual(2);
-    expect(pixels[8]).toBeLessThan(100);
+    expect(pixels[8]).toBeGreaterThan(220);
   });
 
   test('preserves neutral shell pixels and keeps the HyperX mask red-scoped', () => {
@@ -56,7 +57,7 @@ describe('device render lighting masks', () => {
 
     expect(dimmed[0]).toBeLessThan(full[0]!);
     expect(dimmed[0]).toBeGreaterThan(zero[0]!);
-    expect([...zero]).toEqual([31, 31, 31, 255]);
+    expect([...zero]).toEqual([102, 102, 102, 255]);
   });
 
   test('keeps low-chroma shell spill soft instead of painting a hard LED cutout', () => {
@@ -91,4 +92,15 @@ describe('device render lighting masks', () => {
     expect(pixels[2]).toBeGreaterThan(pixels[0]! * 1.4);
     expect(pixels[1]).toBeGreaterThan(pixels[0]!);
   });
+});
+
+test('mattes edge-connected photo background without erasing enclosed black hardware', () => {
+  const pixels = new Uint8ClampedArray(5 * 5 * 4);
+  for (let i = 0; i < pixels.length; i += 4) pixels.set([12,12,12,255], i);
+  for (let y = 1; y < 4; y++) for (let x = 1; x < 4; x++) pixels.set([90,40,50,255], (y * 5 + x) * 4);
+  pixels.set([8,8,8,255], (2 * 5 + 2) * 4);
+  mattePhotographicBackdrop(pixels, 5, 5);
+  expect(pixels[3]).toBe(0);
+  expect(pixels[(2 * 5 + 2) * 4 + 3]).toBe(255);
+  expect(pixels[(1 * 5 + 1) * 4 + 3]).toBe(255);
 });

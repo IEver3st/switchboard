@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Monitor, RefreshCw, Settings2, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
-import type { AudioDevice, CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
+import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
+import { CaptureAudioDeviceSelect } from './capture-audio-device-select';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -117,13 +118,12 @@ function ReplayConfiguration({
         <div className="capture-recorder-source">
           <CaptureSourcePicker value={selectedSourceValue} options={sourceOptions} active={config.enabled} compact onChange={onSourceChange} />
         </div>
-        <span className="capture-recorder-length" title={`Replay length ${formatReplayLength(config.replaySeconds)}`}>{formatReplayLength(config.replaySeconds)}</span>
       </div>
 
-      <div className="capture-recorder-toggle">
+      <label className="capture-recorder-toggle">
         <span>Replay</span>
         <Switch checked={config.enabled} aria-label="Instant Replay" onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
-      </div>
+      </label>
 
       <Popover open={replayOpen} onOpenChange={setReplayOpen}>
         <PopoverTrigger asChild>
@@ -131,12 +131,14 @@ function ReplayConfiguration({
             ref={replayTriggerRef}
             type="button"
             variant="ghost"
-            size="icon"
+            size="sm"
             className="capture-recorder-settings-trigger"
             data-tone={status.tone}
             aria-label={`Open replay settings. Replay ${status.label}. ${status.description}`}
           >
             <Settings2 className="size-3.5" aria-hidden="true" />
+            <span className="capture-recorder-length" title={`Replay length ${formatReplayLength(config.replaySeconds)}`}>{formatReplayLength(config.replaySeconds)}</span>
+            <ChevronDown className="size-3.5" aria-hidden="true" />
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -502,43 +504,6 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
         </p>
       ) : null}
     </div>
-  );
-}
-
-function CaptureAudioDeviceSelect({
-  label,
-  value,
-  devices,
-  automaticLabel,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: string | null;
-  devices: AudioDevice[];
-  automaticLabel: string;
-  disabled: boolean;
-  onChange: (deviceId: string | null) => void;
-}) {
-  const selectedValue = value && devices.some((device) => device.id === value) ? value : 'auto';
-  return (
-    <Select
-      value={selectedValue}
-      disabled={disabled || (devices.length === 0 && selectedValue === 'auto')}
-      onValueChange={(next) => onChange(next === 'auto' ? null : next)}
-    >
-      <SelectTrigger aria-label={label} className="h-8 w-full min-w-0 text-[11px]">
-        <SelectValue placeholder={devices.length === 0 ? 'No available device' : automaticLabel} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="auto">{automaticLabel}</SelectItem>
-        {devices.map((device) => (
-          <SelectItem key={device.id} value={device.id}>
-            {device.name}{device.isDefault ? ' · Default' : ''}{device.isVirtual ? ' · Virtual' : ''}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }
 

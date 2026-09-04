@@ -6,7 +6,8 @@ import { ClipList } from './ClipList';
 import type { ClipLibraryControls } from './clip-library-model';
 import type { ClipActions } from './types';
 
-export function ClipLibrary({ actions, replayEnabled, hotkey, captureUnavailableReason, controls }: {
+export function ClipLibrary({ actions, replayEnabled, hotkey, captureUnavailableReason, controls, retainedClipId }: {
+  retainedClipId?: string | null;
   actions: ClipActions;
   replayEnabled: boolean;
   hotkey: string;
@@ -20,9 +21,9 @@ export function ClipLibrary({ actions, replayEnabled, hotkey, captureUnavailable
       <div className="capture-library__content">
         {clips.length > 0 ? (
           layout === 'grid' ? (
-            <ClipGrid clips={clips} actions={actions} grouped selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} />
+            <ClipGrid clips={clips} actions={actions} grouped selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} retainedClipId={retainedClipId} />
           ) : (
-            <ClipList clips={clips} actions={actions} selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} />
+            <ClipList clips={clips} actions={actions} selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} retainedClipId={retainedClipId} />
           )
         ) : controls.totalClipCount === 0 ? (
           <EmptyLibrary replayEnabled={replayEnabled} hotkey={hotkey} captureUnavailableReason={captureUnavailableReason} />

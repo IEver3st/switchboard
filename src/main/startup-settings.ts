@@ -8,10 +8,14 @@ const startupSettingsSchema = z.object({
 }).passthrough();
 
 export function readSoftwareRenderingPreference(filePath: string): boolean {
-  try {
-    const parsed = startupSettingsSchema.safeParse(JSON.parse(readFileSync(filePath, 'utf8')));
-    return parsed.success && parsed.data.settings.softwareRendering === true;
-  } catch {
-    return false;
+  for (const candidate of [filePath, `${filePath}.bak`]) {
+    try {
+      const raw = readFileSync(candidate, 'utf8').replace(/^\uFEFF/, '');
+      const parsed = startupSettingsSchema.safeParse(JSON.parse(raw));
+      if (parsed.success) return parsed.data.settings.softwareRendering === true;
+    } catch {
+      // The full StateStore owns validation, preservation, and recovery after startup.
+    }
   }
+  return false;
 }

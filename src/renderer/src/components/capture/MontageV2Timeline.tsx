@@ -1,6 +1,7 @@
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   Copy,
+  Music2,
   Plus,
   Redo2,
   Scissors,
@@ -22,8 +23,6 @@ import {
   updateMontageSegment,
 } from './montage-v2-model';
 
-const basePixelsPerSecond = 72;
-
 export function MontageV2Timeline({
   project,
   clips,
@@ -33,6 +32,8 @@ export function MontageV2Timeline({
   waveform,
   canUndo,
   canRedo,
+  musicPending,
+  onEditMusic,
   onZoomChange,
   onProjectChange,
   onSelectSegment,
@@ -53,6 +54,8 @@ export function MontageV2Timeline({
   waveform: MontageAudioWaveform | null;
   canUndo: boolean;
   canRedo: boolean;
+  musicPending: boolean;
+  onEditMusic: () => void;
   onZoomChange: (zoom: number) => void;
   onProjectChange: (project: MontageProjectV2, mergeKey?: string) => void;
   onSelectSegment: (segmentId: string) => void;
@@ -66,30 +69,52 @@ export function MontageV2Timeline({
   onRedo: () => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportWidth, setViewportWidth] = useState(1);
+  const scrubPointerRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const measure = () => setViewportWidth(Math.max(1, viewport.clientWidth - 2));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
   const draggedSegmentIdRef = useRef<string | null>(null);
   const trimRef = useRef<{
     pointerId: number;
     startX: number;
     segment: MontageV2Segment;
     edge: 'start' | 'end';
+    pixelsPerMs: number;
   } | null>(null);
   const musicDragRef = useRef<{ pointerId: number; startX: number; startMs: number } | null>(null);
   const clipsById = useMemo(() => new Map(clips.map((clip) => [clip.id, clip])), [clips]);
-  const pixelsPerMs = basePixelsPerSecond * zoom / 1_000;
-  const width = Math.max(720, project.durationMs * pixelsPerMs);
+  // 1x always means the entire sequence, including after resizing or editing.
+  const width = viewportWidth * zoom;
+  const pixelsPerMs = width / Math.max(1, project.durationMs);
   const selected = project.segments.find((segment) => segment.id === selectedSegmentId);
   const rulerTicks = useMemo(() => createRulerTicks(project.durationMs, pixelsPerMs), [pixelsPerMs, project.durationMs]);
 
   const fitTimeline = () => {
-    const viewportWidth = viewportRef.current?.clientWidth ?? 720;
-    const next = viewportWidth / Math.max(1, project.durationMs) * 1_000 / basePixelsPerSecond;
-    onZoomChange(clamp(next, 0.25, 4));
+    onZoomChange(1);
+    if (viewportRef.current) viewportRef.current.scrollLeft = 0;
   };
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    if (zoom === 1) { viewport.scrollLeft = 0; return; }
+    const x = currentMs * pixelsPerMs;
+    if (x < viewport.scrollLeft || x > viewport.scrollLeft + viewport.clientWidth - 12) {
+      viewport.scrollLeft = Math.max(0, x - viewport.clientWidth * 0.2);
+    }
+  }, [currentMs, pixelsPerMs, zoom]);
 
   const continueTrim = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = trimRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const deltaMs = Math.round((event.clientX - drag.startX) / pixelsPerMs);
+    const deltaMs = Math.round((event.clientX - drag.startX) / drag.pixelsPerMs);
     const requested = (drag.edge === 'start' ? drag.segment.trimStartMs : drag.segment.trimEndMs) + deltaMs;
     const next = updateMontageSegment(project, drag.segment.id, (segment) => drag.edge === 'start'
       ? { ...segment, trimStartMs: requested }
@@ -115,7 +140,6 @@ export function MontageV2Timeline({
   };
 
   const seekFromSurface = (event: ReactPointerEvent<HTMLElement>) => {
-    if (event.button !== 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     onSeek(clamp((event.clientX - rect.left) / pixelsPerMs, 0, project.durationMs));
   };
@@ -130,15 +154,18 @@ export function MontageV2Timeline({
           <Button type="button" variant="secondary" size="sm" onClick={onAddClips}>
             <Plus className="size-3.5" /> Add clips
           </Button>
+          <Button type="button" variant="secondary" size="sm" disabled={musicPending} onClick={project.music ? onEditMusic : onAddMusic}>
+            <Music2 className="size-3.5" /> {musicPending ? 'Importing…' : project.music ? 'Music settings' : 'Add music'}
+          </Button>
           <ToolbarButton label="Split at playhead" icon={Scissors} disabled={!selected || segmentDurationMs(selected) < 200} onClick={onSplit} />
           <ToolbarButton label="Duplicate segment" icon={Copy} disabled={!selected} onClick={onDuplicate} />
           <ToolbarButton label="Remove segment" icon={Trash2} disabled={!selected || project.segments.length <= 1} onClick={onRemove} />
         </div>
         <div className="montage-v2-timeline__zoom">
-          <ToolbarButton label="Zoom out" icon={ZoomOut} disabled={zoom <= 0.25} onClick={() => onZoomChange(clamp(zoom / 1.25, 0.25, 4))} />
-          <button type="button" className="montage-v2-fit" onClick={fitTimeline}>Fit</button>
-          <output aria-label={`Timeline zoom ${Math.round(zoom * 100)} percent`}>{Math.round(zoom * 100)}%</output>
-          <ToolbarButton label="Zoom in" icon={ZoomIn} disabled={zoom >= 4} onClick={() => onZoomChange(clamp(zoom * 1.25, 0.25, 4))} />
+          <ToolbarButton label="Zoom out" icon={ZoomOut} disabled={zoom <= 1} onClick={() => onZoomChange(clamp(zoom / 1.5, 1, 32))} />
+          <button type="button" className="montage-v2-fit" aria-pressed={zoom === 1} onClick={fitTimeline}>Fit</button>
+          <output aria-label={`Timeline zoom ${zoom.toFixed(1)} times fit`}>{zoom === 1 ? 'Full' : `${zoom.toFixed(1)}×`}</output>
+          <ToolbarButton label="Zoom in" icon={ZoomIn} disabled={zoom >= 32} onClick={() => onZoomChange(clamp(zoom * 1.5, 1, 32))} />
         </div>
       </div>
 
@@ -150,9 +177,27 @@ export function MontageV2Timeline({
         </div>
         <div ref={viewportRef} className="montage-v2-timeline__viewport">
           <div className="montage-v2-timeline__content" style={{ width: `${width}px` }}>
-            <div className="montage-v2-ruler" onPointerDown={seekFromSurface}>
+            <div className="montage-v2-ruler" role="slider" tabIndex={0} aria-label="Montage playhead"
+              aria-valuemin={0} aria-valuemax={project.durationMs} aria-valuenow={Math.round(currentMs)} aria-valuetext={formatTimecode(currentMs, true)}
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                scrubPointerRef.current = event.pointerId;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                seekFromSurface(event);
+              }}
+              onPointerMove={(event) => { if (scrubPointerRef.current === event.pointerId) seekFromSurface(event); }}
+              onPointerUp={(event) => { scrubPointerRef.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }}
+              onPointerCancel={() => { scrubPointerRef.current = null; }}
+              onKeyDown={(event) => {
+                const delta = event.shiftKey ? 1000 : 100;
+                const time = event.key === 'Home' ? 0 : event.key === 'End' ? project.durationMs : event.key === 'ArrowLeft' ? currentMs - delta : event.key === 'ArrowRight' ? currentMs + delta : null;
+                if (time === null) return;
+                event.preventDefault();
+                event.stopPropagation();
+                onSeek(clamp(time, 0, project.durationMs));
+              }}>
               {rulerTicks.map((tick) => (
-                <span key={tick.timeMs} style={{ left: `${tick.timeMs * pixelsPerMs}px` }} data-major={tick.major || undefined}>
+                <span key={tick.timeMs} style={{ left: `${tick.timeMs * pixelsPerMs}px` }} data-end={tick.timeMs === project.durationMs || undefined} data-major={tick.major || undefined}>
                   {tick.major ? <em>{formatTimecode(tick.timeMs, false)}</em> : null}
                 </span>
               ))}
@@ -161,13 +206,13 @@ export function MontageV2Timeline({
             <div className="montage-v2-video-lane" role="list" aria-label="Video segments">
               {project.segments.map((segment, index) => {
                 const clip = clipsById.get(segment.clipId);
-                const segmentWidth = Math.max(8, segmentDurationMs(segment) * pixelsPerMs);
+                const segmentWidth = segmentDurationMs(segment) * pixelsPerMs;
                 const isSelected = segment.id === selectedSegmentId;
                 return (
                   <div
                     key={segment.id}
                     className="montage-v2-segment-slot"
-                    style={{ width: `${segmentWidth}px` }}
+                    style={{ width: `${segmentWidth}px` }} data-compact={segmentWidth < 70 || undefined}
                     role="listitem"
                     onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }}
                     onDrop={(event) => {
@@ -188,9 +233,18 @@ export function MontageV2Timeline({
                       data-missing={!clip || undefined}
                       aria-label={`${clip?.name ?? 'Missing clip'}, segment ${index + 1} of ${project.segments.length}`}
                       aria-pressed={isSelected}
+                      title={`${index + 1}. ${clip?.name ?? 'Missing clip'} · ${formatTimecode(segmentDurationMs(segment), true)}`}
                       onClick={() => {
                         onSelectSegment(segment.id);
                         onSeek(montageStartForSegment(project.segments, segment.id));
+                      }}
+                      onKeyDown={(event) => {
+                        if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+                        const target = project.segments[index + (event.key === 'ArrowLeft' ? -1 : 1)];
+                        if (!target) return;
+                        event.preventDefault();
+                        onProjectChange(reorderMontageSegment(project, segment.id, target.id));
+                        onSelectSegment(segment.id);
                       }}
                       onDragStart={(event) => {
                         draggedSegmentIdRef.current = segment.id;
@@ -215,7 +269,7 @@ export function MontageV2Timeline({
                       onPointerDown={(event) => {
                         if (event.button !== 0) return;
                         event.stopPropagation();
-                        trimRef.current = { pointerId: event.pointerId, startX: event.clientX, segment, edge: 'start' };
+                        trimRef.current = { pointerId: event.pointerId, startX: event.clientX, segment, edge: 'start', pixelsPerMs };
                         try { event.currentTarget.setPointerCapture(event.pointerId); } catch { }
                       }}
                       onPointerMove={continueTrim}
@@ -239,7 +293,7 @@ export function MontageV2Timeline({
                       onPointerDown={(event) => {
                         if (event.button !== 0) return;
                         event.stopPropagation();
-                        trimRef.current = { pointerId: event.pointerId, startX: event.clientX, segment, edge: 'end' };
+                        trimRef.current = { pointerId: event.pointerId, startX: event.clientX, segment, edge: 'end', pixelsPerMs };
                         try { event.currentTarget.setPointerCapture(event.pointerId); } catch { }
                       }}
                       onPointerMove={continueTrim}
@@ -257,7 +311,7 @@ export function MontageV2Timeline({
               })}
             </div>
 
-            <div className="montage-v2-music-lane" onPointerDown={project.music ? undefined : seekFromSurface}>
+            <div className="montage-v2-music-lane">
               {project.music ? (
                 <button
                   type="button"
@@ -268,6 +322,13 @@ export function MontageV2Timeline({
                   }}
                   data-muted={project.music.muted || project.music.volume <= 0 || undefined}
                   aria-label={`${project.music.asset.name} music track. Drag to change its timeline position.`}
+                  onDoubleClick={onEditMusic}
+                  onKeyDown={(event) => {
+                    const delta = event.key === 'ArrowLeft' ? -100 : event.key === 'ArrowRight' ? 100 : 0;
+                    if (!delta) return;
+                    event.preventDefault();
+                    onProjectChange(updateMontageMusic(project, (track) => ({ ...track, timelineStartMs: track.timelineStartMs + delta * (event.shiftKey ? 10 : 1) })), 'music:position');
+                  }}
                   onClick={() => onSeek(project.music?.timelineStartMs ?? 0)}
                   onPointerDown={(event) => {
                     if (event.button !== 0 || !project.music) return;
@@ -296,8 +357,8 @@ export function MontageV2Timeline({
                   <small>{project.music.loop ? 'Looping' : formatTimecode(project.music.sourceEndMs - project.music.sourceStartMs, true)}</small>
                 </button>
               ) : (
-                <button type="button" className="montage-v2-music-empty" onClick={onAddMusic}>
-                  Import music from your computer
+                <button type="button" className="montage-v2-music-empty" disabled={musicPending} onClick={onAddMusic}>
+                  <Music2 aria-hidden="true" /> {musicPending ? 'Importing audio…' : 'Add music from your computer'}
                 </button>
               )}
             </div>
@@ -335,7 +396,7 @@ function createRulerTicks(durationMs: number, pixelsPerMs: number): Array<{ time
   const majorEvery = interval < 1_000 ? 5 : interval < 10_000 ? 5 : interval < 60_000 ? 3 : 2;
   const ticks: Array<{ timeMs: number; major: boolean }> = [];
   for (let timeMs = 0, index = 0; timeMs <= durationMs; timeMs += interval, index += 1) {
-    ticks.push({ timeMs, major: index % majorEvery === 0 });
+    ticks.push({ timeMs, major: index % majorEvery === 0 && (timeMs === 0 || timeMs === durationMs || (durationMs - timeMs) * pixelsPerMs >= 72) });
     if (ticks.length >= 300) break;
   }
   if (ticks.at(-1)?.timeMs !== durationMs) ticks.push({ timeMs: durationMs, major: true });

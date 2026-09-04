@@ -1,3 +1,4 @@
+import { debugDiagnostics } from './debug-diagnostics';
 import { devicesAsync, type Device as HidDevice } from 'node-hid';
 import type { Device, DeviceControlChange, SystemSnapshot } from '../../shared/contracts';
 import type { DeviceModule } from '../modules/device-module';
@@ -29,6 +30,7 @@ export class DeviceRegistry {
   private disposePromise: Promise<void> | null = null;
   private readonly fixtureConnectionStates = new Map<string, Map<string, boolean>>();
   private disposed = false;
+  private started = false;
 
   public constructor(
     private readonly getSnapshot: () => SystemSnapshot,
@@ -48,11 +50,27 @@ export class DeviceRegistry {
   }
 
   public async start(): Promise<void> {
+    if (this.started || this.disposed) return;
+    this.started = true;
     await this.refresh();
     if (this.disposed) return;
+    // A manual refresh may already have been in flight before start().
+    const enabledIds = new Set(this.getSnapshot().modules.filter(module => module.enabled).map(module => module.id));
+    this.syncDiscoveryTimer(this.allModules().some(module => enabledIds.has(module.id)));
+  }
+
+  private syncDiscoveryTimer(hasActiveModules: boolean): void {
+    if (!this.started || this.disposed) return;
+    if (!hasActiveModules) {
+      if (this.timer) clearInterval(this.timer);
+      this.timer = null;
+      return;
+    }
+    if (this.timer) return;
     // The Windows PnP inventory and the portable HIDAPI fallback expose no
     // hot-plug subscription here. Poll every five seconds only while the
-    // controller is alive, and stop deterministically during shutdown.
+    // controller has an enabled device module. Re-enable restores discovery;
+    // disabling the last module or shutting down removes the timer entirely.
     this.timer = setInterval(() => void this.refresh(), discoveryIntervalMs);
     this.timer.unref();
   }
@@ -107,6 +125,7 @@ export class DeviceRegistry {
   public dispose(): Promise<void> {
     if (this.disposePromise) return this.disposePromise;
     this.disposed = true;
+    this.started = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     const activeRefresh = this.refreshPromise;
@@ -120,7 +139,10 @@ export class DeviceRegistry {
   public async reconcileModuleState(moduleId: string, enabled: boolean): Promise<void> {
     if (this.refreshPromise) await this.refreshPromise;
     if (this.disposed) return;
-    const moduleState = this.getSnapshot().modules.find((module) => module.id === moduleId);
+    const snapshot = this.getSnapshot();
+    const enabledIds = new Set(snapshot.modules.filter(module => module.enabled).map(module => module.id));
+    this.syncDiscoveryTimer(this.allModules().some(module => enabledIds.has(module.id)));
+    const moduleState = snapshot.modules.find((module) => module.id === moduleId);
     const usesBundledFixtures = this.fixtureMode && moduleState?.source === 'bundled';
 
     if (enabled) {
@@ -198,19 +220,20 @@ export class DeviceRegistry {
   private async discover(): Promise<void> {
     if (this.disposed) return;
     const snapshot = this.getSnapshot();
-    const hidDevices = await this.enumerateHidDevices();
-    if (this.disposed) return;
     const enabledModuleIds = new Set(snapshot.modules.filter((module) => module.enabled).map((module) => module.id));
     const modules = this.allModules();
     const activeModules = modules.filter((module) => enabledModuleIds.has(module.id));
+    this.syncDiscoveryTimer(activeModules.length > 0);
+    const hidDevices = activeModules.length > 0 ? await debugDiagnostics.measureAsync('devices.hid-enumeration', () => this.enumerateHidDevices()) : [];
+    if (this.disposed) return;
     await Promise.all(modules
       .filter((module) => !enabledModuleIds.has(module.id))
       .map((module) => module.deactivate?.()));
-    const groups = await Promise.all(activeModules.map((module) => module.discover({
+    const groups = await Promise.all(activeModules.map((module) => debugDiagnostics.measureAsync(`devices.discover:${module.id}`, () => module.discover({
       hidDevices,
       previousDevices: snapshot.devices,
       appearanceOverrides: snapshot.settings.deviceAppearanceOverrides,
-    })));
+    }))));
     if (this.disposed) return;
     const connected = groups.flat().map((device) => mergeDeviceSettings(device, snapshot.devices));
     const connectedIds = new Set(connected.map((device) => device.id));

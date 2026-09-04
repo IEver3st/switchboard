@@ -38,9 +38,16 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   {
     id: 'general.workspace',
     category: 'general',
-    title: 'Workspace',
-    description: 'Choose Just clipping or Full setup. Clipping hides Devices and Audio.',
-    keywords: ['workspace', 'clipping', 'full setup', 'onboarding', 'hide', 'devices', 'audio', 'capture'],
+    title: 'Workspaces',
+    description: 'Choose which parts of Switchboard stay visible: Devices and Capture. Audio appears only with Developer mode.',
+    keywords: ['workspace', 'clipping', 'full setup', 'onboarding', 'hide', 'show', 'devices', 'capture', 'preset'],
+  },
+  {
+    id: 'general.developerMode',
+    category: 'general',
+    title: 'Developer mode',
+    description: 'Show unfinished Audio routing, mixes, and processing for development. Audio settings do not work yet.',
+    keywords: ['developer', 'dev mode', 'audio', 'experimental', 'unfinished', 'debug'],
   },
   {
     id: 'general.uiScale',
@@ -400,6 +407,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['extensions', 'plugins', 'drivers', 'hardware', 'install', 'discovery'],
   },
   {
+    id: 'diagnostics.detailed',
+    category: 'diagnostics',
+    title: 'Detailed resource diagnostics',
+    description: 'Record and export process resources and operation timings.',
+    keywords: ['debug', 'profiling', 'slow', 'cpu', 'memory', 'report'],
+  },
+  {
     id: 'diagnostics.guard',
     category: 'diagnostics',
     title: 'Performance guard',
@@ -431,7 +445,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'diagnostics.engines',
     category: 'diagnostics',
     title: 'Engine status',
-    description: 'Inspect the latest Audio and Capture host state.',
+    description: 'Inspect the latest Capture host state, plus Audio when Developer mode is on.',
     keywords: ['audio host', 'capture host', 'stopped', 'running', 'pid'],
   },
   {
@@ -500,11 +514,22 @@ export function isSettingsCategory(value: string | null): value is SettingsCateg
   return settingsCategoryIds.some((candidate) => candidate === value);
 }
 
-export function searchSettings(query: string): SettingsSearchEntry[] {
+export function isAudioSettingsVisible(settings: { developerMode?: boolean } | null | undefined): boolean {
+  return settings?.developerMode === true;
+}
+
+export function visibleSettingsCategories(settings: { developerMode?: boolean } | null | undefined): typeof settingsCategories {
+  if (isAudioSettingsVisible(settings)) return settingsCategories;
+  return settingsCategories.filter((category) => category.id !== 'audio');
+}
+
+export function searchSettings(query: string, settings?: { developerMode?: boolean } | null): SettingsSearchEntry[] {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   if (terms.length === 0) return [];
+  const developerMode = settings?.developerMode === true;
 
   return settingsSearchEntries
+    .filter((entry) => developerMode || entry.category !== 'audio')
     .map((entry) => {
       const category = categoryLabel(entry.category).toLocaleLowerCase();
       const title = entry.title.toLocaleLowerCase();

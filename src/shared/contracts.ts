@@ -346,7 +346,7 @@ export const lightingCapabilitySchema = z.object({
 });
 export type LightingCapability = z.infer<typeof lightingCapabilitySchema>;
 
-export const keyboardFeatureStatusSchema = z.enum(['native', 'synapse', 'observed']);
+export const keyboardFeatureStatusSchema = z.enum(['native', 'synapse', 'observed', 'unsupported']);
 export type KeyboardFeatureStatus = z.infer<typeof keyboardFeatureStatusSchema>;
 
 export const keyboardFeatureSchema = z.object({
@@ -1245,7 +1245,25 @@ export const clipReviewStateSchema = z.object({
 });
 export type ClipReviewState = z.infer<typeof clipReviewStateSchema>;
 
+export const debugDiagnosticsSchema = z.object({
+  startedAt: z.string(),
+  sampledAt: z.string(),
+  eventLoopUtilizationPercent: z.number().finite().min(0).max(100).nullable(),
+  eventLoopDelayP99Ms: z.number().finite().nonnegative().nullable(),
+  eventLoopDelayMaxMs: z.number().finite().nonnegative().nullable(),
+  operations: z.array(z.object({
+    name: z.string().max(96), calls: z.number().int().nonnegative(), failures: z.number().int().nonnegative(),
+    inFlight: z.number().int().nonnegative(), totalMs: z.number().finite().nonnegative(), maxMs: z.number().finite().nonnegative(),
+  })).max(128),
+  processes: z.array(z.object({
+    pid: z.number().int(), role: z.string(), privateMb: z.number().nonnegative(),
+    workingSetMb: z.number().nonnegative(), cpuPercent: z.number().nonnegative().nullable(),
+  })),
+});
+export type DebugDiagnostics = z.infer<typeof debugDiagnosticsSchema>;
+
 export const performanceSnapshotSchema = z.object({
+  debug: debugDiagnosticsSchema.optional(),
   coreMemoryMb: z.number().min(0),
   rendererMemoryMb: z.number().min(0),
   totalMemoryMb: z.number().min(0),
@@ -1305,12 +1323,14 @@ export const appSettingsSchema = z.object({
   installAppUpdatesOnNextStartup: z.boolean(),
   automaticModuleUpdates: z.boolean(),
   performanceGuard: z.boolean(),
+  detailedDiagnostics: z.boolean().default(false),
   diagnosticsRetentionDays: z.number().int().min(1).max(30),
   telemetry: z.literal(false),
   scanGamesAutomatically: z.boolean(),
   clipEditorInspectorOpen: z.boolean(),
   deviceAppearanceOverrides: z.record(z.string(), deviceAppearanceOverrideSchema).default({}),
-  workspaceProfile: workspaceProfileSchema.nullable().default(null),
+  developerMode: z.boolean().default(false),
+  visibleWorkspaces: z.array(visibleWorkspaceSchema).default(['devices', 'audio', 'capture']),
   onboardingCompleted: z.boolean().default(false),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -1561,7 +1581,15 @@ export const setMicProcessorInputSchema = z.discriminatedUnion('processorId', [
 ]);
 export type SetMicProcessorInput = z.infer<typeof setMicProcessorInputSchema>;
 
-export const updateSettingsInputSchema = appSettingsSchema.partial();
+// Persisted-state defaults belong to hydration, never to a partial IPC update.
+export const updateSettingsInputSchema = appSettingsSchema.partial().extend({
+  detailedDiagnostics: appSettingsSchema.shape.detailedDiagnostics.removeDefault().optional(),
+  softwareRendering: appSettingsSchema.shape.softwareRendering.removeDefault().optional(),
+  deviceAppearanceOverrides: appSettingsSchema.shape.deviceAppearanceOverrides.removeDefault().optional(),
+  developerMode: appSettingsSchema.shape.developerMode.removeDefault().optional(),
+  visibleWorkspaces: appSettingsSchema.shape.visibleWorkspaces.removeDefault().optional(),
+  onboardingCompleted: appSettingsSchema.shape.onboardingCompleted.removeDefault().optional(),
+});
 export type UpdateSettingsInput = z.infer<typeof updateSettingsInputSchema>;
 
 export const settingsResetScopeSchema = z.enum([
@@ -1642,6 +1670,7 @@ export const ipcChannels = {
   downloadAppUpdate: 'updates:download',
   installAppUpdate: 'updates:install',
   updateSettings: 'settings:update',
+  exportResourceDiagnostics: 'diagnostics:export-resources',
   resetSettings: 'settings:reset',
   handoffFeedbackReport: 'feedback:handoff-report',
   revealClip: 'clips:reveal',
@@ -1711,6 +1740,7 @@ export interface SwitchboardApi {
   downloadAppUpdate(): Promise<SystemSnapshot>;
   installAppUpdate(): Promise<void>;
   updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot>;
+  exportResourceDiagnostics(): Promise<boolean>;
   resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot>;
   handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult>;
   revealClip(id: string): Promise<void>;

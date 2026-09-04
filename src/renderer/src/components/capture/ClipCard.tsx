@@ -1,3 +1,4 @@
+import { memo, type CSSProperties } from 'react';
 import type { Clip } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../../shared/auto-capture';
@@ -7,7 +8,10 @@ import { ClipActionsMenu, ClipContextMenu, ClipFavorite, ClipShare } from './Cli
 import { ClipThumbnail } from './ClipThumbnail';
 import type { ClipActions } from './types';
 
-export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggleSelection }: {
+export const ClipCard = memo(function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggleSelection, style, position, total }: {
+  style?: CSSProperties;
+  position?: number;
+  total?: number;
   clip: Clip;
   actions: ClipActions;
   selectionMode: boolean;
@@ -18,7 +22,7 @@ export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggle
   const autoCaptureSummary = autoCaptureClipSummary(clip);
   const activate = () => selectionMode ? onToggleSelection(clip) : actions.open(clip);
   return (
-    <li className="min-w-0">
+    <li className="min-w-0" style={style} aria-posinset={position} aria-setsize={total} data-library-clip-id={clip.id}>
       <ClipContextMenu clip={clip} actions={actions}>
         <article className="capture-clip-card group" data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
           <div className="capture-clip-card__media relative overflow-hidden rounded-[7px] border border-border">
@@ -30,8 +34,8 @@ export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggle
               </label>
             ) : <ClipFavorite clip={clip} onChange={(favorite) => actions.favorite(clip, favorite)} className="absolute bottom-2 right-2" />}
             <div className="capture-clip-card__quick-actions" hidden={selectionMode}>
-              <ClipShare clip={clip} onShare={() => actions.export(clip)} className="capture-clip-card__share" />
               <ClipActionsMenu clip={clip} actions={actions} />
+              <ClipShare clip={clip} onShare={() => actions.export(clip)} className="capture-clip-card__share" />
             </div>
           </div>
           <div className="capture-clip-card__footer min-w-0">
@@ -51,4 +55,4 @@ export function ClipCard({ clip, actions, selectionMode, selectedOrder, onToggle
       </ClipContextMenu>
     </li>
   );
-}
+});

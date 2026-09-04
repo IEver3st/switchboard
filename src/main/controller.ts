@@ -1,8 +1,19 @@
+import { debugDiagnostics } from './services/debug-diagnostics';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, parse, resolve } from 'node:path';
-import { app, clipboard, desktopCapturer, dialog, globalShortcut, screen, shell, type Display } from 'electron';
+import {
+  app,
+  clipboard,
+  desktopCapturer,
+  dialog,
+  globalShortcut,
+  screen,
+  shell,
+  type DesktopCapturerSource,
+  type Display,
+} from 'electron';
 import { z } from 'zod';
 import projectPackage from '../../package.json';
 import {
@@ -103,9 +114,9 @@ import { TestEventProvider } from './autocapture/providers/test-event-provider';
 import { CS2Provider } from './autocapture/providers/cs2/cs2-provider';
 import { WarThunderProvider } from './autocapture/providers/war-thunder/war-thunder-provider';
 import {
-  desktopCaptureTypesForSources,
+  desktopCaptureRequestsForSources,
   matchDesktopCaptureSource,
-  onlySourcesWithUsablePreviews,
+  onlySourcesAvailableToElectron,
   preserveValidatedWindowSources,
 } from './capture-source-previews';
 import { WardogsProvider } from './autocapture/providers/wardogs/wardogs-provider';
@@ -250,6 +261,7 @@ export class AppController {
       getContext: () => ({
         rendererActive: this.rendererActive,
         guardEnabled: this.store.getPerformanceGuardEnabled(),
+        detailedDiagnostics: this.store.getDetailedDiagnosticsEnabled(),
         engines: (['audio', 'capture'] as const).map((kind) => this.engines.getStatus(kind)),
       }),
       publish: (performance) => { this.store.setPerformance(performance); },
@@ -323,6 +335,7 @@ export class AppController {
   private async initializeOnce(): Promise<void> {
     await this.prepareSnapshot();
     if (this.disposed) return;
+    debugDiagnostics.setEnabled(this.store.getDetailedDiagnosticsEnabled());
     this.performance.start();
     await this.appUpdates.initialize(appUpdatePreferences(this.store.get().settings));
     if (this.disposed) return;
@@ -344,7 +357,15 @@ export class AppController {
     void this.reconcileClipLibrary();
 
     const starts: Promise<unknown>[] = [];
-    if (snapshot.audio.enabled) starts.push(this.startAudioEngine());
+    if (snapshot.audio.enabled && snapshot.settings.developerMode === true) {
+      starts.push(this.startAudioEngine());
+    } else if (snapshot.audio.enabled) {
+      this.store.update((draft) => {
+        draft.audio.enabled = false;
+        const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
+        if (module) module.enabled = false;
+      });
+    }
     const currentCapture = this.store.get().capture;
     if (currentCapture.config.enabled && !currentCapture.storage.warning) {
       starts.push(this.startCaptureEngine(currentCapture.config));
@@ -686,6 +707,9 @@ export class AppController {
     if (current === enabled) return this.store.get();
 
     if (enabled) {
+      if (this.store.get().settings.developerMode !== true) {
+        throw new Error('Audio is available only when Developer mode is enabled in Settings, General.');
+      }
       this.store.update((draft) => {
         draft.audio.enabled = true;
         const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
@@ -1274,11 +1298,8 @@ export class AppController {
       const sources = z.array(captureSourceSchema).parse(
         await this.engines.request('capture', 'listSources', undefined, 15_000),
       );
-      const nativeSources = await desktopCapturer.getSources({
-        types: desktopCaptureTypesForSources(sources),
-        thumbnailSize: { width: 320, height: 180 },
-      });
-      const visibleSources = onlySourcesWithUsablePreviews(
+      const nativeSources = await this.listNativeCaptureSources(sources);
+      const visibleSources = onlySourcesAvailableToElectron(
         sources,
         nativeSources,
         captureIndexedDisplays().map((display) => display.id),
@@ -1289,7 +1310,7 @@ export class AppController {
       }
       const orderedSources = orderCaptureSourcesByDisplayPosition(visibleSources);
       const snapshot = this.store.update((draft) => { draft.capture.sources = orderedSources; }, { persist: false });
-      await this.refreshCaptureSourceThumbnails(true);
+      this.replaceCaptureSourceThumbnails(orderedSources, nativeSources);
       return snapshot;
     } finally {
       if (!wasRunning) await this.engines.stop('capture');
@@ -1323,11 +1344,33 @@ export class AppController {
   }
 
   public async updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot> {
+    const diagnosticsWereEnabled = this.store.getDetailedDiagnosticsEnabled();
     const automaticScanWasEnabled = this.store.get().settings.scanGamesAutomatically;
+    const disablingDeveloperMode = input.developerMode === false;
+    if (disablingDeveloperMode) {
+      if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
+      this.audioRestartTimer = null;
+      this.audioRestartAttempts = 0;
+      await this.engines.stop('audio');
+    }
     const snapshot = this.store.update((draft) => {
       draft.settings = { ...draft.settings, ...input };
+      if (disablingDeveloperMode) {
+        draft.audio.enabled = false;
+        const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
+        if (module) module.enabled = false;
+      }
     });
 
+    if (typeof input.detailedDiagnostics === 'boolean' && input.detailedDiagnostics !== diagnosticsWereEnabled) {
+      debugDiagnostics.setEnabled(input.detailedDiagnostics);
+      if (input.detailedDiagnostics) this.performance.clearDebugHistory();
+      else {
+        this.performance.invalidateDebugSample();
+        this.store.update(draft => { delete draft.performance.debug; }, { persist: false });
+      }
+      this.performance.refresh();
+    }
     if (typeof input.launchAtStartup === 'boolean') {
       this.applyLoginItemSetting(input.launchAtStartup);
     }
@@ -1342,6 +1385,24 @@ export class AppController {
       return this.scanGames();
     }
     return snapshot;
+  }
+
+  public async exportResourceDiagnostics(): Promise<boolean> {
+    const samples = this.performance.getDebugHistory();
+    if (!samples.length) throw new Error('Enable detailed diagnostics and wait for a resource sample before exporting.');
+    const result = await dialog.showSaveDialog({
+      title: 'Export resource diagnostics',
+      defaultPath: `switchboard-resources-${Date.now()}.json`,
+      filters: [{ name: 'JSON report', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePath) return false;
+    await writeFile(result.filePath, JSON.stringify({
+      schemaVersion: 1, version: this.store.get().version, exportedAt: new Date().toISOString(),
+      droppedJournalWrites: this.resourceJournal.getDroppedWrites(),
+      limits: 'Last 120 debug samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. No payloads or media paths are collected.',
+      samples,
+    }, null, 2), 'utf8');
+    return true;
   }
 
   public async checkAppUpdates(): Promise<SystemSnapshot> {
@@ -1379,6 +1440,9 @@ export class AppController {
   public async resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot> {
     if (scope === 'all' || scope === 'audio') await this.engines.stop('audio');
     if (scope === 'all' || scope === 'capture') await this.engines.stop('capture');
+    if (scope === 'general' && this.store.get().settings.developerMode === true && defaultSettings.developerMode !== true) {
+      await this.engines.stop('audio');
+    }
 
     let snapshot = this.store.update((draft) => {
       if (scope === 'all') {
@@ -1402,6 +1466,12 @@ export class AppController {
         draft.settings.automaticAppUpdates = defaultSettings.automaticAppUpdates;
         draft.settings.automaticAppUpdateDownloads = defaultSettings.automaticAppUpdateDownloads;
         draft.settings.installAppUpdatesOnNextStartup = defaultSettings.installAppUpdatesOnNextStartup;
+        draft.settings.developerMode = defaultSettings.developerMode;
+        if (defaultSettings.developerMode !== true) {
+          draft.audio.enabled = false;
+          const audioModule = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
+          if (audioModule) audioModule.enabled = false;
+        }
       }
       if (scope === 'devices') {
         draft.settings.deviceAppearanceOverrides = {};
@@ -1426,9 +1496,16 @@ export class AppController {
       }
       if (scope === 'diagnostics') {
         draft.settings.performanceGuard = defaultSettings.performanceGuard;
+        draft.settings.detailedDiagnostics = false;
         draft.settings.diagnosticsRetentionDays = defaultSettings.diagnosticsRetentionDays;
       }
     });
+    if (scope === 'all' || scope === 'diagnostics') {
+      this.performance.invalidateDebugSample();
+      debugDiagnostics.setEnabled(false);
+      snapshot = this.store.update(draft => { delete draft.performance.debug; }, { persist: false });
+      this.performance.refresh();
+    }
     if (scope === 'all' || scope === 'general') {
       this.appUpdates.setPreferences(appUpdatePreferences(snapshot.settings));
     }
@@ -1779,6 +1856,7 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    debugDiagnostics.dispose();
     this.performance.dispose();
     await this.resourceJournal.dispose();
     for (const controller of this.activeClipExports.values()) controller.abort();
@@ -1912,29 +1990,40 @@ export class AppController {
         return;
       }
 
-      const nativeSources = await desktopCapturer.getSources({
-        types: desktopCaptureTypesForSources(sources),
-        thumbnailSize: { width: 320, height: 180 },
-      });
-      const next = new Map<string, Buffer>();
-      for (const source of sources) {
-        const nativeSource = matchDesktopCaptureSource(
-          source,
-          nativeSources,
-          captureIndexedDisplays().map((display) => display.id),
-        );
-        if (!nativeSource || nativeSource.thumbnail.isEmpty()) continue;
-        next.set(source.id, nativeSource.thumbnail.toPNG());
-      }
-      this.captureSourceThumbnails.clear();
-      for (const [id, thumbnail] of next) this.captureSourceThumbnails.set(id, thumbnail);
-      this.captureSourceThumbnailsRefreshedAt = Date.now();
+      const nativeSources = await this.listNativeCaptureSources(sources);
+      this.replaceCaptureSourceThumbnails(sources, nativeSources);
     })().catch((error) => {
       console.warn('Capture source thumbnails could not be refreshed.', error);
     }).finally(() => {
       this.captureSourceThumbnailRefresh = null;
     });
     return this.captureSourceThumbnailRefresh;
+  }
+
+  private async listNativeCaptureSources(sources: readonly CaptureSource[]): Promise<DesktopCapturerSource[]> {
+    const groups = await Promise.all(desktopCaptureRequestsForSources(sources).map((request) => (
+      desktopCapturer.getSources(request)
+    )));
+    return groups.flat();
+  }
+
+  private replaceCaptureSourceThumbnails(
+    sources: readonly CaptureSource[],
+    nativeSources: DesktopCapturerSource[],
+  ): void {
+    const next = new Map<string, Buffer>();
+    for (const source of sources) {
+      const nativeSource = matchDesktopCaptureSource(
+        source,
+        nativeSources,
+        captureIndexedDisplays().map((display) => display.id),
+      );
+      if (!nativeSource || nativeSource.thumbnail.isEmpty()) continue;
+      next.set(source.id, nativeSource.thumbnail.toPNG());
+    }
+    this.captureSourceThumbnails.clear();
+    for (const [id, thumbnail] of next) this.captureSourceThumbnails.set(id, thumbnail);
+    this.captureSourceThumbnailsRefreshedAt = Date.now();
   }
 
   private applyLoginItemSetting(enabled: boolean): void {

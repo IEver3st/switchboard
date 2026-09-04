@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSystemStore } from '@/stores/use-system-store';
+import './equipment-workbench.css';
 
 export function KeyboardDeviceEditor({ device }: { device: Device }) {
   const setDeviceControl = useSystemStore((state) => state.setDeviceControl);
@@ -52,7 +53,7 @@ export function KeyboardDeviceEditor({ device }: { device: Device }) {
         />
         <div className="keyboard-stage__footer">
           <span className="keyboard-stage__effect">
-            {lighting?.enabled ? activeEffect?.label ?? 'Lighting on' : 'Lighting off'}
+            {lighting?.state === 'unknown' ? 'Lighting state unavailable' : lighting?.enabled ? activeEffect?.label ?? 'Lighting on' : 'Lighting off'}
             {customColorAvailable ? <i style={{ backgroundColor: previewColor ?? lighting?.color }} aria-hidden /> : null}
           </span>
           <Tooltip>
@@ -82,6 +83,7 @@ export function KeyboardDeviceEditor({ device }: { device: Device }) {
       ) : null}
 
       <section className="keyboard-primary-controls" aria-label="Keyboard settings">
+        <h3>Keyboard settings</h3>
         <ControlRow label="Onboard profile" unavailableReason={!profiles?.writable ? profileUnavailableReason : undefined}>
           <Select
             value={profiles?.activeProfileId ?? undefined}
@@ -163,7 +165,7 @@ export function KeyboardDeviceEditor({ device }: { device: Device }) {
                     max={100}
                     step={1}
                     value={[previewBrightness]}
-                    disabled={pending || !lighting.enabled || !lighting.brightnessWritable}
+                    disabled={pending || !controlsReady || !lighting.enabled || !lighting.brightnessWritable}
                     aria-label="Lighting brightness"
                     aria-valuetext={`${previewBrightness}%`}
                     onValueChange={([brightness]) => typeof brightness === 'number' && setPreviewBrightness(brightness)}
@@ -207,9 +209,9 @@ export function KeyboardDeviceEditor({ device }: { device: Device }) {
               ) : null}
             </div>
 
-            {!lightingReady ? (
+            {!lightingReady && controlsReady ? (
               <div className="keyboard-lighting__unavailable" role="status">
-                <span>Lighting controls are unavailable.</span>
+                <span>{lighting.unavailableReason ?? 'Lighting controls are unavailable. Reconnect the keyboard and try again.'}</span>
                 <Button variant="ghost" size="sm" onClick={() => void refreshDevices()} disabled={pending}>Try again</Button>
               </div>
             ) : null}
@@ -218,6 +220,19 @@ export function KeyboardDeviceEditor({ device }: { device: Device }) {
           <p className="keyboard-lighting__empty">Lighting is not available for this keyboard.</p>
         )}
       </section>
+      {keyboard?.features.some((feature) => feature.status !== 'native') ? (
+        <section className="keyboard-input-features" aria-labelledby="keyboard-input-heading">
+          <header><h3 id="keyboard-input-heading">Input features</h3><span>Availability for this keyboard</span></header>
+          <dl>
+            {keyboard.features.filter((feature) => feature.status !== 'native').map((feature) => (
+              <div key={feature.id}>
+                <dt>{feature.label}<span>{feature.status === 'synapse' ? 'In Synapse' : 'Unavailable'}</span></dt>
+                <dd>{feature.summary}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
     </div>
   );
 }

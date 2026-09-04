@@ -1,3 +1,4 @@
+import { huntsmanKeyboardFeatures } from './huntsman-features';
 import type {
   AppUpdateState,
   AppSettings,
@@ -400,13 +401,7 @@ export const defaultDevices: Device[] = [
         firmwareVersion: '1.06',
         pollingRateHz: 1_000,
         transport: 'native-hid',
-        features: [
-          { id: 'lighting', label: 'Quick lighting', summary: 'Brightness and device-firmware quick effects use the native HID control endpoint.', status: 'native' },
-          { id: 'actuation', label: 'Per-key actuation', summary: 'Adjustable 1.5–3.6 mm actuation and two-stage inputs are supported by the keyboard.', status: 'synapse', unavailableReason: 'The actuation protocol is not safely documented or verified for direct writes yet.' },
-          { id: 'analog', label: 'Analog input', summary: 'Selected keys can emulate joystick axes and controller triggers.', status: 'synapse', unavailableReason: 'Analog mapping remains owned by Synapse until its native profile format is verified.' },
-          { id: 'mapping', label: 'Key mapping', summary: 'Remapping, macros, Hypershift, and analog controller bindings remain in Synapse.', status: 'synapse', unavailableReason: 'Switchboard does not write undocumented key maps or macro payloads.' },
-          { id: 'rapid-input', label: 'Snap Tap', summary: 'Snap Tap is available for this keyboard through Synapse 4.', status: 'synapse', unavailableReason: 'Switchboard does not expose Snap Tap because no independent device command is verified for this model.' },
-        ],
+        features: huntsmanKeyboardFeatures.map((feature) => ({ ...feature })),
         gamingMode: { enabled: false, writable: true },
         onboardProfiles: {
           activeProfileId: '1',
@@ -670,19 +665,21 @@ export const defaultSettings: AppSettings = {
   installAppUpdatesOnNextStartup: true,
   automaticModuleUpdates: true,
   performanceGuard: true,
+  detailedDiagnostics: false,
   diagnosticsRetentionDays: 7,
   telemetry: false,
   scanGamesAutomatically: true,
   clipEditorInspectorOpen: true,
   deviceAppearanceOverrides: {},
-  workspaceProfile: null,
+  developerMode: false,
+  visibleWorkspaces: ['devices', 'audio', 'capture'],
   onboardingCompleted: false,
 };
 
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.6.5',
+  currentVersion: '0.7.0',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -727,7 +724,7 @@ export const seedClips: Clip[] = [];
 
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
-    version: '0.6.5',
+    version: '0.7.0',
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),
     modules: structuredClone(defaultModules),

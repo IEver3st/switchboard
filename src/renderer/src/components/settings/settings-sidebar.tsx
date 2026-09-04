@@ -22,7 +22,7 @@ import { FeedbackDialog } from './feedback-dialog';
 import {
   categoryLabel,
   searchSettings,
-  settingsCategories,
+  visibleSettingsCategories,
   type SettingsCategoryId,
   type SettingsSearchEntry,
 } from './settings-catalog';
@@ -41,6 +41,7 @@ export const settingsCategoryIcons: Record<SettingsCategoryId, LucideIcon> = {
 export function SettingsSidebar({
   category,
   appUpdate,
+  developerMode,
   query,
   searchInputRef,
   onCategoryChange,
@@ -50,6 +51,7 @@ export function SettingsSidebar({
 }: {
   category: SettingsCategoryId;
   appUpdate: AppUpdateState;
+  developerMode: boolean;
   query: string;
   searchInputRef: RefObject<HTMLInputElement | null>;
   onCategoryChange: (category: SettingsCategoryId) => void;
@@ -58,7 +60,8 @@ export function SettingsSidebar({
   onBack: () => void;
 }) {
   const navigationRef = useRef<HTMLElement>(null);
-  const results = useMemo(() => searchSettings(query), [query]);
+  const results = useMemo(() => searchSettings(query, { developerMode }), [query, developerMode]);
+  const visibleCategories = useMemo(() => visibleSettingsCategories({ developerMode }), [developerMode]);
   const hasQuery = query.trim().length > 0;
   const pendingUpdate = ['available', 'downloading', 'downloaded'].includes(appUpdate.status);
   const pendingUpdateLabel = appUpdate.status === 'downloaded'
@@ -145,7 +148,7 @@ export function SettingsSidebar({
       <nav ref={navigationRef} aria-label="Settings categories" onKeyDown={handleNavigationKeyDown} className="settings-categories">
         <div className="settings-sidebar__label">Categories</div>
         <div className="settings-categories__list">
-          {settingsCategories.map((item) => (
+          {visibleCategories.map((item) => (
             <SettingsCategoryLink
               key={item.id}
               id={item.id}

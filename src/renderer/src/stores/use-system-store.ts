@@ -40,7 +40,9 @@ import {
   type UpdateSettingsInput,
 } from '../../../shared/contracts';
 import { switchboardApi } from '../lib/demo-api';
+import { defaultPageForProfile, isPageVisibleForProfile } from '../../../shared/workspace-profile';
 import { applyClipTrackLevel } from '../../../shared/clip-track-levels';
+import { reconcileSnapshot } from './reconcile-snapshot';
 
 type AsyncAction = () => Promise<SystemSnapshot>;
 
@@ -137,7 +139,15 @@ interface SystemStore {
   revealClip(path: string): Promise<void>;
 }
 
-export const useSystemStore = create<SystemStore>((set, get) => {
+export const useSystemStore = create<SystemStore>((setState, get) => {
+  const set = (update: Partial<SystemStore> | ((state: SystemStore) => Partial<SystemStore>)) => {
+    setState((state) => {
+      const patch = typeof update === 'function' ? update(state) : update;
+      return patch.snapshot
+        ? { ...patch, snapshot: reconcileSnapshot(state.snapshot, patch.snapshot) }
+        : patch;
+    });
+  };
   const run = async (action: AsyncAction): Promise<void> => {
     set({ error: null });
     try {
@@ -177,10 +187,11 @@ export const useSystemStore = create<SystemStore>((set, get) => {
       if (window.location.hash !== initialHash) window.history.replaceState(null, '', initialHash);
       const onHashChange = () => {
         const page = pageFromHash();
-        const profile = get().snapshot?.settings.workspaceProfile;
-        if (profile === 'clipping' && (page === 'devices' || page === 'audio')) {
-          window.history.replaceState(null, '', '#capture');
-          set({ page: 'capture', selectedDeviceId: null });
+        const settings = get().snapshot?.settings;
+        if (settings && !isPageVisibleForProfile(page, settings)) {
+          const fallback = defaultPageForProfile(settings);
+          window.history.replaceState(null, '', `#${fallback}`);
+          set({ page: fallback, selectedDeviceId: null });
           return;
         }
         const nextHash = canonicalPageHash(page);
@@ -196,9 +207,10 @@ export const useSystemStore = create<SystemStore>((set, get) => {
     setPage: (page) => {
       const snapshot = get().snapshot;
       const nextPage = page === 'modules' ? 'settings' : page;
-      if (snapshot?.settings.workspaceProfile === 'clipping' && (nextPage === 'devices' || nextPage === 'audio')) {
-        if (window.location.hash !== '#capture') window.location.hash = '#capture';
-        set({ page: 'capture' });
+      if (snapshot && !isPageVisibleForProfile(nextPage, snapshot.settings)) {
+        const fallback = defaultPageForProfile(snapshot.settings);
+        if (window.location.hash !== `#${fallback}`) window.location.hash = fallback;
+        set({ page: fallback });
         return;
       }
       if (page === 'modules') window.sessionStorage.setItem(settingsCategoryStorageKey, 'modules');
