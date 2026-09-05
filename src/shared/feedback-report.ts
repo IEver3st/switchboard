@@ -49,7 +49,8 @@ export function buildFeedbackIssueUrl(
   const url = new URL(switchboardIssueUrl);
   url.searchParams.set('title', `${input.kind === 'bug' ? '[Bug]' : '[Feature]'} ${input.title.trim()}`);
   url.searchParams.set('body', buildFeedbackReportMarkdown(input, environment));
-  url.searchParams.set('labels', input.kind === 'bug' ? 'bug' : 'enhancement');
+  // Public reporters may not have permission to apply labels through URL parameters.
+  // Keep the report kind in the title and let maintainers assign labels on GitHub.
   return url.toString();
 }
 

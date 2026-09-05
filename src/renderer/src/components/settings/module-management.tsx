@@ -128,6 +128,7 @@ export function ModuleManagement({
                 <ModuleRow
                   key={module.id}
                   module={module}
+                  developerMode={snapshot.settings.developerMode === true}
                   devices={devicesForModule(module, snapshot.devices)}
                   pending={pendingModuleId === module.id}
                   onOpen={() => setSelectedModuleId(module.id)}
@@ -145,6 +146,7 @@ export function ModuleManagement({
                 <ModuleRow
                   key={module.id}
                   module={module}
+                  developerMode={snapshot.settings.developerMode === true}
                   devices={devicesForModule(module, snapshot.devices)}
                   pending={pendingModuleId === module.id}
                   onOpen={() => setSelectedModuleId(module.id)}
@@ -242,12 +244,14 @@ function ModuleListSection({
 
 function ModuleRow({
   module,
+  developerMode,
   devices,
   pending,
   onOpen,
   onStateChange,
 }: {
   module: ModuleManifest;
+  developerMode: boolean;
   devices: Device[];
   pending: boolean;
   onOpen: () => void;
@@ -255,7 +259,8 @@ function ModuleRow({
 }) {
   const Icon = moduleIcon(module);
   const available = !module.installed;
-  const canChangeState = moduleCanChangeState(module);
+  const developerLocked = module.kind === 'audio' && module.source !== 'local' && !developerMode && !module.enabled;
+  const canChangeState = !developerLocked && moduleCanChangeState(module);
   const meta = moduleMetadata(module);
   const detectedDevice = devices[0]?.displayName;
 
@@ -281,7 +286,7 @@ function ModuleRow({
             variant="primary"
             size="sm"
             className="module-list-row__install"
-            disabled={pending}
+            disabled={pending || !canChangeState}
             onClick={() => onStateChange(true)}
             aria-label={`Install ${module.name}`}
             data-module-install={module.id}
@@ -292,12 +297,13 @@ function ModuleRow({
         ) : (
           <>
             <span className="module-list-row__state" aria-live="polite">
-              {pending ? 'Updating…' : moduleStateLabel(module)}
+              {pending ? 'Updating…' : developerLocked ? 'Developer mode required' : moduleStateLabel(module)}
             </span>
             <Switch
               checked={module.enabled}
               disabled={pending || !canChangeState}
               aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}
+              title={developerLocked ? 'Enable Developer mode in Settings > General to use Audio.' : undefined}
               onCheckedChange={onStateChange}
               data-module-toggle={module.id}
               className="no-drag"
@@ -329,7 +335,8 @@ function ModuleDetailsDialog({
   const devices = devicesForModule(module, snapshot.devices);
   const developer = module.author;
   const status = module.development?.status;
-  const canChangeState = moduleCanChangeState(module);
+  const developerLocked = module.kind === 'audio' && module.source !== 'local' && snapshot.settings.developerMode !== true && !module.enabled;
+  const canChangeState = !developerLocked && moduleCanChangeState(module);
 
   const openDeveloperTools = () => {
     onOpenChange(false);
@@ -411,16 +418,17 @@ function ModuleDetailsDialog({
           ) : <span />}
           {module.installed ? (
             <label className="module-details-dialog__toggle">
-              <span>{pending ? 'Updating…' : moduleStateLabel(module)}</span>
+              <span>{pending ? 'Updating…' : developerLocked ? 'Developer mode required' : moduleStateLabel(module)}</span>
               <Switch
                 checked={module.enabled}
                 disabled={pending || !canChangeState}
                 aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}
+                title={developerLocked ? 'Enable Developer mode in Settings > General to use Audio.' : undefined}
                 onCheckedChange={onStateChange}
               />
             </label>
           ) : (
-            <Button type="button" variant="primary" size="sm" disabled={pending} onClick={() => onStateChange(true)}>
+            <Button type="button" variant="primary" size="sm" disabled={pending || !canChangeState} onClick={() => onStateChange(true)}>
               {pending ? <LoaderCircle className="animate-spin" aria-hidden /> : <Download aria-hidden />}
               {pending ? 'Installing…' : 'Install module'}
             </Button>

@@ -26,9 +26,12 @@ The first 1.5 seconds calibrate a local noise and speaking baseline. A candidate
 - clear an absolute level floor and rise above the learned speech baseline;
 - look voice-shaped by bounded zero-crossing and crest-factor checks;
 - remain above the sensitivity profile for 120 to 260 ms;
-- be outside the configured 5 to 120 second cooldown.
+- be outside the configured 5 to 120 second cooldown;
+- follow at least 750 ms of settled input after the previous reaction.
 
-The noise floor adapts only during non-voice or calibration frames. The speech baseline follows ordinary voice slowly and does not chase a reaction while it is being scored. Low, Balanced, and High sensitivity change the absolute floor, relative rise, and sustain duration together. The UI exposes pre-roll, post-roll, and cooldown; overlapping reaction windows use the existing bounded merge path.
+The first voice-shaped frame initializes the speech baseline to the actual input level, including when speech starts after silent calibration. The noise floor adapts only during non-voice frames. The speech baseline follows ordinary voice slowly and does not chase a reaction while it is being scored. High microphone gain alone cannot bypass the relative-rise requirement. After a detection, the detector rearms only after 750 ms of non-voice or voice below its lower settling threshold; a continuous loud exchange cannot create another reaction just because its cooldown expired. Low, Balanced, and High sensitivity change the absolute floor, relative rise, and sustain duration together. The UI exposes pre-roll, post-roll, and cooldown; overlapping reaction windows use the existing bounded merge path.
+
+The detector needs ordinary speech to establish a useful baseline. If the first speech is already a shout, it may learn that level and miss the initial reaction. Quiet laughter and reactions without a sufficient level rise also remain outside this heuristic's reliable coverage.
 
 ## Resource decision
 
@@ -51,4 +54,4 @@ Primary references:
 
 ## Validation boundary
 
-Deterministic tests cover calibration, ordinary-speech rejection, transient rejection, sustained-reaction acceptance, confidence bounds, cooldown, settings validation, independent reaction policy, and persistence. A hardware acceptance pass must still measure false positives and missed reactions across the owner’s microphone, gain, room noise, keyboard, laughter, speech, and game sessions. Build or synthetic-waveform evidence does not prove subjective reaction accuracy.
+Deterministic tests cover calibration, ordinary-speech rejection including high-gain speech, transient rejection, sustained-reaction acceptance, confidence bounds, cooldown, suppression of sustained loud input beyond cooldown, rearming after settled speech, settings validation, independent reaction policy, and persistence. A hardware acceptance pass must still measure false positives and missed reactions across the owner’s microphone, gain, room noise, keyboard, laughter, speech, and game sessions. Build or synthetic-waveform evidence does not prove subjective reaction accuracy.

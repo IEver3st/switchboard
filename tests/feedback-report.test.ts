@@ -42,7 +42,7 @@ describe('feedback report handoff', () => {
     expect(url.origin).toBe(destination.origin);
     expect(url.pathname).toBe(destination.pathname);
     expect(url.searchParams.get('title')).toBe('[Bug] Capture shortcut stops responding');
-    expect(url.searchParams.get('labels')).toBe('bug');
+    expect(url.searchParams.has('labels')).toBe(false);
     expect(url.searchParams.get('body')).toContain('## Steps to reproduce');
     expect(url.searchParams.get('body')).toContain('Electron 44.0.0');
   });
@@ -51,7 +51,12 @@ describe('feedback report handoff', () => {
     const feature = { ...bugReport, kind: 'feature' as const, includeDiagnostics: false };
     const markdown = buildFeedbackReportMarkdown(feature, environment);
     const clipboard = buildFeedbackClipboardText(feature, environment);
+    const url = new URL(buildFeedbackIssueUrl(feature, environment));
 
+    expect(url.pathname).toBe('/IEver3st/switchboard/issues/new');
+    expect(url.searchParams.get('title')).toBe('[Feature] Capture shortcut stops responding');
+    expect(url.searchParams.get('body')).toBe(markdown);
+    expect(url.searchParams.has('labels')).toBe(false);
     expect(markdown).toContain('## Requested capability');
     expect(markdown).not.toContain('## Environment');
     expect(clipboard).toStartWith('# [Feature] Capture shortcut stops responding');

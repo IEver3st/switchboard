@@ -1084,6 +1084,7 @@ export const autoCaptureProviderSchema = z.object({
   availability: providerAvailabilitySchema,
   status: providerStatusSchema,
   requiresPlayerName: z.boolean().default(false),
+  supportsAnonymousName: z.boolean().optional(),
   developmentOnly: z.boolean().default(false),
 });
 export type AutoCaptureProvider = z.infer<typeof autoCaptureProviderSchema>;
@@ -1094,6 +1095,8 @@ export const autoCaptureGameSettingsSchema = z.object({
   preRollSeconds: z.number().int().min(5).max(120).optional(),
   postRollSeconds: z.number().int().min(0).max(60).optional(),
   playerName: z.string().trim().min(1).max(64).optional(),
+  playerNameMode: z.enum(['nickname', 'anonymous']).optional(),
+  playerSquadronTag: z.string().trim().min(1).max(64).optional(),
   events: z.partialRecord(gameEventTypeSchema, z.boolean()).default({}),
 });
 export type AutoCaptureGameSettings = z.infer<typeof autoCaptureGameSettingsSchema>;

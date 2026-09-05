@@ -248,7 +248,7 @@
 
 .device-workbench[data-device-kind="mouse"] .report-rate-control__unit {
   margin-left: 2px;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .device-workbench[data-device-kind="mouse"] .dpi-shift-control {

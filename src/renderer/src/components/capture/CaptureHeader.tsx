@@ -110,7 +110,7 @@ function ReplayConfiguration({
   return (
     <div className="capture-recorder-rail" role="group" aria-label="Replay capture controls">
       <div className="capture-recorder-sentence">
-        <div className="capture-recorder-status" data-tone={status.tone} title={status.description}>
+        <div id="replay-status" className="capture-recorder-status" data-tone={status.tone} title={status.description}>
           <span className="capture-recorder-status__dot" aria-hidden="true" />
           <span>{status.label}</span>
         </div>
@@ -122,7 +122,7 @@ function ReplayConfiguration({
 
       <label className="capture-recorder-toggle">
         <span>Replay</span>
-        <Switch checked={config.enabled} aria-label="Instant Replay" onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
+        <Switch checked={config.enabled} aria-label="Instant Replay" aria-describedby="replay-status" disabled={!config.enabled && snapshot.capture.capabilities.backend === 'unavailable'} onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
       </label>
 
       <Popover open={replayOpen} onOpenChange={setReplayOpen}>
@@ -548,8 +548,8 @@ function sourceTypeLabel(type: CaptureSourceOption['type']): string {
 
 function captureSetupProblem(snapshot: SystemSnapshot): string | null {
   const { capabilities, config } = snapshot.capture;
-  if (!config.enabled) return null;
   if (capabilities.backend === 'unavailable') return 'Windows capture is not available for this setup.';
+  if (!config.enabled) return null;
   if (capabilities.encoders.length === 0) return 'No compatible encoder is currently available, so Replay cannot start.';
   if (config.encoder === 'auto') return null;
 
@@ -569,12 +569,15 @@ function captureNotice(snapshot: SystemSnapshot): { message: string; tone: 'dang
   if (snapshot.capture.storage.criticalSpace) return { message: 'Storage is too low to save replays. Choose another clip folder.', tone: 'danger' };
   if (snapshot.capture.storage.lowSpace) return { message: 'Storage is running low. Choose another clip folder soon.', tone: 'warning' };
   if (!snapshot.capture.config.enabled) return null;
-  if (snapshot.capture.runtime.error) return { message: "Instant Replay couldn't start. Restart it in Capture Settings, or check Diagnostics.", tone: 'danger' };
-  if (snapshot.capture.runtime.warning) return { message: 'Instant Replay is recovering. Check Diagnostics if this continues.', tone: 'warning' };
+  if (snapshot.capture.runtime.error) return { message: "Instant Replay couldn't start. Open replay settings, then turn Replay off and on to retry.", tone: 'danger' };
+  if (snapshot.capture.runtime.warning) return { message: 'Instant Replay is recovering. If this continues, turn Replay off and on to retry.', tone: 'warning' };
   return null;
 }
 
 function captureStatus(snapshot: SystemSnapshot): { label: string; description: string; tone: 'ready' | 'warning' | 'danger' | 'neutral' } {
+  if (snapshot.capture.capabilities.backend === 'unavailable') {
+    return { label: 'Unavailable', description: 'Windows capture is not available for this setup.', tone: 'warning' };
+  }
   if (!snapshot.capture.config.enabled || snapshot.capture.runtime.state === 'stopped') {
     return { label: 'Off', description: 'Instant Replay is turned off in Capture Settings.', tone: 'neutral' };
   }

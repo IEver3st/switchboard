@@ -1,6 +1,6 @@
 import type { AutoCaptureGameSettings, DetectedGame, GameEvent, ProviderAvailability, ProviderStatus } from '../../../../shared/contracts';
 import type { GameEventProvider, ProviderContext, ProviderDiscoveryContext } from '../../provider';
-import { WarThunderTelemetryParser } from './parser';
+import { normalizeSquadronTag, WarThunderTelemetryParser, type WarThunderPlayerIdentity } from './parser';
 
 const steamAppId = '236390';
 const defaultPollIntervalMs = 750;
@@ -24,6 +24,7 @@ export class WarThunderProvider implements GameEventProvider {
     nativeMultiKill: false,
   };
   public readonly requiresPlayerName = true;
+  public readonly supportsAnonymousName = true;
 
   private readonly parser = new WarThunderTelemetryParser();
   private readonly listeners = new Set<(event: GameEvent) => void>();
@@ -33,7 +34,8 @@ export class WarThunderProvider implements GameEventProvider {
   private readonly pollIntervalMs: number;
   private readonly endpoint: string;
   private status: ProviderStatus = { state: 'stopped' };
-  private playerName: string | null = null;
+  private playerIdentity: WarThunderPlayerIdentity | null = null;
+  private missingIdentityMessage = 'Enter your War Thunder nickname to identify personal events.';
   private timer: NodeJS.Timeout | null = null;
   private request: AbortController | null = null;
   private lifecycle = 0;
@@ -75,12 +77,23 @@ export class WarThunderProvider implements GameEventProvider {
   }
 
   public configure(settings: AutoCaptureGameSettings): void {
-    this.playerName = settings.playerName?.trim() || null;
+    const anonymous = settings.playerNameMode === 'anonymous';
+    const tag = normalizeSquadronTag(settings.playerSquadronTag ?? '');
+    const nickname = settings.playerName?.trim();
+    const anonymousPlaceholder = nickname?.toLocaleLowerCase() === 'player';
+    this.playerIdentity = anonymous
+      ? tag ? { mode: 'anonymous', squadronTag: tag } : null
+      : nickname && !anonymousPlaceholder ? { mode: 'nickname', nickname } : null;
+    this.missingIdentityMessage = anonymous
+      ? 'Enter your squadron tag to match Player in War Thunder anonymous mode.'
+      : anonymousPlaceholder
+        ? 'Player is an anonymous name. Enable anonymous mode and enter your squadron tag.'
+        : 'Enter your War Thunder nickname to identify personal events.';
     const wasMissingPlayerName = this.degradedForMissingPlayerName;
-    this.degradedForMissingPlayerName = !this.playerName;
-    if (!this.playerName && this.status.state !== 'stopped' && this.status.state !== 'starting') {
-      this.status = { state: 'degraded', message: 'Enter your War Thunder nickname to identify personal events.' };
-    } else if (this.playerName && wasMissingPlayerName && this.initialized && this.status.state === 'degraded') {
+    this.degradedForMissingPlayerName = !this.playerIdentity;
+    if (!this.playerIdentity && this.status.state !== 'stopped' && this.status.state !== 'starting') {
+      this.status = { state: 'degraded', message: this.missingIdentityMessage };
+    } else if (this.playerIdentity && wasMissingPlayerName && this.initialized && this.status.state === 'degraded') {
       this.status = { state: 'listening', ...(this.status.lastEventAt ? { lastEventAt: this.status.lastEventAt } : {}) };
     }
     this.publishStatus();
@@ -139,7 +152,8 @@ export class WarThunderProvider implements GameEventProvider {
       failedPolls: this.failedPolls,
       eventsEmitted: this.eventsEmitted,
       initialized: this.initialized,
-      playerNameConfigured: Boolean(this.playerName),
+      playerNameConfigured: Boolean(this.playerIdentity),
+      identityMode: this.playerIdentity?.mode ?? 'unconfigured',
     };
   }
 
@@ -162,15 +176,15 @@ export class WarThunderProvider implements GameEventProvider {
         this.parser.baseline(payload);
         this.initialized = true;
       } else {
-        for (const event of this.parser.parse(payload, this.playerName)) {
+        for (const event of this.parser.parse(payload, this.playerIdentity)) {
           this.eventsEmitted += 1;
           this.status = { state: 'listening', lastEventAt: event.timestamp };
           for (const listener of this.listeners) listener(event);
         }
       }
-      if (!this.playerName) {
+      if (!this.playerIdentity) {
         this.degradedForMissingPlayerName = true;
-        this.status = { state: 'degraded', message: 'Enter your War Thunder nickname to identify personal events.' };
+        this.status = { state: 'degraded', message: this.missingIdentityMessage };
       } else if (this.status.state !== 'listening' || !this.status.lastEventAt) {
         this.degradedForMissingPlayerName = false;
         this.status = { state: 'listening' };

@@ -109,7 +109,7 @@ export function FeedbackDialog() {
         <DialogHeader className="settings-feedback-dialog__header">
           <DialogTitle>Send product feedback</DialogTitle>
           <DialogDescription>
-            Prepare a focused report, copy it to the clipboard, and continue to the Switchboard issue tracker.
+            Prepare a report for Switchboard’s GitHub issues. A copy stays on your clipboard before your browser opens.
           </DialogDescription>
         </DialogHeader>
 
@@ -210,13 +210,13 @@ export function FeedbackDialog() {
 
           <div className="settings-feedback-diagnostics">
             <div>
-              <strong>Include app diagnostics</strong>
+              <strong>Include app details</strong>
               <span>App version, Electron runtime, platform, and architecture only.</span>
             </div>
             <Switch
               checked={includeDiagnostics}
               disabled={pending}
-              aria-label="Include app diagnostics"
+              aria-label="Include app details"
               onCheckedChange={setIncludeDiagnostics}
             />
           </div>
@@ -238,7 +238,7 @@ export function FeedbackDialog() {
               </Button>
               <Button type="submit" variant="primary" size="sm" disabled={pending || !canContinue} className="min-w-[154px]">
                 {pending ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> : <ExternalLink className="size-3.5" aria-hidden />}
-                {pending ? 'Preparing…' : 'Copy & continue'}
+                {pending ? 'Preparing…' : 'Continue to GitHub'}
               </Button>
             </div>
           </footer>

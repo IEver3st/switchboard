@@ -34,6 +34,7 @@ import {
 } from '@/components/capture/capture-audio-device-select';
 import {
   isSettingsCategory,
+  isSettingsCategoryVisible,
   visibleSettingsCategories,
   type SettingsCategoryId,
   type SettingsSearchEntry,
@@ -74,7 +75,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
   const resetScope = categoryResetScope(category);
 
   const changeCategory = useCallback((nextCategory: SettingsCategoryId) => {
-    if (nextCategory === 'audio' && snapshot.settings.developerMode !== true) return;
+    if (!isSettingsCategoryVisible(nextCategory, snapshot.settings)) return;
     setCategory(nextCategory);
     setSubview('category');
     if (window.location.hash !== '#settings') window.history.replaceState(null, '', '#settings');
@@ -82,7 +83,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
   }, [snapshot.settings.developerMode]);
 
   useEffect(() => {
-    if (category === 'audio' && snapshot.settings.developerMode !== true) {
+    if (!isSettingsCategoryVisible(category, snapshot.settings)) {
       setCategory('general');
       setSubview('category');
       window.sessionStorage.setItem(categoryStorageKey, 'general');
@@ -161,7 +162,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
               <span aria-hidden>/</span>
               <strong>Developer tools</strong>
             </>
-          ) : <strong>{categoryDefinition?.label ?? category}</strong>}
+          ) : <strong>{categoryDefinition?.label ?? 'General'}</strong>}
         </div>
         <div className="settings-header__actions no-drag">
           <button type="button" className="settings-restore" onClick={() => setConfirmation('all')}>
@@ -361,7 +362,7 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
         <SettingSwitch
           settingId="general.developerMode"
           title="Developer mode"
-          description="Show unfinished Audio routing, mixes, and processing. Audio settings do not work yet. Turning this off hides Audio and stops its engine."
+          description="Show Diagnostics and unfinished Audio routing, mixes, and processing. Audio settings do not work yet. Turning this off hides both and stops the Audio engine."
           checked={snapshot.settings.developerMode === true}
           onCheckedChange={(developerMode) => {
             void updateSettings({ developerMode }).then(() => {

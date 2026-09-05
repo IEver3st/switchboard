@@ -14,6 +14,10 @@ export const warThunderHudResponseSchema = z.object({
 
 export type WarThunderHudResponse = z.infer<typeof warThunderHudResponseSchema>;
 
+export type WarThunderPlayerIdentity =
+  | { mode: 'nickname'; nickname: string }
+  | { mode: 'anonymous'; squadronTag: string };
+
 type ParsedCombatAction = {
   actor: string;
   action: 'destroyed' | 'shot down';
@@ -41,7 +45,7 @@ export class WarThunderTelemetryParser {
     this.lastDamageId = highestId(parsed.damage, this.lastDamageId);
   }
 
-  public parse(payload: unknown, playerName: string | null, receivedAt = Date.now()): GameEvent[] {
+  public parse(payload: unknown, player: string | WarThunderPlayerIdentity | null, receivedAt = Date.now()): GameEvent[] {
     const parsed = warThunderHudResponseSchema.parse(payload);
     const messages = [
       ...parsed.events.filter((message) => message.id > this.lastEventId).map((message) => ({ ...message, stream: 'event' as const })),
@@ -49,12 +53,13 @@ export class WarThunderTelemetryParser {
     ].sort((left, right) => left.id - right.id);
     this.lastEventId = highestId(parsed.events, this.lastEventId);
     this.lastDamageId = highestId(parsed.damage, this.lastDamageId);
-    if (!playerName) return [];
+    if (!player) return [];
+    const identity: WarThunderPlayerIdentity = typeof player === 'string' ? { mode: 'nickname', nickname: player } : player;
 
     const events: GameEvent[] = [];
     const emitted = new Set<string>();
     for (const message of messages) {
-      const event = eventFromMessage(message, playerName, receivedAt);
+      const event = eventFromMessage(message, identity, receivedAt);
       if (!event || emitted.has(event.id)) continue;
       emitted.add(event.id);
       events.push(event);
@@ -69,12 +74,12 @@ export class WarThunderTelemetryParser {
 
 function eventFromMessage(
   message: SequencedHudMessage,
-  playerName: string,
+  identity: WarThunderPlayerIdentity,
   timestamp: number,
 ): GameEvent | null {
   const combat = parseCombatAction(message.msg);
   if (combat) {
-    if (combatantMatches(combat.actor, playerName)) {
+    if (combatantMatches(combat.actor, identity)) {
       if (isBaseTarget(combat.target)) {
         return createEvent(message.stream, message.id, 'objective', timestamp, 'Base destroyed', {
           sequence: message.id,
@@ -91,7 +96,7 @@ function eventFromMessage(
         { sequence: message.id, code: combat.action.replace(' ', '_') },
       );
     }
-    if (combatantMatches(combat.target, playerName)) {
+    if (combatantMatches(combat.target, identity)) {
       return createEvent(message.stream, message.id, 'death', timestamp, 'Vehicle lost', {
         sequence: message.id,
         code: combat.action.replace(' ', '_'),
@@ -101,7 +106,7 @@ function eventFromMessage(
   }
 
   const crashActor = actorBeforeSuffix(message.msg, ' has crashed');
-  if (crashActor && combatantMatches(crashActor, playerName)) {
+  if (crashActor && combatantMatches(crashActor, identity)) {
     return createEvent(message.stream, message.id, 'death', timestamp, 'Vehicle lost', {
       sequence: message.id,
       code: 'crashed',
@@ -153,10 +158,28 @@ function actorBeforeSuffix(message: string, suffix: string): string | null {
   return normalized.slice(0, index).trim() || null;
 }
 
-function combatantMatches(value: string, playerName: string): boolean {
+function combatantMatches(value: string, identity: WarThunderPlayerIdentity): boolean {
   const actor = normalizeCombatant(stripTrailingVehicle(value));
-  const player = normalizeCombatant(playerName);
-  return Boolean(player) && (actor === player || actor.endsWith(` ${player}`));
+  const tagged = splitSquadron(actor);
+  if (identity.mode === 'anonymous') {
+    const tag = normalizeSquadronTag(identity.squadronTag);
+    return Boolean(tag) && tagged?.tag === tag && tagged.name === 'player';
+  }
+  const player = normalizeCombatant(identity.nickname);
+  // Only a delimited squadron may precede the nickname. Arbitrary suffix
+  // matching mistakes another player's multi-word nickname for the local user.
+  return Boolean(player) && (actor === player || tagged?.name === player);
+}
+
+function splitSquadron(value: string): { tag: string; name: string } | null {
+  const match = /^(?:\[([^\]]+)\]|=([^=]+)=|\^([^\^]+)\^|-([^-]+)-|\*([^*]+)\*)\s+(.+)$/u.exec(value);
+  if (!match) return null;
+  return { tag: (match[1] ?? match[2] ?? match[3] ?? match[4] ?? match[5])!.trim(), name: match[6]! };
+}
+
+export function normalizeSquadronTag(value: string): string {
+  const normalized = normalizeCombatant(value);
+  return splitSquadron(`${normalized} player`)?.tag ?? normalized;
 }
 
 function stripTrailingVehicle(value: string): string {

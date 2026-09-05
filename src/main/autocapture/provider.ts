@@ -46,6 +46,7 @@ export interface GameEventProvider {
   readonly source: GameEventSource;
   readonly capabilities: ProviderCapabilities;
   readonly requiresPlayerName?: boolean;
+  readonly supportsAnonymousName?: boolean;
   readonly developmentOnly?: boolean;
 
   matchesGame(source: CaptureSource, detectedGames: readonly DetectedGame[]): boolean;
@@ -78,6 +79,7 @@ export function providerSnapshot(
     availability,
     status: provider.getStatus(),
     requiresPlayerName: provider.requiresPlayerName ?? false,
+    ...(provider.supportsAnonymousName ? { supportsAnonymousName: true } : {}),
     developmentOnly: provider.developmentOnly ?? false,
   };
 }

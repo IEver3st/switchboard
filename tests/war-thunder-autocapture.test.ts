@@ -14,6 +14,31 @@ const detectedGame: DetectedGame = {
 };
 
 describe('War Thunder localhost Auto Capture provider', () => {
+  test('matches the observed anonymous Player identity by exact squadron, never other squadmates', () => {
+    const parser = new WarThunderTelemetryParser();
+    parser.baseline(hud([]));
+    const events = parser.parse(hud([
+      message(1, '^TEST^ Player (JA37DI) shot down Opponent (Su-30MK)'),
+      message(2, '^OTHER^ Player (JA37DI) shot down Opponent (Su-30MK)'),
+      message(3, '^TEST^ Squadmate (JA37DI) shot down Opponent (Su-30MK)'),
+      message(4, 'Player (JA37DI) shot down Opponent (Su-30MK)'),
+      message(5, 'Opponent (Su-30MK) shot down ^TEST^ Player (JA37DI)'),
+      message(6, '^TEST^ Player (JA37DI) critically damaged Opponent (Su-30MK)'),
+    ]), { mode: 'anonymous', squadronTag: 'test' }, 1_000_000);
+    expect(events.map((event) => event.type)).toEqual(['kill', 'death']);
+    expect(JSON.stringify(events)).not.toContain('TEST');
+  });
+
+  test('does not suffix-match a different nickname or treat a squadron alone as a nickname', () => {
+    const parser = new WarThunderTelemetryParser();
+    parser.baseline(hud([]));
+    expect(parser.parse(hud([
+      message(1, 'Another Pilot (T-54) destroyed Target (M60)'),
+      message(2, '=Pilot= Squadmate (T-54) destroyed Target (M60)'),
+      message(3, '=TEST= Pilot (T-54) destroyed Target (M60)'),
+    ]), 'Pilot').map((event) => event.metadata?.sequence)).toEqual([3]);
+  });
+
   test('baselines existing history and emits only configured-player events', () => {
     const parser = new WarThunderTelemetryParser();
     parser.baseline(hud([
@@ -145,6 +170,32 @@ describe('War Thunder localhost Auto Capture provider', () => {
     provider.configure({ enabled: true, useGlobalTiming: true, playerName: 'Ever3st', events: { death: true } });
     expect(provider.getStatus()).toEqual({ state: 'degraded', message: 'War Thunder local API: connection refused' });
     await provider.stop();
+  });
+
+  test('anonymous configuration reaches the provider and changing the tag recovers without restarting', async () => {
+    let emit = false;
+    const provider = new WarThunderProvider({ pollIntervalMs: 5,
+      fetch: async () => Response.json(hud(emit ? [message(1, '^TEST^ Player (JA37DI) shot down Opponent (Su-30MK)')] : [])),
+    });
+    const events: string[] = [];
+    const unsubscribe = provider.subscribe((event) => events.push(event.type));
+    try {
+      await provider.start({ gameId: provider.gameId, displayName: provider.displayName,
+        source: { id: 'source', type: 'automatic-game', name: 'War Thunder', available: true },
+        detectedGames: [detectedGame], platform: 'win32', log: () => undefined,
+        gameSettings: { enabled: true, useGlobalTiming: true, events: {}, playerNameMode: 'anonymous' },
+      });
+      expect(provider.getStatus().state).toBe('degraded');
+      expect(provider.getStatus().message).toContain('squadron tag');
+      provider.configure({ enabled: true, useGlobalTiming: true, events: {}, playerNameMode: 'anonymous', playerSquadronTag: '^Test^' });
+      emit = true;
+      await waitFor(() => events.length > 0);
+      expect(events).toEqual(['kill']);
+      expect(provider.getStatus().state).toBe('listening');
+      provider.configure({ enabled: true, useGlobalTiming: true, events: {}, playerName: 'Player' });
+      expect(provider.getStatus().state).toBe('degraded');
+      expect(provider.getStatus().message).toContain('anonymous');
+    } finally { unsubscribe(); await provider.stop(); }
   });
 });
 

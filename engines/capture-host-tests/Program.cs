@@ -395,11 +395,12 @@ static void TestReactionDetector()
     AssertValue(true, first.Confidence >= 0.58 && first.Confidence <= 0.98,
         "Reaction confidence must remain bounded.");
 
-    for (var index = 0; index < 20; index++) FeedTone(detector, ref now, rmsDb: -7);
+    // Feed a continuous exchange for longer than the configured cooldown.
+    for (var index = 0; index < 340; index++) FeedTone(detector, ref now, rmsDb: -7);
     AssertValue(false, detector.TryTakeDetection(out _),
-        "The detector cooldown must suppress repeated clips from one loud exchange.");
+        "One continuous loud exchange must not produce another clip when cooldown expires.");
 
-    now += 16_000;
+    for (var index = 0; index < 20; index++) FeedTone(detector, ref now, rmsDb: -29);
     for (var index = 0; index < 5; index++) FeedTone(detector, ref now, rmsDb: -8);
     AssertValue(true, detector.TryTakeDetection(out _),
         "Reaction detection must resume after the bounded cooldown.");
@@ -414,6 +415,12 @@ static void TestReactionDetector()
     detector.Configure(enabled: false, sensitivity: "balanced", cooldownSeconds: 15);
     AssertEqual("disabled", detector.Snapshot(inputActive: false).State,
         "Disabling reaction clipping must release the detector state.");
+
+    var loudMicrophone = new ReactionDetector(() => now);
+    loudMicrophone.Configure(enabled: true, sensitivity: "balanced", cooldownSeconds: 15);
+    for (var index = 0; index < 80; index++) FeedTone(loudMicrophone, ref now, rmsDb: -10);
+    AssertValue(false, loudMicrophone.TryTakeDetection(out _),
+        "Steady speech at a high microphone gain must not bypass the learned baseline.");
 }
 
 static void FeedTone(ReactionDetector detector, ref long now, double rmsDb)

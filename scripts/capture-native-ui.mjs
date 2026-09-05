@@ -19,6 +19,7 @@ if (currentStatePath) {
     if (
       (process.env.SWITCHBOARD_VERIFY_REACTION_SETTINGS === '1'
         || process.env.SWITCHBOARD_VERIFY_WARTHUNDER_SETTINGS === '1'
+        || process.env.SWITCHBOARD_VERIFY_WARTHUNDER_ANONYMOUS === '1'
         || process.env.SWITCHBOARD_VERIFY_SHARE_PROGRESS === '1')
       && reviewState.capture?.config
     ) {
@@ -79,6 +80,17 @@ app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES ??= '1';
+if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN === '1') {
+  app.commandLine.appendSwitch('force-device-scale-factor', '1');
+  app.commandLine.appendSwitch('force-prefers-reduced-motion');
+  // Place review windows before loadFile/first paint. Never touch the user's
+  // primary display or activate a window while running background UI checks.
+  app.on('browser-window-created', (_event, created) => {
+    created.setPosition(-10_000, -10_000, false);
+    created.setMinimumSize(1, 1);
+    created.webContents.setBackgroundThrottling(false);
+  });
+}
 const verifyAudioNoise = process.argv.includes('--verify-audio-noise');
 if (verifyAudioNoise) process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
@@ -192,6 +204,15 @@ async function runReview() {
     console.log(JSON.stringify({ reactionClippingSettings: interaction }, null, 2));
   }
 
+  if (process.env.SWITCHBOARD_VERIFY_WARTHUNDER_ANONYMOUS === '1') {
+    if (window.isMaximized()) window.unmaximize();
+    window.setContentSize(1080, 720, false);
+    await waitForViewport({ name: '1080x720', width: 1080, height: 720 });
+    const interaction = await verifyWarThunderAnonymousSettings();
+    await writeFile(join(outputDirectory, 'warthunder-anonymous-workflow.json'), `${JSON.stringify(interaction, null, 2)}\n`);
+    console.log(JSON.stringify({ anonymousWorkflow: interaction }));
+  }
+
   const report = [];
   for (const viewport of viewports) {
     for (const screen of reviewScreens) {
@@ -225,10 +246,23 @@ async function runReview() {
 }
 
 async function waitForViewport(viewport) {
+  if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN === '1') window.setMinimumSize(1, 1);
   const deadline = Date.now() + 5_000;
+  let corrections = 0;
+  await delay(80);
   while (Date.now() < deadline) {
     const size = await getViewportSize();
     if (size.width === viewport.width && Math.abs(size.height - viewport.height) <= 2) return;
+    if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN === '1' && corrections++ < 4) {
+      // Windows can report inverted non-client insets for an offscreen hidden
+      // titlebar. Correct against the renderer's actual viewport, without show.
+      const bounds = window.getBounds();
+      window.setBounds({ ...bounds,
+        width: Math.max(1, bounds.width + viewport.width - size.width),
+        height: Math.max(1, bounds.height + viewport.height - size.height),
+      }, false);
+      await delay(120);
+    }
     await delay(40);
   }
   throw new Error(`Native window did not reach ${viewport.name}: ${JSON.stringify({ viewport: await getViewportSize(), bounds: window.getBounds(), content: window.getContentBounds(), zoom: window.webContents.getZoomFactor() })}`);
@@ -781,6 +815,48 @@ async function verifyWarThunderSettingsWorkflow() {
   const diskState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
   assertReview(!diskState.capture.autoCapture.settings.games['war-thunder']?.playerName, 'Cleared nickname remained on disk.');
   return { expectedPlayerName, beforeReload, afterReload, persisted: true, visibleWhenCollapsed, clearedWithEnter: true };
+}
+
+async function verifyWarThunderAnonymousSettings() {
+  await openAutoCaptureProvider('war-thunder-8111');
+  await window.webContents.executeJavaScript(`(() => {
+    const summary = document.querySelector('[aria-controls="autocapture-provider-war-thunder-8111"]');
+    if (summary?.getAttribute('aria-expanded') === 'true') summary.click();
+    const toggle = document.querySelector('button[aria-label="Use anonymous mode for War Thunder"]');
+    if (toggle?.getAttribute('aria-checked') !== 'true') toggle?.click();
+  })()`);
+  await waitForCondition(`window.switchboard.getSnapshot().then((s) => s.capture.autoCapture.settings.games['war-thunder']?.playerNameMode === 'anonymous')`, 'anonymous mode canonical setting');
+  await waitForSelector('input[aria-label="War Thunder squadron tag"]');
+  await waitForPaint();
+  await writeFile(join(outputDirectory, '1080x720-anonymous-empty.png'), (await window.webContents.capturePage()).toPNG());
+  await window.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('input[aria-label="War Thunder squadron tag"]');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '^TEST^');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  })()`);
+  await waitForCondition(`!document.querySelector('button[aria-label="Save War Thunder squadron tag"]')?.disabled`, 'squadron tag Save action');
+  const focused = await window.webContents.executeJavaScript(`document.activeElement?.getAttribute('aria-label') === 'War Thunder squadron tag'`);
+  assertReview(focused, 'Squadron input did not retain keyboard focus.');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+  window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  await waitForCondition(`window.switchboard.getSnapshot().then((s) => s.capture.autoCapture.settings.games['war-thunder']?.playerSquadronTag === '^TEST^')`, 'squadron tag canonical setting');
+  const loaded = new Promise((resolveLoad) => window.webContents.once('did-finish-load', resolveLoad));
+  window.webContents.reload();
+  await loaded;
+  await waitForCondition(`!document.querySelector('.startup-screen')`, 'anonymous settings reload');
+  await installReviewStyles(window);
+  await openAutoCaptureProvider('war-thunder-8111');
+  const persisted = await window.webContents.executeJavaScript(`window.switchboard.getSnapshot().then((s) => {
+    const settings = s.capture.autoCapture.settings.games['war-thunder'];
+    const input = document.querySelector('input[aria-label="War Thunder squadron tag"]');
+    return { mode: settings.playerNameMode, tag: settings.playerSquadronTag, input: input?.value,
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth };
+  })`);
+  assertReview(persisted.mode === 'anonymous' && persisted.tag === '^TEST^' && persisted.input === '^TEST^', 'Anonymous settings did not survive reload.');
+  assertReview(!persisted.horizontalOverflow, 'Anonymous settings introduced horizontal overflow.');
+  return { ...persisted, savedWithEnter: true, inputFocused: focused };
 }
 
 async function verifyReactionClippingSettings() {

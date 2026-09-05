@@ -46,8 +46,8 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'general.developerMode',
     category: 'general',
     title: 'Developer mode',
-    description: 'Show unfinished Audio routing, mixes, and processing for development. Audio settings do not work yet.',
-    keywords: ['developer', 'dev mode', 'audio', 'experimental', 'unfinished', 'debug'],
+    description: 'Show Diagnostics and unfinished Audio routing, mixes, and processing. Audio settings do not work yet.',
+    keywords: ['developer', 'dev mode', 'audio', 'diagnostics', 'experimental', 'unfinished', 'debug'],
   },
   {
     id: 'general.uiScale',
@@ -519,17 +519,18 @@ export function isAudioSettingsVisible(settings: { developerMode?: boolean } | n
 }
 
 export function visibleSettingsCategories(settings: { developerMode?: boolean } | null | undefined): typeof settingsCategories {
-  if (isAudioSettingsVisible(settings)) return settingsCategories;
-  return settingsCategories.filter((category) => category.id !== 'audio');
+  return settingsCategories.filter((category) => isSettingsCategoryVisible(category.id, settings));
+}
+
+export function isSettingsCategoryVisible(category: SettingsCategoryId, settings: { developerMode?: boolean } | null | undefined): boolean {
+  return settings?.developerMode === true || (category !== 'audio' && category !== 'diagnostics');
 }
 
 export function searchSettings(query: string, settings?: { developerMode?: boolean } | null): SettingsSearchEntry[] {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   if (terms.length === 0) return [];
-  const developerMode = settings?.developerMode === true;
-
   return settingsSearchEntries
-    .filter((entry) => developerMode || entry.category !== 'audio')
+    .filter((entry) => isSettingsCategoryVisible(entry.category, settings))
     .map((entry) => {
       const category = categoryLabel(entry.category).toLocaleLowerCase();
       const title = entry.title.toLocaleLowerCase();

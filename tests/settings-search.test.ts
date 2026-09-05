@@ -1,14 +1,28 @@
 import { describe, expect, it } from 'bun:test';
-import { searchSettings, settingsCategories, settingsSearchEntries } from '../src/renderer/src/components/settings/settings-catalog';
+import { isSettingsCategoryVisible, searchSettings, settingsCategories, settingsSearchEntries, visibleSettingsCategories } from '../src/renderer/src/components/settings/settings-catalog';
 
 describe('settings search metadata', () => {
+  it('gates diagnostics navigation, selection, and search on confirmed developer mode', () => {
+    for (const settings of [undefined, null, {}, { developerMode: false }]) {
+      expect(visibleSettingsCategories(settings).some((category) => category.id === 'diagnostics')).toBe(false);
+      expect(isSettingsCategoryVisible('diagnostics', settings)).toBe(false);
+      expect(searchSettings('diagnostics', settings).some((entry) => entry.category === 'diagnostics')).toBe(false);
+      expect(searchSettings('renderer memory', settings).some((entry) => entry.category === 'diagnostics')).toBe(false);
+      expect(isSettingsCategoryVisible('audio', settings)).toBe(false);
+      expect(isSettingsCategoryVisible('general', settings)).toBe(true);
+    }
+    expect(isSettingsCategoryVisible('diagnostics', { developerMode: true })).toBe(true);
+    expect(visibleSettingsCategories({ developerMode: true })).toEqual(settingsCategories);
+    expect(searchSettings('diagnostics', { developerMode: true }).some((entry) => entry.category === 'diagnostics')).toBe(true);
+  });
+
   it('matches titles, aliases, and descriptions without crawling the DOM', () => {
     expect(searchSettings('startup').map((entry) => entry.id)).toContain('general.startup');
     const clipResults = searchSettings('clips').map((entry) => entry.id);
     expect(clipResults).toContain('capture.storage');
     expect(clipResults).toContain('capture.duration');
     expect(searchSettings('clip quality')[0]?.category).toBe('clips');
-    expect(searchSettings('renderer memory').map((entry) => entry.id)).toContain('diagnostics.memory');
+    expect(searchSettings('renderer memory', { developerMode: true }).map((entry) => entry.id)).toContain('diagnostics.memory');
     expect(searchSettings('white variant')).toEqual([]);
     expect(searchSettings('reaction voice').map((entry) => entry.id)).toContain('reactionClipping.enabled');
   });

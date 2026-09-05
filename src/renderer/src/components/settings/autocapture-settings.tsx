@@ -179,6 +179,8 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
   const usable = provider.availability.state !== 'unavailable';
   const active = settings.enabled && game.enabled && provider.status.state === 'listening';
   const artwork = providerArtwork[provider.gameId];
+  const anonymous = Boolean(provider.supportsAnonymousName) && game.playerNameMode === 'anonymous';
+  const identityValue = anonymous ? game.playerSquadronTag ?? '' : game.playerName ?? '';
   const [open, setOpen] = useState(false);
 
   return (
@@ -199,8 +201,8 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
           <span className="autocapture-provider__copy">
             <strong>{provider.displayName}</strong>
             <span>{providerCapabilitySummary(provider)}</span>
-            <small>{provider.requiresPlayerName && usable && !game.playerName?.trim()
-              ? 'Setup required: enter your player nickname'
+            <small>{provider.requiresPlayerName && usable && !identityValue.trim()
+              ? anonymous ? 'Setup required: enter your squadron tag' : 'Setup required: enter your player nickname'
               : providerStatusLabel(provider, active)}</small>
           </span>
           <ChevronDown className="autocapture-provider__chevron" aria-hidden />
@@ -217,8 +219,12 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
       {provider.requiresPlayerName ? (
         <ProviderPlayerName
           provider={provider}
-          value={game.playerName ?? ''}
-          onCommit={(playerName) => onUpdate({ playerName: playerName || undefined })}
+          value={identityValue}
+          anonymous={anonymous}
+          onModeChange={(enabled) => onUpdate({ playerNameMode: enabled ? 'anonymous' : 'nickname' })}
+          onCommit={(value) => onUpdate(anonymous
+            ? { playerSquadronTag: value || undefined }
+            : { playerName: value || undefined })}
         />
       ) : null}
 
@@ -280,14 +286,16 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
   );
 }
 
-function ProviderPlayerName({ provider, value, onCommit }: {
+function ProviderPlayerName({ provider, value, anonymous, onModeChange, onCommit }: {
   provider: AutoCaptureProvider;
   value: string;
+  anonymous: boolean;
+  onModeChange: (enabled: boolean) => Promise<void>;
   onCommit: (value: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(value);
   const [pending, setPending] = useState(false);
-  useEffect(() => setDraft(value), [value]);
+  useEffect(() => setDraft(value), [value, anonymous]);
   const descriptionId = `autocapture-provider-${provider.id}-player-name-description`;
   const inputId = `autocapture-provider-${provider.id}-player-name`;
   const changed = draft.trim() !== value;
@@ -301,9 +309,18 @@ function ProviderPlayerName({ provider, value, onCommit }: {
 
   return (
     <form className="autocapture-provider__configuration" onSubmit={(event) => { event.preventDefault(); void commit(); }}>
+      {provider.supportsAnonymousName ? <label className="autocapture-provider__identity-mode">
+        <span><strong>I use anonymous mode</strong><small>Your name appears as Player in War Thunder.</small></span>
+        <Switch checked={anonymous} disabled={pending} aria-label={`Use anonymous mode for ${provider.displayName}`} onCheckedChange={(enabled) => {
+          setPending(true);
+          void onModeChange(enabled).finally(() => setPending(false));
+        }} />
+      </label> : null}
       <span>
-        <label htmlFor={inputId}><strong>Your in-game nickname</strong></label>
-        <small id={descriptionId}>Enter your exact {provider.displayName} nickname so kill clips follow your events. Stored only on this PC.</small>
+        <label htmlFor={inputId}><strong>{anonymous ? 'Your squadron tag' : 'Your in-game nickname'}</strong></label>
+        <small id={descriptionId}>{anonymous
+          ? 'Matches Player with this exact tag. Include or omit the surrounding symbols. A tag is required to distinguish your events.'
+          : `Enter your exact ${provider.displayName} nickname so kill clips follow your events. Stored only on this PC.`}</small>
       </span>
       <div className="autocapture-provider__name-controls">
         <Input
@@ -313,15 +330,15 @@ function ProviderPlayerName({ provider, value, onCommit }: {
           maxLength={64}
           autoComplete="off"
           spellCheck={false}
-          placeholder="Exact in-game nickname"
-          aria-label={`${provider.displayName} player nickname`}
+          placeholder={anonymous ? 'Exact squadron tag' : 'Exact in-game nickname'}
+          aria-label={`${provider.displayName} ${anonymous ? 'squadron tag' : 'player nickname'}`}
           aria-describedby={descriptionId}
           onChange={(event) => setDraft(event.target.value)}
         />
-        <Button type="submit" size="sm" variant="secondary" disabled={!changed || pending} aria-label={`Save ${provider.displayName} nickname`}>
+        <Button type="submit" size="sm" variant="secondary" disabled={!changed || pending} aria-label={`Save ${provider.displayName} ${anonymous ? 'squadron tag' : 'nickname'}`}>
           {pending ? 'Saving…' : 'Save'}
         </Button>
-        <small role="status">{pending ? 'Saving nickname…' : changed ? 'Unsaved changes' : value ? 'Saved on this PC' : 'Required for personal kill clips'}</small>
+        <small role="status">{pending ? 'Saving…' : changed ? 'Unsaved changes' : value ? 'Saved on this PC' : 'Required for personal kill clips'}</small>
       </div>
     </form>
   );

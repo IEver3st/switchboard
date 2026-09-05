@@ -45,6 +45,7 @@ internal sealed class ReactionDetector : IAudioPacketObserver
     private const double InitialNoiseFloorDb = -60;
     private const double InitialSpeechBaselineDb = -30;
     private const int CalibrationMilliseconds = 1_500;
+    private const int RearmMilliseconds = 750;
 
     private readonly Func<long> now;
     private ReactionDetectorConfiguration configuration = ReactionDetectorConfiguration.Disabled;
@@ -59,6 +60,9 @@ internal sealed class ReactionDetector : IAudioPacketObserver
     private double speechBaselineDb = InitialSpeechBaselineDb;
     private double triggerThresholdDb = -18;
     private double excitedMilliseconds;
+    private double settledMilliseconds;
+    private bool reactionArmed = true;
+    private bool hasSpeechBaseline;
     private int reactionsDetected;
     private long analyzedFrames;
     private long analysisTicks;
@@ -137,6 +141,13 @@ internal sealed class ReactionDetector : IAudioPacketObserver
                           && crestDb is >= 2 and <= 20;
 
         UpdateNoiseFloor(levelDb, voiceShaped, frameMilliseconds, calibrating);
+        // Learn the user's actual voice level rather than assuming microphone
+        // gain. This also covers the first speech after a silent calibration.
+        if (voiceShaped && !hasSpeechBaseline)
+        {
+            Volatile.Write(ref speechBaselineDb, levelDb);
+            hasSpeechBaseline = true;
+        }
         if (calibrating)
         {
             if (voiceShaped) UpdateSpeechBaseline(levelDb, frameMilliseconds, timeConstantMilliseconds: 2_500);
@@ -149,16 +160,27 @@ internal sealed class ReactionDetector : IAudioPacketObserver
         var profile = SensitivityProfile.For(currentConfiguration.Sensitivity);
         var baseline = Volatile.Read(ref speechBaselineDb);
         var relativeGainDb = levelDb - baseline;
-        var veryLoud = levelDb >= profile.AbsoluteThresholdDb + 5
-                       && levelDb >= Volatile.Read(ref noiseFloorDb) + 18;
         var candidate = voiceShaped
-                        && (levelDb >= profile.AbsoluteThresholdDb
-                            && relativeGainDb >= profile.RelativeThresholdDb
-                            || veryLoud);
+                        && levelDb >= profile.AbsoluteThresholdDb
+                        && relativeGainDb >= profile.RelativeThresholdDb;
+
+        // A cooldown limits frequency; it does not prove the previous reaction
+        // ended. Require a settled interval before accepting another burst.
+        if (!reactionArmed)
+        {
+            var settled = !voiceShaped || levelDb < Math.Max(
+                profile.AbsoluteThresholdDb - 3, baseline + profile.RelativeThresholdDb / 2);
+            settledMilliseconds = settled ? settledMilliseconds + frameMilliseconds : 0;
+            if (settledMilliseconds >= RearmMilliseconds)
+            {
+                reactionArmed = true;
+                settledMilliseconds = 0;
+            }
+        }
 
         var inCooldown = lastReactionAt > 0
                          && timestamp - lastReactionAt < currentConfiguration.CooldownSeconds * 1_000L;
-        if (inCooldown)
+        if (inCooldown || !reactionArmed)
         {
             excitedMilliseconds = 0;
         }
@@ -172,11 +194,11 @@ internal sealed class ReactionDetector : IAudioPacketObserver
             if (voiceShaped) UpdateSpeechBaseline(levelDb, frameMilliseconds, timeConstantMilliseconds: 12_000);
         }
 
-        if (!inCooldown && excitedMilliseconds >= profile.MinimumSustainMilliseconds)
+        if (!inCooldown && reactionArmed && excitedMilliseconds >= profile.MinimumSustainMilliseconds)
         {
             var loudnessMargin = levelDb - profile.AbsoluteThresholdDb;
             var relativeMargin = relativeGainDb - profile.RelativeThresholdDb;
-            var evidence = veryLoud ? loudnessMargin - 2 : Math.Min(loudnessMargin, relativeMargin);
+            var evidence = Math.Min(loudnessMargin, relativeMargin);
             var confidence = Math.Clamp(0.58 + Math.Max(0, evidence) / 22, 0.58, 0.98);
             pendingConfidence = confidence;
             pendingLevelDb = levelDb;
@@ -185,6 +207,8 @@ internal sealed class ReactionDetector : IAudioPacketObserver
             Interlocked.Exchange(ref lastReactionAt, timestamp);
             Interlocked.Increment(ref reactionsDetected);
             excitedMilliseconds = 0;
+            reactionArmed = false;
+            settledMilliseconds = 0;
         }
 
         UpdateThreshold(currentConfiguration);
@@ -248,6 +272,9 @@ internal sealed class ReactionDetector : IAudioPacketObserver
         Interlocked.Exchange(ref pendingReactionAt, 0);
         Interlocked.Exchange(ref lastReactionAt, 0);
         excitedMilliseconds = 0;
+        settledMilliseconds = 0;
+        reactionArmed = true;
+        hasSpeechBaseline = false;
         Volatile.Write(ref inputLevelDb, SilenceDb);
         Volatile.Write(ref noiseFloorDb, InitialNoiseFloorDb);
         Volatile.Write(ref speechBaselineDb, InitialSpeechBaselineDb);
@@ -263,7 +290,7 @@ internal sealed class ReactionDetector : IAudioPacketObserver
 
     private void UpdateNoiseFloor(double levelDb, bool voiceShaped, double frameMilliseconds, bool calibrating)
     {
-        if (voiceShaped && !calibrating) return;
+        if (voiceShaped) return;
         var current = Volatile.Read(ref noiseFloorDb);
         if (levelDb > current + 10 && !calibrating) return;
         var timeConstant = calibrating ? 1_500 : levelDb < current ? 3_000 : 8_000;

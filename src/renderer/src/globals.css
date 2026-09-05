@@ -2216,7 +2216,7 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--text-muted);
+  color: var(--text-description);
 }
 
 .capture-clip-duration {
@@ -2334,7 +2334,7 @@ textarea:focus-visible {
   border: 0;
   border-radius: 6px 0 0 6px;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-description);
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease;
 }
@@ -3003,7 +3003,7 @@ textarea:focus-visible {
   box-shadow: 0 2px 13px 5px color-mix(in srgb, var(--device-accent) 7%, transparent), 0 9px 16px 2px rgb(0 0 0 / 20%);
   opacity: 0.24;
   transform: translateX(-50%);
-  transition: opacity 160ms ease-out, width 180ms ease-out;
+  transition: opacity 160ms ease-out;
 }
 
 .device-render__media {
@@ -3974,8 +3974,8 @@ textarea:focus-visible {
 
 .report-rate-control__unit {
   margin-left: 3px;
-  color: color-mix(in srgb, currentColor 65%, transparent);
-  font-size: 8px;
+  color: currentColor;
+  font-size: 9px;
   font-weight: 520;
 }
 
@@ -5417,7 +5417,7 @@ textarea:focus-visible {
 }
 
 .settings-workspaces__locked {
-  color: var(--text-muted);
+  color: var(--text-description);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -5579,6 +5579,19 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px 8px;
+}
+
+.autocapture-provider__identity-mode {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.autocapture-provider__identity-mode > span {
+  display: grid;
+  gap: 3px;
 }
 
 .autocapture-provider__name-controls > small {
@@ -5981,7 +5994,7 @@ textarea:focus-visible {
 }
 
 .module-list-section__heading span {
-  color: var(--text-muted);
+  color: var(--text-description);
   font-size: 10.5px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
@@ -6068,7 +6081,7 @@ textarea:focus-visible {
 
 .module-list-row__meta {
   overflow: hidden;
-  color: var(--text-muted);
+  color: var(--text-description);
   font-size: 9.5px;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -6107,13 +6120,11 @@ textarea:focus-visible {
 
 .module-list-row__state {
   min-width: 54px;
-  overflow: hidden;
   color: var(--text-description);
   font-size: 10.5px;
   font-weight: 620;
   text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .module-list__empty {

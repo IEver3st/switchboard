@@ -1,6 +1,6 @@
 {
   "name": "switchboard-prototype",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "description": "A modular, low-overhead Electron control plane for devices, capture, and audio routing.",
   "type": "module",

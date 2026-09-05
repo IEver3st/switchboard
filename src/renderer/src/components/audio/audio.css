@@ -135,7 +135,7 @@
 .mixer-fader__exact > span:last-child { padding-right: 6px; }
 
 .mixer-mix-picker { display: flex; align-items: center; gap: 8px; }
-.mixer-mix-picker__label { color: var(--text-muted); font-size: 10px; }
+.mixer-mix-picker__label { color: var(--text-description); font-size: 10px; }
 .mixer-mix-picker > [role='group'] { display: flex; gap: 2px; border: 0; padding: 0; background: transparent; }
 .mixer-mix-picker > [role='group'] > [role='radio'] {
   height: 26px;
@@ -289,7 +289,7 @@
 .audio-meter > .audio-clip { position: absolute; top: calc(var(--meter-top-offset) - 12px); left: 50%; transform: translateX(-50%); }
 .audio-meter__rail { display: flex; min-height: 0; flex: 1; align-items: stretch; padding-top: var(--meter-top-offset); padding-bottom: var(--meter-bottom-offset); }
 .audio-meter__bar { position: relative; width: 6px; height: 100%; overflow: hidden; border-radius: 2px; background: var(--input); }
-.audio-meter__readout { color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.audio-meter__readout { color: var(--text-description); font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .audio-clip { display: block; width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--surface-hover); }
 .audio-clip[data-clipping='true'] { background: var(--status-danger); }
 .audio-strip__meter--empty { visibility: hidden; }
@@ -337,7 +337,7 @@
 .audio-channel[data-channel='chat'] { --control-accent: var(--channel-chat); }
 .audio-channel[data-channel='media'] { --control-accent: var(--channel-media); }
 .audio-channel--microphone { --control-accent: var(--channel-microphone); }
-.audio-eyebrow { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.audio-eyebrow { display: block; margin-bottom: 6px; color: var(--text-description); font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .audio-toolbar { display: flex; align-items: flex-start; gap: 12px; }
 .audio-toolbar > .grow { flex: 1; }
 .audio-toolbar__card { display: flex; min-height: 40px; align-items: center; gap: 6px; border-radius: 8px; padding: 6px 8px; background: var(--surface-1); }

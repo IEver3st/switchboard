@@ -8,7 +8,7 @@ export function InputGroup({ className, ...props }: HTMLAttributes<HTMLDivElemen
       data-slot="input-group"
       className={cn(
         'group/input relative flex h-8 min-w-0 items-center rounded-md border border-input bg-surface-interactive transition-[border-color,background-color,box-shadow] duration-100',
-        'hover:border-border-strong hover:bg-surface-hover focus-within:border-primary/55 focus-within:bg-surface-hover focus-within:ring-2 focus-within:ring-ring/18',
+        'hover:border-border-strong hover:bg-surface-hover focus-within:border-primary focus-within:bg-surface-hover focus-within:ring-2 focus-within:ring-ring',
         className,
       )}
       {...props}
