@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
+import { buildSizeLimitedShareVideoArguments, type ShareVideoEncoder } from './clip-library';
+import { editedDurationMs, videoTextSize } from '../../shared/video-edits';
 import type { Clip, ClipExportPreset } from '../../shared/contracts';
 import type { MontageMusicTrack, MontageProjectV2, MontageV2Segment } from '../../shared/montage-v2';
 
@@ -18,6 +20,9 @@ export type MontageV2RenderInput = {
   musicPath?: string;
   destination: string;
   preset: ClipExportPreset;
+  targetSizeMb?: number;
+  encoder?: ShareVideoEncoder;
+  onProgress?: (progress: number) => void;
   signal?: AbortSignal;
 };
 
@@ -49,15 +54,26 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
   const concatPath = join(temporaryDirectory, 'segments.txt');
   await mkdir(temporaryDirectory, { recursive: true });
 
+  const targetBytes = input.targetSizeMb ? input.targetSizeMb * 1_048_576 : input.preset !== 'original' ? exportPresetBytes[input.preset] : undefined;
+  const budgetKbps = targetBytes ? targetBytes * 8 * 0.9 / Math.max(0.1, input.project.durationMs / 1000) / 1000 : undefined;
+  const audioKbps = budgetKbps && budgetKbps < 420 ? 64 : 128;
+  const videoKbps = budgetKbps ? Math.floor(budgetKbps - audioKbps) : undefined;
   try {
+    if (videoKbps !== undefined && videoKbps < 120) throw new Error('This size is too small for the montage runtime. Choose a larger target.');
     const renderedSegments: string[] = [];
+    let beforeMs = 0;
+    let encoder = input.encoder ?? 'libx264';
     for (let index = 0; index < input.entries.length; index += 1) {
       if (input.signal?.aborted) throw abortError();
       const entry = input.entries[index];
       if (!entry) continue;
       const segmentPath = join(temporaryDirectory, `segment-${String(index).padStart(4, '0')}.mp4`);
-      await renderMontageSegment(executable, entry, segmentPath, target, input.signal);
+      const durationMs = editedDurationMs(entry.segment.trimStartMs, entry.segment.trimEndMs, entry.segment.videoEdits);
+      encoder = await renderMontageSegment(executable, entry, segmentPath, target, input.signal, encoder, videoKbps, audioKbps,
+        (fraction) => input.onProgress?.((beforeMs + fraction * durationMs) / input.project.durationMs * 0.9));
       renderedSegments.push(segmentPath);
+      beforeMs += durationMs;
+      input.onProgress?.(beforeMs / input.project.durationMs * 0.9);
     }
 
     await writeFile(
@@ -71,62 +87,26 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
       ? buildMontageMusicMixPlan(input.project.music, input.project.durationMs, input.musicPath)
       : null;
 
-    if (input.preset === 'original') {
-      if (!mixPlan) {
-        await run(executable, [
-          '-hide_banner', '-loglevel', 'error', ...concatInput,
-          '-c', 'copy', '-movflags', '+faststart', '-y', input.destination,
-        ], input.signal);
-        return;
-      }
+    input.onProgress?.(0.92);
+    // Each segment is encoded once at the final bitrate. Concatenation copies video.
+    if (!mixPlan) {
+      await run(executable, [
+        '-hide_banner', '-loglevel', 'error', ...concatInput,
+        '-c', 'copy', '-movflags', '+faststart', '-y', input.destination,
+      ], input.signal);
+    } else {
       await run(executable, [
         '-hide_banner', '-loglevel', 'error', ...concatInput, ...mixPlan.inputArguments,
-        '-filter_complex', mixPlan.filter,
-        '-map', '0:v:0', '-map', mixPlan.audioMap,
-        '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-filter_complex', mixPlan.filter, '-map', '0:v:0', '-map', mixPlan.audioMap,
+        '-c:v', 'copy', '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
         '-movflags', '+faststart', '-y', input.destination,
       ], input.signal);
-      return;
     }
-
-    const durationSeconds = input.project.durationMs / 1_000;
-    const targetBytes = exportPresetBytes[input.preset];
-    const budgetKbps = targetBytes * 8 * 0.94 / Math.max(0.1, durationSeconds) / 1_000;
-    const audioKbps = budgetKbps >= 620 ? 128 : budgetKbps >= 420 ? 96 : 64;
-    const videoKbps = Math.floor(Math.max(120, budgetKbps - audioKbps));
-    if (budgetKbps < audioKbps + 120) {
-      throw new Error('This montage is too long for the selected file size. Choose a larger preset or shorten the sequence.');
+    // Verify the actual container size before exposing a successful share.
+    if (targetBytes && (await stat(input.destination)).size > targetBytes) {
+      throw new Error('The encoded file exceeded its size target. Choose a larger target and try again.');
     }
-
-    const passLog = join(temporaryDirectory, 'montage-pass');
-    await run(executable, [
-      '-hide_banner', '-loglevel', 'error', ...concatInput,
-      '-map', '0:v:0', '-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p',
-      '-b:v', `${videoKbps}k`, '-pass', '1', '-passlogfile', passLog,
-      '-an', '-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null',
-    ], input.signal);
-
-    if (mixPlan) {
-      await run(executable, [
-        '-hide_banner', '-loglevel', 'error', ...concatInput, ...mixPlan.inputArguments,
-        '-filter_complex', mixPlan.filter,
-        '-map', '0:v:0', '-map', mixPlan.audioMap,
-        '-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p',
-        '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passLog,
-        '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
-        '-movflags', '+faststart', '-y', input.destination,
-      ], input.signal);
-      return;
-    }
-
-    await run(executable, [
-      '-hide_banner', '-loglevel', 'error', ...concatInput,
-      '-map', '0:v:0', '-map', '0:a:0',
-      '-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p',
-      '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passLog,
-      '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
-      '-movflags', '+faststart', '-y', input.destination,
-    ], input.signal);
+    input.onProgress?.(1);
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
@@ -138,13 +118,25 @@ async function renderMontageSegment(
   destination: string,
   target: MontageVideoTarget,
   signal?: AbortSignal,
-): Promise<void> {
-  const { clip, segment } = entry;
-  const streamCount = await getAudioStreamCount(clip.path);
-  const durationSeconds = (segment.trimEndMs - segment.trimStartMs) / 1_000;
-  const videoFilter = buildMontageV2VideoFilter(segment, target);
+  encoder: ShareVideoEncoder = 'libx264',
+  videoKbps?: number,
+  audioKbps = 128,
+  onProgress?: (fraction: number) => void,
+): Promise<ShareVideoEncoder> {
+  const { clip } = entry;
+  const sourceStartMs = entry.segment.trimStartMs;
+  const segment: MontageV2Segment = {
+    ...entry.segment, trimStartMs: 0, trimEndMs: entry.segment.trimEndMs - sourceStartMs,
+    audioTrackTrims: entry.segment.audioTrackTrims?.map((trim) => trim ? { startMs: Math.max(0, trim.startMs - sourceStartMs), endMs: Math.max(0, trim.endMs - sourceStartMs) } : null),
+    videoEdits: entry.segment.videoEdits ? { ...entry.segment.videoEdits, text: entry.segment.videoEdits.text ? { ...entry.segment.videoEdits.text, startMs: entry.segment.videoEdits.text.startMs - sourceStartMs, endMs: entry.segment.videoEdits.text.endMs - sourceStartMs } : undefined } : undefined,
+  };
+  const streamCount = await getAudioStreamCount(clip.path, signal);
+  const durationSeconds = editedDurationMs(segment.trimStartMs, segment.trimEndMs, segment.videoEdits) / 1_000;
+  const textPath = segment.videoEdits?.text?.content ? `${destination}.txt` : undefined;
+  if (textPath) await writeFile(textPath, segment.videoEdits!.text!.content, 'utf8');
+  const videoFilter = buildMontageV2VideoFilter(segment, target, textPath);
   const audioFilter = buildMontageV2SegmentAudioFilter(streamCount, segment);
-  const inputArguments = ['-i', clip.path];
+  const inputArguments = ['-ss', (sourceStartMs / 1000).toFixed(3), '-t', (segment.trimEndMs / 1000).toFixed(3), '-i', clip.path];
   let filter: string;
   let audioMap: string;
 
@@ -157,25 +149,67 @@ async function renderMontageSegment(
     audioMap = '1:a:0';
   }
 
-  await run(executable, [
-    '-hide_banner', '-loglevel', 'error', ...inputArguments,
-    '-filter_complex', filter, '-map', '[vout]', '-map', audioMap,
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
-    '-t', durationSeconds.toFixed(3), '-movflags', '+faststart', '-y', destination,
-  ], signal);
+  const encode = async (selectedEncoder: ShareVideoEncoder) => {
+    const codec = videoKbps !== undefined
+      ? buildSizeLimitedShareVideoArguments(selectedEncoder, videoKbps, '').slice(0, -2)
+      : selectedEncoder === 'h264_nvenc' ? ['-c:v', selectedEncoder, '-preset', 'p4', '-rc', 'vbr', '-cq', '18', '-b:v', '0']
+      : selectedEncoder === 'h264_amf' ? ['-c:v', selectedEncoder, '-quality', 'balanced', '-rc', 'cqp', '-qp_i', '18', '-qp_p', '18']
+      : selectedEncoder === 'h264_qsv' ? ['-c:v', selectedEncoder, '-preset', 'fast', '-global_quality', '18']
+      : ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18'];
+    await run(executable, [
+      '-hide_banner', '-loglevel', 'error', ...inputArguments,
+      '-filter_complex', filter, '-map', '[vout]', '-map', audioMap,
+      ...codec, '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
+      '-t', durationSeconds.toFixed(3), '-movflags', '+faststart', '-y', destination,
+    ], signal, durationSeconds, onProgress);
+  };
+  try { await encode(encoder); return encoder; }
+  catch (error) { if (encoder === 'libx264' || signal?.aborted) throw error; await encode('libx264'); return 'libx264'; }
+
 }
 
 export function buildMontageV2VideoFilter(
   segment: MontageV2Segment,
   target: MontageVideoTarget,
+  textPath?: string,
 ): string {
   const start = (segment.trimStartMs / 1_000).toFixed(3);
   const end = (segment.trimEndMs / 1_000).toFixed(3);
   const normalize = target.canvasSize === '9:16'
     ? `crop='if(gte(iw/ih,0.5625),trunc(ih*0.5625/2)*2,iw)':'if(gte(iw/ih,0.5625),ih,trunc(iw/0.5625/2)*2)',scale=${target.width}:${target.height}:flags=lanczos`
     : `scale=${target.width}:${target.height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${target.width}:${target.height}:(ow-iw)/2:(oh-ih)/2:color=black`;
-  return `[0:v:0]trim=start=${start}:end=${end},setpts=PTS-STARTPTS,${normalize},setsar=1,fps=${target.fps.toFixed(3)},format=yuv420p[vout]`;
+  const edits = segment.videoEdits;
+  const speed = edits?.speed ?? 1;
+  const adjustments = [];
+  if (edits?.flipHorizontal) adjustments.push('hflip');
+  // Match the preview's sRGB brightness, contrast, then saturation order.
+  if (edits?.brightness) {
+    const expression = `clip(val*${1 + edits.brightness},0,255)`;
+    adjustments.push(`lutrgb=r='${expression}':g='${expression}':b='${expression}'`);
+  }
+  if (edits?.contrast !== undefined && edits.contrast !== 1) {
+    const expression = `clip((val-127.5)*${edits.contrast}+127.5,0,255)`;
+    adjustments.push(`lutrgb=r='${expression}':g='${expression}':b='${expression}'`);
+  }
+  if (edits?.saturation !== undefined && edits.saturation !== 1) {
+    const amount = edits.saturation;
+    const r = 0.213 * (1 - amount), g = 0.715 * (1 - amount), b = 0.072 * (1 - amount);
+    adjustments.push(`colorchannelmixer=rr=${r + amount}:rg=${g}:rb=${b}:gr=${r}:gg=${g + amount}:gb=${b}:br=${r}:bg=${g}:bb=${b + amount}`);
+  }
+  const text = edits?.text;
+  if (text?.content && textPath) {
+    const from = Math.max(0, (text.startMs - segment.trimStartMs) / speed / 1000);
+    const to = Math.max(0, (text.endMs - segment.trimStartMs) / speed / 1000);
+    const y = text.position === 'top' ? 'h*0.08' : text.position === 'bottom' ? 'h*0.92-text_h' : '(h-text_h)/2';
+    const longest = Math.max(1, ...text.content.split('\n').map((line) => [...line].length));
+    const fontSize = Math.max(1, Math.round(Math.min(target.height * videoTextSize[text.size], target.width * 0.88 / (longest * 0.65), target.height * 0.7 / Math.max(1, text.content.split('\n').length) / 1.2)));
+    const font = process.platform === 'win32' ? `fontfile=${filterPath(join(process.env.WINDIR ?? 'C:/Windows', 'Fonts', 'arialbd.ttf'))}:` : 'font=DejaVu Sans:';
+    adjustments.push(`drawtext=${font}textfile=${filterPath(textPath)}:expansion=none:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=8:x=(w-text_w)/2:y=${y}:enable='gte(t,${from.toFixed(3)})*lt(t,${to.toFixed(3)})'`);
+  }
+  const look = adjustments.length ? `,${adjustments.join(',')}` : '';
+  const timing = speed === 1 ? 'PTS-STARTPTS' : `(PTS-STARTPTS)/${speed}`;
+  return `[0:v:0]trim=start=${start}:end=${end},setpts=${timing},${normalize},setsar=1,fps=${target.fps.toFixed(3)}${look},format=yuv420p[vout]`;
 }
 
 export function buildMontageV2SegmentAudioFilter(
@@ -191,14 +225,16 @@ export function buildMontageV2SegmentAudioFilter(
   })).filter((track) => track.level > 0 && track.endMs > track.startMs);
   if (active.length === 0) return null;
 
-  const segmentDurationSeconds = (segment.trimEndMs - segment.trimStartMs) / 1_000;
+  const speed = segment.videoEdits?.speed ?? 1;
+  const segmentDurationSeconds = editedDurationMs(segment.trimStartMs, segment.trimEndMs, segment.videoEdits) / 1_000;
   const filters = active.map((track, index) => {
-    const delayMs = track.startMs - segment.trimStartMs;
+    const delayMs = (track.startMs - segment.trimStartMs) / speed;
     const gain = track.level / 100 * segment.volume;
     const chain = [
       `atrim=start=${(track.startMs / 1_000).toFixed(3)}:end=${(track.endMs / 1_000).toFixed(3)}`,
       'asetpts=PTS-STARTPTS',
     ];
+    chain.push(...tempoFilters(speed));
     if (delayMs > 0) chain.push(`adelay=${Math.round(delayMs)}:all=1`);
     chain.push(`volume=${gain.toFixed(4)}`);
     return `[0:a:${track.trackIndex}]${chain.join(',')}[montage-v2-track-${index}]`;
@@ -296,7 +332,7 @@ export function readMontageAudioWaveform(
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk: string) => { if (stderr.length < 16_384) stderr += chunk; });
     child.once('error', reject);
-    child.once('exit', (code) => {
+    child.once('close', (code) => {
       if (code !== 0) {
         reject(new Error(stderr.trim() || `${executable} exited with code ${code}`));
         return;
@@ -344,11 +380,11 @@ function montageVideoTarget(clip: Clip, canvasSize: MontageProjectV2['canvasSize
   return { width: sourceWidth, height: sourceHeight, fps: Math.max(1, clip.fps || 30), canvasSize };
 }
 
-async function getAudioStreamCount(path: string): Promise<number> {
+async function getAudioStreamCount(path: string, signal?: AbortSignal): Promise<number> {
   const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
   const output = await run(executable, [
     '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'json', path,
-  ]);
+  ], signal);
   const parsed = JSON.parse(output) as { streams?: unknown[] };
   return Math.min(8, parsed.streams?.length ?? 0);
 }
@@ -357,7 +393,7 @@ function findExecutable(environmentName: string, baseName: string): string {
   const configured = process.env[environmentName];
   if (configured) return configured;
   const executable = process.platform === 'win32' ? `${baseName}.exe` : baseName;
-  const packagedCandidate = join(process.resourcesPath, 'capture-host', 'ffmpeg', executable);
+  const packagedCandidate = join(process.resourcesPath ?? '', 'capture-host', 'ffmpeg', executable);
   if (existsSync(packagedCandidate)) return packagedCandidate;
   for (const segment of (process.env.PATH ?? '').split(delimiter)) {
     const candidate = join(segment, executable);
@@ -366,13 +402,13 @@ function findExecutable(environmentName: string, baseName: string): string {
   return executable;
 }
 
-function run(executable: string, arguments_: string[], signal?: AbortSignal): Promise<string> {
+function run(executable: string, arguments_: string[], signal?: AbortSignal, durationSeconds?: number, onProgress?: (fraction: number) => void): Promise<string> {
   return new Promise((resolvePromise, reject) => {
     if (signal?.aborted) {
       reject(abortError());
       return;
     }
-    const child = spawn(executable, arguments_, {
+    const child = spawn(executable, onProgress ? ['-progress', 'pipe:1', '-nostats', ...arguments_] : arguments_, {
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
       ...(signal ? { signal } : {}),
@@ -388,10 +424,21 @@ function run(executable: string, arguments_: string[], signal?: AbortSignal): Pr
     };
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => { stdout += chunk; });
+    let progressBuffer = '';
+    child.stdout.on('data', (chunk: string) => {
+      if (!onProgress) { if (stdout.length < 1_048_576) stdout += chunk; return; }
+      progressBuffer += chunk;
+      const lines = progressBuffer.split('\n');
+      progressBuffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('out_time_us=')) continue;
+        const seconds = Number(line.slice(12).trim()) / 1_000_000;
+        if (Number.isFinite(seconds) && durationSeconds) onProgress(Math.min(1, Math.max(0, seconds / durationSeconds)));
+      }
+    });
     child.stderr.on('data', (chunk: string) => { if (stderr.length < 65_536) stderr += chunk; });
-    child.once('error', (error) => finish(signal?.aborted ? abortError() : error));
-    child.once('exit', (code) => {
+    child.once('error', (error) => { if (!signal?.aborted) finish(error); });
+    child.once('close', (code) => {
       if (signal?.aborted) finish(abortError());
       else if (code === 0) finish();
       else finish(new Error(stderr.trim() || `${executable} exited with code ${code}`));
@@ -403,4 +450,16 @@ function abortError(): Error {
   const error = new Error('Export cancelled.');
   error.name = 'AbortError';
   return error;
+}
+
+function filterPath(path: string): string {
+  return "'" + path.replaceAll('\\', '/').replaceAll(':', '\\:').replaceAll("'", "'\\''") + "'";
+}
+
+export function tempoFilters(speed: number): string[] {
+  const filters: string[] = [];
+  while (speed < 0.5) { filters.push('atempo=0.5'); speed /= 0.5; }
+  while (speed > 2) { filters.push('atempo=2'); speed /= 2; }
+  if (speed !== 1) filters.push(`atempo=${speed}`);
+  return filters;
 }

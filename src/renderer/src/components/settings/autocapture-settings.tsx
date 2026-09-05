@@ -14,6 +14,7 @@ import { useSystemStore } from '@/stores/use-system-store';
 import battlefield6Artwork from '@/assets/game-artwork/battlefield-6.webp';
 import counterStrike2Artwork from '@/assets/game-artwork/counter-strike-2.webp';
 import warThunderArtwork from '@/assets/game-artwork/war-thunder.webp';
+import wardogsArtwork from '@/assets/game-artwork/wardogs.jpg';
 import { SettingSection, SettingSelect, SettingSwitch } from './settings-primitives';
 
 const preRollOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120];
@@ -24,6 +25,7 @@ const providerArtwork: Readonly<Record<string, string>> = {
   'battlefield-6': battlefield6Artwork,
   'counter-strike-2': counterStrike2Artwork,
   'war-thunder': warThunderArtwork,
+  wardogs: wardogsArtwork,
 };
 
 export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) {
@@ -149,13 +151,13 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
         />
       </SettingSection>
 
-      <SettingSection title="Supported games">
+      <SettingSection title="Game integrations">
         {autoCapture.providers.map((provider) => (
           <ProviderSettings
             key={provider.id}
             provider={provider}
             snapshot={snapshot}
-            onUpdate={(patch) => void update({ games: { [provider.gameId]: patch } })}
+            onUpdate={(patch) => update({ games: { [provider.gameId]: patch } })}
             onSetup={() => void setupProvider(provider.id)}
             onEmit={(type) => void emitTestEvent({ type: type as 'kill' | 'headshot' | 'multi_kill' | 'death' | 'round_win' | 'match_win' })}
           />
@@ -168,7 +170,7 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
 function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
   provider: AutoCaptureProvider;
   snapshot: SystemSnapshot;
-  onUpdate: (patch: Partial<AutoCaptureGameSettings>) => void;
+  onUpdate: (patch: Partial<AutoCaptureGameSettings>) => Promise<void>;
   onSetup: () => void;
   onEmit: (type: GameEventType) => void;
 }) {
@@ -197,20 +199,31 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
           <span className="autocapture-provider__copy">
             <strong>{provider.displayName}</strong>
             <span>{providerCapabilitySummary(provider)}</span>
-            <small>{providerStatusLabel(provider, active)}</small>
+            <small>{provider.requiresPlayerName && usable && !game.playerName?.trim()
+              ? 'Setup required: enter your player nickname'
+              : providerStatusLabel(provider, active)}</small>
           </span>
           <ChevronDown className="autocapture-provider__chevron" aria-hidden />
         </button>
         <Switch
           className="autocapture-provider__toggle"
-          checked={game.enabled}
+          checked={usable && game.enabled}
           disabled={!usable || !settings.enabled}
           onCheckedChange={(enabled) => onUpdate({ enabled })}
           aria-label={`Auto Capture for ${provider.displayName}`}
         />
       </div>
 
+      {provider.requiresPlayerName ? (
+        <ProviderPlayerName
+          provider={provider}
+          value={game.playerName ?? ''}
+          onCommit={(playerName) => onUpdate({ playerName: playerName || undefined })}
+        />
+      ) : null}
+
       {open ? <div className="autocapture-provider__details" id={`autocapture-provider-${provider.id}`}>
+        {!usable ? <p>{provider.availability.reason ?? 'This game integration is unavailable.'}</p> : null}
         {provider.availability.state === 'setup-required' ? (
           <div className="autocapture-provider__setup">
             <p>{provider.availability.reason}</p>
@@ -218,15 +231,7 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
           </div>
         ) : null}
 
-        {provider.requiresPlayerName ? (
-          <ProviderPlayerName
-            provider={provider}
-            value={game.playerName ?? ''}
-            onCommit={(playerName) => onUpdate({ playerName: playerName || undefined })}
-          />
-        ) : null}
-
-        <fieldset disabled={!settings.enabled || !game.enabled || !usable}>
+        {usable ? <fieldset disabled={!settings.enabled || !game.enabled}>
           <legend>Capture events</legend>
           <div className="autocapture-events-grid">
             {provider.capabilities.events.map((type) => {
@@ -243,9 +248,9 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
               );
             })}
           </div>
-        </fieldset>
+        </fieldset> : null}
 
-        <div className="autocapture-provider__timing">
+        {usable ? <div className="autocapture-provider__timing">
           <label>
             <span>Use global timing</span>
             <Switch checked={game.useGlobalTiming} disabled={!settings.enabled || !game.enabled} onCheckedChange={(useGlobalTiming) => onUpdate({ useGlobalTiming })} aria-label={`Use global timing for ${provider.displayName}`} />
@@ -256,7 +261,7 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
               <CompactSecondsSelect label="After event" value={game.postRollSeconds ?? settings.postRollSeconds} options={postRollOptions} onChange={(postRollSeconds) => onUpdate({ postRollSeconds })} />
             </div>
           ) : null}
-        </div>
+        </div> : null}
 
         {provider.developmentOnly ? (
           <div className="autocapture-test-events">
@@ -278,37 +283,47 @@ function ProviderSettings({ provider, snapshot, onUpdate, onSetup, onEmit }: {
 function ProviderPlayerName({ provider, value, onCommit }: {
   provider: AutoCaptureProvider;
   value: string;
-  onCommit: (value: string) => void;
+  onCommit: (value: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(value);
+  const [pending, setPending] = useState(false);
   useEffect(() => setDraft(value), [value]);
   const descriptionId = `autocapture-provider-${provider.id}-player-name-description`;
-  const commit = () => {
+  const inputId = `autocapture-provider-${provider.id}-player-name`;
+  const changed = draft.trim() !== value;
+  const commit = async () => {
     const next = draft.trim();
-    if (next !== value) onCommit(next);
+    if (!changed || pending) return;
+    setPending(true);
+    try { await onCommit(next); }
+    finally { setPending(false); }
   };
 
   return (
-    <label className="autocapture-provider__configuration">
+    <form className="autocapture-provider__configuration" onSubmit={(event) => { event.preventDefault(); void commit(); }}>
       <span>
-        <strong>Player nickname</strong>
-        <small id={descriptionId}>Used only on this PC to match your own events in {provider.displayName}’s local battle feed.</small>
+        <label htmlFor={inputId}><strong>Your in-game nickname</strong></label>
+        <small id={descriptionId}>Enter your exact {provider.displayName} nickname so kill clips follow your events. Stored only on this PC.</small>
       </span>
-      <Input
-        value={draft}
-        maxLength={64}
-        autoComplete="off"
-        spellCheck={false}
-        placeholder="Exact in-game nickname"
-        aria-label={`${provider.displayName} player nickname`}
-        aria-describedby={descriptionId}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
-        }}
-      />
-    </label>
+      <div className="autocapture-provider__name-controls">
+        <Input
+          id={inputId}
+          value={draft}
+          disabled={pending}
+          maxLength={64}
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="Exact in-game nickname"
+          aria-label={`${provider.displayName} player nickname`}
+          aria-describedby={descriptionId}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+        <Button type="submit" size="sm" variant="secondary" disabled={!changed || pending} aria-label={`Save ${provider.displayName} nickname`}>
+          {pending ? 'Saving…' : 'Save'}
+        </Button>
+        <small role="status">{pending ? 'Saving nickname…' : changed ? 'Unsaved changes' : value ? 'Saved on this PC' : 'Required for personal kill clips'}</small>
+      </div>
+    </form>
   );
 }
 

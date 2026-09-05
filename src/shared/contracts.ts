@@ -1,4 +1,6 @@
+import { montageMusicTrackSchema } from './montage-audio';
 import { z } from 'zod';
+import { videoEditsSchema } from './video-edits';
 
 export const pageIdSchema = z.enum([
   'devices',
@@ -1230,6 +1232,8 @@ export const clipSchema = z.object({
   thumbnailPath: z.string().optional(),
   favorite: z.boolean().default(false),
   titleEdited: z.boolean().default(false),
+  music: montageMusicTrackSchema.optional(),
+  videoEdits: videoEditsSchema.optional(),
   trimStartMs: z.number().int().nonnegative().optional(),
   trimEndMs: z.number().int().positive().optional(),
   canvasSize: clipCanvasSizeSchema.default('original'),
@@ -1793,6 +1797,8 @@ export const setClipAudioTrackLevelInputSchema = z.object({
 export type SetClipAudioTrackLevelInput = z.infer<typeof setClipAudioTrackLevelInputSchema>;
 
 const clipTrimInputShape = {
+  music: montageMusicTrackSchema.nullable().optional(),
+  videoEdits: videoEditsSchema.optional(),
   id: z.string().min(1).max(256),
   startMs: z.number().int().nonnegative(),
   endMs: z.number().int().positive(),

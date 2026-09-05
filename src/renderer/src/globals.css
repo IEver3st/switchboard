@@ -5561,11 +5561,28 @@ textarea:focus-visible {
 
 .autocapture-provider__configuration {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
   align-items: center;
   gap: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  margin-left: 80px;
+  padding-bottom: 18px;
+}
+
+.autocapture-provider__details > p {
+  margin: 0;
+  color: var(--text-description);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.autocapture-provider__name-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 8px;
+}
+
+.autocapture-provider__name-controls > small {
+  grid-column: 1 / -1;
 }
 
 .autocapture-provider__configuration > span {

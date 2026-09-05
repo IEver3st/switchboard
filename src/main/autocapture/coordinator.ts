@@ -52,6 +52,7 @@ export class AutoCaptureCoordinator {
     const settings = this.options.getSettings();
     const signature = JSON.stringify([
       activeSource?.id ?? null,
+      activeSource?.name ?? null,
       captureEnabled,
       settings.enabled,
       settings.games,
@@ -116,6 +117,9 @@ export class AutoCaptureCoordinator {
 
   public async flushBeforeCaptureStops(reason: string): Promise<void> {
     await this.enqueue(async () => {
+      // A replay reconfiguration can resume the same source with unchanged policy.
+      // Invalidate the memoized lifecycle so that its stopped provider starts again.
+      this.reconcileSignature = '';
       await this.options.engine.flush(reason);
       if (this.activeProviderId) await this.options.registry.stop(this.activeProviderId);
       this.activeProviderId = null;
@@ -162,7 +166,7 @@ export class AutoCaptureCoordinator {
         useGlobalTiming: true,
         events: {},
       });
-      this.options.engine.setActiveProvider(nextProvider.gameId, nextProvider.id, true);
+      this.publishProviders();
       return;
     }
 
@@ -182,8 +186,8 @@ export class AutoCaptureCoordinator {
         },
       });
       this.activeProviderId = nextProviderId;
-      this.options.engine.setActiveProvider(nextProvider.gameId, nextProvider.id, true);
     } catch (error) {
+      this.options.engine.setActiveProvider(nextProvider.gameId, nextProvider.id, false);
       this.options.engine.setDegraded(error instanceof Error ? error.message : String(error));
     }
     this.publishProviders();
@@ -200,6 +204,14 @@ export class AutoCaptureCoordinator {
   }
 
   private publishProviders(): void {
+    const provider = this.activeProviderId ? this.options.registry.get(this.activeProviderId) : undefined;
+    if (provider) {
+      const status = provider.getStatus();
+      this.options.engine.setActiveProvider(provider.gameId, provider.id, status.state === 'listening');
+      if (status.state === 'degraded' || status.state === 'error') {
+        this.options.engine.setDegraded(status.message ?? `${provider.displayName} needs attention.`);
+      }
+    }
     this.options.onProvidersChanged(this.options.registry.snapshots(this.options.includeDevelopmentProviders()));
   }
 }

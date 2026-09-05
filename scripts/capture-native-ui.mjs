@@ -15,8 +15,10 @@ if (currentStatePath) {
   try {
     await copyFile(currentStatePath, reviewStatePath);
     const reviewState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
+    if (reviewState.settings) reviewState.settings.uiScalePercent = 100;
     if (
       (process.env.SWITCHBOARD_VERIFY_REACTION_SETTINGS === '1'
+        || process.env.SWITCHBOARD_VERIFY_WARTHUNDER_SETTINGS === '1'
         || process.env.SWITCHBOARD_VERIFY_SHARE_PROGRESS === '1')
       && reviewState.capture?.config
     ) {
@@ -106,6 +108,7 @@ const screens = [
   { name: 'settings-autocapture-provider', prepare: () => openAutoCaptureProvider() },
   { name: 'settings-battlefield6-provider', prepare: () => openAutoCaptureProvider('battlefield-6-overwolf-gep') },
   { name: 'settings-warthunder-provider', prepare: () => openAutoCaptureProvider('war-thunder-8111') },
+  { name: 'settings-wardogs-provider', prepare: () => openAutoCaptureProvider('wardogs-events') },
   { name: 'settings-diagnostics', prepare: () => openSettingsCategory('Diagnostics') },
   { name: 'settings-noise-diagnostics', prepare: () => openNoiseDiagnostics() },
   { name: 'settings-clips', prepare: () => openSettingsCategory('Clips') },
@@ -173,6 +176,7 @@ async function runReview() {
   }
 
   if (process.env.SWITCHBOARD_VERIFY_WARTHUNDER_SETTINGS === '1') {
+    if (window.isMaximized()) window.unmaximize();
     window.setContentSize(1080, 720, false);
     await waitForViewport({ name: '1080x720', width: 1080, height: 720 });
     const interaction = await verifyWarThunderSettingsWorkflow();
@@ -227,7 +231,7 @@ async function waitForViewport(viewport) {
     if (size.width === viewport.width && Math.abs(size.height - viewport.height) <= 2) return;
     await delay(40);
   }
-  throw new Error(`Native window did not reach ${viewport.name}.`);
+  throw new Error(`Native window did not reach ${viewport.name}: ${JSON.stringify({ viewport: await getViewportSize(), bounds: window.getBounds(), content: window.getContentBounds(), zoom: window.webContents.getZoomFactor() })}`);
 }
 
 function getViewportSize() {
@@ -711,6 +715,15 @@ async function verifyClipSettingsControls() {
 async function verifyWarThunderSettingsWorkflow() {
   const expectedPlayerName = 'Ever3st';
   await openAutoCaptureProvider('war-thunder-8111');
+  await window.webContents.executeJavaScript(`document.querySelector('[aria-controls="autocapture-provider-war-thunder-8111"]')?.click()`);
+  const visibleWhenCollapsed = await window.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('input[aria-label="War Thunder player nickname"]');
+    return input instanceof HTMLInputElement && input.getBoundingClientRect().height > 0
+      && !document.querySelector('#autocapture-provider-war-thunder-8111');
+  })()`);
+  assertReview(visibleWhenCollapsed, 'Nickname entry was hidden inside collapsed game options.');
+  await waitForPaint();
+  await writeFile(join(outputDirectory, '1080x720-nickname-empty.png'), (await window.webContents.capturePage()).toPNG());
   const entered = await window.webContents.executeJavaScript(`
     (() => {
       const input = document.querySelector('input[aria-label="War Thunder player nickname"]');
@@ -719,11 +732,12 @@ async function verifyWarThunderSettingsWorkflow() {
       setValue?.call(input, ${JSON.stringify(expectedPlayerName)});
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.focus();
-      input.blur();
       return true;
     })()
   `);
   assertReview(entered, 'War Thunder player nickname input was unavailable.');
+  await waitForCondition(`!document.querySelector('button[aria-label="Save War Thunder nickname"]')?.disabled`, 'nickname Save action');
+  await window.webContents.executeJavaScript(`document.querySelector('button[aria-label="Save War Thunder nickname"]')?.click()`);
   await waitForCondition(
     `window.switchboard.getSnapshot().then((value) => value.capture.autoCapture.settings.games['war-thunder']?.playerName === ${JSON.stringify(expectedPlayerName)})`,
     'War Thunder nickname to reach canonical state',
@@ -752,7 +766,21 @@ async function verifyWarThunderSettingsWorkflow() {
   assertReview(afterReload.inputValue === expectedPlayerName, 'War Thunder nickname input did not restore after reload.');
   assertReview(!afterReload.horizontalOverflow && !afterReload.settingsOverflow, 'Reloaded War Thunder Settings introduced horizontal overflow.');
 
-  return { expectedPlayerName, beforeReload, afterReload, persisted: true };
+  await window.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('input[aria-label="War Thunder player nickname"]');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  })()`);
+  await waitForCondition(`!document.querySelector('button[aria-label="Save War Thunder nickname"]')?.disabled`, 'clear nickname Save action');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+  window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  await waitForCondition(`window.switchboard.getSnapshot().then((value) => !value.capture.autoCapture.settings.games['war-thunder']?.playerName)`, 'cleared nickname to reach canonical state');
+  await waitForCondition(`document.querySelector('.autocapture-provider__name-controls [role="status"]')?.textContent === 'Required for personal kill clips'`, 'missing nickname status');
+  const diskState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
+  assertReview(!diskState.capture.autoCapture.settings.games['war-thunder']?.playerName, 'Cleared nickname remained on disk.');
+  return { expectedPlayerName, beforeReload, afterReload, persisted: true, visibleWhenCollapsed, clearedWithEnter: true };
 }
 
 async function verifyReactionClippingSettings() {

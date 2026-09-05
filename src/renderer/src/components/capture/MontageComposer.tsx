@@ -1,3 +1,6 @@
+import { PreciseTimeField, PreciseTrimControls, VideoEditControls } from './VideoEditControls';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { VideoEditPreview } from './VideoEditPreview';
 import {
   useCallback,
   useEffect,
@@ -24,7 +27,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import type { Clip, ClipAudioChannel, ClipCanvasSize, ClipExportPreset } from '../../../../shared/contracts';
+import type { Clip, ClipAudioChannel, ClipCanvasSize, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
 import type {
   MontageAudioWaveform,
   MontageProjectV2,
@@ -48,6 +51,7 @@ import {
   createMontageMusicTrack,
   duplicateMontageSegment,
   mapMontageTime,
+  montageStartForSegment,
   minimumMontageSegmentMs,
   musicPlaybackAt,
   normalizeMontageProject,
@@ -161,6 +165,7 @@ export function MontageComposer({
 
   const changeProject = useCallback((next: MontageProjectV2, mergeKey?: string) => {
     const normalized = normalizeMontageProject(next);
+    projectRef.current = normalized;
     const now = Date.now();
     setHistory((current) => {
       if (current.present === normalized) return current;
@@ -333,7 +338,7 @@ export function MontageComposer({
       return;
     }
     const nextMs = clamp(
-      mapping.montageStartMs + sourceTimeMs - mapping.segment.trimStartMs,
+      mapping.montageStartMs + (sourceTimeMs - mapping.segment.trimStartMs) / (mapping.segment.videoEdits?.speed ?? 1),
       mapping.montageStartMs,
       mapping.montageEndMs,
     );
@@ -532,7 +537,7 @@ export function MontageComposer({
     const mapping = mapMontageTime(project.segments, currentMsRef.current);
     const sourceTimeMs = mapping?.segment.id === selectedSegment.id
       ? mapping.sourceTimeMs
-      : selectedSegment.trimStartMs + segmentDurationMs(selectedSegment) / 2;
+      : (selectedSegment.trimStartMs + selectedSegment.trimEndMs) / 2;
     const currentIndex = project.segments.findIndex((segment) => segment.id === selectedSegment.id);
     const next = splitMontageSegment(project, selectedSegment.id, sourceTimeMs);
     if (next === project) return;
@@ -561,12 +566,12 @@ export function MontageComposer({
     }
   };
 
-  const exportMontage = async (preset: ClipExportPreset, exportId: string): Promise<boolean> => {
+  const exportMontage = async (preset: ClipExportPreset, exportId: string, targetSizeMb?: number): Promise<PreparedShareFile | null> => {
     setExportPending(true);
     setError(null);
     try {
       await montageV2Api.saveMontageDraft(projectRef.current);
-      const exported = await montageV2Api.exportMontageV2({ exportId, preset, project: projectRef.current });
+      const exported = await montageV2Api.exportMontageV2({ exportId, preset, targetSizeMb, project: projectRef.current });
       if (exported) onDraftsChanged();
       return exported;
     } catch (cause) {
@@ -603,7 +608,7 @@ export function MontageComposer({
   const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
     if (event.defaultPrevented || !editorRef.current?.contains(target)) return;
-    const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
+    const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable || Boolean(target.closest('[role="combobox"], [role="listbox"], [role="menu"]'));
     if (!typing && (event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'z') {
       event.preventDefault();
       if (event.shiftKey) redo(); else undo();
@@ -675,9 +680,10 @@ export function MontageComposer({
         </div>
         <div className="montage-v2-header__actions">
           <label className="montage-v2-output">Canvas
-            <select aria-label="Montage canvas" value={project.canvasSize} onChange={(event) => changeProject({ ...project, canvasSize: event.target.value as ClipCanvasSize })}>
-              <option value="original">Original</option><option value="9:16">9:16 vertical</option>
-            </select>
+            <Select value={project.canvasSize} onValueChange={(value) => changeProject({ ...project, canvasSize: value as ClipCanvasSize })}>
+              <SelectTrigger aria-label="Montage canvas" className="no-drag w-32"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="original">Original</SelectItem><SelectItem value="9:16">9:16 vertical</SelectItem></SelectContent>
+            </Select>
           </label>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -727,6 +733,7 @@ export function MontageComposer({
           <div className="montage-v2-preview" data-state={previewState} data-fullscreen={viewerFullscreen || undefined} data-canvas={project.canvasSize}>
             <video ref={videoARef} data-slot="0" data-active={activeSlot === 0 || undefined} preload="metadata" aria-label="Montage preview" />
             <video ref={videoBRef} data-slot="1" data-active={activeSlot === 1 || undefined} preload="metadata" aria-hidden={activeSlot !== 1} />
+            <VideoEditPreview videoRef={activeSlot === 0 ? videoARef : videoBRef} edits={mapMontageTime(project.segments, currentMs)?.segment.videoEdits} canvasSize={project.canvasSize} />
             <audio ref={musicRef} preload="metadata" />
             <div className="montage-v2-preview__transport no-drag">
               <button type="button" aria-label="Back to start" onClick={() => void seekMontage(0, false)}><SkipBack /></button>
@@ -810,10 +817,20 @@ export function MontageComposer({
                 ) : null}
               </div>
 
-              <Separator />
-              <InspectorSection title="Selected segment">
+              <InspectorSection title="Trim & edit">
                 {selectedSegment ? (
                   <>
+                    <PreciseTrimControls startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs} durationMs={selectedSegment.sourceDurationMs} fps={selectedClip?.fps ?? 30}
+                      onChange={(trimStartMs, trimEndMs) => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, trimStartMs, trimEndMs })), `segment:${selectedSegment.id}:trim`)}
+                      getCurrentMs={() => mapMontageTime(projectRef.current.segments, currentMsRef.current)?.sourceTimeMs ?? selectedSegment.trimStartMs}
+                      onSeek={(sourceMs) => {
+                        const current = projectRef.current;
+                        const segment = current.segments.find((item) => item.id === selectedSegment.id)!;
+                        void seekMontage(montageStartForSegment(current.segments, segment.id) + (sourceMs - segment.trimStartMs) / (segment.videoEdits?.speed ?? 1));
+                      }} />
+                    <VideoEditControls edits={selectedSegment.videoEdits} startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs} durationMs={selectedSegment.sourceDurationMs}
+                      onChange={(videoEdits, key) => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, videoEdits })), `segment:${selectedSegment.id}:${key}`)} />
+                    <details className="editor-source-details"><summary>Clip audio & source</summary>
                     <div className="montage-v2-readout-grid">
                       <Readout label="Position" value={`${project.segments.findIndex((segment) => segment.id === selectedSegment.id) + 1} of ${project.segments.length}`} />
                       <Readout label="Source" value={selectedClip ? formatVideoQuality(selectedClip.width, selectedClip.height, selectedClip.fps) : 'Unavailable'} />
@@ -848,21 +865,7 @@ export function MontageComposer({
                         })}
                       </div>
                     ) : null}
-                    <div className="montage-v2-inline-fields">
-                      <TimeField
-                        label="Trim start"
-                        valueMs={selectedSegment.trimStartMs}
-                        maximumMs={selectedSegment.trimEndMs - minimumMontageSegmentMs}
-                        onChange={(value) => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, trimStartMs: value })), `segment:${selectedSegment.id}:trim-start`)}
-                      />
-                      <TimeField
-                        label="Trim end"
-                        valueMs={selectedSegment.trimEndMs}
-                        minimumMs={selectedSegment.trimStartMs + minimumMontageSegmentMs}
-                        maximumMs={selectedSegment.sourceDurationMs}
-                        onChange={(value) => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, trimEndMs: value })), `segment:${selectedSegment.id}:trim-end`)}
-                      />
-                    </div>
+                    </details>
                     <Button type="button" variant="secondary" size="sm" className="w-full" onClick={() => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, muted: !segment.muted })))}>
                       {selectedSegment.muted ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
                       {selectedSegment.muted ? 'Restore clip audio' : 'Mute clip audio'}
@@ -889,21 +892,32 @@ export function MontageComposer({
                       <div><Music2 /><span><strong>{project.music.asset.name}</strong><small>{formatDuration(project.music.asset.durationMs / 1_000)} · {formatBytes(project.music.asset.fileSize)}</small></span></div>
                       <button type="button" onClick={() => changeProject({ ...project, music: undefined })}>Remove</button>
                     </div>
+                    <div className="editor-music-trim">
+                      <div className="editor-music-waveform" aria-label="Music source waveform">
+                        {waveform?.samples.length ? <svg viewBox="0 0 240 48" preserveAspectRatio="none" aria-hidden="true">{waveform.samples.map((sample, index) => <line key={index} x1={index / waveform.samples.length * 240} x2={index / waveform.samples.length * 240} y1={24 - sample * 22} y2={24 + sample * 22} />)}</svg> : <span>{musicPreviewWarning ? 'Waveform unavailable' : 'Reading waveform…'}</span>}
+                        <i style={{ left: 0, width: `${project.music.sourceStartMs / project.music.asset.durationMs * 100}%` }} /><i style={{ right: 0, width: `${(1 - project.music.sourceEndMs / project.music.asset.durationMs) * 100}%` }} />
+                      </div>
+                      <Slider min={0} max={project.music.asset.durationMs} step={1} minStepsBetweenThumbs={100} value={[project.music.sourceStartMs, project.music.sourceEndMs]} thumbLabels={['Music trim start', 'Music trim end']} thumbValueText={[formatEditorTime(project.music.sourceStartMs), formatEditorTime(project.music.sourceEndMs)]} onValueChange={([sourceStartMs, sourceEndMs]) => {
+                        if (sourceStartMs === undefined || sourceEndMs === undefined) return;
+                        changeProject(updateMontageMusic(project, (track) => ({ ...track, sourceStartMs, sourceEndMs })), 'music:trim');
+                      }} />
+                      <p>{formatEditorTime(project.music.sourceEndMs - project.music.sourceStartMs)} selected{project.music.loop ? ' · Loops to fill montage' : ''}</p>
+                    </div>
+                    <div className="montage-v2-inline-fields">
+                      <PreciseTimeField label="Source in" valueMs={project.music.sourceStartMs} maximumMs={project.music.sourceEndMs - minimumMontageSegmentMs} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, sourceStartMs: value })), 'music:source-in')} />
+                      <PreciseTimeField label="Source out" valueMs={project.music.sourceEndMs} minimumMs={project.music.sourceStartMs + minimumMontageSegmentMs} maximumMs={project.music.asset.durationMs} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, sourceEndMs: value })), 'music:source-out')} />
+                    </div>
                     <LabeledSlider
                       label="Music volume"
                       value={project.music.muted ? 0 : Math.round(project.music.volume * 100)}
                       onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, muted: false, volume: value / 100 })), 'music:volume')}
                     />
                     <div className="montage-v2-inline-fields">
-                      <TimeField label="Timeline start" valueMs={project.music.timelineStartMs} maximumMs={project.durationMs - 1} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, timelineStartMs: value })), 'music:start')} />
-                      <TimeField label="Fade in" valueMs={project.music.fadeInMs} maximumMs={30_000} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, fadeInMs: value })), 'music:fade-in')} />
+                      <PreciseTimeField label="Timeline start" valueMs={project.music.timelineStartMs} maximumMs={project.durationMs - 1} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, timelineStartMs: value })), 'music:start')} />
+                      <PreciseTimeField label="Fade in" valueMs={project.music.fadeInMs} maximumMs={30_000} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, fadeInMs: value })), 'music:fade-in')} />
                     </div>
                     <div className="montage-v2-inline-fields">
-                      <TimeField label="Source in" valueMs={project.music.sourceStartMs} maximumMs={project.music.sourceEndMs - minimumMontageSegmentMs} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, sourceStartMs: value })), 'music:source-in')} />
-                      <TimeField label="Source out" valueMs={project.music.sourceEndMs} minimumMs={project.music.sourceStartMs + minimumMontageSegmentMs} maximumMs={project.music.asset.durationMs} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, sourceEndMs: value })), 'music:source-out')} />
-                    </div>
-                    <div className="montage-v2-inline-fields">
-                      <TimeField label="Fade out" valueMs={project.music.fadeOutMs} maximumMs={30_000} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, fadeOutMs: value })), 'music:fade-out')} />
+                      <PreciseTimeField label="Fade out" valueMs={project.music.fadeOutMs} maximumMs={30_000} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, fadeOutMs: value })), 'music:fade-out')} />
                     </div>
                     <div className="montage-v2-switch-field"><span><strong>Loop track</strong><small>Fill remaining montage</small></span><Switch checked={project.music.loop} onCheckedChange={(loop) => changeProject(updateMontageMusic(project, (track) => ({ ...track, loop })))} aria-label="Loop music track" /></div>
                     <div className="montage-v2-music-actions">
@@ -935,6 +949,8 @@ export function MontageComposer({
   );
 
   function applyVideoVolume(video: HTMLVideoElement, segment: MontageV2Segment): void {
+    video.playbackRate = segment.videoEdits?.speed ?? 1;
+    video.preservesPitch = true;
     video.muted = previewMutedRef.current;
     video.volume = clamp((segment.muted ? 0 : segment.volume) * masterVolumeRef.current, 0, 1);
   }
@@ -953,30 +969,6 @@ function LabeledSlider({ label, value, onChange }: { label: string; value: numbe
     <label className="montage-v2-slider-field">
       <span><strong>{label}</strong><output>{value}%</output></span>
       <Slider min={0} max={100} step={1} value={[value]} onValueChange={([next]) => { if (typeof next === 'number') onChange(next); }} aria-label={label} />
-    </label>
-  );
-}
-
-function TimeField({
-  label,
-  valueMs,
-  minimumMs = 0,
-  maximumMs,
-  onChange,
-}: {
-  label: string;
-  valueMs: number;
-  minimumMs?: number;
-  maximumMs: number;
-  onChange: (valueMs: number) => void;
-}) {
-  return (
-    <label className="montage-v2-time-field">
-      <span>{label}</span>
-      <div><Input type="number" min={minimumMs / 1_000} max={maximumMs / 1_000} step={0.01} value={(valueMs / 1_000).toFixed(2)} onChange={(event) => {
-        const value = Number(event.currentTarget.value) * 1_000;
-        if (Number.isFinite(value)) onChange(clamp(Math.round(value), minimumMs, maximumMs));
-      }} /><em>s</em></div>
     </label>
   );
 }
@@ -1022,7 +1014,7 @@ function formatEditorTime(milliseconds: number): string {
 
 function focusableElements(root: HTMLElement | null): HTMLElement[] {
   if (!root) return [];
-  return [...root.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')]
+  return [...root.querySelectorAll<HTMLElement>('a[href], summary, button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')]
     .filter((element) => !element.closest('[hidden], [inert], [aria-hidden="true"]') && element.getClientRects().length > 0);
 }
 

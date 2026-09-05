@@ -33,6 +33,7 @@ import {
 } from './clip-timeline-model';
 import { clipPreviewNeedsSync, clipPreviewTrackVolume } from './clip-preview-audio';
 import './clip-editor.css';
+import { TimelineContextMenu } from './TimelineContextMenu';
 
 export function ClipTimeline({
   clipId,
@@ -53,6 +54,7 @@ export function ClipTimeline({
   onResetTrims,
   onAudioTrackLevelChange,
   onSave,
+  onPreviewGainChange,
 }: {
   clipId: string;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -72,8 +74,10 @@ export function ClipTimeline({
   onResetTrims: () => void;
   onAudioTrackLevelChange: (trackIndex: number, level: number) => Promise<void>;
   onSave: () => void;
+  onPreviewGainChange?: (gain: number) => void;
 }) {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const [contextPoint, setContextPoint] = useState<{ timeMs: number; track: 'clip' | number; label: string }>({ timeMs: startMs, track: 'clip', label: 'Clip range' });
   const playheadRef = useRef<HTMLDivElement>(null);
   const timecodeCurrentRef = useRef<HTMLSpanElement>(null);
   const scrubTargetRef = useRef<HTMLDivElement>(null);
@@ -89,6 +93,7 @@ export function ClipTimeline({
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(1);
+  useEffect(() => { onPreviewGainChange?.(muted ? 0 : volume); }, [muted, volume, onPreviewGainChange]);
   const [interaction, setInteractionState] = useState<TimelineInteraction>('idle');
   const [rulerIntervalMs, setRulerIntervalMs] = useState(() => chooseTimelineTickInterval(durationMs, 720));
   const [waveformState, setWaveformState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -385,7 +390,7 @@ export function ClipTimeline({
     kind: 'dragging-trim-start' | 'dragging-trim-end',
     track: 'clip' | number,
   ) => {
-    const next = applyTrimKeyboard(kind, event.key, trimValues(track), 100);
+    const next = applyTrimKeyboard(kind, event.key, trimValues(track), event.shiftKey ? 1 : frameMs);
     if (!next) return;
     event.preventDefault();
     event.stopPropagation();
@@ -647,6 +652,11 @@ export function ClipTimeline({
   const timelineStyle = { '--audio-track-count': Math.max(1, displayTracks.length) } as CSSProperties;
   const hasAudioTrackTrims = audioTrackTrims?.some(Boolean) ?? false;
   const showSubsecondRuler = rulerIntervalMs < 1_000;
+  const contextRange = trimValues(contextPoint.track);
+  const setContextRange = (start: number, end: number) => {
+    if (contextPoint.track === 'clip') onChange(start, end);
+    else onAudioTrackTrimChange(contextPoint.track, start, end);
+  };
 
   return (
     <section className="clip-editor-timeline" aria-label="Clip timeline" data-interaction={interaction} data-playing={playing ? 'true' : undefined}>
@@ -753,6 +763,24 @@ export function ClipTimeline({
           </div>
         </div>
 
+        <TimelineContextMenu label={`${contextPoint.label} · ${formatTimelineTime(contextPoint.timeMs)}`} onContextMenu={(event) => {
+          const keyboard = event.button !== 2;
+          const time = keyboard ? currentMsRef.current : timeAtPointer(event.clientX, true);
+          const timeMs = Math.min(durationMs, Math.max(0, Math.round(Math.round(time / frameMs) * frameMs)));
+          const track = [...(timelineRef.current?.querySelectorAll<HTMLElement>('[data-timeline-track]') ?? [])].find((element) => {
+            if (keyboard) return element.contains(event.target as Node);
+            const bounds = element.getBoundingClientRect();
+            return event.clientY >= bounds.top && event.clientY < bounds.bottom;
+          });
+          videoRef.current?.pause();
+          setContextPoint({ timeMs, track: track ? Number(track.dataset.timelineTrack) : 'clip', label: track?.getAttribute('aria-label') ?? 'Clip range' });
+        }} actions={[
+          { label: 'Move playhead here', onSelect: () => { playbackModeRef.current = 'free'; setPlayhead(contextPoint.timeMs, true); } },
+          'separator',
+          { label: 'Trim start to here', disabled: contextPoint.timeMs > contextRange.endMs - minimumClipDurationMs || contextPoint.timeMs === contextRange.startMs, onSelect: () => setContextRange(contextPoint.timeMs, contextRange.endMs) },
+          { label: 'Trim end to here', disabled: contextPoint.timeMs < contextRange.startMs + minimumClipDurationMs || contextPoint.timeMs === contextRange.endMs, onSelect: () => setContextRange(contextRange.startMs, contextPoint.timeMs) },
+          { label: 'Reset trim', disabled: contextRange.startMs === 0 && contextRange.endMs === durationMs, onSelect: () => setContextRange(0, durationMs) },
+        ]}>
         <div ref={timelineRef} className="clip-editor-timeline__surface" data-testid="clip-timeline-surface">
           <div className="clip-editor-timeline__ruler" aria-hidden="true">
             {ruler.map((mark, index) => (
@@ -810,6 +838,7 @@ export function ClipTimeline({
               <div
                 key={track.trackIndex}
                 className="clip-editor-timeline__audio-track"
+                data-timeline-track={track.trackIndex}
                 data-channel={track.channel}
                 data-muted={resolveDisplayLevel(audioTrackLevels, track.trackIndex) === 0 ? 'true' : undefined}
                 style={{ '--track-color': track.channel ? channelColor(track.channel) : 'var(--text-description)' } as CSSProperties}
@@ -864,6 +893,7 @@ export function ClipTimeline({
           </div>
 
         </div>
+        </TimelineContextMenu>
       </div>
 
     </section>

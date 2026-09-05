@@ -1,3 +1,5 @@
+import { montageSizeChoices } from '../../../../shared/video-edits';
+import { Input } from '@/components/ui/input';
 import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
 import { Check, FolderOpen, Grip, Share2, Video } from 'lucide-react';
 import type { Clip, ClipExportPreset, ClipExportProgress, PreparedShareFile } from '../../../../shared/contracts';
@@ -42,11 +44,13 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
   segmentCount?: number;
   sourceBytes?: number;
   selectedDurationMs?: number;
-  onExport: (preset: ClipExportPreset, exportId: string) => Promise<boolean | PreparedShareFile | null>;
+  onExport: (preset: ClipExportPreset, exportId: string, targetSizeMb?: number) => Promise<boolean | PreparedShareFile | null>;
   onCancelExport?: (exportId: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<ClipExportPreset>('10mb');
+  const [montageSize, setMontageSize] = useState('balanced');
+  const [customSize, setCustomSize] = useState('250');
   const [activeExportId, setActiveExportId] = useState<string | null>(null);
   const activeExportIdRef = useRef<string | null>(null);
   const [exportProgress, setExportProgress] = useState<ClipExportProgress | null>(null);
@@ -54,13 +58,19 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
   const [error, setError] = useState<string | null>(null);
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const durationMs = selectedDurationMs ?? endMs - startMs;
+  const sizes = montageSizeChoices(durationMs);
+  const targetSizeMb = projectType !== 'montage' || montageSize === 'quality' ? undefined
+    : montageSize === 'custom' ? Number(customSize) : sizes[montageSize === 'compact' ? 0 : montageSize === 'balanced' ? 1 : 2];
+  const invalidSize = targetSizeMb !== undefined && (!Number.isInteger(targetSizeMb) || targetSizeMb < 5 || targetSizeMb > 100_000);
+  const videoKbps = targetSizeMb ? targetSizeMb * 1_048_576 * 8 * 0.94 / Math.max(0.1, durationMs / 1000) / 1000 - 128 : null;
+  const impossibleSize = videoKbps !== null && videoKbps < 120;
   const selected = sharePresets.find((candidate) => candidate.id === preset) ?? sharePresets[1]!;
   const proportionalBytes = sourceBytes ?? clip.fileSize * durationMs / Math.max(1, clip.durationMs);
-  const expectedBytes = selected.targetBytes ? Math.min(proportionalBytes, selected.targetBytes) : proportionalBytes;
+  const expectedBytes = projectType === 'montage' ? (targetSizeMb && !invalidSize ? targetSizeMb * 1_048_576 : proportionalBytes) : selected.targetBytes ? Math.min(proportionalBytes, selected.targetBytes) : proportionalBytes;
   const sourceName = clip.path.split(/[\\/]/).at(-1) ?? clip.name;
-  const visibleName = prepared?.name ?? sourceName;
+  const visibleName = prepared?.name ?? (projectType === 'montage' ? 'Montage.mp4' : sourceName);
   const visibleBytes = prepared?.fileSize ?? expectedBytes;
-  const canDrag = projectType === 'single' && prepared !== null;
+  const canDrag = prepared !== null;
   const progressLabel = exportProgress?.stage === 'finalizing' || exportProgress?.stage === 'complete'
     ? 'Finalizing share copy'
     : projectType === 'montage'
@@ -92,7 +102,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
     setPrepared(null);
     setError(null);
     try {
-      const result = await onExport(preset, exportId);
+      const result = await onExport(projectType === 'montage' ? 'original' : preset, exportId, targetSizeMb);
       if (result && typeof result === 'object') setPrepared(result);
       else if (result === true) setOpen(false);
     } catch (cause) {
@@ -130,7 +140,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-[520px] overflow-hidden p-0 no-drag" data-share-clip-dialog data-share-state={exportPending ? 'preparing' : prepared ? 'ready' : error ? 'error' : 'idle'}>
+      <DialogContent className="max-w-[520px] max-h-[calc(100vh-32px)] overflow-y-auto p-0 no-drag" data-share-clip-dialog data-share-state={exportPending ? 'preparing' : prepared ? 'ready' : error ? 'error' : 'idle'}>
         <DialogHeader className="px-5 pb-3 pt-5 pr-12">
           <DialogTitle>{projectType === 'montage' ? 'Export montage' : 'Share clip'}</DialogTitle>
           <DialogDescription>
@@ -179,7 +189,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
                 </div>
               ) : canDrag ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/72 px-3 py-2 text-white">
-                  <span className="flex items-center gap-2 text-[11px] font-semibold"><Grip className="size-4" aria-hidden="true" />Drag clip into Discord</span>
+                  <span className="flex items-center gap-2 text-[11px] font-semibold"><Grip className="size-4" aria-hidden="true" />{projectType === 'montage' ? 'Drag montage into another app' : 'Drag clip into Discord'}</span>
                   <Check className="size-4 text-primary" aria-hidden="true" />
                 </div>
               ) : null}
@@ -200,13 +210,19 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
           <div className="mt-4">
             <div className="mb-2 flex items-center justify-between gap-3">
               <span className="text-[11px] font-semibold text-foreground">File size</span>
-              <span className="text-[10px] text-muted-foreground">{selected.description}</span>
+<span className="text-[10px] text-muted-foreground">{projectType === 'montage' ? 'Sized for this runtime' : selected.description}</span>
             </div>
-            <ToggleGroup type="single" value={preset} onValueChange={selectPreset} disabled={exportPending} aria-label="File size preset" className="grid w-full grid-cols-4 bg-surface-interactive">
+            {projectType === 'montage' ? <>
+              <div className="editor-size-options" role="group" aria-label="Montage file size">
+                {['compact', 'balanced', 'detail', 'quality', 'custom'].map((id, index) => <button key={id} type="button" disabled={exportPending} aria-pressed={montageSize === id} onClick={() => { setMontageSize(id); setPrepared(null); setError(null); }}><strong>{['Compact', 'Balanced', 'More detail', 'Quality', 'Custom'][index]}</strong><span>{index < 3 ? formatBytes(sizes[index]! * 1_048_576) : index === 3 ? 'No size limit' : 'Set a limit'}</span></button>)}
+              </div>
+              {montageSize === 'custom' ? <label className="editor-custom-size">Target size (MB)<Input type="number" min={5} max={100000} step={1} value={customSize} disabled={exportPending} onChange={(event) => { setCustomSize(event.target.value); setPrepared(null); }} /></label> : null}
+              {invalidSize || impossibleSize ? <p role="alert" className="mt-2 text-[11px] text-destructive">{invalidSize ? 'Enter a whole size from 5 to 100,000 MB.' : 'This size is too small for the runtime. Choose a larger target.'}</p> : videoKbps !== null && videoKbps < 1500 ? <p className="mt-2 text-[11px] text-muted-foreground">Heavy compression at this size. More detail is recommended for fast motion.</p> : null}
+            </> : <ToggleGroup type="single" value={preset} onValueChange={selectPreset} disabled={exportPending} aria-label="File size preset" className="grid w-full grid-cols-4 bg-surface-interactive">
               {sharePresets.map((candidate) => (
                 <ToggleGroupItem key={candidate.id} value={candidate.id} data-share-preset={candidate.id} className="h-9 min-w-0 px-2 text-[11px]" aria-label={candidate.label}>{candidate.label}</ToggleGroupItem>
               ))}
-            </ToggleGroup>
+            </ToggleGroup>}
           </div>
 
           {error ? <p className="mt-3 rounded-sm border border-destructive/35 bg-destructive/10 px-3 py-2 text-[11px] leading-4 text-destructive" role="alert">{error}</p> : null}
@@ -217,7 +233,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
           <div className="min-w-0 text-[10px] leading-4 text-muted-foreground" aria-live="polite">
             <span className="block">{prepared ? 'Share copy' : 'Expected output'}</span>
             <strong className="block text-[12px] font-semibold tabular-nums text-foreground">
-              {prepared ? `${formatBytes(prepared.fileSize)} · Ready to drag` : selected.targetBytes ? `Up to ${selected.label}` : `About ${formatBytes(expectedBytes)}`}
+              {prepared ? `${formatBytes(prepared.fileSize)} · Ready to drag` : projectType === 'montage' ? (invalidSize ? 'Choose a valid size' : targetSizeMb ? `Up to ${formatBytes(targetSizeMb * 1_048_576)}` : 'Quality export · No size limit') : selected.targetBytes ? `Up to ${selected.label}` : `About ${formatBytes(expectedBytes)}`}
             </strong>
           </div>
           {exportPending && activeExportId && onCancelExport ? (
@@ -225,7 +241,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
           ) : prepared ? (
             <Button type="button" variant="primary" size="sm" className="min-w-[132px]" onClick={() => handleOpenChange(false)}>Done</Button>
           ) : (
-            <Button type="button" variant="primary" size="sm" className="min-w-[132px]" disabled={exportPending} onClick={() => void createShareFile()}>
+            <Button type="button" variant="primary" size="sm" className="min-w-[132px]" disabled={exportPending || invalidSize || impossibleSize} onClick={() => void createShareFile()}>
               {projectType === 'montage' ? 'Choose destination' : 'Prepare clip'}
             </Button>
           )}

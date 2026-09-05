@@ -1,3 +1,10 @@
+import { normalizeMusicTrack } from '../../../../shared/montage-audio';
+import type { MontageMusicTrack } from '../../../../shared/montage-audio';
+import { ClipMusicControls, ClipMusicPreview } from './ClipMusicControls';
+import type { VideoEdits } from '../../../../shared/video-edits';
+import { editedDurationMs } from '../../../../shared/video-edits';
+import { VideoEditControls, PreciseTrimControls } from './VideoEditControls';
+import { VideoEditPreview } from './VideoEditPreview';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ArrowLeft, Clapperboard, FolderOpen, Maximize, Minimize, MoreVertical, PanelRightClose, PanelRightOpen, Pencil, Star, Trash2, Volume2 } from 'lucide-react';
 import type { Clip, ClipAudioChannel, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, DefaultClipTrackLevels, PreparedShareFile } from '../../../../shared/contracts';
@@ -47,9 +54,9 @@ type SingleClipEditorProps = {
   onReveal: () => void;
   onInspectorOpenChange: (open: boolean) => void;
   onCanvasSizeChange: (canvasSize: ClipCanvasSize) => void;
-  onSaveTrim: (startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => Promise<void>;
+  onSaveTrim: (startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>, videoEdits: VideoEdits, music: MontageMusicTrack | null) => Promise<void>;
   onAudioTrackLevelChange: (trackIndex: number, level: number) => Promise<void>;
-  onExport: (preset: ClipExportPreset, startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => Promise<PreparedShareFile | null>;
+  onExport: (preset: ClipExportPreset, startMs: number, endMs: number, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string, videoEdits: VideoEdits, music: MontageMusicTrack | null) => Promise<PreparedShareFile | null>;
   onCancelExport: (exportId: string) => Promise<void>;
   onDelete: () => void;
 };
@@ -75,19 +82,28 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
   const viewerRef = useRef<HTMLDivElement>(null);
   const cropGuideRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [musicDraft, setMusic] = useState<MontageMusicTrack | null>(clip.music ?? null);
+  const [musicPreviewGain, setMusicPreviewGain] = useState(1);
+  const [inspectorTab, setInspectorTab] = useState<'edit' | 'music'>('edit');
+  const [videoEdits, setVideoEdits] = useState<VideoEdits>(clip.videoEdits ?? {});
   const savedStartMs = clip.trimStartMs ?? 0;
   const savedEndMs = clip.trimEndMs ?? clip.durationMs;
   const savedAudioTrackTrims = clip.audioTrackTrims ?? [];
   const [startMs, setStartMs] = useState(savedStartMs);
   const [endMs, setEndMs] = useState(savedEndMs);
+  const music = useMemo(() => musicDraft ? normalizeMusicTrack(musicDraft, editedDurationMs(startMs, endMs, videoEdits)) : null, [musicDraft, startMs, endMs, videoEdits.speed]);
   const [audioTrackTrims, setAudioTrackTrims] = useState<Array<ClipAudioTrackTrim | null>>(() => [...savedAudioTrackTrims]);
   const [previewState, setPreviewState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
-  const dirty = startMs !== savedStartMs
+  const dirty = JSON.stringify(music) !== JSON.stringify(clip.music ?? null)
+    || JSON.stringify(videoEdits) !== JSON.stringify(clip.videoEdits ?? {})
+    || startMs !== savedStartMs
     || endMs !== savedEndMs
     || !sameAudioTrackTrims(audioTrackTrims, savedAudioTrackTrims);
 
   useLayoutEffect(() => {
+    setMusic(clip.music ?? null);
+    setVideoEdits(clip.videoEdits ?? {});
     setStartMs(clip.trimStartMs ?? 0);
     setEndMs(clip.trimEndMs ?? clip.durationMs);
     setAudioTrackTrims([...(clip.audioTrackTrims ?? [])]);
@@ -225,7 +241,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
             </TooltipTrigger>
             <TooltipContent>{inspectorOpen ? 'Collapse Inspector' : 'Open Inspector'}</TooltipContent>
           </Tooltip>
-          <ShareClipDialog clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset, exportId) => onExport(preset, startMs, endMs, audioTrackTrims, exportId)} onCancelExport={onCancelExport} />
+          <ShareClipDialog selectedDurationMs={editedDurationMs(startMs, endMs, videoEdits)} clip={clip} startMs={startMs} endMs={endMs} exportPending={exportPending} disabled={clip.durationMs < 100} onExport={(preset, exportId) => onExport(preset, startMs, endMs, audioTrackTrims, exportId, videoEdits, music)} onCancelExport={onCancelExport} />
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -264,6 +280,8 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
               onCanPlay={() => setPreviewState('ready')}
               onError={() => setPreviewState('error')}
             />
+            <ClipMusicPreview music={music} videoRef={videoRef} startMs={startMs} durationMs={editedDurationMs(startMs, endMs, videoEdits)} speed={videoEdits.speed ?? 1} gain={musicPreviewGain} />
+            <VideoEditPreview videoRef={videoRef} edits={videoEdits} canvasSize={clip.canvasSize} />
             {clip.canvasSize === '9:16' ? <div ref={cropGuideRef} className="clip-editor-crop-guide" aria-hidden="true" /> : null}
             <div className="clip-editor-preview__controls no-drag">
               <Tooltip>
@@ -297,6 +315,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
             endMs={endMs}
             dirty={dirty}
             savePending={trimPending}
+            onPreviewGainChange={setMusicPreviewGain}
             onChange={updateTrim}
             onAudioTrackTrimChange={updateAudioTrackTrim}
             onResetTrims={() => {
@@ -304,7 +323,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
               setAudioTrackTrims([]);
             }}
             onAudioTrackLevelChange={onAudioTrackLevelChange}
-            onSave={() => void onSaveTrim(startMs, endMs, audioTrackTrims)}
+            onSave={() => void onSaveTrim(startMs, endMs, audioTrackTrims, videoEdits, music)}
           />
         </main>
 
@@ -313,6 +332,13 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
             <div className="clip-editor-inspector__content">
               <div className="clip-editor-inspector__heading"><div><span>Inspector</span><h3>Adjustments</h3></div></div>
 
+              <div className="editor-inspector-tabs" role="group" aria-label="Clip inspector section"><Button variant="ghost" size="sm" aria-pressed={inspectorTab === 'edit'} onClick={() => setInspectorTab('edit')}>Edit clip</Button><Button variant="ghost" size="sm" aria-pressed={inspectorTab === 'music'} onClick={() => setInspectorTab('music')}>Music</Button></div>
+              {inspectorTab === 'music' ? <ClipMusicControls music={music} durationMs={editedDurationMs(startMs, endMs, videoEdits)} onChange={setMusic} /> : <>
+              <section className="clip-editor-inspector__section">
+                <h3>Precision trim</h3>
+                <PreciseTrimControls startMs={startMs} endMs={endMs} durationMs={clip.durationMs} fps={clip.fps} onChange={updateTrim} getCurrentMs={() => (videoRef.current?.currentTime ?? 0) * 1000} onSeek={(ms) => { if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = ms / 1000; } }} />
+              </section>
+              <section className="clip-editor-inspector__section"><VideoEditControls edits={videoEdits} startMs={startMs} endMs={endMs} durationMs={clip.durationMs} onChange={setVideoEdits} /></section>
               <section className="clip-editor-inspector__section clip-editor-canvas" aria-labelledby="canvas-size-heading">
                 <div className="clip-editor-section-heading">
                   <h3 id="canvas-size-heading">Canvas size</h3>
@@ -391,6 +417,7 @@ function SingleClipEditor({ clip, exportPending, trimPending, canvasPending, ins
                 )}
               </section>
 
+              </>}
             </div>
           </ScrollArea>
         </aside>
@@ -674,6 +701,6 @@ function formatEventTime(milliseconds: number): string {
 
 function focusableElements(root: HTMLElement | null): HTMLElement[] {
   if (!root) return [];
-  return [...root.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), video[controls], [tabindex]:not([tabindex="-1"])')]
+  return [...root.querySelectorAll<HTMLElement>('a[href], summary, button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), video[controls], [tabindex]:not([tabindex="-1"])')]
     .filter((element) => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true');
 }

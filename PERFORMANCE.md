@@ -174,6 +174,16 @@ The application updater performs one delayed launch check and then checks every 
 
 ## Soak tests
 
+Montage export encodes each segment once at its final bitrate, seeks before
+decoding trimmed sources, and copies video during final assembly. It selects the
+existing supported share encoder, falling back to CPU for the remaining sequence
+if hardware encoding fails. FFmpeg progress is forwarded only during an export;
+cancel waits for the worker to close before cleaning temporary files. Final
+output size is verified, and a cancelled replacement preserves the existing file.
+Native editor/render evidence and the bounded CPU comparison are recorded in
+`design-qa/editor-tools/REPORT.md`. These are fixture results, not a long-project
+or physical-capture soak claim.
+
 1. Renderer open for 8 hours with frequent navigation.
 2. Tray mode for 24 hours with renderer destruction enabled.
 3. Capture ring wrapping continuously for 24 hours.

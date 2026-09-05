@@ -1,3 +1,5 @@
+import { montageMusicTrackSchema, type MontageMusicTrack } from '../../shared/montage-audio';
+import type { ShareVideoEncoder } from './clip-library';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import {
@@ -14,7 +16,8 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, parse, resolve } from 'node:path';
 import { app, dialog } from 'electron';
 import { z } from 'zod';
-import type { Clip, ClipExportPreset } from '../../shared/contracts';
+import { getPreparedShareService } from './prepared-share';
+import type { Clip, ClipExportPreset, PreparedShareFile } from '../../shared/contracts';
 import {
   montageAudioAssetSchema,
   montageProjectV2Schema,
@@ -147,9 +150,11 @@ export class MontageV2Service {
   }
 
   public async export(
-    input: { exportId: string; project: MontageProjectV2; preset: ClipExportPreset },
+    input: { exportId: string; project: MontageProjectV2; preset: ClipExportPreset; targetSizeMb?: number },
     clips: readonly Clip[],
-  ): Promise<boolean> {
+    encoder: ShareVideoEncoder = 'libx264',
+    onProgress?: (fraction: number) => void,
+  ): Promise<PreparedShareFile | null> {
     this.assertActive();
     await this.ensureLoaded();
     const project = this.canonicalizeProject(input.project);
@@ -176,14 +181,14 @@ export class MontageV2Service {
       throw new Error('The imported music file is missing. Replace it or remove the music track before exporting.');
     }
 
-    const suffix = input.preset === 'original' ? '' : `-${input.preset}`;
+    const suffix = input.targetSizeMb ? `-${input.targetSizeMb}mb` : input.preset === 'original' ? '' : `-${input.preset}`;
     const canvasSuffix = project.canvasSize === '9:16' ? '-9x16' : '';
     const selection = await dialog.showSaveDialog({
       title: 'Export montage',
       defaultPath: join(app.getPath('videos'), `${sanitizeFileBase(project.name)}${canvasSuffix}${suffix}.mp4`),
       filters: [{ name: 'Video', extensions: ['mp4'] }],
     });
-    if (selection.canceled || !selection.filePath) return false;
+    if (selection.canceled || !selection.filePath) return null;
     const destination = resolve(selection.filePath);
     const destinationKey = destination.toLocaleLowerCase();
     if (entries.some((entry) => entry.clip && resolve(entry.clip.path).toLocaleLowerCase() === destinationKey)) {
@@ -198,7 +203,7 @@ export class MontageV2Service {
       const duration = entry.segment.trimEndMs - entry.segment.trimStartMs;
       return total + entry.clip.fileSize * duration / Math.max(1, entry.clip.durationMs);
     }, 0);
-    const finalBytes = input.preset === 'original'
+    const finalBytes = input.targetSizeMb ? input.targetSizeMb * 1_048_576 : input.preset === 'original'
       ? proportionalSourceBytes
       : presetTargetBytes(input.preset);
     await Promise.all([
@@ -206,6 +211,8 @@ export class MontageV2Service {
       ensureDiskSpace(tmpdir(), Math.ceil(proportionalSourceBytes * 1.35 + 192 * 1_024 * 1_024), 'temporary export'),
     ]);
 
+    if (this.activeExports.has(input.exportId)) throw new Error('This export is already running.');
+    const workingDestination = join(dirname(destination), `.switchboard-${randomUUID()}.mp4`);
     const controller = new AbortController();
     this.activeExports.set(input.exportId, controller);
     try {
@@ -214,22 +221,37 @@ export class MontageV2Service {
         project,
         entries: entries.map((entry) => ({ clip: entry.clip!, segment: entry.segment })),
         ...(musicPath ? { musicPath } : {}),
-        destination,
+        destination: workingDestination,
+        targetSizeMb: input.targetSizeMb,
+        encoder,
+        onProgress,
         preset: input.preset,
         signal: controller.signal,
       });
+      await rename(workingDestination, destination);
     } catch (error) {
-      await rm(destination, { force: true });
-      if (controller.signal.aborted) return false;
+      await rm(workingDestination, { force: true });
+      if (controller.signal.aborted) return null;
       throw error;
     } finally {
       this.activeExports.delete(input.exportId);
     }
-    return true;
+    return getPreparedShareService().register(input.exportId, destination, basename(destination), {
+      temporary: false,
+      ...(entries[0]?.clip?.thumbnailPath ? { iconPath: entries[0].clip.thumbnailPath } : {}),
+    });
   }
 
   public cancelExport(exportId: string): void {
     this.activeExports.get(exportId)?.abort();
+  }
+
+  public async resolveMusic(track: MontageMusicTrack): Promise<{ track: MontageMusicTrack; path: string }> {
+    this.assertActive();
+    await this.ensureLoaded();
+    const asset = this.manifest.assets.find((item) => item.id === track.asset.id);
+    if (!asset || !existsSync(this.assetPath(asset))) throw new Error('The imported music is missing. Replace it or remove the music track.');
+    return { track: montageMusicTrackSchema.parse({ ...track, asset: publicAsset(asset) }), path: this.assetPath(asset) };
   }
 
   public async resolveAssetPath(assetId: string): Promise<string | null> {

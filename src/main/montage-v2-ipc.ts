@@ -1,3 +1,5 @@
+import { ipcChannels } from '../shared/contracts';
+import { selectShareVideoEncoder } from './services/clip-library';
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import {
   exportMontageV2InputSchema,
@@ -52,7 +54,10 @@ export function registerMontageV2Ipc(
   ipcMain.handle(montageV2IpcChannels.export, (event, raw) => {
     assertTrustedSender(event, getMainWindow);
     const input = exportMontageV2InputSchema.parse(raw);
-    return service.export(input, controller.getSnapshot().clips);
+    const snapshot = controller.getSnapshot();
+    return service.export(input, snapshot.clips, selectShareVideoEncoder(snapshot.capture.capabilities.encoders), (fraction) => {
+      if (!event.sender.isDestroyed()) event.sender.send(ipcChannels.clipExportProgress, { exportId: input.exportId, percent: Math.min(99, Math.round(fraction * 100)), stage: fraction >= 0.92 ? 'finalizing' : 'compressing' });
+    });
   });
   ipcMain.handle(montageV2IpcChannels.cancelExport, (event, raw) => {
     assertTrustedSender(event, getMainWindow);

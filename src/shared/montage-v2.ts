@@ -1,4 +1,8 @@
+import { montageMusicTrackSchema, type MontageMusicTrack, type MontageAudioAsset, type MontageAudioWaveform } from './montage-audio';
+export { montageAudioAssetSchema, montageAudioWaveformSchema, montageMusicTrackSchema } from './montage-audio';
+export type { MontageMusicTrack, MontageAudioAsset, MontageAudioWaveform } from './montage-audio';
 import { z } from 'zod';
+import { editedDurationMs, videoEditsSchema } from './video-edits';
 import {
   clipAudioTrackTrimsSchema,
   clipCanvasSizeSchema,
@@ -6,28 +10,13 @@ import {
   type ClipAudioTrackTrim,
   type ClipCanvasSize,
   type ClipExportPreset,
+  type PreparedShareFile,
 } from './contracts';
 
 export const montageV2SchemaVersion = 2 as const;
 
-export const montageAudioAssetSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().trim().min(1).max(160),
-  originalName: z.string().trim().min(1).max(260),
-  durationMs: z.number().int().positive(),
-  fileSize: z.number().int().nonnegative(),
-  codec: z.string().trim().min(1).max(80).optional(),
-  createdAt: z.number().int().nonnegative(),
-});
-export type MontageAudioAsset = z.infer<typeof montageAudioAssetSchema>;
-
-export const montageAudioWaveformSchema = z.object({
-  assetId: z.string().uuid(),
-  samples: z.array(z.number().min(0).max(1)).max(512),
-});
-export type MontageAudioWaveform = z.infer<typeof montageAudioWaveformSchema>;
-
 export const montageV2SegmentSchema = z.object({
+  videoEdits: videoEditsSchema.optional(),
   id: z.string().uuid(),
   clipId: z.string().min(1).max(256),
   sourceDurationMs: z.number().int().positive(),
@@ -50,30 +39,6 @@ export const montageV2SegmentSchema = z.object({
 });
 export type MontageV2Segment = z.infer<typeof montageV2SegmentSchema>;
 
-export const montageMusicTrackSchema = z.object({
-  id: z.string().uuid(),
-  asset: montageAudioAssetSchema,
-  timelineStartMs: z.number().int().nonnegative(),
-  sourceStartMs: z.number().int().nonnegative(),
-  sourceEndMs: z.number().int().positive(),
-  volume: z.number().min(0).max(1).default(0.18),
-  muted: z.boolean().default(false),
-  fadeInMs: z.number().int().min(0).max(30_000).default(1_000),
-  fadeOutMs: z.number().int().min(0).max(30_000).default(1_500),
-  loop: z.boolean().default(true),
-}).superRefine((track, context) => {
-  if (track.sourceEndMs <= track.sourceStartMs) {
-    context.addIssue({ code: 'custom', message: 'The music trim end must be after its start.', path: ['sourceEndMs'] });
-  }
-  if (track.sourceEndMs > track.asset.durationMs) {
-    context.addIssue({ code: 'custom', message: 'The music trim exceeds the imported file duration.', path: ['sourceEndMs'] });
-  }
-  if (track.sourceEndMs - track.sourceStartMs < 100) {
-    context.addIssue({ code: 'custom', message: 'Keep at least 0.1 seconds of the music track.', path: ['sourceEndMs'] });
-  }
-});
-export type MontageMusicTrack = z.infer<typeof montageMusicTrackSchema>;
-
 export const montageProjectV2Schema = z.object({
   schemaVersion: z.literal(montageV2SchemaVersion),
   type: z.literal('montage'),
@@ -87,7 +52,7 @@ export const montageProjectV2Schema = z.object({
   music: montageMusicTrackSchema.optional(),
 }).superRefine((project, context) => {
   const expectedDurationMs = project.segments.reduce(
-    (total, segment) => total + segment.trimEndMs - segment.trimStartMs,
+    (total, segment) => total + editedDurationMs(segment.trimStartMs, segment.trimEndMs, segment.videoEdits),
     0,
   );
   if (project.durationMs !== expectedDurationMs) {
@@ -103,6 +68,7 @@ export const exportMontageV2InputSchema = z.object({
   exportId: z.string().uuid(),
   project: montageProjectV2Schema,
   preset: clipExportPresetSchema,
+  targetSizeMb: z.number().int().min(5).max(100_000).optional(),
 });
 export type ExportMontageV2Input = z.infer<typeof exportMontageV2InputSchema>;
 
@@ -125,7 +91,7 @@ export interface MontageV2Api {
   listMontageDrafts(): Promise<MontageProjectV2[]>;
   saveMontageDraft(project: MontageProjectV2): Promise<MontageProjectV2>;
   deleteMontageDraft(projectId: string): Promise<void>;
-  exportMontageV2(input: ExportMontageV2Input): Promise<boolean>;
+  exportMontageV2(input: ExportMontageV2Input): Promise<PreparedShareFile | null>;
   cancelMontageV2Export(exportId: string): Promise<void>;
 }
 

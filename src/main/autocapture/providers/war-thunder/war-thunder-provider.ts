@@ -27,6 +27,8 @@ export class WarThunderProvider implements GameEventProvider {
 
   private readonly parser = new WarThunderTelemetryParser();
   private readonly listeners = new Set<(event: GameEvent) => void>();
+  private readonly statusListeners = new Set<() => void>();
+  private publishedStatus = '';
   private readonly fetchImplementation: typeof fetch;
   private readonly pollIntervalMs: number;
   private readonly endpoint: string;
@@ -81,6 +83,7 @@ export class WarThunderProvider implements GameEventProvider {
     } else if (this.playerName && wasMissingPlayerName && this.initialized && this.status.state === 'degraded') {
       this.status = { state: 'listening', ...(this.status.lastEventAt ? { lastEventAt: this.status.lastEventAt } : {}) };
     }
+    this.publishStatus();
   }
 
   public async start(context: ProviderContext): Promise<void> {
@@ -104,6 +107,7 @@ export class WarThunderProvider implements GameEventProvider {
     this.parser.reset();
     this.initialized = false;
     this.status = { state: 'stopped' };
+    this.publishStatus();
   }
 
   public subscribe(listener: (event: GameEvent) => void): () => void {
@@ -113,6 +117,18 @@ export class WarThunderProvider implements GameEventProvider {
 
   public getStatus(): ProviderStatus {
     return { ...this.status };
+  }
+
+  public subscribeStatus(listener: () => void): () => void {
+    this.statusListeners.add(listener);
+    return () => this.statusListeners.delete(listener);
+  }
+
+  private publishStatus(): void {
+    const signature = JSON.stringify(this.status);
+    if (signature === this.publishedStatus) return;
+    this.publishedStatus = signature;
+    for (const listener of this.statusListeners) listener();
   }
 
   public async getDiagnostics() {
@@ -169,6 +185,8 @@ export class WarThunderProvider implements GameEventProvider {
           ? `War Thunder local API: ${error.message}`
           : 'Waiting for War Thunder’s local API.',
       };
+    } finally {
+      if (lifecycle === this.lifecycle) this.publishStatus();
     }
   }
 

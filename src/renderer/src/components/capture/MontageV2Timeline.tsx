@@ -14,7 +14,12 @@ import type { Clip } from '../../../../shared/contracts';
 import type { MontageAudioWaveform, MontageProjectV2, MontageV2Segment } from '../../../../shared/montage-v2';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { TimelineContextMenu, type TimelineMenuAction } from './TimelineContextMenu';
 import {
+  duplicateMontageSegment,
+  mapMontageTime,
+  removeMontageSegment,
+  splitMontageSegment,
   montageStartForSegment,
   musicTimelineDurationMs,
   reorderMontageSegment,
@@ -69,6 +74,8 @@ export function MontageV2Timeline({
   onRedo: () => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contextPoint, setContextPoint] = useState({ segmentId: selectedSegmentId, sourceMs: 0, timelineMs: 0, music: false });
   const [viewportWidth, setViewportWidth] = useState(1);
   const scrubPointerRef = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -114,7 +121,9 @@ export function MontageV2Timeline({
   const continueTrim = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = trimRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const deltaMs = Math.round((event.clientX - drag.startX) / drag.pixelsPerMs);
+    const frame = 1000 / Math.max(1, clipsById.get(drag.segment.clipId)?.fps || 30);
+    const rawDelta = (event.clientX - drag.startX) / drag.pixelsPerMs * (drag.segment.videoEdits?.speed ?? 1);
+    const deltaMs = event.shiftKey ? Math.round(rawDelta) : Math.round(Math.round(rawDelta / frame) * frame);
     const requested = (drag.edge === 'start' ? drag.segment.trimStartMs : drag.segment.trimEndMs) + deltaMs;
     const next = updateMontageSegment(project, drag.segment.id, (segment) => drag.edge === 'start'
       ? { ...segment, trimStartMs: requested }
@@ -143,6 +152,37 @@ export function MontageV2Timeline({
     const rect = event.currentTarget.getBoundingClientRect();
     onSeek(clamp((event.clientX - rect.left) / pixelsPerMs, 0, project.durationMs));
   };
+
+  const contextSegment = project.segments.find((segment) => segment.id === contextPoint.segmentId);
+  const contextClip = clipsById.get(contextSegment?.clipId ?? '');
+  const contextActions: TimelineMenuAction[] = [
+    { label: 'Move playhead here', onSelect: () => onSeek(contextPoint.timelineMs) },
+    'separator',
+  ];
+  if (contextPoint.music) {
+    contextActions.push(
+      { label: project.music ? 'Music settings' : 'Add music', disabled: musicPending, onSelect: project.music ? onEditMusic : onAddMusic },
+      ...(project.music ? [
+        { label: project.music.muted ? 'Unmute music' : 'Mute music', onSelect: () => onProjectChange(updateMontageMusic(project, (track) => ({ ...track, muted: !track.muted }))) },
+        { label: 'Start music here', onSelect: () => onProjectChange(updateMontageMusic(project, (track) => ({ ...track, timelineStartMs: contextPoint.timelineMs }))) },
+        { label: 'Remove music', danger: true, onSelect: () => onProjectChange({ ...project, music: undefined }) },
+      ] : []),
+    );
+  } else if (contextSegment) {
+    const segment = contextSegment;
+    const canStart = contextPoint.sourceMs >= segment.trimStartMs && contextPoint.sourceMs <= segment.trimEndMs - 100;
+    const canEnd = contextPoint.sourceMs >= segment.trimStartMs + 100 && contextPoint.sourceMs <= segment.trimEndMs;
+    contextActions.push(
+      { label: 'Trim start to here', disabled: !canStart || contextPoint.sourceMs === segment.trimStartMs, onSelect: () => onProjectChange(updateMontageSegment(project, segment.id, (value) => ({ ...value, trimStartMs: contextPoint.sourceMs }))) },
+      { label: 'Trim end to here', disabled: !canEnd || contextPoint.sourceMs === segment.trimEndMs, onSelect: () => onProjectChange(updateMontageSegment(project, segment.id, (value) => ({ ...value, trimEndMs: contextPoint.sourceMs }))) },
+      { label: 'Split here', disabled: !canStart || !canEnd, onSelect: () => onProjectChange(splitMontageSegment(project, segment.id, contextPoint.sourceMs)) },
+      { label: 'Reset trim', disabled: segment.trimStartMs === 0 && segment.trimEndMs === segment.sourceDurationMs, onSelect: () => onProjectChange(updateMontageSegment(project, segment.id, (value) => ({ ...value, trimStartMs: 0, trimEndMs: value.sourceDurationMs }))) },
+      'separator',
+      { label: 'Duplicate segment', onSelect: () => onProjectChange(duplicateMontageSegment(project, segment.id)) },
+      { label: 'Remove segment', disabled: project.segments.length <= 1, danger: true, onSelect: () => onProjectChange(removeMontageSegment(project, segment.id)) },
+    );
+  }
+  contextActions.push('separator', { label: 'Undo', disabled: !canUndo, onSelect: onUndo }, { label: 'Redo', disabled: !canRedo, onSelect: onRedo });
 
   return (
     <section className="montage-v2-timeline" aria-label="Montage timeline">
@@ -176,7 +216,23 @@ export function MontageV2Timeline({
           <div><strong>Music</strong><span>{project.music ? 'Imported audio' : 'Empty lane'}</span></div>
         </div>
         <div ref={viewportRef} className="montage-v2-timeline__viewport">
-          <div className="montage-v2-timeline__content" style={{ width: `${width}px` }}>
+          <TimelineContextMenu label={`${contextPoint.music ? 'Music' : contextClip?.name ?? 'Timeline'} · ${formatTimecode(contextPoint.timelineMs, true)}`} actions={contextActions} onContextMenu={(event) => {
+            const keyboard = event.button !== 2;
+            const rect = contentRef.current!.getBoundingClientRect();
+            const requested = keyboard ? currentMs : clamp((event.clientX - rect.left) / pixelsPerMs, 0, project.durationMs);
+            const target = event.target as HTMLElement;
+            const music = Boolean(target.closest('.montage-v2-music-lane'));
+            const id = target.closest<HTMLElement>('[data-segment-id]')?.dataset.segmentId;
+            const segment = project.segments.find((value) => value.id === id) ?? mapMontageTime(project.segments, requested)?.segment;
+            if (!segment) return;
+            const start = montageStartForSegment(project.segments, segment.id);
+            const frame = 1000 / Math.max(1, clipsById.get(segment.clipId)?.fps || 30);
+            const source = segment.trimStartMs + (requested - start) * (segment.videoEdits?.speed ?? 1);
+            const sourceMs = clamp(Math.round(Math.round(source / frame) * frame), segment.trimStartMs, segment.trimEndMs);
+            setContextPoint({ segmentId: segment.id, sourceMs, timelineMs: music ? Math.round(requested) : start + (sourceMs - segment.trimStartMs) / (segment.videoEdits?.speed ?? 1), music });
+            if (!music) onSelectSegment(segment.id);
+          }}>
+          <div ref={contentRef} className="montage-v2-timeline__content" style={{ width: `${width}px` }}>
             <div className="montage-v2-ruler" role="slider" tabIndex={0} aria-label="Montage playhead"
               aria-valuemin={0} aria-valuemax={project.durationMs} aria-valuenow={Math.round(currentMs)} aria-valuetext={formatTimecode(currentMs, true)}
               onPointerDown={(event) => {
@@ -189,7 +245,7 @@ export function MontageV2Timeline({
               onPointerUp={(event) => { scrubPointerRef.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }}
               onPointerCancel={() => { scrubPointerRef.current = null; }}
               onKeyDown={(event) => {
-                const delta = event.shiftKey ? 1000 : 100;
+                const delta = event.shiftKey ? 1000 : 1000 / Math.max(1, clipsById.get(selected?.clipId ?? '')?.fps || 30) / (selected?.videoEdits?.speed ?? 1);
                 const time = event.key === 'Home' ? 0 : event.key === 'End' ? project.durationMs : event.key === 'ArrowLeft' ? currentMs - delta : event.key === 'ArrowRight' ? currentMs + delta : null;
                 if (time === null) return;
                 event.preventDefault();
@@ -211,6 +267,7 @@ export function MontageV2Timeline({
                 return (
                   <div
                     key={segment.id}
+                    data-segment-id={segment.id}
                     className="montage-v2-segment-slot"
                     style={{ width: `${segmentWidth}px` }} data-compact={segmentWidth < 70 || undefined}
                     role="listitem"
@@ -256,7 +313,7 @@ export function MontageV2Timeline({
                       <span className="montage-v2-segment__shade" aria-hidden="true" />
                       <span className="montage-v2-segment__index">{index + 1}</span>
                       <strong>{clip?.name ?? 'Missing clip'}</strong>
-                      <small>{formatTimecode(segmentDurationMs(segment), true)}</small>
+                      <small>{formatTimecode(segmentDurationMs(segment), true)}{segment.videoEdits?.speed && segment.videoEdits.speed !== 1 ? ` · ${segment.videoEdits.speed}×` : ''}{segment.videoEdits?.text?.content ? ' · T' : ''}</small>
                     </button>
                     <div
                       className="montage-v2-trim-handle is-start"
@@ -276,7 +333,8 @@ export function MontageV2Timeline({
                       onPointerUp={finishTrim}
                       onPointerCancel={() => { trimRef.current = null; }}
                       onKeyDown={(event) => {
-                        const delta = event.key === 'ArrowLeft' ? -33 : event.key === 'ArrowRight' ? 33 : 0;
+                        const frame = event.shiftKey ? 1 : 1000 / Math.max(1, clip?.fps || 30);
+                        const delta = event.key === 'ArrowLeft' ? -frame : event.key === 'ArrowRight' ? frame : 0;
                         if (!delta) return;
                         event.preventDefault();
                         onProjectChange(updateMontageSegment(project, segment.id, (current) => ({ ...current, trimStartMs: current.trimStartMs + delta })), `trim:${segment.id}:start`);
@@ -300,7 +358,8 @@ export function MontageV2Timeline({
                       onPointerUp={finishTrim}
                       onPointerCancel={() => { trimRef.current = null; }}
                       onKeyDown={(event) => {
-                        const delta = event.key === 'ArrowLeft' ? -33 : event.key === 'ArrowRight' ? 33 : 0;
+                        const frame = event.shiftKey ? 1 : 1000 / Math.max(1, clip?.fps || 30);
+                        const delta = event.key === 'ArrowLeft' ? -frame : event.key === 'ArrowRight' ? frame : 0;
                         if (!delta) return;
                         event.preventDefault();
                         onProjectChange(updateMontageSegment(project, segment.id, (current) => ({ ...current, trimEndMs: current.trimEndMs + delta })), `trim:${segment.id}:end`);
@@ -365,6 +424,7 @@ export function MontageV2Timeline({
 
             <div className="montage-v2-playhead" style={{ left: `${currentMs * pixelsPerMs}px` }} aria-hidden="true"><span /></div>
           </div>
+          </TimelineContextMenu>
         </div>
       </div>
     </section>

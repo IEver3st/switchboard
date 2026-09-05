@@ -1,3 +1,5 @@
+import { normalizeMusicTrack } from '../../../../shared/montage-audio';
+import { editedDurationMs } from '../../../../shared/video-edits';
 import type { Clip } from '../../../../shared/contracts';
 import {
   montageProjectV2Schema,
@@ -56,6 +58,7 @@ export function createMontageSegment(clip: Clip): MontageV2Segment {
     sourceDurationMs: clip.durationMs,
     trimStartMs,
     trimEndMs,
+    videoEdits: clip.videoEdits,
     volume: 1,
     muted: false,
     ...(clip.audioTrackLevels && clip.audioTrackLevels.length > 0
@@ -111,8 +114,8 @@ export function reconcileMontageProject(project: MontageProjectV2, clips: readon
   return normalizeMontageProject({ ...project, segments });
 }
 
-export function segmentDurationMs(segment: Pick<MontageV2Segment, 'trimStartMs' | 'trimEndMs'>): number {
-  return Math.max(0, segment.trimEndMs - segment.trimStartMs);
+export function segmentDurationMs(segment: Pick<MontageV2Segment, 'trimStartMs' | 'trimEndMs' | 'videoEdits'>): number {
+  return editedDurationMs(segment.trimStartMs, segment.trimEndMs, segment.videoEdits);
 }
 
 export function mapMontageTime(
@@ -137,7 +140,7 @@ export function mapMontageTime(
         segmentIndex: index,
         montageStartMs,
         montageEndMs,
-        sourceTimeMs: segment.trimStartMs + localOffsetMs,
+        sourceTimeMs: Math.min(segment.trimEndMs, segment.trimStartMs + localOffsetMs * (segment.videoEdits?.speed ?? 1)),
       };
     }
     montageStartMs = montageEndMs;
@@ -193,7 +196,7 @@ export function splitMontageSegment(
 ): MontageProjectV2 {
   const index = project.segments.findIndex((segment) => segment.id === segmentId);
   const source = project.segments[index];
-  if (!source || segmentDurationMs(source) < minimumMontageSegmentMs * 2) return project;
+  if (!source || source.trimEndMs - source.trimStartMs < minimumMontageSegmentMs * 2) return project;
   const splitMs = Math.min(
     source.trimEndMs - minimumMontageSegmentMs,
     Math.max(source.trimStartMs + minimumMontageSegmentMs, Math.round(requestedSourceTimeMs)),
@@ -277,9 +280,11 @@ export function musicPlaybackAt(
     return { active: false, sourceTimeMs: track.sourceStartMs, gain: 0, activeDurationMs };
   }
   const sourceOffsetMs = track.loop ? localTimelineMs % sourceDurationMs : localTimelineMs;
-  const fadeIn = track.fadeInMs > 0 ? Math.min(1, localTimelineMs / track.fadeInMs) : 1;
+  const fadeInMs = Math.min(track.fadeInMs, Math.floor(activeDurationMs / 2));
+  const fadeOutMs = Math.min(track.fadeOutMs, Math.floor(activeDurationMs / 2));
+  const fadeIn = fadeInMs > 0 ? Math.min(1, localTimelineMs / fadeInMs) : 1;
   const remainingMs = activeDurationMs - localTimelineMs;
-  const fadeOut = track.fadeOutMs > 0 ? Math.min(1, remainingMs / track.fadeOutMs) : 1;
+  const fadeOut = fadeOutMs > 0 ? Math.min(1, remainingMs / fadeOutMs) : 1;
   return {
     active: true,
     sourceTimeMs: track.sourceStartMs + sourceOffsetMs,
@@ -307,29 +312,5 @@ function normalizeSegment(segment: MontageV2Segment): MontageV2Segment {
     trimStartMs,
     trimEndMs,
     volume: Math.max(0, Math.min(1, segment.volume)),
-  };
-}
-
-function normalizeMusicTrack(track: MontageMusicTrack, projectDurationMs: number): MontageMusicTrack {
-  const sourceStartMs = Math.max(
-    0,
-    Math.min(track.asset.durationMs - minimumMontageSegmentMs, Math.round(track.sourceStartMs)),
-  );
-  const sourceEndMs = Math.max(
-    sourceStartMs + minimumMontageSegmentMs,
-    Math.min(track.asset.durationMs, Math.round(track.sourceEndMs)),
-  );
-  const activeDurationMs = track.loop
-    ? Math.max(0, projectDurationMs - track.timelineStartMs)
-    : Math.min(sourceEndMs - sourceStartMs, Math.max(0, projectDurationMs - track.timelineStartMs));
-  const maxFadeMs = Math.max(0, Math.floor(activeDurationMs / 2));
-  return {
-    ...track,
-    timelineStartMs: Math.max(0, Math.min(projectDurationMs - 1, Math.round(track.timelineStartMs))),
-    sourceStartMs,
-    sourceEndMs,
-    volume: Math.max(0, Math.min(1, track.volume)),
-    fadeInMs: Math.max(0, Math.min(maxFadeMs, Math.round(track.fadeInMs))),
-    fadeOutMs: Math.max(0, Math.min(maxFadeMs, Math.round(track.fadeOutMs))),
   };
 }

@@ -53,6 +53,7 @@ export class AutoCaptureEngine {
   private activeGameId: string | null = null;
   private activeProviderId: string | null = null;
   private listening = false;
+  private providerError: string | null = null;
   private saving = 0;
   private disposed = false;
   private runtime: AutoCaptureRuntime = {
@@ -76,6 +77,10 @@ export class AutoCaptureEngine {
   }
 
   public setActiveProvider(gameId: string | null, providerId: string | null, listening: boolean): void {
+    if (listening || providerId !== this.activeProviderId) {
+      if (this.providerError && this.runtime.lastError === this.providerError) this.runtime.lastError = null;
+      this.providerError = null;
+    }
     this.activeGameId = gameId;
     this.activeProviderId = providerId;
     this.listening = listening;
@@ -83,6 +88,7 @@ export class AutoCaptureEngine {
   }
 
   public setDegraded(message: string): void {
+    this.providerError = message;
     this.runtime.lastError = message;
     this.listening = false;
     this.publish('degraded');
@@ -239,9 +245,11 @@ export class AutoCaptureEngine {
           ? 'saving'
           : latest
             ? 'pending'
-            : this.listening
-              ? 'listening'
-              : 'idle');
+            : this.providerError
+              ? 'degraded'
+              : this.listening
+                ? 'listening'
+                : 'idle');
     this.runtime = {
       ...this.runtime,
       state,

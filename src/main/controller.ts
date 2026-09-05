@@ -1,3 +1,8 @@
+import { normalizeMusicTrack } from '../shared/montage-audio';
+import { getMontageV2Service } from './services/montage-v2';
+import { renderMontageV2 } from './services/montage-v2-renderer';
+import { montageProjectV2Schema } from '../shared/montage-v2';
+import { editedDurationMs, hasVideoEdits } from '../shared/video-edits';
 import { debugDiagnostics } from './services/debug-diagnostics';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -86,7 +91,7 @@ import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
 import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-presets';
 import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
-import { applyClipTrackLevel, hasEffectiveClipMixChanged } from '../shared/clip-track-levels';
+import { applyClipTrackLevel, hasEffectiveClipMixChanged, resolveClipTrackLevel } from '../shared/clip-track-levels';
 import type { FeedbackEnvironment } from '../shared/feedback-report';
 import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
@@ -1588,6 +1593,8 @@ export class AppController {
     return this.store.update((draft) => {
       const current = draft.clips.find((candidate) => candidate.id === input.id);
       if (!current) return;
+      if (input.music !== undefined) current.music = input.music ? normalizeMusicTrack(input.music, editedDurationMs(input.startMs, input.endMs, input.videoEdits ?? current.videoEdits)) : undefined;
+      if (input.videoEdits !== undefined) current.videoEdits = input.videoEdits;
       current.trimStartMs = input.startMs;
       current.trimEndMs = input.endMs < current.durationMs ? input.endMs : undefined;
       const audioTrackTrims = [...(input.audioTrackTrims ?? [])];
@@ -1668,7 +1675,7 @@ export class AppController {
     const defaults = this.store.get().capture.config.defaultTrackLevels;
     const audioMixChanged = hasEffectiveClipMixChanged(clip.audioTrackLevels, clip.audioChannels, defaults);
     const audioTrimChanged = (input.audioTrackTrims ?? clip.audioTrackTrims)?.some(Boolean) ?? false;
-    const canCopyOriginal = input.preset === 'original' && fullRange && clip.canvasSize === 'original' && !audioMixChanged && !audioTrimChanged;
+    const canCopyOriginal = input.preset === 'original' && fullRange && clip.canvasSize === 'original' && !audioMixChanged && !audioTrimChanged && !hasVideoEdits(input.videoEdits ?? clip.videoEdits) && !(input.music === undefined ? clip.music : input.music);
     const extension = canCopyOriginal ? extname(clip.path) || '.mp4' : '.mp4';
     const presetSuffix = input.preset === 'original'
       ? (fullRange ? (audioMixChanged || audioTrimChanged ? '-mixed' : '') : '-trimmed')
@@ -1700,7 +1707,25 @@ export class AppController {
     if (input.exportId && controller) this.activeClipExports.set(input.exportId, controller);
     if (input.exportId) this.emitClipExportProgress({ exportId: input.exportId, percent: 0, stage: 'compressing' });
     try {
-      await this.clipLibrary.renderExport(plan.clip, destination, input, {
+      const videoEdits = input.videoEdits ?? plan.clip.videoEdits;
+      const music = input.music === undefined ? plan.clip.music : input.music;
+      if (hasVideoEdits(videoEdits) || music) {
+        const resolvedMusic = music ? await getMontageV2Service().resolveMusic(music) : undefined;
+        const outputDurationMs = editedDurationMs(input.startMs, input.endMs, videoEdits);
+        const clip = plan.clip;
+        const project = montageProjectV2Schema.parse({
+          schemaVersion: 2, type: 'montage', id: randomUUID(), name: clip.name.slice(0, 120), createdAt: Date.now(), updatedAt: Date.now(),
+          durationMs: outputDurationMs,
+          music: resolvedMusic ? normalizeMusicTrack(resolvedMusic.track, outputDurationMs) : undefined, canvasSize: clip.canvasSize,
+          segments: [{ id: randomUUID(), clipId: clip.id, sourceDurationMs: clip.durationMs, trimStartMs: input.startMs, trimEndMs: input.endMs,
+            videoEdits, volume: 1, muted: false,
+            audioTrackLevels: Array.from({ length: Math.max(clip.audioChannels?.length ?? 0, clip.audioTrackLevels?.length ?? 0) }, (_, index) => resolveClipTrackLevel(clip.audioTrackLevels, index, clip.audioChannels?.[index], this.store.get().capture.config.defaultTrackLevels)),
+            audioTrackTrims: input.audioTrackTrims ?? clip.audioTrackTrims }],
+        });
+        await renderMontageV2({ project, musicPath: resolvedMusic?.path, entries: [{ clip, segment: project.segments[0]! }], destination, preset: input.preset,
+          signal: controller?.signal, encoder: selectShareVideoEncoder(this.store.get().capture.capabilities.encoders),
+          onProgress: input.exportId ? (progress) => this.emitClipExportProgress({ exportId: input.exportId!, percent: Math.round(progress * 98), stage: 'compressing' }) : undefined });
+      } else await this.clipLibrary.renderExport(plan.clip, destination, input, {
         signal: controller?.signal,
         encoder: selectShareVideoEncoder(this.store.get().capture.capabilities.encoders),
         defaultTrackLevels: this.store.get().capture.config.defaultTrackLevels,

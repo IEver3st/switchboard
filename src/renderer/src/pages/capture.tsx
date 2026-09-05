@@ -1,3 +1,5 @@
+import type { MontageMusicTrack } from '../../../shared/montage-audio';
+import type { VideoEdits } from '../../../shared/video-edits';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Clip, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
 import type { MontageProjectV2 } from '../../../shared/montage-v2';
@@ -204,11 +206,11 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
             onCanvasSizeChange={(canvasSize: ClipCanvasSize) => void runClipAction(`clip:${editorClip.id}:canvas`, () => setClipCanvasSize({ id: editorClip.id, canvasSize })).then(() => {
               showTransientToast(canvasSize === '9:16' ? 'Canvas set to 9:16' : 'Canvas restored to original', setToast);
             })}
-            onSaveTrim={(startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>) => runClipAction(`clip:${editorClip.id}:trim`, () => setClipTrim({ id: editorClip.id, startMs, endMs, audioTrackTrims })).then(() => {
+            onSaveTrim={(startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, videoEdits: VideoEdits, music: MontageMusicTrack | null) => runClipAction(`clip:${editorClip.id}:trim`, () => setClipTrim({ id: editorClip.id, startMs, endMs, audioTrackTrims, videoEdits, music })).then(() => {
               showTransientToast('Timeline edits saved', setToast);
             })}
             onAudioTrackLevelChange={(trackIndex, level) => setClipAudioTrackLevel({ id: editorClip.id, trackIndex, level })}
-            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string) => runClipAction(`clip:${editorClip.id}:export`, () => prepareClipShare({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims, exportId })).then((prepared) => {
+            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string, videoEdits: VideoEdits, music: MontageMusicTrack | null) => runClipAction(`clip:${editorClip.id}:export`, () => prepareClipShare({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims, exportId, videoEdits, music })).then((prepared) => {
               if (prepared) showTransientToast('Clip ready to drag', setToast);
               return prepared;
             })}
@@ -264,7 +266,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
         />
       ) : null}
 
-      {toast ? <div className="fixed bottom-5 right-5 z-[70] max-w-sm rounded-lg border border-border bg-popover px-4 py-3 text-[12px] text-foreground shadow-xl" role="status" aria-live="polite">{toast}</div> : null}
+      {toast ? <div className={`pointer-events-none fixed ${editorClipId || montageProject ? 'left-1/2 top-28 -translate-x-1/2' : 'bottom-5 right-5'} z-[70] max-w-sm rounded-md border border-border bg-popover px-4 py-3 text-[12px] text-foreground shadow-xl`} role="status" aria-live="polite">{toast}</div> : null}
       {offeredAutoCaptureProvider ? (
         <div className="fixed bottom-5 right-5 z-[69] w-[min(360px,calc(100vw-40px))] rounded-lg border border-border bg-popover px-4 py-3 shadow-xl" role="status" aria-live="polite">
           <p className="text-[13px] font-medium text-foreground">Auto Capture is available for {offeredAutoCaptureProvider.displayName}.</p>
