@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import type { MouseAction } from '../../../../shared/contracts';
 import {
   Command,
@@ -22,6 +22,7 @@ export interface ButtonAssignmentPickerProps {
   trigger: ReactElement;
   disabled?: boolean;
   unavailableReason?: string;
+  unavailableAction?: ReactNode;
 }
 
 export function ButtonAssignmentPicker({
@@ -33,6 +34,7 @@ export function ButtonAssignmentPicker({
   trigger,
   disabled,
   unavailableReason,
+  unavailableAction,
 }: ButtonAssignmentPickerProps) {
   const [open, setOpen] = useState(false);
   const groups = useMemo(() => groupActions(availableActions), [availableActions]);
@@ -40,17 +42,23 @@ export function ButtonAssignmentPicker({
 
   return (
     <Popover open={open} onOpenChange={(next) => {
-      if (disabled) return;
       setOpen(next);
       onOpenChange?.(next);
     }}>
-      <PopoverTrigger asChild disabled={disabled}>{trigger}</PopoverTrigger>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent className="assignment-picker" align="center">
         <div className="assignment-picker__heading">
           <span>{label}</span>
           <strong>{currentAction.label}</strong>
         </div>
-        {unavailableReason ? <p className="assignment-picker__reason">{unavailableReason}</p> : null}
+        {disabled ? (
+          <>
+            <p className="assignment-picker__reason" role="status">
+              {unavailableReason ?? 'Button assignments are unavailable for this connection.'}
+            </p>
+            {unavailableAction ? <div className="px-3 pb-3">{unavailableAction}</div> : null}
+          </>
+        ) : null}
         <Command>
           {searchable ? <CommandInput placeholder="Search supported actions…" aria-label={`Search assignments for ${label}`} /> : null}
           <CommandList>
@@ -59,7 +67,7 @@ export function ButtonAssignmentPicker({
               <CommandGroup key={group.id} heading={group.label}>
                 {group.actions.map((action) => {
                   const selected = action.id === currentAction.id;
-                  const selectable = action.selectable !== false;
+                  const selectable = !disabled && action.selectable !== false;
                   return (
                     <CommandItem
                       key={action.id}

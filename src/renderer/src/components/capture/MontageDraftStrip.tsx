@@ -3,6 +3,7 @@ import type { Clip } from '../../../../shared/contracts';
 import type { MontageProjectV2 } from '../../../../shared/montage-v2';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/format';
+import './montage-drafts.css';
 
 export function MontageDraftStrip({
   drafts,
@@ -25,7 +26,7 @@ export function MontageDraftStrip({
           const missing = draft.segments.filter((segment) => !clipIds.has(segment.clipId)).length;
           return (
             <div key={draft.id} className="montage-v2-draft" data-missing={missing > 0 || undefined}>
-              <button type="button" onClick={() => onResume(draft)}>
+              <button type="button" title={`Resume ${draft.name}`} onClick={() => onResume(draft)}>
                 <strong>{draft.name}</strong>
                 <span>{draft.segments.length} clips · {formatDuration(draft.durationMs / 1_000)}{missing > 0 ? ` · ${missing} missing` : ''}</span>
               </button>

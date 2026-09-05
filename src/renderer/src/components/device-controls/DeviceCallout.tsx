@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { ButtonAssignmentBinding, MouseAction } from '../../../../shared/contracts';
 import { ButtonAssignmentPicker } from './ButtonAssignmentPicker';
 
@@ -9,6 +9,7 @@ interface DeviceCalloutProps {
   availableActions: MouseAction[];
   disabled?: boolean;
   unavailableReason?: string;
+  unavailableAction?: ReactNode;
   active?: boolean;
   onActiveChange?: (active: boolean) => void;
   onChange: (action: MouseAction) => void;
@@ -20,6 +21,7 @@ export function DeviceCallout({
   availableActions,
   disabled,
   unavailableReason,
+  unavailableAction,
   active,
   onActiveChange,
   onChange,
@@ -32,6 +34,7 @@ export function DeviceCallout({
       availableActions={availableActions}
       disabled={disabled}
       unavailableReason={unavailableReason}
+      unavailableAction={unavailableAction}
       onChange={onChange}
       onOpenChange={onActiveChange}
       trigger={(

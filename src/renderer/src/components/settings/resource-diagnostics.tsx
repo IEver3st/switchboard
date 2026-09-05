@@ -3,7 +3,7 @@ import type { SystemSnapshot } from '../../../../shared/contracts';
 import { switchboardApi } from '@/lib/demo-api';
 import { useSystemStore } from '@/stores/use-system-store';
 import { Button } from '@/components/ui/button';
-import { SettingSection, SettingSwitch } from './settings-primitives';
+import { SettingSwitch } from './settings-primitives';
 
 export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) {
   const updateSettings = useSystemStore(state => state.updateSettings);
@@ -22,9 +22,10 @@ export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) 
     }
     finally { setExporting(false); }
   }
-  return <SettingSection title="Resource debugging">
+  return <section className="diagnostics-recording" aria-labelledby="diagnostics-recording-title">
+    <h3 id="diagnostics-recording-title">Resource recording</h3>
     <SettingSwitch settingId="diagnostics.detailed" title="Detailed resource diagnostics"
-      description="Record process resources, operation timings, renderer activity, and main-loop delays locally every 5 seconds. Adds measurement overhead while enabled."
+      description="Samples every 5 seconds. Adds measurement overhead."
       checked={snapshot.settings.detailedDiagnostics} disabled={pending}
       onCheckedChange={enabled => {
         setMessage('');
@@ -33,30 +34,37 @@ export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) 
       }} />
     <div className="resource-debug-report">
       <div className="resource-debug-actions">
-        <p>{snapshot.settings.detailedDiagnostics
-          ? debug ? `Recording since ${new Date(debug.startedAt).toLocaleTimeString()}. View updates every 30 seconds.` : 'Collecting the first sample…'
-          : 'Off. Enable, reproduce the slowdown for at least 60 seconds, then export. The latest session remains exportable until restart or a new recording.'}</p>
-        <Button variant="secondary" size="sm" disabled={exporting} onClick={() => void exportReport()}>{exporting ? 'Exporting…' : 'Export resource report'}</Button>
+        <p role="status" data-recording={snapshot.settings.detailedDiagnostics}>{pending ? 'Saving…' : snapshot.settings.detailedDiagnostics
+          ? debug ? `Recording since ${new Date(debug.startedAt).toLocaleTimeString()}` : 'Collecting the first sample…'
+          : 'Not recording'}</p>
+        <Button variant="secondary" size="sm" disabled={exporting || pending} onClick={() => void exportReport()} title="Export the latest recording. Available until restart or a new recording.">{exporting ? 'Exporting…' : 'Export resource report'}</Button>
       </div>
       {message && <p role="status">{message}</p>}
       {debug && <>
-        <p>Main loop busy {debug.eventLoopUtilizationPercent === null ? 'unavailable' : `${debug.eventLoopUtilizationPercent.toFixed(1)}%`} · p99 interval {debug.eventLoopDelayP99Ms ?? '—'} ms · max {debug.eventLoopDelayMaxMs ?? '—'} ms (20 ms probe).</p>
+        <div className="resource-debug-sample">
+          <dl className="resource-debug-metrics">
+            <div><dt>Main loop busy</dt><dd>{debug.eventLoopUtilizationPercent === null ? 'Unavailable' : `${debug.eventLoopUtilizationPercent.toFixed(1)}%`}</dd></div>
+            <div><dt>p99 interval</dt><dd>{debug.eventLoopDelayP99Ms === null ? 'Unavailable' : `${debug.eventLoopDelayP99Ms} ms`}</dd></div>
+            <div><dt>Max interval</dt><dd>{debug.eventLoopDelayMaxMs === null ? 'Unavailable' : `${debug.eventLoopDelayMaxMs} ms`}</dd></div>
+          </dl>
+          <p>20 ms probe · view updates every 30 seconds</p>
+        </div>
         <details>
           <summary>Process resources ({debug.processes.length})</summary>
-          <div className="resource-debug-scroll"><table>
+          <div className="resource-debug-scroll" role="region" aria-label="Process resources" tabIndex={0}><table>
             <thead><tr><th>Process / PID</th><th>Private MB</th><th>Resident MB</th><th>CPU %</th></tr></thead>
-            <tbody>{debug.processes.map(process => <tr key={`${process.role}:${process.pid}`}><th scope="row">{process.role} / {process.pid}</th><td>{process.privateMb.toFixed(1)}</td><td>{process.workingSetMb.toFixed(1)}</td><td>{process.cpuPercent?.toFixed(1) ?? 'Unavailable'}</td></tr>)}</tbody>
+            <tbody>{debug.processes.length === 0 ? <tr><td colSpan={4} className="resource-debug-empty">No process samples.</td></tr> : debug.processes.map(process => <tr key={`${process.role}:${process.pid}`}><th scope="row">{process.role} / {process.pid}</th><td>{process.privateMb.toFixed(1)}</td><td>{process.workingSetMb.toFixed(1)}</td><td>{process.cpuPercent?.toFixed(1) ?? 'Unavailable'}</td></tr>)}</tbody>
           </table></div>
         </details>
         <details>
           <summary>Operation timings ({debug.operations.length})</summary>
-          <p>Since recording began, sorted by total elapsed time. Includes waiting and nested operations; these values cannot be added together or treated as CPU percentages.</p>
-          <div className="resource-debug-scroll"><table>
+          <p>Elapsed time since recording began, including waiting and nested calls. Values overlap and do not measure CPU use.</p>
+          <div className="resource-debug-scroll" role="region" aria-label="Operation timings" tabIndex={0}><table>
             <thead><tr><th>Operation</th><th>Calls</th><th>Total ms</th><th>Max ms</th><th>Active / failed</th></tr></thead>
-            <tbody>{debug.operations.map(operation => <tr key={operation.name}><th scope="row">{operation.name}</th><td>{operation.calls}</td><td>{operation.totalMs.toFixed(1)}</td><td>{operation.maxMs.toFixed(1)}</td><td>{operation.inFlight} / {operation.failures}</td></tr>)}</tbody>
+            <tbody>{debug.operations.length === 0 ? <tr><td colSpan={5} className="resource-debug-empty">No operations recorded.</td></tr> : debug.operations.map(operation => <tr key={operation.name}><th scope="row">{operation.name}</th><td>{operation.calls}</td><td>{operation.totalMs.toFixed(1)}</td><td>{operation.maxMs.toFixed(1)}</td><td>{operation.inFlight} / {operation.failures}</td></tr>)}</tbody>
           </table></div>
         </details>
       </>}
     </div>
-  </SettingSection>;
+  </section>;
 }

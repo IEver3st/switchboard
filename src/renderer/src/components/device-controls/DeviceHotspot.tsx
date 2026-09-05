@@ -4,13 +4,11 @@ import type { DeviceHotspot as DeviceHotspotMetadata } from '../../../../shared/
 export function DeviceHotspot({
   hotspot,
   active,
-  disabled,
   onActiveChange,
   onActivate,
 }: {
   hotspot: DeviceHotspotMetadata;
   active?: boolean;
-  disabled?: boolean;
   onActiveChange?: (active: boolean) => void;
   onActivate?: () => void;
 }) {
@@ -23,7 +21,6 @@ export function DeviceHotspot({
       data-linked-active={active || undefined}
       style={{ '--hotspot-x': `${hotspot.position.x}%`, '--hotspot-y': `${hotspot.position.y}%` } as CSSProperties}
       aria-label={`Configure ${hotspot.label}`}
-      disabled={disabled}
       tabIndex={-1}
       onPointerEnter={() => onActiveChange?.(true)}
       onPointerLeave={() => onActiveChange?.(false)}

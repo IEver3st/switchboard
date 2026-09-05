@@ -1,0 +1,123 @@
+.montage-v2-drafts {
+  display: flex;
+  min-width: 0;
+  min-height: 64px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 32px;
+}
+
+.montage-v2-drafts__label {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.montage-v2-drafts__label > svg {
+  width: 15px;
+  height: 15px;
+  color: var(--primary);
+}
+
+.montage-v2-drafts__label span,
+.montage-v2-drafts__label strong,
+.montage-v2-drafts__label small {
+  display: block;
+}
+
+.montage-v2-drafts__label strong {
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.montage-v2-drafts__label small {
+  margin-top: 1px;
+  color: var(--text-description);
+  font-size: 10px;
+}
+
+.montage-v2-drafts__list {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.montage-v2-draft {
+  display: flex;
+  min-width: 180px;
+  max-width: 260px;
+  flex: 1 1 180px;
+  align-items: center;
+  border-radius: 4px;
+  background: var(--surface-interactive);
+}
+
+.montage-v2-draft[data-missing="true"] {
+  color: var(--status-warning);
+}
+
+.montage-v2-draft[data-missing="true"] > button:first-child > span {
+  color: var(--status-warning);
+}
+
+.montage-v2-draft > button {
+  -webkit-app-region: no-drag;
+}
+
+.montage-v2-draft > button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.montage-v2-draft > button:last-child {
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.montage-v2-draft > button:first-child {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.montage-v2-draft > button:first-child:hover {
+  background: var(--surface-hover);
+}
+
+.montage-v2-draft strong,
+.montage-v2-draft span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.montage-v2-draft strong {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.montage-v2-draft span {
+  margin-top: 1px;
+  color: var(--text-description);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.montage-v2-drafts__more {
+  flex: 0 0 auto;
+  color: var(--text-description);
+  font-size: 10px;
+}

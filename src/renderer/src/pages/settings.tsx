@@ -903,6 +903,7 @@ function ModulesSettings({
 
 function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
+  const [pendingSetting, setPendingSetting] = useState<'retention' | 'guard' | null>(null);
   const developerMode = snapshot.settings.developerMode === true;
   const audioEngine = snapshot.engines.find((engine) => engine.kind === 'audio');
   const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
@@ -917,30 +918,62 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <div className="settings-diagnostics">
-      <SettingsCategoryHeader title="Diagnostics" description="Inspect local health, retention, and the active resource budget." onReset={onReset} />
-      <ResourceDiagnostics snapshot={snapshot} />
+      <SettingsCategoryHeader title="Diagnostics" onReset={onReset} />
       <section className="diagnostics-overview" aria-label="Current health">
         <article id="setting-diagnostics.memory" data-setting-id="diagnostics.memory" tabIndex={-1} className="diagnostics-overview__system">
-          <span className="diagnostics-eyebrow">System</span>
-          <strong>{snapshot.performance.totalMemoryMb} MB</strong>
-          <span>{snapshot.performance.totalCpuPercent.toFixed(1)}% CPU · {snapshot.performance.activeProcesses} processes</span>
-          <small title={`Core ${snapshot.performance.coreMemoryMb} MB · renderer ${snapshot.performance.rendererMemoryMb} MB · ${snapshot.performance.residentMemoryMb} MB working set · ${processSample}`}>
-            Core {snapshot.performance.coreMemoryMb} · renderer {snapshot.performance.rendererMemoryMb} · working set {snapshot.performance.residentMemoryMb} MB
-          </small>
+          <span className="diagnostics-eyebrow">Private memory</span>
+          <strong>{snapshot.performance.sampledAt ? <>{snapshot.performance.totalMemoryMb}<small>MB</small></> : 'Collecting…'}</strong>
+          {snapshot.performance.sampledAt ? <>
+            <span>Core {snapshot.performance.coreMemoryMb} · renderer {snapshot.performance.rendererMemoryMb} MB</span>
+            <small>Working set {snapshot.performance.residentMemoryMb} MB</small>
+          </> : null}
         </article>
-        {developerMode ? <EngineSummary title="Audio" engineState={audioEngine?.state} /> : null}
-        <EngineSummary title="Capture" engineState={captureEngine?.state} />
+        <article>
+          <span className="diagnostics-eyebrow">CPU</span>
+          <strong>{snapshot.performance.sampledAt ? <>{snapshot.performance.totalCpuPercent.toFixed(1)}<small>%</small></> : 'Collecting…'}</strong>
+          {snapshot.performance.sampledAt ? <span>{snapshot.performance.activeProcesses} processes</span> : null}
+          <small>{processSample}</small>
+        </article>
+        {developerMode ? <EngineSummary title="Audio" engine={audioEngine} /> : null}
+        <EngineSummary title="Capture" engine={captureEngine} />
       </section>
 
       {snapshot.performance.warning ? (
         <div id="setting-diagnostics.performance-warning" data-setting-id="diagnostics.performance-warning" tabIndex={-1} className="diagnostics-warning" role="status">
           <AlertTriangle aria-hidden />
           <span><strong>Sustained budget warning</strong>{snapshot.performance.warning}</span>
-          <b>Over budget</b>
         </div>
       ) : null}
 
-      <DiagnosticsSection title="Live pipelines" description="Status updates are event-driven and sampled by the control plane; this page adds no high-frequency timer.">
+      <ResourceDiagnostics snapshot={snapshot} />
+
+      <section className="diagnostics-maintenance" aria-labelledby="diagnostics-maintenance-title">
+        <div className="diagnostics-section__heading">
+          <h3 id="diagnostics-maintenance-title">Local records</h3>
+          <span id="setting-diagnostics.telemetry" data-setting-id="diagnostics.telemetry" tabIndex={-1} className="diagnostics-local-only">Telemetry off</span>
+        </div>
+        <div className="diagnostics-maintenance__controls">
+          <div id="setting-diagnostics.retention" data-setting-id="diagnostics.retention" tabIndex={-1} className="diagnostics-maintenance__control">
+            <strong>Local retention</strong>
+            <Select value={String(snapshot.settings.diagnosticsRetentionDays)} disabled={pendingSetting !== null} onValueChange={(days) => {
+              setPendingSetting('retention');
+              void updateSettings({ diagnosticsRetentionDays: Number(days) }).finally(() => setPendingSetting(null));
+            }}>
+              <SelectTrigger aria-label="Local retention"><SelectValue /></SelectTrigger>
+              <SelectContent>{[1, 3, 7, 14, 30].map((days) => <SelectItem key={days} value={String(days)}>{days === 1 ? '1 day' : `${days} days`}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div id="setting-diagnostics.guard" data-setting-id="diagnostics.guard" tabIndex={-1} className="diagnostics-maintenance__control">
+            <span><strong>Performance guard</strong><small>Warn on sustained memory or CPU overuse.</small></span>
+            <Switch checked={snapshot.settings.performanceGuard} disabled={pendingSetting !== null} onCheckedChange={(performanceGuard) => {
+              setPendingSetting('guard');
+              void updateSettings({ performanceGuard }).finally(() => setPendingSetting(null));
+            }} aria-label="Performance guard" />
+          </div>
+        </div>
+      </section>
+
+      <DiagnosticsSection title="Pipelines">
         <DiagnosticsReadout
           settingId="diagnostics.capture-path"
           title="Capture pipeline"
@@ -961,7 +994,7 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
               title="Microphone noise removal"
               description={noise
                 ? `${noise.backend} · ${noise.modelIdentifier ?? 'no model'} · ${noise.frameLength} samples at ${noise.processingSampleRate.toLocaleString()} Hz · ${noise.attenuationLimitDb.toFixed(1)} dB limit`
-                : 'Start the audio engine to inspect the microphone noise-removal backend.'}
+                : 'Start the audio engine to load the backend.'}
               value={noise ? `${noise.state} · p99 ${noise.p99Ms.toFixed(2)} ms` : 'Not loaded'}
               tone={noise?.lastError ? 'danger' : 'default'}
             />
@@ -970,7 +1003,7 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
               title="Microphone realtime health"
               description={noise
                 ? `${noise.captureOverruns.toLocaleString()} capture overruns · ${noise.monitorOverruns.toLocaleString()}/${noise.monitorUnderruns.toLocaleString()} monitor over/underruns · ${noise.droppedOrBypassedFrames.toLocaleString()} dropped or bypassed frames · callback p99 ${noise.captureCallbackP99Ms.toFixed(2)} ms`
-                : 'Frame timing, callback timing, and overload counters are reported by Audio.Host.'}
+                : undefined}
               value={noise?.lastError ?? (noise ? `${noise.algorithmicLatencyMs.toFixed(1)} ms algorithmic` : 'No data')}
               tone={noise?.lastError ? 'danger' : 'default'}
             />
@@ -978,13 +1011,13 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
         ) : null}
       </DiagnosticsSection>
 
-      <DiagnosticsSection title="Automation" description="Provider activity and local reaction analysis.">
+      <DiagnosticsSection title="Automation">
         <DiagnosticsReadout
           settingId="diagnostics.autocapture"
           title="Auto Capture"
           description={autoCapture.settings.enabled
             ? `${autoCaptureProvider?.displayName ?? autoCapture.runtime.activeGameId ?? 'No active game'} · ${autoCapture.runtime.eventsReceived.toLocaleString()} events · ${autoCapture.runtime.eventsDeduplicated.toLocaleString()} deduplicated · ${autoCapture.runtime.clipsCreated.toLocaleString()} clips`
-            : 'Event providers are dormant until Auto Capture is enabled. Manual replay capture remains independent.'}
+            : undefined}
           value={`${autoCapture.settings.enabled ? autoCapture.runtime.state : 'Off'}${autoCapture.runtime.lastEvent ? ` · ${autoCapture.runtime.lastEvent.label ?? autoCapture.runtime.lastEvent.type.replaceAll('_', ' ')} ${formatRelativeTime(autoCapture.runtime.lastEvent.at)}` : ''}`}
           tone={autoCapture.runtime.lastError ? 'danger' : 'default'}
         />
@@ -993,7 +1026,7 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
           title="Reaction clipping"
           description={snapshot.capture.autoCapture.settings.reactionClipping.enabled
             ? `${captureRuntime.reactionClipping.reactionsDetected.toLocaleString()} detected · ${captureRuntime.reactionClipping.analyzedFrames.toLocaleString()} frames at ${captureRuntime.reactionClipping.analysisAverageMs.toFixed(4)} ms average · input ${captureRuntime.reactionClipping.inputLevelDb.toFixed(1)} dBFS · learned floor ${captureRuntime.reactionClipping.noiseFloorDb.toFixed(1)} dBFS · trigger ${captureRuntime.reactionClipping.triggerThresholdDb.toFixed(1)} dBFS`
-            : 'The microphone detector is disabled and retains no capture session of its own.'}
+            : undefined}
           value={`${snapshot.capture.autoCapture.settings.reactionClipping.enabled ? captureRuntime.reactionClipping.state : 'Off'}${captureRuntime.reactionClipping.lastReactionAt ? ` · last ${formatRelativeTime(captureRuntime.reactionClipping.lastReactionAt)}` : ''}`}
         />
         {autoCapture.runtime.pendingCapture ? (
@@ -1010,31 +1043,8 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
         ) : null}
       </DiagnosticsSection>
 
-      <section className="diagnostics-maintenance" aria-labelledby="diagnostics-maintenance-title">
-        <div className="diagnostics-section__heading">
-          <div>
-            <h3 id="diagnostics-maintenance-title">Local records</h3>
-            <p>Remote telemetry is hard-disabled in the current schema. Diagnostics stay local.</p>
-          </div>
-          <span id="setting-diagnostics.telemetry" data-setting-id="diagnostics.telemetry" tabIndex={-1} className="diagnostics-local-only">Telemetry off</span>
-        </div>
-        <div className="diagnostics-maintenance__controls">
-          <div id="setting-diagnostics.retention" data-setting-id="diagnostics.retention" tabIndex={-1} className="diagnostics-maintenance__control">
-            <span><strong>Local retention</strong><small>Retain engine crashes, process samples, and module load failures for local troubleshooting.</small></span>
-            <Select value={String(snapshot.settings.diagnosticsRetentionDays)} onValueChange={(days) => void updateSettings({ diagnosticsRetentionDays: Number(days) })}>
-              <SelectTrigger aria-label="Local retention"><SelectValue /></SelectTrigger>
-              <SelectContent>{[1, 3, 7, 14, 30].map((days) => <SelectItem key={days} value={String(days)}>{days === 1 ? '1 day' : `${days} days`}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div id="setting-diagnostics.guard" data-setting-id="diagnostics.guard" tabIndex={-1} className="diagnostics-maintenance__control">
-            <span><strong>Performance guard</strong><small>Warn when sustained resource use crosses the memory or idle CPU budget.</small></span>
-            <Switch checked={snapshot.settings.performanceGuard} onCheckedChange={(performanceGuard) => void updateSettings({ performanceGuard })} aria-label="Performance guard" />
-          </div>
-        </div>
-      </section>
-
-      <DiagnosticsSection title="Device identity" description="Hardware, transport, and asset-resolution evidence reported by enabled modules.">
-        {snapshot.devices.map((device, index) => (
+      <DiagnosticsSection title="Device identity">
+        {snapshot.devices.length === 0 ? <p className="diagnostics-empty">No devices detected.</p> : snapshot.devices.map((device, index) => (
           <DeviceIdentityRecord
             key={device.id}
             settingId={index === 0 ? 'diagnostics.deviceIdentity' : `diagnostics.${device.id}.identity`}
@@ -1046,23 +1056,23 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   );
 }
 
-function EngineSummary({ title, engineState }: { title: string; engineState: SystemSnapshot['engines'][number]['state'] | undefined }) {
+function EngineSummary({ title, engine }: { title: string; engine: SystemSnapshot['engines'][number] | undefined }) {
   return (
     <article id={title === 'Audio' ? 'setting-diagnostics.engines' : undefined} data-setting-id={title === 'Audio' ? 'diagnostics.engines' : undefined} tabIndex={title === 'Audio' ? -1 : undefined} className="diagnostics-overview__engine">
       <span className="diagnostics-eyebrow">{title} host</span>
-      <strong><i className={cn('settings-status-dot', statusDotClass(engineState))} aria-hidden />{engineStateLabel(engineState)}</strong>
-      <span>{title === 'Audio' ? 'Signal processing and routing' : 'Replay buffer and encoding'}</span>
-      <small>Event-driven status</small>
+      <strong><i className={cn('settings-status-dot', statusDotClass(engine?.state))} aria-hidden />{engine ? engineStateLabel(engine.state) : 'Unavailable'}</strong>
+      {engine?.pid ? <span>PID {engine.pid}</span> : null}
+      {engine?.state === 'error' && engine.message ? <span className="diagnostics-engine-error">{engine.message}</span> : null}
     </article>
   );
 }
 
-function DiagnosticsSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function DiagnosticsSection({ title, children }: { title: string; children: React.ReactNode }) {
   const headingId = `diagnostics-${title.toLocaleLowerCase().replaceAll(' ', '-')}`;
   return (
     <section className="diagnostics-section" aria-labelledby={headingId}>
       <div className="diagnostics-section__heading">
-        <div><h3 id={headingId}>{title}</h3><p>{description}</p></div>
+        <h3 id={headingId}>{title}</h3>
       </div>
       <div className="diagnostics-table">{children}</div>
     </section>
@@ -1072,13 +1082,13 @@ function DiagnosticsSection({ title, description, children }: { title: string; d
 function DiagnosticsReadout({ settingId, title, description, value, tone = 'default' }: {
   settingId: string;
   title: string;
-  description: React.ReactNode;
+  description?: React.ReactNode;
   value: React.ReactNode;
   tone?: 'default' | 'warning' | 'danger';
 }) {
   return (
     <article id={`setting-${settingId}`} data-setting-id={settingId} data-tone={tone} tabIndex={-1} className="diagnostics-readout">
-      <div><strong>{title}</strong><p>{description}</p></div>
+      <div><strong>{title}</strong>{description ? <p>{description}</p> : null}</div>
       <output>{value}</output>
     </article>
   );

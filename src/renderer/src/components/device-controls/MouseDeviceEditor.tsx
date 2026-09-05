@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { Device, MouseAction } from '../../../../shared/contracts';
 import { DeviceRender } from '@/components/shared/device-render';
+import { Button } from '@/components/ui/button';
 import { useSystemStore } from '@/stores/use-system-store';
 import { DeviceCallout } from './DeviceCallout';
 import { DeviceHotspot } from './DeviceHotspot';
@@ -24,6 +25,7 @@ export function MouseDeviceEditor({ device }: { device: Device }) {
 
 function MouseStage({ device, lightingPreview }: { device: Device; lightingPreview: string | null }) {
   const setDeviceControl = useSystemStore((state) => state.setDeviceControl);
+  const pending = useSystemStore((state) => state.pendingDeviceIds.includes(device.id));
   const [activeControlId, setActiveControlId] = useState<string | null>(null);
   const capability = device.capabilities.buttonAssignments;
   const actions = capability?.availableActions ?? [];
@@ -46,8 +48,21 @@ function MouseStage({ device, lightingPreview }: { device: Device; lightingPrevi
         binding={binding}
         currentAction={currentAction}
         availableActions={actions}
-        disabled={!capability?.writable}
-        unavailableReason={capability?.unavailableReason}
+        disabled={!capability?.writable || pending}
+        unavailableReason={pending ? 'Waiting for the mouse to confirm the change…' : capability?.unavailableReason}
+        unavailableAction={device.capabilities.onboardMemory ? (
+          <Button
+            size="sm"
+            data-assignment-mode
+            disabled={pending || !device.connected || !device.capabilities.onboardMemory.writable}
+            onClick={() => void setDeviceControl({
+              deviceId: device.id,
+              change: { type: 'onboard-memory', enabled: !device.capabilities.onboardMemory!.enabled },
+            })}
+          >
+            {device.capabilities.onboardMemory.enabled ? 'Turn off onboard memory' : 'Enable onboard memory'}
+          </Button>
+        ) : undefined}
         active={activeControlId === binding.hotspot.id}
         onActiveChange={(active) => setActiveControlId((current) => active ? binding.hotspot.id : current === binding.hotspot.id ? null : current)}
         onChange={(action) => void setDeviceControl({
@@ -78,7 +93,6 @@ function MouseStage({ device, lightingPreview }: { device: Device; lightingPrevi
           <DeviceHotspot
             key={binding.buttonId}
             hotspot={binding.hotspot}
-            disabled={!capability.writable}
             active={activeControlId === binding.hotspot.id}
             onActiveChange={(active) => setActiveControlId((current) => active ? binding.hotspot.id : current === binding.hotspot.id ? null : current)}
             onActivate={() => document.querySelector<HTMLButtonElement>(`[data-callout-id="${binding.hotspot.id}"]`)?.click()}

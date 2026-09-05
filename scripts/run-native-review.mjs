@@ -34,6 +34,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-g502-fix-native.mjs');
 } else if (command === 'mouse') {
   await runElectron('scripts/verify-mouse-device-polish-ui.mjs');
+} else if (command === 'mouse-hotspots') {
+  await runElectron('scripts/verify-mouse-hotspots.mjs');
 } else if (command === 'equipment') {
   await runElectron('scripts/verify-keyboard-workbench.mjs');
   await runElectron('scripts/verify-microphone-workbench.mjs');

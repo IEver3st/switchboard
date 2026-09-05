@@ -67,10 +67,6 @@
   content: "";
 }
 
-.device-workbench[data-device-kind="mouse"] .device-hotspot:disabled .device-hotspot__dot {
-  cursor: not-allowed;
-}
-
 .device-workbench[data-device-kind="mouse"] .mouse-callout[data-linked-active="true"] .mouse-callout__label,
 .device-workbench[data-device-kind="mouse"] .mouse-callout[data-linked-active="true"] .mouse-callout__assignment {
   color: var(--foreground);
