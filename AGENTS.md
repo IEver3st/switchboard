@@ -49,6 +49,8 @@ Switchboard is a low-overhead Windows desktop utility for hardware control, audi
 
 ## Validation
 
+Select checks by the changed boundary. Root `bun run test` includes JavaScript, capture-host, and native audio builds/tests; prefer the relevant suite locally and run the aggregate at integration when required. Do not rebuild unrelated native engines or repeat clean checks solely because another file changed. Native UI checks must obey the global monitor restrictions.
+
 Run all checks that apply to the change. Explain any environment or hardware boundary that prevents one.
 
 ```powershell
