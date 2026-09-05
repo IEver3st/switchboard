@@ -13,7 +13,7 @@ import { loadDefaultAppUpdaterClient, type AppUpdaterClient } from './services/a
 import { registerMontageV2Ipc } from './montage-v2-ipc';
 import { disposeMontageV2Service, getMontageV2Service } from './services/montage-v2';
 import { disposePreparedShareService } from './services/prepared-share';
-import { readSoftwareRenderingPreference } from './startup-settings';
+import { consumeBackgroundUpdate, markBackgroundUpdate, readSoftwareRenderingPreference } from './startup-settings';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -34,6 +34,9 @@ if (applicationIdentity.userDataPath && shouldApplyDevelopmentIdentity({
   app.setPath('userData', applicationIdentity.userDataPath);
 }
 let demoUpdateRequested = requestsDemoUpdate(process.argv, app.isPackaged);
+const backgroundUpdateMarker = join(app.getPath('userData'), 'background-update.json');
+const startInTrayAfterUpdate = app.isPackaged
+  && consumeBackgroundUpdate(backgroundUpdateMarker, process.argv.includes('--updated'));
 const packagedUpdaterVerdictPath = process.env.SWITCHBOARD_PACKAGED_UPDATER_VERDICT;
 const packagedUpdaterTargetVersion = process.env.SWITCHBOARD_PACKAGED_UPDATER_TARGET_VERSION?.trim();
 const verifyPackagedUpdater = app.isPackaged
@@ -257,7 +260,8 @@ if (verifyPackagedUpdater) {
     controller = new AppController({
       demoUpdate: demoUpdateRequested,
       getRendererRuntime: getRendererRuntimeProbe,
-      onUpdateInstallRequested: (installing) => {
+      onUpdateInstallRequested: (installing, background) => {
+        markBackgroundUpdate(backgroundUpdateMarker, installing && background);
         quitting = installing;
       },
     });
@@ -295,7 +299,8 @@ if (verifyPackagedUpdater) {
     cleanupIpc = registerIpc(controller, () => mainWindow);
     cleanupMontageV2Ipc = registerMontageV2Ipc(controller, () => mainWindow);
     tray = createTray();
-    showWindow();
+    if (startInTrayAfterUpdate) controller.setRendererActive(false);
+    else showWindow();
     await initialization;
 
     app.on('activate', showWindow);

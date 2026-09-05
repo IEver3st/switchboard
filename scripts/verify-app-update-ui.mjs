@@ -5,7 +5,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const outputDirectory = join(projectRoot, '.impeccable', 'review', 'app-updates');
+const outputDirectory = process.env.SWITCHBOARD_UPDATE_REVIEW_OUTPUT
+  ?? join(projectRoot, '.impeccable', 'review', 'app-updates');
 const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-app-update-review-'));
 const viewports = [
   { width: 1080, height: 720 },
@@ -74,6 +75,7 @@ async function runReview() {
     'about.automaticAppUpdates',
     'about.automaticAppUpdateDownloads',
     'about.installAppUpdatesOnNextStartup',
+    'about.installAppUpdatesWhenIdle',
   ];
   const initialPreferences = await getUpdatePreferences();
   for (const settingId of preferenceIds) {
@@ -83,8 +85,17 @@ async function runReview() {
     const current = await getUpdatePreferences();
     return current.automaticAppUpdates !== initialPreferences.automaticAppUpdates
       && current.automaticAppUpdateDownloads !== initialPreferences.automaticAppUpdateDownloads
-      && current.installAppUpdatesOnNextStartup !== initialPreferences.installAppUpdatesOnNextStartup;
+      && current.installAppUpdatesOnNextStartup !== initialPreferences.installAppUpdatesOnNextStartup
+      && current.installAppUpdatesWhenIdle !== initialPreferences.installAppUpdatesWhenIdle;
   }, 'update preference mutations');
+  const changedPreferences = await getUpdatePreferences();
+  window.webContents.reload();
+  await waitForLoad(window);
+  await waitFor(() => evaluate(`Boolean(document.querySelector('button[aria-label="Settings"]') || document.querySelector('.settings-page'))`), 'reloaded shell');
+  await openSettingsCategory('About');
+  if (JSON.stringify(await getUpdatePreferences()) !== JSON.stringify(changedPreferences)) {
+    throw new Error('Update preferences did not survive renderer refresh.');
+  }
   for (const settingId of preferenceIds) {
     await clickUpdatePreference(settingId);
   }
@@ -116,7 +127,7 @@ async function runReview() {
     if (!about.metrics.updateActionRect || about.metrics.updateActionRect.width > 180 || about.metrics.updateActionRect.height !== 32 || !about.metrics.updateActionIcon) {
       throw new Error(`The update action was not compact and icon-led at ${viewport.width}x${viewport.height}.`);
     }
-    if (about.metrics.preferenceSwitches.length !== 3) {
+    if (about.metrics.preferenceSwitches.length !== 4) {
       throw new Error(`Update preferences were incomplete at ${viewport.width}x${viewport.height}.`);
     }
     report.push(about);
@@ -274,6 +285,7 @@ function getUpdatePreferences() {
     automaticAppUpdates: snapshot.settings.automaticAppUpdates,
     automaticAppUpdateDownloads: snapshot.settings.automaticAppUpdateDownloads,
     installAppUpdatesOnNextStartup: snapshot.settings.installAppUpdatesOnNextStartup,
+    installAppUpdatesWhenIdle: snapshot.settings.installAppUpdatesWhenIdle,
   }))`);
 }
 

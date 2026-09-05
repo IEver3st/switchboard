@@ -30,6 +30,7 @@ export type AppUpdatePreferences = {
   automaticChecks: boolean;
   automaticDownloads: boolean;
   installOnNextStartup: boolean;
+  installWhenIdle: boolean;
 };
 
 type AppUpdateServiceOptions = {
@@ -38,18 +39,23 @@ type AppUpdateServiceOptions = {
   platform: NodeJS.Platform;
   demoUpdate?: boolean;
   onStateChanged: (state: AppUpdateState) => void;
-  onInstallRequested?: (installing: boolean) => void;
+  onInstallRequested?: (installing: boolean, background: boolean) => void;
+  getSystemIdleTime?: () => number;
+  canInstallInBackground?: () => boolean;
   loadUpdater?: () => Promise<AppUpdaterClient>;
   startupDelayMs?: number;
   repeatIntervalMs?: number;
+  idlePollIntervalMs?: number;
 };
 
 const updateInfoSchema = z.object({ version: z.string().min(1) }).passthrough();
 const downloadProgressSchema = z.object({ percent: z.number().finite() }).passthrough();
 const startupDelayMs = 15_000;
-// Six hours keeps long-running tray sessions current without turning release
-// discovery into a frequent poll. The timer exists only while checks are enabled.
-const repeatIntervalMs = 6 * 60 * 60 * 1_000;
+export const appUpdateCheckIntervalMs = 30 * 60 * 1_000;
+const idleThresholdSeconds = 10 * 60;
+// Windows has no idle transition event. Poll only with a downloaded update
+// and the idle-install policy enabled; stop on disable, install, or disposal.
+const idlePollIntervalMs = 60_000;
 
 export class AppUpdateService {
   private state: AppUpdateState;
@@ -58,11 +64,13 @@ export class AppUpdateService {
     automaticChecks: true,
     automaticDownloads: true,
     installOnNextStartup: true,
+    installWhenIdle: true,
   };
   private demoUpdateEnabled: boolean;
   private initialized = false;
   private disposed = false;
   private scheduledCheck: NodeJS.Timeout | null = null;
+  private scheduledIdleCheck: NodeJS.Timeout | null = null;
   private activeCheck: Promise<AppUpdateState> | null = null;
   private readonly listeners: Array<{
     event: UpdaterEvent;
@@ -147,6 +155,7 @@ export class AppUpdateService {
       this.scheduleCheck(this.options.startupDelayMs ?? startupDelayMs);
     }
     if (shouldStartDownload) void this.downloadAvailableUpdate();
+    this.syncIdleInstallTimer();
     return this.getState();
   }
 
@@ -156,6 +165,10 @@ export class AppUpdateService {
       return Promise.resolve(this.getState());
     }
     if (this.activeCheck) return this.activeCheck;
+    // A periodic check must not discard a downloaded installer or interrupt a download.
+    if (['downloading', 'downloaded', 'installing'].includes(this.state.status)) {
+      return Promise.resolve(this.getState());
+    }
 
     const check = this.performCheck().finally(() => {
       if (this.activeCheck === check) this.activeCheck = null;
@@ -186,22 +199,22 @@ export class AppUpdateService {
     return this.getState();
   }
 
-  public installDownloadedUpdate(): void {
+  public installDownloadedUpdate(background = false): void {
     if (this.demoUpdateEnabled) {
       throw new Error('The development update preview does not include an installer.');
     }
-    if (!this.updater || this.state.status !== 'downloaded') {
+    if (!this.updater || this.disposed || this.state.status !== 'downloaded') {
       throw new Error('No downloaded Switchboard update is ready to install.');
     }
 
     this.publish({ status: 'installing', error: null });
-    this.options.onInstallRequested?.(true);
     try {
+      this.options.onInstallRequested?.(true, background);
       // Silent install is required for background updates. The packaged NSIS
       // installer is oneClick so this restarts without the setup wizard.
       this.updater.quitAndInstall(true, true);
     } catch (error) {
-      this.options.onInstallRequested?.(false);
+      this.options.onInstallRequested?.(false, background);
       console.error('Switchboard failed to launch the downloaded update.', error);
       this.publish({
         status: 'error',
@@ -219,6 +232,7 @@ export class AppUpdateService {
     if (this.disposed) return;
     this.disposed = true;
     this.clearScheduledCheck();
+    this.clearIdleInstallTimer();
     if (this.updater) {
       for (const { event, listener } of this.listeners) {
         this.updater.removeListener(event, listener);
@@ -290,6 +304,7 @@ export class AppUpdateService {
       });
     });
     this.listen(updater, 'error', (payload) => {
+      if (this.state.status === 'installing') this.options.onInstallRequested?.(false, true);
       console.error('Switchboard app updater reported an error.', payload);
       this.publish({
         status: 'error',
@@ -339,7 +354,7 @@ export class AppUpdateService {
     this.scheduledCheck = setTimeout(() => {
       this.scheduledCheck = null;
       void this.checkForUpdates().finally(() => {
-        this.scheduleCheck(this.options.repeatIntervalMs ?? repeatIntervalMs);
+        this.scheduleCheck(this.options.repeatIntervalMs ?? appUpdateCheckIntervalMs);
       });
     }, delayMs);
     this.scheduledCheck.unref?.();
@@ -354,7 +369,37 @@ export class AppUpdateService {
     this.state = appUpdateStateSchema.parse({ ...this.state, ...patch });
     const snapshot = this.getState();
     this.options.onStateChanged(snapshot);
+    this.syncIdleInstallTimer();
     return snapshot;
+  }
+
+  private syncIdleInstallTimer(): void {
+    if (this.disposed || !this.updater || !this.preferences.automaticChecks
+      || !this.preferences.installWhenIdle || this.state.status !== 'downloaded'
+      || !this.options.getSystemIdleTime || !this.options.canInstallInBackground) {
+      this.clearIdleInstallTimer();
+      return;
+    }
+    if (this.scheduledIdleCheck) return;
+    this.scheduledIdleCheck = setTimeout(() => {
+      this.scheduledIdleCheck = null;
+      try {
+        const idleSeconds = this.options.getSystemIdleTime!();
+        if (Number.isFinite(idleSeconds) && idleSeconds >= idleThresholdSeconds
+          && this.options.canInstallInBackground!()) {
+          this.installDownloadedUpdate(true);
+        }
+      } catch (error) {
+        console.error('Switchboard background update could not start.', error);
+      }
+      this.syncIdleInstallTimer();
+    }, this.options.idlePollIntervalMs ?? idlePollIntervalMs);
+    this.scheduledIdleCheck.unref?.();
+  }
+
+  private clearIdleInstallTimer(): void {
+    if (this.scheduledIdleCheck) clearTimeout(this.scheduledIdleCheck);
+    this.scheduledIdleCheck = null;
   }
 }
 

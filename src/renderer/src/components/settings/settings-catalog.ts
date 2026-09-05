@@ -88,7 +88,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'about.automaticAppUpdates',
     category: 'about',
     title: 'Always keep Switchboard up to date',
-    description: 'Check for application releases shortly after launch and every six hours.',
+    description: 'Check for application releases shortly after launch and every 30 minutes.',
     keywords: ['app', 'application', 'automatic', 'update', 'upgrade', 'release', 'github'],
   },
   {
@@ -97,6 +97,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Download updates automatically',
     description: 'Choose whether available application releases download in the background.',
     keywords: ['app', 'application', 'automatic', 'download', 'update', 'release'],
+  },
+  {
+    id: 'about.installAppUpdatesWhenIdle',
+    category: 'about',
+    title: 'Install while away',
+    description: 'Silently install after 10 minutes away when Switchboard is in the tray and engines and exports are inactive.',
+    keywords: ['app', 'automatic', 'install', 'update', 'idle', 'afk', 'away', 'background'],
   },
   {
     id: 'about.installAppUpdatesOnNextStartup',

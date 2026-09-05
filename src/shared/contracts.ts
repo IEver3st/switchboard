@@ -1328,6 +1328,7 @@ export const appSettingsSchema = z.object({
   automaticAppUpdates: z.boolean(),
   automaticAppUpdateDownloads: z.boolean(),
   installAppUpdatesOnNextStartup: z.boolean(),
+  installAppUpdatesWhenIdle: z.boolean(),
   automaticModuleUpdates: z.boolean(),
   performanceGuard: z.boolean(),
   detailedDiagnostics: z.boolean().default(false),

@@ -19,6 +19,7 @@ describe('settings persistence', () => {
     expect(settings.automaticAppUpdates).toBeTrue();
     expect(settings.automaticAppUpdateDownloads).toBeTrue();
     expect(settings.installAppUpdatesOnNextStartup).toBeTrue();
+    expect(settings.installAppUpdatesWhenIdle).toBeTrue();
   });
 
   it('persists app and capture preferences across a store restart', async () => {
@@ -36,6 +37,7 @@ describe('settings persistence', () => {
       draft.settings.automaticAppUpdates = false;
       draft.settings.automaticAppUpdateDownloads = false;
       draft.settings.installAppUpdatesOnNextStartup = true;
+      draft.settings.installAppUpdatesWhenIdle = false;
       draft.clipReview.reviewedThrough = 1_777_777_777_777;
       draft.capture.config.replaySeconds = 90;
       draft.capture.config.hotkey = 'Ctrl+Alt+F9';
@@ -85,6 +87,7 @@ describe('settings persistence', () => {
     expect(snapshot.settings.automaticAppUpdates).toBeFalse();
     expect(snapshot.settings.automaticAppUpdateDownloads).toBeFalse();
     expect(snapshot.settings.installAppUpdatesOnNextStartup).toBeTrue();
+    expect(snapshot.settings.installAppUpdatesWhenIdle).toBeFalse();
     expect(snapshot.clipReview.reviewedThrough).toBe(1_777_777_777_777);
     expect(snapshot.capture.config.replaySeconds).toBe(90);
     expect(snapshot.capture.config.hotkey).toBe('Ctrl+Alt+F9');
@@ -114,6 +117,7 @@ describe('settings persistence', () => {
     delete settings.automaticAppUpdates;
     delete settings.automaticAppUpdateDownloads;
     delete settings.installAppUpdatesOnNextStartup;
+    delete settings.installAppUpdatesWhenIdle;
     delete legacy.appUpdate;
     delete legacy.gameDetection;
     await writeFile(filePath, JSON.stringify(legacy));
@@ -128,6 +132,7 @@ describe('settings persistence', () => {
     expect(snapshot.settings.automaticAppUpdates).toBeTrue();
     expect(snapshot.settings.automaticAppUpdateDownloads).toBeTrue();
     expect(snapshot.settings.installAppUpdatesOnNextStartup).toBeTrue();
+    expect(snapshot.settings.installAppUpdatesWhenIdle).toBeTrue();
     expect(snapshot.appUpdate.status).toBe('unavailable');
     expect(snapshot.gameDetection.games).toEqual([]);
     expect(snapshot.gameDetection.scanState).toBe('idle');

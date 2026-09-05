@@ -48,6 +48,7 @@ describe('settings search metadata', () => {
       'diagnostics.reaction-clipping',
       'about.version', 'about.updates', 'about.runtime', 'about.isolation',
       'about.automaticAppUpdates', 'about.automaticAppUpdateDownloads', 'about.installAppUpdatesOnNextStartup',
+      'about.installAppUpdatesWhenIdle',
     ];
 
     expect(expectedIds.filter((id) => !ids.has(id))).toEqual([]);

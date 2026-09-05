@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { AppUpdateState } from '../src/shared/contracts';
-import { AppUpdateService, resolveAppUpdaterClient } from '../src/main/services/app-update-service';
+import { AppUpdateService, appUpdateCheckIntervalMs, resolveAppUpdaterClient } from '../src/main/services/app-update-service';
 
 type Listener = (payload?: unknown) => void;
 
@@ -47,6 +47,88 @@ class FakeUpdater {
 }
 
 describe('application update lifecycle', () => {
+  it('checks every 30 minutes in production and stops scheduled checks when disabled', async () => {
+    expect(appUpdateCheckIntervalMs).toBe(30 * 60_000);
+    const updater = new FakeUpdater();
+    const service = new AppUpdateService({
+      currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
+      onStateChanged: () => undefined, loadUpdater: async () => updater,
+      startupDelayMs: 1, repeatIntervalMs: 5,
+    });
+    try {
+      await service.initialize(preferences());
+      await waitUntil(() => updater.checks >= 2);
+      service.setPreferences(preferences({ automaticChecks: false }));
+      const checks = updater.checks;
+      await Bun.sleep(20);
+      expect(updater.checks).toBe(checks);
+    } finally { service.dispose(); }
+  });
+
+  it('keeps the downloaded update and waits for both system idle and safe background work', async () => {
+    const updater = new FakeUpdater();
+    let idleSeconds = 599;
+    let safe = false;
+    const installs: Array<[boolean, boolean]> = [];
+    const service = new AppUpdateService({
+      currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
+      onStateChanged: () => undefined, loadUpdater: async () => updater,
+      getSystemIdleTime: () => idleSeconds, canInstallInBackground: () => safe,
+      onInstallRequested: (installing, background) => installs.push([installing, background]),
+      startupDelayMs: 100_000, idlePollIntervalMs: 5,
+    });
+    try {
+      await service.initialize(preferences());
+      updater.emit('update-downloaded', { version: '0.8.1' });
+      await service.checkForUpdates();
+      expect(updater.checks).toBe(0);
+      expect(service.getState().status).toBe('downloaded');
+      await Bun.sleep(20);
+      expect(updater.installArguments).toBeNull();
+      idleSeconds = 600;
+      await Bun.sleep(20);
+      expect(updater.installArguments).toBeNull();
+      safe = true;
+      idleSeconds = 0; // Returning to the keyboard cancels eligibility.
+      await Bun.sleep(20);
+      expect(updater.installArguments).toBeNull();
+      idleSeconds = 600;
+      await waitUntil(() => updater.installArguments !== null);
+      expect(updater.installArguments).toEqual([true, true]);
+      expect(installs).toEqual([[true, true]]);
+      await Bun.sleep(20);
+      expect(installs).toHaveLength(1);
+    } finally { service.dispose(); }
+  });
+
+  it('cancels idle monitoring on preference disable and disposal and allows re-enabling', async () => {
+    const updater = new FakeUpdater();
+    let idleReads = 0;
+    const service = new AppUpdateService({
+      currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
+      onStateChanged: () => undefined, loadUpdater: async () => updater,
+      getSystemIdleTime: () => { idleReads++; return 0; },
+      canInstallInBackground: () => true, startupDelayMs: 100_000, idlePollIntervalMs: 5,
+    });
+    await service.initialize(preferences());
+    updater.emit('update-downloaded', { version: '0.8.1' });
+    service.setPreferences(preferences({ installWhenIdle: false }));
+    await Bun.sleep(20);
+    expect(idleReads).toBe(0);
+    service.setPreferences(preferences());
+    await waitUntil(() => idleReads > 0);
+    service.setPreferences(preferences({ automaticChecks: false }));
+    const reads = idleReads;
+    await Bun.sleep(20);
+    expect(idleReads).toBe(reads);
+    service.setPreferences(preferences());
+    service.dispose();
+    service.dispose();
+    await Bun.sleep(20);
+    expect(idleReads).toBe(reads);
+    expect(updater.listenerCount()).toBe(0);
+  });
+
   it('resolves autoUpdater from the CommonJS namespace returned by dynamic import', () => {
     const updater = new FakeUpdater();
 
@@ -184,15 +266,25 @@ describe('application update lifecycle', () => {
   });
 });
 
+async function waitUntil(predicate: () => boolean): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error('Timed out waiting for updater transition.');
+    await Bun.sleep(5);
+  }
+}
+
 function preferences(overrides: Partial<{
   automaticChecks: boolean;
   automaticDownloads: boolean;
   installOnNextStartup: boolean;
+  installWhenIdle: boolean;
 }> = {}) {
   return {
     automaticChecks: true,
     automaticDownloads: true,
     installOnNextStartup: false,
+    installWhenIdle: true,
     ...overrides,
   };
 }

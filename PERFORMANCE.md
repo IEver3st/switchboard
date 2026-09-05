@@ -170,7 +170,7 @@ The product should surface sustained regressions, not react to one noisy sample.
 - include per-process attribution;
 - never auto-kill an engine while recording or carrying active audio without an explicit recovery plan.
 
-The application updater performs one delayed launch check and then checks every six hours while automatic checks are enabled. Automatic download and install-for-next-startup change updater policy without adding timers. Disabling checks or disposing the controller clears its timer and listeners; it has no high-frequency polling loop.
+The application updater performs one delayed launch check and then checks every 30 minutes while automatic checks are enabled. Automatic download and install-for-next-startup change updater policy without adding timers. Idle installation adds one unreferenced 60-second eligibility timer only while an update is downloaded, automatic checks are enabled, and Install while away is enabled. It reads Windows idle time and existing activity state; it never starts or stops an engine to make an update eligible. Disabling either policy, leaving downloaded state, or disposal clears the idle timer. Disposal also clears updater listeners.
 
 ## Soak tests
 

@@ -626,6 +626,7 @@ const demoApi: SwitchboardApi = {
       snapshot.settings.automaticAppUpdates = defaults.settings.automaticAppUpdates;
       snapshot.settings.automaticAppUpdateDownloads = defaults.settings.automaticAppUpdateDownloads;
       snapshot.settings.installAppUpdatesOnNextStartup = defaults.settings.installAppUpdatesOnNextStartup;
+      snapshot.settings.installAppUpdatesWhenIdle = defaults.settings.installAppUpdatesWhenIdle;
       snapshot.settings.developerMode = defaults.settings.developerMode;
       if (defaults.settings.developerMode !== true) {
         snapshot.audio.enabled = false;

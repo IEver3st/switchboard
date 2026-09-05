@@ -1249,7 +1249,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
         <SettingSwitch
           settingId="about.automaticAppUpdates"
           title="Always keep Switchboard up to date"
-          description="Check shortly after launch and every six hours while Switchboard is running. Manual checks remain available when this is off."
+          description="Check shortly after launch and every 30 minutes while Switchboard is running. Manual checks remain available when this is off."
           checked={snapshot.settings.automaticAppUpdates}
           onCheckedChange={(automaticAppUpdates) => void updateSettings({ automaticAppUpdates })}
         />
@@ -1259,6 +1259,13 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           description="Download a release in the background after a check finds it. Turn this off to choose when the download starts."
           checked={snapshot.settings.automaticAppUpdateDownloads}
           onCheckedChange={(automaticAppUpdateDownloads) => void updateSettings({ automaticAppUpdateDownloads })}
+        />
+        <SettingSwitch
+          settingId="about.installAppUpdatesWhenIdle"
+          title="Install while away"
+          description="After 10 minutes away, silently install and return to the tray. Waits until the interface is closed and audio, capture, and exports are inactive. Requires automatic checks."
+          checked={snapshot.settings.installAppUpdatesWhenIdle}
+          onCheckedChange={(installAppUpdatesWhenIdle) => void updateSettings({ installAppUpdatesWhenIdle })}
         />
         <SettingSwitch
           settingId="about.installAppUpdatesOnNextStartup"

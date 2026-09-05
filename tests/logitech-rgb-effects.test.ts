@@ -102,9 +102,12 @@ async function probeController(): Promise<{
           }
         }
       }
-      if (featureIndex === perKeyFeatureIndex && functionId === 0 && parameters[2] === 0) {
+      if (featureIndex === perKeyFeatureIndex && functionId === 0 && parameters[1] === 0) {
         response[6] = 0b0000_0110;
         response[7] = 0b0000_0001;
+      }
+      if (featureIndex === perKeyFeatureIndex && functionId === 1 && ![1, 2, 8].includes(parameters[0]!)) {
+        throw new Error('HID++ rejected the request: out of range.');
       }
       return response;
     },

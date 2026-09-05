@@ -48,6 +48,7 @@ const montageManifestSchema = z.object({
 type MontageManifest = z.infer<typeof montageManifestSchema>;
 
 export class MontageV2Service {
+  public get hasActiveExports(): boolean { return this.activeExports.size > 0; }
   private readonly activeExports = new Map<string, AbortController>();
   private readonly waveformCache = new Map<string, Promise<MontageAudioWaveform>>();
   private manifest: MontageManifest = { schemaVersion: 1, assets: [], drafts: [] };

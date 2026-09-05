@@ -14,6 +14,7 @@ import {
   desktopCapturer,
   dialog,
   globalShortcut,
+  powerMonitor,
   screen,
   shell,
   type DesktopCapturerSource,
@@ -170,7 +171,7 @@ function sameAudioChannels(left: readonly ClipAudioChannel[] | undefined, right:
 
 type AppControllerOptions = {
   demoUpdate?: boolean;
-  onUpdateInstallRequested?: (installing: boolean) => void;
+  onUpdateInstallRequested?: (installing: boolean, background: boolean) => void;
   getRendererRuntime?: () => Promise<unknown>;
 };
 
@@ -232,6 +233,12 @@ export class AppController {
         this.store.update((draft) => { draft.appUpdate = appUpdate; }, { persist: false });
       },
       onInstallRequested: options.onUpdateInstallRequested,
+      getSystemIdleTime: () => powerMonitor.getSystemIdleTime(),
+      canInstallInBackground: () => !this.disposed && !this.rendererActive
+        && (['audio', 'capture'] as const).every((kind) => this.engines.getStatus(kind).state === 'stopped')
+        && this.activeClipExports.size === 0
+        && !getMontageV2Service().hasActiveExports
+        && !this.gameScan,
     });
     this.captureStorage = new CaptureStorageService(app.getPath('videos'), app.getPath('userData'));
     this.capturePaths = this.captureStorage.resolvePaths(null);
@@ -1383,6 +1390,7 @@ export class AppController {
       typeof input.automaticAppUpdates === 'boolean'
       || typeof input.automaticAppUpdateDownloads === 'boolean'
       || typeof input.installAppUpdatesOnNextStartup === 'boolean'
+      || typeof input.installAppUpdatesWhenIdle === 'boolean'
     ) {
       this.appUpdates.setPreferences(appUpdatePreferences(snapshot.settings));
     }
@@ -1471,6 +1479,7 @@ export class AppController {
         draft.settings.automaticAppUpdates = defaultSettings.automaticAppUpdates;
         draft.settings.automaticAppUpdateDownloads = defaultSettings.automaticAppUpdateDownloads;
         draft.settings.installAppUpdatesOnNextStartup = defaultSettings.installAppUpdatesOnNextStartup;
+        draft.settings.installAppUpdatesWhenIdle = defaultSettings.installAppUpdatesWhenIdle;
         draft.settings.developerMode = defaultSettings.developerMode;
         if (defaultSettings.developerMode !== true) {
           draft.audio.enabled = false;
@@ -2504,6 +2513,7 @@ function appUpdatePreferences(settings: SystemSnapshot['settings']): AppUpdatePr
     automaticChecks: settings.automaticAppUpdates,
     automaticDownloads: settings.automaticAppUpdateDownloads,
     installOnNextStartup: settings.installAppUpdatesOnNextStartup,
+    installWhenIdle: settings.installAppUpdatesWhenIdle,
   };
 }
 

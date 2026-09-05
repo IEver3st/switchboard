@@ -663,6 +663,7 @@ export const defaultSettings: AppSettings = {
   automaticAppUpdates: true,
   automaticAppUpdateDownloads: true,
   installAppUpdatesOnNextStartup: true,
+  installAppUpdatesWhenIdle: true,
   automaticModuleUpdates: true,
   performanceGuard: true,
   detailedDiagnostics: false,

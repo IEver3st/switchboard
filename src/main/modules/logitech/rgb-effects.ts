@@ -451,7 +451,9 @@ async function readPerKeyZoneIds(
 ): Promise<number[]> {
   const bitmap: number[] = [];
   for (let page = 0; page < 3; page += 1) {
-    const response = await transport.request(deviceIndex, featureIndex, 0, [0, 0, page]);
+    // GetZoneInfo takes the bitmap page in byte 1. Byte 2 is reserved;
+    // putting the page there repeats page zero and invents zones 112+.
+    const response = await transport.request(deviceIndex, featureIndex, 0, [0, page]);
     bitmap.push(...response.subarray(6, 20));
   }
   const zoneIds: number[] = [];
