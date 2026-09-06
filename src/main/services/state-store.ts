@@ -109,6 +109,7 @@ export class StateStore {
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
     const defaults = createDefaultSnapshot();
+    next.diagnostics = structuredClone(defaults.diagnostics);
     const modulesById = new Map(next.modules.map((module) => [module.id, module]));
     const bundledModules = defaults.modules.map((fallback) => {
       const existing = modulesById.get(fallback.id);

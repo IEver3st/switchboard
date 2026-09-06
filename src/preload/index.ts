@@ -39,6 +39,8 @@ const api: SwitchboardApi & MontageV2Api = {
     webFrame.setZoomFactor(percent / 100);
   },
   exportResourceDiagnostics: () => ipcRenderer.invoke(ipcChannels.exportResourceDiagnostics),
+  runDiagnostics: () => ipcRenderer.invoke(ipcChannels.runDiagnostics),
+  cancelDiagnostics: () => ipcRenderer.invoke(ipcChannels.cancelDiagnostics),
   getSnapshot: () => ipcRenderer.invoke(ipcChannels.getSnapshot),
   refreshDevices: () => ipcRenderer.invoke(ipcChannels.refreshDevices),
   setModuleState: (input) => ipcRenderer.invoke(ipcChannels.setModuleState, input),

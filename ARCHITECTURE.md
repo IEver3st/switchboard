@@ -128,6 +128,12 @@ The signed driver is transport only. User-mode Audio.Host owns routing and DSP.
 
 ## Capture
 
+Automatic codec selection is resolved in the capture host from encoders that pass
+FFmpeg probes. It prefers hardware H.264 for compatibility, then tested hardware
+HEVC/AV1, then software H.264. Explicit codec and encoder preferences remain
+explicit. The runtime encoder label reports the selected format; saved Automatic
+policy and conservative bitrate estimates remain separate from the actual codec.
+
 Production target:
 
 ```text
@@ -177,8 +183,27 @@ so native drag accepts an opaque share ID rather than a renderer-provided path.
 
 ## Application updates
 
+Downloaded updates do not stop feed checks. Main owns download initiation and
+rechecks after a download and before manual or idle installation. A newer offer
+replaces the pending download when automatic downloads are enabled; otherwise it
+waits for a download request. Install-on-quit is enabled only when the ready file
+matches the latest confirmed offer, and is disabled during checks and replacement
+downloads. A failed preinstall check leaves the app running. Feed verification
+does not prove an installed Windows update/relaunch lifecycle.
+
 Electron main owns the application-update lifecycle through `AppUpdateService`. Installed Windows builds use the electron-builder GitHub provider and NSIS metadata; the renderer receives only the validated canonical update state plus narrow check, download, and install intents. Automatic checks run once shortly after launch and every 30 minutes while enabled. Automatic download and install-for-next-startup are separate persisted policies applied to `electron-updater`; manual download and restart actions remain available. The packaged NSIS installer is one-click per-user so `quitAndInstall` runs silently without the setup wizard; assisted installers cannot update silently. The separate Install while away policy waits for 10 minutes of Windows system idle, a closed interface, stopped audio and capture hosts, and no clip or montage exports or game scan. It checks eligibility once a minute only while an installer is downloaded and automatic checks and idle installation are enabled. Silent installation uses the normal updater and shutdown path; a consumed local launch marker returns the updated app to the tray without opening a window. Timers stop when their policy is disabled or the service is disposed; disposal also removes updater listeners.
 
 GitHub Release publishing and end-user delivery are separate gates. The public repository provides an anonymously readable live feed with the NSIS installer, block map, `latest.yml`, and checksums. Windows installers remain unsigned unless the release environment supplies Authenticode credentials. No GitHub credential is stored in settings, preload, or the renderer.
 
 Development launches use a separate application name, AppUserModelID, Chromium session, cache, persisted state directory, and single-instance boundary under `<appData>/Switchboard Dev`. They never load the installed app's updater or mutate its settings. Packaged builds retain the existing installed identity and user-data location so updating does not reset a user's configuration.
+
+On-demand capture diagnostics use canonical transient state owned by main and
+narrow run/cancel IPC operations. A stopped capture engine gets a temporary host
+that is disposed after the run; an existing host serializes checks through its
+lifecycle gate. Active recordings skip competing encoder/capture probes. There
+is no background diagnostic timer. Runs have a 90-second deadline and each
+FFmpeg probe has a five-second timeout with bounded output and child-process
+cleanup on timeout or cancellation. Three-frame capture probes discard output.
+Configuration changes and shutdown cancel the run; diagnostics do not change
+capture preferences. Completed results remain available until the next run or
+application restart, including when Developer mode is disabled.

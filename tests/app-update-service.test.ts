@@ -9,6 +9,7 @@ class FakeUpdater {
   public autoInstallOnAppQuit = true;
   public checks = 0;
   public downloads = 0;
+  public checkVersion: string | null = null;
   public installArguments: [boolean | undefined, boolean | undefined] | null = null;
   private readonly listeners = new Map<string, Set<Listener>>();
 
@@ -27,6 +28,7 @@ class FakeUpdater {
   public async checkForUpdates(): Promise<void> {
     this.checks += 1;
     this.emit('checking-for-update');
+    if (this.checkVersion) this.emit('update-available', { version: this.checkVersion });
   }
 
   public async downloadUpdate(): Promise<void> {
@@ -47,6 +49,89 @@ class FakeUpdater {
 }
 
 describe('application update lifecycle', () => {
+  it('finds a release published during an earlier download as soon as that download finishes', async () => {
+    const updater = new FakeUpdater();
+    const service = new AppUpdateService({
+      currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
+      onStateChanged: () => undefined, loadUpdater: async () => updater,
+      startupDelayMs: 100_000,
+    });
+    try {
+      await service.initialize(preferences());
+      updater.emit('update-available', { version: '0.8.1' });
+      updater.checkVersion = '0.8.4';
+      await service.checkForUpdates();
+      expect(updater.checks).toBe(0);
+      updater.emit('update-downloaded', { version: '0.8.1' });
+      await waitUntil(() => updater.downloads === 2);
+      expect(service.getState()).toMatchObject({ status: 'downloading', availableVersion: '0.8.4' });
+      expect(updater.installArguments).toBeNull();
+    } finally { service.dispose(); }
+  });
+
+  it('replaces a downloaded release with the newest feed version and blocks stale quit installs', async () => {
+    const updater = new FakeUpdater();
+    const service = new AppUpdateService({
+      currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
+      onStateChanged: () => undefined, loadUpdater: async () => updater,
+    });
+    try {
+      await service.initialize(preferences({ automaticChecks: false, installOnNextStartup: true }));
+      updater.emit('update-downloaded', { version: '0.8.1' });
+      expect(updater.autoInstallOnAppQuit).toBeTrue();
+      updater.checkVersion = '0.8.4';
+      await service.installDownloadedUpdate();
+      expect(updater.checks).toBe(1);
+      expect(updater.downloads).toBe(1);
+      expect(updater.installArguments).toBeNull();
+      expect(updater.autoInstallOnAppQuit).toBeFalse();
+      expect(service.getState()).toMatchObject({ status: 'downloading', availableVersion: '0.8.4' });
+      updater.emit('update-downloaded', { version: '0.8.1' });
+      expect(service.getState().status).toBe('downloading');
+      updater.emit('update-downloaded', { version: '0.8.4' });
+      await service.checkForUpdates();
+      expect(updater.downloads).toBe(1);
+      expect(service.getState()).toMatchObject({ status: 'downloaded', availableVersion: '0.8.4' });
+      await service.installDownloadedUpdate();
+      expect(updater.installArguments).toEqual([true, true]);
+    } finally { service.dispose(); }
+  });
+
+  it('retains the newer offer without installing an old download when automatic downloads are off', async () => {
+    const updater = new FakeUpdater();
+    const service = new AppUpdateService({
+      currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
+      onStateChanged: () => undefined, loadUpdater: async () => updater,
+    });
+    try {
+      await service.initialize(preferences({ automaticChecks: false, automaticDownloads: false, installOnNextStartup: true }));
+      updater.emit('update-downloaded', { version: '0.8.1' });
+      updater.checkVersion = '0.8.4';
+      await service.installDownloadedUpdate();
+      expect(service.getState()).toMatchObject({ status: 'available', availableVersion: '0.8.4' });
+      expect(updater.downloads).toBe(0);
+      expect(updater.autoInstallOnAppQuit).toBeFalse();
+      expect(updater.installArguments).toBeNull();
+    } finally { service.dispose(); }
+  });
+
+  it('does not install a cached release if its preinstall feed check fails', async () => {
+    const updater = new FakeUpdater();
+    const service = new AppUpdateService({
+      currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
+      onStateChanged: () => undefined, loadUpdater: async () => updater,
+    });
+    try {
+      await service.initialize(preferences({ automaticChecks: false, installOnNextStartup: true }));
+      updater.emit('update-downloaded', { version: '0.8.1' });
+      updater.checkForUpdates = async () => { throw new Error('offline fixture'); };
+      await service.installDownloadedUpdate();
+      expect(service.getState().status).toBe('error');
+      expect(updater.installArguments).toBeNull();
+      expect(updater.autoInstallOnAppQuit).toBeFalse();
+    } finally { service.dispose(); }
+  });
+
   it('checks every 30 minutes in production and stops scheduled checks when disabled', async () => {
     expect(appUpdateCheckIntervalMs).toBe(30 * 60_000);
     const updater = new FakeUpdater();
@@ -80,8 +165,9 @@ describe('application update lifecycle', () => {
     try {
       await service.initialize(preferences());
       updater.emit('update-downloaded', { version: '0.8.1' });
+      updater.checkVersion = '0.8.1';
       await service.checkForUpdates();
-      expect(updater.checks).toBe(0);
+      expect(updater.checks).toBe(1);
       expect(service.getState().status).toBe('downloaded');
       await Bun.sleep(20);
       expect(updater.installArguments).toBeNull();
@@ -103,6 +189,7 @@ describe('application update lifecycle', () => {
 
   it('cancels idle monitoring on preference disable and disposal and allows re-enabling', async () => {
     const updater = new FakeUpdater();
+    updater.checkVersion = '0.8.1';
     let idleReads = 0;
     const service = new AppUpdateService({
       currentVersion: '0.8.0', isPackaged: true, platform: 'win32',
@@ -215,7 +302,7 @@ describe('application update lifecycle', () => {
     });
 
     expect((await service.initialize(preferences({ automaticChecks: false }))).status).toBe('idle');
-    expect(updater.autoDownload).toBeTrue();
+    expect(updater.autoDownload).toBeFalse();
     expect(updater.autoInstallOnAppQuit).toBeFalse();
 
     expect((await service.checkForUpdates()).status).toBe('checking');
@@ -231,7 +318,8 @@ describe('application update lifecycle', () => {
 
     updater.emit('update-downloaded', { version: '0.6.0' });
     expect(service.getState().status).toBe('downloaded');
-    service.installDownloadedUpdate();
+    updater.checkVersion = '0.6.0';
+    await service.installDownloadedUpdate();
 
     expect(states.at(-1)?.status).toBe('installing');
     expect(installRequests).toEqual([true]);
@@ -256,7 +344,7 @@ describe('application update lifecycle', () => {
       installOnNextStartup: true,
     }));
     expect(updater.autoDownload).toBeFalse();
-    expect(updater.autoInstallOnAppQuit).toBeTrue();
+    expect(updater.autoInstallOnAppQuit).toBeFalse();
 
     updater.emit('update-available', { version: '0.6.0' });
     await service.downloadAvailableUpdate();

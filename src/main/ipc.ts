@@ -80,6 +80,8 @@ function handle<TInput, TResult>(
 
 export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null): () => void {
   handle(ipcChannels.exportResourceDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.exportResourceDiagnostics());
+  handle(ipcChannels.runDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.runDiagnostics());
+  handle(ipcChannels.cancelDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.cancelDiagnostics());
   const audioMeterDelivery = new AudioMeterDeliveryGate();
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow);

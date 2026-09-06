@@ -183,6 +183,18 @@ internal sealed class WindowsCaptureSources
         return AdvanceCandidate(backgroundGames[0], now);
     }
 
+    internal (CaptureSource? Source, int Candidates, bool ForegroundRecognized) InspectAutomaticGame()
+    {
+        if (!isWindows()) return (null, 0, false);
+        var foreground = getWindowInfo(getForegroundWindow(), true);
+        var candidates = enumerateWindows(true).Where(HasStrongGameIdentity)
+            .GroupBy(window => window.ProcessId)
+            .Select(group => group.OrderByDescending(window => window.CoversMostOfMonitor).First()).ToArray();
+        var foregroundRecognized = foreground is not null && IsLikelyGame(foreground);
+        var selected = foregroundRecognized ? foreground : candidates.Length == 1 ? candidates[0] : null;
+        return (selected is null ? null : ToAutomaticSource(selected), candidates.Length, foregroundRecognized);
+    }
+
     private CaptureSource? AdvanceCandidate(WindowInfo candidate, DateTimeOffset now)
     {
         if (candidateWindow != candidate.Handle)

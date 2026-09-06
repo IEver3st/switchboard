@@ -592,6 +592,8 @@ const demoApi: SwitchboardApi = {
   async downloadAppUpdate() { throw new Error('Application updates require the Switchboard desktop application.'); },
   async installAppUpdate() { throw new Error('Application updates require an installed Switchboard build.'); },
   async exportResourceDiagnostics() { throw new Error('Resource diagnostics require the native app.'); },
+  async runDiagnostics() { throw new Error('Run diagnostics requires the native app.'); },
+  async cancelDiagnostics() { return structuredClone(snapshot); },
   async updateSettings(input: UpdateSettingsInput) {
     const enableAutomaticScan = input.scanGamesAutomatically === true && !snapshot.settings.scanGamesAutomatically;
     if (input.developerMode === false) {

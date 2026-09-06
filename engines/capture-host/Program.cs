@@ -10,6 +10,8 @@ var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 var outputGate = new SemaphoreSlim(1, 1);
 var shutdown = new CancellationTokenSource();
 var requests = new OperationTracker();
+CancellationTokenSource? diagnosticCancellation = null;
+string? diagnosticRunId = null;
 AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
 {
     try
@@ -79,6 +81,8 @@ async Task HandleLineAsync(string line)
         object? result = command switch
         {
             "setDiagnostics" => engine.SetDiagnosticsEnabled(ParseDiagnosticsEnabled(payload)),
+            "runDiagnostics" => await RunDiagnosticsAsync(payload),
+            "cancelDiagnostics" => CancelDiagnostics(payload),
             "start" => await engine.StartAsync(ParseSettings(payload), shutdown.Token),
             "configure" => await engine.ConfigureAsync(ParseSettings(payload), shutdown.Token),
             "stop" => await engine.StopAsync(shutdown.Token),
@@ -108,6 +112,40 @@ CaptureSettings ParseSettings(JsonElement payload)
            ?? throw new InvalidOperationException("Capture settings could not be parsed.");
 }
 
+async Task<object> RunDiagnosticsAsync(JsonElement payload)
+{
+    if (diagnosticCancellation is not null) throw new InvalidOperationException("A diagnostic run is already active.");
+    var runId = payload.GetProperty("runId").GetString();
+    if (!Guid.TryParse(runId, out _)) throw new InvalidOperationException("Invalid diagnostic run identifier.");
+    var settings = payload.GetProperty("settings").Deserialize<CaptureSettings>(jsonOptions)
+        ?? throw new InvalidOperationException("Capture settings could not be parsed.");
+    // Missing window selection is a diagnosis, not a reason to skip all the
+    // independent display/encoder/storage checks. Validate all other fields.
+    _ = (settings.Source == "window" && string.IsNullOrWhiteSpace(settings.SourceId)
+        ? settings with { Source = "automatic-game" } : settings).Validate();
+    using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(shutdown.Token);
+    cancellation.CancelAfter(TimeSpan.FromSeconds(90));
+    diagnosticCancellation = cancellation;
+    diagnosticRunId = runId;
+    try
+    {
+        await engine.RunDiagnosticsAsync(settings, check =>
+        {
+            var bounded = check with { Detail = check.Detail[..Math.Min(8192, check.Detail.Length)] };
+            _ = WriteAsync(new { type = "event", @event = "diagnosticCheck", payload = new { runId, check = bounded } });
+        }, cancellation.Token);
+        return new { completed = true };
+    }
+    finally { diagnosticCancellation = null; diagnosticRunId = null; }
+}
+
+object CancelDiagnostics(JsonElement payload)
+{
+    if (payload.TryGetProperty("runId", out var runId) && runId.GetString() == diagnosticRunId)
+        diagnosticCancellation?.Cancel();
+    return new { cancelled = true };
+}
+
 bool ParseDiagnosticsEnabled(JsonElement payload)
 {
     if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty("enabled", out var enabled)
@@ -126,6 +164,7 @@ SaveReplayWindow? ParseSaveReplayWindow(JsonElement payload)
 
 async Task<object> ShutdownAsync()
 {
+    diagnosticCancellation?.Cancel();
     await engine.StopAsync(CancellationToken.None);
     shutdown.Cancel();
     return new { stopped = true };

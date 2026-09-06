@@ -170,7 +170,7 @@ The product should surface sustained regressions, not react to one noisy sample.
 - include per-process attribution;
 - never auto-kill an engine while recording or carrying active audio without an explicit recovery plan.
 
-The application updater performs one delayed launch check and then checks every 30 minutes while automatic checks are enabled. Automatic download and install-for-next-startup change updater policy without adding timers. Idle installation adds one unreferenced 60-second eligibility timer only while an update is downloaded, automatic checks are enabled, and Install while away is enabled. It reads Windows idle time and existing activity state; it never starts or stops an engine to make an update eligible. Disabling either policy, leaving downloaded state, or disposal clears the idle timer. Disposal also clears updater listeners.
+The application updater performs one delayed launch check and then checks every 30 minutes while automatic checks are enabled, including after an installer is downloaded. Download completion reschedules that same timer for an immediate check to discover releases published during the download. Manual and idle install requests recheck the feed before installation. Automatic download and install-for-next-startup change updater policy without adding timers. Idle installation adds one unreferenced 60-second eligibility timer only while an update is downloaded, automatic checks are enabled, and Install while away is enabled. It reads Windows idle time and existing activity state; it never starts or stops an engine to make an update eligible. Disabling either policy, leaving downloaded state, or disposal clears the idle timer. Disposal also clears updater listeners.
 
 ## Soak tests
 
@@ -215,3 +215,14 @@ adds bounded operation counters plus a 20 ms main-loop probe only while enabled.
 The export retains the latest 120 samples; disabling stops the extra probes and
 retains the report for export. See [Resource diagnostics](docs/resource-diagnostics.md)
 for measurement semantics, limits, and the comparison workflow.
+
+On-demand capture diagnostics use canonical transient state owned by main and
+narrow run/cancel IPC operations. A stopped capture engine gets a temporary host
+that is disposed after the run; an existing host serializes checks through its
+lifecycle gate. Active recordings skip competing encoder/capture probes. There
+is no background diagnostic timer. Runs have a 90-second deadline and each
+FFmpeg probe has a five-second timeout with bounded output and child-process
+cleanup on timeout or cancellation. Three-frame capture probes discard output.
+Configuration changes and shutdown cancel the run; diagnostics do not change
+capture preferences. Completed results remain available until the next run or
+application restart, including when Developer mode is disabled.

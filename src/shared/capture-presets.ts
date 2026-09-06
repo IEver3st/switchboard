@@ -62,7 +62,7 @@ export function getEncodingPreset(
   const resolution = inferredResolution(config);
   const qualityIndex = Math.max(0, Math.min(4, config.quality - 1));
   const targetMbps = BASE_60_FPS_MBPS[resolution][qualityIndex]!
-    * CODEC_FACTOR[config.codec]
+    * CODEC_FACTOR[config.codec === 'auto' ? 'h264' : config.codec]
     * FPS_FACTOR[config.fps];
   const targetVideoBitrateBps = Math.round(targetMbps * 1_000_000);
 

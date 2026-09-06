@@ -52,6 +52,18 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     public CaptureDiagnostics Diagnostics { get; } = new();
 
+    public async Task RunDiagnosticsAsync(CaptureSettings requested, Action<DiagnosticCheck> onCheck, CancellationToken cancellationToken)
+    {
+        await lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            // Keep an armed recorder from starting while short diagnostic probes
+            // use its source. An existing recording continues; probes are skipped.
+            await CaptureDiagnosticRunner.RunAsync(requested, ffmpeg is { HasExited: false }, onCheck, cancellationToken);
+        }
+        finally { lifecycleGate.Release(); }
+    }
+
     public object SetDiagnosticsEnabled(bool enabled)
     {
         diagnosticVersionRecorded = false;
@@ -803,7 +815,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        var arguments = BuildArguments(capture, source, outputDirectory);
+        var arguments = BuildVideoArguments(capture, source, backendName, encoderName, outputDirectory);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         return start;
     }
@@ -925,10 +937,13 @@ internal sealed class ReplayEngine : IAsyncDisposable
         return arguments;
     }
 
-    private IEnumerable<string> BuildArguments(
+    internal static IEnumerable<string> BuildVideoArguments(
         CaptureSettings capture,
         CaptureSource source,
-        string outputDirectory)
+        string backendName,
+        string encoderName,
+        string outputDirectory,
+        bool diagnosticProbe = false)
     {
         yield return "-hide_banner";
         yield return "-loglevel";
@@ -956,6 +971,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return "-c:v";
         yield return encoderName;
         foreach (var argument in EncoderArguments(capture, encoderName)) yield return argument;
+        if (diagnosticProbe)
+        {
+            yield return "-frames:v"; yield return "3";
+            yield return "-f"; yield return "null"; yield return "-";
+            yield break;
+        }
         yield return "-g";
         yield return (capture.Fps * capture.SegmentSeconds).ToString(CultureInfo.InvariantCulture);
         yield return "-keyint_min";
@@ -1584,15 +1605,19 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     private void ValidateRequestedCapabilities(CaptureSettings capture)
     {
-        if (capture.Fps > capabilities.MaximumFps)
+        if (capture.Fps > 60 && encoderName.StartsWith("lib", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"{capture.Fps} FPS requires a working hardware encoder.");
-        if (!capabilities.Codecs.Contains(capture.Codec, StringComparer.OrdinalIgnoreCase))
+        if (capture.Codec != "auto" && !capabilities.Codecs.Contains(capture.Codec, StringComparer.OrdinalIgnoreCase))
             throw new InvalidOperationException($"No working {capture.Codec.ToUpperInvariant()} encoder is available.");
     }
 
-    private static string SelectEncoder(CaptureSettings capture, IReadOnlyList<string> working)
+    internal static string SelectEncoder(CaptureSettings capture, IReadOnlyList<string> working)
     {
-        IEnumerable<string> candidates = EncoderCandidates(capture.Codec);
+        // Prefer broadly playable H.264, then another tested hardware format.
+        // Automatic never selects costly software HEVC/AV1 for realtime capture.
+        IEnumerable<string> candidates = capture.Codec == "auto"
+            ? AllEncoderCandidates().Where(name => !name.StartsWith("lib", StringComparison.OrdinalIgnoreCase)).Append("libx264")
+            : EncoderCandidates(capture.Codec);
         if (capture.Encoder != "auto")
         {
             candidates = capture.Encoder == "software"

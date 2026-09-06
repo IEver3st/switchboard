@@ -2,15 +2,34 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+if (args.Length == 2 && args[0] == "--diagnostic-hang")
+{
+    await File.WriteAllTextAsync(args[1], Environment.ProcessId.ToString());
+    await Task.Delay(TimeSpan.FromMinutes(5));
+    return;
+}
+
 // A real child process that imitates FFmpeg's probe/failed-start protocol without
 // capturing a display or touching a physical encoder. Also used by native UI QA.
 if (Environment.GetEnvironmentVariable("SWITCHBOARD_CAPTURE_FAILURE_FIXTURE") == "1")
 {
+    if (int.TryParse(Environment.GetEnvironmentVariable("SWITCHBOARD_DIAGNOSTIC_PROBE_DELAY_MS"), out var probeDelay))
+        await Task.Delay(Math.Clamp(probeDelay, 0, 2000));
     if (args.Contains("-encoders")) Console.WriteLine("h264_amf libx264");
     else if (args.Contains("-filters")) Console.WriteLine("gfxcapture ddagrab");
     else if (args.Contains("-version")) Console.WriteLine("FFmpeg capture failure fixture (not a real encoder)");
     else if (!args.Any(argument => argument.StartsWith("color=size=", StringComparison.Ordinal)))
     {
+        if (Environment.GetEnvironmentVariable("SWITCHBOARD_DIAGNOSTIC_RECORDING_FIXTURE") == "1" && args.Contains("-segment_time"))
+        {
+            var frame = 0;
+            while (true) { Console.Error.WriteLine($"frame={++frame}"); await Task.Delay(100); }
+        }
+        if (Environment.GetEnvironmentVariable("SWITCHBOARD_DIAGNOSTIC_CAPTURE_SUCCESS") == "1")
+        {
+            Console.Error.WriteLine("frame=3");
+            return;
+        }
         Console.Error.WriteLine("[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)");
         Console.Error.WriteLine("Task finished with error code: -1313558101 (Unknown error occurred)");
         Environment.ExitCode = -1313558101;
@@ -64,6 +83,23 @@ var validSettings = new CaptureSettings(
     CacheDirectory: Path.GetTempPath(),
     ClipsDirectory: Path.GetTempPath());
 _ = validSettings.Validate();
+await AssertDiagnosticProbeCleanupAsync();
+AssertEqual("h264_amf", ReplayEngine.SelectEncoder(validSettings, ["h264_amf", "h264_qsv", "av1_amf", "libx264"]),
+    "Automatic codec must choose tested AMD H.264 on the reported Radeon/Intel configuration.");
+AssertEqual("h264_nvenc", ReplayEngine.SelectEncoder(validSettings, ["h264_nvenc", "av1_nvenc", "libx264"]),
+    "Automatic codec must prefer compatible hardware H.264 on NVIDIA.");
+AssertEqual("h264_qsv", ReplayEngine.SelectEncoder(validSettings, ["h264_qsv", "libx264"]),
+    "Automatic codec must use Intel hardware when it is the working encoder.");
+AssertEqual("hevc_amf", ReplayEngine.SelectEncoder(validSettings, ["hevc_amf", "libx264"]),
+    "Automatic codec must prefer tested hardware over software when hardware H.264 is unavailable.");
+AssertEqual("libx264", ReplayEngine.SelectEncoder(validSettings, ["libx265", "libsvtav1", "libx264"]),
+    "Automatic software fallback must stay on realtime-friendly H.264.");
+AssertEqual("libx264", ReplayEngine.SelectEncoder(validSettings with { Encoder = "software" }, ["h264_amf", "libx264"]),
+    "An explicit software preference must be preserved.");
+AssertEqual("av1_amf", ReplayEngine.SelectEncoder(validSettings with { Codec = "av1" }, ["h264_amf", "av1_amf"]),
+    "An explicit codec must be preserved.");
+AssertThrows<InvalidOperationException>(() => ReplayEngine.SelectEncoder(validSettings, ["libsvtav1"]),
+    "Automatic must not fall through to costly software AV1.");
 var nvencArguments = ReplayEngine.EncoderArguments(validSettings, "av1_nvenc").ToArray();
 AssertValue(true, nvencArguments.Zip(nvencArguments.Skip(1)).Any(pair => pair.First == "-delay" && pair.Second == "0"),
     "NVENC capture must not retain the encoder's automatic frame-delay allocation.");
@@ -584,6 +620,22 @@ static async Task AssertCaptureStartupFailureAsync()
         AssertEqual("error", engine.GetSnapshot().Runtime.State, "Software retry failure must retain a canonical error state.");
         AssertValue(true, engine.FfmpegProcessId is null, "Retry failure must not retain an encoder process.");
 
+        var checks = new List<DiagnosticCheck>();
+        await engine.RunDiagnosticsAsync(settings, checks.Add, CancellationToken.None);
+        AssertValue(true, checks.Any(check => check.Id == "capture.software" && check.Status == "fail"),
+            "One-click diagnostics must exercise the failing software display path and retain its failure.");
+        AssertValue(true, checks.Any(check => check.Id == "capture.hardware" && check.Status == "fail"),
+            "One-click diagnostics must distinguish a live capture failure from a passing AMD encoder probe.");
+        AssertValue(true, checks.Any(check => check.Id == "encoder.h264_amf" && check.Status == "pass"),
+            "The diagnostic fixture must reproduce working AMF initialization separately from failed capture.");
+        AssertEqual("error", engine.GetSnapshot().Runtime.State, "Diagnostic probes must preserve the original recorder error.");
+        checks.Clear();
+        await CaptureDiagnosticRunner.RunAsync(settings, recording: true, checks.Add, CancellationToken.None);
+        AssertValue(true, checks.Any(check => check.Id == "capture.active" && check.Status == "skipped"),
+            "Active recording must skip invasive probes.");
+        AssertValue(false, checks.Any(check => check.Id.StartsWith("encoder.", StringComparison.Ordinal)),
+            "Active recording must not open competing encoder sessions.");
+
         engine.SetDiagnosticsEnabled(false);
         var recordedBeforeDisable = diagnostics.Count;
         await ExpectFailureAsync(() => engine.ConfigureAsync(settings, CancellationToken.None));
@@ -609,6 +661,38 @@ static void AssertEqual(string expected, string actual, string message)
 {
     if (!string.Equals(expected, actual, StringComparison.Ordinal))
         throw new InvalidOperationException($"{message} Expected '{expected}', got '{actual}'.");
+}
+
+static async Task AssertDiagnosticProbeCleanupAsync()
+{
+    foreach (var cancel in new[] { false, true })
+    {
+        var pidFile = Path.Combine(Path.GetTempPath(), $"switchboard-diagnostic-child-{Guid.NewGuid():N}.txt");
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            var task = CaptureDiagnosticRunner.RunProcessAsync(Environment.ProcessPath!, ["--diagnostic-hang", pidFile],
+                cancellation.Token, timeoutMs: cancel ? 5000 : 1000);
+            if (cancel)
+            {
+                var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+                while (!File.Exists(pidFile) && DateTimeOffset.UtcNow < deadline) await Task.Delay(20);
+                cancellation.Cancel();
+            }
+            try { await task; throw new InvalidOperationException("The hanging diagnostic child must not finish successfully."); }
+            catch (TimeoutException) when (!cancel) { }
+            catch (OperationCanceledException) when (cancel) { }
+            AssertValue(true, File.Exists(pidFile), "The diagnostic child must actually start before testing cleanup.");
+            var pid = int.Parse(await File.ReadAllTextAsync(pidFile));
+            try
+            {
+                using var process = Process.GetProcessById(pid);
+                AssertValue(true, process.HasExited, "Timeout and cancellation must reap the diagnostic child process.");
+            }
+            catch (ArgumentException) { }
+        }
+        finally { if (File.Exists(pidFile)) File.Delete(pidFile); }
+    }
 }
 
 static void AssertValue<T>(T expected, T actual, string message) where T : IEquatable<T>

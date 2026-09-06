@@ -1,5 +1,22 @@
 # Resource diagnostics
 
+For capture problems, open **Settings > General > Run diagnostics**. Developer
+mode is not required. The run checks game/source detection, storage access,
+audio endpoint availability, FFmpeg, encoder support, and short capture attempts
+using the current source and selected display. It compares hardware and software
+encoding and an alternative display backend. Test frames are discarded; audio
+checks verify endpoint availability, not recorded sound.
+
+Results explain detected failures and show individual check details. Choose
+**Save diagnostics** to save one local JSON report with the checks, bounded
+FFmpeg errors, graphics information, and capture context. Nothing is uploaded.
+Capture preferences remain unchanged. An active recording stays running and
+competing encoder/capture probes are skipped. Cancel stops the test processes.
+Checks establish what worked during that run; they do not prove sustained game
+capture or fix a hardware failure automatically.
+
+For a longer event history or resource investigation:
+
 Enable **Settings > General > Developer mode**, reproduce the problem, then open
 **Settings > Diagnostics > Export diagnostics**. Developer mode starts a local
 event timeline automatically. Export works immediately, including when capture

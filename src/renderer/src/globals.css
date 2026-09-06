@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+.diagnostic-runner { margin-block: 20px 28px; min-width: 0; }
+.diagnostic-runner__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.diagnostic-runner h3 { font-size: 13px; font-weight: 600; }
+.diagnostic-runner__heading p { margin-top: 6px; color: var(--muted-foreground); font-size: 12px; line-height: 1.55; max-width: 560px; }
+.diagnostic-runner__actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.diagnostic-runner__summary, .diagnostic-runner__message { font-size: 12px; line-height: 1.6; margin-top: 12px; }
+.diagnostic-runner__results { margin-top: 12px; font-size: 12px; }
+.diagnostic-runner summary { cursor: pointer; }
+.diagnostic-runner__results > summary { color: var(--muted-foreground); padding-block: 5px; }
+.diagnostic-runner__results ol { max-height: 280px; overflow-y: auto; margin-top: 8px; }
+.diagnostic-runner__results li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 4px; }
+.diagnostic-runner__results li > svg { width: 14px; height: 14px; margin-top: 3px; flex-shrink: 0; color: var(--muted-foreground); }
+.diagnostic-runner__results li[data-status=pass] > svg { color: var(--success); }
+.diagnostic-runner__results li[data-status=fail] > svg { color: var(--destructive); }
+.diagnostic-runner__results li > details { flex: 1; min-width: 0; }
+.diagnostic-runner__results li summary { display: flex; gap: 12px; justify-content: space-between; }
+.diagnostic-runner__results li summary strong { overflow-wrap: anywhere; font-weight: 500; }
+.diagnostic-runner__results li summary span { color: var(--muted-foreground); flex-shrink: 0; }
+.diagnostic-runner__results li p { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted-foreground); line-height: 1.6; padding-top: 6px; }
+@media (max-width: 1200px) { .diagnostic-runner__heading { flex-direction: column; gap: 12px; } }
+
 :root {
   /* Canonical application palette. Component-library roles below alias these tokens. */
   --background: #0e1117;

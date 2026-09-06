@@ -1,4 +1,5 @@
 import { huntsmanKeyboardFeatures } from './huntsman-features';
+import { idleDiagnosticRun } from './contracts';
 import type {
   AppUpdateState,
   AppSettings,
@@ -543,7 +544,7 @@ export const defaultCaptureConfig: CaptureConfig = {
   displayIndex: 0,
   fps: 60,
   resolution: '1440p',
-  codec: 'h264',
+  codec: 'auto',
   encoder: 'auto',
   quality: 4,
   replaySeconds: 60,
@@ -680,7 +681,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.8.4',
+  currentVersion: '0.8.5',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -725,7 +726,8 @@ export const seedClips: Clip[] = [];
 
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
-    version: '0.8.4',
+    version: '0.8.5',
+    diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),
     modules: structuredClone(defaultModules),

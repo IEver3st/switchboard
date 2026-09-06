@@ -36,6 +36,11 @@ export const settingsCategories: ReadonlyArray<{
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   {
+    id: 'general.runDiagnostics', category: 'general', title: 'Run diagnostics',
+    description: 'Test capture setup and save the results without enabling Developer mode.',
+    keywords: ['diagnostics', 'troubleshoot', 'debug', 'capture', 'waiting', 'encoder', 'gpu', 'export', 'logs'],
+  },
+  {
     id: 'general.workspace',
     category: 'general',
     title: 'Workspaces',
@@ -354,8 +359,8 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'capture.codec',
     category: 'capture',
     title: 'Video codec',
-    description: 'Choose a codec reported by the active capture host.',
-    keywords: ['h264', 'h.264', 'hevc', 'h265', 'av1', 'compression'],
+    description: 'Choose Automatic or a codec reported by the active capture host.',
+    keywords: ['automatic', 'h264', 'h.264', 'hevc', 'h265', 'av1', 'compression'],
   },
   {
     id: 'capture.workspace',

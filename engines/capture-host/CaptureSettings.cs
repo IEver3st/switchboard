@@ -9,7 +9,7 @@ internal sealed record CaptureSettings(
     int DisplayIndex = 0,
     int Fps = 60,
     string Resolution = "1440p",
-    string Codec = "h264",
+    string Codec = "auto",
     string Encoder = "auto",
     int Quality = 4,
     int ReplaySeconds = 60,
@@ -54,7 +54,7 @@ internal sealed record CaptureSettings(
         if (Fps is not (30 or 60 or 120)) throw new ArgumentOutOfRangeException(nameof(Fps));
         if (Resolution is not ("720p" or "1080p" or "1440p" or "2160p" or "native"))
             throw new ArgumentOutOfRangeException(nameof(Resolution));
-        if (Codec is not ("h264" or "hevc" or "av1")) throw new ArgumentOutOfRangeException(nameof(Codec));
+        if (Codec is not ("auto" or "h264" or "hevc" or "av1")) throw new ArgumentOutOfRangeException(nameof(Codec));
         if (Encoder is not ("auto" or "nvenc" or "amf" or "qsv" or "software"))
             throw new ArgumentOutOfRangeException(nameof(Encoder));
         if (Quality is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(Quality));

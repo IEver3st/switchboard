@@ -105,7 +105,7 @@ function ReplayConfiguration({
   const [refreshPending, setRefreshPending] = useState(false);
   const [replayPending, setReplayPending] = useState(false);
   const config = snapshot.capture.config;
-  const codecOptions = (snapshot.capture.capabilities.codecs.length > 0 ? snapshot.capture.capabilities.codecs : [config.codec]).map((value) => ({ value, label: value === 'h264' ? 'H.264' : value === 'hevc' ? 'HEVC' : 'AV1' }));
+  const codecOptions = [...new Set(['auto' as const, ...snapshot.capture.capabilities.codecs, config.codec])].map((value) => ({ value, label: value === 'auto' ? 'Automatic' : value === 'h264' ? 'H.264' : value === 'hevc' ? 'HEVC' : 'AV1' }));
   const encoderOptions = encoderChoices(snapshot);
 
   return (

@@ -72,6 +72,7 @@ export class AppUpdateService {
   private scheduledCheck: NodeJS.Timeout | null = null;
   private scheduledIdleCheck: NodeJS.Timeout | null = null;
   private activeCheck: Promise<AppUpdateState> | null = null;
+  private downloadedVersion: string | null = null;
   private readonly listeners: Array<{
     event: UpdaterEvent;
     listener: (payload?: unknown) => void;
@@ -165,8 +166,8 @@ export class AppUpdateService {
       return Promise.resolve(this.getState());
     }
     if (this.activeCheck) return this.activeCheck;
-    // A periodic check must not discard a downloaded installer or interrupt a download.
-    if (['downloading', 'downloaded', 'installing'].includes(this.state.status)) {
+    // Keep checking after a download: several releases may arrive before installation.
+    if (['downloading', 'installing'].includes(this.state.status)) {
       return Promise.resolve(this.getState());
     }
 
@@ -187,6 +188,8 @@ export class AppUpdateService {
     }
 
     this.publish({ status: 'downloading', downloadProgress: 0, error: null });
+    // electron-updater may clear the previous cached file while replacing it.
+    this.downloadedVersion = null;
     try {
       await this.updater.downloadUpdate();
     } catch (error) {
@@ -199,13 +202,21 @@ export class AppUpdateService {
     return this.getState();
   }
 
-  public installDownloadedUpdate(background = false): void {
+  public async installDownloadedUpdate(background = false): Promise<void> {
     if (this.demoUpdateEnabled) {
       throw new Error('The development update preview does not include an installer.');
     }
     if (!this.updater || this.disposed || this.state.status !== 'downloaded') {
       throw new Error('No downloaded Switchboard update is ready to install.');
     }
+
+    await this.checkForUpdates();
+    // A newer release starts a replacement download. Never install the old file
+    // after learning about it, or after a failed freshness check.
+    if (this.disposed || this.state.status !== 'downloaded') return;
+    if (background && (!this.preferences.installWhenIdle || !this.preferences.automaticChecks
+      || !this.options.canInstallInBackground?.()
+      || (this.options.getSystemIdleTime?.() ?? 0) < idleThresholdSeconds)) return;
 
     this.publish({ status: 'installing', error: null });
     try {
@@ -266,6 +277,11 @@ export class AppUpdateService {
     this.listen(updater, 'update-available', (payload) => {
       const parsed = updateInfoSchema.safeParse(payload);
       if (!parsed.success) return this.handleInvalidProviderPayload('available update metadata');
+      if (parsed.data.version === this.downloadedVersion) {
+        this.publish({ status: 'downloaded', availableVersion: parsed.data.version,
+          downloadProgress: 100, checkedAt: new Date().toISOString(), error: null });
+        return;
+      }
       this.publish({
         status: 'available',
         availableVersion: parsed.data.version,
@@ -273,6 +289,7 @@ export class AppUpdateService {
         checkedAt: new Date().toISOString(),
         error: null,
       });
+      if (this.preferences.automaticDownloads) void this.downloadAvailableUpdate();
     });
     this.listen(updater, 'update-not-available', () => {
       this.publish({
@@ -295,6 +312,8 @@ export class AppUpdateService {
     this.listen(updater, 'update-downloaded', (payload) => {
       const parsed = updateInfoSchema.safeParse(payload);
       if (!parsed.success) return this.handleInvalidProviderPayload('downloaded update metadata');
+      if (this.state.availableVersion && parsed.data.version !== this.state.availableVersion) return;
+      this.downloadedVersion = parsed.data.version;
       this.publish({
         status: 'downloaded',
         availableVersion: parsed.data.version,
@@ -302,6 +321,9 @@ export class AppUpdateService {
         checkedAt: new Date().toISOString(),
         error: null,
       });
+      // A release may have arrived while this installer was downloading.
+      this.clearScheduledCheck();
+      this.scheduleCheck(0);
     });
     this.listen(updater, 'error', (payload) => {
       if (this.state.status === 'installing') this.options.onInstallRequested?.(false, true);
@@ -315,8 +337,12 @@ export class AppUpdateService {
   }
 
   private applyPreferencesToUpdater(updater: AppUpdaterClient): void {
-    updater.autoDownload = this.preferences.automaticDownloads;
-    updater.autoInstallOnAppQuit = this.preferences.installOnNextStartup;
+    // Main owns downloading so a same-version check can keep the ready installer
+    // without asking electron-updater to download it again.
+    updater.autoDownload = false;
+    updater.autoInstallOnAppQuit = this.preferences.installOnNextStartup
+      && this.state.status === 'downloaded'
+      && this.state.availableVersion === this.downloadedVersion;
   }
 
   private publishDemoUpdate(): AppUpdateState {
@@ -367,6 +393,7 @@ export class AppUpdateService {
 
   private publish(patch: Partial<AppUpdateState>): AppUpdateState {
     this.state = appUpdateStateSchema.parse({ ...this.state, ...patch });
+    if (this.updater) this.applyPreferencesToUpdater(this.updater);
     const snapshot = this.getState();
     this.options.onStateChanged(snapshot);
     this.syncIdleInstallTimer();
@@ -381,13 +408,13 @@ export class AppUpdateService {
       return;
     }
     if (this.scheduledIdleCheck) return;
-    this.scheduledIdleCheck = setTimeout(() => {
+    this.scheduledIdleCheck = setTimeout(async () => {
       this.scheduledIdleCheck = null;
       try {
         const idleSeconds = this.options.getSystemIdleTime!();
         if (Number.isFinite(idleSeconds) && idleSeconds >= idleThresholdSeconds
           && this.options.canInstallInBackground!()) {
-          this.installDownloadedUpdate(true);
+          await this.installDownloadedUpdate(true);
         }
       } catch (error) {
         console.error('Switchboard background update could not start.', error);

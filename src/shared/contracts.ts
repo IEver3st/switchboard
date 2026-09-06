@@ -885,7 +885,7 @@ export const captureConfigSchema = z.object({
   displayIndex: z.number().int().min(0),
   fps: z.union([z.literal(30), z.literal(60), z.literal(120)]),
   resolution: captureResolutionSchema,
-  codec: captureCodecSchema,
+  codec: z.union([z.literal('auto'), captureCodecSchema]),
   encoder: captureEncoderPreferenceSchema,
   quality: z.number().int().min(1).max(5),
   replaySeconds: z.number().int().min(15).max(300),
@@ -1379,10 +1379,32 @@ export const appUpdateStateSchema = z.object({
 });
 export type AppUpdateState = z.infer<typeof appUpdateStateSchema>;
 
+export const diagnosticCheckSchema = z.object({
+  id: z.string().min(1).max(100),
+  label: z.string().min(1).max(160),
+  status: z.enum(['running', 'pass', 'warning', 'fail', 'skipped']),
+  detail: z.string().max(8192),
+  durationMs: z.number().finite().nonnegative().optional(),
+});
+export type DiagnosticCheck = z.infer<typeof diagnosticCheckSchema>;
+export const diagnosticRunSchema = z.object({
+  id: z.string().nullable(),
+  status: z.enum(['idle', 'running', 'completed', 'cancelled', 'error']),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  summary: z.string().max(2048),
+  checks: z.array(diagnosticCheckSchema).max(64),
+});
+export type DiagnosticRun = z.infer<typeof diagnosticRunSchema>;
+export const idleDiagnosticRun: DiagnosticRun = {
+  id: null, status: 'idle', startedAt: null, completedAt: null, summary: '', checks: [],
+};
+
 export const systemSnapshotSchema = z.object({
   version: z.string(),
   prototypeMode: z.boolean(),
   appUpdate: appUpdateStateSchema,
+  diagnostics: diagnosticRunSchema.default(idleDiagnosticRun),
   modules: z.array(moduleManifestSchema),
   devices: z.array(deviceSchema),
   engines: z.array(engineStatusSchema),
@@ -1703,6 +1725,8 @@ export const ipcChannels = {
   installAppUpdate: 'updates:install',
   updateSettings: 'settings:update',
   exportResourceDiagnostics: 'diagnostics:export-resources',
+  runDiagnostics: 'diagnostics:run',
+  cancelDiagnostics: 'diagnostics:cancel',
   resetSettings: 'settings:reset',
   handoffFeedbackReport: 'feedback:handoff-report',
   revealClip: 'clips:reveal',
@@ -1773,6 +1797,8 @@ export interface SwitchboardApi {
   installAppUpdate(): Promise<void>;
   updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot>;
   exportResourceDiagnostics(): Promise<boolean>;
+  runDiagnostics(): Promise<SystemSnapshot>;
+  cancelDiagnostics(): Promise<SystemSnapshot>;
   resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot>;
   handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult>;
   revealClip(id: string): Promise<void>;

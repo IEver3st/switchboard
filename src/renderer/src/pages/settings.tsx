@@ -1,4 +1,5 @@
 import { ResourceDiagnostics } from '@/components/settings/resource-diagnostics';
+import { DiagnosticRunner } from '@/components/settings/diagnostic-runner';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { AlertTriangle, AudioWaveform, Cable, CircleDot, Download, LoaderCircle, RefreshCw, RotateCcw, type LucideIcon } from 'lucide-react';
 import type {
@@ -355,6 +356,7 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
   return (
     <>
       <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and releases the interface." onReset={onReset} />
+      <DiagnosticRunner snapshot={snapshot} />
       <SettingSection title="Workspace">
         <WorkspaceSettings snapshot={snapshot} />
       </SettingSection>
@@ -500,8 +502,8 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
   const setPage = useSystemStore((state) => state.setPage);
   const config = snapshot.capture.config;
   const capabilities = snapshot.capture.capabilities;
-  const codecLabels = { h264: 'H.264', hevc: 'HEVC', av1: 'AV1' } as const;
-  const codecOptions = [...new Set([...capabilities.codecs, config.codec])]
+  const codecLabels = { auto: 'Automatic', h264: 'H.264', hevc: 'HEVC', av1: 'AV1' } as const;
+  const codecOptions = [...new Set(['auto' as const, ...capabilities.codecs, config.codec])]
     .map((codec) => ({ value: codec, label: codecLabels[codec] }));
   const encoderOptions = getEncoderOptions(config.encoder, capabilities.encoders);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'capture');
@@ -554,7 +556,7 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
         <SettingSelect
           settingId="capture.codec"
           title="Video codec"
-          description="Only codecs reported by the active capture host are available."
+          description="Automatic prefers H.264 for compatibility and uses a tested encoder. The active encoder appears in Diagnostics."
           value={config.codec}
           options={codecOptions}
           disabled={codecOptions.length <= 1}
@@ -920,6 +922,7 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
   return (
     <div className="settings-diagnostics">
       <SettingsCategoryHeader title="Diagnostics" onReset={onReset} />
+      <DiagnosticRunner snapshot={snapshot} />
       <section className="diagnostics-overview" aria-label="Current health">
         <article id="setting-diagnostics.memory" data-setting-id="diagnostics.memory" tabIndex={-1} className="diagnostics-overview__system">
           <span className="diagnostics-eyebrow">Private memory</span>
