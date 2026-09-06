@@ -42,7 +42,8 @@ internal static class FfmpegLocator
     public static async Task<bool> ProbeEncoderAsync(
         string ffmpegPath,
         string encoder,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<string>? onDiagnostic = null)
     {
         var arguments = new[]
         {
@@ -55,10 +56,20 @@ internal static class FfmpegLocator
         };
         using var process = CreateProcess(ffmpegPath, arguments);
         process.Start();
-        await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        await process.StandardError.ReadToEndAsync(cancellationToken);
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken);
+        await outputTask;
+        var error = await errorTask;
+        if (!string.IsNullOrWhiteSpace(error)) onDiagnostic?.Invoke(error.Length > 4096 ? error[..4096] : error);
         return process.ExitCode == 0;
+    }
+
+    public static async Task<string> ReadVersionAsync(string ffmpegPath, CancellationToken cancellationToken)
+    {
+        var text = await RunForTextAsync(ffmpegPath, ["-version"], cancellationToken);
+        var summary = string.Join("\n", text.Split('\n').Take(3)).Trim();
+        return summary[..Math.Min(4096, summary.Length)];
     }
 
     private static string? FindExecutable(string environmentVariable, string baseName)

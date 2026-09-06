@@ -10,23 +10,26 @@ export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) 
   const [pending, setPending] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState('');
-  const debug = snapshot.settings.detailedDiagnostics ? snapshot.performance.debug : undefined;
+  const developerMode = snapshot.settings.developerMode === true;
+  const recording = developerMode && snapshot.settings.detailedDiagnostics;
+  const debug = recording ? snapshot.performance.debug : undefined;
   async function exportReport() {
     setExporting(true);
     setMessage('');
     try { setMessage(await switchboardApi.exportResourceDiagnostics() ? 'Report saved.' : 'Export canceled.'); }
     catch (error) {
-      setMessage(error instanceof Error && error.message.includes('Enable detailed diagnostics')
-        ? 'Enable detailed diagnostics and wait for a resource sample before exporting.'
+      setMessage(error instanceof Error && error.message.includes('Developer mode')
+        ? 'Enable Developer mode before exporting diagnostics.'
         : 'Could not save the report. Check the destination and try again.');
     }
     finally { setExporting(false); }
   }
   return <section className="diagnostics-recording" aria-labelledby="diagnostics-recording-title">
-    <h3 id="diagnostics-recording-title">Resource recording</h3>
+    <h3 id="diagnostics-recording-title">Debug recording</h3>
+    <p>Developer mode records capture startup, FFmpeg errors, source and encoder selection, host events, and failed commands. Export after reproducing the problem.</p>
     <SettingSwitch settingId="diagnostics.detailed" title="Detailed resource diagnostics"
       description="Samples every 5 seconds. Adds measurement overhead."
-      checked={snapshot.settings.detailedDiagnostics} disabled={pending}
+      checked={recording} disabled={pending || !developerMode}
       onCheckedChange={enabled => {
         setMessage('');
         setPending(true);
@@ -34,10 +37,10 @@ export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) 
       }} />
     <div className="resource-debug-report">
       <div className="resource-debug-actions">
-        <p role="status" data-recording={snapshot.settings.detailedDiagnostics}>{pending ? 'Saving…' : snapshot.settings.detailedDiagnostics
-          ? debug ? `Recording since ${new Date(debug.startedAt).toLocaleTimeString()}` : 'Collecting the first sample…'
-          : 'Not recording'}</p>
-        <Button variant="secondary" size="sm" disabled={exporting || pending} onClick={() => void exportReport()} title="Export the latest recording. Available until restart or a new recording.">{exporting ? 'Exporting…' : 'Export resource report'}</Button>
+        <p role="status" data-recording={recording}>{pending ? 'Saving…' : recording
+          ? debug ? `Events and resources · since ${new Date(debug.startedAt).toLocaleTimeString()}` : 'Events recording · collecting resource sample…'
+          : developerMode ? 'Events recording · resource sampling off' : 'Developer mode is off'}</p>
+        <Button variant="secondary" size="sm" disabled={exporting || pending || !developerMode} onClick={() => void exportReport()} title="Save the event timeline, capture state, Windows and GPU details, and any resource samples. Paths and credentials are redacted.">{exporting ? 'Exporting…' : 'Export diagnostics'}</Button>
       </div>
       {message && <p role="status">{message}</p>}
       {debug && <>

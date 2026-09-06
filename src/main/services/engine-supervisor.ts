@@ -1,4 +1,5 @@
 import { debugDiagnostics } from './debug-diagnostics';
+import { developerDiagnostics } from './developer-diagnostics';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -11,6 +12,7 @@ import {
   audioMeterFrameSchema,
   engineKindSchema,
   engineStatusSchema,
+  nativeDiagnosticsInputSchema,
   type AudioMeterFrame,
   type EngineKind,
   type EngineStatus,
@@ -74,6 +76,11 @@ export class EngineSupervisor {
     return structuredClone(this.statuses.get(kind) ?? this.stoppedStatus(kind));
   }
 
+  public hasLiveProcess(kind: EngineKind): boolean {
+    const worker = this.processes.get(kind);
+    return Boolean(worker?.pid && worker.exitCode === null && worker.signalCode === null);
+  }
+
   public start(kind: EngineKind): Promise<EngineStatus> {
     const existing = this.processes.get(kind);
     if (existing?.pid) return Promise.resolve(this.getStatus(kind));
@@ -131,11 +138,38 @@ export class EngineSupervisor {
   public send(kind: EngineKind, command: string, payload?: unknown): void {
     const worker = this.processes.get(kind);
     if (!worker?.pid) return;
+    if (command !== 'setMeterDemand') developerDiagnostics.record(kind, 'debug', 'host.send', { command });
     debugDiagnostics.measure(`host.send:${kind}:${command}`, () => this.sendEnvelope(worker, { command, payload }));
   }
 
   public request<T>(kind: EngineKind, command: string, payload?: unknown, timeoutMs = 10_000): Promise<T> {
-    return debugDiagnostics.measureAsync(`host.request:${kind}:${command}`, () => this.requestUnmeasured<T>(kind, command, payload, timeoutMs));
+    if (!developerDiagnostics.enabled) {
+      return debugDiagnostics.measureAsync(`host.request:${kind}:${command}`, () => this.requestUnmeasured<T>(kind, command, payload, timeoutMs));
+    }
+    return debugDiagnostics.measureAsync(`host.request:${kind}:${command}`, async () => {
+      const started = performance.now();
+      const recording = developerDiagnostics.recordingId;
+      const request = randomUUID();
+      developerDiagnostics.record(kind, 'debug', 'host.request', { command, request, timeoutMs });
+      try {
+        const result = await this.requestUnmeasured<T>(kind, command, payload, timeoutMs);
+        if (recording === developerDiagnostics.recordingId) developerDiagnostics.record(kind, 'debug', 'host.response', { command, request, elapsedMs: performance.now() - started });
+        return result;
+      } catch (error) {
+        if (recording === developerDiagnostics.recordingId) developerDiagnostics.record(kind, 'error', 'host.request-failed', {
+          command, request, elapsedMs: performance.now() - started,
+          error: String(error).slice(0, 4096),
+        });
+        throw error;
+      }
+    });
+  }
+
+  public async syncDeveloperDiagnostics(): Promise<void> {
+    const worker = this.processes.get('capture');
+    if (worker?.pid && worker.exitCode === null && worker.signalCode === null) {
+      await this.request('capture', 'setDiagnostics', nativeDiagnosticsInputSchema.parse({ enabled: developerDiagnostics.enabled }));
+    }
   }
 
   private requestUnmeasured<T>(kind: EngineKind, command: string, payload: unknown, timeoutMs: number): Promise<T> {
@@ -223,6 +257,8 @@ export class EngineSupervisor {
     const resolved = this.resolveCaptureHost();
     const environment = { ...process.env };
     delete environment.ELECTRON_RUN_AS_NODE;
+    environment.SWITCHBOARD_DEVELOPER_DIAGNOSTICS = developerDiagnostics.enabled ? '1' : '0';
+    developerDiagnostics.record('capture', 'info', 'host.spawn', { packaged: app.isPackaged });
     return spawn(resolved.command, resolved.arguments, {
       cwd: app.isPackaged ? join(process.resourcesPath, 'capture-host') : app.getAppPath(),
       env: environment,
@@ -235,6 +271,7 @@ export class EngineSupervisor {
     const resolved = this.resolveAudioHost();
     const environment = { ...process.env };
     delete environment.ELECTRON_RUN_AS_NODE;
+    developerDiagnostics.record('audio', 'info', 'host.spawn', { packaged: app.isPackaged });
     return spawn(resolved.command, resolved.arguments, {
       cwd: app.isPackaged ? join(process.resourcesPath, 'audio-host') : app.getAppPath(),
       env: environment,
@@ -247,17 +284,22 @@ export class EngineSupervisor {
     const lines = createInterface({ input: worker.stdout });
     lines.on('line', (line) => {
       try { this.handleWorkerMessage(kind, JSON.parse(line)); }
-      catch (error) { console.warn(`[${kind}] ignored malformed host output`, error); }
+      catch (error) {
+        developerDiagnostics.record(kind, 'error', 'host.invalid-json', { error: String(error).slice(0, 4096) });
+        console.warn(`[${kind}] ignored malformed host output`, error);
+      }
     });
     worker.stderr.on('data', (chunk) => {
       const message = String(chunk).trim();
       if (message) {
+        developerDiagnostics.record(kind, 'warning', 'host.stderr', { message: message.slice(-4096) });
         const previous = this.lastStderr.get(kind) ?? '';
         this.lastStderr.set(kind, `${previous}${previous ? '\n' : ''}${message}`.slice(-4096));
         console.warn(`[${kind}] ${message}`);
       }
     });
     worker.stdin.on('error', (streamError) => {
+      developerDiagnostics.record(kind, 'error', 'host.stdin-error', { error: streamError.message.slice(0, 4096) });
       console.warn(`[${kind}] engine stdin error`, streamError);
     });
     worker.on('error', (processError) => this.handleProcessError(kind, processError));
@@ -265,6 +307,7 @@ export class EngineSupervisor {
     (worker as unknown as EventEmitter).on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
       if (this.processes.get(kind) === worker) this.processes.delete(kind);
       const expected = this.expectedStops.delete(kind);
+      developerDiagnostics.record(kind, expected ? 'info' : 'error', 'host.exit', { code, signal, expected, pid: worker.pid ?? null });
       const stderrTail = (this.lastStderr.get(kind) ?? '').trim().split('\n').slice(-3).join(' ').slice(0, 240);
       const exitDetail = signal ? `signal ${signal}` : `code ${code ?? 'unknown'}`;
       const detail = stderrTail ? ` (${exitDetail}; ${stderrTail})` : ` (${exitDetail})`;
@@ -280,6 +323,7 @@ export class EngineSupervisor {
   }
 
   private handleProcessError(kind: EngineKind, error: Error): void {
+    developerDiagnostics.record(kind, 'error', 'host.process-error', { error: error.message.slice(0, 4096) });
     this.failPending(kind, error);
     this.updateStatus({ ...this.stoppedStatus(kind), state: 'error', message: error.message });
   }
@@ -287,6 +331,7 @@ export class EngineSupervisor {
   private handleWorkerMessage(kind: EngineKind, raw: unknown): void {
     const parsed = workerMessageSchema.safeParse(raw);
     if (!parsed.success) {
+      developerDiagnostics.record(kind, 'error', 'host.invalid-message', { issues: parsed.error.issues.map(issue => `${issue.path.join('.')}:${issue.code}`).join(', ').slice(0, 4096) });
       console.warn(`[${kind}] ignored malformed worker message`, parsed.error);
       return;
     }
@@ -307,6 +352,10 @@ export class EngineSupervisor {
     }
 
     if (message.type === 'event') {
+      if (message.event === 'captureDiagnostic' && kind === 'capture') {
+        developerDiagnostics.receive('capture', message.payload);
+        return;
+      }
       this.onEvent(kind, message.event, message.payload);
       return;
     }
@@ -436,6 +485,13 @@ export class EngineSupervisor {
 
   private updateStatus(status: EngineStatus): void {
     const normalized = engineStatusSchema.parse({ ...status, updatedAt: new Date().toISOString() });
+    const previous = this.statuses.get(status.kind);
+    if (previous?.state !== normalized.state || previous?.message !== normalized.message || previous?.pid !== normalized.pid) {
+      developerDiagnostics.record(status.kind, normalized.state === 'error' ? 'error' : 'info', 'host.state', {
+        state: normalized.state, previousState: previous?.state ?? null, pid: normalized.pid ?? null,
+        message: normalized.message?.slice(0, 4096) ?? null,
+      });
+    }
     this.statuses.set(status.kind, normalized);
     this.onStatus(structuredClone(normalized));
   }

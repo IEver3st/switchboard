@@ -2,6 +2,22 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+// A real child process that imitates FFmpeg's probe/failed-start protocol without
+// capturing a display or touching a physical encoder. Also used by native UI QA.
+if (Environment.GetEnvironmentVariable("SWITCHBOARD_CAPTURE_FAILURE_FIXTURE") == "1")
+{
+    if (args.Contains("-encoders")) Console.WriteLine("h264_amf libx264");
+    else if (args.Contains("-filters")) Console.WriteLine("gfxcapture ddagrab");
+    else if (args.Contains("-version")) Console.WriteLine("FFmpeg capture failure fixture (not a real encoder)");
+    else if (!args.Any(argument => argument.StartsWith("color=size=", StringComparison.Ordinal)))
+    {
+        Console.Error.WriteLine("[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)");
+        Console.Error.WriteLine("Task finished with error code: -1313558101 (Unknown error occurred)");
+        Environment.ExitCode = -1313558101;
+    }
+    return;
+}
+
 if (args.Contains("--job-child", StringComparer.Ordinal))
 {
     await Task.Delay(TimeSpan.FromMinutes(5));
@@ -94,6 +110,8 @@ AssertEqual(
     "Stereo system audio must retain the configured AAC bitrate.");
 
 AssertRemuxStdinIsolation();
+await AssertFfmpegCaptureDiagnosticsAsync();
+await AssertCaptureStartupFailureAsync();
 
 var operations = new OperationTracker();
 operations.Track(Task.CompletedTask);
@@ -491,6 +509,100 @@ static void AssertRemuxStdinIsolation()
         ValuesFollowing(chatArguments, "-map"),
         ["0:v:0", "1:a:0", "2:a:0", "3:a:0"],
         "Game, chat, and microphone must each keep their own clip track when chat capture is enabled.");
+}
+
+static async Task AssertFfmpegCaptureDiagnosticsAsync()
+{
+    const string driverError = "[h264_amf @ 000001] encoder initialization failed: AMF error=1";
+    using var input = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(string.Join('\n', new[]
+    {
+        "frame=2", "fps=0.0", "stream_0_0_q=0.0", "bitrate=N/A", "total_size=0",
+        "out_time_us=0", "out_time_ms=0", "out_time=00:00:00.000000", "dup_frames=0",
+        "drop_frames=1", "speed=N/A", "progress=continue", driverError,
+        "Task finished with error code: -1313558101 (Unknown error occurred)", "progress=end",
+    })));
+    using var reader = new StreamReader(input);
+    long frames = 0;
+    var dropped = 0;
+    var diagnostics = await FfmpegCaptureOutput.ReadAsync(reader, value => frames = value,
+        value => dropped = value, CancellationToken.None);
+    AssertValue(2L, frames, "FFmpeg frame telemetry must survive diagnostic collection.");
+    AssertValue(1, dropped, "FFmpeg dropped-frame telemetry must survive diagnostic collection.");
+    AssertEqual(driverError + "\nTask finished with error code: -1313558101 (Unknown error occurred)",
+        diagnostics, "Retain driver diagnostics, including equals signs, without progress records.");
+    AssertValue(true, FfmpegCaptureOutput.FailureMessage(-1313558101, diagnostics, duringStartup: true)
+        .Contains(driverError), "Startup failures must expose the encoder reason instead of only an exit code.");
+
+    using var noisyInput = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(string.Join('\n',
+        Enumerable.Range(0, 30).Select(index => $"diagnostic-{index}:" + new string('x', 500)))));
+    using var noisyReader = new StreamReader(noisyInput);
+    var tail = await FfmpegCaptureOutput.ReadAsync(noisyReader, _ => { }, _ => { }, CancellationToken.None);
+    AssertValue(FfmpegCaptureOutput.MaximumLines, tail.Split('\n').Length,
+        "A noisy failed encoder must retain only the bounded diagnostic tail.");
+    AssertValue(true, tail.Split('\n').All(line => line.Length <= FfmpegCaptureOutput.MaximumLineLength),
+        "Each retained FFmpeg diagnostic must be bounded.");
+    AssertValue(true, tail.StartsWith("diagnostic-18:") && tail.Contains("diagnostic-29:"),
+        "Diagnostic retention must keep the newest lines.");
+
+    using var emptyReader = new StreamReader(new MemoryStream());
+    var empty = await FfmpegCaptureOutput.ReadAsync(emptyReader, _ => { }, _ => { }, CancellationToken.None);
+    AssertEqual("FFmpeg capture exited during startup with code -1.",
+        FfmpegCaptureOutput.FailureMessage(-1, empty, duringStartup: true),
+        "An empty retry must not reuse the previous process's driver failure.");
+}
+
+static async Task AssertCaptureStartupFailureAsync()
+{
+    if (!OperatingSystem.IsWindows()) return;
+    var executable = Environment.ProcessPath ?? throw new InvalidOperationException("The test executable is unavailable.");
+    var root = Directory.CreateTempSubdirectory("switchboard-capture-failure-").FullName;
+    var variables = new[] { "SWITCHBOARD_FFMPEG", "SWITCHBOARD_FFPROBE", "SWITCHBOARD_CAPTURE_FAILURE_FIXTURE" };
+    var previous = variables.ToDictionary(name => name, Environment.GetEnvironmentVariable);
+    try
+    {
+        Environment.SetEnvironmentVariable("SWITCHBOARD_FFMPEG", executable);
+        Environment.SetEnvironmentVariable("SWITCHBOARD_FFPROBE", executable);
+        Environment.SetEnvironmentVariable("SWITCHBOARD_CAPTURE_FAILURE_FIXTURE", "1");
+        await using var engine = new ReplayEngine();
+        var diagnostics = new List<CaptureDiagnostic>();
+        engine.Diagnostics.Recorded += diagnostics.Add;
+        var settings = new CaptureSettings(Source: "display", Encoder: "amf", Resolution: "1080p", Fps: 30,
+            IncludeMic: false, IncludeSystemAudio: false,
+            CacheDirectory: Path.Combine(root, "cache"), ClipsDirectory: Path.Combine(root, "clips"));
+        await ExpectFailureAsync(() => engine.StartAsync(settings, CancellationToken.None));
+        AssertValue(0, diagnostics.Count, "Developer mode off must not emit capture diagnostics.");
+        AssertEqual("error", engine.GetSnapshot().Runtime.State, "A failed encoder must publish error, not waiting or ready.");
+        AssertValue(true, engine.FfmpegProcessId is null, "Startup failure must release the FFmpeg child.");
+
+        engine.SetDiagnosticsEnabled(true);
+        await ExpectFailureAsync(() => engine.ConfigureAsync(settings with { Encoder = "software" }, CancellationToken.None));
+        AssertValue(true, diagnostics.Any(row => row.Event == "ffmpeg.output"
+            && row.Data.Values.Any(value => value?.ToString()?.Contains("0x80070057") == true)),
+            "The developer trace must contain the original FFmpeg graphics failure.");
+        AssertValue(true, diagnostics.Any(row => row.Event == "ffmpeg.start"), "Trace the actual FFmpeg startup arguments.");
+        AssertValue(true, diagnostics.Any(row => row.Event == "capture.configure-failed"), "Trace failed recovery from an earlier start.");
+        AssertEqual("error", engine.GetSnapshot().Runtime.State, "Software retry failure must retain a canonical error state.");
+        AssertValue(true, engine.FfmpegProcessId is null, "Retry failure must not retain an encoder process.");
+
+        engine.SetDiagnosticsEnabled(false);
+        var recordedBeforeDisable = diagnostics.Count;
+        await ExpectFailureAsync(() => engine.ConfigureAsync(settings, CancellationToken.None));
+        await engine.StopAsync(CancellationToken.None);
+        AssertValue(recordedBeforeDisable, diagnostics.Count, "Turning diagnostics off must stop native events immediately.");
+        AssertEqual("stopped", engine.GetSnapshot().Runtime.State, "Repeated failed starts must still stop cleanly.");
+    }
+    finally
+    {
+        foreach (var (name, value) in previous) Environment.SetEnvironmentVariable(name, value);
+        Directory.Delete(root, recursive: true);
+    }
+
+    static async Task ExpectFailureAsync(Func<Task<CaptureHostSnapshot>> action)
+    {
+        try { await action(); }
+        catch (InvalidOperationException error) when (error.Message.Contains("0x80070057") && error.Message.Contains("-1313558101")) { return; }
+        throw new InvalidOperationException("Capture startup must retain the child's explanatory stderr and exit code.");
+    }
 }
 
 static void AssertEqual(string expected, string actual, string message)

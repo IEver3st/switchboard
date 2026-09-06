@@ -14,6 +14,18 @@ import { registerMontageV2Ipc } from './montage-v2-ipc';
 import { disposeMontageV2Service, getMontageV2Service } from './services/montage-v2';
 import { disposePreparedShareService } from './services/prepared-share';
 import { consumeBackgroundUpdate, markBackgroundUpdate, readSoftwareRenderingPreference } from './startup-settings';
+import { developerDiagnostics } from './services/developer-diagnostics';
+
+process.on('uncaughtExceptionMonitor', (error, origin) => {
+  developerDiagnostics.record('main', 'error', 'process.uncaught-exception', {
+    origin, error: (error.stack ?? error.message).slice(0, 4096),
+  });
+});
+app.on('child-process-gone', (_event, details) => {
+  developerDiagnostics.record('main', 'error', 'process.child-exited', {
+    type: details.type, reason: details.reason, exitCode: details.exitCode,
+  });
+});
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -117,11 +129,16 @@ function createWindow(): BrowserWindow {
   });
   window.webContents.on('will-attach-webview', (event) => event.preventDefault());
   window.webContents.on('render-process-gone', (_event, details) => {
+    developerDiagnostics.record('renderer', 'error', 'renderer.exited', { reason: details.reason, exitCode: details.exitCode });
     console.error('Switchboard renderer exited.', details.reason);
   });
   window.webContents.on('did-fail-load', (_event, code, description, url) => {
+    developerDiagnostics.record('renderer', 'error', 'renderer.load-failed', { code, description: description.slice(0, 4096) });
     console.error(`Failed to load renderer (${code}): ${description}`, url);
   });
+
+  window.on('unresponsive', () => developerDiagnostics.record('renderer', 'warning', 'renderer.unresponsive'));
+  window.on('responsive', () => developerDiagnostics.record('renderer', 'info', 'renderer.responsive'));
 
   window.on('close', (event) => {
     if (quitting || !controller?.getSnapshot().settings.closeToTray) return;

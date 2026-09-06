@@ -4,6 +4,9 @@ import { renderMontageV2 } from './services/montage-v2-renderer';
 import { montageProjectV2Schema } from '../shared/montage-v2';
 import { editedDurationMs, hasVideoEdits } from '../shared/video-edits';
 import { debugDiagnostics } from './services/debug-diagnostics';
+import { developerDiagnostics } from './services/developer-diagnostics';
+import { captureDiagnosticContext, captureDiagnosticSettings, diagnosticGpuInfo } from './services/diagnostics-export';
+import { release as osRelease, version as osVersion } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
@@ -217,6 +220,8 @@ export class AppController {
   private initialization: Promise<void> | null = null;
   private disposed = false;
   private rendererActive = true;
+  private diagnosticsGeneration = 0;
+  private diagnosticsGpu: ReturnType<typeof diagnosticGpuInfo> | { unavailable: string } = { unavailable: 'Developer mode is off.' };
 
   public constructor(options: AppControllerOptions = {}) {
     this.store = new StateStore(join(app.getPath('userData'), 'switchboard-state.json'));
@@ -224,6 +229,7 @@ export class AppController {
       directory: join(app.getPath('userData'), 'diagnostics', 'resources'),
       getRetentionDays: () => this.store.get().settings.diagnosticsRetentionDays,
     });
+    developerDiagnostics.setSink(event => this.resourceJournal.record(event));
     this.appUpdates = new AppUpdateService({
       currentVersion: currentCoreVersion(),
       isPackaged: app.isPackaged,
@@ -342,6 +348,7 @@ export class AppController {
       draft.version = currentCoreVersion();
       draft.prototypeMode = !app.isPackaged;
     }, { persist: false });
+    await this.syncDeveloperDiagnostics();
   }
 
   private async initializeOnce(): Promise<void> {
@@ -1053,6 +1060,7 @@ export class AppController {
       };
     }
     const nextConfig = captureConfigSchema.parse({ ...before.capture.config, ...mergedInput });
+    developerDiagnostics.record('main', 'info', 'capture.configure-requested', captureDiagnosticSettings(nextConfig));
     const requestedHotkey = input.hotkey;
     const hotkeyChanged = typeof requestedHotkey === 'string' && requestedHotkey !== before.capture.config.hotkey;
 
@@ -1117,7 +1125,18 @@ export class AppController {
         }
       }
     } catch (operationError) {
+      developerDiagnostics.record('main', 'error', 'capture.configure-rejected', {
+        error: String(operationError).slice(0, 4096), previousSource: before.capture.config.source,
+        requestedSource: nextConfig.source, requestedEncoder: nextConfig.encoder,
+      });
       if (hotkeyChanged) this.registerCaptureShortcut(before.capture.config.hotkey, false);
+      if (nextConfig.enabled) {
+        this.store.update(draft => {
+          draft.capture.runtime.state = 'error';
+          draft.capture.runtime.error = operationError instanceof Error ? operationError.message : String(operationError);
+          draft.capture.runtime.warning = undefined;
+        }, { persist: false });
+      }
       throw operationError;
     }
 
@@ -1304,7 +1323,9 @@ export class AppController {
   }
 
   public async refreshCaptureSources(): Promise<SystemSnapshot> {
-    const wasRunning = this.store.get().capture.config.enabled;
+    // Source enumeration owns only a host it started. During first enable, the
+    // recorder can already be running before the accepted config is persisted.
+    const wasRunning = this.engines.hasLiveProcess('capture');
     if (!wasRunning) await this.engines.start('capture');
     try {
       const sources = z.array(captureSourceSchema).parse(
@@ -1368,21 +1389,24 @@ export class AppController {
     const snapshot = this.store.update((draft) => {
       draft.settings = { ...draft.settings, ...input };
       if (disablingDeveloperMode) {
+        draft.settings.detailedDiagnostics = false;
         draft.audio.enabled = false;
         const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
         if (module) module.enabled = false;
       }
     });
 
-    if (typeof input.detailedDiagnostics === 'boolean' && input.detailedDiagnostics !== diagnosticsWereEnabled) {
-      debugDiagnostics.setEnabled(input.detailedDiagnostics);
-      if (input.detailedDiagnostics) this.performance.clearDebugHistory();
+    const diagnosticsEnabled = this.store.getDetailedDiagnosticsEnabled();
+    if (diagnosticsEnabled !== diagnosticsWereEnabled) {
+      debugDiagnostics.setEnabled(diagnosticsEnabled);
+      if (diagnosticsEnabled) this.performance.clearDebugHistory();
       else {
         this.performance.invalidateDebugSample();
         this.store.update(draft => { delete draft.performance.debug; }, { persist: false });
       }
       this.performance.refresh();
     }
+    if (typeof input.developerMode === 'boolean') await this.syncDeveloperDiagnostics();
     if (typeof input.launchAtStartup === 'boolean') {
       this.applyLoginItemSetting(input.launchAtStartup);
     }
@@ -1401,21 +1425,64 @@ export class AppController {
   }
 
   public async exportResourceDiagnostics(): Promise<boolean> {
+    if (!developerDiagnostics.enabled) throw new Error('Enable Developer mode before exporting diagnostics.');
     const samples = this.performance.getDebugHistory();
-    if (!samples.length) throw new Error('Enable detailed diagnostics and wait for a resource sample before exporting.');
+    developerDiagnostics.record('main', 'info', 'diagnostics.export-requested', { resourceSamples: samples.length });
     const result = await dialog.showSaveDialog({
-      title: 'Export resource diagnostics',
-      defaultPath: `switchboard-resources-${Date.now()}.json`,
+      title: 'Export diagnostics',
+      defaultPath: `switchboard-diagnostics-${Date.now()}.json`,
       filters: [{ name: 'JSON report', extensions: ['json'] }],
     });
     if (result.canceled || !result.filePath) return false;
+    if (!developerDiagnostics.enabled) throw new Error('Developer mode was disabled before the export completed.');
+    const snapshot = this.store.get();
     await writeFile(result.filePath, JSON.stringify({
-      schemaVersion: 1, version: this.store.get().version, exportedAt: new Date().toISOString(),
+      schemaVersion: 2, version: snapshot.version, exportedAt: new Date().toISOString(),
       droppedJournalWrites: this.resourceJournal.getDroppedWrites(),
-      limits: 'Last 120 debug samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. No payloads or media paths are collected.',
+      limits: 'Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.',
+      environment: {
+        platform: process.platform, arch: process.arch, windowsRelease: osRelease(), windowsVersion: osVersion(),
+        electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
+        packaged: app.isPackaged, softwareRendering: snapshot.settings.softwareRendering,
+        graphics: this.diagnosticsGpu, graphicsFeatures: app.getGPUFeatureStatus(),
+        displays: screen.getAllDisplays().map(display => ({
+          width: display.size.width, height: display.size.height, scaleFactor: display.scaleFactor,
+          displayFrequency: display.displayFrequency, colorDepth: display.colorDepth, rotation: display.rotation,
+        })),
+      },
+      capture: captureDiagnosticContext(snapshot),
+      developer: developerDiagnostics.snapshot(),
       samples,
     }, null, 2), 'utf8');
     return true;
+  }
+
+  private async syncDeveloperDiagnostics(): Promise<void> {
+    const enabled = this.store.get().settings.developerMode === true;
+    if (enabled === developerDiagnostics.enabled) return;
+    const generation = ++this.diagnosticsGeneration;
+    developerDiagnostics.setEnabled(enabled);
+    this.diagnosticsGpu = { unavailable: enabled ? 'GPU metadata is being collected.' : 'Developer mode is off.' };
+    try { await this.engines.syncDeveloperDiagnostics(); }
+    catch (error) {
+      developerDiagnostics.record('main', 'warning', 'diagnostics.host-sync-failed', { error: String(error).slice(0, 4096) });
+    }
+    if (generation !== this.diagnosticsGeneration || !enabled || !developerDiagnostics.enabled) return;
+    developerDiagnostics.record('main', 'info', 'environment', {
+      version: currentCoreVersion(), platform: process.platform, arch: process.arch,
+      osRelease: osRelease(), osVersion: osVersion(), electron: process.versions.electron ?? '',
+      packaged: app.isPackaged, softwareRendering: this.store.get().settings.softwareRendering,
+    });
+    developerDiagnostics.record('main', 'info', 'capture.settings', captureDiagnosticSettings(this.store.get().capture.config));
+    void app.getGPUInfo('complete').then(info => {
+      if (generation !== this.diagnosticsGeneration || !developerDiagnostics.enabled) return;
+      this.diagnosticsGpu = diagnosticGpuInfo(info);
+      developerDiagnostics.record('main', 'info', 'graphics.info', { details: JSON.stringify(this.diagnosticsGpu).slice(0, 4096) });
+    }).catch(error => {
+      if (generation !== this.diagnosticsGeneration || !developerDiagnostics.enabled) return;
+      this.diagnosticsGpu = { unavailable: 'GPU metadata query failed.' };
+      developerDiagnostics.record('main', 'warning', 'graphics.query-failed', { error: String(error).slice(0, 4096) });
+    });
   }
 
   public async checkAppUpdates(): Promise<SystemSnapshot> {
@@ -1482,6 +1549,7 @@ export class AppController {
         draft.settings.installAppUpdatesWhenIdle = defaultSettings.installAppUpdatesWhenIdle;
         draft.settings.developerMode = defaultSettings.developerMode;
         if (defaultSettings.developerMode !== true) {
+          draft.settings.detailedDiagnostics = false;
           draft.audio.enabled = false;
           const audioModule = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
           if (audioModule) audioModule.enabled = false;
@@ -1514,7 +1582,8 @@ export class AppController {
         draft.settings.diagnosticsRetentionDays = defaultSettings.diagnosticsRetentionDays;
       }
     });
-    if (scope === 'all' || scope === 'diagnostics') {
+    if (scope === 'all' || scope === 'general') await this.syncDeveloperDiagnostics();
+    if (scope === 'all' || scope === 'diagnostics' || scope === 'general' && !snapshot.settings.developerMode) {
       this.performance.invalidateDebugSample();
       debugDiagnostics.setEnabled(false);
       snapshot = this.store.update(draft => { delete draft.performance.debug; }, { persist: false });
@@ -1891,6 +1960,8 @@ export class AppController {
   public async dispose(): Promise<void> {
     this.disposed = true;
     debugDiagnostics.dispose();
+    developerDiagnostics.dispose();
+    this.diagnosticsGeneration++;
     this.performance.dispose();
     await this.resourceJournal.dispose();
     for (const controller of this.activeClipExports.values()) controller.abort();
@@ -2115,8 +2186,12 @@ export class AppController {
     );
     if (status.kind === 'capture' && status.state === 'error') {
       void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
-      this.scheduleCaptureHostRecovery(status.message);
-    } else if (status.kind === 'capture' && status.state === 'stopped' && this.store.get().capture.config.enabled) {
+      // A live host reports encoder/source failures without exiting. Restarting that
+      // host with the last persisted settings hides a rejected source change as
+      // "Waiting" and discards its useful failure state. Only recover host exits.
+      if (!this.engines.hasLiveProcess('capture')) this.scheduleCaptureHostRecovery(status.message);
+    } else if (status.kind === 'capture' && status.state === 'stopped'
+      && !this.engines.hasLiveProcess('capture') && this.store.get().capture.config.enabled) {
       void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
       this.scheduleCaptureHostRecovery(status.message ?? 'Capture.Host stopped unexpectedly while Instant Replay stayed enabled.');
     } else if (status.kind === 'audio' && status.state === 'error') {
@@ -2295,7 +2370,12 @@ export class AppController {
     if (event === 'captureSnapshot') {
       const parsed = captureHostSnapshotSchema.safeParse(payload);
       if (parsed.success) this.applyCaptureSnapshot(parsed.data);
-      else console.warn('Capture.Host sent an invalid snapshot.', parsed.error);
+      else {
+        developerDiagnostics.record('main', 'error', 'capture.snapshot-rejected', {
+          issues: parsed.error.issues.map(issue => `${issue.path.join('.')}:${issue.code}`).join(', ').slice(0, 4096),
+        });
+        console.warn('Capture.Host sent an invalid snapshot.', parsed.error);
+      }
       return;
     }
     if (event === 'reactionDetected') {
@@ -2391,6 +2471,12 @@ export class AppController {
 
   private applyCaptureSnapshot(snapshot: CaptureHostSnapshot): void {
     if (!this.captureSnapshotUpdateGate.shouldApply(snapshot)) return;
+    developerDiagnostics.record('main', snapshot.runtime.error ? 'error' : 'debug', 'capture.snapshot-applied', {
+      state: snapshot.runtime.state, encoder: snapshot.runtime.encoderLabel, backend: snapshot.runtime.backendLabel,
+      encodedFrames: snapshot.runtime.encodedFrames, bufferedSeconds: snapshot.runtime.bufferedSeconds,
+      segmentCount: snapshot.runtime.segmentCount, activeSourceType: snapshot.runtime.activeSource?.type ?? null,
+      error: snapshot.runtime.error?.slice(0, 4096) ?? null, warning: snapshot.runtime.warning?.slice(0, 4096) ?? null,
+    });
     if (snapshot.runtime.state === 'buffering' || snapshot.runtime.state === 'waiting') {
       this.captureRestartAttempts = 0;
     }

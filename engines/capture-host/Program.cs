@@ -29,6 +29,11 @@ TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
     eventArgs.SetObserved();
 };
 await using var engine = new ReplayEngine();
+engine.Diagnostics.Recorded += diagnostic =>
+{
+    _ = WriteAsync(new { type = "event", @event = "captureDiagnostic", payload = diagnostic });
+};
+engine.SetDiagnosticsEnabled(Environment.GetEnvironmentVariable("SWITCHBOARD_DEVELOPER_DIAGNOSTICS") == "1");
 var previousCpuTime = Process.GetCurrentProcess().TotalProcessorTime + engine.ChildProcessorTime;
 var previousCpuSampleAt = Stopwatch.GetTimestamp();
 
@@ -73,6 +78,7 @@ async Task HandleLineAsync(string line)
         var payload = root.TryGetProperty("payload", out var body) ? body : default;
         object? result = command switch
         {
+            "setDiagnostics" => engine.SetDiagnosticsEnabled(ParseDiagnosticsEnabled(payload)),
             "start" => await engine.StartAsync(ParseSettings(payload), shutdown.Token),
             "configure" => await engine.ConfigureAsync(ParseSettings(payload), shutdown.Token),
             "stop" => await engine.StopAsync(shutdown.Token),
@@ -100,6 +106,14 @@ CaptureSettings ParseSettings(JsonElement payload)
         throw new InvalidOperationException("Capture settings are required.");
     return payload.Deserialize<CaptureSettings>(jsonOptions)?.Validate()
            ?? throw new InvalidOperationException("Capture settings could not be parsed.");
+}
+
+bool ParseDiagnosticsEnabled(JsonElement payload)
+{
+    if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty("enabled", out var enabled)
+        || enabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        throw new InvalidOperationException("Diagnostics requires a boolean enabled flag.");
+    return enabled.GetBoolean();
 }
 
 SaveReplayWindow? ParseSaveReplayWindow(JsonElement payload)

@@ -1,4 +1,4 @@
-import type { DebugDiagnostics } from '../../shared/contracts';
+import type { DebugDiagnostics, DeveloperDiagnosticEvent } from '../../shared/contracts';
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -106,7 +106,7 @@ export class ResourceJournal {
     this.startedAt = this.now();
   }
 
-  public record(sample: ResourceTelemetrySample): void {
+  public record(sample: ResourceTelemetrySample | DeveloperDiagnosticEvent): void {
     if (this.disposed) return;
     if (this.pendingWrites >= 4) { this.droppedWrites++; return; }
     const line = `${JSON.stringify(sample)}\n`;

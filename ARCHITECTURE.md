@@ -148,6 +148,14 @@ MP4 remux, no re-encode
 
 Automatic game capture holds a conservative, stable game-window identity and waits rather than switching to unrelated foreground applications. This does not claim exclusive-fullscreen graphics hooking; a future hook can implement the existing source boundary without changing renderer IPC.
 
+Capture source enumeration owns only a host it starts; it cannot stop a recorder
+whose first configuration is still being accepted. A live host's encoder/source
+error remains a capture error. Main restarts the host only after a process exit,
+so a failed configuration is not silently replaced with the previous automatic
+source. Developer mode enables a narrow native diagnostic event stream, validated,
+redacted, bounded, and journaled in main. It carries configuration summaries,
+FFmpeg startup/output, and lifecycle events without media buffers or window titles.
+
 Clip edits remain nondestructive metadata in the canonical clip record. Shared
 video-edit and managed-music schemas are composed into the clip and montage
 contracts. Source-time trims and titles survive speed changes and segment splits;

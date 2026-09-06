@@ -1257,6 +1257,25 @@ export const clipReviewStateSchema = z.object({
 });
 export type ClipReviewState = z.infer<typeof clipReviewStateSchema>;
 
+export const developerDiagnosticInputSchema = z.object({
+  level: z.enum(['debug', 'info', 'warning', 'error']),
+  event: z.string().min(1).max(96).regex(/^[a-zA-Z0-9_.:-]+$/),
+  data: z.record(z.string().max(64), z.union([
+    z.string().max(4096), z.number().finite(), z.boolean(), z.null(),
+  ])).refine((data) => Object.keys(data).length <= 24, 'Too many diagnostic fields'),
+});
+export type DeveloperDiagnosticInput = z.infer<typeof developerDiagnosticInputSchema>;
+export type DeveloperDiagnosticEvent = DeveloperDiagnosticInput & {
+  schemaVersion: 1;
+  kind: 'developer-event';
+  sessionId: string;
+  sequence: number;
+  sampledAt: string;
+  source: 'main' | 'capture' | 'audio' | 'renderer';
+};
+
+export const nativeDiagnosticsInputSchema = z.object({ enabled: z.boolean() });
+
 export const debugDiagnosticsSchema = z.object({
   startedAt: z.string(),
   sampledAt: z.string(),

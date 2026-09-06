@@ -201,6 +201,14 @@ The QuadCast 2 path holds one non-exclusive blocking-read handle for absolute ta
 
 ## Opt-in resource debugging
 
+Developer mode starts an event-driven diagnostic timeline with no extra polling
+timer. Main retains at most 2,000 events / 2 MiB, with an 8 KiB per-event limit
+and a 120-events-per-second cap; the capture host caps diagnostic emissions at
+60 per second. Events reuse the resource journal's bounded write queue and
+retention policy. Native health records reuse existing snapshots. Disabled
+Developer mode emits/retains no developer events and stops optional main/renderer
+resource probes. Existing capture processes are not restarted to toggle logging.
+
 Settings > Diagnostics provides detailed resource recording and local JSON export.
 It reuses the five-second sampler, keeps renderer publication at 30 seconds, and
 adds bounded operation counters plus a 20 ms main-loop probe only while enabled.

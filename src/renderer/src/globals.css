@@ -8229,6 +8229,7 @@ textarea:focus-visible {
 }
 
 .diagnostics-recording > h3 { margin-bottom: 8px; }
+.diagnostics-recording > p { max-width: 880px; margin: 0 0 12px; color: var(--text-description); font-size: 11px; line-height: 1.6; }
 .diagnostics-table { display: grid; min-width: 0; gap: 4px; }
 
 .diagnostics-readout {

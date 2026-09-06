@@ -66,7 +66,9 @@ export class StateStore {
     return debugDiagnostics.measure('state.clone', () => structuredClone(this.snapshot));
   }
 
-  public getDetailedDiagnosticsEnabled(): boolean { return this.snapshot.settings.detailedDiagnostics; }
+  public getDetailedDiagnosticsEnabled(): boolean {
+    return this.snapshot.settings.developerMode === true && this.snapshot.settings.detailedDiagnostics;
+  }
 
   public getPerformanceGuardEnabled(): boolean {
     return this.snapshot.settings.performanceGuard;

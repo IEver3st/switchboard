@@ -975,6 +975,13 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
       </section>
 
       <DiagnosticsSection title="Pipelines">
+        {captureRuntime.error ? <DiagnosticsReadout
+          settingId="diagnostics.capture-error"
+          title="Capture failure"
+          description={<span className="whitespace-pre-line">{captureRuntime.error}</span>}
+          value={captureRuntime.state}
+          tone="danger"
+        /> : null}
         <DiagnosticsReadout
           settingId="diagnostics.capture-path"
           title="Capture pipeline"
@@ -1063,7 +1070,7 @@ function EngineSummary({ title, engine }: { title: string; engine: SystemSnapsho
       <span className="diagnostics-eyebrow">{title} host</span>
       <strong><i className={cn('settings-status-dot', statusDotClass(engine?.state))} aria-hidden />{engine ? engineStateLabel(engine.state) : 'Unavailable'}</strong>
       {engine?.pid ? <span>PID {engine.pid}</span> : null}
-      {engine?.state === 'error' && engine.message ? <span className="diagnostics-engine-error">{engine.message}</span> : null}
+      {engine?.state === 'error' && engine.message ? <span className="diagnostics-engine-error line-clamp-3" title={engine.message}>{engine.message.split('\n')[0]}</span> : null}
     </article>
   );
 }

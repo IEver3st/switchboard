@@ -66,7 +66,8 @@ const pageTitles: Record<PageId, string> = {
 
 export function App() {
   const snapshot = useSystemStore((state) => state.snapshot);
-  useEffect(() => observeDebugRuntime(snapshot?.settings.detailedDiagnostics === true), [snapshot?.settings.detailedDiagnostics]);
+  useEffect(() => observeDebugRuntime(snapshot?.settings.developerMode === true && snapshot.settings.detailedDiagnostics),
+    [snapshot?.settings.developerMode, snapshot?.settings.detailedDiagnostics]);
   const page = useSystemStore((state) => state.page);
   const loading = useSystemStore((state) => state.loading);
   const error = useSystemStore((state) => state.error);

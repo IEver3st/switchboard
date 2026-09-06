@@ -1,4 +1,5 @@
 import { debugDiagnostics } from './services/debug-diagnostics';
+import { developerDiagnostics } from './services/developer-diagnostics';
 import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -72,7 +73,8 @@ function handle<TInput, TResult>(
 ): void {
   ipcMain.handle(channel, async (event, input) => {
     assertTrustedSender(event, getMainWindow);
-    return debugDiagnostics.measureAsync(`ipc:${channel}`, async () => action(parse(input)));
+    return developerDiagnostics.trace('main', `ipc:${channel}`, () =>
+      debugDiagnostics.measureAsync(`ipc:${channel}`, async () => action(parse(input))));
   });
 }
 

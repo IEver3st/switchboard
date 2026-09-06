@@ -1,10 +1,54 @@
 # Resource diagnostics
 
-Open **Settings > Diagnostics > Detailed resource diagnostics**. Enable it,
-reproduce the slowdown for at least 60 seconds, then choose **Export resource
-report**. The save dialog writes a local JSON file. Disable recording when done.
-The switch is off by default and persists across launches. Resetting Diagnostics
-or all settings disables it. No report is uploaded.
+Enable **Settings > General > Developer mode**, reproduce the problem, then open
+**Settings > Diagnostics > Export diagnostics**. Developer mode starts a local
+event timeline automatically. Export works immediately, including when capture
+fails before the first resource sample. No report is uploaded.
+
+For CPU, memory, or responsiveness investigations, also enable **Detailed
+resource diagnostics** and reproduce the slowdown for at least 60 seconds.
+This adds resource sampling to the same export. The resource switch is off by
+default and persists across launches. Disabling Developer mode disables both
+collectors and the renderer probe. Resetting Diagnostics stops resource sampling;
+the event timeline continues while Developer mode remains on.
+
+## Capture and application events
+
+The schema-version-2 export includes:
+
+- Windows build, Electron/Chromium versions, GPU names and driver versions,
+  graphics feature status, and display dimensions, refresh rates, and scaling.
+- Capture settings, current runtime/error state, backend and encoder capabilities,
+  source counts, storage headroom, and host/child process identities.
+- Native encoder probes, the FFmpeg version, selected capture filter and encoder
+  arguments, startup stderr, process exits, source resolution, state changes,
+  and recovery attempts. A video-attempt number connects a process to its output.
+- Main-process capture requests/rejections, host commands and responses with
+  request IDs and elapsed times, invalid host messages/snapshots, renderer exits,
+  failed loads, unresponsiveness, and IPC action failures. Command bodies and
+  window titles are not recorded.
+
+FFmpeg's normal bounded error tail is also retained in a startup exception, so
+an encoder failure no longer shows only a numeric code. In Diagnostics, **Capture
+failure** displays that explanation. A live host reporting a source/encoder
+failure remains in Error. Automatic host recovery applies to process exits;
+it must not reset a rejected source change back to Waiting.
+
+Developer events use no polling timer. They are captured as operations happen,
+with native health entries using the existing capture snapshot cadence. The
+in-memory export retains the latest 2,000 events within 2 MiB, at most 8 KiB per
+event, and at most 120 events per second. The native event source is capped at
+60 events per second. Discard/eviction counters make truncation visible.
+Native FFmpeg output remains at warning level; enabling Developer mode does not
+restart or interrupt an existing recording.
+
+Events are validated and redacted in main before retention and journal writes.
+Absolute paths, URLs, email addresses, and credential fields are redacted.
+Capture context uses an explicit field selection; it excludes clip paths,
+endpoint identifiers, window titles, command payloads, and media. Events are
+also appended to the existing rotating local resource journals. Turning
+Developer mode off clears its in-memory timeline; existing journal files follow
+the retention preference. Re-enabling starts a new session.
 
 ## What is measured
 
@@ -45,7 +89,7 @@ Utilization is unavailable when the embedded runtime supplies no active/idle
 time counters, rather than displaying a misleading zero.
 See the [Node performance API](https://nodejs.org/api/perf_hooks.html).
 
-The export contains at most 120 samples from the latest recording, plus its
+The resource portion of the export contains at most 120 samples from the latest recording, plus its
 cumulative operation counters (at most 128 labels, each at most 96 characters).
 Starting a new recording replaces that in-memory history. Stopping retains the
 report for export until restart or another recording. The exported counter for
@@ -78,7 +122,19 @@ operation that returns a promise. Use static labels or bounded code-owned
 module/command identities. Do not put user input, paths, device serial numbers,
 or request bodies in labels. The disabled collector retains no observations.
 
-Native review: build, then launch `scripts/verify-resource-diagnostics.mjs`
-through Electron with `ELECTRON_RUN_AS_NODE` removed. It uses an isolated fixture
-profile, saves evidence under `design-qa/resource-diagnostics`, and never writes
-to the installed app's settings or physical devices.
+For event logging, import `developerDiagnostics` from
+`src/main/services/developer-diagnostics.ts`. Use `record(source, level, event,
+data)` with code-owned event names and scalar fields, or `trace` around an action.
+The native host emits the shared `developerDiagnosticInputSchema` shape through
+`captureDiagnostic`; main discards it unless Developer mode is enabled.
+Do not pass arbitrary settings or source objects to the logger.
+
+Native review: build the app and run the capture-host tests in Release, then
+launch `scripts/verify-developer-diagnostics.mjs` through Electron with
+`ELECTRON_RUN_AS_NODE` removed. It uses one hidden, unfocused fixture profile,
+prevents all window/dialog shows, and substitutes a child process for FFmpeg.
+It checks a real host startup failure through the exported JSON, verifies Error
+does not revert to Waiting, kills only its isolated host to check recovery,
+tests developer/resource gates and export controls, and captures all three
+supported viewport sizes. Output goes to a new `design-qa/developer-diagnostics-*`
+directory. This is host/renderer integration proof, not physical RX 9070 capture.

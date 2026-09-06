@@ -11,6 +11,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly WindowsChildProcessJob childProcesses = new();
     private Process? ffmpeg;
+    private Task<string>? ffmpegOutputTask;
     private Process? systemAudioFfmpeg;
     private Process? chatAudioFfmpeg;
     private Process? microphoneFfmpeg;
@@ -46,6 +47,21 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private DateTimeOffset lastSourceRefresh;
     private string? reactionUnavailableReason;
     private DateTimeOffset reactionRetryAt;
+    private long videoAttempt;
+    private bool diagnosticVersionRecorded;
+
+    public CaptureDiagnostics Diagnostics { get; } = new();
+
+    public object SetDiagnosticsEnabled(bool enabled)
+    {
+        diagnosticVersionRecorded = false;
+        Diagnostics.SetEnabled(enabled);
+        Diagnostics.Write("info", "capture.diagnostics-context", () => new() {
+            ["state"] = operationalState, ["source"] = settings?.Source, ["encoder"] = encoderName,
+            ["backend"] = backendName, ["encodedFrames"] = encodedFrames,
+        });
+        return new { enabled };
+    }
 
     public event Action<CaptureHostSnapshot>? SnapshotChanged;
     public event Action<ReactionDetection>? ReactionDetected;
@@ -128,6 +144,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             startedAt = DateTimeOffset.UtcNow;
             EmitSnapshot();
 
+            Diagnostics.Write("info", "capture.start", () => DiagnosticSettings(next));
+
             PrepareStorage(next);
             await ProbeCapabilitiesAsync(next, cancellationToken);
             ValidateRequestedCapabilities(next);
@@ -152,6 +170,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         }
         catch (Exception startError)
         {
+            Diagnostics.Write("error", "capture.start-failed", () => new() { ["error"] = DiagnosticText(startError.ToString()) });
             operationalState = "error";
             error = startError.Message;
             await StopFfmpegInternalAsync(CancellationToken.None, preserveRing: true);
@@ -172,6 +191,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         {
             var previous = settings;
             settings = next;
+            Diagnostics.Write("info", "capture.configure", () => DiagnosticSettings(next));
             reactionDetector.Configure(
                 next.ReactionClippingEnabled,
                 next.ReactionSensitivity,
@@ -218,6 +238,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         }
         catch (Exception configureError)
         {
+            Diagnostics.Write("error", "capture.configure-failed", () => new() { ["error"] = DiagnosticText(configureError.ToString()) });
             operationalState = "error";
             error = configureError.Message;
             monitorCancellation?.Cancel();
@@ -515,8 +536,15 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     private async Task ProbeCapabilitiesAsync(CaptureSettings capture, CancellationToken cancellationToken)
     {
+        Diagnostics.Write("debug", "capabilities.probe-start", () => new() { ["cached"] = workingEncoders is not null });
         ffmpegPath = FfmpegLocator.FindFfmpeg();
         ffprobePath = FfmpegLocator.FindFfprobe(ffmpegPath);
+        if (Diagnostics.Enabled && !diagnosticVersionRecorded)
+        {
+            var version = await FfmpegLocator.ReadVersionAsync(ffmpegPath, cancellationToken);
+            Diagnostics.Write("info", "ffmpeg.version", () => new() { ["version"] = version });
+            diagnosticVersionRecorded = true;
+        }
         captureFilters ??= await FfmpegLocator.ReadCaptureFiltersAsync(ffmpegPath, cancellationToken);
         if (!captureFilters.Contains("gfxcapture") && !captureFilters.Contains("ddagrab"))
             throw new InvalidOperationException("This FFmpeg build has no Windows Graphics Capture or Desktop Duplication filter.");
@@ -528,12 +556,22 @@ internal sealed class ReplayEngine : IAsyncDisposable
             var detected = new List<string>();
             foreach (var candidate in AllEncoderCandidates().Where(compiled.Contains))
             {
-                if (await FfmpegLocator.ProbeEncoderAsync(ffmpegPath, candidate, cancellationToken)) detected.Add(candidate);
+                var probeStarted = Stopwatch.GetTimestamp();
+                var works = await FfmpegLocator.ProbeEncoderAsync(ffmpegPath, candidate, cancellationToken,
+                    detail => Diagnostics.Write("debug", "encoder.probe-output", () => new() { ["encoder"] = candidate, ["detail"] = detail }));
+                Diagnostics.Write("info", "encoder.probe-result", () => new() {
+                    ["encoder"] = candidate, ["working"] = works, ["elapsedMs"] = Stopwatch.GetElapsedTime(probeStarted).TotalMilliseconds,
+                });
+                if (works) detected.Add(candidate);
             }
             workingEncoders = detected;
         }
 
         encoderName = SelectEncoder(capture, workingEncoders);
+        Diagnostics.Write("info", "capabilities.selected", () => new() {
+            ["encoder"] = encoderName, ["backend"] = backendName,
+            ["workingEncoders"] = string.Join(",", workingEncoders), ["filters"] = string.Join(",", captureFilters),
+        });
         var codecs = new List<string>();
         if (workingEncoders.Any(name => name.StartsWith("h264", StringComparison.OrdinalIgnoreCase) || name == "libx264")) codecs.Add("h264");
         if (workingEncoders.Any(name => name.StartsWith("hevc", StringComparison.OrdinalIgnoreCase) || name == "libx265")) codecs.Add("hevc");
@@ -553,6 +591,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
         var capture = settings ?? throw new InvalidOperationException("Capture settings are missing.");
         if (ring is null) throw new InvalidOperationException("Replay ring is not initialized.");
         EnsureStorageHeadroom(capture, preventStart: true);
+        var attempt = ++videoAttempt;
+        Diagnostics.Write("info", "capture.source-resolved", () => new() {
+            ["attempt"] = attempt, ["type"] = source.Type, ["available"] = source.Available,
+            ["windowHandle"] = source.WindowHandle, ["displayHandle"] = source.DisplayHandle,
+            ["displayIndex"] = capture.DisplayIndex,
+        });
         if (sessionDirectory is not null)
         {
             ReplaySegmentRing.TryDeleteDirectory(sessionDirectory);
@@ -706,13 +750,25 @@ internal sealed class ReplayEngine : IAsyncDisposable
             await Task.WhenAll(audioConnections);
 
             var start = BuildStartInfo(capture, source, sessionDirectory);
+            Diagnostics.Write("info", "ffmpeg.start", () => new() {
+                ["attempt"] = attempt, ["encoder"] = encoderName, ["backend"] = backendName,
+                ["arguments"] = string.Join(" ", start.ArgumentList.Select(argument =>
+                    Path.IsPathRooted(argument) ? "<replay-output>" : argument)),
+            });
             ffmpeg = childProcesses.Start(start, "FFmpeg capture");
-            _ = ReadProgressAsync(ffmpeg.StandardError, lifetime.Token);
+            Diagnostics.Write("info", "ffmpeg.spawned", () => new() { ["attempt"] = attempt, ["pid"] = ffmpeg.Id });
+            ffmpegOutputTask = FfmpegCaptureOutput.ReadAsync(
+                ffmpeg.StandardError,
+                frames => encodedFrames = frames,
+                dropped => droppedFrames = dropped,
+                lifetime.Token,
+                line => Diagnostics.Write("warning", "ffmpeg.output", () => new() { ["attempt"] = attempt, ["line"] = line }));
             _ = DrainAsync(ffmpeg.StandardOutput, lifetime.Token);
 
             await Task.Delay(350, cancellationToken);
             if (ffmpeg.HasExited)
-                throw new InvalidOperationException($"FFmpeg capture exited during startup with code {ffmpeg.ExitCode}.");
+                throw new InvalidOperationException(FfmpegCaptureOutput.FailureMessage(
+                    ffmpeg.ExitCode, await ffmpegOutputTask, duringStartup: true));
             if (systemAudioFfmpeg is { HasExited: true })
                 audioWarnings.Add("The game-audio encoder exited during startup.");
             if (chatAudioFfmpeg is { HasExited: true })
@@ -725,6 +781,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             warning = audioWarnings.Count > 0 ? string.Join(" ", audioWarnings) : null;
             error = null;
             restartAttempts = 0;
+            Diagnostics.Write("info", "capture.buffering", () => new() { ["attempt"] = attempt, ["audioWarnings"] = DiagnosticText(string.Join(" ", audioWarnings)) });
         }
         catch
         {
@@ -980,6 +1037,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private async Task StopFfmpegInternalAsync(CancellationToken cancellationToken, bool preserveRing)
     {
         var process = ffmpeg;
+        var outputTask = ffmpegOutputTask;
+        Diagnostics.Write("debug", "capture.stop-processes", () => new() {
+            ["videoPid"] = process?.Id, ["videoExited"] = process?.HasExited,
+            ["exitCode"] = process is { HasExited: true } ? process.ExitCode : null,
+            ["preserveRing"] = preserveRing,
+        });
         var systemAudioProcess = systemAudioFfmpeg;
         var chatAudioProcess = chatAudioFfmpeg;
         var microphoneProcess = microphoneFfmpeg;
@@ -987,6 +1050,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         var chatAudioCapture = chatAudio;
         var microphoneCapture = microphoneAudio;
         ffmpeg = null;
+        ffmpegOutputTask = null;
         systemAudioFfmpeg = null;
         chatAudioFfmpeg = null;
         microphoneFfmpeg = null;
@@ -1003,6 +1067,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             StopProcessAsync(systemAudioProcess, cancellationToken),
             StopProcessAsync(chatAudioProcess, cancellationToken),
             StopProcessAsync(microphoneProcess, cancellationToken));
+        if (outputTask is not null) await outputTask;
         reactionDetector.Pause();
         reactionUnavailableReason = null;
         reactionRetryAt = DateTimeOffset.MinValue;
@@ -1161,6 +1226,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 }
                 catch (Exception monitorError)
                 {
+                    Diagnostics.Write("error", "capture.monitor-failed", () => new() { ["error"] = monitorError.Message[..Math.Min(4096, monitorError.Message.Length)] });
                     operationalState = "error";
                     error = monitorError.Message;
                     monitorCancellation?.Cancel();
@@ -1187,15 +1253,21 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private async Task RecoverCaptureAsync(CaptureSettings capture, CancellationToken cancellationToken)
     {
         restartAttempts++;
+        Diagnostics.Write("warning", "capture.recovery", () => new() { ["attempt"] = restartAttempts });
+        var failure = ffmpeg is { HasExited: true } exited
+            ? FfmpegCaptureOutput.FailureMessage(exited.ExitCode,
+                ffmpegOutputTask is null ? string.Empty : await ffmpegOutputTask, duringStartup: false)
+            : "Capture stopped unexpectedly.";
         await StopFfmpegInternalAsync(CancellationToken.None, preserveRing: true);
         if (restartAttempts > 3)
         {
             operationalState = "error";
-            error = "Capture failed repeatedly and automatic recovery was stopped.";
+            error = $"Capture failed repeatedly and automatic recovery was stopped.\n{failure}";
             return;
         }
 
         operationalState = "recovering";
+        warning = failure;
         EmitSnapshot();
         await Task.Delay(TimeSpan.FromSeconds(restartAttempts), cancellationToken);
         var source = capture.Source == "automatic-game"
@@ -1427,24 +1499,6 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "Chat",
             microphoneTitle);
 
-    private async Task ReadProgressAsync(StreamReader reader, CancellationToken cancellationToken)
-    {
-        try
-        {
-            while (await reader.ReadLineAsync(cancellationToken) is { } line)
-            {
-                var separator = line.IndexOf('=');
-                if (separator <= 0) continue;
-                var key = line[..separator];
-                var value = line[(separator + 1)..];
-                if (key == "frame" && long.TryParse(value, out var frames)) encodedFrames = frames;
-                if (key == "drop_frames" && int.TryParse(value, out var dropped)) droppedFrames = dropped;
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch (ObjectDisposedException) { }
-    }
-
     private static async Task DrainAsync(StreamReader reader, CancellationToken cancellationToken)
     {
         try { while (await reader.ReadLineAsync(cancellationToken) is not null) { } }
@@ -1454,8 +1508,33 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     private void EmitSnapshot()
     {
+        Diagnostics.Write(error is null ? "debug" : "error", "capture.state", () => new() {
+            ["state"] = operationalState, ["source"] = settings?.Source,
+            ["activeSourceType"] = activeSource?.Type, ["encoder"] = encoderName, ["backend"] = backendName,
+            ["encodedFrames"] = encodedFrames, ["droppedFrames"] = droppedFrames,
+            ["videoRunning"] = ffmpeg is { HasExited: false },
+            ["systemAudioRunning"] = systemAudioFfmpeg is { HasExited: false },
+            ["chatAudioRunning"] = chatAudioFfmpeg is { HasExited: false },
+            ["microphoneRunning"] = microphoneFfmpeg is { HasExited: false },
+            ["error"] = error is null ? null : error[..Math.Min(4096, error.Length)],
+        });
         try { SnapshotChanged?.Invoke(GetSnapshot()); } catch { }
     }
+
+    private static Dictionary<string, object?> DiagnosticSettings(CaptureSettings capture) => new() {
+        ["source"] = capture.Source, ["displayIndex"] = capture.DisplayIndex, ["encoder"] = capture.Encoder,
+        ["codec"] = capture.Codec, ["resolution"] = capture.Resolution, ["fps"] = capture.Fps,
+        ["replaySeconds"] = capture.ReplaySeconds, ["targetBitrate"] = capture.TargetVideoBitrateBps,
+        ["maximumBitrate"] = capture.MaximumVideoBitrateBps,
+        ["systemAudio"] = capture.IncludeSystemAudio, ["chatAudio"] = capture.IncludeChatAudio,
+        ["microphone"] = capture.IncludeMic, ["reactionClipping"] = capture.ReactionClippingEnabled,
+        ["hasSystemEndpoint"] = !string.IsNullOrWhiteSpace(capture.SystemAudioDeviceId),
+        ["hasChatEndpoint"] = !string.IsNullOrWhiteSpace(capture.ChatAudioDeviceId),
+        ["hasMicrophoneEndpoint"] = !string.IsNullOrWhiteSpace(capture.MicrophoneDeviceId),
+        ["usesAudioHostPipe"] = !string.IsNullOrWhiteSpace(capture.ClipMixPipeName),
+    };
+
+    private static string DiagnosticText(string text) => text[..Math.Min(4096, text.Length)];
 
     private IReadOnlyList<CaptureSource> GetCachedSources()
     {
