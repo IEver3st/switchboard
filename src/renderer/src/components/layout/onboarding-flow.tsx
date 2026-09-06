@@ -134,7 +134,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
   const [resolution, setResolution] = useState<CaptureResolution>(snapshot.capture.config.resolution);
   const [replaySeconds, setReplaySeconds] = useState(snapshot.capture.config.replaySeconds);
   const [hotkey, setHotkey] = useState(snapshot.capture.config.hotkey);
-  const [replay, setReplay] = useState(snapshot.capture.config.enabled);
+  const [replay, setReplay] = useState(!snapshot.settings.onboardingCompleted || snapshot.capture.config.enabled);
   const [includeMic, setIncludeMic] = useState(snapshot.capture.config.includeMic);
   const [includeSystemAudio, setIncludeSystemAudio] = useState(snapshot.capture.config.includeSystemAudio);
   const [includeChatAudio, setIncludeChatAudio] = useState(snapshot.capture.config.includeChatAudio);

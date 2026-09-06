@@ -103,6 +103,7 @@ function ReplayConfiguration({
   const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
   const [refreshPending, setRefreshPending] = useState(false);
+  const [replayPending, setReplayPending] = useState(false);
   const config = snapshot.capture.config;
   const codecOptions = (snapshot.capture.capabilities.codecs.length > 0 ? snapshot.capture.capabilities.codecs : [config.codec]).map((value) => ({ value, label: value === 'h264' ? 'H.264' : value === 'hevc' ? 'HEVC' : 'AV1' }));
   const encoderOptions = encoderChoices(snapshot);
@@ -122,7 +123,11 @@ function ReplayConfiguration({
 
       <label className="capture-recorder-toggle">
         <span>Replay</span>
-        <Switch checked={config.enabled} aria-label="Instant Replay" aria-describedby="replay-status" disabled={!config.enabled && snapshot.capture.capabilities.backend === 'unavailable'} onCheckedChange={(enabled) => void setCaptureConfig({ enabled })} />
+        <Switch checked={config.enabled} aria-label="Instant Replay" aria-describedby="replay-status" aria-busy={replayPending} disabled={replayPending} onCheckedChange={async (enabled) => {
+          setReplayPending(true);
+          try { await setCaptureConfig({ enabled }); }
+          finally { setReplayPending(false); }
+        }} />
       </label>
 
       <Popover open={replayOpen} onOpenChange={setReplayOpen}>
@@ -548,8 +553,8 @@ function sourceTypeLabel(type: CaptureSourceOption['type']): string {
 
 function captureSetupProblem(snapshot: SystemSnapshot): string | null {
   const { capabilities, config } = snapshot.capture;
-  if (capabilities.backend === 'unavailable') return 'Windows capture is not available for this setup.';
   if (!config.enabled) return null;
+  if (capabilities.backend === 'unavailable') return 'Windows capture is not available for this setup.';
   if (capabilities.encoders.length === 0) return 'No compatible encoder is currently available, so Replay cannot start.';
   if (config.encoder === 'auto') return null;
 
@@ -575,6 +580,9 @@ function captureNotice(snapshot: SystemSnapshot): { message: string; tone: 'dang
 }
 
 function captureStatus(snapshot: SystemSnapshot): { label: string; description: string; tone: 'ready' | 'warning' | 'danger' | 'neutral' } {
+  if (!snapshot.capture.config.enabled) {
+    return { label: 'Off', description: 'Turn on Replay to start the capture engine.', tone: 'neutral' };
+  }
   if (snapshot.capture.capabilities.backend === 'unavailable') {
     return { label: 'Unavailable', description: 'Windows capture is not available for this setup.', tone: 'warning' };
   }

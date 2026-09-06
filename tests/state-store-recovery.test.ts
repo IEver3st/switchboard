@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { StateStore } from '../src/main/services/state-store';
 import { createDefaultSnapshot } from '../src/shared/defaults';
+import { captureConfigSchema, setCaptureConfigInputSchema } from '../src/shared/contracts';
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -17,6 +18,36 @@ async function fixture() {
 }
 
 describe('state recovery', () => {
+  test('retains selected capture inputs through unrelated IPC patches and restart', async () => {
+    const { path } = await fixture();
+    const store = new StateStore(path);
+    await store.load();
+    const selection = {
+      microphoneDeviceId: 'selected-microphone',
+      systemAudioDeviceId: 'selected-output',
+      chatAudioDeviceId: 'selected-chat',
+      includeChatAudio: true,
+    };
+    store.update((draft) => { Object.assign(draft.capture.config, selection); });
+    await store.flush();
+    const restarted = new StateStore(path);
+    await restarted.load();
+    expect(restarted.get().capture.config).toMatchObject(selection);
+    for (const input of [{ enabled: false }, { replaySeconds: 90 }, { includeMic: true }]) {
+      const patch = setCaptureConfigInputSchema.parse(input);
+      expect(patch).toEqual(input);
+      restarted.update((draft) => {
+        draft.capture.config = captureConfigSchema.parse({ ...draft.capture.config, ...patch });
+      });
+    }
+    await restarted.flush();
+    const updated = new StateStore(path);
+    await updated.load();
+    expect(updated.get().capture.config).toMatchObject(selection);
+    expect(setCaptureConfigInputSchema.parse({ microphoneDeviceId: null })).toEqual({ microphoneDeviceId: null });
+    expect(setCaptureConfigInputSchema.parse({ microphoneDeviceId: 'replacement' })).toEqual({ microphoneDeviceId: 'replacement' });
+  });
+
   test('accepts a UTF-8 BOM without resetting a valid primary or preferring an older backup', async () => {
     const { directory, path } = await fixture();
     const saved = createDefaultSnapshot();

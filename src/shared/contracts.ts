@@ -911,6 +911,11 @@ export const setCaptureConfigInputSchema = captureConfigSchema
   .omit({ clipsDirectory: true })
   .partial()
   .extend({
+    // Persisted defaults must not become writes when an IPC patch omits a field.
+    includeChatAudio: captureConfigSchema.shape.includeChatAudio.unwrap().optional(),
+    microphoneDeviceId: captureConfigSchema.shape.microphoneDeviceId.unwrap().optional(),
+    systemAudioDeviceId: captureConfigSchema.shape.systemAudioDeviceId.unwrap().optional(),
+    chatAudioDeviceId: captureConfigSchema.shape.chatAudioDeviceId.unwrap().optional(),
     defaultTrackLevels: defaultClipTrackLevelsSchema.partial().optional(),
   });
 export type SetCaptureConfigInput = z.infer<typeof setCaptureConfigInputSchema>;
