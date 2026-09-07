@@ -1,3 +1,6 @@
+import '@/components/settings/capture-settings.css';
+import '@/components/settings/general-settings.css';
+import { DiagnosticsWorkspace } from '@/components/settings/diagnostics-workspace';
 import { ResourceDiagnostics } from '@/components/settings/resource-diagnostics';
 import { DiagnosticRunner } from '@/components/settings/diagnostic-runner';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
@@ -197,6 +200,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
             <SettingsCategory
               category={categoryDefinition?.id ?? 'general'}
               subview={subview}
+              targetSetting={targetSetting}
               snapshot={snapshot}
               onOpenModuleDeveloperTools={openModuleDeveloperTools}
               onCloseModuleDeveloperTools={closeModuleDeveloperTools}
@@ -210,6 +214,7 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
 }
 
 function SettingsCategory({
+  targetSetting,
   category,
   subview,
   snapshot,
@@ -217,6 +222,7 @@ function SettingsCategory({
   onCloseModuleDeveloperTools,
   onReset,
 }: {
+  targetSetting?: string | null;
   category: SettingsCategoryId;
   subview: SettingsSubview;
   snapshot: SystemSnapshot;
@@ -229,7 +235,7 @@ function SettingsCategory({
     if (snapshot.settings.developerMode !== true) return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
     return <AudioSettings snapshot={snapshot} onReset={onReset} />;
   }
-  if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} targetSetting={targetSetting} />;
   if (category === 'clips') return <ClipsSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'games') return <GameDetectionSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'modules') {
@@ -237,7 +243,7 @@ function SettingsCategory({
       ? <ModuleDeveloperTools snapshot={snapshot} onBack={onCloseModuleDeveloperTools} />
       : <ModulesSettings snapshot={snapshot} onReset={onReset} onOpenDeveloperTools={onOpenModuleDeveloperTools} />;
   }
-  if (category === 'diagnostics') return <DiagnosticsSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'diagnostics') return <DiagnosticsSettings snapshot={snapshot} onReset={onReset} targetSetting={targetSetting} />;
   return <AboutSettings snapshot={snapshot} />;
 }
 
@@ -276,7 +282,7 @@ function WorkspaceSettings({ snapshot }: { snapshot: SystemSnapshot }) {
       className="settings-row settings-row--stacked settings-workspaces-block"
     >
       <div className="settings-row__copy">
-        <div className="settings-row__title">Workspaces</div>
+        <h3 className="settings-row__title">Workspace</h3>
         <div className="settings-row__description">{developerMode
           ? 'Choose which parts of Switchboard stay visible. Capture stays on.'
           : 'Choose which parts of Switchboard stay visible. Capture stays on. Audio appears only with Developer mode.'}
@@ -357,9 +363,7 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
     <>
       <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and releases the interface." onReset={onReset} />
       <DiagnosticRunner snapshot={snapshot} />
-      <SettingSection title="Workspace">
-        <WorkspaceSettings snapshot={snapshot} />
-      </SettingSection>
+      <WorkspaceSettings snapshot={snapshot} />
       <SettingSection title="Developer">
         <SettingSwitch
           settingId="general.developerMode"
@@ -497,9 +501,30 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
   );
 }
 
-function CaptureSettings({ snapshot, onReset }: CategoryProps) {
+const captureViews = [
+  { id: 'recording', label: 'Recording' },
+  { id: 'audio', label: 'Audio' },
+  { id: 'automatic', label: 'Auto Capture' },
+  { id: 'reactions', label: 'Reactions' },
+] as const;
+type CaptureView = typeof captureViews[number]['id'];
+
+function captureViewForSetting(id: string): CaptureView {
+  if (id.startsWith('reactionClipping.')) return 'reactions';
+  if (id.startsWith('autocapture.')) return 'automatic';
+  if (['capture.microphone', 'capture.systemAudio', 'capture.chatAudio', 'capture.audioDevices'].includes(id)) return 'audio';
+  return 'recording';
+}
+
+function CaptureSettings({ snapshot, onReset, targetSetting }: CategoryProps & { targetSetting?: string | null }) {
+  const [selectedView, setSelectedView] = useState<CaptureView>('recording');
+  const view = targetSetting ? captureViewForSetting(targetSetting) : selectedView;
+  useEffect(() => {
+    if (targetSetting) setSelectedView(captureViewForSetting(targetSetting));
+  }, [targetSetting]);
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const setPage = useSystemStore((state) => state.setPage);
+  const [enginePending, setEnginePending] = useState(false);
   const config = snapshot.capture.config;
   const capabilities = snapshot.capture.capabilities;
   const codecLabels = { auto: 'Automatic', h264: 'H.264', hevc: 'HEVC', av1: 'AV1' } as const;
@@ -509,16 +534,20 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'capture');
 
   return (
-    <>
-      <SettingsCategoryHeader title="Capture" description="Control the isolated capture host, source, encoder, and recorded inputs." onReset={onReset} />
+    <div className="capture-settings">
+      <SettingsCategoryHeader title="Capture" description="Choose what to record and when to save it." onReset={onReset} />
       <SettingSection title="Engine and shortcut">
         <SettingSwitch
           settingId="capture.engine"
           title="Capture engine"
           description={captureEngineDescription(config.enabled, engine?.state, engine?.message)}
           checked={config.enabled}
-          disabled={engine?.state === 'starting'}
-          onCheckedChange={(enabled) => void setCaptureConfig({ enabled })}
+          disabled={enginePending || engine?.state === 'starting'}
+          onCheckedChange={async (enabled) => {
+            setEnginePending(true);
+            try { await setCaptureConfig({ enabled }); }
+            finally { setEnginePending(false); }
+          }}
         />
         <SettingShortcut
           settingId="capture.shortcut"
@@ -528,7 +557,29 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
         />
       </SettingSection>
 
-      <AutoCaptureSettings snapshot={snapshot} />
+      <div className="capture-settings__tabs" role="tablist" aria-label="Capture settings">
+        {captureViews.map((item, index) => (
+          <button key={item.id} type="button" role="tab" id={`capture-tab-${item.id}`}
+            aria-selected={view === item.id} aria-controls={`capture-panel-${item.id}`}
+            tabIndex={view === item.id ? 0 : -1}
+            onClick={() => setSelectedView(item.id)}
+            onKeyDown={(event) => {
+              const next = event.key === 'ArrowRight' ? (index + 1) % captureViews.length
+                : event.key === 'ArrowLeft' ? (index + captureViews.length - 1) % captureViews.length
+                : event.key === 'Home' ? 0 : event.key === 'End' ? captureViews.length - 1 : null;
+              if (next === null) return;
+              event.preventDefault();
+              const nextView = captureViews[next];
+              if (!nextView) return;
+              setSelectedView(nextView.id);
+              document.getElementById(`capture-tab-${nextView.id}`)?.focus();
+            }}
+          >{item.label}</button>
+        ))}
+      </div>
+      <div role="tabpanel" id={`capture-panel-${view}`} aria-labelledby={`capture-tab-${view}`} tabIndex={0}>
+      {view === 'recording' ? <>
+
 
       <SettingSection title="Video">
         <SettingSelect
@@ -562,9 +613,18 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           disabled={codecOptions.length <= 1}
           onValueChange={(codec) => void setCaptureConfig({ codec: codec as CaptureConfig['codec'] })}
         />
+        <SettingSwitch
+          settingId="capture.cursor"
+          title="Capture cursor"
+          description="Include the Windows pointer in saved footage."
+          checked={config.includeCursor}
+          onCheckedChange={(includeCursor) => void setCaptureConfig({ includeCursor })}
+        />
       </SettingSection>
 
-      <SettingSection title="Audio and pointer">
+      </> : null}
+      {view === 'audio' ? <>
+      <SettingSection title="Recorded tracks">
         {capabilities.microphoneAudio ? (
           <SettingSwitch
             settingId="capture.microphone"
@@ -598,19 +658,18 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
         ) : (
           <SettingValue settingId="capture.chatAudio" title="Record chat audio separately" description="The current capture host has not reported system-audio support." value="Unavailable" />
         )}
-        <SettingSwitch
-          settingId="capture.cursor"
-          title="Capture cursor"
-          description="Include the Windows pointer in saved footage."
-          checked={config.includeCursor}
-          onCheckedChange={(includeCursor) => void setCaptureConfig({ includeCursor })}
-        />
+
       </SettingSection>
 
       <SettingSection title="Replay audio devices">
         <CaptureAudioDeviceSettings snapshot={snapshot} />
       </SettingSection>
 
+      </> : null}
+      {view === 'automatic' || view === 'reactions' ? (
+        <AutoCaptureSettings snapshot={snapshot} section={view === 'reactions' ? 'reactions' : 'automatic'} />
+      ) : null}
+      </div>
       <SettingSection title="Workspace">
         <SettingAction
           settingId="capture.workspace"
@@ -620,7 +679,7 @@ function CaptureSettings({ snapshot, onReset }: CategoryProps) {
           onClick={() => setPage('capture')}
         />
       </SettingSection>
-    </>
+    </div>
   );
 }
 
@@ -904,7 +963,7 @@ function ModulesSettings({
   );
 }
 
-function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
+function DiagnosticsSettings({ snapshot, onReset, targetSetting }: CategoryProps & { targetSetting?: string | null }) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const [pendingSetting, setPendingSetting] = useState<'retention' | 'guard' | null>(null);
   const developerMode = snapshot.settings.developerMode === true;
@@ -921,8 +980,8 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
 
   return (
     <div className="settings-diagnostics">
-      <SettingsCategoryHeader title="Diagnostics" onReset={onReset} />
-      <DiagnosticRunner snapshot={snapshot} />
+      <SettingsCategoryHeader title="Diagnostics" description="Find the failure, inspect the evidence, and save what you need." onReset={onReset} />
+      <DiagnosticsWorkspace targetSetting={targetSetting}>
       <section className="diagnostics-overview" aria-label="Current health">
         <article id="setting-diagnostics.memory" data-setting-id="diagnostics.memory" tabIndex={-1} className="diagnostics-overview__system">
           <span className="diagnostics-eyebrow">Private memory</span>
@@ -949,7 +1008,10 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
         </div>
       ) : null}
 
-      <ResourceDiagnostics snapshot={snapshot} />
+      {captureRuntime.error && <div className="diagnostics-attention" role="status"><AlertTriangle aria-hidden className="size-4" /><div><strong>Capture needs attention</strong><p>{captureRuntime.error}</p></div></div>}
+      <div id="diagnostic-pane-checks" data-diagnostic-pane="checks"><DiagnosticRunner snapshot={snapshot} expanded /></div>
+      <div id="diagnostic-pane-resources" data-diagnostic-pane="resources">
+      <ResourceDiagnostics snapshot={snapshot} showExport={false} />
 
       <section className="diagnostics-maintenance" aria-labelledby="diagnostics-maintenance-title">
         <div className="diagnostics-section__heading">
@@ -977,6 +1039,8 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
         </div>
       </section>
 
+      </div>
+      <div id="diagnostic-pane-pipelines" data-diagnostic-pane="pipelines">
       <DiagnosticsSection title="Pipelines">
         {captureRuntime.error ? <DiagnosticsReadout
           settingId="diagnostics.capture-error"
@@ -1054,6 +1118,8 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
         ) : null}
       </DiagnosticsSection>
 
+      </div>
+      <div id="diagnostic-pane-devices" data-diagnostic-pane="devices">
       <DiagnosticsSection title="Device identity">
         {snapshot.devices.length === 0 ? <p className="diagnostics-empty">No devices detected.</p> : snapshot.devices.map((device, index) => (
           <DeviceIdentityRecord
@@ -1063,6 +1129,8 @@ function DiagnosticsSettings({ snapshot, onReset }: CategoryProps) {
           />
         ))}
       </DiagnosticsSection>
+      </div>
+      </DiagnosticsWorkspace>
     </div>
   );
 }
@@ -1426,10 +1494,10 @@ function captureEngineDescription(
   state: 'stopped' | 'starting' | 'running' | 'error' | undefined,
   message: string | undefined,
 ): string {
-  if (state === 'error') return message ? `Capture failed: ${message}` : 'Capture failed. Turn the engine off and on to retry, or check Diagnostics.';
+  if (state === 'error') return message ? `Capture failed: ${message}` : 'Capture failed. Use Retry on the Capture page, or check Diagnostics.';
   if (state === 'starting') return 'Starting the isolated Capture host and registering the save shortcut.';
-  if (enabled) return 'The isolated Capture host is enabled and will be restored on the next launch. Turning it off releases the process and encoder session.';
-  return 'Start the isolated Capture host now and restore it on the next launch.';
+  if (enabled) return 'Replay runs automatically while Capture is enabled and resumes on the next launch. Turning Capture off stops recording.';
+  return 'Enable Capture to start Replay automatically and resume it on the next launch.';
 }
 
 function getEncoderOptions(current: CaptureEncoderPreference, reported: readonly string[]) {

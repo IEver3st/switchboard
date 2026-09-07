@@ -156,7 +156,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'capture.engine',
     category: 'capture',
     title: 'Capture engine',
-    description: 'Start or stop the isolated Capture host and restore its saved state at launch.',
+    description: 'Start or stop Capture and its automatic Replay buffer. Restore the saved state at launch.',
     keywords: ['capture', 'replay', 'engine', 'host', 'start', 'stop'],
   },
   {

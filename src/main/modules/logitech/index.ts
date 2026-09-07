@@ -5,6 +5,7 @@ import type {
   DeviceCapabilities,
   DeviceIdentity,
   DeviceControlChange,
+  MouseBatteryLightingPolicy,
 } from '../../../shared/contracts';
 import { resolveDeviceVariant, type DeviceVariantCandidate } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
@@ -21,7 +22,9 @@ import {
 } from './ghub-metadata';
 
 const logitechVendorId = 0x046d;
-const directSessionRetryDelayMs = 30_000;
+// Retry a sleeping/not-yet-ready receiver on the next registry discovery cycle.
+// The cooldown also bounds manual refresh attempts; it owns no extra timer.
+const directSessionRetryDelayMs = 5_000;
 export interface LogitechDeviceModuleDependencies {
   readAgentDevices(): Promise<LogitechAgentDevice[]>;
   readBattery(deviceId: string): Promise<LogitechBatteryState | undefined>;
@@ -130,7 +133,7 @@ export class LogitechDeviceModule implements DeviceModule {
     const previous = findPreviousDevice(context.previousDevices, id, g502XPlusDefinition.model);
     let capabilities: DeviceCapabilities;
     if (directEndpoint?.path) {
-      capabilities = await this.readDirectCapabilities(directEndpoint, previous, id);
+      capabilities = await this.readDirectCapabilities(directEndpoint, previous, id, context.mouseBatteryLighting?.[id] ?? (previous ? context.mouseBatteryLighting?.[previous.id] : undefined));
       capabilities.battery = withG502BatteryEstimate(capabilities.battery, capabilities.lighting?.enabled);
     } else {
       await this.stopDirectSession();
@@ -195,7 +198,7 @@ export class LogitechDeviceModule implements DeviceModule {
     // last known controls visible but disabled with an ownership hint.
     let capabilities: DeviceCapabilities = {};
     if (directEndpoint?.path) {
-      capabilities = await this.readDirectCapabilities(directEndpoint, previous, id);
+      capabilities = await this.readDirectCapabilities(directEndpoint, previous, id, context.mouseBatteryLighting?.[id] ?? (previous ? context.mouseBatteryLighting?.[previous.id] : undefined));
     } else {
       capabilities = disableControls(
         previous?.capabilities,
@@ -237,6 +240,7 @@ export class LogitechDeviceModule implements DeviceModule {
     endpoint: HidDevice,
     previous: Device | undefined,
     deviceId: string,
+    policy?: MouseBatteryLightingPolicy,
   ): Promise<DeviceCapabilities> {
     if (
       endpoint.path
@@ -247,7 +251,7 @@ export class LogitechDeviceModule implements DeviceModule {
     }
     try {
       const session = await this.ensureDirectSession(endpoint, previous);
-      const capabilities = await session.getCapabilities();
+      const capabilities = await session.getCapabilities(policy);
       this.directDeviceId = deviceId;
       this.clearDirectRetry();
       return capabilities;
@@ -340,6 +344,7 @@ function disableControls(
   if (next.reportRate) Object.assign(next.reportRate, { writable: false, unavailableReason: reason });
   if (next.buttonAssignments) Object.assign(next.buttonAssignments, { writable: false, unavailableReason: reason });
   if (next.lighting) Object.assign(next.lighting, {
+    ...(next.lighting.batteryStatus ? { batteryStatus: 'unavailable', batteryStatusReason: reason } : {}),
     writable: false,
     colorWritable: false,
     brightnessWritable: false,

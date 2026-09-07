@@ -490,6 +490,8 @@ async function openSettingsCategory(label) {
 
 async function openReactionClippingSettings() {
   await openSettingsCategory('Capture');
+  await window.webContents.executeJavaScript(`document.getElementById('capture-tab-reactions')?.click()`);
+  await waitForSelector('#capture-panel-reactions');
   const found = await window.webContents.executeJavaScript(`
     (() => {
       const row = document.getElementById('setting-reactionClipping.enabled');
@@ -503,6 +505,8 @@ async function openReactionClippingSettings() {
 
 async function openAutoCaptureProvider(providerId = 'cs2-gsi') {
   await openSettingsCategory('Capture');
+  await window.webContents.executeJavaScript(`document.getElementById('capture-tab-automatic')?.click()`);
+  await waitForSelector('#capture-panel-automatic');
   const opened = await window.webContents.executeJavaScript(`
     (() => {
       const providerId = ${JSON.stringify(providerId)};

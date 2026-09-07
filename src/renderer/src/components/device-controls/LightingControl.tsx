@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorPicker } from './ColorPicker';
 
@@ -44,8 +45,9 @@ export function LightingControl({
     && (capability.availableDirections?.length ?? 0) > 0
     && (!hasExplicitControls || controls.has('direction'));
   const zonesVisible = (capability.zones?.length ?? 0) > 0 && (!hasExplicitControls || controls.has('zones'));
-  const controlsDisabled = !capability.enabled || !capability.writable;
-  const selectedEffectId = capability.enabled ? capability.activeEffectId : 'off';
+  const stateUnknown = capability.state === 'unknown';
+  const controlsDisabled = stateUnknown || !capability.enabled || !capability.writable;
+  const selectedEffectId = stateUnknown ? '' : capability.enabled ? capability.activeEffectId : 'off';
 
   useEffect(() => {
     setColor(capability.color ?? '#ff1744');
@@ -62,18 +64,24 @@ export function LightingControl({
           <p>{lightingModeCopy(capability)}</p>
         </div>
         <div className="lighting-editor__heading-actions">
-          <span className="lighting-editor__status" data-state={capability.enabled ? capability.state ?? 'unknown' : 'off'}>
+          <span className="lighting-editor__status" data-state={stateUnknown ? 'unknown' : capability.enabled ? capability.state ?? 'unknown' : 'off'}>
             <i aria-hidden /> {lightingStateLabel(capability)}
           </span>
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
-                <Switch
+                {stateUnknown ? <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!capability.writable}
+                  onClick={() => onEnabledChange(false)}
+                  aria-label="Turn mouse lighting off"
+                >Turn off</Button> : <Switch
                   checked={capability.enabled}
                   disabled={!capability.writable}
                   onCheckedChange={onEnabledChange}
                   aria-label="Mouse lighting"
-                />
+                />}
               </span>
             </TooltipTrigger>
             {!capability.writable && capability.unavailableReason ? <TooltipContent>{capability.unavailableReason}</TooltipContent> : null}
@@ -84,7 +92,7 @@ export function LightingControl({
       <div
         className="lighting-editor__body"
         data-disabled={!capability.writable || undefined}
-        data-lighting-off={!capability.enabled || undefined}
+        data-lighting-off={!stateUnknown && !capability.enabled || undefined}
       >
         <div className="lighting-editor__primary">
           <ControlField label="Effect">
@@ -94,7 +102,7 @@ export function LightingControl({
               onValueChange={(effectId) => effectId === 'off' ? onEnabledChange(false) : onEffectChange(effectId)}
             >
               <SelectTrigger aria-label="Lighting effect">
-                <SelectValue />
+                <SelectValue placeholder="Choose an effect" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="off">Off</SelectItem>
@@ -121,7 +129,7 @@ export function LightingControl({
                 </PopoverTrigger>
                 <PopoverContent align="start" className="lighting-color-popover">
                   <div className="popover-heading">Lighting color</div>
-                  <p className="popover-description">Preview on the mouse, then apply to the active hardware profile.</p>
+                  <p className="popover-description">Preview on the mouse, then apply the lighting color.</p>
                   <ColorPicker
                     value={color}
                     onChange={(next) => {
@@ -234,12 +242,14 @@ function ControlField({ label, value, wide, children }: { label: string; value?:
 }
 
 function lightingModeCopy(capability: LightingCapability): string {
+  if (capability.source === 'software') return 'Live LIGHTSYNC control, independent of onboard memory.';
   if (capability.profileMode === 'onboard') return 'Stored in the active onboard profile.';
   if ((capability.zones?.length ?? 0) > 0) return `${capability.zones?.length} addressable zones under live LIGHTSYNC control.`;
   return 'Live lighting for the current software profile.';
 }
 
 function lightingStateLabel(capability: LightingCapability): string {
+  if (capability.state === 'unknown') return 'Unknown';
   if (!capability.enabled) return 'Off';
   if (capability.state === 'maintained') return 'Read back';
   if (capability.state === 'acknowledged') return 'Acknowledged';

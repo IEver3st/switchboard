@@ -52,10 +52,13 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
 
   return (
     <section aria-label="Clips commands" className="capture-command-header capture-toolbar sticky top-0 z-20">
-      <div className="capture-command-header__capture-rail">
+      <div className="capture-command-header__row">
         <div className="capture-command-header__identity">
           <h2 id="clips-heading">Clips</h2>
-          <p aria-live="polite">{clipCount}</p>
+          <span className="capture-clip-count" aria-live="polite" aria-label={clipCount} title={clipCount}>
+            {controls.hasFilters ? <><span>{controls.clips.length.toLocaleString()}</span><span className="capture-clip-count__separator" aria-hidden="true">/</span></> : null}
+            <span>{controls.totalClipCount.toLocaleString()}</span>
+          </span>
         </div>
         <ReplayConfiguration
           snapshot={snapshot}
@@ -65,13 +68,11 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
           estimatedBytes={estimatedBytes}
           setupProblem={setupProblem}
           status={status}
+          notice={notice}
           onSourceChange={changeSource}
         />
-      </div>
-      <div className="capture-command-header__library-row">
         <ClipLibraryToolbar controls={controls} />
       </div>
-      {notice ? <div className={cn('capture-toolbar__notice text-[11px]', notice.tone === 'danger' ? 'text-destructive' : 'text-warning')} role={notice.tone === 'danger' ? 'alert' : 'status'}>{notice.message}</div> : null}
     </section>
   );
 }
@@ -84,6 +85,7 @@ function ReplayConfiguration({
   estimatedBytes,
   setupProblem,
   status,
+  notice,
   onSourceChange,
 }: {
   snapshot: SystemSnapshot;
@@ -93,42 +95,54 @@ function ReplayConfiguration({
   estimatedBytes: number;
   setupProblem: string | null;
   status: ReturnType<typeof captureStatus>;
+  notice: ReturnType<typeof captureNotice>;
   onSourceChange: (value: string) => void;
 }) {
   const [replayOpen, setReplayOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const replayTriggerRef = useRef<HTMLButtonElement>(null);
+  const replayReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
   const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
   const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
   const [refreshPending, setRefreshPending] = useState(false);
-  const [replayPending, setReplayPending] = useState(false);
+  const [retryPending, setRetryPending] = useState(false);
   const config = snapshot.capture.config;
+  const canRetry = config.enabled && (Boolean(snapshot.capture.runtime.error) || snapshot.capture.runtime.state === 'error' || snapshot.capture.runtime.state === 'stopped');
   const codecOptions = [...new Set(['auto' as const, ...snapshot.capture.capabilities.codecs, config.codec])].map((value) => ({ value, label: value === 'auto' ? 'Automatic' : value === 'h264' ? 'H.264' : value === 'hevc' ? 'HEVC' : 'AV1' }));
   const encoderOptions = encoderChoices(snapshot);
 
   return (
     <div className="capture-recorder-rail" role="group" aria-label="Replay capture controls">
       <div className="capture-recorder-sentence">
-        <div id="replay-status" className="capture-recorder-status" data-tone={status.tone} title={status.description}>
+        {notice || setupProblem ? (
+          <button type="button" id="replay-status" className="capture-recorder-status capture-recorder-status--action" data-tone={notice?.tone ?? status.tone} aria-label={`${notice?.label ?? status.label}. Open replay settings`} aria-haspopup="dialog" aria-expanded={replayOpen} onClick={(event) => { replayReturnFocusRef.current = event.currentTarget; setAdvancedOpen(Boolean(notice?.storage)); setReplayOpen(true); }}>
+            <TriangleAlert className="size-3.5" aria-hidden="true" />
+            <span>{notice?.label ?? status.label}</span>
+            <ChevronDown className="size-3" aria-hidden="true" />
+          </button>
+        ) : <div id="replay-status" className="capture-recorder-status" data-tone={status.tone} title={status.description}>
           <span className="capture-recorder-status__dot" aria-hidden="true" />
           <span>{status.label}</span>
-        </div>
+        </div>}
+        <span className="sr-only" role={notice?.tone === 'danger' ? 'alert' : 'status'}>{notice?.message ?? setupProblem ?? status.description}</span>
 
         <div className="capture-recorder-source">
           <CaptureSourcePicker value={selectedSourceValue} options={sourceOptions} active={config.enabled} compact onChange={onSourceChange} />
         </div>
       </div>
 
-      <label className="capture-recorder-toggle">
-        <span>Replay</span>
-        <Switch checked={config.enabled} aria-label="Instant Replay" aria-describedby="replay-status" aria-busy={replayPending} disabled={replayPending} onCheckedChange={async (enabled) => {
-          setReplayPending(true);
-          try { await setCaptureConfig({ enabled }); }
-          finally { setReplayPending(false); }
-        }} />
-      </label>
+      {canRetry || retryPending ? <Button type="button" variant="ghost" size="sm" aria-label="Retry capture" aria-busy={retryPending} disabled={retryPending} onClick={async (event) => {
+        const trigger = event.currentTarget;
+        const hadFocus = document.activeElement === trigger;
+        setRetryPending(true);
+        try { await setCaptureConfig({}); }
+        finally {
+          if (hadFocus && (document.activeElement === trigger || document.activeElement === document.body)) replayTriggerRef.current?.focus();
+          setRetryPending(false);
+        }
+      }}><RefreshCw className="size-3.5" aria-hidden="true" />{retryPending ? 'Retrying…' : 'Retry'}</Button> : null}
 
       <Popover open={replayOpen} onOpenChange={setReplayOpen}>
         <PopoverTrigger asChild>
@@ -138,6 +152,7 @@ function ReplayConfiguration({
             variant="ghost"
             size="sm"
             className="capture-recorder-settings-trigger"
+            onClick={() => { replayReturnFocusRef.current = null; }}
             data-tone={status.tone}
             aria-label={`Open replay settings. Replay ${status.label}. ${status.description}`}
           >
@@ -153,8 +168,9 @@ function ReplayConfiguration({
           aria-label="Replay configuration"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            replayTriggerRef.current?.focus();
-            window.requestAnimationFrame(() => replayTriggerRef.current?.focus());
+            const target = replayReturnFocusRef.current?.isConnected ? replayReturnFocusRef.current : replayTriggerRef.current;
+            target?.focus();
+            window.requestAnimationFrame(() => target?.focus());
           }}
         >
           <div className="capture-replay-popover__header">
@@ -167,10 +183,10 @@ function ReplayConfiguration({
             </div>
           </div>
 
-          {setupProblem ? (
-            <div className="capture-replay-popover__warning" role="status">
+          {notice || setupProblem ? (
+            <div className="capture-replay-popover__warning" data-tone={notice?.tone ?? 'warning'} role="status">
               <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
-              <span><strong>Setup required.</strong> {setupProblem}</span>
+              <span><strong>{notice?.label ?? 'Setup required'}</strong><br />{notice?.message ?? setupProblem}</span>
             </div>
           ) : null}
 
@@ -570,24 +586,25 @@ function captureSetupProblem(snapshot: SystemSnapshot): string | null {
     : 'The selected encoder is not available. Choose Automatic or another installed encoder.';
 }
 
-function captureNotice(snapshot: SystemSnapshot): { message: string; tone: 'danger' | 'warning' } | null {
-  if (snapshot.capture.storage.criticalSpace) return { message: 'Storage is too low to save replays. Choose another clip folder.', tone: 'danger' };
-  if (snapshot.capture.storage.lowSpace) return { message: 'Storage is running low. Choose another clip folder soon.', tone: 'warning' };
+function captureNotice(snapshot: SystemSnapshot): { label: string; message: string; tone: 'danger' | 'warning'; storage?: boolean } | null {
+  if (snapshot.capture.storage.criticalSpace) return { label: 'Storage critical', message: 'Storage is too low to save replays. Choose another clip folder in Advanced settings below.', tone: 'danger', storage: true };
+  if (snapshot.capture.storage.lowSpace) return { label: 'Low storage', message: 'Storage is running low. Choose another clip folder in Advanced settings below.', tone: 'warning', storage: true };
   if (!snapshot.capture.config.enabled) return null;
-  if (snapshot.capture.runtime.error) return { message: "Instant Replay couldn't start. Open replay settings, then turn Replay off and on to retry.", tone: 'danger' };
-  if (snapshot.capture.runtime.warning) return { message: 'Instant Replay is recovering. If this continues, turn Replay off and on to retry.', tone: 'warning' };
+  if (snapshot.capture.runtime.error || snapshot.capture.runtime.state === 'error') return { label: 'Replay failed', message: "Replay couldn't start. Check the source and encoder below, then use Retry in the toolbar.", tone: 'danger' };
+  if (snapshot.capture.runtime.state === 'recovering') return { label: 'Recovering', message: 'Replay is reconnecting to the capture source automatically.', tone: 'warning' };
+  if (snapshot.capture.runtime.warning) return { label: 'Capture warning', message: snapshot.capture.runtime.warning, tone: 'warning' };
   return null;
 }
 
 function captureStatus(snapshot: SystemSnapshot): { label: string; description: string; tone: 'ready' | 'warning' | 'danger' | 'neutral' } {
   if (!snapshot.capture.config.enabled) {
-    return { label: 'Off', description: 'Turn on Replay to start the capture engine.', tone: 'neutral' };
+    return { label: 'Capture off', description: 'Enable Capture engine in Settings > Capture. Replay starts automatically.', tone: 'neutral' };
   }
   if (snapshot.capture.capabilities.backend === 'unavailable') {
     return { label: 'Unavailable', description: 'Windows capture is not available for this setup.', tone: 'warning' };
   }
-  if (!snapshot.capture.config.enabled || snapshot.capture.runtime.state === 'stopped') {
-    return { label: 'Off', description: 'Instant Replay is turned off in Capture Settings.', tone: 'neutral' };
+  if (snapshot.capture.runtime.state === 'stopped') {
+    return { label: 'Stopped', description: 'Capture is enabled but stopped. Use Retry to resume Replay.', tone: 'warning' };
   }
   if (snapshot.capture.runtime.error || snapshot.capture.runtime.state === 'error') {
     return { label: 'Error', description: 'Instant Replay could not start.', tone: 'danger' };

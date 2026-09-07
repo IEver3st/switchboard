@@ -7174,7 +7174,7 @@ textarea:focus-visible {
 
 .settings-feedback-kind {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   border-bottom: 1px solid var(--border);
 }
@@ -7182,11 +7182,11 @@ textarea:focus-visible {
 .settings-feedback-kind__option {
   display: grid;
   min-width: 0;
-  min-height: 74px;
+  min-height: 64px;
   grid-template-columns: 18px minmax(0, 1fr) 16px;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 12px;
   color: var(--muted-foreground);
   cursor: pointer;
   transition: color 120ms ease-out, background-color 120ms ease-out;
@@ -9719,3 +9719,19 @@ button.onboarding-card:disabled {
 .resource-debug-report tbody th { color: var(--text-secondary); font-weight: 400; }
 .resource-debug-report td.resource-debug-empty { text-align: left; font-family: var(--font-sans); }
 @media (hover: hover) { .resource-debug-report summary:hover { color: var(--text-primary); } }
+
+.settings-feedback-additional summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 0;
+}
+.settings-feedback-additional summary span { color: var(--muted-foreground); margin-left: 8px; }
+.settings-feedback-additional[open] > label { margin-top: 12px; }
+.settings-feedback-success { display: grid; justify-items: start; gap: 16px; padding: 28px 22px; }
+.settings-feedback-success > svg { color: var(--primary); width: 28px; height: 28px; }
+.settings-feedback-success h3 { font-size: 16px; font-weight: 600; }
+.settings-feedback-success p { color: var(--muted-foreground); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.settings-feedback-footer { position: sticky; bottom: 0; }
+.settings-feedback-additional summary:focus-visible,
+.settings-feedback-field textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

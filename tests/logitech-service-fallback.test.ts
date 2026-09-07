@@ -1,10 +1,52 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, spyOn, test } from 'bun:test';
 import type { Device as HidDevice } from 'node-hid';
 import { LogitechDeviceModule } from '../src/main/modules/logitech';
 import type { LogitechAgentDevice } from '../src/main/modules/logitech/ghub-metadata';
 import type { Device, DeviceCapabilities } from '../src/shared/contracts';
 
 describe('Logitech service fallback', () => {
+  test('retries a failed startup on the next discovery cycle and closes on disconnect', async () => {
+    let attempts = 0;
+    let closes = 0;
+    const now = spyOn(Date, 'now').mockReturnValue(100_000);
+    const module = new LogitechDeviceModule({
+      readAgentDevices: async () => [],
+      readBattery: async () => undefined,
+      readCapabilities: async () => ({}),
+      writeControl: async () => undefined,
+      openDirectSession: async () => {
+        if (++attempts === 1) throw new Error('Receiver is waking');
+        return {
+          isClosed: false,
+          getCapabilities: async () => structuredClone(directCapabilities),
+          setControl: async () => undefined,
+          close: async () => { closes += 1; },
+        };
+      },
+    });
+    const context = {
+      hidDevices: [receiverDescriptor, longEndpointDescriptor],
+      previousDevices: [previousServiceDevice],
+      appearanceOverrides: {},
+    };
+    try {
+      expect((await module.discover(context))[0]?.capabilities.dpi?.writable).toBe(false);
+      now.mockReturnValue(104_999);
+      await module.discover(context);
+      expect(attempts).toBe(1);
+      now.mockReturnValue(105_000);
+      expect((await module.discover(context))[0]?.capabilities.dpi?.writable).toBe(true);
+      expect(attempts).toBe(2);
+      await module.discover({ ...context, hidDevices: [] });
+      expect(closes).toBe(1);
+      await module.discover(context);
+      expect(attempts).toBe(3);
+      await module.deactivate();
+      await module.dispose();
+      expect(closes).toBe(2);
+    } finally { now.mockRestore(); await module.dispose(); }
+  });
+
   test('uses G HUB metadata for identity but routes controls through direct HID++', async () => {
     const directWrites: string[] = [];
     const agentWrites: string[] = [];

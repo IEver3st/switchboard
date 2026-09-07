@@ -322,7 +322,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
 
   const doneSummary = (index: number): string => {
     if (index === 1) return setupLabel(workspaces, developerMode);
-    if (index === 2) return `${replay ? 'Replay on' : 'Replay off'} · ${resolutionLabel(resolution)} · ${replayLengthLabel(replaySeconds)}`;
+    if (index === 2) return `${replay ? 'Capture on' : 'Capture off'} · ${resolutionLabel(resolution)} · ${replayLengthLabel(replaySeconds)}`;
     if (index === 3) return audioSummary;
     return stepMeta[index]?.description ?? '';
   };
@@ -564,14 +564,14 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
                           <m.div variants={stageItemVariants}>
                             <div className="onboarding-row">
                               <span className="onboarding-row__copy">
-                                <strong>Replay capture</strong>
-                                <small>Record in the background so the shortcut can save a clip.</small>
+                                <strong>Capture engine</strong>
+                                <small>Replay runs automatically while Capture is enabled.</small>
                               </span>
                               <Switch
                                 checked={replay}
                                 disabled={pending}
                                 onCheckedChange={setReplay}
-                                aria-label="Replay capture"
+                                aria-label="Capture engine"
                               />
                             </div>
                             <Separator className="onboarding-sep" />
@@ -691,7 +691,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
                             <dd>{setupLabel(workspaces, developerMode)}</dd>
                           </div>
                           <div>
-                            <dt>Replay capture</dt>
+                            <dt>Capture engine</dt>
                             <dd>{replay ? 'On' : 'Off'}</dd>
                           </div>
                           <div>

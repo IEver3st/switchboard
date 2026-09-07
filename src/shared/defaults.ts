@@ -239,6 +239,7 @@ export const defaultDevices: Device[] = [
         ],
       },
       lighting: {
+        batteryStatus: 'monitoring',
         writable: true,
         enabled: true,
         activeEffectId: 'static',
@@ -673,6 +674,7 @@ export const defaultSettings: AppSettings = {
   scanGamesAutomatically: true,
   clipEditorInspectorOpen: true,
   deviceAppearanceOverrides: {},
+  mouseBatteryLighting: {},
   developerMode: false,
   visibleWorkspaces: ['devices', 'audio', 'capture'],
   onboardingCompleted: false,
@@ -681,7 +683,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.8.5',
+  currentVersion: '0.8.6',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -726,7 +728,7 @@ export const seedClips: Clip[] = [];
 
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
-    version: '0.8.5',
+    version: '0.8.6',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),

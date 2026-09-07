@@ -5,7 +5,7 @@ import { useSystemStore } from '@/stores/use-system-store';
 import { Button } from '@/components/ui/button';
 import { SettingSwitch } from './settings-primitives';
 
-export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) {
+export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot: SystemSnapshot; showExport?: boolean }) {
   const updateSettings = useSystemStore(state => state.updateSettings);
   const [pending, setPending] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -40,7 +40,7 @@ export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) 
         <p role="status" data-recording={recording}>{pending ? 'Saving…' : recording
           ? debug ? `Events and resources · since ${new Date(debug.startedAt).toLocaleTimeString()}` : 'Events recording · collecting resource sample…'
           : developerMode ? 'Events recording · resource sampling off' : 'Developer mode is off'}</p>
-        <Button variant="secondary" size="sm" disabled={exporting || pending || !developerMode} onClick={() => void exportReport()} title="Save the event timeline, capture state, Windows and GPU details, and any resource samples. Paths and credentials are redacted.">{exporting ? 'Exporting…' : 'Export diagnostics'}</Button>
+        {showExport && <Button variant="secondary" size="sm" disabled={exporting || pending || !developerMode} onClick={() => void exportReport()} title="Save the event timeline, capture state, Windows and GPU details, and any resource samples. Paths and credentials are redacted.">{exporting ? 'Exporting…' : 'Export diagnostics'}</Button>}
       </div>
       {message && <p role="status">{message}</p>}
       {debug && <>
@@ -51,8 +51,9 @@ export function ResourceDiagnostics({ snapshot }: { snapshot: SystemSnapshot }) 
             <div><dt>Max interval</dt><dd>{debug.eventLoopDelayMaxMs === null ? 'Unavailable' : `${debug.eventLoopDelayMaxMs} ms`}</dd></div>
           </dl>
           <p>20 ms probe · view updates every 30 seconds</p>
+          {(debug.eventLoopUtilizationPercent === null || debug.eventLoopDelayP99Ms === null || debug.eventLoopDelayMaxMs === null) && <p>Unavailable values have no measurement in this sample. Event recording can continue without these timing measurements.</p>}
         </div>
-        <details>
+        <details open>
           <summary>Process resources ({debug.processes.length})</summary>
           <div className="resource-debug-scroll" role="region" aria-label="Process resources" tabIndex={0}><table>
             <thead><tr><th>Process / PID</th><th>Private MB</th><th>Resident MB</th><th>CPU %</th></tr></thead>

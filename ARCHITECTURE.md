@@ -103,7 +103,29 @@ Module Host API v1 cannot return a complete `Device`, open HID, write hardware, 
 
 The Logitech module enumerates HID transport locally and does not require G HUB for device control. It may use Logitech's localhost DEVIO metadata when that vendor service is present to improve identity resolution. G502 X Plus `extendedModel` distinguishes the known black and white hardware variants; the receiver USB PID alone does not. Without DEVIO metadata, the module resolves the model from its known receiver mapping, leaves colorway unknown, and uses the model asset or an optional override rather than claiming an exact color.
 
-The G502 X Plus native session discovers HID++ features from the mouse, activates event-driven MouseButtonSpy (`0x8110`), and uses Adjustable DPI (`0x2201`) for hold-to-shift behavior. It parses only verified onboard-memory (`0x8100`) formats 3 and 5 with a valid CRC before exposing persistent DPI stages, report rate, six primary button assignments, onboard mode, or stored lighting. In software mode, the shared Logitech RGB controller probes RGB Effects (`0x8071`) clusters and Per-Key Lighting V2 (`0x8081`) zone bitmaps before publishing effects or addressable zones. It sends only known encodings for effects the device enumerates, retains software ownership without a timer while live lighting is active, and releases ownership on onboard-mode activation, module disable, disconnect, or shutdown. Effect writes are reported as acknowledged rather than read back because this HID++ path does not expose the visible live effect state. Every onboard profile mutation still recomputes the CRC, writes through the device's profile-sector protocol, and reads the sector back byte-for-byte. Unknown layouts are rejected rather than guessed. The base DPI is restored on button release, module disable, and shutdown, and the HID handle exists only while the Logitech module and matching device are active.
+The G502 X Plus native session discovers HID++ features from the mouse, activates event-driven MouseButtonSpy (`0x8110`), and uses Adjustable DPI (`0x2201`) for hold-to-shift behavior. It parses onboard-memory (`0x8100`) formats 3 and 5 with a valid CRC before exposing persistent DPI stages, report rate, six primary button assignments, or onboard mode. Every profile mutation recomputes the CRC and verifies a byte-for-byte sector readback. The base DPI is restored on button release, module disable, and shutdown, and the HID handle exists only while the Logitech module and matching device are active.
+
+G502 lighting uses the live RGB Effects (`0x8071`) and Per-Key Lighting V2
+(`0x8081`) controller in either onboard mode. Profile-sector lighting bytes are
+not evidence of visible LED state and are never written by lighting controls.
+Explicit lighting commands claim RGB ownership, apply the effect, and verify
+RGB power readback. Onboard-mode transitions invalidate prior acknowledgement
+and restore the user's selected live lighting, including Off. Startup restores
+a previously acknowledged software selection. The existing discovery cycle
+checks power and ownership; lost control becomes Unknown instead of a false Off.
+The effect itself remains acknowledged, not visually verified. Session shutdown
+releases RGB ownership and can return the mouse to its firmware effect.
+
+Mouse battery-lighting preferences live in main-owned `settings.mouseBatteryLighting`,
+keyed by device identity and validated at the settings IPC boundary. The G502
+session advertises this capability only when fresh battery reads and a probed
+static RGB effect are supported. Battery policy reuses discovery readings and
+serializes temporary RGB overrides with manual controls. A seven-second burst of three red flashes
+restores the prior software effect and individual zone colors, or releases to
+firmware when Switchboard did not own lighting. The cutoff takes priority over
+warnings. Neither automatic action writes onboard profile memory. Charging,
+recovery above the thresholds, policy disable, and session shutdown restore the
+normal lighting policy. Acknowledged commands do not prove physical LED output.
 
 ## Audio
 
@@ -133,6 +155,12 @@ FFmpeg probes. It prefers hardware H.264 for compatibility, then tested hardware
 HEVC/AV1, then software H.264. Explicit codec and encoder preferences remain
 explicit. The runtime encoder label reports the selected format; saved Automatic
 policy and conservative bitrate estimates remain separate from the actual codec.
+
+AMF capture downloads the backend's BGRA textures and converts them to NV12
+before submitting them to the selected AMD hardware encoder. This avoids
+capture-texture Direct3D interop failures that synthetic encoder probes do not
+exercise. Recording and on-demand diagnostics share this conversion path;
+NVENC retains direct hardware frames. AMF adds CPU conversion and upload costs.
 
 Production target:
 

@@ -1,4 +1,4 @@
-import { Info, LoaderCircle, RotateCw } from 'lucide-react';
+import { ChevronDown, Info, LoaderCircle, RotateCw } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Device } from '../../../../shared/contracts';
 import { ColorPicker } from '@/components/device-controls/ColorPicker';
@@ -12,6 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSystemStore } from '@/stores/use-system-store';
 import './equipment-workbench.css';
+import './keyboard-device.css';
 
 export function KeyboardDeviceEditor({ device }: { device: Device }) {
   const setDeviceControl = useSystemStore((state) => state.setDeviceControl);
@@ -82,147 +83,150 @@ export function KeyboardDeviceEditor({ device }: { device: Device }) {
         </div>
       ) : null}
 
-      <section className="keyboard-primary-controls" aria-label="Keyboard settings">
-        <h3>Keyboard settings</h3>
-        <ControlRow label="Onboard profile" unavailableReason={!profiles?.writable ? profileUnavailableReason : undefined}>
-          <Select
-            value={profiles?.activeProfileId ?? undefined}
-            disabled={pending || !controlsReady || !profiles?.writable || profiles.profiles.length === 0}
-            onValueChange={(profileId) => void setDeviceControl({
-              deviceId: device.id,
-              change: { type: 'keyboard-onboard-profile', profileId },
-            })}
-          >
-            <SelectTrigger className="keyboard-profile-select" aria-label="Active onboard keyboard profile">
-              <SelectValue placeholder="Unavailable" />
-            </SelectTrigger>
-            <SelectContent>
-              {profiles?.profiles.map((profile) => (
-                <SelectItem key={profile.id} value={profile.id}>{profile.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ControlRow>
+      <div className="keyboard-control-rail">
+        <section className="keyboard-primary-controls" aria-label="Keyboard settings">
+          <h3>Keyboard settings</h3>
+          <ControlRow label="Onboard profile" unavailableReason={!profiles?.writable ? profileUnavailableReason : undefined}>
+            <Select
+              value={profiles?.activeProfileId ?? undefined}
+              disabled={pending || !controlsReady || !profiles?.writable || profiles.profiles.length === 0}
+              onValueChange={(profileId) => void setDeviceControl({
+                deviceId: device.id,
+                change: { type: 'keyboard-onboard-profile', profileId },
+              })}
+            >
+              <SelectTrigger className="keyboard-profile-select" aria-label="Active onboard keyboard profile">
+                <SelectValue placeholder="Unavailable" />
+              </SelectTrigger>
+              <SelectContent>
+                {profiles?.profiles.map((profile) => (
+                  <SelectItem key={profile.id} value={profile.id}>{profile.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ControlRow>
 
-        <ControlRow label="Gaming Mode" unavailableReason={!keyboard?.gamingMode?.writable ? gamingUnavailableReason : undefined}>
-          <Switch
-            checked={keyboard?.gamingMode?.enabled ?? false}
-            disabled={pending || !controlsReady || !keyboard?.gamingMode?.writable}
-            aria-label="Gaming Mode"
-            onCheckedChange={(enabled) => void setDeviceControl({
-              deviceId: device.id,
-              change: { type: 'keyboard-gaming-mode', enabled },
-            })}
-          />
-        </ControlRow>
-      </section>
-
-      <section className="keyboard-lighting" aria-labelledby="keyboard-lighting-heading">
-        <header className="keyboard-lighting__header">
-          <h3 id="keyboard-lighting-heading">Lighting</h3>
-          <span className="keyboard-lighting__power">
-            {pending ? <LoaderCircle className="keyboard-pending" aria-label="Applying keyboard setting" /> : null}
+          <ControlRow label="Gaming Mode" unavailableReason={!keyboard?.gamingMode?.writable ? gamingUnavailableReason : undefined}>
             <Switch
-              checked={lighting?.enabled ?? false}
-              disabled={pending || !lightingReady}
-              aria-label="Keyboard lighting"
+              checked={keyboard?.gamingMode?.enabled ?? false}
+              disabled={pending || !controlsReady || !keyboard?.gamingMode?.writable}
+              aria-label="Gaming Mode"
               onCheckedChange={(enabled) => void setDeviceControl({
                 deviceId: device.id,
-                change: { type: 'lighting-enabled', enabled },
+                change: { type: 'keyboard-gaming-mode', enabled },
               })}
             />
-          </span>
-        </header>
+          </ControlRow>
+        </section>
 
-        {lighting ? (
-          <div className="keyboard-lighting__body" data-disabled={!lighting.enabled || undefined}>
-            <div className="keyboard-lighting__effects">
-              <span>Effect</span>
-              <ToggleGroup
-                type="single"
-                value={lighting.enabled ? lighting.activeEffectId : ''}
-                disabled={pending || !lightingReady || !lighting.enabled}
-                aria-label="Keyboard lighting effect"
-                onValueChange={(effectId) => effectId && void setDeviceControl({
+        <section className="keyboard-lighting" aria-labelledby="keyboard-lighting-heading">
+          <header className="keyboard-lighting__header">
+            <h3 id="keyboard-lighting-heading">Lighting</h3>
+            <span className="keyboard-lighting__power">
+              {pending ? <LoaderCircle className="keyboard-pending" aria-label="Applying keyboard setting" /> : null}
+              <span>{lighting?.state === 'unknown' ? 'Unknown' : lighting?.enabled ? 'On' : 'Off'}</span>
+              <Switch
+                checked={lighting?.enabled ?? false}
+                disabled={pending || !lightingReady}
+                aria-label="Keyboard lighting"
+                onCheckedChange={(enabled) => void setDeviceControl({
                   deviceId: device.id,
-                  change: { type: 'lighting-effect', effectId },
+                  change: { type: 'lighting-enabled', enabled },
                 })}
-              >
-                {lighting.availableEffects.map((effect) => (
-                  <ToggleGroupItem className="keyboard-effect-option" key={effect.id} value={effect.id}>
-                    {effect.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
+              />
+            </span>
+          </header>
 
-            <div className="keyboard-lighting__parameters">
-              {lighting.brightness !== undefined ? (
-                <label className="keyboard-brightness">
-                  <span>Brightness <output>{previewBrightness}%</output></span>
-                  <Slider
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={[previewBrightness]}
-                    disabled={pending || !controlsReady || !lighting.enabled || !lighting.brightnessWritable}
-                    aria-label="Lighting brightness"
-                    aria-valuetext={`${previewBrightness}%`}
-                    onValueChange={([brightness]) => typeof brightness === 'number' && setPreviewBrightness(brightness)}
-                    onValueCommit={([brightness]) => {
-                      if (typeof brightness !== 'number') return;
-                      void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } });
-                    }}
-                  />
-                </label>
-              ) : null}
+          {lighting ? (
+            <div className="keyboard-lighting__body" data-disabled={!lighting.enabled || undefined}>
+              <div className="keyboard-lighting__effects">
+                <span>Effect</span>
+                <ToggleGroup
+                  type="single"
+                  value={lighting.enabled ? lighting.activeEffectId : ''}
+                  disabled={pending || !lightingReady || !lighting.enabled}
+                  aria-label="Keyboard lighting effect"
+                  onValueChange={(effectId) => effectId && void setDeviceControl({
+                    deviceId: device.id,
+                    change: { type: 'lighting-effect', effectId },
+                  })}
+                >
+                  {lighting.availableEffects.map((effect) => (
+                    <ToggleGroupItem className="keyboard-effect-option" key={effect.id} value={effect.id}>
+                      {effect.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
 
-              {customColorAvailable ? (
-                <div className="keyboard-color">
-                  <span>Color</span>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="keyboard-color__trigger"
-                        disabled={pending}
-                        aria-label={`Lighting color ${previewColor ?? lighting.color}`}
-                      >
-                        <i style={{ backgroundColor: previewColor ?? lighting.color }} aria-hidden />
-                        <strong>{(previewColor ?? lighting.color ?? '#44AAFF').toUpperCase()}</strong>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="lighting-color-popover">
-                      <div className="popover-heading">Lighting color</div>
-                      <ColorPicker
-                        value={previewColor ?? lighting.color ?? '#44aaff'}
-                        onChange={setPreviewColor}
-                        onCommit={(color) => {
-                          setPreviewColor(color);
-                          void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-color', color } })
-                            .finally(() => setPreviewColor(null));
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
+              <div className="keyboard-lighting__parameters">
+                {lighting.brightness !== undefined ? (
+                  <label className="keyboard-brightness">
+                    <span>Brightness <output>{previewBrightness}%</output></span>
+                    <Slider
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={[previewBrightness]}
+                      disabled={pending || !controlsReady || !lighting.enabled || !lighting.brightnessWritable}
+                      aria-label="Lighting brightness"
+                      aria-valuetext={`${previewBrightness}%`}
+                      onValueChange={([brightness]) => typeof brightness === 'number' && setPreviewBrightness(brightness)}
+                      onValueCommit={([brightness]) => {
+                        if (typeof brightness !== 'number') return;
+                        void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-brightness', brightness } });
+                      }}
+                    />
+                  </label>
+                ) : null}
+
+                {customColorAvailable ? (
+                  <div className="keyboard-color">
+                    <span>Color</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="keyboard-color__trigger"
+                          disabled={pending}
+                          aria-label={`Lighting color ${previewColor ?? lighting.color}`}
+                        >
+                          <i style={{ backgroundColor: previewColor ?? lighting.color }} aria-hidden />
+                          <strong>{(previewColor ?? lighting.color ?? '#44AAFF').toUpperCase()}</strong>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="lighting-color-popover">
+                        <div className="popover-heading">Lighting color</div>
+                        <ColorPicker
+                          value={previewColor ?? lighting.color ?? '#44aaff'}
+                          onChange={setPreviewColor}
+                          onCommit={(color) => {
+                            setPreviewColor(color);
+                            void setDeviceControl({ deviceId: device.id, change: { type: 'lighting-color', color } })
+                              .finally(() => setPreviewColor(null));
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                ) : null}
+              </div>
+
+              {!lightingReady && controlsReady ? (
+                <div className="keyboard-lighting__unavailable" role="status">
+                  <span>{lighting.unavailableReason ?? 'Lighting controls are unavailable. Reconnect the keyboard and try again.'}</span>
+                  <Button variant="ghost" size="sm" onClick={() => void refreshDevices()} disabled={pending}>Try again</Button>
                 </div>
               ) : null}
             </div>
-
-            {!lightingReady && controlsReady ? (
-              <div className="keyboard-lighting__unavailable" role="status">
-                <span>{lighting.unavailableReason ?? 'Lighting controls are unavailable. Reconnect the keyboard and try again.'}</span>
-                <Button variant="ghost" size="sm" onClick={() => void refreshDevices()} disabled={pending}>Try again</Button>
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <p className="keyboard-lighting__empty">Lighting is not available for this keyboard.</p>
-        )}
-      </section>
+          ) : (
+            <p className="keyboard-lighting__empty">Lighting is not available for this keyboard.</p>
+          )}
+        </section>
+      </div>
       {keyboard?.features.some((feature) => feature.status !== 'native') ? (
-        <section className="keyboard-input-features" aria-labelledby="keyboard-input-heading">
-          <header><h3 id="keyboard-input-heading">Input features</h3><span>Availability for this keyboard</span></header>
+        <details className="keyboard-input-features">
+          <summary><span><strong>Input features</strong><small>Synapse controls &amp; availability</small></span><ChevronDown aria-hidden /></summary>
           <dl>
             {keyboard.features.filter((feature) => feature.status !== 'native').map((feature) => (
               <div key={feature.id}>
@@ -231,7 +235,7 @@ export function KeyboardDeviceEditor({ device }: { device: Device }) {
               </div>
             ))}
           </dl>
-        </section>
+        </details>
       ) : null}
     </div>
   );

@@ -12,6 +12,37 @@ mock.module('electron', () => ({
 const { DeviceRegistry, selectHidDeviceEnumerator } = await import('../src/main/services/device-registry');
 
 describe('device registry lifecycle', () => {
+  test('battery preference refresh cannot enumerate or open hardware in fixture mode', async () => {
+    const snapshot = createDefaultSnapshot();
+    const discover = mock(async () => []);
+    const enumerate = mock(async () => []);
+    const registry = new DeviceRegistry(() => snapshot, () => {}, {
+      fixtureMode: true,
+      modules: [{ id: 'device.logitech-hidpp', discover }],
+      listHidDevices: enumerate,
+    });
+    await registry.refreshBatteryLighting();
+    expect(enumerate).not.toHaveBeenCalled();
+    expect(discover).not.toHaveBeenCalled();
+    await registry.dispose();
+  });
+
+  test('battery preference refresh delivers the latest saved device policy to discovery', async () => {
+    const snapshot = createDefaultSnapshot();
+    snapshot.settings.mouseBatteryLighting.mouse = {
+      flashEnabled: true, warningPercentage: 25, flashIntervalMinutes: 7, cutoffEnabled: true, cutoffPercentage: 8,
+    };
+    const discover = mock(async () => []);
+    const registry = new DeviceRegistry(() => snapshot, () => {}, {
+      fixtureMode: false,
+      modules: [{ id: 'device.logitech-hidpp', discover }],
+      listHidDevices: async () => [],
+    });
+    await registry.refreshBatteryLighting();
+    expect(discover).toHaveBeenCalledWith(expect.objectContaining({ mouseBatteryLighting: snapshot.settings.mouseBatteryLighting }));
+    await registry.dispose();
+  });
+
   test('does not enumerate HID when every device module is disabled, and resumes on enable', async () => {
     let snapshot = createDefaultSnapshot();
     snapshot.modules = snapshot.modules.map(module => ({ ...module, enabled: false }));

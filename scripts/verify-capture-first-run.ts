@@ -34,7 +34,10 @@ ipcMain.handle(ipcChannels.setCaptureConfig, async (_event, input) => {
   const result = store.update((draft) => {
     draft.capture.config = captureConfigSchema.parse({ ...draft.capture.config, ...patch });
     draft.capture.runtime.state = draft.capture.config.enabled ? 'waiting' : 'stopped';
+    draft.capture.runtime.error = undefined;
+    draft.capture.runtime.warning = undefined;
     draft.capture.capabilities.backend = 'windows-graphics-capture';
+    draft.capture.capabilities.encoders = ['libx264'];
   });
   await store.flush();
   return result;
@@ -57,6 +60,8 @@ async function capture(name: string) {
     window.setContentSize(width!, height!);
     await new Promise((resolve) => setTimeout(resolve, 350));
     if (await evaluate('document.documentElement.scrollWidth > innerWidth')) throw new Error('Horizontal overflow');
+    const clipped = await evaluate(`[...document.querySelectorAll('.capture-command-header button, .capture-command-header input')].filter(node => { const r = node.getBoundingClientRect(); return r.width > 0 && (r.left < 0 || r.right > innerWidth + 1); }).map(node => node.getAttribute('aria-label') || node.textContent)`);
+    if (clipped.length) throw new Error(`Clipped toolbar controls at ${width}: ${clipped.join(', ')}. ${await evaluate(`JSON.stringify([...document.querySelectorAll('.capture-command-header__row > *, .capture-library__tools > *')].map(node => { const r = node.getBoundingClientRect(); return { class: node.className, left: r.left, right: r.right, width: r.width }; }))`)}`);
     await writeFile(join(directory, `${name}-${width}.png`), (await window.webContents.capturePage()).toPNG());
   }
 }
@@ -66,7 +71,7 @@ try {
   await window.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await click('Get started');
   await click('Continue');
-  await wait(`document.querySelector('[aria-label="Replay capture"]')?.getAttribute('aria-checked') === 'true'`);
+  await wait(`document.querySelector('[aria-label="Capture engine"]')?.getAttribute('aria-checked') === 'true'`);
   await capture('onboarding');
   await click('Continue');
   await wait(`document.querySelector('[data-step-index="3"]')`);
@@ -82,9 +87,12 @@ try {
   await store.load();
   await window.loadFile(resolve(root, 'out/renderer/index.html'), { hash: 'capture' });
   await new Promise<void>((resolve) => { window.webContents.once('did-finish-load', () => resolve()); window.webContents.reload(); });
-  const toggle = `document.querySelector('[aria-label="Instant Replay"]')`;
-  await wait(`${toggle} && !${toggle}.disabled && ${toggle}.getAttribute('aria-checked') === 'false'`);
+  await wait(`document.querySelector('#replay-status')?.textContent.includes('Capture off')`);
+  if (await evaluate(`Boolean(document.querySelector('[aria-label="Instant Replay"]'))`)) throw new Error('Duplicate Replay toggle remains');
   await capture('capture-off');
+  await evaluate(`sessionStorage.setItem('switchboard.settings.category', 'capture'); location.hash = 'settings'`);
+  const toggle = `document.querySelector('[aria-label="Capture engine"]')`;
+  await wait(`${toggle} && !${toggle}.disabled && ${toggle}.getAttribute('aria-checked') === 'false'`);
   rejectStart = true;
   await evaluate(`${toggle}.click()`);
   await wait(`${toggle}.disabled`);
@@ -95,17 +103,54 @@ try {
   await evaluate(`${toggle}.click()`);
   await wait(`${toggle}.getAttribute('aria-checked') === 'true' && !${toggle}.disabled`);
   if (requests !== before + 1) throw new Error('Duplicate start');
-  await capture('capture-enabled');
+  await capture('settings-capture-enabled');
   await store.flush();
   store = new StateStore(join(directory, 'state.json'));
   await store.load();
+  // StateStore intentionally clears transient host state on load. Simulate the
+  // enabled host's restored waiting snapshot without starting a recorder.
+  store.update((draft) => { draft.capture.runtime.state = 'waiting'; }, { persist: false });
   await window.loadFile(resolve(root, 'out/renderer/index.html'), { hash: 'capture' });
   await new Promise<void>((resolve) => { window.webContents.once('did-finish-load', () => resolve()); window.webContents.reload(); });
+  await wait(`document.querySelector('#replay-status')?.textContent.includes('Waiting')`);
+  if (!store.get().capture.config.enabled) throw new Error('Engine preference was not restored');
+  await capture('capture-waiting');
+  // A failed host keeps the engine enabled. Retry must preserve that preference
+  // and all recorder settings, including across a rejected retry.
+  const savedConfig = JSON.stringify(store.get().capture.config);
+  store.update((draft) => { draft.capture.runtime.state = 'error'; draft.capture.runtime.error = 'Fixture capture start failed'; }, { persist: false });
+  await window.webContents.reload();
+  const retry = `document.querySelector('[aria-label="Retry capture"]')`;
+  await wait(`${retry} && !${retry}.disabled`);
+  await capture('capture-error');
+  await evaluate(`document.querySelector('#replay-status').click()`);
+  await wait(`document.querySelector('[aria-label="Replay configuration"]')?.textContent.includes('use Retry')`);
+  await capture('capture-error-details');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await wait(`!document.querySelector('[aria-label="Replay configuration"]')`);
+  rejectStart = true;
+  await evaluate(`${retry}.focus(); ${retry}.click()`);
+  await wait(`${retry}.disabled && ${retry}.getAttribute('aria-busy') === 'true'`);
+  await wait(`!${retry}.disabled && document.body.textContent.includes('Fixture capture start failed')`);
+  if (JSON.stringify(store.get().capture.config) !== savedConfig) throw new Error('Rejected retry changed capture preferences');
+  rejectStart = false;
+  const beforeRetry = requests;
+  await evaluate(`${retry}.focus(); ${retry}.click()`);
+  await wait(`!${retry} && document.querySelector('#replay-status')?.textContent.includes('Waiting')`);
+  await wait(`document.activeElement?.getAttribute('aria-label')?.startsWith('Open replay settings')`);
+  if (requests !== beforeRetry + 1) throw new Error('Duplicate retry');
+  if (JSON.stringify(store.get().capture.config) !== savedConfig) throw new Error('Retry changed capture preferences');
+  await evaluate(`location.hash = 'settings'`);
   await wait(`${toggle}?.getAttribute('aria-checked') === 'true'`);
   await evaluate(`${toggle}.click()`);
   await wait(`${toggle}.getAttribute('aria-checked') === 'false' && !${toggle}.disabled`);
   if (store.get().capture.config.enabled) throw new Error('Disable did not persist');
-  console.log(`First-run and Replay UI passed with persisted fixtures. Captures: ${directory}`);
+  await store.flush();
+  store = new StateStore(join(directory, 'state.json'));
+  await store.load();
+  if (store.get().capture.config.enabled) throw new Error('Disabled Capture was not restored');
+  console.log(`Capture engine, automatic Replay, and Retry UI passed with persisted fixtures. Captures: ${directory}`);
   app.exit(0);
 } catch (error) { console.error(error); console.error(await evaluate('document.body.innerText.slice(0, 2500)')); app.exit(1); }
 }

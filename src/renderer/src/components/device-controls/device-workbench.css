@@ -53,7 +53,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 24px 20px;
+  gap: 24px 12px;
   height: 100%;
   min-height: 0;
   width: 100%;
@@ -81,7 +81,7 @@
   position: static;
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 8px;
   height: auto;
   grid-row: 2;
   padding: 0;
@@ -93,9 +93,26 @@
 .device-workbench[data-device-kind="mouse"] .mouse-callout {
   position: static;
   width: 100%;
-  min-height: 36px;
+  min-height: 52px;
   translate: none;
   flex-direction: row;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--surface-1);
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-callout:hover,
+.device-workbench[data-device-kind="mouse"] .mouse-callout[data-linked-active="true"] {
+  background: var(--surface-hover);
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-callout:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-callout:focus-visible .mouse-callout__copy {
+  outline: none;
 }
 
 .device-workbench[data-device-kind="mouse"] .mouse-callout__copy {
@@ -104,6 +121,13 @@
   min-width: 0;
   padding: 0;
   gap: 3px;
+}
+
+.device-workbench[data-device-kind="mouse"] .mouse-callout__assignment {
+  justify-content: space-between;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .device-workbench[data-device-kind="mouse"] .mouse-callout__line,

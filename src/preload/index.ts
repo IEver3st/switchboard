@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   audioMeterFrameSchema,
   clipExportProgressSchema,
-  feedbackHandoffResultSchema,
+  feedbackSubmissionResultSchema,
   ipcChannels,
   preparedShareFileSchema,
   type AudioMeterFrame,
@@ -88,8 +88,8 @@ const api: SwitchboardApi & MontageV2Api = {
   installAppUpdate: () => ipcRenderer.invoke(ipcChannels.installAppUpdate),
   updateSettings: (input) => ipcRenderer.invoke(ipcChannels.updateSettings, input),
   resetSettings: (scope) => ipcRenderer.invoke(ipcChannels.resetSettings, scope),
-  handoffFeedbackReport: async (input) => feedbackHandoffResultSchema.parse(
-    await ipcRenderer.invoke(ipcChannels.handoffFeedbackReport, input),
+  submitFeedbackReport: async (input) => feedbackSubmissionResultSchema.parse(
+    await ipcRenderer.invoke(ipcChannels.submitFeedbackReport, input),
   ),
   revealClip: (id) => ipcRenderer.invoke(ipcChannels.revealClip, id),
   deleteClip: (id) => ipcRenderer.invoke(ipcChannels.deleteClip, id),

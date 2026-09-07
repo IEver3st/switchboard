@@ -213,6 +213,16 @@ export const batteryCapabilitySchema = z.object({
 });
 export type BatteryCapability = z.infer<typeof batteryCapabilitySchema>;
 
+export const mouseBatteryLightingPolicySchema = z.object({
+  flashEnabled: z.boolean().default(true),
+  warningPercentage: z.number().int().min(1).max(100).default(20),
+  flashIntervalMinutes: z.number().int().min(1).max(60).default(5),
+  cutoffEnabled: z.boolean().default(true),
+  cutoffPercentage: z.number().int().min(1).max(100).default(10),
+});
+export type MouseBatteryLightingPolicy = z.infer<typeof mouseBatteryLightingPolicySchema>;
+export const defaultMouseBatteryLightingPolicy = mouseBatteryLightingPolicySchema.parse({});
+
 export const deviceProfileModeSchema = z.enum(['software', 'onboard']);
 export type DeviceProfileMode = z.infer<typeof deviceProfileModeSchema>;
 
@@ -321,6 +331,9 @@ export const lightingProfileSchema = z.object({
 export type LightingProfile = z.infer<typeof lightingProfileSchema>;
 
 export const lightingCapabilitySchema = z.object({
+  batteryStatus: z.enum(['monitoring', 'warning', 'cutoff', 'charging', 'disabled', 'unavailable', 'error']).optional(),
+  batteryStatusReason: z.string().optional(),
+  batteryLightingEnabled: z.boolean().optional(),
   writable: z.boolean(),
   enabled: z.boolean(),
   activeEffectId: z.string().min(1),
@@ -1361,6 +1374,7 @@ export const appSettingsSchema = z.object({
   scanGamesAutomatically: z.boolean(),
   clipEditorInspectorOpen: z.boolean(),
   deviceAppearanceOverrides: z.record(z.string(), deviceAppearanceOverrideSchema).default({}),
+  mouseBatteryLighting: z.record(z.string(), mouseBatteryLightingPolicySchema).default({}),
   developerMode: z.boolean().default(false),
   visibleWorkspaces: z.array(visibleWorkspaceSchema).default(['devices', 'audio', 'capture']),
   onboardingCompleted: z.boolean().default(false),
@@ -1640,6 +1654,7 @@ export const updateSettingsInputSchema = appSettingsSchema.partial().extend({
   detailedDiagnostics: appSettingsSchema.shape.detailedDiagnostics.removeDefault().optional(),
   softwareRendering: appSettingsSchema.shape.softwareRendering.removeDefault().optional(),
   deviceAppearanceOverrides: appSettingsSchema.shape.deviceAppearanceOverrides.removeDefault().optional(),
+  mouseBatteryLighting: appSettingsSchema.shape.mouseBatteryLighting.removeDefault().optional(),
   developerMode: appSettingsSchema.shape.developerMode.removeDefault().optional(),
   visibleWorkspaces: appSettingsSchema.shape.visibleWorkspaces.removeDefault().optional(),
   onboardingCompleted: appSettingsSchema.shape.onboardingCompleted.removeDefault().optional(),
@@ -1658,7 +1673,7 @@ export const settingsResetScopeSchema = z.enum([
 ]);
 export type SettingsResetScope = z.infer<typeof settingsResetScopeSchema>;
 
-export const feedbackReportKindSchema = z.enum(['bug', 'feature']);
+export const feedbackReportKindSchema = z.enum(['bug', 'feature', 'feedback']);
 export type FeedbackReportKind = z.infer<typeof feedbackReportKindSchema>;
 
 export const feedbackReportInputSchema = z.object({
@@ -1669,6 +1684,16 @@ export const feedbackReportInputSchema = z.object({
   includeDiagnostics: z.boolean(),
 });
 export type FeedbackReportInput = z.infer<typeof feedbackReportInputSchema>;
+
+export const feedbackSubmissionInputSchema = feedbackReportInputSchema.extend({
+  email: z.string().trim().max(254).email(),
+});
+export type FeedbackSubmissionInput = z.infer<typeof feedbackSubmissionInputSchema>;
+export const feedbackSubmissionResultSchema = z.object({
+  submitted: z.boolean(),
+  message: z.string().max(500),
+});
+export type FeedbackSubmissionResult = z.infer<typeof feedbackSubmissionResultSchema>;
 
 export const feedbackHandoffResultSchema = z.object({
   copied: z.boolean(),
@@ -1728,7 +1753,7 @@ export const ipcChannels = {
   runDiagnostics: 'diagnostics:run',
   cancelDiagnostics: 'diagnostics:cancel',
   resetSettings: 'settings:reset',
-  handoffFeedbackReport: 'feedback:handoff-report',
+  submitFeedbackReport: 'feedback:submit-report',
   revealClip: 'clips:reveal',
   deleteClip: 'clips:delete',
   markClipsReviewed: 'clips:mark-reviewed',
@@ -1800,7 +1825,7 @@ export interface SwitchboardApi {
   runDiagnostics(): Promise<SystemSnapshot>;
   cancelDiagnostics(): Promise<SystemSnapshot>;
   resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot>;
-  handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult>;
+  submitFeedbackReport(input: FeedbackSubmissionInput): Promise<FeedbackSubmissionResult>;
   revealClip(id: string): Promise<void>;
   deleteClip(id: string): Promise<SystemSnapshot>;
   markClipsReviewed(input: MarkClipsReviewedInput): Promise<SystemSnapshot>;

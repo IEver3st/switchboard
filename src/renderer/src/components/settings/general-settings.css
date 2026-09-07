@@ -1,0 +1,108 @@
+.diagnostic-runner:not([data-expanded]) {
+  margin-block: 20px 24px;
+  padding: 16px;
+  border-radius: 7px;
+  background: var(--surface-1);
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__heading {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__copy {
+  flex: 1 1 320px;
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__heading p {
+  font-size: 11px;
+  max-width: 64ch;
+  margin-top: 4px;
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__heading .diagnostic-runner__note {
+  font-size: 10.5px;
+  color: var(--text-description);
+  margin-top: 8px;
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__actions {
+  align-items: center;
+  gap: 4px;
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__actions button {
+  font-size: 11px;
+  height: 32px;
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__summary {
+  font-size: 11px;
+  margin-top: 12px;
+}
+
+.diagnostic-runner:not([data-expanded]) .diagnostic-runner__results {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.diagnostic-runner summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.settings-row.settings-workspaces-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 20px;
+  padding: 0;
+  margin-block: 0 24px;
+}
+
+.settings-row.settings-workspaces-block .settings-row__copy {
+  display: block;
+  align-self: center;
+}
+
+.settings-workspaces-block .settings-row__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-workspaces-block .settings-row__description {
+  margin-top: 4px;
+  max-width: 62ch;
+}
+
+.settings-workspaces-block .settings-workspaces {
+  display: contents;
+}
+
+.settings-workspaces-block .settings-workspaces__presets {
+  align-self: center;
+  justify-content: flex-end;
+}
+
+.settings-workspaces-block .settings-workspaces__list {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
+  background: transparent;
+  padding: 0;
+  gap: 2px;
+}
+
+.settings-workspaces-block .settings-workspaces__item {
+  min-height: 52px;
+  padding: 8px 12px;
+  column-gap: 12px;
+}
+
+.settings-workspaces-block .settings-workspaces__item[data-locked] {
+  background: var(--surface-1);
+}
+
+@media (max-width: 1200px) {
+  .settings-row.settings-workspaces-block { grid-template-columns: minmax(0, 1fr); }
+  .settings-workspaces-block .settings-workspaces__presets { justify-content: flex-start; }
+}

@@ -16,7 +16,7 @@ import {
   createAudioPresetInputSchema,
   exportClipInputSchema,
   exportMontageInputSchema,
-  feedbackReportInputSchema,
+  feedbackSubmissionInputSchema,
   ipcChannels,
   markClipsReviewedInputSchema,
   moduleProjectIdInputSchema,
@@ -335,10 +335,10 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (scope) => controller.resetSettings(scope),
   );
   handle(
-    ipcChannels.handoffFeedbackReport,
+    ipcChannels.submitFeedbackReport,
     getMainWindow,
-    (input) => feedbackReportInputSchema.parse(input),
-    (input) => controller.handoffFeedbackReport(input),
+    (input) => feedbackSubmissionInputSchema.parse(input),
+    (input) => controller.submitFeedbackReport(input),
   );
   handle(
     ipcChannels.revealClip,

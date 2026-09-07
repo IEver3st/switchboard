@@ -2,6 +2,27 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+// Opt-in, hidden live probe. Encodes three display frames to a discard sink;
+// never saves screen content or opens a window. Pass the display index explicitly.
+if (args.Length == 2 && args[0] == "--amf-live-probe")
+{
+    var displayIndex = int.Parse(args[1]);
+    if (displayIndex < 0) throw new ArgumentOutOfRangeException(nameof(displayIndex));
+    var capture = new CaptureSettings(Source: "display", DisplayIndex: displayIndex,
+        IncludeMic: false, IncludeSystemAudio: false, CacheDirectory: Path.GetTempPath(), ClipsDirectory: Path.GetTempPath());
+    var source = new CaptureSource($"display:{displayIndex}", "display", "Live probe", null, null, null, true);
+    foreach (var backend in new[] { "Windows Graphics Capture", "Desktop Duplication" })
+    foreach (var encoder in new[] { "h264_amf", "hevc_amf", "av1_amf" })
+    {
+        var result = await CaptureDiagnosticRunner.RunProcessAsync(FfmpegLocator.FindFfmpeg(),
+            ReplayEngine.BuildVideoArguments(capture, source, backend, encoder, "", diagnosticProbe: true), CancellationToken.None);
+        Console.WriteLine($"{backend} / {encoder}: exit {result.ExitCode}, frames {result.Frames}, {result.DurationMs:F0} ms");
+        if (result.ExitCode != 0 || result.Frames != 3)
+            throw new InvalidOperationException(result.Output);
+    }
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--diagnostic-hang")
 {
     await File.WriteAllTextAsync(args[1], Environment.ProcessId.ToString());
@@ -30,7 +51,16 @@ if (Environment.GetEnvironmentVariable("SWITCHBOARD_CAPTURE_FAILURE_FIXTURE") ==
             Console.Error.WriteLine("frame=3");
             return;
         }
-        Console.Error.WriteLine("[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)");
+        var retryMarker = Environment.GetEnvironmentVariable("SWITCHBOARD_CAPTURE_RETRY_MARKER");
+        if (retryMarker is not null && args.Contains("-segment_time"))
+        {
+            if (File.Exists(retryMarker))
+            {
+                while (true) { Console.Error.WriteLine("frame=1"); await Task.Delay(100); }
+            }
+            await File.WriteAllTextAsync(retryMarker, "failed once");
+        }
+        Console.Error.WriteLine("[gfxcapture @ fixture] Failed to setup graphics capture for monitor (0x80070057)");
         Console.Error.WriteLine("Task finished with error code: -1313558101 (Unknown error occurred)");
         Environment.ExitCode = -1313558101;
     }
@@ -101,6 +131,25 @@ AssertEqual("av1_amf", ReplayEngine.SelectEncoder(validSettings with { Codec = "
 AssertThrows<InvalidOperationException>(() => ReplayEngine.SelectEncoder(validSettings, ["libsvtav1"]),
     "Automatic must not fall through to costly software AV1.");
 var nvencArguments = ReplayEngine.EncoderArguments(validSettings, "av1_nvenc").ToArray();
+var amfSource = new CaptureSource("display:1", "display", "Test display", null, null, "1", true);
+foreach (var backend in new[] { "Windows Graphics Capture", "Desktop Duplication" })
+foreach (var amfEncoder in new[] { "h264_amf", "hevc_amf", "av1_amf" })
+foreach (var diagnosticProbe in new[] { false, true })
+{
+    var arguments = ReplayEngine.BuildVideoArguments(validSettings, amfSource, backend, amfEncoder, "", diagnosticProbe).ToArray();
+    AssertValue(true, arguments.Zip(arguments.Skip(1)).Any(pair =>
+            pair.First == "-vf" && pair.Second == "hwdownload,format=bgra,format=nv12"),
+        "AMF recording and diagnostics must convert capture textures before submitting frames to the encoder.");
+    AssertValue(true, arguments.Zip(arguments.Skip(1)).Any(pair => pair.First == "-c:v" && pair.Second == amfEncoder),
+        "AMF capture conversion must preserve the selected hardware codec.");
+}
+var nvencVideoArguments = ReplayEngine.BuildVideoArguments(validSettings, amfSource, "Windows Graphics Capture", "h264_nvenc", "").ToArray();
+AssertValue(false, nvencVideoArguments.Contains("-vf"), "NVENC must retain direct hardware capture frames.");
+var softwareAv1Arguments = ReplayEngine.EncoderArguments(validSettings, "libsvtav1").ToArray();
+AssertValue(true, softwareAv1Arguments.Zip(softwareAv1Arguments.Skip(1)).Any(pair => pair.First == "-preset" && pair.Second == "8"),
+    "SVT-AV1 requires a numeric preset, not the x264 veryfast preset.");
+AssertValue(false, softwareAv1Arguments.Contains("-b:v"), "SVT-AV1 capped CRF must not also request target-bitrate mode.");
+AssertValue(true, softwareAv1Arguments.Contains("-maxrate"), "SVT-AV1 must retain the replay bitrate cap.");
 AssertValue(true, nvencArguments.Zip(nvencArguments.Skip(1)).Any(pair => pair.First == "-delay" && pair.Second == "0"),
     "NVENC capture must not retain the encoder's automatic frame-delay allocation.");
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { Fps = 59 }).Validate(), "Unsupported FPS must fail validation.");
@@ -592,7 +641,7 @@ static async Task AssertCaptureStartupFailureAsync()
     if (!OperatingSystem.IsWindows()) return;
     var executable = Environment.ProcessPath ?? throw new InvalidOperationException("The test executable is unavailable.");
     var root = Directory.CreateTempSubdirectory("switchboard-capture-failure-").FullName;
-    var variables = new[] { "SWITCHBOARD_FFMPEG", "SWITCHBOARD_FFPROBE", "SWITCHBOARD_CAPTURE_FAILURE_FIXTURE" };
+    var variables = new[] { "SWITCHBOARD_FFMPEG", "SWITCHBOARD_FFPROBE", "SWITCHBOARD_CAPTURE_FAILURE_FIXTURE", "SWITCHBOARD_CAPTURE_RETRY_MARKER" };
     var previous = variables.ToDictionary(name => name, Environment.GetEnvironmentVariable);
     try
     {
@@ -619,6 +668,18 @@ static async Task AssertCaptureStartupFailureAsync()
         AssertValue(true, diagnostics.Any(row => row.Event == "capture.configure-failed"), "Trace failed recovery from an earlier start.");
         AssertEqual("error", engine.GetSnapshot().Runtime.State, "Software retry failure must retain a canonical error state.");
         AssertValue(true, engine.FfmpegProcessId is null, "Retry failure must not retain an encoder process.");
+        AssertValue(2, diagnostics.Count(row => row.Event == "capture.start-retry"),
+            "Persistent graphics failures must stop after two retries.");
+
+        Environment.SetEnvironmentVariable("SWITCHBOARD_CAPTURE_RETRY_MARKER", Path.Combine(root, "retry-marker"));
+        await engine.ConfigureAsync(settings, CancellationToken.None);
+        AssertEqual("buffering", engine.GetSnapshot().Runtime.State,
+            "A transient monitor initialization failure must recover without toggling Replay.");
+        AssertValue(true, engine.FfmpegProcessId is not null, "Recovery must own a running video encoder.");
+        await engine.StopAsync(CancellationToken.None);
+        AssertValue(true, engine.FfmpegProcessId is null, "Stopping recovered Replay must release the child.");
+        Environment.SetEnvironmentVariable("SWITCHBOARD_CAPTURE_RETRY_MARKER", null);
+        await ExpectFailureAsync(() => engine.StartAsync(settings, CancellationToken.None));
 
         var checks = new List<DiagnosticCheck>();
         await engine.RunDiagnosticsAsync(settings, checks.Add, CancellationToken.None);

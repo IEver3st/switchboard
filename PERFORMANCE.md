@@ -25,6 +25,13 @@ visible without turning a single Chromium spike into a release failure.
 
 ## Required measurements
 
+AMF capture uses a BGRA download and CPU conversion to NV12 before hardware
+encoding to avoid capture-texture Direct3D failures. A September 7, 2026 live
+1440p/60 H.264 discard-sink probe on the RX 9070 XT setup encoded 3,600 frames
+in 60.28 seconds (322 duplicated, zero dropped), averaging 2.25% whole-machine
+CPU for FFmpeg alone. This exceeds the 2% replay CPU target; it is a bounded
+compatibility check, not a complete replay/audio resource or soak measurement.
+
 - private working set and RSS;
 - CPU time, sampled over at least 60 seconds;
 - process count;
@@ -193,9 +200,23 @@ or physical-capture soak claim.
 
 ## Device sessions
 
+Mouse battery lighting reuses the existing five-second discovery readings; it
+adds no battery polling loop. By default, battery at or below 20% triggers a
+seven-second burst of three red flashes at 25% brightness at most once every five minutes. Each flash lasts two seconds with half-second dark gaps. At or
+below 10%, lighting remains off and warnings stop. Both thresholds and the flash
+interval are configurable. Only the active burst owns a timer, with one pending transition at a time;
+charging, cutoff, disabled policy, disconnect, module disable, and shutdown
+cancel it. Automatic writes affect live RGB RAM only, never onboard flash.
+
+G502 button reporting is enabled after its notification listener is attached and
+reasserted on the existing five-second discovery cycle to recover receiver state
+lost across sleep or reconnect. Failed session opens retry after five seconds.
+Neither recovery path creates a timer or writes onboard flash; module disable
+and shutdown stop recovery with the existing discovery/session lifecycle.
+
 An enabled local device-discovery add-on creates at most one hidden sandboxed Chromium host. The host is lazy, performs work only during the registry's existing five-second discovery cycle, has no Module Host timer of its own, and is destroyed on disable, unlink, runtime failure, or shutdown. A disabled project retains no renderer process or subscription. Each active local host counts as an additional process in the canonical performance snapshot; real private working-set and long-running growth still require native measurement before release acceptance.
 
-The G502 X Plus native-control path holds one non-exclusive HID++ long-report handle only while the Logitech module and matching device are active. Sniper-button edges are notification-driven; the session adds no button or lighting polling timer. Device-reported live RGB effects and zone frames are written only after an explicit user change; software RGB ownership is retained for the session and released deterministically when onboard mode takes over or the session closes. Onboard profile sectors are read during discovery and written only in response to an explicit stored-setting change, with CRC validation and immediate readback rather than background flash traffic. Release, module disable, disconnect, and application shutdown close the handle deterministically and restore the pre-hold DPI when the device remains reachable.
+The G502 X Plus native-control path holds one non-exclusive HID++ long-report handle only while the Logitech module and matching device are active. Sniper-button edges are notification-driven. Lighting shares the existing five-second discovery cycle for two power/ownership reads while a user selection is acknowledged; it adds no timer and stops on session disposal. Live RGB effects are sent on explicit changes and restoration after startup or a profile-mode transition. Battery policy uses the temporary overrides described above. RGB ownership is retained in either onboard mode and released on session close. Lighting controls never write profile flash. Stored DPI, report-rate and button changes retain CRC validation and immediate readback. Release, module disable, disconnect, and shutdown close the handle and restore pre-hold DPI when reachable.
 
 The QuadCast 2 path holds one non-exclusive blocking-read handle for absolute tap-mute events and one non-exclusive feature-report handle only while maintained lighting is active. Lighting refreshes every 55 ms because the researched display frame expires on-device; the timer is unreferenced and stops on module disable, disconnect, write failure, or shutdown. A failed mute read closes its handle and retries after one second while the device remains present.
 

@@ -7,6 +7,7 @@ import { DeviceCallout } from './DeviceCallout';
 import { DeviceHotspot } from './DeviceHotspot';
 import { DpiControl } from './DpiControl';
 import { LightingControl } from './LightingControl';
+import { MouseBatteryLightingControl } from './MouseBatteryLightingControl';
 import { OnboardMemoryControl } from './OnboardMemoryControl';
 import { ReportRateControl } from './ReportRateControl';
 import './mouse-device.css';
@@ -159,6 +160,7 @@ function MouseControls({ device, onLightingPreview }: { device: Device; onLighti
       </div>
       {lighting ? (
         <div className="mouse-config__lighting-group">
+          <MouseBatteryLightingControl device={device} />
           <LightingControl
             capability={lighting}
             onColorPreview={onLightingPreview}

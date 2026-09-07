@@ -600,6 +600,44 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     private async Task StartFfmpegInternalAsync(CaptureSource source, CancellationToken cancellationToken)
     {
+        using var startupCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
+        var token = startupCancellation.Token;
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await StartFfmpegAttemptAsync(source, token);
+                return;
+            }
+            catch (InvalidOperationException failure) when (attempt < 2
+                && backendName == "Windows Graphics Capture"
+                && failure.Message.Contains("Failed to setup graphics capture", StringComparison.OrdinalIgnoreCase))
+            {
+                // WGC can enumerate a monitor before it can reopen it after a display transition.
+                // The failed attempt has already released every encoder and audio input.
+                operationalState = "recovering";
+                error = null;
+                warning = "The capture source is reconnecting. Instant Replay is retrying.";
+                Diagnostics.Write("warning", "capture.start-retry", () => new() { ["attempt"] = attempt + 1 });
+                EmitSnapshot();
+                await Task.Delay(TimeSpan.FromSeconds(attempt + 1), token);
+                var capture = settings!;
+                var refreshed = capture.Source == "automatic-game"
+                    ? sourceService.DetectAutomaticGame(DateTimeOffset.UtcNow)
+                    : sourceService.ResolveExplicit(capture);
+                if (refreshed?.Available != true)
+                {
+                    operationalState = "waiting";
+                    warning = "The selected source is unavailable. Replay will resume when it returns.";
+                    return;
+                }
+                source = refreshed;
+            }
+        }
+    }
+
+    private async Task StartFfmpegAttemptAsync(CaptureSource source, CancellationToken cancellationToken)
+    {
         var capture = settings ?? throw new InvalidOperationException("Capture settings are missing.");
         if (ring is null) throw new InvalidOperationException("Replay ring is not initialized.");
         EnsureStorageHeadroom(capture, preventStart: true);
@@ -964,6 +1002,15 @@ internal sealed class ReplayEngine : IAsyncDisposable
             yield return "-vf";
             yield return "hwdownload,format=bgra,format=yuv420p";
         }
+        else if (encoderName.EndsWith("_amf", StringComparison.OrdinalIgnoreCase))
+        {
+            // AMF can pass its synthetic probe yet reject capture-owned D3D11
+            // textures at SubmitInput (AMF_DIRECTX_FAILED), including on mixed
+            // adapters. Submit converted system-memory frames so AMF owns the
+            // upload while retaining the selected hardware encoder.
+            yield return "-vf";
+            yield return "hwdownload,format=bgra,format=nv12";
+        }
         yield return "-fps_mode";
         yield return "cfr";
         yield return "-r";
@@ -1047,10 +1094,11 @@ internal sealed class ReplayEngine : IAsyncDisposable
         }
         else
         {
-            yield return "-preset"; yield return "veryfast";
+            yield return "-preset"; yield return encoder == "libsvtav1" ? "8" : "veryfast";
             yield return "-crf"; yield return Math.Clamp(30 - capture.Quality * 2, 18, 28).ToString(CultureInfo.InvariantCulture);
         }
-        yield return "-b:v"; yield return target;
+        // SVT-AV1 capped CRF rejects a simultaneous target bitrate.
+        if (encoder != "libsvtav1") { yield return "-b:v"; yield return target; }
         yield return "-maxrate"; yield return maximum;
         yield return "-bufsize"; yield return (capture.MaximumVideoBitrateBps * 2L).ToString(CultureInfo.InvariantCulture);
     }

@@ -28,7 +28,7 @@ const providerArtwork: Readonly<Record<string, string>> = {
   wardogs: wardogsArtwork,
 };
 
-export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) {
+export function AutoCaptureSettings({ snapshot, section = 'all' }: { snapshot: SystemSnapshot; section?: 'all' | 'automatic' | 'reactions' }) {
   const update = useSystemStore((state) => state.updateAutoCaptureSettings);
   const setupProvider = useSystemStore((state) => state.setupAutoCaptureProvider);
   const emitTestEvent = useSystemStore((state) => state.emitAutoCaptureTestEvent);
@@ -40,13 +40,13 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
 
   return (
     <div className="settings-autocapture">
-      <SettingSection title="Auto Capture">
+      {section !== 'reactions' ? <SettingSection title="Auto Capture">
         <SettingSwitch
           settingId="autocapture.enabled"
           title="Automatically save gameplay highlights"
           description={snapshot.capture.config.enabled
             ? autoCaptureStateDescription(autoCapture.runtime.state, autoCapture.runtime.pendingCapture?.eventCount)
-            : 'Auto Capture is ready to configure, but Instant Replay must be enabled before events can preserve footage.'}
+            : 'Auto Capture is ready to configure. Enable Capture engine above to buffer footage for events.'}
           checked={settings.enabled}
           onCheckedChange={(enabled) => void update({ enabled })}
         />
@@ -95,9 +95,9 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
           disabled={!settings.enabled}
           onCheckedChange={(notifyWhenSaved) => void update({ notifyWhenSaved })}
         />
-      </SettingSection>
+      </SettingSection> : null}
 
-      <SettingSection title="Reaction clipping">
+      {section !== 'automatic' ? <SettingSection title="Reaction clipping">
         <SettingSwitch
           settingId="reactionClipping.enabled"
           title="Allow reaction clipping"
@@ -149,9 +149,9 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
           disabled={!reaction.enabled}
           onValueChange={(value) => void update({ reactionClipping: { cooldownSeconds: Number(value) } })}
         />
-      </SettingSection>
+      </SettingSection> : null}
 
-      <SettingSection title="Game integrations">
+      {section !== 'reactions' ? <SettingSection title="Game integrations">
         {autoCapture.providers.map((provider) => (
           <ProviderSettings
             key={provider.id}
@@ -162,7 +162,7 @@ export function AutoCaptureSettings({ snapshot }: { snapshot: SystemSnapshot }) 
             onEmit={(type) => void emitTestEvent({ type: type as 'kill' | 'headshot' | 'multi_kill' | 'death' | 'round_win' | 'match_win' })}
           />
         ))}
-      </SettingSection>
+      </SettingSection> : null}
     </div>
   );
 }
@@ -365,7 +365,7 @@ function autoCaptureStateDescription(state: SystemSnapshot['capture']['autoCaptu
   if (state === 'saving') return 'Preserving the completed event window from the existing replay buffer.';
   if (state === 'listening') return 'The active game provider is listening for supported gameplay events.';
   if (state === 'degraded') return 'The active provider needs attention. Manual replay capture remains available.';
-  return 'Supported game providers start only while Auto Capture and Instant Replay are enabled.';
+  return 'Supported game providers start only while Auto Capture and the Capture engine are enabled.';
 }
 
 function reactionClippingDescription(snapshot: SystemSnapshot): string {

@@ -48,7 +48,7 @@ function EmptyLibrary({ replayEnabled, hotkey, captureUnavailableReason }: { rep
         <EmptyMedia><Video strokeWidth={1.5} /></EmptyMedia>
         <EmptyTitle>No clips yet</EmptyTitle>
         <EmptyDescription>
-          {replayEnabled ? <>Press {hotkey} when something worth saving happens.</> : <>Turn on Instant Replay in Capture Settings.<br />Then press {hotkey} when something worth saving happens.</>}
+          {replayEnabled ? <>Press {hotkey} when something worth saving happens.</> : <>Enable Capture engine in Settings &gt; Capture.<br />Replay starts automatically.</>}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

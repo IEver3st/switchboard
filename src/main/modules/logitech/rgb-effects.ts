@@ -86,8 +86,13 @@ export class LogitechRgbEffectsController {
   private activeEffectId: string;
   private enabled: boolean;
   private acknowledged = false;
+  private hasSelection = false;
+  private unknownReason: string | undefined;
   private claimed = false;
   private perKeyPrepared = false;
+  private batteryOverride = false;
+  private restoreSoftwareLighting = false;
+  private restoreFirmwarePower = true;
   private readonly zoneColors = new Map<number, string>();
 
   private constructor(
@@ -100,6 +105,9 @@ export class LogitechRgbEffectsController {
     zoneIds: number[],
     previous: LightingCapability | undefined,
   ) {
+    // A stored onboard record is not a readback of the live LEDs.
+    previous = previous?.source === 'software' ? previous : undefined;
+    this.hasSelection = previous?.state === 'acknowledged' || previous?.state === 'maintained';
     this.color = previous?.color ?? '#89cff0';
     this.brightness = previous?.brightness ?? 100;
     this.speed = previous?.speed ?? 50;
@@ -107,7 +115,7 @@ export class LogitechRgbEffectsController {
     this.activeEffectId = this.availableEffects.some((effect) => effect.id === previous?.activeEffectId)
       ? previous!.activeEffectId
       : (this.availableEffects[0]?.id ?? 'static');
-    this.enabled = previous?.enabled ?? true;
+    this.enabled = previous?.batteryLightingEnabled ?? previous?.enabled ?? true;
     for (const [index, zoneId] of zoneIds.entries()) {
       const previousZone = previous?.zones?.find((zone) => zone.id === zoneKey(zoneId));
       this.zoneColors.set(zoneId, previousZone?.color ?? this.color);
@@ -203,8 +211,10 @@ export class LogitechRgbEffectsController {
       muteLinkedWritable: false,
       state: this.acknowledged ? 'acknowledged' : 'unknown',
       stateReason: this.acknowledged
-        ? 'The mouse acknowledged the live lighting command; this HID++ effect path has no state readback.'
-        : 'The mouse reports available effects and zones, but not the currently visible live effect. Choose a setting to take control.',
+        ? this.enabled
+          ? 'RGB power is on and the mouse acknowledged the effect. The visible effect has no readback.'
+          : 'The mouse reports RGB power off. Switchboard keeps control while it is running.'
+        : this.unknownReason ?? 'Current lighting is unknown. Choose an effect or Turn off to take control.',
       physicalEffectVerified: false,
       profileMode: 'software',
       source: 'software',
@@ -213,7 +223,6 @@ export class LogitechRgbEffectsController {
   }
 
   public async setEnabled(enabled: boolean): Promise<void> {
-    if (enabled === this.enabled) return;
     await this.claim();
     if (enabled) {
       await this.applyEffect(this.activeEffectId);
@@ -221,8 +230,10 @@ export class LogitechRgbEffectsController {
     } else {
       await this.applyOff();
     }
+    await this.confirmPower(enabled);
     this.enabled = enabled;
     this.acknowledged = true;
+    this.hasSelection = true;
   }
 
   public async setEffect(effectId: string): Promise<void> {
@@ -232,9 +243,11 @@ export class LogitechRgbEffectsController {
     await this.claim();
     await this.applyEffect(effectId);
     if (effectId === 'static') await this.paintAllZones();
+    await this.confirmPower(true);
     this.activeEffectId = effectId;
     this.enabled = true;
     this.acknowledged = true;
+    this.hasSelection = true;
   }
 
   public async setColor(color: string): Promise<void> {
@@ -257,9 +270,11 @@ export class LogitechRgbEffectsController {
       await this.claim();
       await this.applyEffect(targetEffect);
       if (targetEffect === 'static') await this.paintAllZones();
+      await this.confirmPower(true);
       this.activeEffectId = targetEffect;
       this.enabled = true;
       this.acknowledged = true;
+      this.hasSelection = true;
     } catch (error) {
       this.color = previousColor;
       this.activeEffectId = previousEffect;
@@ -289,7 +304,9 @@ export class LogitechRgbEffectsController {
       this.activeEffectId = 'static';
       this.enabled = true;
       await this.paintAllZones();
+      await this.confirmPower(true);
       this.acknowledged = true;
+      this.hasSelection = true;
     } catch (error) {
       this.zoneColors.set(numericId, previousColor);
       this.activeEffectId = previousEffect;
@@ -309,8 +326,10 @@ export class LogitechRgbEffectsController {
       await this.claim();
       await this.applyEffect(this.activeEffectId);
       if (this.activeEffectId === 'static') await this.paintAllZones();
+      await this.confirmPower(true);
       this.enabled = true;
       this.acknowledged = true;
+      this.hasSelection = true;
     } catch (error) {
       this.brightness = previousBrightness;
       this.enabled = previousEnabled;
@@ -326,8 +345,10 @@ export class LogitechRgbEffectsController {
       this.speed = clamp(Math.round(speed), 1, 100);
       await this.claim();
       await this.applyEffect(this.activeEffectId);
+      await this.confirmPower(true);
       this.enabled = true;
       this.acknowledged = true;
+      this.hasSelection = true;
     } catch (error) {
       this.speed = previousSpeed;
       this.enabled = previousEnabled;
@@ -344,8 +365,10 @@ export class LogitechRgbEffectsController {
       this.direction = direction;
       await this.claim();
       await this.applyEffect(this.activeEffectId);
+      await this.confirmPower(true);
       this.enabled = true;
       this.acknowledged = true;
+      this.hasSelection = true;
     } catch (error) {
       this.direction = previousDirection;
       this.enabled = previousEnabled;
@@ -353,15 +376,93 @@ export class LogitechRgbEffectsController {
     }
   }
 
-  public async release(): Promise<void> {
-    if (!this.claimed) return;
+  public get supportsBatteryLighting(): boolean {
+    return this.availableEffects.some((effect) => effect.id === 'static');
+  }
+
+  /** Temporary RAM-only override. Never mutate the user's effect, colors, or zones. */
+  public async setBatteryOverride(value: 'red' | 'off' | null): Promise<void> {
+    if (value === null) {
+      if (!this.batteryOverride) return;
+      this.perKeyPrepared = false;
+      if (this.restoreSoftwareLighting) {
+        if (this.enabled) {
+          await this.applyEffect(this.activeEffectId);
+          if (this.activeEffectId === 'static') await this.paintAllZones();
+        } else await this.applyOff();
+        await this.confirmPower(this.enabled);
+      } else {
+        await this.confirmPower(this.restoreFirmwarePower);
+        // Unlike best-effort shutdown, restoration must surface a rejected release.
+        await this.release();
+      }
+      this.batteryOverride = false;
+      return;
+    }
+    if (!this.batteryOverride) {
+      this.restoreSoftwareLighting = this.claimed;
+      if (!this.claimed) {
+        const power = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
+        if (power[5] !== 1 && power[5] !== 3) {
+          throw new Error('The mouse RGB power state is unavailable; battery lighting was not changed.');
+        }
+        this.restoreFirmwarePower = power[5] === 1;
+      }
+    }
+    this.batteryOverride = true;
+    await this.claim();
+    this.perKeyPrepared = false;
+    if (value === 'off') {
+      await this.applyOff();
+      await this.confirmPower(false);
+      return;
+    }
+    for (const cluster of this.clusters) {
+      const effect = preferredEffect(cluster, 'static');
+      if (!effect) throw new Error('The mouse does not support a static red battery warning.');
+      await this.transport.request(this.deviceIndex, this.featureIndex, 1,
+        [cluster.index, effect.index, ...buildEffectParameters(effect, '#ff0000', 25, 50, 'right'), persistUntilRelease]);
+    }
+    if (this.perKeyFeatureIndex !== null && this.zoneColors.size > 0) {
+      await this.preparePerKey();
+      for (const zoneId of this.zoneColors.keys()) {
+        await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 1, [zoneId, 64, 0, 0]);
+      }
+      await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 7, [0]);
+    }
+    await this.confirmPower(true);
+  }
+
+  public invalidate(reason?: string): void {
+    this.perKeyPrepared = false;
+    this.acknowledged = false;
+    this.unknownReason = reason;
+  }
+
+  public async refreshState(): Promise<void> {
+    if (!this.acknowledged || this.batteryOverride) return;
+    try {
+      const ownership = await this.transport.request(this.deviceIndex, this.featureIndex, 5, [0, 0, 0]);
+      const power = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
+      if ((ownership[5]! & 3) !== 3 || power[5] !== (this.enabled ? 1 : 3)) {
+        this.invalidate('The mouse changed RGB control or power state. Choose an effect or Turn off to reapply lighting.');
+      }
+    } catch {
+      this.invalidate('Current lighting could not be checked. Choose an effect or Turn off to retry.');
+    }
+  }
+
+  public async restoreSelection(): Promise<void> {
+    if (!this.hasSelection) return;
+    await this.setEnabled(this.enabled);
+  }
+
+  public async release(force = false): Promise<void> {
+    if (!this.claimed && !force) return;
+    await this.transport.request(this.deviceIndex, this.featureIndex, 5, softwareControlReleased, 350);
     this.claimed = false;
     this.perKeyPrepared = false;
-    try {
-      await this.transport.request(this.deviceIndex, this.featureIndex, 5, softwareControlReleased, 350);
-    } catch {
-      // Closing the HID channel also returns control to firmware.
-    }
+    this.acknowledged = false;
   }
 
   private get activeDefinition(): EffectDefinition | undefined {
@@ -369,9 +470,24 @@ export class LogitechRgbEffectsController {
   }
 
   private async claim(): Promise<void> {
-    if (this.claimed) return;
+    // Sleep or another client can revoke ownership without closing this HID
+    // endpoint. Reclaim on changes instead of trusting cached ownership.
     await this.transport.request(this.deviceIndex, this.featureIndex, 5, softwareControlActive);
     this.claimed = true;
+    this.perKeyPrepared = false;
+  }
+
+  private async confirmPower(enabled: boolean): Promise<void> {
+    const requestedMode = enabled ? 1 : 3;
+    try {
+      await this.transport.request(this.deviceIndex, this.featureIndex, 8, [1, requestedMode, 0]);
+      const response = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
+      if (response[5] !== requestedMode) throw new Error('The mouse did not confirm the requested RGB power state.');
+    } catch (error) {
+      this.acknowledged = false;
+      this.unknownReason = 'The mouse did not confirm RGB power. Retry the lighting change.';
+      throw error;
+    }
   }
 
   private async applyOff(): Promise<void> {

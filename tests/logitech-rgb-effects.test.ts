@@ -13,7 +13,102 @@ interface RequestRecord {
 const rgbFeatureIndex = 9;
 const perKeyFeatureIndex = 10;
 
+describe('Logitech temporary battery lighting', () => {
+  test('firmware-owned power is restored after a cutoff and after a warning from Off', async () => {
+    const { controller, transport } = await probeController();
+    await controller.setBatteryOverride('off');
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(3);
+    await controller.setBatteryOverride(null);
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(1);
+    await transport.request(1, rgbFeatureIndex, 8, [1, 3, 0]);
+    await controller.setBatteryOverride('red');
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(1);
+    await controller.setBatteryOverride(null);
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(3);
+  });
+
+  test('red paints main zones and restores exact user colors without changing canonical settings', async () => {
+    const { controller, requests } = await probeController();
+    await controller.setZoneColor('zone-2', '#123456');
+    await controller.setBrightness(60);
+    const original = controller.buildCapability(true);
+    requests.length = 0;
+    await controller.setBatteryOverride('red');
+    expect(requests.filter(request => request.featureIndex === perKeyFeatureIndex && request.functionId === 1)
+      .map(request => request.parameters)).toEqual([[1, 64, 0, 0], [2, 64, 0, 0], [8, 64, 0, 0]]);
+    expect(controller.buildCapability(true)).toEqual(original);
+    requests.length = 0;
+    await controller.setBatteryOverride(null);
+    expect(requests.find(request => request.featureIndex === perKeyFeatureIndex && request.functionId === 1 && request.parameters[0] === 2)
+      ?.parameters).toEqual([2, 11, 31, 52]);
+    expect(controller.buildCapability(true)).toEqual(original);
+    expect(requests.every(request => [rgbFeatureIndex, perKeyFeatureIndex].includes(request.featureIndex))).toBe(true);
+  });
+
+  test('cutoff restores a live wave and unclaimed firmware lighting returns to firmware', async () => {
+    const { controller, requests } = await probeController();
+    await controller.setBatteryOverride('red');
+    await controller.setBatteryOverride(null);
+    expect(requests.at(-1)).toMatchObject({ functionId: 5, parameters: [1, 0, 0] });
+    await controller.setEffect('wave');
+    await controller.setDirection('left');
+    const original = controller.buildCapability(true);
+    await controller.setBatteryOverride('off');
+    await controller.setBatteryOverride(null);
+    const restoredWave = requests.findLast(request => request.functionId === 1 && request.featureIndex === rgbFeatureIndex);
+    expect(restoredWave?.parameters[1]).toBe(2);
+    expect(restoredWave?.parameters[11]).toBe(6);
+    expect(controller.buildCapability(true)).toEqual(original);
+  });
+
+  test('manual Off after cancelling the override remains off', async () => {
+    const { controller, requests } = await probeController();
+    await controller.setEffect('static');
+    await controller.setBatteryOverride('red');
+    await controller.setBatteryOverride(null);
+    await controller.setEnabled(false);
+    requests.length = 0;
+    await controller.setBatteryOverride(null);
+    expect(requests).toEqual([]);
+    expect(controller.buildCapability(true).enabled).toBe(false);
+  });
+});
+
 describe('Logitech device-reported RGB effects', () => {
+  test('revoked live ownership becomes Unknown even when cached lighting was Off', async () => {
+    const { controller, transport } = await probeController();
+    await controller.setEnabled(false);
+    await controller.refreshState();
+    expect(controller.buildCapability(true).state).toBe('acknowledged');
+    await transport.request(1, rgbFeatureIndex, 5, [1, 0, 0]);
+    await controller.refreshState();
+    expect(controller.buildCapability(true)).toMatchObject({ enabled: false, state: 'unknown' });
+  });
+
+  test('reclaims and reapplies an explicit Off after firmware may have lost live ownership', async () => {
+    const { controller, requests } = await probeController();
+    await controller.setEnabled(false);
+    requests.length = 0;
+    await controller.setEnabled(false);
+    expect(requests[0]).toMatchObject({ functionId: 5, parameters: [1, 3, 4] });
+    expect(requests.at(-1)).toMatchObject({ functionId: 8, parameters: [0, 0, 0] });
+  });
+
+  test('release failure remains retryable and cannot silently allow an onboard write', async () => {
+    const { controller, transport } = await probeController();
+    await controller.setEnabled(false);
+    const request = transport.request.bind(transport);
+    let rejectRelease = true;
+    transport.request = async (...args) => {
+      if (rejectRelease && args[2] === 5 && args[3]?.[1] === 0) throw new Error('release failed');
+      return request(...args);
+    };
+    await expect(controller.release()).rejects.toThrow('release failed');
+    rejectRelease = false;
+    await controller.release();
+    expect(controller.buildCapability(true).state).toBe('unknown');
+  });
+
   test('publishes only probed effects and addressable zones', async () => {
     const { controller } = await probeController();
     const capability = controller.buildCapability(true);
@@ -72,7 +167,7 @@ describe('Logitech device-reported RGB effects', () => {
       && request.functionId === 7
       && request.parameters[0] === 0
     ))).toBe(true);
-    const off = requests.at(-1);
+    const off = requests.findLast(request => request.functionId === 1 && request.featureIndex === rgbFeatureIndex);
     expect(off).toEqual({ featureIndex: rgbFeatureIndex, functionId: 1, parameters: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] });
   });
 });
@@ -80,12 +175,23 @@ describe('Logitech device-reported RGB effects', () => {
 async function probeController(): Promise<{
   controller: LogitechRgbEffectsController;
   requests: RequestRecord[];
+  transport: LogitechRgbTransport;
 }> {
   const requests: RequestRecord[] = [];
+  let power = 1;
+  let ownership = 0;
   const transport: LogitechRgbTransport = {
     async request(_deviceIndex, featureIndex, functionId, parameters = []) {
       requests.push({ featureIndex, functionId, parameters: [...parameters] });
       const response = Buffer.alloc(20);
+      if (featureIndex === rgbFeatureIndex && functionId === 5) {
+        if (parameters[0] === 1) ownership = parameters[1]!;
+        response[5] = ownership;
+      }
+      if (featureIndex === rgbFeatureIndex && functionId === 8) {
+        if (parameters[0] === 1) power = parameters[1]!;
+        response[5] = power;
+      }
       if (featureIndex === rgbFeatureIndex && functionId === 0) {
         if (parameters[0] === 0xff) {
           response[6] = 1;
@@ -119,5 +225,5 @@ async function probeController(): Promise<{
     perKeyFeatureIndex,
   );
   if (!controller) throw new Error('The RGB test controller was not discovered.');
-  return { controller, requests };
+  return { controller, requests, transport };
 }

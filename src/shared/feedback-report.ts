@@ -16,14 +16,14 @@ export function buildFeedbackReportMarkdown(
 ): string {
   const isBug = input.kind === 'bug';
   const sections = [
-    `## ${isBug ? 'Bug description' : 'Requested capability'}`,
+    `## ${isBug ? 'Bug description' : input.kind === 'feature' ? 'Requested capability' : 'Feedback'}`,
     input.description.trim(),
   ];
 
   const supportingDetails = input.supportingDetails?.trim();
   if (supportingDetails) {
     sections.push(
-      `## ${isBug ? 'Steps to reproduce' : 'Use case'}`,
+      `## ${isBug ? 'Steps to reproduce' : 'Additional details'}`,
       supportingDetails,
     );
   }
@@ -47,7 +47,7 @@ export function buildFeedbackIssueUrl(
   environment?: FeedbackEnvironment,
 ): string {
   const url = new URL(switchboardIssueUrl);
-  url.searchParams.set('title', `${input.kind === 'bug' ? '[Bug]' : '[Feature]'} ${input.title.trim()}`);
+  url.searchParams.set('title', `${input.kind === 'bug' ? '[Bug]' : input.kind === 'feature' ? '[Feature]' : '[Feedback]'} ${input.title.trim()}`);
   url.searchParams.set('body', buildFeedbackReportMarkdown(input, environment));
   // Public reporters may not have permission to apply labels through URL parameters.
   // Keep the report kind in the title and let maintainers assign labels on GitHub.
@@ -58,6 +58,6 @@ export function buildFeedbackClipboardText(
   input: FeedbackReportInput,
   environment?: FeedbackEnvironment,
 ): string {
-  const prefix = input.kind === 'bug' ? 'Bug' : 'Feature';
+  const prefix = input.kind === 'bug' ? 'Bug' : input.kind === 'feature' ? 'Feature' : 'Feedback';
   return `# [${prefix}] ${input.title.trim()}\n\n${buildFeedbackReportMarkdown(input, environment)}`;
 }

@@ -31,6 +31,9 @@ describe('settings persistence', () => {
     await first.load();
     first.update((draft) => {
       draft.settings.uiScalePercent = 150;
+      draft.settings.mouseBatteryLighting = {
+        mouse: { flashEnabled: true, warningPercentage: 25, flashIntervalMinutes: 7, cutoffEnabled: true, cutoffPercentage: 8 },
+      };
       draft.settings.closeToTray = false;
       draft.settings.diagnosticsRetentionDays = 14;
       draft.settings.scanGamesAutomatically = false;
@@ -82,6 +85,9 @@ describe('settings persistence', () => {
 
     expect(snapshot.settings.closeToTray).toBeFalse();
     expect(snapshot.settings.uiScalePercent).toBe(150);
+    expect(snapshot.settings.mouseBatteryLighting.mouse).toEqual({
+      flashEnabled: true, warningPercentage: 25, flashIntervalMinutes: 7, cutoffEnabled: true, cutoffPercentage: 8,
+    });
     expect(snapshot.settings.diagnosticsRetentionDays).toBe(14);
     expect(snapshot.settings.scanGamesAutomatically).toBeFalse();
     expect(snapshot.settings.automaticAppUpdates).toBeFalse();

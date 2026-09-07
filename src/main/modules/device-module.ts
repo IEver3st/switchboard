@@ -3,12 +3,14 @@ import type {
   Device,
   DeviceAppearanceOverride,
   DeviceControlChange,
+  MouseBatteryLightingPolicy,
 } from '../../shared/contracts';
 
 export interface DeviceDiscoveryContext {
   hidDevices: HidDevice[];
   previousDevices: Device[];
   appearanceOverrides: Record<string, DeviceAppearanceOverride>;
+  mouseBatteryLighting?: Record<string, MouseBatteryLightingPolicy>;
 }
 
 export interface DeviceControlResult {

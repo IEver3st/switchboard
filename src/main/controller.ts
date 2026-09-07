@@ -53,8 +53,8 @@ import {
   type CreateModuleProjectInput,
   type ExportClipInput,
   type ExportMontageInput,
-  type FeedbackHandoffResult,
-  type FeedbackReportInput,
+  type FeedbackSubmissionResult,
+  type FeedbackSubmissionInput,
   type EngineStatus,
   type GameEvent,
   type MarkClipsReviewedInput,
@@ -107,7 +107,7 @@ import { AppUpdateService, type AppUpdatePreferences } from './services/app-upda
 import { DeviceRegistry } from './services/device-registry';
 import { EngineSupervisor } from './services/engine-supervisor';
 import { GameDiscoveryService, gameIdentityKey } from './services/game-discovery';
-import { performFeedbackHandoff } from './services/feedback-handoff';
+import { submitFeedbackReport } from './services/feedback-submission';
 import { StateStore } from './services/state-store';
 import { PerformanceMonitor } from './services/performance-monitor';
 import { ResourceJournal } from './services/resource-journal';
@@ -1429,6 +1429,10 @@ export class AppController {
     if (input.scanGamesAutomatically === true && !automaticScanWasEnabled) {
       return this.scanGames();
     }
+    if (input.mouseBatteryLighting) {
+      await this.devices.refreshBatteryLighting();
+      return this.store.get();
+    }
     return snapshot;
   }
 
@@ -1603,17 +1607,14 @@ export class AppController {
     return this.store.get();
   }
 
-  public async handoffFeedbackReport(input: FeedbackReportInput): Promise<FeedbackHandoffResult> {
+  public async submitFeedbackReport(input: FeedbackSubmissionInput): Promise<FeedbackSubmissionResult> {
     const environment: FeedbackEnvironment = {
       version: this.store.get().version,
       runtime: `Electron ${process.versions.electron ?? 'unknown'}`,
       platform: `${process.platform} ${process.arch}`,
       prototypeMode: this.store.get().prototypeMode,
     };
-    return performFeedbackHandoff(input, environment, {
-      writeClipboard: (text) => clipboard.writeText(text),
-      openExternal: (url) => shell.openExternal(url),
-    });
+    return submitFeedbackReport(input, environment);
   }
 
   public async resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot> {
@@ -1656,6 +1657,7 @@ export class AppController {
       }
       if (scope === 'devices') {
         draft.settings.deviceAppearanceOverrides = {};
+        draft.settings.mouseBatteryLighting = {};
       }
       if (scope === 'audio') {
         draft.audio = createResetAudioState(draft.audio);

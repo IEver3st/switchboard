@@ -4,7 +4,6 @@ import type {
   AudioMeterFrame,
   CreateAudioPresetInput,
   DetectedGame,
-  FeedbackReportInput,
   RenameAudioPresetInput,
   SetAudioChannelProcessorInput,
   SetAudioBusDeviceInput,
@@ -36,7 +35,6 @@ import { resolveDeviceVariant } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
 import { createDefaultSnapshot } from '../../../shared/defaults';
 import { applyClipTrackLevel } from '../../../shared/clip-track-levels';
-import { buildFeedbackClipboardText, buildFeedbackIssueUrl } from '../../../shared/feedback-report';
 
 let snapshot = createDefaultSnapshot();
 snapshot.gameDetection.capability = 'simulation';
@@ -661,23 +659,8 @@ const demoApi: SwitchboardApi = {
     }
     return emit();
   },
-  async handoffFeedbackReport(input: FeedbackReportInput) {
-    const environment = {
-      version: snapshot.version,
-      runtime: 'Browser preview',
-      platform: navigator.platform || 'Browser',
-      prototypeMode: snapshot.prototypeMode,
-    };
-    let copied = false;
-    try {
-      await navigator.clipboard.writeText(buildFeedbackClipboardText(input, environment));
-      copied = true;
-    } catch {
-      // Clipboard access can be unavailable for a local or permission-restricted preview.
-    }
-    const issueWindow = window.open(buildFeedbackIssueUrl(input, environment), '_blank');
-    if (issueWindow) issueWindow.opener = null;
-    return { copied, opened: Boolean(issueWindow) };
+  async submitFeedbackReport() {
+    return { submitted: false, message: 'Feedback submission is available in the desktop app. This preview does not send messages.' };
   },
   async revealClip() {},
   async deleteClip(id) {

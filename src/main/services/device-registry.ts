@@ -92,6 +92,13 @@ export class DeviceRegistry {
     return this.refreshPromise;
   }
 
+  public async refreshBatteryLighting(): Promise<void> {
+    // Native fixture reviews must never cross into physical HID discovery.
+    if (this.fixtureMode || this.disposed) return;
+    if (this.refreshPromise) await this.refreshPromise;
+    await this.refresh();
+  }
+
   public async setControl(deviceId: string, change: DeviceControlChange): Promise<void> {
     const snapshot = this.getSnapshot();
     const device = snapshot.devices.find((candidate) => candidate.id === deviceId);
@@ -233,6 +240,7 @@ export class DeviceRegistry {
       hidDevices,
       previousDevices: snapshot.devices,
       appearanceOverrides: snapshot.settings.deviceAppearanceOverrides,
+      mouseBatteryLighting: snapshot.settings.mouseBatteryLighting,
     }))));
     if (this.disposed) return;
     const connected = groups.flat().map((device) => mergeDeviceSettings(device, snapshot.devices));
@@ -421,6 +429,8 @@ function applyConfirmedLightingControl(
     setExistingSetting(device, 'muteLed', change.enabled);
   }
 
+  // Temporary battery cutoff must not replace the user's persisted lighting choice.
+  if (lighting.batteryLightingEnabled !== undefined) lighting.batteryLightingEnabled = lighting.enabled;
   syncLightingWritability(lighting);
 
   if (lighting.state !== 'maintained') {

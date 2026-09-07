@@ -160,24 +160,8 @@ results.replayConfiguration = await evaluate("['Replay length','Capture quality'
 results.audioCapabilityTruth = await evaluate("(() => { const game = document.querySelector('[aria-label=\"Game audio\"]'); const microphone = document.querySelector('[aria-label=\"Microphone\"]'); return { gameDisabled: game?.disabled === true, microphoneDisabled: microphone?.disabled === true, reasons: [...document.querySelectorAll('[data-radix-popper-content-wrapper] span')].filter((node) => node.textContent === 'Unavailable for this capture setup').length }; })()");
 await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
 
-const replaySwitch = "document.querySelector('[role=switch][aria-label=\\\"Instant Replay\\\"]')";
-const replayInitiallyOn = await evaluate(replaySwitch + "?.getAttribute('aria-checked') === 'true'");
-if (replayInitiallyOn) {
-  await click(replaySwitch);
-  await waitFor(replaySwitch + "?.getAttribute('aria-checked') === 'false'");
-  results.replayOff = await evaluate("document.body.textContent.includes('Replay is off')");
-  await clickButton('Turn on Replay');
-  try {
-    await waitFor(replaySwitch + "?.getAttribute('aria-checked') === 'true'", 20_000);
-    results.replayRestored = true;
-  } catch {
-    results.replayRestoreBlocked = 'Capture host did not respond while another native review instance was active.';
-  }
-} else {
-  results.replayOff = true;
-  const turnOnVisible = await evaluate("[...document.querySelectorAll('button')].some((button) => button.textContent.trim() === 'Turn on Replay')");
-  results.replayPrimaryAction = turnOnVisible;
-}
+results.singleCaptureControl = await evaluate("!document.querySelector('[role=switch][aria-label=\"Instant Replay\"]')");
+if (!results.singleCaptureControl) throw new Error('The Capture toolbar must not duplicate the engine switch.');
 
 await evaluate("document.querySelector('input[placeholder=\\\"Search clips\\\"]')?.focus()");
 results.focusTarget = await evaluate("document.activeElement?.getAttribute('placeholder')");
