@@ -26,3 +26,21 @@ dotnet run --project .\engines\capture-host\Capture.Host.csproj
 The host locates a full FFmpeg build on `PATH`, beside `Capture.Host.exe`, or through `SWITCHBOARD_FFMPEG` and `SWITCHBOARD_FFPROBE`. Packaged Switchboard builds stage the host and FFmpeg together.
 
 The standard-input protocol is newline-delimited JSON. A `start` request includes the validated capture configuration and application-resolved cache/Clips paths. Other commands are `configure`, `stop`, `status`, `listSources`, `saveReplay`, and `shutdown`.
+
+## Audio/video sync validation
+
+The normal capture-host tests cover timestamp fallback, PCM gaps/overlaps, and
+manifest-based selection. With FFmpeg available, run the saved-media regression:
+
+```powershell
+dotnet run --configuration Release --project engines/capture-host-tests/Capture.Host.Tests.csproj -- --sync-media-probe
+```
+
+It generates synthetic flashes and tones, exercises delayed startup, missing
+audio packets, ring eviction, and stream-copy saves, then measures alignment in
+the decoded MP4. The previous zero-offset assembly is checked against the same
+fixture to demonstrate the regression. It does not capture a screen or device.
+
+`--sync-loopback-probe` separately checks three live Windows loopback start/stop
+cycles with audio sent only to a discard sink. It saves no media and opens no
+window. Neither check proves alignment in a particular game or a long soak.

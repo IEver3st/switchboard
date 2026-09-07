@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace Switchboard.CaptureHost;
@@ -41,6 +42,36 @@ internal sealed class ReplaySegmentRing
             .OrderBy(file => file.Name, StringComparer.Ordinal)
             .ToArray();
         if (files.Length == 0) return [];
+
+        var originPath = Path.Combine(sessionDirectory, "timeline-origin.txt");
+        if (File.Exists(originPath))
+        {
+            var origin = DateTimeOffset.Parse(File.ReadAllText(originPath), CultureInfo.InvariantCulture);
+            var prefix = searchPattern[..searchPattern.IndexOf('-')];
+            var manifest = Path.Combine(sessionDirectory, $"{prefix}-timeline.csv");
+            // The CSV contains only closed segments, with encoder media times.
+            // Never fall back to mtimes while a new encoder is still starting.
+            if (!File.Exists(manifest)) return [];
+            using var stream = new FileStream(manifest, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            var entries = new Dictionary<string, (double Start, double End)>(StringComparer.Ordinal);
+            while (reader.ReadLine() is { } line)
+            {
+                var fields = line.Split(',');
+                if (fields.Length != 3
+                    || !double.TryParse(fields[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var start)
+                    || !double.TryParse(fields[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var end)
+                    || !double.IsFinite(start) || !double.IsFinite(end) || start < 0 || end <= start
+                    || end > TimeSpan.FromDays(365).TotalSeconds) continue;
+                entries[fields[0].Trim('"')] = (start, end);
+            }
+            return files.Where(file => entries.ContainsKey(file.Name)).Select(file =>
+            {
+                var timing = entries[file.Name];
+                return new ReplaySegmentInfo(file.FullName, origin.AddSeconds(timing.Start),
+                    origin.AddSeconds(timing.End), file.Length, Complete: true);
+            }).ToArray();
+        }
 
         var completedCount = captureRunning ? Math.Max(0, files.Length - 1) : files.Length;
         var latestEnd = new DateTimeOffset(files.Max(file => file.LastWriteTimeUtc), TimeSpan.Zero);
@@ -119,6 +150,18 @@ internal sealed class ReplaySegmentRing
         string searchPattern = "segment-*.mkv")
     {
         var segments = List(sessionDirectory, captureRunning, searchPattern);
+        if (segments.Count > 0 && File.Exists(Path.Combine(sessionDirectory, "timeline-origin.txt")))
+        {
+            // The manifest is bounded. If the host was paused long enough for
+            // entries to roll out of it, their closed files still need eviction.
+            var oldestKnown = Path.GetFileName(segments[0].Path);
+            foreach (var path in Directory.EnumerateFiles(sessionDirectory, searchPattern))
+            {
+                if (StringComparer.Ordinal.Compare(Path.GetFileName(path), oldestKnown) >= 0) continue;
+                try { File.Delete(path); } catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
         var candidates = SelectEvictionCandidates(segments, maximumDuration, maximumBytes);
         foreach (var segment in candidates)
         {
@@ -168,6 +211,8 @@ internal sealed class ReplaySegmentRing
                     File.Copy(segments[index].Path, destination, overwrite: false);
                 }
             }
+            File.WriteAllLines(Path.Combine(snapshotDirectory, "durations.txt"), segments.Select(segment =>
+                (segment.EndedAt - segment.StartedAt).TotalSeconds.ToString("0.######", CultureInfo.InvariantCulture)));
             return snapshotDirectory;
         }
         catch

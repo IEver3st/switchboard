@@ -27,6 +27,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private CancellationTokenSource? monitorCancellation;
     private Task? monitorTask;
     private string? sessionDirectory;
+    private DateTimeOffset timelineOrigin;
     private string ffmpegPath = string.Empty;
     private string ffprobePath = string.Empty;
     private string encoderName = "Not selected";
@@ -293,6 +294,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         string? systemAudioSnapshotDirectory = null;
         string? chatAudioSnapshotDirectory = null;
         string? microphoneSnapshotDirectory = null;
+        TimeSpan systemAudioOffset = default, chatAudioOffset = default, microphoneOffset = default;
         CaptureSource? clipSource;
         DateTimeOffset captureStartedAt;
         DateTimeOffset captureEndedAt;
@@ -322,11 +324,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         sessionDirectory,
                         captureRunning: systemAudioFfmpeg is { HasExited: false },
                         searchPattern: "system-*.mka");
-                    var selectedSystemAudio = window is { } systemWindow
-                        ? ring.SelectForWindow(systemAudioSegments, systemWindow.StartedAt, systemWindow.EndedAt)
-                        : ring.SelectForReplay(systemAudioSegments, TimeSpan.FromSeconds(capture.ReplaySeconds));
-                    if (IsAudioRangeCurrent(selectedSystemAudio, selected[^1].EndedAt))
+                    var selectedSystemAudio = ring.SelectForWindow(systemAudioSegments, captureStartedAt, captureEndedAt);
+                    if (selectedSystemAudio.Count > 0)
+                    {
                         systemAudioSnapshotDirectory = ring.Snapshot(selectedSystemAudio);
+                        systemAudioOffset = selectedSystemAudio[0].StartedAt - captureStartedAt;
+                    }
                 }
                 if (capture.IncludeChatAudio)
                 {
@@ -334,11 +337,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         sessionDirectory,
                         captureRunning: chatAudioFfmpeg is { HasExited: false },
                         searchPattern: "chat-*.mka");
-                    var selectedChatAudio = window is { } chatWindow
-                        ? ring.SelectForWindow(chatAudioSegments, chatWindow.StartedAt, chatWindow.EndedAt)
-                        : ring.SelectForReplay(chatAudioSegments, TimeSpan.FromSeconds(capture.ReplaySeconds));
-                    if (IsAudioRangeCurrent(selectedChatAudio, selected[^1].EndedAt))
+                    var selectedChatAudio = ring.SelectForWindow(chatAudioSegments, captureStartedAt, captureEndedAt);
+                    if (selectedChatAudio.Count > 0)
+                    {
                         chatAudioSnapshotDirectory = ring.Snapshot(selectedChatAudio);
+                        chatAudioOffset = selectedChatAudio[0].StartedAt - captureStartedAt;
+                    }
                 }
                 if (capture.IncludeMic)
                 {
@@ -346,11 +350,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         sessionDirectory,
                         captureRunning: microphoneFfmpeg is { HasExited: false },
                         searchPattern: "microphone-*.mka");
-                    var selectedMicrophone = window is { } microphoneWindow
-                        ? ring.SelectForWindow(microphoneSegments, microphoneWindow.StartedAt, microphoneWindow.EndedAt)
-                        : ring.SelectForReplay(microphoneSegments, TimeSpan.FromSeconds(capture.ReplaySeconds));
-                    if (IsAudioRangeCurrent(selectedMicrophone, selected[^1].EndedAt))
+                    var selectedMicrophone = ring.SelectForWindow(microphoneSegments, captureStartedAt, captureEndedAt);
+                    if (selectedMicrophone.Count > 0)
+                    {
                         microphoneSnapshotDirectory = ring.Snapshot(selectedMicrophone);
+                        microphoneOffset = selectedMicrophone[0].StartedAt - captureStartedAt;
+                    }
                 }
             }
             catch
@@ -402,7 +407,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     microphoneConcatPath,
                     temporaryPath,
                     captureEndedAt - captureStartedAt,
-                    cancellationToken);
+                    cancellationToken, systemAudioOffset, chatAudioOffset, microphoneOffset);
                 await FlushFileAsync(temporaryPath, cancellationToken);
                 File.Move(temporaryPath, outputPath);
                 var media = await MediaProbe.ProbeAsync(ffprobePath, outputPath, cancellationToken);
@@ -653,6 +658,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             sessionDirectory = null;
         }
         sessionDirectory = ring.CreateSessionDirectory();
+        timelineOrigin = DateTimeOffset.UtcNow;
+        File.WriteAllText(Path.Combine(sessionDirectory, "timeline-origin.txt"), timelineOrigin.ToString("O"));
         reactionDetector.Pause();
         reactionUnavailableReason = null;
         reactionRetryAt = DateTimeOffset.MinValue;
@@ -787,6 +794,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 }
             }
 
+            foreach (var input in new IAudioPipeInput?[] { systemAudio, chatAudio, microphoneAudio })
+                if (input is AudioPipeCapture deviceInput) deviceInput.SetTimelineOrigin(timelineOrigin);
+
             using var pipeTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             pipeTimeout.CancelAfter(TimeSpan.FromSeconds(8));
             var audioConnections = new IAudioPipeInput?[]
@@ -853,7 +863,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        var arguments = BuildVideoArguments(capture, source, backendName, encoderName, outputDirectory);
+        var arguments = BuildVideoArguments(capture, source, backendName, encoderName, outputDirectory, timelineOrigin: timelineOrigin);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         return start;
     }
@@ -933,7 +943,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             input,
             filePrefix,
             bitrateBps,
-            outputChannels);
+            outputChannels, timelineOrigin);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         return start;
     }
@@ -944,7 +954,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         IAudioPipeInput input,
         string filePrefix,
         int bitrateBps,
-        int? outputChannels = null)
+        int? outputChannels = null,
+        DateTimeOffset? timelineOrigin = null)
     {
         if (outputChannels is <= 0) throw new ArgumentOutOfRangeException(nameof(outputChannels));
         var arguments = new List<string>
@@ -958,7 +969,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-map", "0:a:0",
             "-c:a", "aac",
             "-ar", "48000",
-            "-filter:a:0", "aresample=async=1000:first_pts=0",
+            "-filter:a:0", input is AudioHostPipeInput && timelineOrigin is { } origin
+                ? $"asetpts={SharedClockFilter(origin)},aresample=async=1000:first_pts=0"
+                : "aresample=async=1000:first_pts=0",
         };
         if (outputChannels is int channels)
             arguments.AddRange(["-ac", channels.ToString(CultureInfo.InvariantCulture)]);
@@ -968,6 +981,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-f", "segment",
             "-segment_time", capture.SegmentSeconds.ToString(CultureInfo.InvariantCulture),
             "-segment_format", "matroska",
+            "-segment_list", Path.Combine(outputDirectory, $"{filePrefix}-timeline.csv"),
+            "-segment_list_type", "csv",
+            "-segment_list_size", (capture.SegmentRetentionSeconds + 8).ToString(CultureInfo.InvariantCulture),
             "-reset_timestamps", "1",
             "-avoid_negative_ts", "make_zero",
             Path.Combine(outputDirectory, $"{filePrefix}-%09d.mka"),
@@ -981,7 +997,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         string backendName,
         string encoderName,
         string outputDirectory,
-        bool diagnosticProbe = false)
+        bool diagnosticProbe = false,
+        DateTimeOffset? timelineOrigin = null)
     {
         yield return "-hide_banner";
         yield return "-loglevel";
@@ -997,19 +1014,21 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return "-map";
         yield return "0:v:0";
 
-        if (encoderName.StartsWith("lib", StringComparison.OrdinalIgnoreCase))
+        var filters = new List<string>();
+        if (timelineOrigin is { } origin)
         {
-            yield return "-vf";
-            yield return "hwdownload,format=bgra,format=yuv420p";
+            yield return "-copyts";
+            filters.Add($"setpts={SharedClockFilter(origin)}");
         }
+        if (encoderName.StartsWith("lib", StringComparison.OrdinalIgnoreCase))
+            filters.Add("hwdownload,format=bgra,format=yuv420p");
         else if (encoderName.EndsWith("_amf", StringComparison.OrdinalIgnoreCase))
+            // AMF owns the upload; capture-owned D3D11 textures fail on some GPUs.
+            filters.Add("hwdownload,format=bgra,format=nv12");
+        if (filters.Count > 0)
         {
-            // AMF can pass its synthetic probe yet reject capture-owned D3D11
-            // textures at SubmitInput (AMF_DIRECTX_FAILED), including on mixed
-            // adapters. Submit converted system-memory frames so AMF owns the
-            // upload while retaining the selected hardware encoder.
             yield return "-vf";
-            yield return "hwdownload,format=bgra,format=nv12";
+            yield return string.Join(',', filters);
         }
         yield return "-fps_mode";
         yield return "cfr";
@@ -1037,12 +1056,22 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return capture.SegmentSeconds.ToString(CultureInfo.InvariantCulture);
         yield return "-segment_format";
         yield return "matroska";
+        yield return "-segment_list";
+        yield return Path.Combine(outputDirectory, "segment-timeline.csv");
+        yield return "-segment_list_type"; yield return "csv";
+        yield return "-segment_list_size";
+        yield return (capture.SegmentRetentionSeconds + 8).ToString(CultureInfo.InvariantCulture);
         yield return "-reset_timestamps";
         yield return "1";
         yield return "-avoid_negative_ts";
-        yield return "make_zero";
+        yield return "disabled";
         yield return Path.Combine(outputDirectory, "segment-%09d.mkv");
     }
+
+    // Anchor the first frame once, then preserve the source clock rather than
+    // timestamping queued frames by when encoding happens to catch up.
+    internal static string SharedClockFilter(DateTimeOffset origin)
+        => $"'PTS-STARTPTS+if(eq(N,0),st(0,time(0)-{(origin - DateTimeOffset.UnixEpoch).TotalSeconds.ToString("0.######", CultureInfo.InvariantCulture)}),ld(0))/TB'";
 
     internal static string BuildCaptureFilter(string backendName, CaptureSettings capture, CaptureSource source)
     {
@@ -1440,14 +1469,6 @@ internal sealed class ReplayEngine : IAsyncDisposable
         return (int)Math.Min(int.MaxValue, audioSyncCorrections + liveDrops);
     }
 
-    private static bool IsAudioRangeCurrent(
-        IReadOnlyList<ReplaySegmentInfo> segments,
-        DateTimeOffset replayEnd)
-    {
-        return segments.Count > 0
-               && Math.Abs((segments[^1].EndedAt - replayEnd).TotalSeconds) <= 2.5;
-    }
-
     private string? GetAudioBackpressureWarning()
     {
         var inputs = new IAudioPipeInput?[] { systemAudio, chatAudio, microphoneAudio }.Where(input => input is not null).Cast<IAudioPipeInput>();
@@ -1457,17 +1478,21 @@ internal sealed class ReplayEngine : IAsyncDisposable
         return $"Audio capture recovered from {drops:N0} backpressure events. The replay continued.";
     }
 
-    private async Task<string> WriteConcatFileAsync(string snapshotDirectory, CancellationToken cancellationToken)
+    internal static async Task<string> WriteConcatFileAsync(string snapshotDirectory, CancellationToken cancellationToken)
     {
         var segments = Directory.EnumerateFiles(snapshotDirectory)
             .Where(path => Path.GetExtension(path) is ".mkv" or ".mka")
             .OrderBy(path => path)
             .ToArray();
         var concatPath = Path.Combine(snapshotDirectory, "concat.txt");
-        await File.WriteAllLinesAsync(
-            concatPath,
-            segments.Select(path => $"file '{path.Replace("\\", "/").Replace("'", "'\\''")}'"),
-            cancellationToken);
+        var durations = await File.ReadAllLinesAsync(Path.Combine(snapshotDirectory, "durations.txt"), cancellationToken);
+        if (durations.Length != segments.Length) throw new InvalidDataException("Replay snapshot timing is incomplete.");
+        var lines = segments.SelectMany((path, index) => new[]
+        {
+            $"file '{path.Replace("\\", "/").Replace("'", "'\\''")}'",
+            $"duration {durations[index]}",
+        });
+        await File.WriteAllLinesAsync(concatPath, lines, cancellationToken);
         return concatPath;
     }
 
@@ -1478,7 +1503,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         string? microphoneConcatPath,
         string temporaryOutputPath,
         TimeSpan replayDuration,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan systemAudioOffset, TimeSpan chatAudioOffset, TimeSpan microphoneOffset)
     {
         var start = new ProcessStartInfo(ffmpegPath)
         {
@@ -1496,7 +1522,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             replayDuration,
             settings?.ClipMixPipeName is not null ? "Switchboard Clip Mix" : "Game",
             "Chat",
-            settings?.ProcessedMicrophoneDeviceId is not null ? "Processed Microphone" : "Microphone");
+            settings?.ProcessedMicrophoneDeviceId is not null ? "Processed Microphone" : "Microphone",
+            systemAudioOffset, chatAudioOffset, microphoneOffset);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = childProcesses.Start(start, "FFmpeg remux");
         var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
@@ -1516,7 +1543,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         TimeSpan replayDuration,
         string systemAudioTitle,
         string chatAudioTitle,
-        string microphoneTitle)
+        string microphoneTitle,
+        TimeSpan systemAudioOffset = default, TimeSpan chatAudioOffset = default, TimeSpan microphoneOffset = default)
     {
         // Capture.Host stdin carries JSON commands. A remux must never compete for that pipe.
         var arguments = new List<string>
@@ -1524,12 +1552,13 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-nostdin", "-hide_banner", "-loglevel", "error",
             "-f", "concat", "-safe", "0", "-i", concatPath,
         };
-        var audioTracks = new List<(string ConcatPath, string Title)>();
-        if (systemAudioConcatPath is not null) audioTracks.Add((systemAudioConcatPath, systemAudioTitle));
-        if (chatAudioConcatPath is not null) audioTracks.Add((chatAudioConcatPath, chatAudioTitle));
-        if (microphoneConcatPath is not null) audioTracks.Add((microphoneConcatPath, microphoneTitle));
+        var audioTracks = new List<(string ConcatPath, string Title, TimeSpan Offset)>();
+        if (systemAudioConcatPath is not null) audioTracks.Add((systemAudioConcatPath, systemAudioTitle, systemAudioOffset));
+        if (chatAudioConcatPath is not null) audioTracks.Add((chatAudioConcatPath, chatAudioTitle, chatAudioOffset));
+        if (microphoneConcatPath is not null) audioTracks.Add((microphoneConcatPath, microphoneTitle, microphoneOffset));
         foreach (var track in audioTracks)
-            arguments.AddRange(["-f", "concat", "-safe", "0", "-i", track.ConcatPath]);
+            arguments.AddRange(["-itsoffset", track.Offset.TotalSeconds.ToString("0.######", CultureInfo.InvariantCulture),
+                "-f", "concat", "-safe", "0", "-i", track.ConcatPath]);
         arguments.AddRange(["-map", "0:v:0"]);
         // Each replay input stays on its own MP4 audio track so the clip editor
         // can mute the microphone without losing game/chat audio. Shared exports

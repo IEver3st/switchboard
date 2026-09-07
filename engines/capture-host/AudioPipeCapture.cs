@@ -40,6 +40,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     private long writtenPackets;
     private long capturedBytes;
     private long writtenBytes;
+    private AudioPacketTimeline? timeline;
 
     private AudioPipeCapture(
         WasapiRecorder capture,
@@ -169,6 +170,12 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         started = true;
     }
 
+    public void SetTimelineOrigin(DateTimeOffset origin)
+    {
+        var qpcNow = AudioPacketTimeline.QpcNow;
+        timeline = new AudioPacketTimeline(qpcNow - (DateTimeOffset.UtcNow - origin).Ticks, SampleRate);
+    }
+
     public Task StartAnalysisOnlyAsync()
     {
         if (started) return Task.CompletedTask;
@@ -218,7 +225,9 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         var destination = rented.AsSpan(0, buffer.Length);
         if ((flags & AudioClientBufferFlags.Silent) != 0) destination.Clear();
         else buffer.CopyTo(destination);
-        var packet = new AudioPacket(rented, buffer.Length);
+        var framePosition = timeline?.Position(qpcPosition, buffer.Length / capture.WaveFormat.BlockAlign,
+            (flags & AudioClientBufferFlags.TimestampError) != 0, AudioPacketTimeline.QpcNow) ?? -1;
+        var packet = new AudioPacket(rented, buffer.Length, framePosition);
         if (!packets.Writer.TryWrite(packet))
         {
             packet.Return();
@@ -234,36 +243,37 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
 
     private async Task WritePacketsAsync(NamedPipeServerStream output, CancellationToken cancellationToken)
     {
-        var batch = ArrayPool<byte>.Shared.Rent(512 * 1024);
+        var blockAlign = capture.WaveFormat.BlockAlign;
+        var writer = new AudioTimelineWriter(output, blockAlign);
         try
         {
-            while (await packets.Reader.WaitToReadAsync(cancellationToken))
+            var ready = packets.Reader.WaitToReadAsync(cancellationToken).AsTask();
+            while (true)
             {
-                var length = 0;
+                try
+                {
+                    if (!await ready.WaitAsync(TimeSpan.FromMilliseconds(50), cancellationToken)) break;
+                }
+                catch (TimeoutException)
+                {
+                    // Loopback may emit no callbacks during silence. Advance at
+                    // 50 ms only while connected, with 100 ms callback headroom,
+                    // so a long quiet period never creates an hours-long backlog.
+                    if (timeline is not null)
+                    {
+                        var before = writer.WrittenFrames;
+                        await writer.WriteAsync(ReadOnlyMemory<byte>.Empty, timeline.SilenceFrame, cancellationToken);
+                        Interlocked.Add(ref writtenBytes, (writer.WrittenFrames - before) * blockAlign);
+                    }
+                    continue;
+                }
                 while (packets.Reader.TryRead(out var packet))
                 {
                     try
                     {
-                        if (packet.Length > batch.Length)
-                        {
-                            if (length > 0)
-                            {
-                                await output.WriteAsync(batch.AsMemory(0, length), cancellationToken);
-                                Interlocked.Add(ref writtenBytes, length);
-                                length = 0;
-                            }
-                            await output.WriteAsync(packet.Buffer.AsMemory(0, packet.Length), cancellationToken);
-                            Interlocked.Add(ref writtenBytes, packet.Length);
-                            continue;
-                        }
-                        if (length + packet.Length > batch.Length)
-                        {
-                            await output.WriteAsync(batch.AsMemory(0, length), cancellationToken);
-                            Interlocked.Add(ref writtenBytes, length);
-                            length = 0;
-                        }
-                        Buffer.BlockCopy(packet.Buffer, 0, batch, length, packet.Length);
-                        length += packet.Length;
+                        var before = writer.WrittenFrames;
+                        await writer.WriteAsync(packet.Buffer.AsMemory(0, packet.Length), packet.FramePosition, cancellationToken);
+                        Interlocked.Add(ref writtenBytes, (writer.WrittenFrames - before) * blockAlign);
                     }
                     finally
                     {
@@ -271,11 +281,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
                         Interlocked.Increment(ref writtenPackets);
                     }
                 }
-                if (length > 0)
-                {
-                    await output.WriteAsync(batch.AsMemory(0, length), cancellationToken);
-                    Interlocked.Add(ref writtenBytes, length);
-                }
+                ready = packets.Reader.WaitToReadAsync(cancellationToken).AsTask();
             }
             await output.FlushAsync(cancellationToken);
         }
@@ -283,10 +289,6 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         catch (IOException error)
         {
             Error = error.Message;
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(batch);
         }
     }
 
@@ -311,7 +313,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         throw new NotSupportedException($"Unsupported {format.BitsPerSample}-bit {format.Encoding} audio format.");
     }
 
-    private sealed record AudioPacket(byte[] Buffer, int Length)
+    private sealed record AudioPacket(byte[] Buffer, int Length, long FramePosition)
     {
         public void Return() => ArrayPool<byte>.Shared.Return(Buffer);
     }

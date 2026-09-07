@@ -180,6 +180,14 @@ Snapshot completed segments
 MP4 remux, no re-encode
 ```
 
+Replay streams share a session clock. WASAPI packet positions preserve startup
+delay, silence, and missing packets before raw PCM enters FFmpeg. Invalid device
+timestamps fall back to packet arrival time. Video anchors its first frame to
+that session and preserves source timestamp deltas. Bounded segment manifests
+record encoder start/end times; file modification times are not media timing.
+Saves select each audio track against the completed video window and retain its
+subsecond offset and segment durations during stream-copy assembly.
+
 Automatic game capture holds a conservative, stable game-window identity and waits rather than switching to unrelated foreground applications. This does not claim exclusive-fullscreen graphics hooking; a future hook can implement the existing source boundary without changing renderer IPC.
 
 Capture source enumeration owns only a host it starts; it cannot stop a recorder

@@ -15,7 +15,7 @@ if (args.Length == 2 && args[0] == "--amf-live-probe")
     foreach (var encoder in new[] { "h264_amf", "hevc_amf", "av1_amf" })
     {
         var result = await CaptureDiagnosticRunner.RunProcessAsync(FfmpegLocator.FindFfmpeg(),
-            ReplayEngine.BuildVideoArguments(capture, source, backend, encoder, "", diagnosticProbe: true), CancellationToken.None);
+            ReplayEngine.BuildVideoArguments(capture, source, backend, encoder, "", diagnosticProbe: true, timelineOrigin: DateTimeOffset.UtcNow), CancellationToken.None);
         Console.WriteLine($"{backend} / {encoder}: exit {result.ExitCode}, frames {result.Frames}, {result.DurationMs:F0} ms");
         if (result.ExitCode != 0 || result.Frames != 3)
             throw new InvalidOperationException(result.Output);
@@ -78,6 +78,18 @@ if (args.Contains("--remux-stdin-only", StringComparer.Ordinal))
     Console.WriteLine("Capture.Host remux stdin isolation test passed.");
     return;
 }
+
+if (args.Contains("--sync-loopback-probe", StringComparer.Ordinal))
+{
+    await ReplaySyncTests.RunLoopbackAsync();
+    return;
+}
+if (args.Contains("--sync-media-probe", StringComparer.Ordinal))
+{
+    await ReplaySyncTests.RunMediaAsync();
+    return;
+}
+await ReplaySyncTests.RunAsync();
 
 var start = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 var segments = Enumerable.Range(0, 5)

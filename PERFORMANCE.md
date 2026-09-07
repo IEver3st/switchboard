@@ -127,6 +127,15 @@ system and microphone encoders in the capture-tree gate. The
 broader application allowance also covers Capture.Host, optional audio encoder
 children, and the Electron GPU-process increase while capture is active.
 
+Connected capture audio writers wait for packets, with a 50 ms timeout to emit
+silence when loopback stops delivering callbacks. Silence trails the monotonic
+clock by 100 ms to allow normal callback delivery. This prevents long quiet
+periods from accumulating an encoding backlog. The timeout and writer stop on
+input disposal; analysis-only inputs create neither. Each writer retains a
+48 KiB silence buffer instead of a 512 KiB batching buffer. Segment manifests
+retain the replay duration plus bounded headroom; eviction also removes files
+that aged out of the manifest while the host was paused.
+
 Audio meter telemetry is demand-driven end to end. Audio.Host produces 20 Hz
 meter frames only while a visible renderer has an Audio workspace consumer.
 Closing, hiding, navigating away, destroying the renderer, or disposing IPC
