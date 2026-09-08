@@ -190,13 +190,15 @@ function delay(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 function assert(condition,message){if(!condition)throw new Error(message);}
 
 async function resize(window,width,height) {
-  window.setBounds({x:-30000,y:-30000,width,height},false); await delay(150);
-  for(let i=0;i<4;i++) {
-    const inner=await js(window,'({width:innerWidth,height:innerHeight})');
-    if(inner.width===width&&inner.height===height)return;
-    const bounds=window.getBounds();window.setBounds({...bounds,width:bounds.width+width-inner.width,height:bounds.height+height-inner.height},false);await delay(80);
-  }
-  const inner=await js(window,'({width:innerWidth,height:innerHeight})');assert(inner.width===width&&inner.height===height,`Incorrect viewport ${JSON.stringify(inner)} requested ${width}x${height}`);
+  window.setMinimumSize(1, 1);
+  window.setContentSize(width, height);
+  const [outerWidth, outerHeight] = window.getSize();
+  const [contentWidth, contentHeight] = window.getContentSize();
+  window.setSize(outerWidth + width - contentWidth, outerHeight + height - contentHeight);
+  await wait(async () => {
+    const inner = await js(window, '({width:innerWidth,height:innerHeight})');
+    return inner.width === width && inner.height === height;
+  });
 }
 async function choose(window,label,text) {
   await js(window,`document.querySelector('[aria-label="${label}"]').click()`);

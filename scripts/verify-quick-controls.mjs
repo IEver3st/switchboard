@@ -206,4 +206,3 @@ async function capture(name){
   assert(layout.scrollWidth<=layout.width,`${name}: horizontal overflow.`);
   await writeFile(join(output,`${name}.png`),(await quick.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());evidence.layouts.push({name,...layout});
 }
-

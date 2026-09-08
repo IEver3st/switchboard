@@ -25,7 +25,7 @@ dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [join(root, '
 const report = { profile, screenshots: [], checks: [], errors: [] };
 let window;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const evaluate = expression => window.webContents.executeJavaScript(expression, true);
+const evaluate = async expression => { try { return await window.webContents.executeJavaScript(expression, true); } catch (error) { throw new Error(`${error.message}: ${expression}`); } };
 async function waitFor(test, label, timeout = 15000) { const end = Date.now() + timeout; while (Date.now() < end) { if (await test()) return; await delay(80); } throw Error(`Timed out: ${label}`); }
 async function viewport(width,height) { window.setMinimumSize(1,1); window.setContentSize(width,height); const [ow,oh]=window.getSize(); const [cw,ch]=window.getContentSize(); window.setSize(ow+width-cw,oh+height-ch); await waitFor(()=>evaluate(`innerWidth===${width}&&innerHeight===${height}`),'exact viewport'); }
 const selector = value => waitFor(() => evaluate(`Boolean(document.querySelector(${JSON.stringify(value)}))`), value);
@@ -33,8 +33,12 @@ const textButton = text => evaluate(`(() => { const button=[...document.querySel
 const ariaButton = label => evaluate(`(() => { const button=document.querySelector('button[aria-label=${JSON.stringify(label)}]'); if(!button) throw Error('Missing '+${JSON.stringify(label)}); button.click(); })()`);
 async function setInput(label, value) { await evaluate(`(() => {const input=document.querySelector('input[aria-label=${JSON.stringify(label)}]'); if(!input) throw Error('Missing input '+${JSON.stringify(label)}); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; setter.call(input,${JSON.stringify(String(value))}); input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true})); })()`); await delay(120); }
 async function choose(label, text) {
-  const rect = await evaluate(`(() => {const node=document.querySelector('[aria-label=${JSON.stringify(label)}]'); if(!node) throw Error('Missing selector'); node.scrollIntoView({block:'nearest'}); const r=node.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
-  for (const type of ['mouseDown', 'mouseUp']) window.webContents.sendInputEvent({ type, x: Math.round(rect.x), y: Math.round(rect.y), button: 'left', clickCount: 1 });
+  if (label === 'Edit tool') {
+    await textButton(text === 'Audio automation' ? 'Audio' : 'Edit');
+    if (text !== 'Audio automation') await textButton(text);
+    return;
+  }
+  await evaluate(`document.querySelector('button[aria-label=${JSON.stringify(label)}]').click()`);
   await selector('[role="option"]');
   const option = await evaluate(`(() => {const node=[...document.querySelectorAll('[role="option"]')].find(item=>item.textContent===${JSON.stringify(text)}); if(!node) throw Error('Missing option '+${JSON.stringify(text)}); const r=node.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
   for(const type of ['mouseMove','mouseDown','mouseUp']) window.webContents.sendInputEvent({type,x:Math.round(option.x),y:Math.round(option.y),button:'left',clickCount:1});
@@ -86,14 +90,12 @@ void app.whenReady().then(async () => {
   const originalWidth=draft.segments[0].videoEdits.overlays[2].width;
   await drag('.edited-overlay-selection > span', 25, 10); draft=await savedDraft();
   assert(draft.segments[0].videoEdits.overlays[2].width>originalWidth, 'Dragging the privacy handle resizes the persisted mask');
-  await choose('Edit tool', 'Audio automation'); await textButton('Add volume point'); await textButton('Mute interval at playhead');
+  await choose('Edit tool', 'Audio automation'); await evaluate(`document.querySelector('.inspector-disclosure').open=true`); await textButton('Add volume point'); await ariaButton('Mute interval at playhead');
   draft = await savedDraft(); assert(draft.segments[0].videoEdits.audioAutomation[0].mutes.length === 1, 'Audio automation and mute interval persist'); await capture('audio');
   await ariaButton('Undo'); draft = await savedDraft(); assert(!draft.segments[0].videoEdits.audioAutomation[0].mutes.length, 'Undo restores the prior audio lane');
   await ariaButton('Redo'); draft = await savedDraft(); assert(draft.segments[0].videoEdits.audioAutomation[0].mutes.length === 1, 'Redo restores the muted interval');
   await setInput('Audio in', 0.2); await evaluate(`document.querySelector('input[aria-label="Audio in"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`); draft=await savedDraft(); assert(draft.segments[0].audioTrackTrims[0].startMs===200, 'Per-track source trimming remains available');
-  await textButton('Add music'); await waitFor(()=>evaluate(`!!document.querySelector('.montage-v2-music-clip')`),'imported music'); await savedDraft(); await textButton('Music settings'); await selector('.advanced-music-automation');
-  await evaluate(`document.querySelector('.advanced-music-automation').open=true`);
-  await ariaButton('Duck music under voice'); draft=await savedDraft(); assert(draft.music.ducking.enabled, 'Imported music and microphone ducking persist'); await capture('music');
+  assert(await evaluate(`![...document.querySelectorAll("button")].some(button => button.textContent.trim() === "Add music")`), 'Single-clip editor keeps imported music in montage mode');
   await seekFraction(0.33); await ariaButton('Split at playhead'); await savedDraft();
   await seekFraction(0.67); await ariaButton('Split at playhead'); draft=await savedDraft(); assert(draft.segments.length===3,'Two splits isolate a middle section');
   await evaluate(`document.querySelectorAll('.montage-v2-segment')[1].click()`); await delay(150); await ariaButton('Remove segment');
