@@ -196,9 +196,12 @@ Snapshot completed segments
 MP4 remux, no re-encode
 ```
 
-Replay streams share a session clock. WASAPI packet positions preserve startup
-delay, silence, and missing packets before raw PCM enters FFmpeg. Invalid device
-timestamps fall back to packet arrival time. Video anchors its first frame to
+Replay streams share a session clock. WASAPI QPC anchors audio startup, then
+device frame positions preserve continuous PCM and exact missing-packet gaps;
+packet-level QPC jitter must not insert silence or cut samples. Invalid/reset
+device timestamps recover against QPC or packet arrival time, retaining sample
+continuity across small timing variations. Reported discontinuities can re-anchor
+virtual device clocks that stop during silence. Video anchors its first frame to
 that session and preserves source timestamp deltas. Bounded segment manifests
 record encoder start/end times; file modification times are not media timing.
 Saves select each audio track against the completed video window and retain its

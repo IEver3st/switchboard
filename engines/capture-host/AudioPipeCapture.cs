@@ -247,7 +247,8 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         if ((flags & AudioClientBufferFlags.Silent) != 0) destination.Clear();
         else buffer.CopyTo(destination);
         var framePosition = timeline?.Position(qpcPosition, buffer.Length / capture.WaveFormat.BlockAlign,
-            (flags & AudioClientBufferFlags.TimestampError) != 0, AudioPacketTimeline.QpcNow) ?? -1;
+            (flags & AudioClientBufferFlags.TimestampError) != 0, AudioPacketTimeline.QpcNow,
+            devicePosition, (flags & AudioClientBufferFlags.DataDiscontinuity) != 0) ?? -1;
         var packet = new AudioPacket(rented, buffer.Length, framePosition);
         if (!packets.Writer.TryWrite(packet))
         {

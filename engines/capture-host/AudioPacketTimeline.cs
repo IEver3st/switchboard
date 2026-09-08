@@ -8,11 +8,14 @@ internal sealed class AudioPacketTimeline(long originQpc, int sampleRate)
 {
     private long nextFrame;
     private long lastQpc;
+    private long nextDeviceFrame = -1;
+    private bool hasPackets;
 
     public long SilenceFrame => Math.Max(0, (long)((QpcNow - originQpc) * (double)sampleRate / TimeSpan.TicksPerSecond) - sampleRate / 10);
     public static long QpcNow => (long)(Stopwatch.GetTimestamp() * (double)TimeSpan.TicksPerSecond / Stopwatch.Frequency);
 
-    public long Position(long qpcPosition, int frames, bool timestampError, long receivedQpc)
+    public long Position(long qpcPosition, int frames, bool timestampError, long receivedQpc,
+        long devicePosition = -1, bool discontinuity = false)
     {
         // Some shared-mode drivers return zero or stale positions without the
         // error flag. Reject impossible clocks before they can create silence
@@ -20,11 +23,34 @@ internal sealed class AudioPacketTimeline(long originQpc, int sampleRate)
         var invalid = timestampError || qpcPosition <= lastQpc
             || qpcPosition > receivedQpc + TimeSpan.TicksPerMillisecond * 10
             || receivedQpc - qpcPosition > TimeSpan.TicksPerSecond * 2;
-        var position = invalid
+        var clockPosition = invalid
             ? Math.Max(nextFrame, ToFrame(receivedQpc) - frames)
             : ToFrame(qpcPosition);
+        long position;
+        var validDevice = !timestampError && devicePosition >= 0;
+        if (hasPackets && validDevice && nextDeviceFrame >= 0 && devicePosition >= nextDeviceFrame
+            && devicePosition - nextDeviceFrame <= Math.Max(0, ToFrame(receivedQpc) - nextFrame) + sampleRate / 100)
+        {
+            // QPC anchors startup to video, but device positions own sample
+            // continuity. Re-rounding QPC on every packet inserts zeroes and
+            // drops real samples even on a lossless stream (notably Sonar).
+            position = nextFrame + devicePosition - nextDeviceFrame;
+            // Some virtual devices stop their sample clock during silence.
+            // Re-anchor only a reported discontinuity with a substantial gap.
+            if (discontinuity && clockPosition - position > sampleRate / 10)
+                position = clockPosition;
+        }
+        else
+        {
+            // Invalid/reset device clocks use QPC or arrival time to recover.
+            // Small timestamp/callback jitter must not splice continuous PCM.
+            position = hasPackets && clockPosition - nextFrame <= sampleRate / 10
+                ? nextFrame : clockPosition;
+        }
         if (!invalid) lastQpc = qpcPosition;
         nextFrame = position + frames;
+        nextDeviceFrame = validDevice ? devicePosition + frames : -1;
+        hasPackets = true;
         return position;
     }
 

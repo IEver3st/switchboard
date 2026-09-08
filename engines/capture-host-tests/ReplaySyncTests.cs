@@ -8,12 +8,28 @@ internal static class ReplaySyncTests
 {
     public static async Task RunAsync()
     {
+        await AssertPacketContinuityAsync();
         var clock = new AudioPacketTimeline(10_000_000, 48_000);
         Equal(24_000L, clock.Position(15_000_000, 480, false, 15_100_000), "Delayed audio startup must retain its clock offset.");
         Equal(144_000L, clock.Position(40_000_000, 480, false, 40_100_000), "Silence and dropped packets must not compress time.");
         Equal(144_480L, clock.Position(0, 480, true, 40_200_000), "An invalid device timestamp must continue the last sample clock.");
         Equal(240_000L, clock.Position(long.MaxValue, 480, false, 60_100_000), "An impossible device clock must fall back to packet arrival time.");
         Equal(240_480L, clock.Position(0, 480, false, 60_200_000), "Zero timestamps must keep audio flowing after a silence gap.");
+        var deviceClock = new AudioPacketTimeline(10_000_000, 48_000);
+        Equal(24_000L, deviceClock.Position(15_000_000, 480, false, 15_100_000, 10_000),
+            "A device's arbitrary frame origin must retain the shared startup offset.");
+        Equal(24_480L, deviceClock.Position(15_102_000, 480, false, 15_220_000, 10_480),
+            "Continuous device frames must ignore QPC and callback jitter.");
+        Equal(25_920L, deviceClock.Position(15_400_000, 480, false, 15_500_000, 11_920, true),
+            "Missing device frames must retain the exact gap instead of compressing time.");
+        Equal(26_400L, deviceClock.Position(0, 480, true, 15_700_000, long.MaxValue),
+            "A flagged timestamp must not trust the device position or splice callback jitter into PCM.");
+        Equal(48_000L, deviceClock.Position(20_000_000, 480, false, 20_100_000, 0, true),
+            "A reset device clock must recover against the shared clock after a gap.");
+        Equal(96_000L, deviceClock.Position(30_000_000, 480, false, 30_100_000, 480, true),
+            "A virtual clock stopped during silence must preserve a reported discontinuity.");
+        Equal(96_480L, deviceClock.Position(long.MaxValue, 480, false, 30_200_000, 960),
+            "Continuous device frames must survive an impossible QPC timestamp.");
         using var pcm = new MemoryStream();
         var writer = new AudioTimelineWriter(pcm, sizeof(short));
         await writer.WriteAsync(new byte[] { 1, 0, 2, 0 }, 3, default);
@@ -58,6 +74,37 @@ internal static class ReplaySyncTests
             finally { Directory.Delete(snapshot, true); }
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    private static async Task AssertPacketContinuityAsync()
+    {
+        // Sonar delivers continuous device frames while QPC packet positions
+        // fluctuate. Neither those fluctuations nor callback delay may edit PCM.
+        foreach (var (rate, channels) in new[] { (96_000, 8), (48_000, 2) })
+        {
+            var clock = new AudioPacketTimeline(10_000_000, rate);
+            using var actual = new MemoryStream();
+            using var expected = new MemoryStream();
+            var writer = new AudioTimelineWriter(actual, channels * sizeof(float));
+            var frames = rate / 100;
+            for (var packet = 0; packet < 200; packet++)
+            {
+                var samples = new float[frames * channels];
+                for (var frame = 0; frame < frames; frame++)
+                for (var channel = 0; channel < channels; channel++)
+                    samples[frame * channels + channel] = (float)(0.4 * Math.Sin(
+                        (packet * frames + frame) * 2 * Math.PI * (437 + channel * 73) / rate));
+                var bytes = MemoryMarshal.AsBytes(samples.AsSpan()).ToArray();
+                expected.Write(bytes);
+                var qpc = 10_000_000L + packet * 100_000L;
+                var jitter = packet == 0 ? 0 : (packet % 5 - 2) * 700;
+                var position = clock.Position(qpc + jitter, frames, false,
+                    qpc + 100_000 + packet % 3 * 20_000, devicePosition: packet * frames);
+                await writer.WriteAsync(bytes, position, default);
+            }
+            if (!actual.ToArray().AsSpan().SequenceEqual(expected.ToArray()))
+                throw new Exception($"Continuous {rate} Hz/{channels}-channel PCM was altered by packet timestamp jitter.");
+        }
     }
 
     // Read live loopback only into a discard sink. No media file or window.
