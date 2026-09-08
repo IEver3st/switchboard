@@ -568,18 +568,20 @@ export function shareVideoBounds(
 ): ShareVideoBounds | undefined {
   const fps = Math.max(1, clip.fps || 30);
   const bitrateAt60Fps = videoKbps * 60 / fps;
-  const height = bitrateAt60Fps < 1_800
-    ? 720
-    : bitrateAt60Fps < 4_500
-      ? 1_080
-      : bitrateAt60Fps < 8_000
-        ? 1_440
-        : undefined;
+  // Small upload budgets need fewer pixels, particularly for moving game footage.
+  // Normalize to 60 fps so a 30 fps source can retain more detail at the same rate.
+  const height = bitrateAt60Fps < 1_200 ? 360
+    : bitrateAt60Fps < 2_400 ? 480
+      : bitrateAt60Fps < 6_000 ? 720
+        : bitrateAt60Fps < 12_000 ? 1_080
+          : bitrateAt60Fps < 24_000 ? 1_440
+            : undefined;
   if (!height) return undefined;
+  const longEdge = Math.round(height * 16 / 9 / 2) * 2;
   const portrait = clip.canvasSize === '9:16' || clip.height > clip.width;
   return portrait
-    ? { width: height, height: Math.round(height * 16 / 9) }
-    : { width: Math.round(height * 16 / 9), height };
+    ? { width: height, height: longEdge }
+    : { width: longEdge, height };
 }
 
 export function buildSizeLimitedShareVideoArguments(

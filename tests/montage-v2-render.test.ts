@@ -21,6 +21,37 @@ integration('montage v2 FFmpeg render', () => {
     await rm(workspace, { recursive: true, force: true });
   });
 
+  test('sizes edited video to its bitrate budget while preserving Original resolution and portrait framing', async () => {
+    const source = join(workspace, 'detail.mp4');
+    await run(ffmpeg!, [
+      '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=1280x720:r=30:d=2',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-y', source,
+    ]);
+    process.env.SWITCHBOARD_FFMPEG = ffmpeg!;
+    process.env.SWITCHBOARD_FFPROBE = ffprobe!;
+    const clip = { ...fixtureClip('detail', source), durationMs: 2_000, width: 1_280, height: 720, audioChannels: [] };
+    for (const canvasSize of ['original', '9:16'] as const) {
+      for (const limited of [false, true]) {
+        const initial = createMontageProjectV2([clip]);
+        const project = normalizeMontageProject({ ...initial, canvasSize,
+          segments: initial.segments.map((segment) => ({ ...segment, videoEdits: { flipHorizontal: true } })),
+        });
+        const destination = join(workspace, `detail-${canvasSize.replace(':', '-')}-${limited}.mp4`);
+        await renderMontageV2({ project, entries: [{ clip, segment: project.segments[0]! }], destination,
+          preset: 'original', ...(limited ? { targetSizeMb: 0.15 } : {}),
+        });
+        const output = JSON.parse(await run(ffprobe!, ['-v', 'error', '-select_streams', 'v:0',
+          '-show_entries', 'stream=width,height,avg_frame_rate:format=duration,size', '-of', 'json', destination]));
+        const video = output.streams[0];
+        expect(video.avg_frame_rate).toBe('30/1');
+        expect(Number(output.format.duration)).toBeCloseTo(2, 1);
+        expect(video.height).toBe(limited ? (canvasSize === 'original' ? 360 : 640) : 720);
+        expect(video.width / video.height).toBeCloseTo(canvasSize === 'original' ? 16 / 9 : 9 / 16, 2);
+        if (limited) expect(Number(output.format.size)).toBeLessThanOrEqual(0.15 * 1_048_576);
+      }
+    }
+  }, 30_000);
+
   test('renders repeated clips with looped imported music into a playable MP4', async () => {
     const clipAPath = join(workspace, 'clip-a.mp4');
     const clipBPath = join(workspace, 'clip-b.mp4');

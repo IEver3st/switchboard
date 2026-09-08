@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, rm, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
-import { buildSizeLimitedShareVideoArguments, type ShareVideoEncoder } from './clip-library';
+import { buildSizeLimitedShareVideoArguments, shareVideoBounds, type ShareVideoEncoder } from './clip-library';
 import { editedDurationMs, videoTextSize } from '../../shared/video-edits';
 import type { Clip, ClipExportPreset } from '../../shared/contracts';
 import type { MontageMusicTrack, MontageProjectV2, MontageV2Segment } from '../../shared/montage-v2';
@@ -51,7 +51,6 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
   const first = input.entries[0];
   if (!first) throw new Error('Add at least one clip before exporting the montage.');
   const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
-  const target = montageVideoTarget(first.clip, input.project.canvasSize);
   const temporaryDirectory = join(tmpdir(), `switchboard-montage-v2-${randomUUID()}`);
   const concatPath = join(temporaryDirectory, 'segments.txt');
   await mkdir(temporaryDirectory, { recursive: true });
@@ -62,6 +61,7 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
   const videoKbps = budgetKbps ? Math.floor(budgetKbps - audioKbps) : undefined;
   try {
     if (videoKbps !== undefined && videoKbps < 120) throw new Error('This size is too small for the montage runtime. Choose a larger target.');
+    const target = montageVideoTarget(first.clip, input.project.canvasSize, videoKbps);
     const renderedSegments: string[] = [];
     let beforeMs = 0;
     let encoder = input.encoder ?? 'libx264';
@@ -377,9 +377,17 @@ export async function probeMontageAudio(path: string): Promise<{ durationMs: num
   return { durationMs, ...(audio.codec_name ? { codec: audio.codec_name } : {}) };
 }
 
-function montageVideoTarget(clip: Clip, canvasSize: MontageProjectV2['canvasSize']): MontageVideoTarget {
+function montageVideoTarget(clip: Clip, canvasSize: MontageProjectV2['canvasSize'], videoKbps?: number): MontageVideoTarget {
   if (clip.width <= 0 || clip.height <= 0) throw new Error(`Video dimensions are unavailable for ${clip.name}.`);
-  return { ...canvasDimensions(clip.width, clip.height, canvasSize), fps: Math.max(1, clip.fps || 30), canvasSize };
+  const dimensions = canvasDimensions(clip.width, clip.height, canvasSize);
+  const fps = Math.max(1, clip.fps || 30);
+  const bounds = videoKbps === undefined ? undefined : shareVideoBounds({ ...dimensions, fps, canvasSize: 'original' }, videoKbps);
+  const scale = bounds ? Math.min(1, bounds.width / dimensions.width, bounds.height / dimensions.height) : 1;
+  return {
+    width: Math.max(2, Math.floor(dimensions.width * scale / 2) * 2),
+    height: Math.max(2, Math.floor(dimensions.height * scale / 2) * 2),
+    fps, canvasSize,
+  };
 }
 
 async function getAudioStreamCount(path: string, signal?: AbortSignal): Promise<number> {

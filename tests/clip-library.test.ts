@@ -78,8 +78,8 @@ describe('canonical clip metadata', () => {
     const source = clip(1, { width: 2_560, height: 1_440, fps: 60 });
     expect(selectShareVideoEncoder(['av1_nvenc', 'h264_nvenc', 'libx264'])).toBe('h264_nvenc');
     expect(selectShareVideoEncoder(['libx264'])).toBe('libx264');
-    expect(shareVideoBounds(source, 1_218)).toEqual({ width: 1_280, height: 720 });
-    expect(shareVideoBounds(source, 3_200)).toEqual({ width: 1_920, height: 1_080 });
+    expect(shareVideoBounds(source, 1_218)).toEqual({ width: 854, height: 480 });
+    expect(shareVideoBounds(source, 3_200)).toEqual({ width: 1_280, height: 720 });
 
     const filter = buildClipVideoFilter('original', { width: 1_280, height: 720 });
     expect(filter).toContain("min(iw,1280)");
@@ -89,6 +89,16 @@ describe('canonical clip metadata', () => {
     expect(arguments_).toContain('p4');
     expect(arguments_).not.toContain('-pass');
     expect(arguments_).toContain('-maxrate');
+  });
+
+  test('budgets resolution for long 10 MB shares and accounts for frame rate and portrait output', () => {
+    const source = clip(1, { fps: 30 });
+    // An existing 10 MB export spent only about 3 Mbps on 1440p video.
+    expect(shareVideoBounds(source, 3_058)).toEqual({ width: 1_920, height: 1_080 });
+    expect(shareVideoBounds(source, 2_447)).toEqual({ width: 1_280, height: 720 });
+    expect(shareVideoBounds(source, 561)).toEqual({ width: 640, height: 360 });
+    expect(shareVideoBounds({ ...source, canvasSize: '9:16', fps: 60 }, 1_218)).toEqual({ width: 480, height: 854 });
+    expect(shareVideoBounds(source, 15_000)).toBeUndefined();
   });
 
   test('parses bounded FFmpeg progress for the share dialog contract', () => {
