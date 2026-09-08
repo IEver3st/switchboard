@@ -50,7 +50,7 @@ import { getStartupSnapshot } from './startup-readiness';
 
 let getQuickWindow: () => BrowserWindow | null = () => null;
 const quickChannels = new Set<string>([ipcChannels.getSnapshot, ipcChannels.applyScene, ipcChannels.restoreScene,
-  ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.runQuickAction, ipcChannels.saveReplay,
+  ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.setSetupPreferences, ipcChannels.runQuickAction, ipcChannels.saveReplay,
   ipcChannels.setCaptureConfig, ipcChannels.updateSettings, ipcChannels.setAudioEnabled,
   ipcChannels.setAudioMasterGain, ipcChannels.setAudioMasterEnabled, ipcChannels.setAudioBusDevice]);
 function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null, channel = ''): void {
@@ -285,10 +285,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => setCaptureConfigInputSchema.parse(input),
     (input) => controller.setCaptureConfig(input),
   );
-  ipcMain.handle(ipcChannels.saveReplay, (event) => {
-    assertTrustedSender(event, getMainWindow);
-    return controller.saveReplay();
-  });
+  handle(ipcChannels.saveReplay, getMainWindow, input => z.undefined().parse(input), () => controller.saveReplay());
   ipcMain.handle(ipcChannels.chooseClipDirectory, (event) => {
     assertTrustedSender(event, getMainWindow);
     return controller.chooseClipDirectory();

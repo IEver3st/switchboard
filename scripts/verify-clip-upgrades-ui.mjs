@@ -3,7 +3,9 @@ import { mkdir, mkdtemp, readFile, writeFile, stat, copyFile, rename, rmdir } fr
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const root = resolve('.'), output = join(root, 'design-qa/clip-editor-upgrades/native');
+const root = resolve('.'), output = process.argv.includes('--trim-only')
+  ? await mkdtemp(join(tmpdir(), 'switchboard-trim-images-'))
+  : join(root, 'design-qa/clip-editor-upgrades/native');
 const profile = await mkdtemp(join(tmpdir(), 'switchboard-clip-upgrades-'));
 await mkdir(output, { recursive: true });
 const media = join(profile, 'clips'); await mkdir(media);
@@ -65,6 +67,78 @@ void app.whenReady().then(async () => {
   await waitFor(async () => { window = BrowserWindow.getAllWindows().find(item => !item.isDestroyed()); return Boolean(window); }, 'window');
   window.webContents.on('console-message', event => { if (event.level === 'error' && !event.message.includes('rename')) report.errors.push(event.message); });
   await openEditor();
+  if (process.argv.includes('--trim-only')) {
+    const geometry = () => evaluate(`(() => {
+      const lane=document.querySelector('.montage-v2-video-lane').getBoundingClientRect();
+      const segment=document.querySelector('.montage-v2-segment-slot').getBoundingClientRect();
+      const audio=document.querySelector('.clip-channel-region').getBoundingClientRect();
+      return {width:lane.width,start:(segment.x-lane.x)/lane.width,end:(segment.right-lane.x)/lane.width,audioStart:(audio.x-lane.x)/lane.width,audioEnd:(audio.right-lane.x)/lane.width};
+    })()`);
+    const before=await geometry();
+    await evaluate(`(() => {
+      window.__trimPreviewStates=[];
+      const preview=document.querySelector('.montage-v2-preview');
+      window.__trimPreviewObserver=new MutationObserver(records=>{
+        for(const record of records) window.__trimPreviewStates.push(record.oldValue);
+        window.__trimPreviewStates.push(preview.dataset.state);
+      });
+      window.__trimPreviewObserver.observe(preview,{attributes:true,attributeFilter:['data-state'],attributeOldValue:true});
+    })()`);
+    await drag('.montage-v2-trim-handle.is-start',before.width*0.2,0);
+    await drag('.montage-v2-trim-handle.is-end',-before.width*0.2,0);
+    const draft=await savedDraft();
+    assert(Math.abs(draft.segments[0].trimStartMs-1000)<40 && Math.abs(draft.segments[0].trimEndMs-4000)<40,'Pointer trim saves only the selected source range');
+    for (const [width,height] of [[1080,720],[1420,900],[1920,1080]]) {
+      await viewport(width,height);
+      const range=await geometry();
+      assert(Math.abs(range.start-0.2)<0.012 && Math.abs(range.end-0.8)<0.012,`${width}x${height} shows excluded source on both sides: ${JSON.stringify(range)}`);
+      assert(Math.abs(range.audioStart-range.start)<0.005 && Math.abs(range.audioEnd-range.end)<0.005,'Waveform matches the selected video range');
+      assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'),'No page overflow');
+      await capture(`${width}x${height}-trim-range`);
+    }
+    await seekFraction(0.5);
+    assert(await evaluate(`Math.abs(document.querySelector('video[data-active=true]').currentTime-2.5)<0.1`),'Source ruler seeks the matching preview frame');
+    await textButton('Back to clips'); await openEditor();
+    const reopened=await geometry();
+    assert(Math.abs(reopened.start-0.2)<0.012 && Math.abs(reopened.end-0.8)<0.012,'Reopening preserves the saved visible trim');
+    await evaluate(`window.__trimPreviewObserver.disconnect(); window.__trimPreviewObserver.observe(document.querySelector('.montage-v2-preview'),{attributes:true,attributeFilter:['data-state'],attributeOldValue:true})`);
+    await seekFraction(0.5);
+    await evaluate(`document.querySelector('.montage-v2-trim-handle.is-start').focus()`);
+    for (const type of ['keyDown','keyUp']) window.webContents.sendInputEvent({type,keyCode:'Right'});
+    const keyed=await savedDraft();
+    assert(keyed.segments[0].trimStartMs>draft.segments[0].trimStartMs,'Keyboard moves the focused trim edge');
+    await ariaButton('Undo');
+    assert((await savedDraft()).segments[0].trimStartMs===draft.segments[0].trimStartMs,'Undo restores the trim');
+    await ariaButton('Redo');
+    assert((await savedDraft()).segments[0].trimStartMs===keyed.segments[0].trimStartMs,'Redo restores the trim');
+    await seekFraction(0.5);
+    const beforeMapping=await geometry();
+    const trimHandle=await evaluate(`(() => { const r=document.querySelector('.montage-v2-trim-handle.is-start').getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
+    window.webContents.sendInputEvent({type:'mouseDown',x:Math.round(trimHandle.x),y:Math.round(trimHandle.y),button:'left',clickCount:1});
+    for(let step=1;step<=24;step++) {
+      window.webContents.sendInputEvent({type:'mouseMove',x:Math.round(trimHandle.x+beforeMapping.width*0.1*step/24),y:Math.round(trimHandle.y),button:'left',modifiers:['leftButtonDown']});
+      await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true}); await delay(20);
+    }
+    window.webContents.sendInputEvent({type:'mouseUp',x:Math.round(trimHandle.x+beforeMapping.width*0.1),y:Math.round(trimHandle.y),button:'left',clickCount:1});
+    await savedDraft();
+    await waitFor(()=>evaluate(`Math.abs(document.querySelector('video[data-active=true]').currentTime-3)<0.1`),'paused preview follows the moved trim start');
+    await delay(150);
+    await evaluate(`document.querySelector('input[aria-label="Trim start"]').focus()`);
+    await setInput('Trim start',1.5);
+    for (const type of ['keyDown','keyUp']) window.webContents.sendInputEvent({type,keyCode:'Enter'});
+    const precise=await savedDraft();
+    assert(precise.segments[0].trimStartMs===1500,`Precision trim updates the canonical range: ${precise.segments[0].trimStartMs}`);
+    await waitFor(()=>evaluate(`Math.abs(document.querySelector('video[data-active=true]').currentTime-1.5)<0.1`),'precision trim previews its new boundary');
+    await seekFraction(0.5);
+    await waitFor(()=>evaluate(`Math.abs(document.querySelector('video[data-active=true]').currentTime-2.5)<0.1`),'preview follows the changed source mapping');
+    const previewStates=await evaluate(`window.__trimPreviewObserver.disconnect(); window.__trimPreviewStates`);
+    assert(!previewStates.includes('loading'),'Dragging and precision trimming keep the ready preview visible');
+    await window.webContents.debugger.attach('1.3');
+    await window.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+    await capture('trim-reduced-motion'); window.webContents.debugger.detach();
+    assert(!window.isVisible(),'Trim verification stayed hidden');
+    console.log(JSON.stringify(report)); app.exit(0); return;
+  }
   await choose('Clip canvas', '9:16 vertical');
   await setInput('Horizontal position', 20); await setInput('Zoom %', 120);
   const frameDraft = await savedDraft();

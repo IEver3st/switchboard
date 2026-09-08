@@ -4,13 +4,11 @@ import { join } from 'node:path';
 export class QuickControlsWindow {
   private window: BrowserWindow | null = null;
   private requested = false;
-  private held = false;
   getWindow(): BrowserWindow | null { return this.window; }
-  setOpen(open: boolean, held: boolean): void {
-    if (!open && held && !this.held) return;
+  toggle(): void { this.setOpen(!this.requested); }
+  setOpen(open: boolean): void {
     this.requested = open;
     if (!open) { this.window?.destroy(); this.window = null; return; }
-    this.held = held;
     if (this.window && !this.window.isDestroyed()) return;
     const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
     const width = Math.min(460, display.width), height = display.height;
@@ -20,6 +18,7 @@ export class QuickControlsWindow {
       skipTaskbar: true, alwaysOnTop: true, backgroundColor: '#0e1117', roundedCorners: false,
       webPreferences: { preload: join(__dirname, '../preload/index.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
     });
+    window.setAlwaysOnTop(true, 'screen-saver');
     this.window = window;
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());
@@ -28,9 +27,9 @@ export class QuickControlsWindow {
       if (this.window !== window || !this.requested) return;
       if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') window.show();
     });
-    window.on('blur', () => { if (this.window === window) this.setOpen(false, false); });
-    window.on('closed', () => { if (this.window === window) this.window = null; });
-    const query = { quickControls: '1', held: held ? '1' : '0' };
+    window.on('blur', () => { if (this.window === window) this.setOpen(false); });
+    window.on('closed', () => { if (this.window === window) { this.window = null; this.requested = false; } });
+    const query = { quickControls: '1' };
     if (process.env.ELECTRON_RENDERER_URL) {
       const url = new URL(process.env.ELECTRON_RENDERER_URL);
       for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);

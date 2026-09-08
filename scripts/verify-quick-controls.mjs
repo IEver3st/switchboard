@@ -46,7 +46,11 @@ await import('../out/main/index.js');
 void app.whenReady().then(async () => { try {
   await until(async () => { main = BrowserWindow.getAllWindows()[0]; return main && !main.webContents.isLoading() && await js(main, 'Boolean(window.switchboard)'); });
   await js(main, `window.switchboard.updateSettings({onboardingCompleted:true,uiScalePercent:100,scanGamesAutomatically:false})`);
+  await js(main, `window.switchboard.setCaptureConfig({hotkey:'Control+Alt+Shift+F11'})`);
   await open();
+  const replayRejection = await js(quick, `window.switchboard.saveReplay().then(()=>'',error=>error.message)`);
+  assert(replayRejection.includes('Enable Instant Replay') && !replayRejection.includes('untrusted'), 'Panel replay save must pass the real sender check and reach the capture controller.');
+  evidence.checks.push('Real replay-save IPC accepts the panel and reaches the stopped-engine guard.');
   const bounds = quick.getBounds();
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
   assert(bounds.x + bounds.width === display.x + display.width && bounds.y === display.y && bounds.height === display.height, 'Panel must fill the right work-area edge.');
@@ -57,6 +61,22 @@ void app.whenReady().then(async () => { try {
     for (const tab of ['capture','audio','app']) { await selectTab(tab); await capture(`${width}x${height}-${tab}`); }
   }
   await size(460,720); await selectTab('capture');
+  await openSelect('Replay duration');
+  assert(await js(quick, `Boolean(document.querySelector('[role="option"][data-state="checked"]'))`), 'Custom menu must identify the selected option.');
+  await capture('460x720-replay-menu');
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});
+  quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
+  await until(()=>js(quick, `!document.querySelector('[role="listbox"]')`));
+  assert(!quick.isDestroyed(), 'Escape must close the dropdown before the panel.');
+  await until(()=>js(quick, `document.activeElement?.getAttribute('aria-label')==='Replay duration'`));
+  await openSelect('Video quality');
+  for (const [keyCode,value] of [['Home','1'],['Down','2']]) {
+    quick.webContents.sendInputEvent({type:'keyDown',keyCode}); quick.webContents.sendInputEvent({type:'keyUp',keyCode});
+    await until(()=>js(quick,`document.activeElement?.dataset.value===${JSON.stringify(value)}`));
+  }
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Enter'}); quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Enter'});
+  await until(async()=> (await state()).capture.config.quality===2);
+  evidence.checks.push('Custom dropdown keyboard selection, checkmark and Escape focus restoration.');
   for (const [label,value,key] of [['Replay duration','90','replaySeconds'],['Resolution','1080p','resolution'],['Frame rate','30','fps'],['Video quality','3','quality'],['Capture source','window','source'],['Desktop audio','game','systemAudioMode']]) {
     await select(label,value);
     assert(String((await state()).capture.config[key]) === value, `${label} did not reach canonical state.`);
@@ -68,6 +88,12 @@ void app.whenReady().then(async () => { try {
   await select('Desktop audio','off');
   assert(!(await state()).capture.config.includeSystemAudio, 'Desktop audio Off did not disable its recording.');
   await selectTab('app');
+  const preferences = (await state()).setup.preferences;
+  await click('[aria-label="Open from anywhere"]');
+  await until(async()=> (await state()).setup.preferences.quickControlsEnabled !== preferences.quickControlsEnabled);
+  await select('Shortcut','Control+Shift+Space');
+  assert((await state()).setup.preferences.quickShortcut==='Control+Shift+Space','Shortcut choice did not persist through the panel IPC allowlist.');
+  await click('[aria-label="Open from anywhere"]');
   for (const [label,key] of [['Performance guard','performanceGuard'],['Low resource rendering','softwareRendering'],['Check for app updates','automaticAppUpdates'],['Release interface in tray','destroyRendererInTray'],['Close to tray','closeToTray']]) {
     const before = (await state()).settings[key]; await click(`[aria-label="${label}"]`); await until(async () => (await state()).settings[key] === !before);
   }
@@ -103,7 +129,7 @@ void app.whenReady().then(async () => { try {
   await select('Replay duration','120',false); await capture('460x720-pending');
   assert(await js(quick, `document.querySelector('[aria-label="Replay duration"]').disabled`), 'Pending controls remained enabled.');
   reject(); await until(() => js(quick, `Boolean(document.querySelector('[role="alert"]'))`));
-  assert(await js(quick, `document.querySelector('[aria-label="Replay duration"]').value==='90'`), 'Rejected setting did not keep confirmed value.');
+  assert(await js(quick, `document.querySelector('[aria-label="Replay duration"]').dataset.value==='90'`), 'Rejected setting did not keep confirmed value.');
   await capture('460x720-rejected');
   evidence.checks.push('Allowlist, schema rejection, pending and rollback verified.');
 
@@ -115,6 +141,7 @@ void app.whenReady().then(async () => { try {
     {id:'review-output',name:'Review headphones',direction:'output',available:true,isSwitchboard:false},
     {id:'review-output-2',name:'Review speakers with a deliberately long endpoint name',direction:'output',available:true,isSwitchboard:false},
     {id:'review-input',name:'Review microphone',direction:'input',available:true,isSwitchboard:false},
+    {id:'review-input-2',name:'Review alternate microphone',direction:'input',available:true,isSwitchboard:false},
   ];
   fixture.audio.buses.find(bus=>bus.id==='game').deviceId='review-output';
   fixture.audio.buses.find(bus=>bus.id==='mic').deviceId='review-input';
@@ -126,7 +153,9 @@ void app.whenReady().then(async () => { try {
   await expectAction('audio:set-master-gain',{mixId:'personal',gain:.65}, s=>s.audio.mixes.find(m=>m.id==='personal').master.gain=.65, () => range('Personal volume',.65));
   await capture('460x720-audio-active-fixture');
   await expectAction('setup:quick-action',{type:'output',deviceId:'review-output-2'}, s=>s.audio.buses.find(b=>b.id==='game').deviceId='review-output-2', () => select('Output device','review-output-2'));
-  await expectAction('audio:set-bus-device',{busId:'mic',deviceId:'review-input'}, null, () => select('Input device','review-input'));
+  await openSelect('Output device'); await capture('460x720-device-menu-long-label');
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'}); quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
+  await expectAction('audio:set-bus-device',{busId:'mic',deviceId:'review-input-2'}, s=>s.audio.buses.find(b=>b.id==='mic').deviceId='review-input-2', () => select('Input device','review-input-2'));
   const micMuted = Boolean(fixture.audio.buses.find(b=>b.id==='mic').enabled);
   await expectAction('setup:quick-action',{type:'microphone',muted:micMuted}, s=>s.audio.buses.find(b=>b.id==='mic').enabled=!micMuted, () => click(`[aria-label="${micMuted ? 'Mute' : 'Unmute'} microphone"]`));
   await expectAction('setup:quick-action',{type:'chatmix',value:-.5}, s=>s.audio.chatMix=-.5, () => range('ChatMix',-.5));
@@ -167,14 +196,9 @@ void app.whenReady().then(async () => { try {
   await until(async()=>{quick=BrowserWindow.getAllWindows().find(w=>w!==main);return quick&&!quick.webContents.isLoading()&&await js(quick,`Boolean(document.querySelector('.quick-loading'))`);});
   await size(460,720); await capture('460x720-loading');
   snapshotGate=null; releaseSnapshot(); await until(()=>js(quick,`Boolean(document.querySelector('.quick-tabs'))`));
-  const heldUrl=new URL(quick.webContents.getURL());heldUrl.searchParams.set('held','1');
-  await quick.loadURL(heldUrl.toString());
-  await until(()=>js(quick,`[...document.querySelectorAll('button')].some(button=>button.textContent.includes('Keep open'))`));
-  await capture('460x720-held-shortcut');
-  const quickId=quick.id;await clickText('Keep open');
-  assert(quick.id===quickId && await js(quick,`!document.body.innerText.includes('Release to close')`),'Keep open did not retain the current panel through real IPC.');
+  assert(await js(quick,`!document.body.innerText.includes('Release to close') && !document.body.innerText.includes('Keep open')`),'Panel retained obsolete held-shortcut instructions.');
   quick.emit('blur');await until(()=>quick.isDestroyed());
-  evidence.checks.push('Loading, Keep open handoff and blur dismissal verified.');
+  evidence.checks.push('Loading and blur dismissal verified; obsolete held-shortcut controls removed.');
   await writeFile(join(output,'verification.json'),JSON.stringify({...evidence,passed:true},null,2));
   console.log(JSON.stringify({passed:true,output,layouts:evidence.layouts.length,checks:evidence.checks.length})); clearTimeout(watchdog); app.quit();
 } catch(error) {
@@ -185,7 +209,7 @@ void app.whenReady().then(async () => { try {
 
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function assert(value,message){if(!value)throw Error(message);}
-function js(window,code){return window.webContents.executeJavaScript(code);}
+function js(window,code){return window.webContents.executeJavaScript(code).catch(error=>{throw new Error(`${error.message}: ${code}`);});}
 function state(){return js(quick,'window.switchboard.getSnapshot()');}
 async function until(check){const end=Date.now()+12000;while(Date.now()<end){if(await check())return;await delay(40);}throw Error('Timed out waiting for panel state.');}
 async function open(){await js(main,'window.switchboard.openQuickControls()');await until(async()=>{quick=BrowserWindow.getAllWindows().find(w=>w!==main);return quick&&!quick.webContents.isLoading()&&await js(quick,`Boolean(document.querySelector('.quick-tabs'))`);});}
@@ -193,13 +217,27 @@ async function size(width,height){quick.setContentSize(width,height,false);await
 async function selectTab(tab){await click(`#quick-tab-${tab}`);await until(()=>js(quick,`document.querySelector('#quick-tab-${tab}').getAttribute('aria-selected')==='true'`));}
 async function click(selector){assert(await js(quick,`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.disabled)return false;e.click();return true})()`),`Unavailable control ${selector}`);await delay(70);}
 async function clickText(text){await js(quick,`[...document.querySelectorAll('button')].find(e=>e.textContent.trim()===${JSON.stringify(text)}).click()`);await delay(70);}
-async function select(label,value,settle=true){await js(quick,`(()=>{const e=document.querySelector('select[aria-label=${JSON.stringify(label)}]');e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);if(settle)await delay(80);}
+async function openSelect(label){
+  await until(()=>js(quick,`!document.querySelector('[role="listbox"]') && document.querySelector('[role="combobox"][aria-label=${JSON.stringify(label)}]')?.disabled===false`));
+  await js(quick,`document.querySelector('[role="combobox"][aria-label=${JSON.stringify(label)}]').focus()`);
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Space'}); quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Space'});
+  await until(()=>js(quick,`Boolean(document.querySelector('[role="listbox"]'))`));
+}
+async function select(label,value,settle=true){
+  await openSelect(label);
+  await until(()=>js(quick,`Boolean(document.querySelector('[role="option"][data-value=${JSON.stringify(value)}]'))`));
+  await js(quick,`document.querySelector('[role="option"][data-value=${JSON.stringify(value)}]').focus()`);
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Enter'}); quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Enter'});
+  await until(()=>js(quick,`!document.querySelector('[role="listbox"]')`));
+  if(settle)await delay(80);
+}
 async function range(label,value){await js(quick,`(()=>{const e=document.querySelector('input[aria-label=${JSON.stringify(label)}]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,${value});e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));})()`);await delay(30);await js(quick,`document.querySelector('input[aria-label=${JSON.stringify(label)}]').dispatchEvent(new KeyboardEvent('keyup',{key:'ArrowRight',bubbles:true}))`);await delay(70);}
 async function publish(){quick.webContents.send('system:snapshot-updated',fixture);await delay(80);}
 async function expectAction(channel,input,apply,action){expected={channel,input,apply};await action();await until(()=>expected===null);await delay(30);}
 async function capture(name){
   assert(!quick.isVisible()&&!quick.isFocused(),'Panel became visible or focused.');
   await js(quick,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  await js(quick,'document.getAnimations().forEach(animation=>{if(animation.effect?.getTiming().iterations!==Infinity)animation.finish()})');
   await quick.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
   await delay(100);
   const layout=await js(quick,`({width:innerWidth,height:innerHeight,scrollWidth:document.documentElement.scrollWidth,bodyScroll:document.querySelector('.quick-body')?.scrollHeight,bodyHeight:document.querySelector('.quick-body')?.clientHeight,tab:document.querySelector('[role="tab"][aria-selected="true"]')?.textContent})`);

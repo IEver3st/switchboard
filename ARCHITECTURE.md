@@ -4,8 +4,11 @@ Setup scenes are persisted by main through `SetupScenes` and the canonical share
 contract. Audio, capture, and device changes use the existing host and module
 operations; failed subsystems report partial application. Automatic restoration
 preserves subsystems edited during a scene. Saved recovery state survives restart.
-`DesktopControlsService` launches the bundled Capture.Host with `--desktop-controls`
-for Win32 shortcuts and application matching, without initializing capture/media.
+`DesktopControlsService` registers Quick controls through Electron's global shortcut
+API in main, so a press toggles the panel even when the main renderer is in the tray.
+It unregisters only its own shortcut on reconfiguration or disposal. The bundled
+Capture.Host runs with `--desktop-controls` only when automatic scenes need
+application matching, without initializing capture/media or polling keyboard state.
 Its bounded JSON events are validated in main. The sandboxed quick panel has a
 separate trusted-window IPC allowlist. Status cues enter vendor modules through a
 narrow temporary-lighting operation; battery warnings/cutoff take precedence, and

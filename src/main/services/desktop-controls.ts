@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, globalShortcut } from 'electron';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,14 +8,13 @@ import type { ExternalProcessResource } from './performance-monitor';
 
 const desktopEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ready') }),
-  z.object({ type: z.literal('quick'), open: z.boolean() }),
   z.object({ type: z.literal('applications'), executables: z.array(z.string().max(120)).max(32) }),
   z.object({ type: z.literal('error'), message: z.string().max(2048) }),
   z.object({ type: z.literal('metrics'), pid: z.number().int().positive(), privateMemoryMb: z.number().finite().nonnegative(), workingSetMb: z.number().finite().nonnegative(), cpuPercent: z.number().min(0).max(100) }),
 ]);
 type DesktopConfig = Pick<SetupPreferences, 'quickControlsEnabled' | 'quickShortcut'> & { executables: string[] };
 
-/** One optional host using the existing bundled Capture.Host executable in a media-free mode. */
+/** Main owns the global shortcut; the optional media-free host only watches applications. */
 export class DesktopControlsService {
   private worker: ChildProcessWithoutNullStreams | null = null;
   private signature = '';
@@ -24,8 +23,10 @@ export class DesktopControlsService {
   private closed = false;
   private resources: ExternalProcessResource | null = null;
   private lastMetricRequestAt = 0;
+  private accelerator: string | null = null;
   constructor(private readonly io: {
-    quick(open: boolean): void;
+    toggleQuick(): void;
+    closeQuick(): void;
     applications(executables: string[]): Promise<void>;
     status(state: 'disabled' | 'starting' | 'ready' | 'error', error: string | null): void;
   }) {}
@@ -42,12 +43,26 @@ export class DesktopControlsService {
       // Fixture reviews must not register a global shortcut or watch real applications.
       if (process.env.SWITCHBOARD_NATIVE_FIXTURES === '1') { this.io.status('disabled', null); return; }
       this.io.status('starting', null);
-      try { await this.start(config, generation); }
+      let shortcutError: string | null = null;
+      if (config.quickControlsEnabled) {
+        try {
+          const registered = globalShortcut.register(config.quickShortcut, () => {
+            if (!this.closed && generation === this.generation) this.io.toggleQuick();
+          });
+          if (registered) this.accelerator = config.quickShortcut;
+          else shortcutError = 'The quick shortcut is already in use. Choose another shortcut.';
+        } catch { shortcutError = 'The quick shortcut could not be registered. Choose another shortcut.'; }
+      }
+      if (!config.executables.length) {
+        this.io.status(shortcutError ? 'error' : 'ready', shortcutError);
+        return;
+      }
+      try { await this.start(config, generation, shortcutError); }
       catch (error) { if (generation === this.generation) this.io.status('error', error instanceof Error ? error.message : String(error)); }
     });
   }
 
-  private start(config: DesktopConfig, generation: number): Promise<void> {
+  private start(config: DesktopConfig, generation: number, shortcutError: string | null): Promise<void> {
     const executable = app.isPackaged ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
       : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST
         ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
@@ -67,9 +82,8 @@ export class DesktopControlsService {
           const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1);
           try {
             const event = desktopEventSchema.parse(JSON.parse(line));
-            if (event.type === 'ready') { ready = true; clearTimeout(timeout); this.io.status('ready', null); resolve(); }
+            if (event.type === 'ready') { ready = true; clearTimeout(timeout); this.io.status(shortcutError ? 'error' : 'ready', shortcutError); resolve(); }
             else if (event.type === 'metrics') { if (event.pid === worker.pid) this.resources = { ...event, name: 'Desktop controls' }; }
-            else if (event.type === 'quick') this.io.quick(event.open);
             else if (event.type === 'applications') void this.io.applications(event.executables).catch(error => this.io.status('error', String(error).slice(0, 2048)));
             else if (event.type === 'error') { failure = event.message; this.io.status('error', event.message); }
           } catch { failure = 'Desktop controls sent an invalid response.'; worker.kill(); }
@@ -82,17 +96,16 @@ export class DesktopControlsService {
         clearTimeout(timeout);
         if (this.worker === worker) { this.worker = null; this.resources = null; }
         if (generation !== this.generation || this.closed) return;
-        this.io.quick(false);
-        const message = failure ?? 'Desktop controls stopped. Toggle Quick controls or an automatic scene to retry.';
+        const message = failure ?? 'Application watching stopped. Toggle an automatic scene to retry.';
         this.io.status('error', message);
         if (!ready) reject(new Error(message));
       });
-      worker.stdin.write(`${JSON.stringify(config)}\n`);
+      worker.stdin.write(`${JSON.stringify({ executables: config.executables })}\n`);
     });
   }
 
   private async stop(): Promise<void> {
-    this.io.quick(false);
+    if (this.accelerator) { globalShortcut.unregister(this.accelerator); this.accelerator = null; }
     const worker = this.worker;
     this.worker = null;
     this.resources = null;
@@ -104,7 +117,7 @@ export class DesktopControlsService {
     });
   }
 
-  async dispose(): Promise<void> { this.closed = true; this.generation++; await this.chain; await this.stop(); }
+  async dispose(): Promise<void> { this.closed = true; this.generation++; await this.chain; await this.stop(); this.io.closeQuick(); }
   getResources(): ExternalProcessResource[] {
     if (this.worker && Date.now() - this.lastMetricRequestAt >= 4_900) {
       this.lastMetricRequestAt = Date.now(); this.worker.stdin.write('metrics\n');

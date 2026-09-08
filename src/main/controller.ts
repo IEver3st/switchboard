@@ -181,7 +181,8 @@ function sameAudioChannels(left: readonly ClipAudioChannel[] | undefined, right:
 }
 
 type AppControllerOptions = {
-  onQuickControls?: (open: boolean, held: boolean) => void;
+  onQuickControls?: (open: boolean) => void;
+  onToggleQuickControls?: () => void;
   demoUpdate?: boolean;
   onUpdateInstallRequested?: (installing: boolean, background: boolean) => void;
   getRendererRuntime?: () => Promise<unknown>;
@@ -256,7 +257,8 @@ export class AppController {
       device: async (deviceId, change) => { await this.setDeviceControl({ deviceId, change }); },
     });
     this.desktopControls = new DesktopControlsService({
-      quick: open => this.options.onQuickControls?.(open, true),
+      toggleQuick: () => this.options.onToggleQuickControls?.(),
+      closeQuick: () => this.options.onQuickControls?.(false),
       applications: executables => this.scenes.runningApplications(executables),
       status: (state, error) => { if (!this.disposed) this.store.update(draft => {
         draft.setup.runtime.desktopState = state; draft.setup.runtime.desktopError = error;
@@ -459,8 +461,8 @@ export class AppController {
     const preferences = setupPreferencesSchema.parse(input);
     return this.store.update(draft => { draft.setup.preferences = preferences; });
   }
-  public openQuickControls(): void { this.options.onQuickControls?.(true, false); }
-  public closeQuickControls(): void { this.options.onQuickControls?.(false, false); }
+  public openQuickControls(): void { this.options.onQuickControls?.(true); }
+  public closeQuickControls(): void { this.options.onQuickControls?.(false); }
   public async runQuickAction(raw: QuickActionInput): Promise<SystemSnapshot> {
     const input = quickActionInputSchema.parse(raw);
     const snapshot = this.store.get();

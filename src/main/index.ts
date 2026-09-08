@@ -278,7 +278,8 @@ if (verifyPackagedUpdater) {
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController({
-      onQuickControls: (open, held) => quickControls.setOpen(open, held),
+      onQuickControls: open => quickControls.setOpen(open),
+      onToggleQuickControls: () => quickControls.toggle(),
       demoUpdate: demoUpdateRequested,
       getRendererRuntime: getRendererRuntimeProbe,
       onUpdateInstallRequested: (installing, background) => {

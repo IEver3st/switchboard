@@ -57,7 +57,7 @@ export function SetupWorkspace({ snapshot }: { snapshot: SystemSnapshot }) {
       </div>
     </> : view === 'quick' ? <>
       <SettingSection title="Shortcut">
-      <SettingRow controlClassName="settings-row__control--actions" settingId="setup.quickEnabled" title="Open from anywhere" description="Hold the shortcut to show quick controls. Release it to return to your app.">
+      <SettingRow controlClassName="settings-row__control--actions" settingId="setup.quickEnabled" title="Open from anywhere" description="Press the shortcut to open or close Quick controls, including while Switchboard is in the tray.">
         <Button variant="secondary" size="sm" disabled={changing} onClick={() => void run(() => switchboardApi.openQuickControls())}>Open panel</Button>
         <Switch aria-label="Enable quick controls shortcut" checked={preferences.quickControlsEnabled} disabled={changing} onCheckedChange={quickControlsEnabled => void update({ quickControlsEnabled })} />
       </SettingRow>

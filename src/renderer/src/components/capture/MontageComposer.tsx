@@ -294,7 +294,9 @@ export function MontageComposer({
     const nextMs = clamp(requestedMs, 0, currentProject.durationMs);
     currentMsRef.current = nextMs;
     setCurrentMs(nextMs);
-    setPreviewState('loading');
+    // Seeking the displayed clip retains its last frame. Replacing it with the
+    // loading overlay on each pointer update makes trim drags flash black.
+    setPreviewState(current => matchingActive && current === 'ready' ? current : 'loading');
     try {
       await prepareVideo(targetVideo, clip.id, mapping.sourceTimeMs);
       if (generation !== seekGenerationRef.current) return;
@@ -424,7 +426,8 @@ export function MontageComposer({
     const sourceChanged = video.dataset.clipId !== mapping.segment.clipId;
     const outsideTrim = sourceTimeMs < mapping.segment.trimStartMs - 40
       || sourceTimeMs > mapping.segment.trimEndMs + 40;
-    if (currentMsRef.current >= project.durationMs || sourceChanged || outsideTrim) {
+    const sourceMappingChanged = Math.abs(sourceTimeMs - mapping.sourceTimeMs) > 40;
+    if (currentMsRef.current >= project.durationMs || sourceChanged || outsideTrim || sourceMappingChanged) {
       void seekMontage(requestedMs, playingRef.current);
       return;
     }
@@ -858,7 +861,11 @@ export function MontageComposer({
                   <PreciseTrimControls startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs} durationMs={selectedSegment.sourceDurationMs} fps={selectedClip.fps}
                     onChange={(trimStartMs, trimEndMs) => changeProject(updateMontageSegment(project, selectedSegment.id, segment => ({ ...segment, trimStartMs, trimEndMs })), `segment:${selectedSegment.id}:trim`)}
                     getCurrentMs={() => mapMontageTime(projectRef.current.segments, currentMsRef.current)?.sourceTimeMs ?? selectedSegment.trimStartMs}
-                    onSeek={sourceMs => { void seekMontage(montageStartForSegment(project.segments, selectedSegment.id) + sourceToEditedMs(selectedSegment.trimStartMs, sourceMs, selectedSegment.videoEdits)); }} />
+                    onSeek={sourceMs => {
+                      const current = projectRef.current;
+                      const segment = current.segments.find(value => value.id === selectedSegment.id);
+                      if (segment) void seekMontage(montageStartForSegment(current.segments, segment.id) + sourceToEditedMs(segment.trimStartMs, sourceMs, segment.videoEdits));
+                    }} />
                 </section>
                 <section className="inspector-control-section" aria-label="Video adjustments">
                   <AdvancedVideoControls edits={selectedSegment.videoEdits} clip={selectedClip} startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs}
