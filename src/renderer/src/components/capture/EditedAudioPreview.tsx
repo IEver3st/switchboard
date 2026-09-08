@@ -85,5 +85,5 @@ export function EditedAudioPreview({ state, onDuckGain, onError }: {
     };
   }, [tracks]);
   useEffect(() => { syncRef.current?.(); }, [state]);
-  return <>{tracks.map(track => <audio key={`${clipId}:${track.trackIndex}`} ref={audio => { if (audio) mediaRefs.current.set(track.trackIndex, audio); else mediaRefs.current.delete(track.trackIndex); }} src={`switchboard-media://clip-audio/${encodeURIComponent(clipId ?? '')}?track=${track.trackIndex}`} preload="auto" onLoadedData={() => syncRef.current?.()} onError={() => callbacks.current.onError(`${track.label} audio preview could not be decoded.`)} />)}</>;
+  return <>{tracks.map(track => <audio key={`${clipId}:${track.trackIndex}`} ref={audio => { if (audio) mediaRefs.current.set(track.trackIndex, audio); else mediaRefs.current.delete(track.trackIndex); }} crossOrigin="anonymous" src={`switchboard-media://clip-audio/${encodeURIComponent(clipId ?? '')}?track=${track.trackIndex}`} preload="auto" onLoadedData={() => syncRef.current?.()} onError={() => callbacks.current.onError(`${track.label} audio preview could not be decoded.`)} />)}</>;
 }

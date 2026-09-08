@@ -67,7 +67,7 @@ if (softwareRenderingEnabled) {
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'switchboard-media',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true },
 }]);
 
 const hasSingleInstanceLock = verifyPackagedUpdater
@@ -311,7 +311,9 @@ if (verifyPackagedUpdater) {
         const trackIndex = Number(url.searchParams.get('track'));
         const path = await controller?.getClipAudioPreviewPath(id, trackIndex);
         if (!path) return new Response('Not found', { status: 404 });
-        return streamMedia(path, range, audioContentType(path));
+        // Web Audio requires a CORS-approved media response, even for local tracks.
+        const rendererOrigin = process.env.ELECTRON_RENDERER_URL ? new URL(process.env.ELECTRON_RENDERER_URL).origin : 'null';
+        return streamMedia(path, range, audioContentType(path), rendererOrigin);
       }
       const path = controller?.getClipPath(id, url.hostname === 'thumbnail');
       if (!path) return new Response('Not found', { status: 404 });
@@ -408,7 +410,7 @@ app.on('before-quit', (event) => {
     });
 });
 
-async function streamMedia(path: string, rangeHeader: string | null, contentType: string): Promise<Response> {
+async function streamMedia(path: string, rangeHeader: string | null, contentType: string, rendererOrigin?: string): Promise<Response> {
   const file = await stat(path);
   const headers = new Headers({
     'Accept-Ranges': 'bytes',
@@ -416,6 +418,7 @@ async function streamMedia(path: string, rangeHeader: string | null, contentType
     'Content-Type': contentType,
   });
   const range = parseByteRange(rangeHeader, file.size);
+  if (rendererOrigin) headers.set('Access-Control-Allow-Origin', rendererOrigin);
   if (rangeHeader && !range) {
     headers.set('Content-Range', `bytes */${file.size}`);
     return new Response(null, { status: 416, headers });
