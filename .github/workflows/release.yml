@@ -69,6 +69,12 @@ jobs:
           "SWITCHBOARD_FFPROBE=$($ffprobe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Verify saved clip audio/video synchronization
         run: dotnet run --configuration Release --project engines/capture-host-tests/Capture.Host.Tests.csproj -- --sync-media-probe
+      - name: Verify clip export rendering
+        shell: pwsh
+        run: |
+          $env:SWITCHBOARD_FFMPEG_INTEGRATION = $env:SWITCHBOARD_FFMPEG
+          $env:SWITCHBOARD_FFPROBE_INTEGRATION = $env:SWITCHBOARD_FFPROBE
+          bun test tests/montage-v2-render.test.ts
       - name: Prepare single draft release
         shell: pwsh
         env:
