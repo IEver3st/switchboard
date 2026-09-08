@@ -1,0 +1,61 @@
+$ electron-vite build
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 78 modules transformed.
+rendering chunks...
+out/main/index.js  631.72 kB
+
+✓ built in 56ms
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 83 modules transformed.
+rendering chunks...
+out/preload/index.cjs  198.41 kB
+
+✓ built in 26ms
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 2607 modules transformed.
+rendering chunks...
+out/renderer/index.html                                           1.53 kB
+out/renderer/assets/war-thunder-D7Fys29B.webp                     5.90 kB
+out/renderer/assets/g502-x-plus-white-DrsZ3iUa.png              151.58 kB
+out/renderer/assets/g502-x-plus-BbuaWFd7.png                    152.73 kB
+out/renderer/assets/huntsman-v2-analog-official-CiVzMmp9.jpg    160.80 kB
+out/renderer/assets/quadcast-2-B3agZTGE.png                     351.00 kB
+out/renderer/assets/capture-BjE_KAbn.css                          4.45 kB
+out/renderer/assets/equipment-workbench-Cdbd2Kuc.css              9.69 kB
+out/renderer/assets/audio-BK1YRv3t.css                           16.80 kB
+out/renderer/assets/MontageComposer-CkEHQA8L.css                 24.27 kB
+out/renderer/assets/MouseDeviceEditor-Djs3MzQd.css               26.60 kB
+out/renderer/assets/ClipEditor-Bhr_GKus.css                      33.80 kB
+out/renderer/assets/index-TfRLGA3a.css                          260.67 kB
+out/renderer/assets/check-QMumLzxH.js                             0.36 kB
+out/renderer/assets/skeleton-BuReEYOK.js                          0.48 kB
+out/renderer/assets/trash-2--_iOLibh.js                           0.62 kB
+out/renderer/assets/mic-vocal-C6sc2kjt.js                         0.64 kB
+out/renderer/assets/music-2-DeF0H8iO.js                           0.83 kB
+out/renderer/assets/badge-Cy58Lx1R.js                             0.95 kB
+out/renderer/assets/channel-identity-BohAbi4r.js                  1.67 kB
+out/renderer/assets/ClipThumbnail-DOUxjPug.js                     6.90 kB
+out/renderer/assets/ColorPicker-B91VovIF.js                       7.31 kB
+out/renderer/assets/NewClipsReview-BGjAszRC.js                    9.30 kB
+out/renderer/assets/toggle-group-CdSVe5yJ.js                     10.10 kB
+out/renderer/assets/context-menu-BmYWW8BE.js                     15.07 kB
+out/renderer/assets/KeyboardDeviceEditor-DJI772_8.js             15.40 kB
+out/renderer/assets/dropdown-menu-CsGl5h7_.js                    15.94 kB
+out/renderer/assets/ShareClipDialog-B0TyrcEO.js                  17.48 kB
+out/renderer/assets/MicrophoneDeviceEditor-Cz8G9N3c.js           18.26 kB
+out/renderer/assets/popover-DaB7AAun.js                          31.52 kB
+out/renderer/assets/dist-DzUU-fdD.js                             35.62 kB
+out/renderer/assets/devices-BDmvNgRo.js                          45.77 kB
+out/renderer/assets/MouseDeviceEditor-CGpbz-hj.js                66.91 kB
+out/renderer/assets/MontageComposer-B4bgkQSg.js                  74.61 kB
+out/renderer/assets/audio-iXgxaKYz.js                            97.63 kB
+out/renderer/assets/ClipEditor-B_LX7Agg.js                      124.16 kB
+out/renderer/assets/tooltip-BpRhBccI.js                         125.06 kB
+out/renderer/assets/capture-Df7SiV8-.js                         141.81 kB
+out/renderer/assets/demo-api-CeUdDP8l.js                        382.92 kB
+out/renderer/assets/index-VOPNpOkc.js                         1,361.16 kB
+
+✓ built in 352ms

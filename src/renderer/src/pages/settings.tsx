@@ -1,4 +1,5 @@
 import '@/components/settings/capture-settings.css';
+import { SetupWorkspace } from '@/components/setup/setup-workspace';
 import '@/components/settings/general-settings.css';
 import { DiagnosticsWorkspace } from '@/components/settings/diagnostics-workspace';
 import { ResourceDiagnostics } from '@/components/settings/resource-diagnostics';
@@ -231,6 +232,7 @@ function SettingsCategory({
   onReset?: () => void;
 }) {
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'setup') return <SetupWorkspace snapshot={snapshot} />;
   if (category === 'audio') {
     if (snapshot.settings.developerMode !== true) return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
     return <AudioSettings snapshot={snapshot} onReset={onReset} />;
@@ -512,7 +514,7 @@ type CaptureView = typeof captureViews[number]['id'];
 function captureViewForSetting(id: string): CaptureView {
   if (id.startsWith('reactionClipping.')) return 'reactions';
   if (id.startsWith('autocapture.')) return 'automatic';
-  if (['capture.microphone', 'capture.systemAudio', 'capture.chatAudio', 'capture.audioDevices'].includes(id)) return 'audio';
+  if (['capture.microphone', 'capture.systemAudio', 'capture.systemAudioMode', 'capture.chatAudio', 'capture.audioDevices'].includes(id)) return 'audio';
   return 'recording';
 }
 
@@ -625,6 +627,13 @@ function CaptureSettings({ snapshot, onReset, targetSetting }: CategoryProps & {
       </> : null}
       {view === 'audio' ? <>
       <SettingSection title="Recorded tracks">
+        <SettingRow settingId="capture.systemAudioMode" title="Game track captures" description={config.source === 'display' ? 'Choose a game or window source to isolate its audio.' : 'Game-only audio excludes other applications. Requires Windows build 20348 or later.'}>
+          <select id="capture-audio-mode" aria-label="Game track captures" className="setup-select" value={config.systemAudioMode} disabled={!config.includeSystemAudio}
+            onChange={event => void setCaptureConfig({ systemAudioMode: event.target.value as 'system' | 'game' })}>
+            <option value="system">All audio from output device</option>
+            <option value="game" disabled={config.source === 'display'}>Selected game or window only</option>
+          </select>
+        </SettingRow>
         {capabilities.microphoneAudio ? (
           <SettingSwitch
             settingId="capture.microphone"
@@ -639,8 +648,8 @@ function CaptureSettings({ snapshot, onReset, targetSetting }: CategoryProps & {
         {capabilities.systemAudio ? (
           <SettingSwitch
             settingId="capture.systemAudio"
-            title="Record system audio"
-            description="Include desktop audio in replay clips."
+            title="Record game track"
+            description={config.systemAudioMode === 'game' ? 'Include only the selected game or window and its child processes.' : 'Include audio from the selected output device.'}
             checked={config.includeSystemAudio}
             onCheckedChange={(includeSystemAudio) => void setCaptureConfig({ includeSystemAudio })}
           />
@@ -693,7 +702,7 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
   const micAvailable = capabilities.microphoneAudio;
   const explicitMicUnavailable = Boolean(config.microphoneDeviceId)
     && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
-  const gameAndChatSame = config.includeSystemAudio && config.includeChatAudio
+  const gameAndChatSame = config.systemAudioMode !== 'game' && config.includeSystemAudio && config.includeChatAudio
     && (config.systemAudioDeviceId ?? 'auto') === (config.chatAudioDeviceId ?? 'auto');
 
   return (
@@ -713,7 +722,7 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
             value={config.systemAudioDeviceId}
             devices={outputDevices}
             automaticLabel={gameAutomaticLabel(snapshot)}
-            disabled={!systemAvailable || !config.includeSystemAudio}
+            disabled={!systemAvailable || !config.includeSystemAudio || config.systemAudioMode === 'game'}
             onChange={(systemAudioDeviceId) => void setCaptureConfig({ systemAudioDeviceId })}
           />
         </div>
@@ -741,6 +750,7 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
             onChange={(microphoneDeviceId) => void setCaptureConfig({ microphoneDeviceId })}
           />
         </div>
+        {config.systemAudioMode === 'game' ? <p className="settings-capture-devices__note">Only the selected game's or window's process and its child processes feed the Game track. Microphone and Chat remain separate inputs.{config.includeChatAudio ? ' Chat can still include other desktop sounds depending on the chosen output.' : ''}</p> : null}
         {!systemAvailable && !micAvailable ? (
           <p className="settings-capture-devices__note" role="status">
             The capture host has not reported audio support yet. Device choices unlock once support is available.
@@ -1464,7 +1474,7 @@ function reducedMotionEnabled(): boolean {
 }
 
 function categoryResetScope(category: SettingsCategoryId): SettingsResetScope | null {
-  if (category === 'about') return null;
+  if (category === 'about' || category === 'setup') return null;
   if (category === 'clips') return 'capture';
   return category;
 }

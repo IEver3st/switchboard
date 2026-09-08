@@ -1,0 +1,139 @@
+/* Capability-specific equipment layouts share the mouse workbench's quiet canvas. */
+.device-workbench:is([data-device-kind="keyboard"], [data-device-kind="microphone"]) {
+  padding: 20px clamp(24px, 3vw, 48px) 28px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 38px);
+  gap: 24px;
+}
+
+.device-workbench:is([data-device-kind="keyboard"], [data-device-kind="microphone"]) .device-workbench__toolbar {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+}
+
+.keyboard-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 300px);
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 24px clamp(32px, 5vw, 80px);
+  flex: 1;
+  width: 100%;
+  max-width: 1180px;
+  margin: auto;
+}
+
+.keyboard-workbench h3 { margin: 0; color: var(--foreground); font-size: 14px; font-weight: 650; }
+.keyboard-stage { grid-column: 1; min-width: 0; }
+.keyboard-stage .device-render--hero { width: 100%; height: clamp(220px, 32vh, 330px); }
+.keyboard-stage__footer { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 28px; color: var(--muted-foreground); font-size: 11px; }
+.keyboard-stage__effect { display: inline-flex; gap: 8px; align-items: center; }
+.keyboard-stage__effect i { width: 8px; height: 8px; border-radius: 2px; }
+.keyboard-stage__info,
+.keyboard-control-row__label button { display: inline-grid; place-items: center; width: 26px; height: 26px; color: var(--muted-foreground); border-radius: 4px; }
+.keyboard-stage__info svg,
+.keyboard-control-row__label svg { width: 13px; height: 13px; }
+.keyboard-workbench button:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.keyboard-primary-controls { grid-column: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 32px; align-content: start; }
+.keyboard-primary-controls > h3 { grid-column: 1 / -1; }
+.keyboard-control-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; min-width: 0; }
+.keyboard-control-row__label { display: inline-flex; align-items: center; color: var(--text-secondary); font-size: 12px; }
+.keyboard-profile-select { width: 128px; flex-shrink: 0; }
+.keyboard-lighting { grid-column: 2; grid-row: 1 / span 3; align-self: center; min-width: 0; }
+.keyboard-lighting__header,
+.keyboard-lighting__power { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.keyboard-lighting__body { display: grid; gap: 24px; margin-top: 24px; }
+.keyboard-lighting__effects { display: grid; gap: 10px; color: var(--text-secondary); font-size: 12px; }
+.keyboard-lighting__effects [role="group"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 4px; gap: 4px; background: var(--surface-1); }
+.keyboard-lighting__effects .keyboard-effect-option { min-height: 34px; height: auto; padding: 8px; border-radius: 4px; font-size: 11px; }
+.keyboard-lighting__parameters { display: grid; gap: 24px; }
+.keyboard-brightness { display: grid; gap: 12px; color: var(--text-secondary); font-size: 12px; }
+.keyboard-brightness > span { display: flex; justify-content: space-between; gap: 12px; }
+.keyboard-brightness output { color: var(--foreground); font-variant-numeric: tabular-nums; }
+.keyboard-color { display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: 12px; }
+.keyboard-color__trigger { display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 36px; background: var(--surface-interactive); border-radius: 4px; }
+.keyboard-color__trigger i { width: 18px; height: 18px; border-radius: 3px; }
+.keyboard-color__trigger strong { color: var(--foreground); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.keyboard-color__trigger:hover:not(:disabled) { background: var(--surface-hover); }
+.keyboard-pending { width: 14px; height: 14px; color: var(--accent-brand); }
+.keyboard-unavailable { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; background: var(--surface-1); border-radius: 4px; }
+.keyboard-unavailable span { display: grid; gap: 4px; }
+.keyboard-unavailable strong { font-size: 12px; font-weight: 600; }
+.keyboard-unavailable small { font-size: 11px; color: var(--muted-foreground); }
+.keyboard-workbench:has(.keyboard-unavailable) .keyboard-lighting { grid-row: 2 / span 3; }
+.keyboard-lighting__unavailable,
+.keyboard-lighting__empty,
+.equipment-unavailable { color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
+.keyboard-lighting__unavailable { display: grid; justify-items: start; gap: 8px; }
+.keyboard-input-features { grid-column: 1; min-width: 0; }
+.keyboard-input-features header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.keyboard-input-features header > span { color: var(--muted-foreground); font-size: 10px; }
+.keyboard-input-features dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 32px; margin: 14px 0 0; }
+.keyboard-input-features dt { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--text-secondary); font-size: 12px; }
+.keyboard-input-features dt > span { flex-shrink: 0; color: var(--muted-foreground); font-size: 10px; }
+.keyboard-input-features dd { margin: 5px 0 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.5; max-width: 42ch; }
+
+.device-workbench .microphone-hardware {
+  display: grid;
+  grid-template-columns: minmax(220px, 290px) minmax(220px, 1fr) minmax(260px, 310px);
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 24px clamp(24px, 4vw, 64px);
+  flex: 1;
+  width: 100%;
+  max-width: 1320px;
+  margin: auto;
+  padding: 0;
+}
+.microphone-stage { grid-column: 2; grid-row: 1 / span 3; align-self: center; min-width: 0; }
+.device-workbench[data-device-kind="microphone"] .microphone-stage .device-render--hero { width: 100%; height: clamp(360px, 62vh, 640px); }
+.microphone-hardware .microphone-hardware__heading { grid-column: 1; display: grid; gap: 16px; align-content: start; }
+.microphone-hardware .microphone-hardware__state { flex-wrap: wrap; gap: 10px 16px; }
+.microphone-hardware .microphone-hardware__primary { grid-column: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin: 0; }
+.microphone-hardware .microphone-hardware__lighting { grid-column: 3; grid-row: 1 / span 3; align-self: center; margin: 0; min-width: 0; }
+.microphone-hardware .microphone-hardware__lighting-identity { display: grid; gap: 8px; }
+.microphone-hardware .microphone-hardware__choices { gap: 20px; margin-top: 24px; }
+.microphone-hardware .microphone-hardware__choice-row { display: grid; justify-content: stretch; gap: 8px; }
+.microphone-hardware .microphone-hardware__choice-row .semantic-choice [role="group"] { display: flex; flex-wrap: wrap; gap: 2px; }
+.microphone-hardware .microphone-hardware__choice-row .semantic-choice [role="group"] > button { flex: 1; min-width: 56px; white-space: normal; height: auto; min-height: 32px; }
+.microphone-hardware .microphone-hardware__lighting-sliders { grid-template-columns: minmax(0, 1fr); gap: 24px; margin-top: 24px; }
+.microphone-hardware .microphone-hardware__advanced { grid-column: 1; grid-row: 3; margin: 8px 0 0; }
+.microphone-hardware .microphone-hardware__advanced .horizontal-meter { margin-top: 20px; }
+.equipment-unavailable { margin-top: 16px; }
+.equipment-unavailable button { margin-top: 8px; }
+
+@media (min-width: 820px) and (max-height: 780px) {
+  .device-workbench:is([data-device-kind="keyboard"], [data-device-kind="microphone"]) { gap: 16px; padding-bottom: 20px; }
+  .keyboard-workbench { gap: 18px 32px; }
+  .keyboard-stage .device-render--hero { height: 210px; }
+  .keyboard-workbench:has(.keyboard-unavailable) .keyboard-stage .device-render--hero { height: 145px; }
+  .keyboard-input-features dl { gap: 12px 24px; }
+  .keyboard-input-features dd { font-size: 10px; }
+}
+@media (min-width: 820px) and (max-width: 1120px) {
+  .keyboard-workbench { grid-template-columns: minmax(0, 1fr) 250px; column-gap: 28px; }
+  .keyboard-primary-controls { column-gap: 24px; }
+  .keyboard-control-row { flex-wrap: wrap; gap: 6px; }
+  .device-workbench .microphone-hardware { grid-template-columns: minmax(190px, 1fr) minmax(190px, 1fr) minmax(230px, 1.1fr); column-gap: 24px; }
+}
+@media (max-width: 819px) {
+  .keyboard-workbench { grid-template-columns: minmax(0, 1fr); }
+  .keyboard-lighting,
+  .keyboard-workbench:has(.keyboard-unavailable) .keyboard-lighting { grid-column: 1; grid-row: auto; }
+  .keyboard-input-features { grid-row: auto; }
+  .device-workbench .microphone-hardware { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .microphone-stage { grid-column: 1 / -1; grid-row: 1; }
+  .device-workbench[data-device-kind="microphone"] .microphone-stage .device-render--hero { height: 300px; }
+  .microphone-hardware .microphone-hardware__heading { grid-row: 2; }
+  .microphone-hardware .microphone-hardware__primary { grid-row: 3; }
+  .microphone-hardware .microphone-hardware__advanced { grid-row: 4; }
+  .microphone-hardware .microphone-hardware__lighting { grid-column: 2; grid-row: 2 / span 3; }
+}
+@media (max-width: 560px) {
+  .keyboard-primary-controls,
+  .keyboard-input-features dl,
+  .device-workbench .microphone-hardware { grid-template-columns: minmax(0, 1fr); }
+  .microphone-hardware .microphone-hardware__lighting { grid-column: 1; grid-row: 5; }
+}

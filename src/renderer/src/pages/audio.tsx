@@ -58,7 +58,8 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
     tab,
     engineRunning,
     realtimeMetering: snapshot.audio.capabilities.realtimeMetering,
-    routingSupport: snapshot.audio.capabilities.applicationRouting,
+    routingSupport: snapshot.audio.capabilities.virtualChannels,
+    processingSupport: tab === 'microphone' ? snapshot.audio.capabilities.microphoneDsp : snapshot.audio.capabilities.channelDsp,
   });
 
   return (

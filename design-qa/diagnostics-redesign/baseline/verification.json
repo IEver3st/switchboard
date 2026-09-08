@@ -1,0 +1,15 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-diagnostics-redesign-FsdkiE",
+  "assertions": [
+    "overview: no horizontal page overflow",
+    "overview: no horizontal page overflow",
+    "overview: no horizontal page overflow"
+  ],
+  "screenshots": [
+    "overview-1080x720.png",
+    "overview-1420x900.png",
+    "overview-1920x1080.png"
+  ],
+  "errors": [],
+  "passed": true
+}

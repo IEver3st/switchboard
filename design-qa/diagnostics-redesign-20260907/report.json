@@ -1,0 +1,181 @@
+{
+  "screenshots": [
+    {
+      "name": "checks",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "pipelines",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "devices",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "resources",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "checks",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "pipelines",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "devices",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "resources",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "checks",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "pipelines",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "devices",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "resources",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "focus",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "export-error",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "resources-recording",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "results",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "results",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "results",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "no-matches",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "running",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "cancelled",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "empty-devices",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    }
+  ],
+  "errors": []
+}

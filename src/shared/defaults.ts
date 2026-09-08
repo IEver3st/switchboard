@@ -1,5 +1,5 @@
 import { huntsmanKeyboardFeatures } from './huntsman-features';
-import { idleDiagnosticRun } from './contracts';
+import { idleDiagnosticRun, setupStateSchema } from './contracts';
 import type {
   AppUpdateState,
   AppSettings,
@@ -539,6 +539,7 @@ export const defaultAudio: AudioState = {
 };
 
 export const defaultCaptureConfig: CaptureConfig = {
+  systemAudioMode: 'system',
   enabled: false,
   source: 'automatic-game',
   sourceId: null,
@@ -629,7 +630,7 @@ export const defaultAutoCapture: AutoCaptureState = {
       sensitivity: 'balanced',
       preRollSeconds: 20,
       postRollSeconds: 10,
-      cooldownSeconds: 15,
+      cooldownSeconds: 60,
     },
     games: {},
     dismissedAvailability: {},
@@ -728,6 +729,7 @@ export const seedClips: Clip[] = [];
 
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
+    setup: setupStateSchema.parse({}),
     version: '0.8.7',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,

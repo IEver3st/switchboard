@@ -28,6 +28,7 @@ import {
 } from './settings-catalog';
 
 export const settingsCategoryIcons: Record<SettingsCategoryId, LucideIcon> = {
+  setup: Settings2,
   general: Settings2,
   audio: Headphones,
   capture: Video,

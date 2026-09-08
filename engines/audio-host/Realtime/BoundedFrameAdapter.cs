@@ -63,5 +63,7 @@ internal sealed class BoundedFrameAdapter
         readSequence = 0;
         writeSequence = 0;
     }
-}
 
+    // Called only after the consumer has stopped; the producer may still be active.
+    public void DiscardBufferedSamples() => Volatile.Write(ref readSequence, Volatile.Read(ref writeSequence));
+}

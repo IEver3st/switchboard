@@ -92,6 +92,27 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         return new AudioPipeCapture(capture, "System audio");
     }
 
+    public static async Task<AudioPipeCapture> CreateProcessLoopbackAsync(int processId, CancellationToken cancellationToken)
+    {
+        if (processId <= 0) throw new InvalidOperationException("The capture source has no running process.");
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 20348))
+            throw new PlatformNotSupportedException("Game-only audio requires Windows build 20348 or later.");
+        var activation = new WasapiRecorderBuilder()
+            .WithSharedMode().WithEventSync().WithBufferLength(50)
+            .WithProcessLoopback((uint)processId, ProcessLoopbackMode.IncludeTargetProcessTree)
+            .BuildAsync();
+        WasapiRecorder recorder;
+        try { recorder = await activation.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken); }
+        catch
+        {
+            // COM activation cannot be cancelled. Release a late result instead of leaking its client.
+            _ = activation.ContinueWith(task => { if (task.Status == TaskStatus.RanToCompletion) task.Result.Dispose();
+                else _ = task.Exception; }, TaskScheduler.Default);
+            throw;
+        }
+        return new AudioPipeCapture(recorder, "Game audio only");
+    }
+
     public static AudioPipeCapture CreateLoopbackEndpoint(string endpointId, string label)
     {
         using var enumerator = new MMDeviceEnumerator();

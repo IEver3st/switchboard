@@ -1,0 +1,323 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-clip-upgrades-coqbGj",
+  "screenshots": [
+    {
+      "name": "1080x720",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 752,
+          "right": 820,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 820,
+          "width": 260,
+          "right": 1080,
+          "basis": "260px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 821,
+          "width": 259,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1420x900",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1560,
+          "right": 1628,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1628,
+          "width": 292,
+          "right": 1920,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1629,
+          "width": 291,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "fullscreen",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1560,
+          "right": 1628,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1628,
+          "width": 292,
+          "right": 1920,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1629,
+          "width": 291,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-music",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 752,
+          "right": 820,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 820,
+          "width": 260,
+          "right": 1080,
+          "basis": "260px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 821,
+          "width": 259,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "size": "1080x720",
+      "geometry": {
+        "groups": [
+          {
+            "x": 78,
+            "right": 316.328125,
+            "y": 512
+          },
+          {
+            "x": 320.328125,
+            "right": 535.65625,
+            "y": 512
+          },
+          {
+            "x": 541.625,
+            "right": 778,
+            "y": 512
+          }
+        ],
+        "toolbar": {
+          "x": 78,
+          "y": 490,
+          "width": 700,
+          "height": 44,
+          "top": 490,
+          "right": 778,
+          "bottom": 534,
+          "left": 78
+        },
+        "overflow": false
+      }
+    },
+    {
+      "size": "1420x900",
+      "geometry": {
+        "groups": [
+          {
+            "x": 82,
+            "right": 463.765625,
+            "y": 692
+          },
+          {
+            "x": 471.765625,
+            "right": 724.234375,
+            "y": 692
+          },
+          {
+            "x": 807.625,
+            "right": 1114,
+            "y": 692
+          }
+        ],
+        "toolbar": {
+          "x": 82,
+          "y": 670,
+          "width": 1032,
+          "height": 44,
+          "top": 670,
+          "right": 1114,
+          "bottom": 714,
+          "left": 82
+        },
+        "overflow": false
+      }
+    },
+    {
+      "size": "1920x1080",
+      "geometry": {
+        "groups": [
+          {
+            "x": 82,
+            "right": 713.765625,
+            "y": 872
+          },
+          {
+            "x": 721.765625,
+            "right": 974.234375,
+            "y": 872
+          },
+          {
+            "x": 1307.625,
+            "right": 1614,
+            "y": 872
+          }
+        ],
+        "toolbar": {
+          "x": 82,
+          "y": 850,
+          "width": 1532,
+          "height": 44,
+          "top": 850,
+          "right": 1614,
+          "bottom": 894,
+          "left": 82
+        },
+        "overflow": false
+      }
+    },
+    "Fullscreen exit remains reachable"
+  ],
+  "errors": []
+}

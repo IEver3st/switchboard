@@ -1,0 +1,67 @@
+[
+  {
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "controls": [
+      {
+        "text": "Scenes",
+        "font": "11px",
+        "height": 26,
+        "drag": "no-drag"
+      },
+      {
+        "text": "Quick controls",
+        "font": "11px",
+        "height": 26,
+        "drag": "no-drag"
+      }
+    ]
+  },
+  {
+    "width": 1420,
+    "height": 900,
+    "overflow": false,
+    "controls": [
+      {
+        "text": "Scenes",
+        "font": "11px",
+        "height": 26,
+        "drag": "no-drag"
+      },
+      {
+        "text": "Quick controls",
+        "font": "11px",
+        "height": 26,
+        "drag": "no-drag"
+      }
+    ]
+  },
+  {
+    "width": 1920,
+    "height": 1080,
+    "overflow": false,
+    "controls": [
+      {
+        "text": "Scenes",
+        "font": "11px",
+        "height": 26,
+        "drag": "no-drag"
+      },
+      {
+        "text": "Quick controls",
+        "font": "11px",
+        "height": 26,
+        "drag": "no-drag"
+      }
+    ]
+  },
+  {
+    "sceneDestination": "#settings",
+    "settingsVisible": true
+  },
+  {
+    "quickControlsOpened": true,
+    "hidden": true
+  }
+]

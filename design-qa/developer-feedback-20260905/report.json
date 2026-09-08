@@ -1,0 +1,164 @@
+{
+  "passed": true,
+  "mode": "hidden native Electron; fixture hardware; intercepted clipboard and browser",
+  "screenshots": [
+    {
+      "name": "general",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "diagnostics",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-bug",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-feature",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-error",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "general",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "diagnostics",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-bug",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-feature",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-error",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "general",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "diagnostics",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-bug",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-feature",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback-error",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    }
+  ],
+  "handoffs": [
+    {
+      "copied": "# [Bug] Review report draft\n\n## Bug description\n\nA review draft used to verify the GitHub handoff.\n\n## Steps to reproduce\n\nOpen Settings and prepare a report."
+    },
+    {
+      "url": "https://github.com/IEver3st/switchboard/issues/new?title=%5BBug%5D+Review+report+draft&body=%23%23+Bug+description%0A%0AA+review+draft+used+to+verify+the+GitHub+handoff.%0A%0A%23%23+Steps+to+reproduce%0A%0AOpen+Settings+and+prepare+a+report."
+    },
+    {
+      "copied": "# [Feature] Review report draft\n\n## Requested capability\n\nA review draft used to verify the GitHub handoff.\n\n## Use case\n\nOpen Settings and prepare a report.\n\n## Environment\n\n- Switchboard: 0.7.1 (prototype mode)\n- Runtime: Electron 44.0.0\n- Platform: win32 x64"
+    },
+    {
+      "url": "https://github.com/IEver3st/switchboard/issues/new?title=%5BFeature%5D+Review+report+draft&body=%23%23+Requested+capability%0A%0AA+review+draft+used+to+verify+the+GitHub+handoff.%0A%0A%23%23+Use+case%0A%0AOpen+Settings+and+prepare+a+report.%0A%0A%23%23+Environment%0A%0A-+Switchboard%3A+0.7.1+%28prototype+mode%29%0A-+Runtime%3A+Electron+44.0.0%0A-+Platform%3A+win32+x64"
+    },
+    {
+      "copied": "# [Bug] Review report draft\n\n## Bug description\n\nA review draft used to verify the GitHub handoff.\n\n## Steps to reproduce\n\nOpen Settings and prepare a report."
+    },
+    {
+      "url": "https://github.com/IEver3st/switchboard/issues/new?title=%5BBug%5D+Review+report+draft&body=%23%23+Bug+description%0A%0AA+review+draft+used+to+verify+the+GitHub+handoff.%0A%0A%23%23+Steps+to+reproduce%0A%0AOpen+Settings+and+prepare+a+report."
+    },
+    {
+      "copied": "# [Feature] Review report draft\n\n## Requested capability\n\nA review draft used to verify the GitHub handoff.\n\n## Use case\n\nOpen Settings and prepare a report.\n\n## Environment\n\n- Switchboard: 0.7.1 (prototype mode)\n- Runtime: Electron 44.0.0\n- Platform: win32 x64"
+    },
+    {
+      "url": "https://github.com/IEver3st/switchboard/issues/new?title=%5BFeature%5D+Review+report+draft&body=%23%23+Requested+capability%0A%0AA+review+draft+used+to+verify+the+GitHub+handoff.%0A%0A%23%23+Use+case%0A%0AOpen+Settings+and+prepare+a+report.%0A%0A%23%23+Environment%0A%0A-+Switchboard%3A+0.7.1+%28prototype+mode%29%0A-+Runtime%3A+Electron+44.0.0%0A-+Platform%3A+win32+x64"
+    },
+    {
+      "copied": "# [Bug] Review report draft\n\n## Bug description\n\nA review draft used to verify the GitHub handoff.\n\n## Steps to reproduce\n\nOpen Settings and prepare a report."
+    },
+    {
+      "url": "https://github.com/IEver3st/switchboard/issues/new?title=%5BBug%5D+Review+report+draft&body=%23%23+Bug+description%0A%0AA+review+draft+used+to+verify+the+GitHub+handoff.%0A%0A%23%23+Steps+to+reproduce%0A%0AOpen+Settings+and+prepare+a+report."
+    },
+    {
+      "copied": "# [Feature] Review report draft\n\n## Requested capability\n\nA review draft used to verify the GitHub handoff.\n\n## Use case\n\nOpen Settings and prepare a report.\n\n## Environment\n\n- Switchboard: 0.7.1 (prototype mode)\n- Runtime: Electron 44.0.0\n- Platform: win32 x64"
+    },
+    {
+      "url": "https://github.com/IEver3st/switchboard/issues/new?title=%5BFeature%5D+Review+report+draft&body=%23%23+Requested+capability%0A%0AA+review+draft+used+to+verify+the+GitHub+handoff.%0A%0A%23%23+Use+case%0A%0AOpen+Settings+and+prepare+a+report.%0A%0A%23%23+Environment%0A%0A-+Switchboard%3A+0.7.1+%28prototype+mode%29%0A-+Runtime%3A+Electron+44.0.0%0A-+Platform%3A+win32+x64"
+    }
+  ]
+}

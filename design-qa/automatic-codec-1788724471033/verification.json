@@ -1,0 +1,10 @@
+{
+  "output": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\automatic-codec-1788724471033",
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-automatic-codec-N4fFBo",
+  "assertions": [],
+  "screenshots": [],
+  "errors": [
+    "Error: return Boolean(document.querySelector(\"[aria-label=\"Video codec\"]\")): Error: Script failed to execute, this normally means an error was thrown. Check the renderer console for the error."
+  ],
+  "passed": false
+}

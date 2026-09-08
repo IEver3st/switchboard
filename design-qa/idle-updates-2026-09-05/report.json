@@ -1,0 +1,454 @@
+[
+  {
+    "viewport": {
+      "width": 1080,
+      "height": 720
+    },
+    "category": "about",
+    "filename": "1080x720-about.png",
+    "metrics": {
+      "viewport": {
+        "width": 1080,
+        "height": 722
+      },
+      "documentWidth": 1080,
+      "content": {
+        "clientWidth": 874,
+        "scrollWidth": 874,
+        "clientHeight": 674,
+        "scrollHeight": 913,
+        "rect": {
+          "top": 48,
+          "right": 1080,
+          "bottom": 722,
+          "left": 196,
+          "width": 884,
+          "height": 674
+        }
+      },
+      "updateRow": {
+        "top": 257.19793701171875,
+        "right": 1042,
+        "bottom": 321.19793701171875,
+        "left": 224,
+        "width": 818,
+        "height": 64
+      },
+      "updateAction": "Download update",
+      "updateActionRect": {
+        "top": 273.19793701171875,
+        "right": 1030.0000305175781,
+        "bottom": 305.19793701171875,
+        "left": 856.4479370117188,
+        "width": 173.55209350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "available",
+      "updateActionReadyStyle": false,
+      "updateDescription": "Development preview: version 0.9.0 is available.",
+      "updateIndicator": {
+        "top": 596,
+        "right": 174,
+        "bottom": 630,
+        "left": 6,
+        "width": 168,
+        "height": 34
+      },
+      "updateIndicatorLabel": "Switchboard 0.9.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": null,
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 393.1875,
+            "right": 1030,
+            "bottom": 417.1875,
+            "left": 988,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 465.78125,
+            "right": 1030,
+            "bottom": 489.78125,
+            "left": 988,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install while away",
+          "rect": {
+            "top": 546.25,
+            "right": 1030,
+            "bottom": 570.25,
+            "left": 988,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 626.71875,
+            "right": 1030,
+            "bottom": 650.71875,
+            "left": 988,
+            "width": 42,
+            "height": 24
+          }
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "width": 1420,
+      "height": 900
+    },
+    "category": "about",
+    "filename": "1420x900-about.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "documentWidth": 1420,
+      "content": {
+        "clientWidth": 1186,
+        "scrollWidth": 1186,
+        "clientHeight": 852,
+        "scrollHeight": 923,
+        "rect": {
+          "top": 48,
+          "right": 1420,
+          "bottom": 900,
+          "left": 224,
+          "width": 1196,
+          "height": 852
+        }
+      },
+      "updateRow": {
+        "top": 261.19793701171875,
+        "right": 1251,
+        "bottom": 325.19793701171875,
+        "left": 383,
+        "width": 868,
+        "height": 64
+      },
+      "updateAction": "Download update",
+      "updateActionRect": {
+        "top": 277.19793701171875,
+        "right": 1239.0000915527344,
+        "bottom": 309.19793701171875,
+        "left": 1065.447998046875,
+        "width": 173.55209350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "available",
+      "updateActionReadyStyle": false,
+      "updateDescription": "Development preview: version 0.9.0 is available.",
+      "updateIndicator": {
+        "top": 774,
+        "right": 202,
+        "bottom": 808,
+        "left": 6,
+        "width": 196,
+        "height": 34
+      },
+      "updateIndicatorLabel": "Switchboard 0.9.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": null,
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 397.1875,
+            "right": 1239,
+            "bottom": 421.1875,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 469.78125,
+            "right": 1239,
+            "bottom": 493.78125,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install while away",
+          "rect": {
+            "top": 550.25,
+            "right": 1239,
+            "bottom": 574.25,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 630.71875,
+            "right": 1239,
+            "bottom": 654.71875,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "category": "about",
+    "filename": "1920x1080-about.png",
+    "metrics": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "documentWidth": 1920,
+      "content": {
+        "clientWidth": 1686,
+        "scrollWidth": 1686,
+        "clientHeight": 1032,
+        "scrollHeight": 1032,
+        "rect": {
+          "top": 48,
+          "right": 1920,
+          "bottom": 1080,
+          "left": 224,
+          "width": 1696,
+          "height": 1032
+        }
+      },
+      "updateRow": {
+        "top": 261.19793701171875,
+        "right": 1501,
+        "bottom": 325.19793701171875,
+        "left": 633,
+        "width": 868,
+        "height": 64
+      },
+      "updateAction": "Download update",
+      "updateActionRect": {
+        "top": 277.19793701171875,
+        "right": 1489.0000915527344,
+        "bottom": 309.19793701171875,
+        "left": 1315.447998046875,
+        "width": 173.55209350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "available",
+      "updateActionReadyStyle": false,
+      "updateDescription": "Development preview: version 0.9.0 is available.",
+      "updateIndicator": {
+        "top": 954,
+        "right": 202,
+        "bottom": 988,
+        "left": 6,
+        "width": 196,
+        "height": 34
+      },
+      "updateIndicatorLabel": "Switchboard 0.9.0 is available. Open update settings.",
+      "updateIndicatorSummary": "Update available",
+      "updateIndicatorVersion": null,
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 397.1875,
+            "right": 1489,
+            "bottom": 421.1875,
+            "left": 1447,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 469.78125,
+            "right": 1489,
+            "bottom": 493.78125,
+            "left": 1447,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install while away",
+          "rect": {
+            "top": 550.25,
+            "right": 1489,
+            "bottom": 574.25,
+            "left": 1447,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 630.71875,
+            "right": 1489,
+            "bottom": 654.71875,
+            "left": 1447,
+            "width": 42,
+            "height": 24
+          }
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "width": 1420,
+      "height": 900
+    },
+    "category": "about-downloaded",
+    "filename": "1420x900-about-downloaded.png",
+    "metrics": {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "documentWidth": 1420,
+      "content": {
+        "clientWidth": 1186,
+        "scrollWidth": 1186,
+        "clientHeight": 852,
+        "scrollHeight": 923,
+        "rect": {
+          "top": 48,
+          "right": 1420,
+          "bottom": 900,
+          "left": 224,
+          "width": 1196,
+          "height": 852
+        }
+      },
+      "updateRow": {
+        "top": 261.19793701171875,
+        "right": 1251,
+        "bottom": 325.19793701171875,
+        "left": 383,
+        "width": 868,
+        "height": 64
+      },
+      "updateAction": "Restart to update",
+      "updateActionRect": {
+        "top": 277.19793701171875,
+        "right": 1239.0000915527344,
+        "bottom": 309.19793701171875,
+        "left": 1069.479248046875,
+        "width": 169.52084350585938,
+        "height": 32
+      },
+      "updateActionIcon": true,
+      "updateActionState": "downloaded",
+      "updateActionReadyStyle": true,
+      "updateDescription": "Version 0.9.0 is downloaded and will be installed when Switchboard closes.",
+      "updateIndicator": {
+        "top": 774,
+        "right": 202,
+        "bottom": 808,
+        "left": 6,
+        "width": 196,
+        "height": 34
+      },
+      "updateIndicatorLabel": "Switchboard 0.9.0 is ready to install. Open update settings.",
+      "updateIndicatorSummary": "Update ready",
+      "updateIndicatorVersion": null,
+      "updateIndicatorNativeTitle": null,
+      "tooltipText": null,
+      "preferenceSwitches": [
+        {
+          "checked": true,
+          "ariaLabel": "Always keep Switchboard up to date",
+          "rect": {
+            "top": 397.1875,
+            "right": 1239,
+            "bottom": 421.1875,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": false,
+          "ariaLabel": "Download updates automatically",
+          "rect": {
+            "top": 469.78125,
+            "right": 1239,
+            "bottom": 493.78125,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install while away",
+          "rect": {
+            "top": 550.25,
+            "right": 1239,
+            "bottom": 574.25,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        },
+        {
+          "checked": true,
+          "ariaLabel": "Install for the next startup",
+          "rect": {
+            "top": 630.71875,
+            "right": 1239,
+            "bottom": 654.71875,
+            "left": 1197,
+            "width": 42,
+            "height": 24
+          }
+        }
+      ]
+    }
+  }
+]

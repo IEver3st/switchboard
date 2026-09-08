@@ -1,6 +1,7 @@
 import { normalizeMusicTrack } from '../../../../shared/montage-audio';
-import { editedDurationMs } from '../../../../shared/video-edits';
-import type { Clip } from '../../../../shared/contracts';
+import { editedDurationMs, editedTimeAt, gainAt } from '../../../../shared/video-edits';
+import type { Clip, DefaultClipTrackLevels } from '../../../../shared/contracts';
+import { effectiveClipTrackLevels } from '../../../../shared/clip-track-levels';
 import {
   montageProjectV2Schema,
   montageV2SchemaVersion,
@@ -18,6 +19,7 @@ export interface MontageTimeMapping {
   montageStartMs: number;
   montageEndMs: number;
   sourceTimeMs: number;
+  frozen: boolean;
 }
 
 export interface MontageMusicPlayback {
@@ -42,6 +44,11 @@ export function createMontageProjectV2(clips: readonly Clip[]): MontageProjectV2
     canvasSize: usableClips[0]?.canvasSize ?? 'original',
     segments: usableClips.map(createMontageSegment),
   });
+}
+
+export function createSingleClipDraft(clip: Clip, defaults?: DefaultClipTrackLevels): MontageProjectV2 {
+  const source = { ...clip, audioTrackLevels: effectiveClipTrackLevels(clip.audioTrackLevels, clip.audioChannels, defaults) };
+  return normalizeMontageProject({ ...createMontageProjectV2([source]), sourceClipId: clip.id, name: clip.name.slice(0, 120), music: clip.music ?? undefined });
 }
 
 export function createMontageSegment(clip: Clip): MontageV2Segment {
@@ -140,7 +147,8 @@ export function mapMontageTime(
         segmentIndex: index,
         montageStartMs,
         montageEndMs,
-        sourceTimeMs: Math.min(segment.trimEndMs, segment.trimStartMs + localOffsetMs * (segment.videoEdits?.speed ?? 1)),
+        sourceTimeMs: editedTimeAt(segment.trimStartMs, segment.trimEndMs, localOffsetMs, segment.videoEdits).sourceMs,
+        frozen: editedTimeAt(segment.trimStartMs, segment.trimEndMs, localOffsetMs, segment.videoEdits).frozen,
       };
     }
     montageStartMs = montageEndMs;
@@ -173,6 +181,7 @@ export function addClipsToMontage(
 }
 
 export function duplicateMontageSegment(project: MontageProjectV2, segmentId: string): MontageProjectV2 {
+  if (project.segments.length >= 500) return project;
   const index = project.segments.findIndex((segment) => segment.id === segmentId);
   const source = project.segments[index];
   if (!source) return project;
@@ -196,7 +205,7 @@ export function splitMontageSegment(
 ): MontageProjectV2 {
   const index = project.segments.findIndex((segment) => segment.id === segmentId);
   const source = project.segments[index];
-  if (!source || source.trimEndMs - source.trimStartMs < minimumMontageSegmentMs * 2) return project;
+  if (project.segments.length >= 500 || !source || source.trimEndMs - source.trimStartMs < minimumMontageSegmentMs * 2) return project;
   const splitMs = Math.min(
     source.trimEndMs - minimumMontageSegmentMs,
     Math.max(source.trimStartMs + minimumMontageSegmentMs, Math.round(requestedSourceTimeMs)),
@@ -288,7 +297,8 @@ export function musicPlaybackAt(
   return {
     active: true,
     sourceTimeMs: track.sourceStartMs + sourceOffsetMs,
-    gain: track.volume * Math.max(0, Math.min(fadeIn, fadeOut)),
+    gain: track.volume * Math.max(0, Math.min(fadeIn, fadeOut)) * gainAt(track.automation?.points, montageTimeMs)
+      * (track.automation?.mutes.some(range => montageTimeMs >= range.startMs && montageTimeMs < range.endMs) ? 0 : 1),
     activeDurationMs,
   };
 }

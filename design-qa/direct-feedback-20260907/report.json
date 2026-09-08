@@ -1,0 +1,236 @@
+{
+  "passed": true,
+  "mode": "hidden native Electron; fixture hardware; intercepted HTTP, no real delivery",
+  "screenshots": [
+    {
+      "name": "empty",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "bug",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feature",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "expanded",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "pending",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "error",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "success",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "empty",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "bug",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feature",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "expanded",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "pending",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "error",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "success",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "empty",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "bug",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feature",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "feedback",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "expanded",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "pending",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "error",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    },
+    {
+      "name": "success",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "contentOverflow": false,
+      "reducedMotion": true
+    }
+  ],
+  "submissions": [
+    {
+      "name": "Switchboard feedback",
+      "email": "review@example.com",
+      "message": "# [Feedback] Review report draft\n\n## Feedback\n\nA local review draft to verify direct submission.\n\n## Additional details\n\nOpen settings and send feedback.",
+      "website": ""
+    },
+    {
+      "name": "Switchboard feedback",
+      "email": "review@example.com",
+      "message": "# [Feedback] Review report draft\n\n## Feedback\n\nA local review draft to verify direct submission.\n\n## Additional details\n\nOpen settings and send feedback.\n\n## Environment\n\n- Switchboard: 0.8.5 (prototype mode)\n- Runtime: Electron 44.0.0\n- Platform: win32 x64",
+      "website": ""
+    },
+    {
+      "name": "Switchboard feedback",
+      "email": "review@example.com",
+      "message": "# [Feedback] Review report draft\n\n## Feedback\n\nA local review draft to verify direct submission.\n\n## Additional details\n\nOpen settings and send feedback.",
+      "website": ""
+    },
+    {
+      "name": "Switchboard feedback",
+      "email": "review@example.com",
+      "message": "# [Feedback] Review report draft\n\n## Feedback\n\nA local review draft to verify direct submission.\n\n## Additional details\n\nOpen settings and send feedback.\n\n## Environment\n\n- Switchboard: 0.8.5 (prototype mode)\n- Runtime: Electron 44.0.0\n- Platform: win32 x64",
+      "website": ""
+    },
+    {
+      "name": "Switchboard feedback",
+      "email": "review@example.com",
+      "message": "# [Feedback] Review report draft\n\n## Feedback\n\nA local review draft to verify direct submission.\n\n## Additional details\n\nOpen settings and send feedback.",
+      "website": ""
+    },
+    {
+      "name": "Switchboard feedback",
+      "email": "review@example.com",
+      "message": "# [Feedback] Review report draft\n\n## Feedback\n\nA local review draft to verify direct submission.\n\n## Additional details\n\nOpen settings and send feedback.\n\n## Environment\n\n- Switchboard: 0.8.5 (prototype mode)\n- Runtime: Electron 44.0.0\n- Platform: win32 x64",
+      "website": ""
+    }
+  ]
+}

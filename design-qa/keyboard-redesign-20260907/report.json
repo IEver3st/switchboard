@@ -1,0 +1,241 @@
+{
+  "finalLighting": {
+    "writable": true,
+    "enabled": true,
+    "activeEffectId": "static",
+    "availableEffects": [
+      {
+        "id": "static",
+        "label": "Static",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "breathing",
+        "label": "Breathing",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "spectrum",
+        "label": "Spectrum",
+        "controls": [
+          "brightness"
+        ]
+      },
+      {
+        "id": "reactive",
+        "label": "Reactive",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "starlight",
+        "label": "Starlight",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "wave-left",
+        "label": "Wave left",
+        "controls": [
+          "brightness"
+        ]
+      },
+      {
+        "id": "wave-right",
+        "label": "Wave right",
+        "controls": [
+          "brightness"
+        ]
+      }
+    ],
+    "color": "#4466aa",
+    "colorWritable": true,
+    "brightness": 62,
+    "brightnessWritable": true,
+    "speedWritable": false,
+    "directionWritable": false,
+    "profiles": [],
+    "activeProfileId": "custom",
+    "muteLinked": false,
+    "muteLinkedWritable": false,
+    "state": "maintained",
+    "stateReason": "Fixture: active effect and brightness were read back from keyboard firmware.",
+    "physicalEffectVerified": false,
+    "profileMode": "software",
+    "source": "firmware"
+  },
+  "finalKeyboard": {
+    "firmwareVersion": "1.06",
+    "pollingRateHz": 1000,
+    "transport": "native-hid",
+    "features": [
+      {
+        "id": "lighting",
+        "label": "Quick lighting",
+        "summary": "Brightness and device-firmware quick effects use the native HID control endpoint.",
+        "status": "native"
+      },
+      {
+        "id": "actuation",
+        "label": "Per-key actuation",
+        "summary": "Adjustable 1.5–3.6 mm actuation and two-stage inputs are supported by the keyboard.",
+        "status": "synapse",
+        "unavailableReason": "The actuation protocol is not safely documented or verified for direct writes yet."
+      },
+      {
+        "id": "analog",
+        "label": "Analog input",
+        "summary": "Selected keys can emulate joystick axes and controller triggers.",
+        "status": "synapse",
+        "unavailableReason": "Analog mapping remains owned by Synapse until its native profile format is verified."
+      },
+      {
+        "id": "mapping",
+        "label": "Key mapping",
+        "summary": "Remapping, macros, Hypershift, and analog controller bindings remain in Synapse.",
+        "status": "synapse",
+        "unavailableReason": "Switchboard does not write undocumented key maps or macro payloads."
+      },
+      {
+        "id": "rapid-trigger",
+        "label": "Rapid Trigger",
+        "summary": "Resets keys as you release them. Requires Razer Synapse running on this model.",
+        "status": "synapse",
+        "unavailableReason": "Configure in Synapse. Switchboard cannot control Rapid Trigger yet."
+      },
+      {
+        "id": "rapid-input",
+        "label": "Snap Tap",
+        "summary": "Razer does not currently support Snap Tap on the Huntsman V2 Analog.",
+        "status": "unsupported",
+        "unavailableReason": "Not available for this model, including in Synapse."
+      }
+    ],
+    "gamingMode": {
+      "enabled": true,
+      "writable": true
+    },
+    "onboardProfiles": {
+      "activeProfileId": "2",
+      "profiles": [
+        {
+          "id": "1",
+          "label": "Profile 1"
+        },
+        {
+          "id": "2",
+          "label": "Profile 2"
+        }
+      ],
+      "writable": true
+    },
+    "diagnostics": {
+      "protocol": "Razer feature reports",
+      "endpoint": "ready",
+      "lastSyncAt": "2026-08-27T00:00:00.000Z",
+      "reads": [
+        {
+          "id": "firmware",
+          "ok": true
+        },
+        {
+          "id": "serial-number",
+          "ok": true
+        },
+        {
+          "id": "brightness",
+          "ok": true
+        },
+        {
+          "id": "lighting-effect",
+          "ok": true
+        },
+        {
+          "id": "lighting-effects",
+          "ok": true
+        },
+        {
+          "id": "gaming-mode",
+          "ok": true
+        },
+        {
+          "id": "onboard-profiles",
+          "ok": true
+        },
+        {
+          "id": "active-profile",
+          "ok": true
+        }
+      ]
+    }
+  },
+  "persistedSettings": {
+    "lightingEnabled": true,
+    "lightingBrightness": 62,
+    "lightingEffect": "static",
+    "lightingColor": "#4466aa"
+  },
+  "captures": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-static.png",
+      "metrics": {
+        "documentWidth": 1080,
+        "viewportWidth": 1080,
+        "workspaceWidth": 1008,
+        "workspaceScrollWidth": 1008,
+        "workbenchBottom": 702.0000228881836,
+        "routineControlsBottom": 648.6979370117188,
+        "innerHeight": 722
+      },
+      "offFilename": "1080x720-off.png"
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-static.png",
+      "metrics": {
+        "documentWidth": 1420,
+        "viewportWidth": 1420,
+        "workspaceWidth": 1348,
+        "workspaceScrollWidth": 1348,
+        "workbenchBottom": 872.0000228881836,
+        "routineControlsBottom": 757.6979370117188,
+        "innerHeight": 900
+      },
+      "offFilename": "1420x900-off.png"
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-static.png",
+      "metrics": {
+        "documentWidth": 1920,
+        "viewportWidth": 1920,
+        "workspaceWidth": 1848,
+        "workspaceScrollWidth": 1848,
+        "workbenchBottom": 1052.0000228881836,
+        "routineControlsBottom": 847.6979370117188,
+        "innerHeight": 1080
+      },
+      "offFilename": "1920x1080-off.png"
+    }
+  ]
+}

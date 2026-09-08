@@ -1,0 +1,116 @@
+{
+  "fixture": true,
+  "seconds": 3.5342455,
+  "durationMs": 4535,
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 202,
+        "height": 360
+      },
+      {
+        "codec_type": "audio"
+      }
+    ],
+    "format": {
+      "duration": "4.556333",
+      "size": "287392"
+    }
+  },
+  "freezeStart": 2.608015336760112,
+  "freezeHashes": [
+    "MD5=95f7cd259221cc7043bc6db4aa90e437",
+    "MD5=f143d3b18fd5cd6014cebc5fed05218f"
+  ],
+  "freezeMeanPixelDifference": 0.005766409974330766,
+  "freezeAudio": {
+    "amplitude": 0,
+    "rms": 0
+  },
+  "layoutResults": [
+    {
+      "canvasSize": "16:9",
+      "mode": "fit",
+      "width": 640,
+      "height": 360
+    },
+    {
+      "canvasSize": "16:9",
+      "mode": "fill",
+      "width": 640,
+      "height": 360
+    },
+    {
+      "canvasSize": "9:16",
+      "mode": "fit",
+      "width": 202,
+      "height": 360
+    },
+    {
+      "canvasSize": "9:16",
+      "mode": "fill",
+      "width": 202,
+      "height": 360
+    },
+    {
+      "canvasSize": "1:1",
+      "mode": "fit",
+      "width": 360,
+      "height": 360
+    },
+    {
+      "canvasSize": "1:1",
+      "mode": "fill",
+      "width": 360,
+      "height": 360
+    },
+    {
+      "canvasSize": "4:5",
+      "mode": "fit",
+      "width": 288,
+      "height": 360
+    },
+    {
+      "canvasSize": "4:5",
+      "mode": "fill",
+      "width": 288,
+      "height": 360
+    }
+  ],
+  "duckResults": [
+    {
+      "enabled": false,
+      "quiet": {
+        "amplitude": 0.2761907385971921,
+        "rms": 0.21854550994489028
+      },
+      "voice": {
+        "amplitude": 0.2761626019973386,
+        "rms": 0.2393131549527713
+      },
+      "muted": {
+        "amplitude": 0.00002749301445006835,
+        "rms": 0.09728853062197892
+      }
+    },
+    {
+      "enabled": true,
+      "quiet": {
+        "amplitude": 0.27600552353162866,
+        "rms": 0.21846820483185397
+      },
+      "voice": {
+        "amplitude": 0.08790138323000049,
+        "rms": 0.151225895800578
+      },
+      "muted": {
+        "amplitude": 0.000021288150237436173,
+        "rms": 0.09719266073463315
+      }
+    }
+  ],
+  "duckRatio": 0.31829575255395226
+}

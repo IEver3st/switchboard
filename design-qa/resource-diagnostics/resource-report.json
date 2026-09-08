@@ -1,0 +1,2712 @@
+{
+  "schemaVersion": 1,
+  "version": "0.6.5",
+  "exportedAt": "2026-09-04T23:01:19.117Z",
+  "droppedJournalWrites": 0,
+  "limits": "Last 120 debug samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. No payloads or media paths are collected.",
+  "samples": [
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:17.776Z",
+      "sequence": 2,
+      "uptimeSeconds": 1.5,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget",
+        "rapid-growth"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 562.1,
+        "electronWorkingSetMb": 697.9,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 562.1,
+        "cpuPercent": 1.9,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 329.8,
+          "workingSetMb": 186.2,
+          "peakWorkingSetMb": 186.6,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 112.4,
+          "workingSetMb": 187.2,
+          "peakWorkingSetMb": 187.2,
+          "cpuPercent": 0.9
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 107.8,
+          "workingSetMb": 220.5,
+          "peakWorkingSetMb": 224.3,
+          "cpuPercent": 0.9
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 104,
+          "peakWorkingSetMb": 104,
+          "cpuPercent": 0.1
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 187.5,
+        "heapUsedMb": 25.8,
+        "heapTotalMb": 41.2,
+        "externalMb": 4.3,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "FSReqCallback": 2,
+          "PipeWrap": 3,
+          "ProcessWrap": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 326,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 13464.9
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:17.776Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": null,
+        "eventLoopDelayMaxMs": null,
+        "operations": [],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 329.8,
+            "workingSetMb": 186.2,
+            "peakWorkingSetMb": 186.6,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 112.4,
+            "workingSetMb": 187.2,
+            "peakWorkingSetMb": 187.2,
+            "cpuPercent": 0.9,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 107.8,
+            "workingSetMb": 220.5,
+            "peakWorkingSetMb": 224.3,
+            "cpuPercent": 0.9,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 104,
+            "peakWorkingSetMb": 104,
+            "cpuPercent": 0.1,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:26.445Z",
+      "sequence": 3,
+      "uptimeSeconds": 10.2,
+      "rendererActive": true,
+      "guardState": "disabled",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 543.9,
+        "electronWorkingSetMb": 682,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 543.9,
+        "cpuPercent": 0.4,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 302.2,
+          "workingSetMb": 163,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 121.3,
+          "workingSetMb": 195.7,
+          "peakWorkingSetMb": 197.6,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 108.2,
+          "workingSetMb": 219.1,
+          "peakWorkingSetMb": 224.3,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.2,
+          "workingSetMb": 104.2,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 195.7,
+        "heapUsedMb": 26.6,
+        "heapTotalMb": 49.2,
+        "externalMb": 4.1,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 371,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 13429.9
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:26.445Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 33.39,
+        "eventLoopDelayMaxMs": 33.95,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 3,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 7.2,
+            "maxMs": 2.86
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 2,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 5.56,
+            "maxMs": 2.82
+          },
+          {
+            "name": "state.validate",
+            "calls": 3,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 3.11,
+            "maxMs": 1.21
+          },
+          {
+            "name": "state.clone",
+            "calls": 9,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 2.86,
+            "maxMs": 0.43
+          },
+          {
+            "name": "state.emit",
+            "calls": 3,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 1.55,
+            "maxMs": 0.53
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 3,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.94,
+            "maxMs": 0.36
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 3,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.55,
+            "maxMs": 0.2
+          },
+          {
+            "name": "state.serialize",
+            "calls": 2,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.55,
+            "maxMs": 0.29
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 302.2,
+            "workingSetMb": 163,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 121.3,
+            "workingSetMb": 195.7,
+            "peakWorkingSetMb": 197.6,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 108.2,
+            "workingSetMb": 219.1,
+            "peakWorkingSetMb": 224.3,
+            "cpuPercent": 0,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.2,
+            "workingSetMb": 104.2,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:31.456Z",
+      "sequence": 4,
+      "uptimeSeconds": 15.2,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 552.5,
+        "electronWorkingSetMb": 686.7,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 552.5,
+        "cpuPercent": 0.4,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 307.2,
+          "workingSetMb": 163.3,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 125.1,
+          "workingSetMb": 199.9,
+          "peakWorkingSetMb": 203.4,
+          "cpuPercent": 0.3
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 108,
+          "workingSetMb": 219.3,
+          "peakWorkingSetMb": 224.3,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.2,
+          "workingSetMb": 104.2,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 200,
+        "heapUsedMb": 24.8,
+        "heapTotalMb": 50.6,
+        "externalMb": 5.5,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 13242.5
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:31.456Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 33,
+        "eventLoopDelayMaxMs": 33.42,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 9,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 25.73,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.validate",
+            "calls": 10,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 15.27,
+            "maxMs": 2.4
+          },
+          {
+            "name": "state.clone",
+            "calls": 24,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 12.33,
+            "maxMs": 1.11
+          },
+          {
+            "name": "state.emit",
+            "calls": 10,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 8.79,
+            "maxMs": 1.49
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 3,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 8.5,
+            "maxMs": 2.94
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 10,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 6.44,
+            "maxMs": 1.15
+          },
+          {
+            "name": "state.serialize",
+            "calls": 8,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 4.19,
+            "maxMs": 0.83
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 10,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 2.78,
+            "maxMs": 0.39
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 307.2,
+            "workingSetMb": 163.3,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 125.1,
+            "workingSetMb": 199.9,
+            "peakWorkingSetMb": 203.4,
+            "cpuPercent": 0.3,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 108,
+            "workingSetMb": 219.3,
+            "peakWorkingSetMb": 224.3,
+            "cpuPercent": 0,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.2,
+            "workingSetMb": 104.2,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:36.458Z",
+      "sequence": 5,
+      "uptimeSeconds": 20.2,
+      "rendererActive": true,
+      "guardState": "disabled",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 559.1,
+        "electronWorkingSetMb": 700.3,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 559.1,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 300.1,
+          "workingSetMb": 163.5,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 138,
+          "workingSetMb": 211.9,
+          "peakWorkingSetMb": 216.5,
+          "cpuPercent": 0.3
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 108.9,
+          "workingSetMb": 220.7,
+          "peakWorkingSetMb": 224.3,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.2,
+          "workingSetMb": 104.2,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 210.9,
+        "heapUsedMb": 34.4,
+        "heapTotalMb": 56.3,
+        "externalMb": 7.4,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "FSReqPromise": 1,
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 13172.3
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:36.458Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 34.08,
+        "eventLoopDelayMaxMs": 35.39,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 39,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 109.87,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 89,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 66.78,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 42,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 65.15,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 42,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 50.36,
+            "maxMs": 2.28
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 42,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 41.66,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 39,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 25.91,
+            "maxMs": 1.18
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 4,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 18.11,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 42,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 15.87,
+            "maxMs": 0.64
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 300.1,
+            "workingSetMb": 163.5,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 138,
+            "workingSetMb": 211.9,
+            "peakWorkingSetMb": 216.5,
+            "cpuPercent": 0.3,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 108.9,
+            "workingSetMb": 220.7,
+            "peakWorkingSetMb": 224.3,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.2,
+            "workingSetMb": 104.2,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:41.471Z",
+      "sequence": 6,
+      "uptimeSeconds": 25.2,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 589.2,
+        "electronWorkingSetMb": 745.3,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 589.2,
+        "cpuPercent": 0.4,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 285,
+          "workingSetMb": 163.4,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 183,
+          "workingSetMb": 256.7,
+          "peakWorkingSetMb": 257.1,
+          "cpuPercent": 0.3
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 109,
+          "workingSetMb": 220.9,
+          "peakWorkingSetMb": 224.3,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.2,
+          "workingSetMb": 104.2,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 256.8,
+        "heapUsedMb": 39.8,
+        "heapTotalMb": 83.6,
+        "externalMb": 8.5,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 12980.7
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:41.471Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 33.88,
+        "eventLoopDelayMaxMs": 35.95,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 73,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 203.12,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 158,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 122.01,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 76,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 113.88,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 76,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 92,
+            "maxMs": 2.28
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 76,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 77.86,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 72,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 48.79,
+            "maxMs": 1.18
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 76,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 29.66,
+            "maxMs": 0.64
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 5,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 24.14,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 285,
+            "workingSetMb": 163.4,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 183,
+            "workingSetMb": 256.7,
+            "peakWorkingSetMb": 257.1,
+            "cpuPercent": 0.3,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 109,
+            "workingSetMb": 220.9,
+            "peakWorkingSetMb": 224.3,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.2,
+            "workingSetMb": 104.2,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:46.473Z",
+      "sequence": 7,
+      "uptimeSeconds": 30.2,
+      "rendererActive": true,
+      "guardState": "disabled",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 572.5,
+        "electronWorkingSetMb": 729.7,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 572.5,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 284.2,
+          "workingSetMb": 163.5,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 167,
+          "workingSetMb": 241.4,
+          "peakWorkingSetMb": 264.6,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 109.3,
+          "workingSetMb": 220.7,
+          "peakWorkingSetMb": 224.3,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 104.1,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 241.7,
+        "heapUsedMb": 38,
+        "heapTotalMb": 82.4,
+        "externalMb": 8.2,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "FSReqPromise": 1,
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 13035.1
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:46.473Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 34.34,
+        "eventLoopDelayMaxMs": 36.18,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 104,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 292.72,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 225,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 175.53,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 109,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 159.07,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 109,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 131.64,
+            "maxMs": 2.28
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 109,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 112.92,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 104,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 70.62,
+            "maxMs": 1.18
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 109,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 43.24,
+            "maxMs": 0.64
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 6,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 30.35,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 284.2,
+            "workingSetMb": 163.5,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 167,
+            "workingSetMb": 241.4,
+            "peakWorkingSetMb": 264.6,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 109.3,
+            "workingSetMb": 220.7,
+            "peakWorkingSetMb": 224.3,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 104.1,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:51.476Z",
+      "sequence": 8,
+      "uptimeSeconds": 35.2,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 565.3,
+        "electronWorkingSetMb": 718.8,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 565.3,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 285.3,
+          "workingSetMb": 163.6,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 189.1,
+          "workingSetMb": 262,
+          "peakWorkingSetMb": 264.6,
+          "cpuPercent": 0.3
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 78.8,
+          "workingSetMb": 189,
+          "peakWorkingSetMb": 225.5,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 104.1,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 262,
+        "heapUsedMb": 40.3,
+        "heapTotalMb": 84.7,
+        "externalMb": 9,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 12942.2
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:51.477Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 34.64,
+        "eventLoopDelayMaxMs": 35.39,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 137,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 385.28,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 292,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 226.55,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 142,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 202.82,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 142,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 170.49,
+            "maxMs": 2.28
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 142,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 148.11,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 136,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 92.09,
+            "maxMs": 1.18
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 142,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 56.17,
+            "maxMs": 0.64
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 7,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 37.01,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 285.3,
+            "workingSetMb": 163.6,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 189.1,
+            "workingSetMb": 262,
+            "peakWorkingSetMb": 264.6,
+            "cpuPercent": 0.3,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 78.8,
+            "workingSetMb": 189,
+            "peakWorkingSetMb": 225.5,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 104.1,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:00:56.477Z",
+      "sequence": 9,
+      "uptimeSeconds": 40.2,
+      "rendererActive": true,
+      "guardState": "disabled",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 546.8,
+        "electronWorkingSetMb": 702.4,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 546.8,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 285.8,
+          "workingSetMb": 164.7,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 164.1,
+          "workingSetMb": 237.5,
+          "peakWorkingSetMb": 277.4,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 84.9,
+          "workingSetMb": 196.1,
+          "peakWorkingSetMb": 225.5,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 104.1,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 237.5,
+        "heapUsedMb": 41.7,
+        "heapTotalMb": 84.1,
+        "externalMb": 8.3,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "FSReqPromise": 1,
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 12934.2
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:00:56.477Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 33.21,
+        "eventLoopDelayMaxMs": 33.85,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 168,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 477.6,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 359,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 283.31,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 175,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 247.66,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 175,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 216.19,
+            "maxMs": 2.63
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 175,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 186.1,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 168,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 116.81,
+            "maxMs": 1.32
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 175,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 73.21,
+            "maxMs": 0.98
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 8,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 43.43,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 285.8,
+            "workingSetMb": 164.7,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 164.1,
+            "workingSetMb": 237.5,
+            "peakWorkingSetMb": 277.4,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 84.9,
+            "workingSetMb": 196.1,
+            "peakWorkingSetMb": 225.5,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 104.1,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:01:01.487Z",
+      "sequence": 10,
+      "uptimeSeconds": 45.2,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 577.4,
+        "electronWorkingSetMb": 726.1,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 577.4,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 285.9,
+          "workingSetMb": 164.8,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 194,
+          "workingSetMb": 260.9,
+          "peakWorkingSetMb": 277.4,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 85.3,
+          "workingSetMb": 196.2,
+          "peakWorkingSetMb": 225.5,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 104.1,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 261,
+        "heapUsedMb": 48.5,
+        "heapTotalMb": 85.7,
+        "externalMb": 11.1,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 12835.5
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:01:01.487Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 32.88,
+        "eventLoopDelayMaxMs": 33.37,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 203,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 575.77,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 430,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 335.96,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 210,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 289.39,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 210,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 260.22,
+            "maxMs": 2.63
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 210,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 223.08,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 202,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 139.93,
+            "maxMs": 1.32
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 210,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 90.54,
+            "maxMs": 0.98
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 9,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 49.13,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 285.9,
+            "workingSetMb": 164.8,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 194,
+            "workingSetMb": 260.9,
+            "peakWorkingSetMb": 277.4,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 85.3,
+            "workingSetMb": 196.2,
+            "peakWorkingSetMb": 225.5,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 104.1,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:01:06.500Z",
+      "sequence": 11,
+      "uptimeSeconds": 50.2,
+      "rendererActive": true,
+      "guardState": "disabled",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 581.1,
+        "electronWorkingSetMb": 731,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 581.1,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 282.8,
+          "workingSetMb": 164.8,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 199.9,
+          "workingSetMb": 264.8,
+          "peakWorkingSetMb": 277.4,
+          "cpuPercent": 0.3
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 86.4,
+          "workingSetMb": 197.3,
+          "peakWorkingSetMb": 225.5,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 104.1,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 264.8,
+        "heapUsedMb": 32.5,
+        "heapTotalMb": 82.4,
+        "externalMb": 7.2,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 13094.9
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:01:06.500Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 34.05,
+        "eventLoopDelayMaxMs": 76.41,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 236,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 669.08,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 499,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 388.47,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 244,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 330.32,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 244,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 303.94,
+            "maxMs": 2.63
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 244,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 257.82,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 235,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 161.79,
+            "maxMs": 1.32
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 244,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 107.52,
+            "maxMs": 0.98
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 10,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 56.04,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 282.8,
+            "workingSetMb": 164.8,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 199.9,
+            "workingSetMb": 264.8,
+            "peakWorkingSetMb": 277.4,
+            "cpuPercent": 0.3,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 86.4,
+            "workingSetMb": 197.3,
+            "peakWorkingSetMb": 225.5,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 104.1,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:01:11.504Z",
+      "sequence": 12,
+      "uptimeSeconds": 55.2,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 554,
+        "electronWorkingSetMb": 724.8,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 554,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 267.5,
+          "workingSetMb": 164.8,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 181,
+          "workingSetMb": 251.1,
+          "peakWorkingSetMb": 277.4,
+          "cpuPercent": 0.3
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 93.5,
+          "workingSetMb": 204.7,
+          "peakWorkingSetMb": 225.5,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 104.1,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 251.1,
+        "heapUsedMb": 42.4,
+        "heapTotalMb": 84.6,
+        "externalMb": 9.6,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 13116.3
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:01:11.505Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 33.16,
+        "eventLoopDelayMaxMs": 33.36,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 269,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 761.95,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 568,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 438.96,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 278,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 370.41,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 278,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 346.91,
+            "maxMs": 2.63
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 278,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 292.52,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 268,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 184.05,
+            "maxMs": 1.32
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 278,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 124.8,
+            "maxMs": 0.98
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 11,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 62.4,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 267.5,
+            "workingSetMb": 164.8,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 181,
+            "workingSetMb": 251.1,
+            "peakWorkingSetMb": 277.4,
+            "cpuPercent": 0.3,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 93.5,
+            "workingSetMb": 204.7,
+            "peakWorkingSetMb": 225.5,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 104.1,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:01:16.505Z",
+      "sequence": 13,
+      "uptimeSeconds": 60.2,
+      "rendererActive": true,
+      "guardState": "disabled",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 563.8,
+        "electronWorkingSetMb": 745.3,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 563.8,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 35180,
+          "type": "GPU",
+          "privateMb": 252.6,
+          "workingSetMb": 164.6,
+          "peakWorkingSetMb": 188.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 12884,
+          "type": "Browser",
+          "privateMb": 202.6,
+          "workingSetMb": 268.5,
+          "peakWorkingSetMb": 277.4,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 11028,
+          "type": "Tab",
+          "privateMb": 96.7,
+          "workingSetMb": 208.2,
+          "peakWorkingSetMb": 225.5,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 43908,
+          "type": "Utility",
+          "privateMb": 12,
+          "workingSetMb": 104,
+          "peakWorkingSetMb": 104.2,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 268.5,
+        "heapUsedMb": 52.7,
+        "heapTotalMb": 87.8,
+        "externalMb": 12.1,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 1,
+          "totalMs": 85,
+          "maxMs": 85
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 57.5,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 425,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 12984.3
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:00:17.775Z",
+        "sampledAt": "2026-09-04T23:01:16.505Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 33.65,
+        "eventLoopDelayMaxMs": 35.42,
+        "operations": [
+          {
+            "name": "state.disk-write",
+            "calls": 304,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 861.45,
+            "maxMs": 4.68
+          },
+          {
+            "name": "state.clone",
+            "calls": 641,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 494.98,
+            "maxMs": 1.62
+          },
+          {
+            "name": "state.validate",
+            "calls": 314,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 416.64,
+            "maxMs": 2.95
+          },
+          {
+            "name": "state.emit",
+            "calls": 314,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 394.13,
+            "maxMs": 2.63
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 314,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 332.07,
+            "maxMs": 1.81
+          },
+          {
+            "name": "state.serialize",
+            "calls": 303,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 208.87,
+            "maxMs": 1.46
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 314,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 143.5,
+            "maxMs": 0.98
+          },
+          {
+            "name": "ipc:settings:update",
+            "calls": 12,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 68.37,
+            "maxMs": 9.61
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.27,
+            "maxMs": 0.27
+          }
+        ],
+        "processes": [
+          {
+            "pid": 35180,
+            "type": "GPU",
+            "privateMb": 252.6,
+            "workingSetMb": 164.6,
+            "peakWorkingSetMb": 188.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 12884,
+            "type": "Browser",
+            "privateMb": 202.6,
+            "workingSetMb": 268.5,
+            "peakWorkingSetMb": 277.4,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 11028,
+            "type": "Tab",
+            "privateMb": 96.7,
+            "workingSetMb": 208.2,
+            "peakWorkingSetMb": 225.5,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 43908,
+            "type": "Utility",
+            "privateMb": 12,
+            "workingSetMb": 104,
+            "peakWorkingSetMb": 104.2,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    }
+  ]
+}

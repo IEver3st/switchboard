@@ -61,6 +61,7 @@ TestDisabledChannelLifecycle();
 TestMeterTelemetryDemand();
 
 TestChannelDsp();
+TestShelfEqualizers();
 
 TestStrengthMapping();
 TestFrameAdapter();
@@ -146,6 +147,39 @@ static ChannelProcessingSettings Channel(
     Compressor = new ChannelCompressorSettings { Enabled = compressor, ThresholdDb = -24, Ratio = 8, AttackMs = 0.1f, ReleaseMs = 100, MakeupDb = 0 },
     Limiter = new ChannelLimiterSettings { Enabled = limiter, ThresholdDb = -6, ReleaseMs = 90 },
 };
+
+static void TestShelfEqualizers()
+{
+    // Q is a resonance control, not the cookbook's shelf-slope parameter S.
+    // Previously Q=10 with a 12 dB shelf created NaN coefficients in both paths.
+    foreach (var type in new[] { "low-shelf", "high-shelf" })
+    foreach (var gain in new[] { -12f, 12f })
+    foreach (var q in new[] { 0.2f, 1f, 10f })
+    {
+        var band = new EqualizerBandConfiguration(true, type, 1_000f, gain, q);
+        var mono = Render(Controls(1, equalizer: new EqualizerConfiguration(true, [band])),
+            Enumerable.Range(0, 12).Select(_ => SineFrame(0.01f, 1_000f)).ToArray());
+        var stereoEq = new StereoParametricEqualizer();
+        stereoEq.Configure([band]);
+        var stereo = Enumerable.Range(0, mono.Length)
+            .SelectMany(index => new[] { MathF.Sin(2f * MathF.PI * 1_000f * (index % 480) / 48_000f) * 0.01f, 0f })
+            .ToArray();
+        stereoEq.Process(stereo);
+        Assert(mono.All(float.IsFinite) && mono.Any(sample => MathF.Abs(sample) > 0.001f),
+            $"Microphone {type} at {gain} dB / Q {q} must remain audible and finite.");
+        Assert(stereo.All(float.IsFinite), $"Stereo {type} at {gain} dB / Q {q} must not produce invalid samples.");
+        for (var index = 0; index < mono.Length; index++)
+        {
+            Assert(MathF.Abs(mono[index] - stereo[index * 2]) < 0.0001f, "Mono and stereo EQ must implement the same response.");
+            Assert(stereo[index * 2 + 1] == 0f, "Stereo EQ must not leak the left channel into the right channel.");
+        }
+        var settled = mono.Skip(mono.Length - 480).ToArray();
+        var rms = Math.Sqrt(settled.Average(sample => sample * sample));
+        var expectedRms = 0.01 / Math.Sqrt(2) * Math.Pow(10, gain / 40d);
+        Assert(Math.Abs(rms - expectedRms) < expectedRms * 0.04,
+            $"A shelf must measure half its gain at the midpoint: {type}, {gain} dB / Q {q}.");
+    }
+}
 
 static void TestChannelDsp()
 {
@@ -320,6 +354,12 @@ static void TestFrameAdapter()
     var bounded = new BoundedFrameAdapter(480);
     Assert(bounded.Write(new float[512]) == 480, "Frame adapter must reject overflow instead of growing.");
     Assert(bounded.Write(new float[64]) == 0, "A full frame adapter must remain bounded.");
+    bounded.DiscardBufferedSamples();
+    Assert(bounded.Count == 0, "Restarting a consumer must discard its stale audio.");
+    Assert(bounded.Write([0.25f, -0.75f]) == 2, "Discard must leave the producer sequence usable.");
+    var resumed = new float[2];
+    Assert(bounded.Read(resumed) == 2, "A restarted consumer must receive new samples.");
+    AssertSequence(resumed, [0.25f, -0.75f], "Discard must preserve subsequent sample order.");
 }
 
 static void TestMissingAndCorruptDeepFilterModel()

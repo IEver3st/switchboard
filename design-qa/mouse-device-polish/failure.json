@@ -1,0 +1,4 @@
+{
+  "message": "Condition timed out: Boolean(document.querySelector('.device-gallery'))",
+  "stack": "Error: Condition timed out: Boolean(document.querySelector('.device-gallery'))\n    at waitFor (file:///C:/Users/User/Desktop/Development/Applications/switchboard/scripts/verify-mouse-device-polish-ui.mjs:374:9)\n    at async openG502 (file:///C:/Users/User/Desktop/Development/Applications/switchboard/scripts/verify-mouse-device-polish-ui.mjs:230:3)\n    at async run (file:///C:/Users/User/Desktop/Development/Applications/switchboard/scripts/verify-mouse-device-polish-ui.mjs:32:3)"
+}

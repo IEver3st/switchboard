@@ -1,0 +1,16 @@
+{
+  "output": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\developer-diagnostics-1788722148862",
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-developer-diagnostics-Rt8KUY",
+  "assertions": [
+    "Developer mode starts disabled",
+    "export is gated in main when Developer mode is off",
+    "export immediate.json succeeds",
+    "diagnostics exports before any resource sample",
+    "Developer mode starts an event timeline"
+  ],
+  "screenshots": [],
+  "errors": [
+    "Error: Timed out: innerWidth === 1080 && innerHeight === 720"
+  ],
+  "passed": false
+}

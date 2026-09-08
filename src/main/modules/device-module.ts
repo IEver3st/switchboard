@@ -18,6 +18,7 @@ export interface DeviceControlResult {
 }
 
 export interface DeviceModule {
+  setStatusLighting?(device: Device, color: string | null): Promise<void>;
   id: string;
   discover(context: DeviceDiscoveryContext): Promise<Device[]>;
   setControl?(device: Device, change: DeviceControlChange): Promise<DeviceControlResult | void>;

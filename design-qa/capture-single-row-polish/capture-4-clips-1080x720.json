@@ -1,0 +1,117 @@
+{
+  "viewport": {
+    "width": 1080,
+    "height": 720
+  },
+  "requestedClips": 4,
+  "cards": 4,
+  "rows": 0,
+  "columns": 3,
+  "cardWidths": {
+    "minimum": 314.66668701171875,
+    "maximum": 314.66668701171875
+  },
+  "libraryBounds": {
+    "left": 72,
+    "right": 1080,
+    "width": 1008
+  },
+  "toolbarBounds": {
+    "left": 506.3020935058594,
+    "right": 1064.0000305175781,
+    "width": 557.6979370117188
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 96.98958587646484,
+    "height": 58.989585876464844
+  },
+  "commandTopBounds": null,
+  "searchBounds": {
+    "width": 313.69793701171875
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today · September 7",
+    "Yesterday · September 6"
+  ],
+  "lazyImages": 4,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": {
+    "searchFocused": true,
+    "searchMatches": 1,
+    "favoriteMatches": 1,
+    "gameMatches": 1,
+    "dateFilterApplied": true,
+    "sortChangedOrder": true,
+    "listItems": 4,
+    "overflowMenuActions": [
+      "Open editor",
+      "Remove from favorites",
+      "Rename",
+      "Export for sharing",
+      "Show in folder",
+      "Delete…"
+    ],
+    "contextMenuActions": [
+      "Open editor",
+      "Remove from favorites",
+      "Rename",
+      "Export for sharing",
+      "Show in folder",
+      "Delete…"
+    ],
+    "deleteDialogText": "Delete clip?Switchboard Capture · Sep 7, 2026, 12:07 AM CDT and its media file will be moved to the Recycle Bin.CancelDelete clip",
+    "montageSelection": true,
+    "montageOpened": true,
+    "openedClipId": "scale-qa-000",
+    "clipOpened": true,
+    "replayControls": {
+      "source": true,
+      "fields": 9,
+      "shortcut": true
+    },
+    "replayKeyboard": {
+      "replayTriggerFocused": true,
+      "replayFocusInside": true,
+      "sourceOptions": [
+        "Detect active gameAutomatic gameAutomatic",
+        "UnavailableDisplay 1Display · Selected"
+      ],
+      "sourceFocusRestored": true,
+      "sourceFocusAfter": {
+        "tag": "BUTTON",
+        "className": "capture-source-trigger",
+        "label": "Capture source: Display 1"
+      },
+      "replayFocusRestored": true,
+      "replayFocusAfter": {
+        "tag": "BUTTON",
+        "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 px-3 text-xs capture-recorder-settings-trigger",
+        "label": "Open replay settings. Replay Off. Turn on Replay to start the capture engine."
+      }
+    }
+  },
+  "selectionPerformance": null,
+  "preferences": null,
+  "motion": {
+    "reduced": false,
+    "animations": 0
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\capture-single-row-polish\\capture-4-clips-1080x720.png",
+  "imageSize": {
+    "width": 1620,
+    "height": 1080
+  }
+}

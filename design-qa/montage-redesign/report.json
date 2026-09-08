@@ -1,0 +1,47 @@
+{
+  "sizes": [
+    {
+      "width": 1080,
+      "height": 720,
+      "scroll": 881,
+      "client": 881,
+      "segments": 5,
+      "playBottom": 482,
+      "musicBottom": 708,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "scroll": 1195,
+      "client": 1195,
+      "segments": 5,
+      "playBottom": 662,
+      "musicBottom": 888,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "scroll": 1695,
+      "client": 1695,
+      "segments": 5,
+      "playBottom": 842,
+      "musicBottom": 1068,
+      "overflow": false
+    }
+  ],
+  "checks": [
+    "Visible play and pause",
+    "Zoom and fit",
+    "Canvas selection and vertical preview aspect ratio",
+    "Ruler seek and continuous clip boundary playback",
+    "Import cancel, failure, recovery, managed WAV and real waveform",
+    "Delayed music, source trim/fades, keyboard Home/End, pointer drag scrub, fullscreen and preview mute",
+    "Reduced motion",
+    "Music preview, mute, loop, replacement, settings and persisted reload",
+    "Real FFmpeg export with imported music"
+  ],
+  "isolatedUserData": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-montage-qa-mqhYry",
+  "errors": []
+}

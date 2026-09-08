@@ -1,0 +1,562 @@
+$ bun test && dotnet run --configuration Release --project ./engines/capture-host-tests/Capture.Host.Tests.csproj && bun run test:audio-host
+bun test v1.3.6 (d530ed99)
+
+tests\addon-partition.test.ts:
+(pass) sandboxed add-on partition identity > reuses one bounded partition per canonical module ID
+
+tests\app-update-service.test.ts:
+(pass) application update lifecycle > resolves autoUpdater from the CommonJS namespace returned by dynamic import
+(pass) application update lifecycle > does not load or schedule the updater outside an installed Windows build
+(pass) application update lifecycle > supports an explicit development-only pending update presentation
+(pass) application update lifecycle > can activate the development update presentation after initialization
+(pass) application update lifecycle > publishes check, download, and restart-ready state through the canonical contract
+(pass) application update lifecycle > applies download and next-startup preferences to the updater
+
+tests\application-identity.test.ts:
+(pass) application identity > keeps the installed identity and existing user data location stable
+(pass) application identity > isolates development state and Windows identity from the installed app
+(pass) application identity > preserves a native review harness temporary profile
+
+tests\async-cleanup.test.ts:
+(pass) async lifecycle cleanup > runs cleanup when disposal happens before setup resolves
+(pass) async lifecycle cleanup > runs resolved cleanup once on later disposal
+
+tests\audio-custom-preset-persistence.test.ts:
+(pass) custom audio state persistence > preserves Custom preset identity after exact processor edits and restart [31.00ms]
+
+tests\audio-device-discovery.test.ts:
+(pass) audio endpoint discovery > does not advertise fabricated hardware before Windows discovery runs
+(pass) audio endpoint discovery > drops persisted endpoint inventory and labels before rediscovery [15.00ms]
+(pass) audio endpoint discovery > replaces stale routes with discovered physical headphones and microphone
+(pass) audio endpoint discovery > preserves a selected endpoint while it remains active
+
+tests\audio-meter-delivery.test.ts:
+(pass) AudioMeterDeliveryGate > delivers only to the renderer that requested visible meter updates
+(pass) AudioMeterDeliveryGate > clears demand without allowing a stale renderer to clear its replacement
+
+tests\audio-noise-suppression.test.ts:
+(pass) native microphone noise suppression contract > keeps semantic presets on the calibrated canonical amounts
+(pass) native microphone noise suppression contract > accepts a native host snapshot when nullable JSON properties are omitted
+(pass) native microphone noise suppression contract > migrates persisted audio capabilities created before noise suppression existed
+
+tests\audio-persistence.test.ts:
+(pass) audio workspace persistence > restores path processing, microphone parameters, and user presets [15.00ms]
+(pass) audio workspace persistence > restores the master output without changing channel balance [16.00ms]
+(pass) audio workspace persistence > restores disabled channels without changing their per-mix controls [31.00ms]
+(pass) audio workspace persistence > removes legacy application metadata when routing is unavailable [16.00ms]
+(pass) audio workspace persistence > discards stale host runtime data without discarding persisted mix settings [16.00ms]
+
+tests\audio-presets.test.ts:
+(pass) audio path presets > apply complete channel processor state and match exactly
+(pass) audio path presets > snapshots all microphone parameters into a user preset
+(pass) audio path presets > rejects unversioned imported preset files
+(pass) audio path presets > does not claim an imported monitoring output that is unavailable
+
+tests\audio-semantic-controls.test.ts:
+(pass) human-facing audio controls > recognizes the named microphone strengths and reports exact edits as custom
+(pass) human-facing audio controls > maps channel leveling to the same canonical processor parameters
+
+tests\autocapture.test.ts:
+(pass) Auto Capture event processing > deduplicates equivalent provider events inside the 500 ms window
+(pass) Auto Capture event processing > plans pre-roll and post-roll around the event
+(pass) Auto Capture event processing > merges overlapping and nearby windows while retaining every event
+(pass) Auto Capture event processing > stores marker offsets relative to the actual saved clip start
+(pass) Auto Capture event processing > merges three events into one preserved clip with a derived multi-kill marker
+(pass) Auto Capture event processing > ignores disabled events and disabled games
+(pass) Auto Capture event processing > flushes a pending capture deterministically during shutdown
+(pass) Auto Capture event processing > accepts reaction events under their own policy while game providers are disabled
+(pass) Auto Capture provider lifecycle > can start, stop, and restart without duplicating listeners
+
+tests\battery-status.test.tsx:
+(pass) battery runtime formatting > uses compact estimates across minute and hour ranges
+(pass) battery runtime formatting > shows an explicit unavailable estimate when runtime telemetry is missing
+(pass) battery runtime formatting > does not relabel discharge runtime as a time-to-full estimate while charging
+(pass) battery runtime formatting > keeps every connected discharging review fixture estimate-capable
+
+tests\battlefield-6-autocapture.test.ts:
+(pass) Battlefield 6 Overwolf Auto Capture provider > normalizes documented eliminations, knockdowns, and round outcomes
+(pass) Battlefield 6 Overwolf Auto Capture provider > recognizes the installed Steam game but requires the optional Overwolf runtime
+(pass) Battlefield 6 Overwolf Auto Capture provider > emits through the canonical provider lifecycle and releases every listener
+(pass) Battlefield 6 Overwolf Auto Capture provider > enables only Battlefield 6 and removes its own GEP subscriptions on stop
+
+tests\capture-microphone-routing.test.ts:
+(pass) capture microphone routing > uses the selected physical microphone instead of the Windows default input
+(pass) capture microphone routing > prefers the input Audio.Host has confirmed active
+(pass) capture microphone routing > uses the explicit capture microphone instead of the Audio bus selection
+(pass) capture microphone routing > never falls back to another microphone when the explicit selection is unavailable
+(pass) capture microphone routing > resolves Sonar game and chat outputs as separate capture inputs
+(pass) capture microphone routing > returns null for automatic device routing
+
+tests\capture-presets.test.ts:
+(pass) capture encoding presets > scales bitrate with resolution, frame rate, quality, and codec
+(pass) capture encoding presets > returns honest ranges and narrows them after observing the workload
+(pass) replay ring selection > selects only the completed segments covering the requested trailing window
+(pass) replay ring selection > evicts oldest segments until both duration and byte bounds hold
+(pass) capture filesystem and state rules > sanitizes illegal and reserved Windows names
+(pass) capture filesystem and state rules > allows real replay transitions and rejects impossible ones
+(pass) capture filesystem and state rules > normalizes an omitted native-host source to null
+
+tests\capture-source-previews.test.ts:
+(pass) capture source previews > keeps Windows window enumeration off the WGC thumbnail path
+(pass) capture source previews > requests both Electron source types when displays and windows need previews
+(pass) capture source previews > matches a Capture.Host window to the Electron thumbnail with the same HWND
+(pass) capture source previews > keeps displays and Electron-enumerated apps but removes system windows
+(pass) capture source previews > runtime host snapshots cannot repopulate unvalidated system windows
+
+tests\capture-storage.test.ts:
+(pass) capture storage configuration > creates the OS-aware default Clips folder and cache folders
+(pass) capture storage configuration > accepts and preserves a writable custom folder [15.00ms]
+(pass) capture storage configuration > rejects a path occupied by a file
+(pass) capture storage configuration > recreates a missing previously selected folder
+(pass) capture storage configuration > reports real capacity for the selected Clips volume [16.00ms]
+
+tests\clip-format.test.ts:
+(pass) capture media formatting > uses media duration and human replay-length conventions
+(pass) capture media formatting > moves from useful relative time to clock and dated metadata [16.00ms]
+(pass) capture media formatting > formats relative age and video quality for capture list rows
+
+tests\clip-library.test.ts:
+(pass) canonical clip metadata > reads MP4 audio identities from the name tag used by Capture.Host
+(pass) canonical clip metadata > adds durable favorite and title defaults to legacy clip records
+(pass) canonical clip metadata > validates canvas size changes and builds a centered vertical export crop
+(pass) canonical clip metadata > uses a single hardware pass and an upload-appropriate resolution for compressed shares
+(pass) canonical clip metadata > parses bounded FFmpeg progress for the share dialog contract
+(pass) canonical clip metadata > keeps custom names and infers generated game identity without exposing filenames
+(pass) canonical clip metadata > persists favorite and renamed display metadata across a store restart [31.00ms]
+(pass) canonical clip metadata > persists Auto Capture markers while legacy clips remain manual [16.00ms]
+(pass) canonical clip metadata > validates saved trim ranges and file-size export presets at the shared boundary
+(pass) canonical clip metadata > builds an explicit gain-aware share mix and drops muted tracks
+(pass) canonical clip metadata > builds independently trimmed and timeline-aligned audio tracks
+(pass) large clip library filtering and sorting > filters hundreds of records by favorite, game, date text, and title [46.00ms]
+(pass) large clip library filtering and sorting > supports all required sort orders without mutating canonical order
+(pass) large clip library filtering and sorting > filters manual and Auto Capture clips by source and event
+
+tests\clip-preview-audio.test.ts:
+(pass) clip preview audio > applies the microphone track slider to preview volume
+(pass) clip preview audio > honors mute and per-track trim boundaries
+(pass) clip preview audio > only corrects meaningful preview drift
+
+tests\clip-review.test.ts:
+(pass) new clip review batches > returns only clips newer than the durable marker in newest-first order
+(pass) new clip review batches > does not re-open clips recorded at the reviewed boundary
+(pass) new clip review batches > offers only automatic clips, once, after the game session ends
+
+tests\clip-timeline.test.ts:
+(pass) clip timeline interaction model > click-to-seek maps the timeline point to the exact playhead time
+(pass) clip timeline interaction model > drag-to-scrub updates continuously without changing the trim range
+(pass) clip timeline interaction model > left trim handle changes only trim start
+(pass) clip timeline interaction model > right trim handle changes only trim end
+(pass) clip timeline interaction model > trim bounds clamp to the clip duration
+(pass) clip timeline interaction model > trim handles cannot cross and preserve the minimum clip duration
+(pass) clip timeline interaction model > scrubbing outside the selected range does not change trim
+(pass) clip timeline interaction model > trimming does not unexpectedly seek the playhead
+(pass) clip timeline interaction model > trim handles expose complete keyboard adjustment behavior
+(pass) clip timeline interaction model > playhead keyboard access changes only the current time
+
+tests\clip-track-levels.test.ts:
+(pass) clip track level defaults > falls back to the channel default, then to 100
+(pass) clip track level defaults > rejects out-of-range configured defaults when resolving
+(pass) clip track level defaults > fills untouched tracks with their channel default instead of 100
+(pass) clip track level defaults > trims trailing tracks that match their channel default
+(pass) clip track level defaults > normalizes stored levels so future default changes keep applying
+(pass) clip track level defaults > detects an effective mix change from defaults alone
+(pass) clip track level defaults > defaults new capture configs to a flat 100% mix
+(pass) clip track level defaults > parses legacy capture configs without track defaults
+(pass) clip track level defaults > rejects out-of-range track defaults
+(pass) clip track level defaults > accepts partial track-default updates over IPC
+(pass) clip track level defaults > migrates persisted state that predates track defaults [16.00ms]
+
+tests\cs2-autocapture.test.ts:
+(pass) CS2 Game State Integration provider > derives local kill, headshot, assist, and death transitions without player identity metadata
+(pass) CS2 Game State Integration provider > does not replay counters after a round reset or stale out-of-order packet
+(pass) CS2 Game State Integration provider > emits round and match outcomes from team-relative state transitions
+(pass) CS2 Game State Integration provider > creates a loopback-only authenticated low-frequency GSI configuration
+(pass) CS2 Game State Integration provider > authenticates before changing counters and releases the loopback listener on stop [32.00ms]
+
+tests\development-flags.test.ts:
+(pass) development flags > recognizes the update demo from first- and second-instance launch data
+(pass) development flags > never enables the update demo in a packaged build
+(pass) development flags > carries the Bun dev flag through electron-vite without forwarding it as a Vite option
+
+tests\development-hosts.test.ts:
+(pass) development native hosts > uses isolated build outputs instead of stale or locked project binaries
+(pass) development native hosts > parses blocking dev-host processes from PowerShell output
+(pass) development native hosts > blocking-host error names the process and the remedy
+
+tests\device-lighting.test.ts:
+(pass) device render lighting masks > recolors each saturated G502 source zone from canonical lighting color
+(pass) device render lighting masks > neutralizes G502 lighting when the canonical state is off
+(pass) device render lighting masks > preserves neutral shell pixels and keeps the HyperX mask red-scoped
+(pass) device render lighting masks > projects canonical brightness without losing the unlit diffuser
+(pass) device render lighting masks > keeps low-chroma shell spill soft instead of painting a hard LED cutout
+(pass) device render lighting masks > fully neutralizes photographic RGB spill when lighting is off
+(pass) device render lighting masks > recolors photographic RGB spill instead of retaining the source hue
+(pass) mattes edge-connected photo background without erasing enclosed black hardware
+
+tests\device-module-state.test.ts:
+(pass) device module visibility > hides every device owned by a disabled module without deleting its saved state
+
+tests\device-registry-lifecycle.test.ts:
+(pass) device registry lifecycle > does not enumerate HID when every device module is disabled, and resumes on enable
+(pass) device registry lifecycle > arms one discovery timer on enable and clears it on disable and repeated disposal [16.00ms]
+(pass) device registry lifecycle > uses Windows PnP discovery instead of whole-bus HIDAPI enumeration
+(pass) device registry lifecycle > removes preview fixture devices before real discovery starts
+Device discovery failed. warn: HID device enumeration timed out.
+      at <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\device-registry.ts:337:41)
+
+Device discovery failed. warn: HID device enumeration timed out.
+      at <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\device-registry.ts:337:41)
+
+(pass) device registry lifecycle > bounds a stalled HID enumeration without starting overlapping native scans [47.00ms]
+(pass) device registry lifecycle > publishes device-confirmed lighting readback instead of the requested value
+(pass) device registry lifecycle > does not make a confirmed control write wait for a second device discovery
+(pass) device registry lifecycle > waits for in-flight discovery and suppresses late publication before disposing modules
+(pass) device registry lifecycle > waits for in-flight discovery, deactivates a disabled module, and blocks device writes
+(pass) device registry lifecycle > keeps fixture mute-lighting capability and persisted setting in sync
+(pass) device registry lifecycle > restores fixture connection state after a module is re-enabled without scanning physical hardware
+
+tests\device-variant.test.ts:
+(pass) device variant resolution > uses Logitech hardware metadata for the white extended model
+(pass) device variant resolution > uses the black render for the known base hardware variant
+(pass) device variant resolution > does not let a fallback override replace hardware evidence
+(pass) device variant resolution > uses a stable override only when automatic evidence is inconclusive
+(pass) device variant resolution > falls back to the exact model asset without claiming a cosmetic color
+(pass) device variant resolution > uses a generic device asset for unknown models
+
+tests\eq-response.test.ts:
+(pass) parametric EQ response > a flat enabled band remains at zero decibels
+(pass) parametric EQ response > a peaking band reaches its configured gain at center frequency
+(pass) parametric EQ response > bypassed bands do not affect the response
+
+tests\feedback-handoff.test.ts:
+(pass) feedback handoff operations > copies the fallback before opening the fixed GitHub destination
+(pass) feedback handoff operations > still opens GitHub when the clipboard is unavailable
+(pass) feedback handoff operations > preserves a copied fallback when the browser cannot open
+(pass) feedback handoff operations > reports both failures without discarding the caller draft
+
+tests\feedback-report.test.ts:
+(pass) feedback report handoff > requires an affirmative choice before diagnostics are included
+(pass) feedback report handoff > validates bounded report input at the IPC boundary
+(pass) feedback report handoff > builds a fixed-origin, prefilled GitHub issue without interpolating a destination
+(pass) feedback report handoff > omits diagnostics when the user turns them off and keeps the copied report self-contained
+(pass) feedback report handoff > includes only allowlisted environment fields
+
+tests\game-discovery.test.ts:
+(pass) game discovery > scans Steam and Epic launcher manifests without crawling arbitrary folders [15.00ms]
+(pass) game discovery > validates and creates a stable manual game entry from an executable
+(pass) game discovery > keeps a discovered game when executable icon extraction fails
+
+tests\hyperx-device-render.test.ts:
+(pass) HyperX device render treatment > keeps muted grille lighting readable as charcoal on the dark stage
+(pass) HyperX device render treatment > lifts deep neutral hardware tones without changing lighting or highlights
+
+tests\hyperx-quadcast2-state.test.ts:
+(pass) QuadCast 2 hardware state > decodes only absolute physical mute reports
+(pass) QuadCast 2 hardware state > builds fixed-red solid and breathing frames
+(pass) QuadCast 2 hardware state > keeps mute monitoring and maintained lighting in one device session [31.00ms]
+
+tests\logitech-battery-refresh.test.ts:
+(pass) Logitech battery discovery > decodes the direct HID++ battery state without inventing a charge transition
+(pass) Logitech battery discovery > publishes a newly observed charging state on the next discovery cycle
+(pass) Logitech battery discovery > publishes updated remaining-time telemetry on every discovery cycle
+(pass) Logitech battery discovery > derives a G502 runtime estimate when the active backend only reports percentage
+(pass) Logitech battery discovery > rereads lighting so external mouse profile changes cannot leave the active color stale
+(pass) Logitech battery discovery > keeps the known white variant and drops stale charging state when the agent disappears
+
+tests\logitech-g502-lighting-latency.test.ts:
+(pass) G502 lighting changes power mode before the slower onboard profile persistence finishes [16.00ms]
+(pass) G502 skips profile persistence if RGB software ownership cannot be released
+
+tests\logitech-g502-onboard-profile.test.ts:
+(pass) G502 X Plus native onboard profile > decodes the hardware-captured profile without G HUB metadata
+(pass) G502 X Plus native onboard profile > persists a lower DPI Shift without changing unrelated profile bytes
+(pass) G502 X Plus native onboard profile > writes native button assignments and static lighting into only their verified fields
+(pass) G502 X Plus native onboard profile > updates the stored report rate and validates the rewritten CRC
+(pass) G502 X Plus native onboard profile > rejects corrupt or unverified profile data before mutation
+(pass) G502 X Plus native onboard profile > parses the hardware profile directory addresses
+
+tests\logitech-g502-sniper-dpi.test.ts:
+(pass) G502 X Plus hold-to-shift DPI > writes a 255-byte onboard profile without overflowing the declared transfer
+(pass) G502 X Plus hold-to-shift DPI > retries a transient invalid onboard profile sector before publishing capabilities
+(pass) G502 X Plus hold-to-shift DPI > expands the device-reported DPI range encoding
+(pass) G502 X Plus hold-to-shift DPI > decodes the device-reported polling rates and current interval
+(pass) G502 X Plus hold-to-shift DPI > accepts only unsolicited MouseButtonSpy reports from the matching mouse
+(pass) G502 X Plus hold-to-shift DPI > writes shift on press and restores the base DPI on release
+(pass) G502 X Plus hold-to-shift DPI > a quick release is serialized after the pending shift write
+(pass) G502 X Plus hold-to-shift DPI > dispose restores DPI when shutdown occurs during a hold
+(pass) G502 X Plus hold-to-shift DPI > uses the G502 X slot-4 bitmap instead of the older G502 slot-5 assumption
+
+tests\logitech-g502.test.ts:
+(pass) G502 X Plus normalized controls > maps every selectable action to a real G HUB standard card
+(pass) G502 X Plus normalized controls > keeps hotspot metadata unique and renderable without model-specific JSX
+(pass) G502 X Plus normalized controls > anchors every callout to the visible G502 render instead of transparent image padding
+(pass) G502 X Plus normalized controls > derives the installed G HUB action-library prefix without hardcoding it
+
+tests\logitech-hidpp-long-transport.test.ts:
+(pass) HID++ long transport > drains a duplicate reply before starting the next same-address request [62.00ms]
+(pass) HID++ long transport > uses a caller-specific software ID so concurrent clients cannot consume each other replies [16.00ms]
+(pass) HID++ long transport > separates installed, development, and native-review HID++ clients
+
+tests\logitech-rgb-effects.test.ts:
+(pass) Logitech device-reported RGB effects > publishes only probed effects and addressable zones
+(pass) Logitech device-reported RGB effects > claims software control, maps effect parameters, and releases firmware ownership
+(pass) Logitech device-reported RGB effects > writes every reported zone as one frame and uses the probed off effect
+
+tests\logitech-service-fallback.test.ts:
+(pass) Logitech service fallback > uses G HUB metadata for identity but routes controls through direct HID++
+(pass) Logitech service fallback > keeps native G502 controls and DPI Shift active without G HUB
+Native G502 X Plus controls are temporarily unavailable. warn: cannot open device with path
+      at <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\tests\logitech-service-fallback.test.ts:112:19)
+      at openDirectSession (C:\Users\User\Desktop\Development\Applications\switchboard\tests\logitech-service-fallback.test.ts:110:38)
+      at ensureDirectSession (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\modules\logitech\index.ts:229:88)
+      at async readDirectCapabilities (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\modules\logitech\index.ts:249:34)
+      at async createG502XPlusFallback (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\modules\logitech\index.ts:198:33)
+      at async discover (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\modules\logitech\index.ts:75:36)
+      at async <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\tests\logitech-service-fallback.test.ts:116:35)
+
+(pass) Logitech service fallback > keeps last-known controls visible and unavailable when another app owns HID++
+
+tests\media-byte-range.test.ts:
+(pass) clip media byte ranges > parses bounded and open-ended ranges
+(pass) clip media byte ranges > parses suffix ranges and clamps them to the file
+(pass) clip media byte ranges > rejects malformed, multiple, reversed, and unsatisfiable ranges
+
+tests\microphone-runtime.test.ts:
+(pass) microphone host readback > requires the active input and every configured processor parameter to match
+(pass) microphone host readback > distinguishes requested monitoring from an active monitor stream
+
+tests\module-authoring.test.ts:
+(pass) module authoring > creates a zero-dependency starter that passes project validation [16.00ms]
+(pass) module authoring > rejects imports because API v1 entrypoints are isolated single files
+(pass) module authoring > rejects an entrypoint that escapes the selected project
+(pass) module authoring > preserves a linked local module across persisted-state hydration [31.00ms]
+
+tests\montage-v2-render.test.ts:
+(skip) montage v2 FFmpeg render > (unnamed)
+(skip) montage v2 FFmpeg render > renders repeated clips with looped imported music into a playable MP4
+(skip) montage v2 FFmpeg render > (unnamed)
+
+tests\montage-v2.test.ts:
+(pass) montage v2 project operations > allows the same source clip to appear repeatedly
+(pass) montage v2 project operations > adds clips after the selected segment and splits at source time
+(pass) montage v2 music timing and export filters > maps a looped music source and applies project-edge fades
+(pass) montage v2 music timing and export filters > builds an explicit, limited clip and music mix without automatic normalization
+
+tests\montage.test.ts:
+(pass) composed montage timeline > maps global montage time to the correct segment and local source time at boundaries
+(pass) composed montage timeline > keeps selection order until an explicit reorder and recalculates duration after trims
+(pass) composed montage timeline > prevents segment trim handles from crossing or leaving the source range
+(pass) montage export contract and audio graph > validates project duration and rejects duplicate clip sources
+(pass) montage export contract and audio graph > mixes available audio, preserves per-track trims, and pads each segment to video duration
+
+tests\nonblocking-renderer-actions.test.ts:
+(pass) routine renderer mutations do not publish a global UI lock while IPC is pending [15.00ms]
+
+tests\performance-monitor.test.ts:
+(pass) performance monitor > uses measured Electron processes and dynamic open-idle budgets
+(pass) performance monitor > adds enabled host allowances without treating stopped hosts as processes
+(pass) performance monitor > uses host process attribution instead of mixing working set into private memory
+(pass) performance monitor > warns only after three failed rolling windows and resets on a budget change
+(pass) performance monitor > records process attribution and a bounded renderer runtime probe
+(pass) performance monitor > runs the renderer probe only while a visible renderer has a resource anomaly
+
+tests\performance-statistics.test.ts:
+(pass) performance sample statistics > does not turn one delayed allocation into a sustained-growth failure
+(pass) performance sample statistics > continues to detect sustained growth across the sample window
+(pass) performance sample statistics > supports Electron idle samples keyed by total private memory
+
+tests\razer-huntsman-v2-analog.test.ts:
+(pass) Razer Huntsman V2 Analog protocol > builds the 91-byte feature report and checksum used by the control collection
+(pass) Razer Huntsman V2 Analog protocol > encodes firmware quick effects without starting a frame stream
+(pass) Razer Huntsman V2 Analog protocol > encodes and parses firmware-backed keyboard controls
+(pass) Razer Huntsman V2 Analog protocol > validates and parses device responses
+(pass) Razer Huntsman V2 Analog transport > keeps the control endpoint open between discovery and lighting writes [469.00ms]
+(pass) Razer Huntsman V2 Analog transport > fails a stalled endpoint open within the transport deadline [16.00ms]
+(pass) Razer Huntsman V2 Analog transport > retries a stale or truncated feature response before reconciling a write [187.00ms]
+(pass) Razer Huntsman V2 Analog transport > keeps independent controls available when one diagnostic read fails [375.00ms]
+(pass) Razer Huntsman V2 Analog module > publishes only the firmware effects implemented by this model
+(pass) Razer Huntsman V2 Analog module > discovers the dedicated endpoint and publishes only verified native controls
+(pass) Razer Huntsman V2 Analog module > leaves controls present but unavailable when the probe fails
+(pass) Razer Huntsman V2 Analog module > adds the installed module to an existing persisted snapshot [31.00ms]
+
+tests\reconcile-snapshot.test.ts:
+(pass) a telemetry-only IPC snapshot preserves every unchanged product branch
+(pass) device acknowledgements replace the changed branch and retain other devices through reordering
+(pass) removing optional data does not resurrect the last value
+
+tests\resource-journal.test.ts:
+(pass) resource journal > writes bounded JSONL parts and removes only expired resource journals [16.00ms]
+
+tests\runtime-update-gates.test.ts:
+(pass) runtime update gates > publishes audio transitions immediately but batches changing diagnostics
+(pass) runtime update gates > requests host meters only while the renderer and meter consumer are active
+(pass) runtime update gates > limits numeric capture telemetry while publishing transitions immediately
+(pass) runtime update gates > does not render engine updates that only refresh resource telemetry
+
+tests\settings-patch.test.ts:
+(pass) a one-setting IPC patch never materializes defaults for omitted settings
+(pass) guard changes preserve low-resource rendering, onboarding, and workspace policy
+
+tests\settings-persistence.test.ts:
+(pass) settings persistence > defaults fresh installations to fully automatic application updates
+(pass) settings persistence > persists app and capture preferences across a store restart [31.00ms]
+(pass) settings persistence > migrates existing state that predates game detection without discarding preferences [16.00ms]
+(pass) settings persistence > migrates state from before Auto Capture as manual-only with conservative defaults
+(pass) settings persistence > fills new reaction diagnostics without discarding an older persisted snapshot [15.00ms]
+(pass) settings persistence > treats clips from before the review feature as already reviewed [16.00ms]
+(pass) settings persistence > preserves sampled runtime performance across unrelated canonical updates [16.00ms]
+
+tests\settings-search.test.ts:
+(pass) settings search metadata > matches titles, aliases, and descriptions without crawling the DOM
+(pass) settings search metadata > requires every search term and returns no results for unrelated input
+(pass) settings search metadata > indexes every stable settings row and workspace action
+(pass) settings search metadata > does not expose the Devices workspace as a duplicate settings category
+
+tests\shortcut-recorder.test.ts:
+(pass) shortcut recording > records modifiers in the Electron accelerator order
+(pass) shortcut recording > waits while only a modifier is held and normalizes special keys
+(pass) shortcut recording > uses Electron Super syntax for the Windows key
+
+tests\startup-readiness.test.ts:
+(pass) the initial renderer snapshot does not wait for background service startup [15.00ms]
+
+tests\startup-settings.test.ts:
+(pass) startup settings > recovers the rendering preference from backup only when the primary is unreadable
+(pass) startup settings > enables software rendering only for an explicit valid persisted preference
+(pass) startup settings > fails closed for missing, malformed, or incorrectly typed state
+
+tests\state-store-recovery.test.ts:
+(pass) state recovery > accepts a UTF-8 BOM without resetting a valid primary or preferring an older backup [15.00ms]
+Switchboard state was invalid. The original file was preserved; trying the backup. C:\Users\User\AppData\Local\Temp\switchboard-state-recovery-5ACmmG\switchboard-state.json.corrupt-1788561955435-43b94559-433f-4f73-b7f4-5c15c44695be ZodError: [
+  {
+    "expected": "string",
+    "code": "invalid_type",
+    "path": [
+      "version"
+    ],
+    "message": "Invalid input: expected string, received boolean"
+  },
+  {
+    "expected": "boolean",
+    "code": "invalid_type",
+    "path": [
+      "prototypeMode"
+    ],
+    "message": "Invalid input: expected boolean, received undefined"
+  },
+  {
+    "expected": "array",
+    "code": "invalid_type",
+    "path": [
+      "modules"
+    ],
+    "message": "Invalid input: expected array, received undefined"
+  },
+  {
+    "expected": "array",
+    "code": "invalid_type",
+    "path": [
+      "devices"
+    ],
+    "message": "Invalid input: expected array, received undefined"
+  },
+  {
+    "expected": "array",
+    "code": "invalid_type",
+    "path": [
+      "engines"
+    ],
+    "message": "Invalid input: expected array, received undefined"
+  },
+  {
+    "expected": "object",
+    "code": "invalid_type",
+    "path": [
+      "audio"
+    ],
+    "message": "Invalid input: expected object, received undefined"
+  },
+  {
+    "expected": "object",
+    "code": "invalid_type",
+    "path": [
+      "performance"
+    ],
+    "message": "Invalid input: expected object, received undefined"
+  }
+]
+
+Switchboard state was recovered from its last valid backup.
+Switchboard state was recovered from its last valid backup.
+(pass) state recovery > rejects a schema-invalid primary and recovers a missing primary from backup [31.00ms]
+Switchboard state was invalid. The original file was preserved; trying the backup. C:\Users\User\AppData\Local\Temp\switchboard-state-recovery-NcWw3L\switchboard-state.json.corrupt-1788561955459-a3579791-90d9-4d53-83e7-bf35ffbb1ef6 SyntaxError: JSON Parse error: Unrecognized token ' '
+      at parsePersistedState (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:224:29)
+      at load (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:36:48)
+      at async <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\tests\state-store-recovery.test.ts:55:17)
+
+Switchboard state was recovered from its last valid backup.
+(pass) state recovery > recovers a validated backup and preserves the exact corrupted primary [16.00ms]
+Switchboard state was invalid. The original file was preserved; trying the backup. C:\Users\User\AppData\Local\Temp\switchboard-state-recovery-0x4Pp8\switchboard-state.json.corrupt-1788561955495-c951fbab-258c-43e3-aaf3-99ba4671dff5 SyntaxError: JSON Parse error: Expected '}'
+      at parsePersistedState (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:224:29)
+      at load (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:36:48)
+      at async <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\tests\state-store-recovery.test.ts:75:21)
+
+Switchboard state was recovered from its last valid backup.
+(pass) state recovery > keeps a previous valid generation through consecutive writes [31.00ms]
+Switchboard state was invalid. The original file was preserved; trying the backup. C:\Users\User\AppData\Local\Temp\switchboard-state-recovery-UL5z6s\switchboard-state.json.corrupt-1788561955506-de4c71ab-7920-436a-9b7f-40dfe977ac2b SyntaxError: JSON Parse error: Expected '}'
+      at parsePersistedState (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:224:29)
+      at load (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:36:48)
+      at async <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\tests\state-store-recovery.test.ts:84:17)
+
+Switchboard state backup could not be loaded. Defaults will be used. SyntaxError: JSON Parse error: Expected '}'
+      at parsePersistedState (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:224:29)
+      at load (C:\Users\User\Desktop\Development\Applications\switchboard\src\main\services\state-store.ts:49:46)
+      at async <anonymous> (C:\Users\User\Desktop\Development\Applications\switchboard\tests\state-store-recovery.test.ts:84:17)
+
+(pass) state recovery > preserves corruption when no valid backup exists before using defaults
+
+tests\war-thunder-autocapture.test.ts:
+(pass) War Thunder localhost Auto Capture provider > baselines existing history and emits only configured-player events
+(pass) War Thunder localhost Auto Capture provider > matches the exact nickname instead of substrings and rejects malformed telemetry
+(pass) War Thunder localhost Auto Capture provider > detects the Steam app and releases its low-frequency polling lifecycle [47.00ms]
+(pass) War Thunder localhost Auto Capture provider > stays dormant without a detected install and explains missing identity while active
+(pass) War Thunder localhost Auto Capture provider > does not misreport an API failure as recovered when settings are reapplied
+
+tests\wardogs-autocapture.test.ts:
+(pass) WARDOGS Auto Capture provider > advertises kill support while staying unavailable without a verified feed
+(pass) WARDOGS Auto Capture provider > detects the retail and Playtest Steam clients
+(pass) WARDOGS Auto Capture provider > stays dormant without a detected install or off Windows
+(pass) WARDOGS Auto Capture provider > matches the running client but never the launcher
+(pass) WARDOGS Auto Capture provider > starts no runtime, emits no events, and stops idempotently
+(pass) WARDOGS Auto Capture provider > resolves through the registry for the running WARDOGS source
+
+tests\windows-hid-enumerator.test.ts:
+(pass) Windows HID enumeration > maps connected PnP HID interfaces without interrogating device string descriptors
+
+tests\workspace-profile.test.ts:
+(pass) visible workspaces > defaults fresh installs to developer mode off with audio hidden and onboarding pending
+(pass) visible workspaces > shows audio only when developer mode is enabled
+(pass) visible workspaces > hides the audio workspace unless developer mode is on
+(pass) visible workspaces > hides exactly the unselected workspaces while keeping settings reachable
+(pass) visible workspaces > always keeps capture visible and restores canonical order
+(pass) visible workspaces > detects clipping, full, and custom presets
+(pass) visible workspaces > migrates the legacy clipping profile to capture-only
+(pass) onboarding draft > starts from the current capture and workspace state
+(pass) onboarding draft > applies clipping and full presets to the draft
+(pass) onboarding draft > toggles optional workspaces without ever dropping capture
+
+3 tests skipped:
+(skip) montage v2 FFmpeg render > (unnamed)
+(skip) montage v2 FFmpeg render > renders repeated clips with looped imported music into a playable MP4
+(skip) montage v2 FFmpeg render > (unnamed)
+
+ 305 pass
+ 3 skip
+ 0 fail
+ 1075 expect() calls
+Ran 308 tests across 69 files. [2.31s]
+Reaction detector analyzed 86 frames at 0.0595 ms average.
+Capture.Host deterministic tests passed.
+$ cargo build --manifest-path ./native/noise-bridge/Cargo.toml --release && dotnet run --configuration Release --project ./engines/audio-host-tests/Audio.Host.Tests.csproj
+    Finished `release` profile [optimized] target(s) in 0.03s
+Audio.Host deterministic tests passed.

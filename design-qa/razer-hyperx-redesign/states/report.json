@@ -1,0 +1,86 @@
+[
+  {
+    "name": "keyboard-1080x720-disconnected",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 600.1146240234375
+    }
+  },
+  {
+    "name": "keyboard-1080x720-unavailable",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 600.1146240234375
+    }
+  },
+  {
+    "name": "keyboard-1080x720-reduced-motion",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 559.8646240234375
+    }
+  },
+  {
+    "name": "keyboard-150percent",
+    "metrics": {
+      "width": 720,
+      "height": 481,
+      "scroll": 720,
+      "workspaceWidth": 648,
+      "workspaceScroll": 648,
+      "bottom": 1086.173583984375,
+      "controlsBottom": 795.1736450195312
+    }
+  },
+  {
+    "name": "microphone-1080x720-disconnected",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 594.8229370117188
+    }
+  },
+  {
+    "name": "microphone-1080x720-reduced-motion",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 550.2916870117188
+    }
+  },
+  {
+    "name": "microphone-150percent",
+    "metrics": {
+      "width": 720,
+      "height": 481,
+      "scroll": 720,
+      "workspaceWidth": 648,
+      "workspaceScroll": 648,
+      "bottom": 868.8958129882812,
+      "controlsBottom": 781.9236450195312
+    }
+  }
+]

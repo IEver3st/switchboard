@@ -1,0 +1,506 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-clip-upgrades-whguFL",
+  "screenshots": [
+    {
+      "name": "1080x720-framing",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 752,
+          "right": 820,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 820,
+          "width": 260,
+          "right": 1080,
+          "basis": "260px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 821,
+          "width": 259,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-framing",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-framing",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1560,
+          "right": 1628,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1628,
+          "width": 292,
+          "right": 1920,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1629,
+          "width": 291,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "timing",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "overlays",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "music",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "split-edit",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "save-error",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "fit-blur",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "failure",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1060,
+          "right": 1128,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1128,
+          "width": 292,
+          "right": 1420,
+          "basis": "292px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1129,
+          "width": 291,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "Framing and layout persist through main",
+    "Dragging preview updates the persisted framing point",
+    "1080x720 canvas without page overflow",
+    "1420x900 canvas without page overflow",
+    "1920x1080 canvas without page overflow",
+    "Speed and freeze change canonical duration",
+    "Freeze playback advances the edit clock while holding the source frame",
+    "Multiple text and privacy overlays persist",
+    "Dragging the privacy handle resizes the persisted mask",
+    "Audio automation and mute interval persist",
+    "Undo restores the prior audio lane",
+    "Redo restores the muted interval",
+    "Per-track source trimming remains available",
+    "Imported music and microphone ducking persist",
+    "Two splits isolate a middle section",
+    "Removing the middle section closes the sequence without changing source media",
+    "Reload restores the complete clip draft",
+    "Failed disk write does not replace the last confirmed draft",
+    "Retry save recovers the retained edit after a real disk failure",
+    "Preview unmute keeps original embedded audio silent to avoid duplicate playback",
+    "Draft names accept spaces and persist on blur",
+    "Native share flow renders a real MP4 with clip effects and music"
+  ],
+  "errors": [
+    "Uncaught SecurityError: Failed to execute 'toDataURL' on 'HTMLCanvasElement': Tainted canvases may not be exported."
+  ],
+  "error": "Share preview displays the edited frame"
+}

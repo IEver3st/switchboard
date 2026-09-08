@@ -23,7 +23,7 @@ export function ParameterControl({
   onCommit: (value: number) => void;
 }) {
   const [current, setCurrent] = useState(value);
-  useEffect(() => setCurrent(value), [value]);
+  useEffect(() => setCurrent(value), [value, disabled]);
   const text = `${current.toFixed(precision)}${unit}`;
 
   return (
@@ -39,7 +39,7 @@ export function ParameterControl({
         aria-label={label}
         aria-valuetext={`${current.toFixed(precision)} ${unit}`.trim()}
         onValueChange={([next]) => typeof next === 'number' && setCurrent(next)}
-        onValueCommit={([next]) => typeof next === 'number' && onCommit(next)}
+        onValueCommit={([next]) => !disabled && typeof next === 'number' && onCommit(next)}
       />
       <output>{text}</output>
     </label>

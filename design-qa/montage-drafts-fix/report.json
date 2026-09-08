@@ -1,0 +1,101 @@
+{
+  "sizes": [
+    {
+      "width": 1080,
+      "height": 720,
+      "display": "flex",
+      "overflow": false,
+      "composerLoaded": false,
+      "cards": [
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        },
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        },
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        }
+      ]
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "display": "flex",
+      "overflow": false,
+      "composerLoaded": false,
+      "cards": [
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        },
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        },
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "display": "flex",
+      "overflow": false,
+      "composerLoaded": false,
+      "cards": [
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        },
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        },
+        {
+          "width": 260,
+          "height": 49.5,
+          "visible": true,
+          "deleteInside": true,
+          "fontSize": "12px"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "Draft styles present before lazy composer loads; all three drafts visible, long titles truncate, missing media labelled",
+    "Resume draft and return to library; keyboard order and focus ring",
+    "Discard persists through reload; styles survive fresh renderer",
+    "Reduced motion; empty drafts reclaim space"
+  ],
+  "isolatedUserData": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-montage-qa-3hC02J"
+}

@@ -1,0 +1,66 @@
+[
+  {
+    "device": "G502 X Plus",
+    "keyboardOpenAndReturn": true
+  },
+  {
+    "device": "QuadCast 2",
+    "keyboardOpenAndReturn": true
+  },
+  {
+    "device": "Huntsman V2 Analog",
+    "keyboardOpenAndReturn": true
+  },
+  {
+    "actionBaselines": [
+      550.1458740234375,
+      550.1458740234375,
+      550.1458740234375
+    ]
+  },
+  {
+    "state": "low battery, disconnected, long name, fallback",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 684,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    }
+  },
+  {
+    "state": "nine devices",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 722,
+      "documentWidth": 1080,
+      "documentHeight": 722,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 684,
+      "viewportScrollHeight": 1443,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    }
+  },
+  {
+    "reducedMotion": {
+      "matches": true,
+      "running": 0
+    }
+  },
+  {
+    "refreshPreservesCanonicalDevices": true
+  }
+]

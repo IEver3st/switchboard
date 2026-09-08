@@ -1,0 +1,183 @@
+{
+  "captures": [
+    {
+      "viewport": {
+        "name": "1080x720",
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-workbench.png",
+      "metrics": {
+        "innerWidth": 1080,
+        "innerHeight": 722,
+        "documentWidth": 1080,
+        "viewportHeight": 684,
+        "viewportScrollHeight": 684,
+        "viewportWidth": 1008,
+        "viewportScrollWidth": 1008,
+        "sensitivityTop": 206.0625,
+        "toolbarBottom": 487.2291717529297,
+        "callouts": 6,
+        "hotspots": 6,
+        "batteryLabel": "82 percent battery, ~47h remaining"
+      }
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-workbench.png",
+      "metrics": {
+        "innerWidth": 1420,
+        "innerHeight": 900,
+        "documentWidth": 1420,
+        "viewportHeight": 862,
+        "viewportScrollHeight": 862,
+        "viewportWidth": 1348,
+        "viewportScrollWidth": 1348,
+        "sensitivityTop": 277.3645935058594,
+        "toolbarBottom": 579.5312652587891,
+        "callouts": 6,
+        "hotspots": 6,
+        "batteryLabel": "82 percent battery, ~47h remaining"
+      }
+    },
+    {
+      "viewport": {
+        "name": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-workbench.png",
+      "metrics": {
+        "innerWidth": 1920,
+        "innerHeight": 1080,
+        "documentWidth": 1920,
+        "viewportHeight": 1042,
+        "viewportScrollHeight": 1042,
+        "viewportWidth": 1848,
+        "viewportScrollWidth": 1848,
+        "sensitivityTop": 367.3645935058594,
+        "toolbarBottom": 669.5312957763672,
+        "callouts": 6,
+        "hotspots": 6,
+        "batteryLabel": "82 percent battery, ~47h remaining"
+      }
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-assignment-picker.png",
+      "state": "assignment-picker"
+    },
+    {
+      "viewport": {
+        "name": "1080x720",
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-onboard-disabled.png",
+      "state": "onboard-disabled"
+    },
+    {
+      "viewport": {
+        "name": "1420x900",
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-color-picker-preview.png",
+      "state": "color-picker-preview"
+    },
+    {
+      "filename": "1080x720-scale-125.png",
+      "metrics": {
+        "innerWidth": 864,
+        "innerHeight": 577,
+        "documentWidth": 864,
+        "viewportHeight": 540,
+        "viewportScrollHeight": 540,
+        "viewportWidth": 792,
+        "viewportScrollWidth": 792,
+        "sensitivityTop": 127.37500762939453,
+        "toolbarBottom": 408.0083465576172,
+        "callouts": 6,
+        "hotspots": 6,
+        "batteryLabel": "82 percent battery, ~47h remaining"
+      }
+    }
+  ],
+  "interactions": [
+    {
+      "name": "dpi-slider",
+      "value": 1600
+    },
+    {
+      "name": "dpi-input",
+      "value": 1200
+    },
+    {
+      "name": "dpi-presets",
+      "create": 2400,
+      "edit": 2600,
+      "deleted": true
+    },
+    {
+      "name": "polling-and-shift",
+      "pollingRate": 500,
+      "shiftDpi": 700
+    },
+    {
+      "name": "button-assignment",
+      "button": "back",
+      "action": "mouse.forward",
+      "linkedHover": true
+    },
+    {
+      "name": "onboard-memory",
+      "enabledState": {
+        "dpiDisabled": true,
+        "activeProfile": "Profile 1"
+      }
+    },
+    {
+      "name": "lighting",
+      "effect": "static",
+      "color": "#FF1774",
+      "zone": {
+        "id": "zone-1",
+        "color": "#12B8A6"
+      },
+      "previewBeforeCommit": true
+    },
+    {
+      "name": "zone-keyboard-path",
+      "open": "Enter",
+      "close": "Escape",
+      "focusRestored": true,
+      "reducedMotion": true
+    },
+    {
+      "name": "26-zone-layout-fixture",
+      "bounds": {
+        "top": 232,
+        "bottom": 501.4270935058594,
+        "left": 696,
+        "right": 1056,
+        "height": 722,
+        "width": 1080
+      }
+    }
+  ],
+  "persistence": {
+    "dpi": 1200,
+    "pollingRate": 500,
+    "shiftDpi": 700,
+    "lightingColor": "#ff1774",
+    "backAction": "mouse.forward"
+  }
+}

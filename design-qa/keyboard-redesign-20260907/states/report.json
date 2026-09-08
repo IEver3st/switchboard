@@ -1,0 +1,74 @@
+[
+  {
+    "name": "keyboard-1080x720-expanded",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 618.6979370117188
+    }
+  },
+  {
+    "name": "keyboard-1080x720-focus",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 618.6979370117188
+    }
+  },
+  {
+    "name": "keyboard-1080x720-disconnected",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 657.9479370117188
+    }
+  },
+  {
+    "name": "keyboard-1080x720-unavailable",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 657.9479370117188
+    }
+  },
+  {
+    "name": "keyboard-1080x720-reduced-motion",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 618.6979370117188
+    }
+  },
+  {
+    "name": "keyboard-150percent",
+    "metrics": {
+      "width": 720,
+      "height": 481,
+      "scroll": 720,
+      "workspaceWidth": 648,
+      "workspaceScroll": 648,
+      "bottom": 848.3958129882812,
+      "controlsBottom": 746.3958129882812
+    }
+  }
+]

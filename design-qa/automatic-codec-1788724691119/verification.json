@@ -1,0 +1,36 @@
+{
+  "output": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\automatic-codec-1788724691119",
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-automatic-codec-jkDDTf",
+  "assertions": [
+    "Settings control applies Automatic through canonical IPC",
+    "Automatic survives renderer reload",
+    "settings-capture: app stays hidden and unfocused",
+    "settings-capture: no page overflow at 1080x720",
+    "settings-capture: app stays hidden and unfocused",
+    "settings-capture: no page overflow at 1420x900",
+    "settings-capture: app stays hidden and unfocused",
+    "settings-capture: no page overflow at 1920x1080",
+    "Actual native host resolves Automatic to fixture-tested AMD H.264",
+    "replay-codec: app stays hidden and unfocused",
+    "replay-codec: no page overflow at 1080x720",
+    "replay-codec: app stays hidden and unfocused",
+    "replay-codec: no page overflow at 1420x900",
+    "replay-codec: app stays hidden and unfocused",
+    "replay-codec: no page overflow at 1920x1080",
+    "codec-focus: app stays hidden and unfocused",
+    "codec-focus: no page overflow at 1080x720",
+    "Codec control accepts keyboard focus",
+    "Automatic persists on disk"
+  ],
+  "screenshots": [
+    "settings-capture-1080x720.png",
+    "settings-capture-1420x900.png",
+    "settings-capture-1920x1080.png",
+    "replay-codec-1080x720.png",
+    "replay-codec-1420x900.png",
+    "replay-codec-1920x1080.png",
+    "codec-focus-1080x720.png"
+  ],
+  "errors": [],
+  "passed": true
+}

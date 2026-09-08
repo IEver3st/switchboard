@@ -1,0 +1,1139 @@
+{
+  "schemaVersion": 2,
+  "version": "0.8.3",
+  "exportedAt": "2026-09-06T19:19:48.161Z",
+  "droppedJournalWrites": 0,
+  "limits": "Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "windowsRelease": "10.0.26200",
+    "windowsVersion": "Windows 11 Pro",
+    "electron": "44.0.0",
+    "chrome": "152.0.7977.54",
+    "node": "24.18.1",
+    "packaged": false,
+    "softwareRendering": false,
+    "graphics": {
+      "gpuDevice": [
+        {
+          "active": true,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVendor": "NVIDIA",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 4098,
+          "deviceId": 5056,
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVersion": "32.0.13018.6"
+        },
+        {
+          "active": false,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 5140,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.26100.5074"
+        }
+      ],
+      "auxAttributes": {
+        "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)",
+        "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)",
+        "glVendor": "Google Inc. (NVIDIA)",
+        "displayType": "ANGLE_D3D11",
+        "optimus": false,
+        "amdSwitchable": false,
+        "sandboxed": true
+      }
+    },
+    "graphicsFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    },
+    "displays": [
+      {
+        "width": 2560,
+        "height": 1440,
+        "scaleFactor": 1,
+        "displayFrequency": 120,
+        "colorDepth": 24,
+        "rotation": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "scaleFactor": 1,
+        "displayFrequency": 240,
+        "colorDepth": 24,
+        "rotation": 0
+      }
+    ]
+  },
+  "capture": {
+    "settings": {
+      "enabled": true,
+      "source": "automatic-game",
+      "sourceSelected": false,
+      "displayIndex": 0,
+      "encoder": "amf",
+      "codec": "h264",
+      "resolution": "1080p",
+      "fps": 30,
+      "quality": 4,
+      "replaySeconds": 60,
+      "includeSystemAudio": false,
+      "includeMic": false,
+      "includeChatAudio": false,
+      "includeCursor": false
+    },
+    "runtime": {
+      "state": "error",
+      "backend": "Windows Graphics Capture",
+      "encoder": "AMD AMF H.264",
+      "encodedFrames": 0,
+      "droppedFrames": 0,
+      "bufferedSeconds": 0,
+      "segmentCount": 0,
+      "saveQueueDepth": 0,
+      "observedBitrateBps": 0,
+      "error": "FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)",
+      "warning": null,
+      "activeSourceType": null,
+      "activeSourceAvailable": null
+    },
+    "capabilities": {
+      "backend": "windows-graphics-capture",
+      "encoders": [
+        "h264_amf",
+        "libx264"
+      ],
+      "codecs": [
+        "h264"
+      ],
+      "maximumFps": 120,
+      "systemAudio": true,
+      "microphoneAudio": true,
+      "exclusiveFullscreen": false
+    },
+    "sources": {
+      "displays": 2,
+      "windows": 0,
+      "available": 3
+    },
+    "storage": {
+      "availableBytes": 2381519904768,
+      "replayCacheBytes": 0,
+      "lowSpace": false,
+      "criticalSpace": false
+    },
+    "engines": [
+      {
+        "kind": "audio",
+        "state": "stopped",
+        "message": null
+      },
+      {
+        "kind": "capture",
+        "state": "error",
+        "pid": 26864,
+        "message": "FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)",
+        "processes": [
+          {
+            "pid": 26864,
+            "role": "host",
+            "privateMemoryMb": 15.2,
+            "workingSetMb": 46.4
+          }
+        ]
+      }
+    ]
+  },
+  "developer": {
+    "enabled": true,
+    "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+    "startedAt": "2026-09-06T19:19:41.361Z",
+    "discardedEvents": 0,
+    "limits": "Latest 2,000 events / 2 MiB; 8 KiB per event; 120 events per second. Discarded events include evictions, rate limits, and invalid records.",
+    "events": [
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {},
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 1,
+        "sampledAt": "2026-09-06T19:19:41.362Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "environment",
+        "data": {
+          "version": "0.8.3",
+          "platform": "win32",
+          "arch": "x64",
+          "osRelease": "10.0.26200",
+          "osVersion": "Windows 11 Pro",
+          "electron": "44.0.0",
+          "packaged": false,
+          "softwareRendering": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 2,
+        "sampledAt": "2026-09-06T19:19:41.362Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.settings",
+        "data": {
+          "enabled": false,
+          "source": "automatic-game",
+          "sourceSelected": false,
+          "displayIndex": 0,
+          "encoder": "auto",
+          "codec": "h264",
+          "resolution": "1440p",
+          "fps": 60,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": true,
+          "includeMic": true,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 3,
+        "sampledAt": "2026-09-06T19:19:41.363Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "graphics.info",
+        "data": {
+          "details": "{\"gpuDevice\":[{\"active\":true,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVendor\":\"NVIDIA\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":4098,\"deviceId\":5056,\"deviceString\":\"AMD Radeon(TM) Graphics\",\"driverVersion\":\"32.0.13018.6\"},{\"active\":false,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":5140,\"deviceId\":140,\"deviceString\":\"Microsoft Basic Render Driver\",\"driverVersion\":\"10.0.26100.5074\"}],\"auxAttributes\":{\"glRenderer\":\"ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)\",\"glVersion\":\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\",\"glVendor\":\"Google Inc. (NVIDIA)\",\"displayType\":\"ANGLE_D3D11\",\"optimus\":false,\"amdSwitchable\":false,\"sandboxed\":true}}"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 4,
+        "sampledAt": "2026-09-06T19:19:41.365Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "878e06cc-3f86-463b-b015-2e0c81b60ddb"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 5,
+        "sampledAt": "2026-09-06T19:19:41.387Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 6,
+        "sampledAt": "2026-09-06T19:19:41.387Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "878e06cc-3f86-463b-b015-2e0c81b60ddb",
+          "elapsedMs": 2.0054999999999836
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 7,
+        "sampledAt": "2026-09-06T19:19:41.389Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:capture:set-config",
+          "request": "ca89dcf1-2cb1-4db3-b6a1-c43a1baf3c74"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 8,
+        "sampledAt": "2026-09-06T19:19:43.443Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.configure-requested",
+        "data": {
+          "enabled": true,
+          "source": "automatic-game",
+          "sourceSelected": false,
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": false,
+          "includeMic": false,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 9,
+        "sampledAt": "2026-09-06T19:19:43.444Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "starting",
+          "previousState": "stopped",
+          "pid": null,
+          "message": "Starting isolated engine host…"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 10,
+        "sampledAt": "2026-09-06T19:19:43.453Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "host.spawn",
+        "data": {
+          "packaged": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 11,
+        "sampledAt": "2026-09-06T19:19:43.455Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.request",
+        "data": {
+          "command": "start",
+          "request": "04504995-c414-4001-a772-24d5403b91fa",
+          "timeoutMs": 60000
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 12,
+        "sampledAt": "2026-09-06T19:19:43.462Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {
+          "pid": 26864
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 13,
+        "sampledAt": "2026-09-06T19:19:43.539Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capture.diagnostics-context",
+        "data": {
+          "state": "stopped",
+          "source": null,
+          "encoder": "Not selected",
+          "backend": "Unavailable",
+          "encodedFrames": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 14,
+        "sampledAt": "2026-09-06T19:19:43.541Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "stopped",
+          "previousState": "starting",
+          "pid": null,
+          "message": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 15,
+        "sampledAt": "2026-09-06T19:19:44.353Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.state",
+        "data": {
+          "state": "starting",
+          "source": "automatic-game",
+          "activeSourceType": null,
+          "encoder": "Not selected",
+          "backend": "Unavailable",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 16,
+        "sampledAt": "2026-09-06T19:19:44.362Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.snapshot-applied",
+        "data": {
+          "state": "starting",
+          "encoder": "Not selected",
+          "backend": "Unavailable",
+          "encodedFrames": 0,
+          "bufferedSeconds": 0,
+          "segmentCount": 0,
+          "activeSourceType": null,
+          "error": null,
+          "warning": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 17,
+        "sampledAt": "2026-09-06T19:19:44.372Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "starting",
+          "previousState": "stopped",
+          "pid": 26864,
+          "message": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 18,
+        "sampledAt": "2026-09-06T19:19:44.382Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capture.start",
+        "data": {
+          "source": "automatic-game",
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "replaySeconds": 60,
+          "targetBitrate": 13200000,
+          "maximumBitrate": 16896000,
+          "systemAudio": false,
+          "chatAudio": false,
+          "microphone": false,
+          "reactionClipping": false,
+          "hasSystemEndpoint": false,
+          "hasChatEndpoint": false,
+          "hasMicrophoneEndpoint": false,
+          "usesAudioHostPipe": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 19,
+        "sampledAt": "2026-09-06T19:19:44.384Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capabilities.probe-start",
+        "data": {
+          "cached": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 20,
+        "sampledAt": "2026-09-06T19:19:44.384Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "ffmpeg.version",
+        "data": {
+          "version": "FFmpeg capture failure fixture (not a real encoder)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 21,
+        "sampledAt": "2026-09-06T19:19:44.456Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "encoder.probe-result",
+        "data": {
+          "encoder": "h264_amf",
+          "working": true,
+          "elapsedMs": 72.5639
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 22,
+        "sampledAt": "2026-09-06T19:19:44.666Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "encoder.probe-result",
+        "data": {
+          "encoder": "libx264",
+          "working": true,
+          "elapsedMs": 59.8924
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 23,
+        "sampledAt": "2026-09-06T19:19:44.726Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capabilities.selected",
+        "data": {
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "workingEncoders": "h264_amf,libx264",
+          "filters": "gfxcapture,ddagrab"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 24,
+        "sampledAt": "2026-09-06T19:19:44.727Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.state",
+        "data": {
+          "state": "waiting",
+          "source": "automatic-game",
+          "activeSourceType": null,
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 25,
+        "sampledAt": "2026-09-06T19:19:44.730Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.snapshot-applied",
+        "data": {
+          "state": "waiting",
+          "encoder": "AMD AMF H.264",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "bufferedSeconds": 0,
+          "segmentCount": 0,
+          "activeSourceType": null,
+          "error": null,
+          "warning": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 26,
+        "sampledAt": "2026-09-06T19:19:44.731Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "running",
+          "previousState": "starting",
+          "pid": 26864,
+          "message": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 27,
+        "sampledAt": "2026-09-06T19:19:44.738Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.response",
+        "data": {
+          "command": "start",
+          "request": "04504995-c414-4001-a772-24d5403b91fa",
+          "elapsedMs": 1278.0334000000003
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 28,
+        "sampledAt": "2026-09-06T19:19:44.740Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.request",
+        "data": {
+          "command": "listSources",
+          "request": "d0b142ef-cdc9-41e9-8d5c-dcb5539409b9",
+          "timeoutMs": 15000
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 29,
+        "sampledAt": "2026-09-06T19:19:44.741Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.response",
+        "data": {
+          "command": "listSources",
+          "request": "d0b142ef-cdc9-41e9-8d5c-dcb5539409b9",
+          "elapsedMs": 793.1262999999999
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 30,
+        "sampledAt": "2026-09-06T19:19:45.534Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:capture:set-config",
+          "request": "ca89dcf1-2cb1-4db3-b6a1-c43a1baf3c74",
+          "elapsedMs": 2095.9272
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 31,
+        "sampledAt": "2026-09-06T19:19:45.539Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:capture:set-config",
+          "request": "42f175b8-cb2b-4a75-9530-386992da607b"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 32,
+        "sampledAt": "2026-09-06T19:19:45.543Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.configure-requested",
+        "data": {
+          "enabled": true,
+          "source": "display",
+          "sourceSelected": true,
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": false,
+          "includeMic": false,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 33,
+        "sampledAt": "2026-09-06T19:19:45.543Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "host.request",
+        "data": {
+          "command": "configure",
+          "request": "03a54556-b709-4977-a755-c2ed88d69c88",
+          "timeoutMs": 45000
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 34,
+        "sampledAt": "2026-09-06T19:19:45.544Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capture.configure",
+        "data": {
+          "source": "display",
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "replaySeconds": 60,
+          "targetBitrate": 13200000,
+          "maximumBitrate": 16896000,
+          "systemAudio": false,
+          "chatAudio": false,
+          "microphone": false,
+          "reactionClipping": false,
+          "hasSystemEndpoint": false,
+          "hasChatEndpoint": false,
+          "hasMicrophoneEndpoint": false,
+          "usesAudioHostPipe": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 35,
+        "sampledAt": "2026-09-06T19:19:45.546Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.state",
+        "data": {
+          "state": "recovering",
+          "source": "display",
+          "activeSourceType": null,
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 36,
+        "sampledAt": "2026-09-06T19:19:45.546Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.snapshot-applied",
+        "data": {
+          "state": "recovering",
+          "encoder": "AMD AMF H.264",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "bufferedSeconds": 0,
+          "segmentCount": 0,
+          "activeSourceType": null,
+          "error": null,
+          "warning": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 37,
+        "sampledAt": "2026-09-06T19:19:45.546Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "capture.stop-processes",
+        "data": {
+          "videoPid": null,
+          "videoExited": null,
+          "exitCode": null,
+          "preserveRing": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 38,
+        "sampledAt": "2026-09-06T19:19:45.555Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capabilities.probe-start",
+        "data": {
+          "cached": true
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 39,
+        "sampledAt": "2026-09-06T19:19:45.556Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capabilities.selected",
+        "data": {
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "workingEncoders": "h264_amf,libx264",
+          "filters": "gfxcapture,ddagrab"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 40,
+        "sampledAt": "2026-09-06T19:19:45.556Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capture.source-resolved",
+        "data": {
+          "attempt": 1,
+          "type": "display",
+          "available": true,
+          "windowHandle": null,
+          "displayHandle": 197209,
+          "displayIndex": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 41,
+        "sampledAt": "2026-09-06T19:19:45.558Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "ffmpeg.start",
+        "data": {
+          "attempt": 1,
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "arguments": "-hide_banner -loglevel warning -nostats -progress pipe:2 -f lavfi -i gfxcapture=hmonitor=197209:capture_cursor=0:capture_border=0:display_border=0:max_framerate=30:width=1920:height=1080:resize_mode=scale_aspect:scale_mode=bilinear -map 0:v:0 -fps_mode cfr -r 30 -c:v h264_amf -quality balanced -rc vbr_peak -b:v 13200000 -maxrate 16896000 -bufsize 33792000 -g 30 -keyint_min 30 -force_key_frames expr:gte(t,n_forced*1) -f segment -segment_time 1 -segment_format matroska -reset_timestamps 1 -avoid_negative_ts make_zero <replay-output>"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 42,
+        "sampledAt": "2026-09-06T19:19:45.561Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "ffmpeg.spawned",
+        "data": {
+          "attempt": 1,
+          "pid": 27552
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 43,
+        "sampledAt": "2026-09-06T19:19:45.568Z",
+        "source": "capture"
+      },
+      {
+        "level": "warning",
+        "event": "ffmpeg.output",
+        "data": {
+          "attempt": 1,
+          "line": "[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 44,
+        "sampledAt": "2026-09-06T19:19:45.620Z",
+        "source": "capture"
+      },
+      {
+        "level": "warning",
+        "event": "ffmpeg.output",
+        "data": {
+          "attempt": 1,
+          "line": "Task finished with error code: -1313558101 (Unknown error occurred)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 45,
+        "sampledAt": "2026-09-06T19:19:45.621Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.stop-processes",
+        "data": {
+          "videoPid": 27552,
+          "videoExited": true,
+          "exitCode": -1313558101,
+          "preserveRing": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 46,
+        "sampledAt": "2026-09-06T19:19:45.922Z",
+        "source": "capture"
+      },
+      {
+        "level": "error",
+        "event": "capture.configure-failed",
+        "data": {
+          "error": "System.InvalidOperationException: FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)\r\n   at Switchboard.CaptureHost.ReplayEngine.StartFfmpegInternalAsync(CaptureSource source, CancellationToken cancellationToken) in <path>\r\n   at Switchboard.CaptureHost.ReplayEngine.StartFfmpegInternalAsync(CaptureSource source, CancellationToken cancellationToken) in <path>\r\n   at Switchboard.CaptureHost.ReplayEngine.ConfigureAsync(CaptureSettings next, CancellationToken cancellationToken) in <path>"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 47,
+        "sampledAt": "2026-09-06T19:19:45.930Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.stop-processes",
+        "data": {
+          "videoPid": null,
+          "videoExited": null,
+          "exitCode": null,
+          "preserveRing": true
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 48,
+        "sampledAt": "2026-09-06T19:19:45.930Z",
+        "source": "capture"
+      },
+      {
+        "level": "error",
+        "event": "capture.state",
+        "data": {
+          "state": "error",
+          "source": "display",
+          "activeSourceType": null,
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": "FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 49,
+        "sampledAt": "2026-09-06T19:19:45.930Z",
+        "source": "capture"
+      },
+      {
+        "level": "error",
+        "event": "capture.snapshot-applied",
+        "data": {
+          "state": "error",
+          "encoder": "AMD AMF H.264",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "bufferedSeconds": 0,
+          "segmentCount": 0,
+          "activeSourceType": null,
+          "error": "FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)",
+          "warning": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 50,
+        "sampledAt": "2026-09-06T19:19:45.931Z",
+        "source": "main"
+      },
+      {
+        "level": "error",
+        "event": "host.state",
+        "data": {
+          "state": "error",
+          "previousState": "running",
+          "pid": 26864,
+          "message": "FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 51,
+        "sampledAt": "2026-09-06T19:19:45.937Z",
+        "source": "capture"
+      },
+      {
+        "level": "error",
+        "event": "host.request-failed",
+        "data": {
+          "command": "configure",
+          "request": "03a54556-b709-4977-a755-c2ed88d69c88",
+          "elapsedMs": 398.65909999999985,
+          "error": "Error: FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 52,
+        "sampledAt": "2026-09-06T19:19:45.942Z",
+        "source": "capture"
+      },
+      {
+        "level": "error",
+        "event": "capture.configure-rejected",
+        "data": {
+          "error": "Error: FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)",
+          "previousSource": "automatic-game",
+          "requestedSource": "display",
+          "requestedEncoder": "amf"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 53,
+        "sampledAt": "2026-09-06T19:19:45.942Z",
+        "source": "main"
+      },
+      {
+        "level": "error",
+        "event": "operation.failed",
+        "data": {
+          "operation": "ipc:capture:set-config",
+          "request": "42f175b8-cb2b-4a75-9530-386992da607b",
+          "elapsedMs": 400.8225999999995,
+          "error": "Error: FFmpeg capture exited during startup with code -1313558101.\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)\n    at EngineSupervisor.handleWorkerMessage (<path>\n    at Interface.<anonymous> (<path>\n    at Interface.emit (node:events:509:28)\n    at [_onLine] [as _onLine] (node:internal/readline/interface:465:12)\n    at [_normalWrite] [as _normalWrite] (node:internal/readline/interface:647:22)\n    at Socket.ondata (node:internal/readline/interface:263:23)\n    at Socket.emit (node:events:509:28)\n    at addChunk (node:internal/streams/readable:563:12)\n    at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)\n    at Readable.push (node:internal/streams/readable:394:5)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 54,
+        "sampledAt": "2026-09-06T19:19:45.944Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "eb550097-8eab-4a26-8b6c-5bd09785d9b1"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 55,
+        "sampledAt": "2026-09-06T19:19:48.161Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 56,
+        "sampledAt": "2026-09-06T19:19:48.161Z",
+        "source": "main"
+      }
+    ]
+  },
+  "samples": []
+}

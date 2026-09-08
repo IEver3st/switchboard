@@ -10,6 +10,8 @@
 .editor-field-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .editor-field-pair > label, .editor-text-content { display: grid; gap: 5px; color: var(--text-secondary); font-size: 10px; }
 .editor-precise-trim { display: grid; gap: 6px; }
+.editor-precise-trim + .advanced-video-controls { margin-top: 20px; }
+.advanced-video-controls > [role="combobox"] { font-size: 11px; font-weight: 600; }
 .editor-precise-trim button { font-size: 10px; padding-inline: 5px; }
 .editor-frame-steps { display: flex; justify-content: space-between; }
 .editor-time-field { display: grid; gap: 5px; font-size: 10px; color: var(--text-secondary); min-width: 0; }

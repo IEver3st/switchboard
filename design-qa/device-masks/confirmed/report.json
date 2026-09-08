@@ -1,0 +1,146 @@
+[
+  {
+    "file": "mouse-on-1080x720.png",
+    "metrics": {
+      "width": 1080,
+      "scrollWidth": 1080,
+      "state": "true"
+    }
+  },
+  {
+    "file": "mouse-on-1420x900.png",
+    "metrics": {
+      "width": 1420,
+      "scrollWidth": 1420,
+      "state": "true"
+    }
+  },
+  {
+    "file": "mouse-on-1920x1080.png",
+    "metrics": {
+      "width": 1920,
+      "scrollWidth": 1920,
+      "state": "true"
+    }
+  },
+  {
+    "file": "mouse-off-1080x720.png",
+    "metrics": {
+      "width": 1080,
+      "scrollWidth": 1080,
+      "state": "false"
+    }
+  },
+  {
+    "file": "mouse-off-1420x900.png",
+    "metrics": {
+      "width": 1420,
+      "scrollWidth": 1420,
+      "state": "false"
+    }
+  },
+  {
+    "file": "mouse-off-1920x1080.png",
+    "metrics": {
+      "width": 1920,
+      "scrollWidth": 1920,
+      "state": "false"
+    }
+  },
+  {
+    "file": "mouse-zero-1080x720.png",
+    "metrics": {
+      "width": 1080,
+      "scrollWidth": 1080,
+      "state": "true"
+    }
+  },
+  {
+    "file": "mouse-zero-1420x900.png",
+    "metrics": {
+      "width": 1420,
+      "scrollWidth": 1420,
+      "state": "true"
+    }
+  },
+  {
+    "file": "mouse-zero-1920x1080.png",
+    "metrics": {
+      "width": 1920,
+      "scrollWidth": 1920,
+      "state": "true"
+    }
+  },
+  {
+    "file": "keyboard-on-1080x720.png",
+    "metrics": {
+      "width": 1080,
+      "scrollWidth": 1080,
+      "state": "true"
+    }
+  },
+  {
+    "file": "keyboard-on-1420x900.png",
+    "metrics": {
+      "width": 1420,
+      "scrollWidth": 1420,
+      "state": "true"
+    }
+  },
+  {
+    "file": "keyboard-on-1920x1080.png",
+    "metrics": {
+      "width": 1920,
+      "scrollWidth": 1920,
+      "state": "true"
+    }
+  },
+  {
+    "file": "keyboard-off-1080x720.png",
+    "metrics": {
+      "width": 1080,
+      "scrollWidth": 1080,
+      "state": "false"
+    }
+  },
+  {
+    "file": "keyboard-off-1420x900.png",
+    "metrics": {
+      "width": 1420,
+      "scrollWidth": 1420,
+      "state": "false"
+    }
+  },
+  {
+    "file": "keyboard-off-1920x1080.png",
+    "metrics": {
+      "width": 1920,
+      "scrollWidth": 1920,
+      "state": "false"
+    }
+  },
+  {
+    "file": "keyboard-zero-1080x720.png",
+    "metrics": {
+      "width": 1080,
+      "scrollWidth": 1080,
+      "state": "true"
+    }
+  },
+  {
+    "file": "keyboard-zero-1420x900.png",
+    "metrics": {
+      "width": 1420,
+      "scrollWidth": 1420,
+      "state": "true"
+    }
+  },
+  {
+    "file": "keyboard-zero-1920x1080.png",
+    "metrics": {
+      "width": 1920,
+      "scrollWidth": 1920,
+      "state": "true"
+    }
+  }
+]

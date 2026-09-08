@@ -1,0 +1,151 @@
+{
+  "report": [
+    {
+      "width": 1080,
+      "height": 720,
+      "id": "primary",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1080,
+      "height": 720,
+      "id": "back",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1080,
+      "height": 720,
+      "id": "dpi-shift",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1080,
+      "height": 720,
+      "id": "secondary",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1080,
+      "height": 720,
+      "id": "wheel",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1080,
+      "height": 720,
+      "id": "forward",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "id": "primary",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "id": "back",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "id": "dpi-shift",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "id": "secondary",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "id": "wheel",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "id": "forward",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "id": "primary",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "id": "back",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "id": "dpi-shift",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "id": "secondary",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "id": "wheel",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "id": "forward",
+      "reason": "Stored onboard profiles are active. Turn off onboard memory to edit the software profile.",
+      "enabledActions": 0,
+      "overflow": false
+    }
+  ],
+  "persisted": "mouse.forward",
+  "keyboardOpen": true,
+  "blockedAssignment": "mouse.back"
+}

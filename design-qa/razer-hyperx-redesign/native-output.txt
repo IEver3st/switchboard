@@ -1,0 +1,519 @@
+
+Huntsman review: waiting for native window.
+Huntsman review: device page opened.
+Huntsman review: profile and Gaming Mode confirmed.
+Huntsman review: effect disclosure confirmed.
+Huntsman review: color picker confirmed.
+Huntsman review: brightness slider confirmed.
+Huntsman review: reload persistence confirmed.
+{
+  "outputDirectory": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\razer-hyperx-redesign\\keyboard",
+  "finalLighting": {
+    "writable": true,
+    "enabled": true,
+    "activeEffectId": "static",
+    "availableEffects": [
+      {
+        "id": "static",
+        "label": "Static",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "breathing",
+        "label": "Breathing",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "spectrum",
+        "label": "Spectrum",
+        "controls": [
+          "brightness"
+        ]
+      },
+      {
+        "id": "reactive",
+        "label": "Reactive",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "starlight",
+        "label": "Starlight",
+        "controls": [
+          "color",
+          "brightness"
+        ]
+      },
+      {
+        "id": "wave-left",
+        "label": "Wave left",
+        "controls": [
+          "brightness"
+        ]
+      },
+      {
+        "id": "wave-right",
+        "label": "Wave right",
+        "controls": [
+          "brightness"
+        ]
+      }
+    ],
+    "color": "#4466aa",
+    "colorWritable": true,
+    "brightness": 62,
+    "brightnessWritable": true,
+    "speedWritable": false,
+    "directionWritable": false,
+    "profiles": [],
+    "activeProfileId": "custom",
+    "muteLinked": false,
+    "muteLinkedWritable": false,
+    "state": "maintained",
+    "stateReason": "Fixture: active effect and brightness were read back from keyboard firmware.",
+    "physicalEffectVerified": false,
+    "profileMode": "software",
+    "source": "firmware"
+  },
+  "finalKeyboard": {
+    "firmwareVersion": "1.06",
+    "pollingRateHz": 1000,
+    "transport": "native-hid",
+    "features": [
+      {
+        "id": "lighting",
+        "label": "Quick lighting",
+        "summary": "Brightness and device-firmware quick effects use the native HID control endpoint.",
+        "status": "native"
+      },
+      {
+        "id": "actuation",
+        "label": "Per-key actuation",
+        "summary": "Adjustable 1.5–3.6 mm actuation and two-stage inputs are supported by the keyboard.",
+        "status": "synapse",
+        "unavailableReason": "The actuation protocol is not safely documented or verified for direct writes yet."
+      },
+      {
+        "id": "analog",
+        "label": "Analog input",
+        "summary": "Selected keys can emulate joystick axes and controller triggers.",
+        "status": "synapse",
+        "unavailableReason": "Analog mapping remains owned by Synapse until its native profile format is verified."
+      },
+      {
+        "id": "mapping",
+        "label": "Key mapping",
+        "summary": "Remapping, macros, Hypershift, and analog controller bindings remain in Synapse.",
+        "status": "synapse",
+        "unavailableReason": "Switchboard does not write undocumented key maps or macro payloads."
+      },
+      {
+        "id": "rapid-trigger",
+        "label": "Rapid Trigger",
+        "summary": "Resets keys as you release them. Requires Razer Synapse running on this model.",
+        "status": "synapse",
+        "unavailableReason": "Configure in Synapse. Switchboard cannot control Rapid Trigger yet."
+      },
+      {
+        "id": "rapid-input",
+        "label": "Snap Tap",
+        "summary": "Razer does not currently support Snap Tap on the Huntsman V2 Analog.",
+        "status": "unsupported",
+        "unavailableReason": "Not available for this model, including in Synapse."
+      }
+    ],
+    "gamingMode": {
+      "enabled": true,
+      "writable": true
+    },
+    "onboardProfiles": {
+      "activeProfileId": "2",
+      "profiles": [
+        {
+          "id": "1",
+          "label": "Profile 1"
+        },
+        {
+          "id": "2",
+          "label": "Profile 2"
+        }
+      ],
+      "writable": true
+    },
+    "diagnostics": {
+      "protocol": "Razer feature reports",
+      "endpoint": "ready",
+      "lastSyncAt": "2026-08-27T00:00:00.000Z",
+      "reads": [
+        {
+          "id": "firmware",
+          "ok": true
+        },
+        {
+          "id": "serial-number",
+          "ok": true
+        },
+        {
+          "id": "brightness",
+          "ok": true
+        },
+        {
+          "id": "lighting-effect",
+          "ok": true
+        },
+        {
+          "id": "lighting-effects",
+          "ok": true
+        },
+        {
+          "id": "gaming-mode",
+          "ok": true
+        },
+        {
+          "id": "onboard-profiles",
+          "ok": true
+        },
+        {
+          "id": "active-profile",
+          "ok": true
+        }
+      ]
+    }
+  },
+  "persistedSettings": {
+    "lightingEnabled": true,
+    "lightingBrightness": 62,
+    "lightingEffect": "static",
+    "lightingColor": "#4466aa"
+  },
+  "captures": [
+    {
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "filename": "1080x720-static.png",
+      "metrics": {
+        "documentWidth": 1080,
+        "viewportWidth": 1080,
+        "workspaceWidth": 1008,
+        "workspaceScrollWidth": 1008,
+        "workbenchBottom": 702.0000228881836,
+        "routineControlsBottom": 593.8645935058594,
+        "innerHeight": 722
+      },
+      "offFilename": "1080x720-off.png"
+    },
+    {
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "filename": "1420x900-static.png",
+      "metrics": {
+        "documentWidth": 1420,
+        "viewportWidth": 1420,
+        "workspaceWidth": 1348,
+        "workspaceScrollWidth": 1348,
+        "workbenchBottom": 872.0000228881836,
+        "routineControlsBottom": 682.8646240234375,
+        "innerHeight": 900
+      },
+      "offFilename": "1420x900-off.png"
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "filename": "1920x1080-static.png",
+      "metrics": {
+        "documentWidth": 1920,
+        "viewportWidth": 1920,
+        "workspaceWidth": 1848,
+        "workspaceScrollWidth": 1848,
+        "workbenchBottom": 1052.0000228881836,
+        "routineControlsBottom": 772.8646240234375,
+        "innerHeight": 1080
+      },
+      "offFilename": "1920x1080-off.png"
+    }
+  ]
+}
+
+Error occurred in handler for 'devices:set-setting': Error: Review: microphone disconnected during write.
+    at file:///C:/Users/User/Desktop/Development/Applications/switchboard/scripts/verify-microphone-workbench.mjs:96:79
+    at async Session.<anonymous> (node:electron/js2c/browser_init:2:122837)
+{
+  "captures": [
+    {
+      "name": "1080x720-ready",
+      "metrics": {
+        "width": 1080,
+        "height": 722,
+        "scroll": 1080,
+        "bottom": 702.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-ready",
+      "metrics": {
+        "width": 1420,
+        "height": 900,
+        "scroll": 1420,
+        "bottom": 872.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-ready",
+      "metrics": {
+        "width": 1920,
+        "height": 1080,
+        "scroll": 1920,
+        "bottom": 1052.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-breathing",
+      "metrics": {
+        "width": 1080,
+        "height": 722,
+        "scroll": 1080,
+        "bottom": 702.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-lighting-off",
+      "metrics": {
+        "width": 1080,
+        "height": 722,
+        "scroll": 1080,
+        "bottom": 702.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "false",
+          "state": "unchecked",
+          "thumbState": "unchecked",
+          "translate": "2px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "false",
+          "state": "unchecked",
+          "thumbState": "unchecked",
+          "translate": "2px"
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "label": "Input volume",
+      "actual": 59
+    },
+    {
+      "label": "Direct monitoring",
+      "actual": 19
+    },
+    {
+      "label": "Brightness",
+      "actual": 73
+    },
+    {
+      "label": "Effect speed",
+      "actual": 51
+    },
+    {
+      "label": "Lighting profile",
+      "value": "Broadcast"
+    },
+    {
+      "label": "Lighting profile",
+      "value": "Breathe"
+    },
+    {
+      "label": "Lighting profile",
+      "value": "Night"
+    },
+    {
+      "label": "Lighting pattern",
+      "value": "Solid"
+    },
+    {
+      "label": "Lighting pattern",
+      "value": "Breathing"
+    },
+    {
+      "label": "Lighting pattern",
+      "value": "Pulse"
+    }
+  ],
+  "persistence": true,
+  "rejectedWriteRestored": true
+}
+
+[
+  {
+    "name": "keyboard-1080x720-disconnected",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 600.1146240234375
+    }
+  },
+  {
+    "name": "keyboard-1080x720-unavailable",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 600.1146240234375
+    }
+  },
+  {
+    "name": "keyboard-1080x720-reduced-motion",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 559.8646240234375
+    }
+  },
+  {
+    "name": "keyboard-150percent",
+    "metrics": {
+      "width": 720,
+      "height": 481,
+      "scroll": 720,
+      "workspaceWidth": 648,
+      "workspaceScroll": 648,
+      "bottom": 1086.173583984375,
+      "controlsBottom": 795.1736450195312
+    }
+  },
+  {
+    "name": "microphone-1080x720-disconnected",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 594.8229370117188
+    }
+  },
+  {
+    "name": "microphone-1080x720-reduced-motion",
+    "metrics": {
+      "width": 1080,
+      "height": 722,
+      "scroll": 1080,
+      "workspaceWidth": 1008,
+      "workspaceScroll": 1008,
+      "bottom": 722,
+      "controlsBottom": 550.2916870117188
+    }
+  },
+  {
+    "name": "microphone-150percent",
+    "metrics": {
+      "width": 720,
+      "height": 481,
+      "scroll": 720,
+      "workspaceWidth": 648,
+      "workspaceScroll": 648,
+      "bottom": 868.8958129882812,
+      "controlsBottom": 781.9236450195312
+    }
+  }
+]

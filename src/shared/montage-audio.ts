@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { gainPointSchema, muteRangeSchema } from './video-edits';
 
 export const montageAudioAssetSchema = z.object({
   id: z.string().uuid(),
@@ -28,7 +29,13 @@ export const montageMusicTrackSchema = z.object({
   fadeInMs: z.number().int().min(0).max(30_000).default(1_000),
   fadeOutMs: z.number().int().min(0).max(30_000).default(1_500),
   loop: z.boolean().default(true),
+  automation: z.object({ points: z.array(gainPointSchema).max(128), mutes: z.array(muteRangeSchema).max(64) }).optional(),
+  ducking: z.object({
+    enabled: z.boolean(), amount: z.number().min(0).max(1),
+    attackMs: z.number().int().min(10).max(1000), releaseMs: z.number().int().min(50).max(3000),
+  }).optional(),
 }).superRefine((track, context) => {
+  if (track.automation?.points.some((point, index, points) => index > 0 && point.timeMs <= points[index - 1]!.timeMs)) context.addIssue({ code: 'custom', message: 'Music volume points must have unique, increasing times.' });
   if (track.sourceEndMs <= track.sourceStartMs) {
     context.addIssue({ code: 'custom', message: 'The music trim end must be after its start.', path: ['sourceEndMs'] });
   }

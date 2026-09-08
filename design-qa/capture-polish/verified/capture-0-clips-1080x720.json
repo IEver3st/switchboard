@@ -1,0 +1,59 @@
+{
+  "viewport": {
+    "width": 1080,
+    "height": 720
+  },
+  "requestedClips": 0,
+  "cards": 0,
+  "rows": 0,
+  "columns": 0,
+  "cardWidths": null,
+  "libraryBounds": {
+    "left": 72,
+    "right": 1080,
+    "width": 1008
+  },
+  "toolbarBounds": {
+    "left": 90,
+    "right": 1062,
+    "width": 972
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 130,
+    "height": 92
+  },
+  "commandTopBounds": {
+    "height": 48
+  },
+  "searchBounds": {
+    "width": 520
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [],
+  "lazyImages": 0,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": null,
+  "selectionPerformance": null,
+  "preferences": null,
+  "motion": {
+    "reduced": false,
+    "animations": 0
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\capture-polish\\verified\\capture-0-clips-1080x720.png",
+  "imageSize": {
+    "width": 1350,
+    "height": 900
+  }
+}

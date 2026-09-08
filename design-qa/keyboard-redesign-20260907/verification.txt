@@ -1,0 +1,10 @@
+Keyboard redesign verification
+
+Authority: DESIGN.md, existing mouse and microphone workbenches, user screenshot of old keyboard route.
+Changes: authentic wide keyboard stage; one settings and lighting rail; exposed lighting choices; expandable Synapse feature reference; existing canonical operations preserved.
+
+Hidden isolated native Electron fixtures verified at 1080x720, 1420x900, 1920x1080. No horizontal overflow; routine controls visible without scrolling. Reviewed static, off, expanded features, disconnect, unavailable transport, focus and reduced motion. At 150% zoom content scrolls vertically without horizontal overflow.
+Profile, Gaming Mode, all seven effects, color, brightness, lighting power and canonical state after reload passed. Fixtures do not prove physical hardware writes. Pending/rejected-write visuals and assistive technology were not separately exercised.
+
+Passed: bun run build; bun run check; bun run check:source; bun run check:types; 12 focused Razer tests; git diff --check.
+One major initial render defect (inherited grid placement splitting the rail) repaired and corrected viewports inspected. Temporary harnesses removed; original review artifacts untouched.

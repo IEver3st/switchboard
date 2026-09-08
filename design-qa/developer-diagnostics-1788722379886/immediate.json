@@ -1,0 +1,268 @@
+{
+  "schemaVersion": 2,
+  "version": "0.8.3",
+  "exportedAt": "2026-09-06T19:19:41.388Z",
+  "droppedJournalWrites": 0,
+  "limits": "Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "windowsRelease": "10.0.26200",
+    "windowsVersion": "Windows 11 Pro",
+    "electron": "44.0.0",
+    "chrome": "152.0.7977.54",
+    "node": "24.18.1",
+    "packaged": false,
+    "softwareRendering": false,
+    "graphics": {
+      "gpuDevice": [
+        {
+          "active": true,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVendor": "NVIDIA",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 4098,
+          "deviceId": 5056,
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVersion": "32.0.13018.6"
+        },
+        {
+          "active": false,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 5140,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.26100.5074"
+        }
+      ],
+      "auxAttributes": {
+        "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)",
+        "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)",
+        "glVendor": "Google Inc. (NVIDIA)",
+        "displayType": "ANGLE_D3D11",
+        "optimus": false,
+        "amdSwitchable": false,
+        "sandboxed": true
+      }
+    },
+    "graphicsFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    },
+    "displays": [
+      {
+        "width": 2560,
+        "height": 1440,
+        "scaleFactor": 1,
+        "displayFrequency": 120,
+        "colorDepth": 24,
+        "rotation": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "scaleFactor": 1,
+        "displayFrequency": 240,
+        "colorDepth": 24,
+        "rotation": 0
+      }
+    ]
+  },
+  "capture": {
+    "settings": {
+      "enabled": false,
+      "source": "automatic-game",
+      "sourceSelected": false,
+      "displayIndex": 0,
+      "encoder": "auto",
+      "codec": "h264",
+      "resolution": "1440p",
+      "fps": 60,
+      "quality": 4,
+      "replaySeconds": 60,
+      "includeSystemAudio": true,
+      "includeMic": true,
+      "includeChatAudio": false,
+      "includeCursor": false
+    },
+    "runtime": {
+      "state": "stopped",
+      "backend": "Windows Graphics Capture",
+      "encoder": "Not selected",
+      "encodedFrames": 0,
+      "droppedFrames": 0,
+      "bufferedSeconds": 0,
+      "segmentCount": 0,
+      "saveQueueDepth": 0,
+      "observedBitrateBps": 0,
+      "error": null,
+      "warning": null,
+      "activeSourceType": null,
+      "activeSourceAvailable": null
+    },
+    "capabilities": {
+      "backend": "unavailable",
+      "encoders": [],
+      "codecs": [
+        "h264"
+      ],
+      "maximumFps": 60,
+      "systemAudio": false,
+      "microphoneAudio": false,
+      "exclusiveFullscreen": false
+    },
+    "sources": {
+      "displays": 0,
+      "windows": 0,
+      "available": 0
+    },
+    "storage": {
+      "availableBytes": 2381520539648,
+      "replayCacheBytes": 0,
+      "lowSpace": false,
+      "criticalSpace": false
+    },
+    "engines": [
+      {
+        "kind": "audio",
+        "state": "stopped",
+        "message": null
+      },
+      {
+        "kind": "capture",
+        "state": "stopped",
+        "message": null
+      }
+    ]
+  },
+  "developer": {
+    "enabled": true,
+    "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+    "startedAt": "2026-09-06T19:19:41.361Z",
+    "discardedEvents": 0,
+    "limits": "Latest 2,000 events / 2 MiB; 8 KiB per event; 120 events per second. Discarded events include evictions, rate limits, and invalid records.",
+    "events": [
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {},
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 1,
+        "sampledAt": "2026-09-06T19:19:41.362Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "environment",
+        "data": {
+          "version": "0.8.3",
+          "platform": "win32",
+          "arch": "x64",
+          "osRelease": "10.0.26200",
+          "osVersion": "Windows 11 Pro",
+          "electron": "44.0.0",
+          "packaged": false,
+          "softwareRendering": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 2,
+        "sampledAt": "2026-09-06T19:19:41.362Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.settings",
+        "data": {
+          "enabled": false,
+          "source": "automatic-game",
+          "sourceSelected": false,
+          "displayIndex": 0,
+          "encoder": "auto",
+          "codec": "h264",
+          "resolution": "1440p",
+          "fps": 60,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": true,
+          "includeMic": true,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 3,
+        "sampledAt": "2026-09-06T19:19:41.363Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "graphics.info",
+        "data": {
+          "details": "{\"gpuDevice\":[{\"active\":true,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVendor\":\"NVIDIA\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":4098,\"deviceId\":5056,\"deviceString\":\"AMD Radeon(TM) Graphics\",\"driverVersion\":\"32.0.13018.6\"},{\"active\":false,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":5140,\"deviceId\":140,\"deviceString\":\"Microsoft Basic Render Driver\",\"driverVersion\":\"10.0.26100.5074\"}],\"auxAttributes\":{\"glRenderer\":\"ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)\",\"glVersion\":\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\",\"glVendor\":\"Google Inc. (NVIDIA)\",\"displayType\":\"ANGLE_D3D11\",\"optimus\":false,\"amdSwitchable\":false,\"sandboxed\":true}}"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 4,
+        "sampledAt": "2026-09-06T19:19:41.365Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "878e06cc-3f86-463b-b015-2e0c81b60ddb"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 5,
+        "sampledAt": "2026-09-06T19:19:41.387Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "a68aec70-a8f5-437b-91de-8ec5e4e7872f",
+        "sequence": 6,
+        "sampledAt": "2026-09-06T19:19:41.387Z",
+        "source": "main"
+      }
+    ]
+  },
+  "samples": []
+}

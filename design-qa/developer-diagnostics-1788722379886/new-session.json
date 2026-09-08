@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 2,
+  "version": "0.8.3",
+  "exportedAt": "2026-09-06T19:19:52.476Z",
+  "droppedJournalWrites": 3,
+  "limits": "Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "windowsRelease": "10.0.26200",
+    "windowsVersion": "Windows 11 Pro",
+    "electron": "44.0.0",
+    "chrome": "152.0.7977.54",
+    "node": "24.18.1",
+    "packaged": false,
+    "softwareRendering": false,
+    "graphics": {
+      "gpuDevice": [
+        {
+          "active": true,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVendor": "NVIDIA",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 4098,
+          "deviceId": 5056,
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVersion": "32.0.13018.6"
+        },
+        {
+          "active": false,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 5140,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.26100.5074"
+        }
+      ],
+      "auxAttributes": {
+        "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)",
+        "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)",
+        "glVendor": "Google Inc. (NVIDIA)",
+        "displayType": "ANGLE_D3D11",
+        "optimus": false,
+        "amdSwitchable": false,
+        "sandboxed": true
+      }
+    },
+    "graphicsFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    },
+    "displays": [
+      {
+        "width": 2560,
+        "height": 1440,
+        "scaleFactor": 1,
+        "displayFrequency": 120,
+        "colorDepth": 24,
+        "rotation": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "scaleFactor": 1,
+        "displayFrequency": 240,
+        "colorDepth": 24,
+        "rotation": 0
+      }
+    ]
+  },
+  "capture": {
+    "settings": {
+      "enabled": false,
+      "source": "automatic-game",
+      "sourceSelected": false,
+      "displayIndex": 0,
+      "encoder": "amf",
+      "codec": "h264",
+      "resolution": "1080p",
+      "fps": 30,
+      "quality": 4,
+      "replaySeconds": 60,
+      "includeSystemAudio": false,
+      "includeMic": false,
+      "includeChatAudio": false,
+      "includeCursor": false
+    },
+    "runtime": {
+      "state": "stopped",
+      "backend": "Windows Graphics Capture",
+      "encoder": "AMD AMF H.264",
+      "encodedFrames": 0,
+      "droppedFrames": 0,
+      "bufferedSeconds": 0,
+      "segmentCount": 0,
+      "saveQueueDepth": 0,
+      "observedBitrateBps": 0,
+      "error": null,
+      "warning": null,
+      "activeSourceType": null,
+      "activeSourceAvailable": null
+    },
+    "capabilities": {
+      "backend": "windows-graphics-capture",
+      "encoders": [
+        "h264_amf",
+        "libx264"
+      ],
+      "codecs": [
+        "h264"
+      ],
+      "maximumFps": 120,
+      "systemAudio": true,
+      "microphoneAudio": true,
+      "exclusiveFullscreen": false
+    },
+    "sources": {
+      "displays": 2,
+      "windows": 0,
+      "available": 3
+    },
+    "storage": {
+      "availableBytes": 2381519310848,
+      "replayCacheBytes": 0,
+      "lowSpace": false,
+      "criticalSpace": false
+    },
+    "engines": [
+      {
+        "kind": "audio",
+        "state": "stopped",
+        "message": null
+      },
+      {
+        "kind": "capture",
+        "state": "stopped",
+        "message": null,
+        "processes": []
+      }
+    ]
+  },
+  "developer": {
+    "enabled": true,
+    "sessionId": "f4bf9a01-c37d-4661-a5df-d0d9a4f0b810",
+    "startedAt": "2026-09-06T19:19:52.473Z",
+    "discardedEvents": 0,
+    "limits": "Latest 2,000 events / 2 MiB; 8 KiB per event; 120 events per second. Discarded events include evictions, rate limits, and invalid records.",
+    "events": [
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {},
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "f4bf9a01-c37d-4661-a5df-d0d9a4f0b810",
+        "sequence": 1,
+        "sampledAt": "2026-09-06T19:19:52.473Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "environment",
+        "data": {
+          "version": "0.8.3",
+          "platform": "win32",
+          "arch": "x64",
+          "osRelease": "10.0.26200",
+          "osVersion": "Windows 11 Pro",
+          "electron": "44.0.0",
+          "packaged": false,
+          "softwareRendering": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "f4bf9a01-c37d-4661-a5df-d0d9a4f0b810",
+        "sequence": 2,
+        "sampledAt": "2026-09-06T19:19:52.474Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.settings",
+        "data": {
+          "enabled": false,
+          "source": "automatic-game",
+          "sourceSelected": false,
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": false,
+          "includeMic": false,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "f4bf9a01-c37d-4661-a5df-d0d9a4f0b810",
+        "sequence": 3,
+        "sampledAt": "2026-09-06T19:19:52.474Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "graphics.info",
+        "data": {
+          "details": "{\"gpuDevice\":[{\"active\":true,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVendor\":\"NVIDIA\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":4098,\"deviceId\":5056,\"deviceString\":\"AMD Radeon(TM) Graphics\",\"driverVersion\":\"32.0.13018.6\"},{\"active\":false,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":5140,\"deviceId\":140,\"deviceString\":\"Microsoft Basic Render Driver\",\"driverVersion\":\"10.0.26100.5074\"}],\"auxAttributes\":{\"glRenderer\":\"ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)\",\"glVersion\":\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\",\"glVendor\":\"Google Inc. (NVIDIA)\",\"displayType\":\"ANGLE_D3D11\",\"optimus\":false,\"amdSwitchable\":false,\"sandboxed\":true}}"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "f4bf9a01-c37d-4661-a5df-d0d9a4f0b810",
+        "sequence": 4,
+        "sampledAt": "2026-09-06T19:19:52.475Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "6e760f90-742c-47de-95bc-f628a84c62f7"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "f4bf9a01-c37d-4661-a5df-d0d9a4f0b810",
+        "sequence": 5,
+        "sampledAt": "2026-09-06T19:19:52.475Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 1
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "f4bf9a01-c37d-4661-a5df-d0d9a4f0b810",
+        "sequence": 6,
+        "sampledAt": "2026-09-06T19:19:52.475Z",
+        "source": "main"
+      }
+    ]
+  },
+  "samples": [
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-06T19:19:51.539Z",
+      "sequence": 2,
+      "uptimeSeconds": 11.7,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 661.7,
+        "electronWorkingSetMb": 716.5,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 661.7,
+        "cpuPercent": 0.4,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 23184,
+          "type": "GPU",
+          "privateMb": 419.3,
+          "workingSetMb": 304.4,
+          "peakWorkingSetMb": 337.3,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 49312,
+          "type": "Browser",
+          "privateMb": 116.4,
+          "workingSetMb": 156.2,
+          "peakWorkingSetMb": 165,
+          "cpuPercent": 0.2
+        },
+        {
+          "pid": 50764,
+          "type": "Tab",
+          "privateMb": 113.9,
+          "workingSetMb": 201.3,
+          "peakWorkingSetMb": 201.3,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 46576,
+          "type": "Utility",
+          "privateMb": 12.2,
+          "workingSetMb": 54.6,
+          "peakWorkingSetMb": 54.7,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 156.8,
+        "heapUsedMb": 31.4,
+        "heapTotalMb": 47.8,
+        "externalMb": 4.4,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "FSReqPromise": 2,
+          "PipeWrap": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 24.8,
+        "jsHeapTotalMb": 61,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 338,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 6871.1
+      },
+      "debug": {
+        "startedAt": "2026-09-06T19:19:51.538Z",
+        "sampledAt": "2026-09-06T19:19:51.539Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": null,
+        "eventLoopDelayMaxMs": null,
+        "operations": [],
+        "processes": [
+          {
+            "pid": 23184,
+            "type": "GPU",
+            "privateMb": 419.3,
+            "workingSetMb": 304.4,
+            "peakWorkingSetMb": 337.3,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 49312,
+            "type": "Browser",
+            "privateMb": 116.4,
+            "workingSetMb": 156.2,
+            "peakWorkingSetMb": 165,
+            "cpuPercent": 0.2,
+            "role": "Browser"
+          },
+          {
+            "pid": 50764,
+            "type": "Tab",
+            "privateMb": 113.9,
+            "workingSetMb": 201.3,
+            "peakWorkingSetMb": 201.3,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 46576,
+            "type": "Utility",
+            "privateMb": 12.2,
+            "workingSetMb": 54.6,
+            "peakWorkingSetMb": 54.7,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    }
+  ]
+}

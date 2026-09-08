@@ -1,0 +1,70 @@
+{
+  "results": [
+    {
+      "paused": false,
+      "frames": {
+        "count": 25,
+        "p95": 145.89999999999964,
+        "max": 153.9000000000001,
+        "width": 1920,
+        "height": 1080
+      },
+      "metrics": {
+        "Paint": {
+          "count": 0,
+          "totalMs": 0
+        },
+        "PrePaint": {
+          "count": 26,
+          "totalMs": 3.32
+        },
+        "Layout": {
+          "count": 26,
+          "totalMs": 1.92
+        },
+        "UpdateLayoutTree": {
+          "count": 26,
+          "totalMs": 3.27
+        },
+        "RasterTask": {
+          "count": 675,
+          "totalMs": 8.59
+        }
+      }
+    },
+    {
+      "paused": true,
+      "frames": {
+        "count": 721,
+        "p95": 4.300000000001091,
+        "max": 4.400000000001455,
+        "width": 1920,
+        "height": 1080
+      },
+      "metrics": {
+        "Paint": {
+          "count": 0,
+          "totalMs": 0
+        },
+        "PrePaint": {
+          "count": 722,
+          "totalMs": 5.08
+        },
+        "Layout": {
+          "count": 0,
+          "totalMs": 0
+        },
+        "UpdateLayoutTree": {
+          "count": 0,
+          "totalMs": 0
+        },
+        "RasterTask": {
+          "count": 0,
+          "totalMs": 0
+        }
+      }
+    }
+  ],
+  "sameViewport": true,
+  "pass": false
+}

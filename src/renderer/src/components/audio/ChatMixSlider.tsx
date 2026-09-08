@@ -21,13 +21,14 @@ export const ChatMixSlider = memo(function ChatMixSlider({
   onCommit: (value: number) => void;
 }) {
   const [current, setCurrent] = useState(value);
-  useEffect(() => setCurrent(value), [value]);
+  useEffect(() => setCurrent(value), [value, pending, disabled]);
 
   const game = Math.round(((1 - current) / 2) * 100);
   const chat = 100 - game;
   const inactive = disabled || pending;
 
   const commit = (next: number) => {
+    if (inactive) return;
     const snapped = snapCenter(next);
     setCurrent(snapped);
     onCommit(snapped);

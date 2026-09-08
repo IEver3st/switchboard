@@ -1,0 +1,120 @@
+{
+  "fixtureClips": 1200,
+  "offscreenBounds": {
+    "x": -30000,
+    "y": -30000,
+    "width": 1904,
+    "height": 1072
+  },
+  "results": [
+    {
+      "viewport": [
+        1080,
+        720
+      ],
+      "layout": "grid",
+      "interaction": {
+        "jumps": {
+          "events": 6,
+          "blank": 0
+        },
+        "retained": true,
+        "focusVisible": true,
+        "menuFocusRestored": true,
+        "favoriteAfterReload": true,
+        "filtersAndSelection": true
+      }
+    },
+    {
+      "viewport": [
+        1080,
+        720
+      ],
+      "layout": "list",
+      "interaction": {
+        "jumps": {
+          "events": 6,
+          "blank": 0
+        },
+        "retained": true,
+        "focusVisible": true,
+        "menuFocusRestored": true,
+        "favoriteAfterReload": false,
+        "filtersAndSelection": true
+      }
+    },
+    {
+      "viewport": [
+        1420,
+        900
+      ],
+      "layout": "grid",
+      "interaction": {
+        "jumps": {
+          "events": 6,
+          "blank": 0
+        },
+        "retained": true,
+        "focusVisible": true,
+        "menuFocusRestored": true,
+        "favoriteAfterReload": true,
+        "filtersAndSelection": true
+      }
+    },
+    {
+      "viewport": [
+        1420,
+        900
+      ],
+      "layout": "list",
+      "interaction": {
+        "jumps": {
+          "events": 6,
+          "blank": 0
+        },
+        "retained": true,
+        "focusVisible": true,
+        "menuFocusRestored": true,
+        "favoriteAfterReload": false,
+        "filtersAndSelection": true
+      }
+    },
+    {
+      "viewport": [
+        1920,
+        1080
+      ],
+      "layout": "grid",
+      "interaction": {
+        "jumps": {
+          "events": 6,
+          "blank": 0
+        },
+        "retained": true,
+        "focusVisible": true,
+        "menuFocusRestored": true,
+        "favoriteAfterReload": true,
+        "filtersAndSelection": true
+      }
+    },
+    {
+      "viewport": [
+        1920,
+        1080
+      ],
+      "layout": "list",
+      "interaction": {
+        "jumps": {
+          "events": 6,
+          "blank": 0
+        },
+        "retained": true,
+        "focusVisible": true,
+        "menuFocusRestored": true,
+        "favoriteAfterReload": false,
+        "filtersAndSelection": true
+      }
+    }
+  ],
+  "errors": []
+}

@@ -1,7 +1,5 @@
-import type { MontageMusicTrack } from '../../../shared/montage-audio';
-import type { VideoEdits } from '../../../shared/video-edits';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Clip, ClipAudioTrackTrim, ClipCanvasSize, ClipExportPreset, SystemSnapshot } from '../../../shared/contracts';
+import type { Clip, SystemSnapshot } from '../../../shared/contracts';
 import type { MontageProjectV2 } from '../../../shared/montage-v2';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../shared/auto-capture';
@@ -18,9 +16,9 @@ import { montageV2Api } from '@/lib/montage-v2-api';
 import { useSystemStore } from '@/stores/use-system-store';
 import { Button } from '@/components/ui/button';
 
-const loadClipEditor = () => import('@/components/capture/ClipEditor');
+const loadClipEditor = () => import('@/components/capture/ClipWorkspace');
 const loadMontageComposer = () => import('@/components/capture/MontageComposer');
-const ClipEditor = lazy(() => loadClipEditor().then((module) => ({ default: module.ClipEditor })));
+const ClipWorkspace = lazy(() => import('../components/capture/ClipWorkspace').then(module => ({ default: module.ClipWorkspace })));
 const MontageComposer = lazy(() => loadMontageComposer().then((module) => ({ default: module.MontageComposer })));
 
 export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled }: {
@@ -33,11 +31,6 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   const deleteClip = useSystemStore((state) => state.deleteClip);
   const renameClip = useSystemStore((state) => state.renameClip);
   const exportClip = useSystemStore((state) => state.exportClip);
-  const prepareClipShare = useSystemStore((state) => state.prepareClipShare);
-  const cancelClipExport = useSystemStore((state) => state.cancelClipExport);
-  const setClipCanvasSize = useSystemStore((state) => state.setClipCanvasSize);
-  const setClipTrim = useSystemStore((state) => state.setClipTrim);
-  const setClipAudioTrackLevel = useSystemStore((state) => state.setClipAudioTrackLevel);
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const updateAutoCaptureSettings = useSystemStore((state) => state.updateAutoCaptureSettings);
   const setupAutoCaptureProvider = useSystemStore((state) => state.setupAutoCaptureProvider);
@@ -139,14 +132,14 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
     favorite: (clip, favorite) => void setClipFavorite({ id: clip.id, favorite }),
     rename: (clip) => setRenameTarget(clip),
     reveal: (clip) => void revealClip(clip.id),
-    export: (clip) => void runClipAction(`clip:${clip.id}:export`, () => exportClip({
-      id: clip.id,
-      startMs: clip.trimStartMs ?? 0,
-      endMs: clip.trimEndMs ?? clip.durationMs,
-      preset: 'original',
-    })).then((exported) => { if (exported) showTransientToast('Clip exported', setToast); }),
+    export: (clip) => void runClipAction(`clip:${clip.id}:export`, async () => {
+      const drafts = await montageV2Api.listMontageDrafts();
+      const draft = drafts.find(item => item.sourceClipId === clip.id);
+      if (draft) return montageV2Api.exportMontageV2({ exportId: crypto.randomUUID(), project: reconcileMontageProject(draft, snapshot.clips), preset: 'original' });
+      return exportClip({ id: clip.id, startMs: clip.trimStartMs ?? 0, endMs: clip.trimEndMs ?? clip.durationMs, preset: 'original' });
+    }).then(exported => { if (exported) showTransientToast('Clip exported', setToast); }).catch(error => showTransientToast(errorMessage(error), setToast)),
     delete: (clip) => setDeleteTarget(clip),
-  }), [exportClip, revealClip, runClipAction, setClipFavorite]);
+  }), [exportClip, revealClip, runClipAction, setClipFavorite, snapshot.clips]);
 
   return (
     <div className="relative flex min-h-full flex-1 flex-col" data-testid="capture-library">
@@ -161,6 +154,9 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
             drafts={montageDrafts}
             clips={snapshot.clips}
             onResume={(draft) => {
+              if (draft.sourceClipId && snapshot.clips.some(clip => clip.id === draft.sourceClipId)) {
+                setMontageProject(null); setEditorClipId(draft.sourceClipId); return;
+              }
               setEditorClipId(null);
               setMontageProject(reconcileMontageProject(draft, snapshot.clips));
             }}
@@ -168,7 +164,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
               void montageV2Api.deleteMontageDraft(draft.id)
                 .then(() => {
                   refreshMontageDrafts();
-                  showTransientToast('Montage draft discarded', setToast);
+                  showTransientToast('Edit draft discarded', setToast);
                 })
                 .catch((error) => showTransientToast(errorMessage(error), setToast));
             }}
@@ -191,34 +187,19 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
       {editorClip ? (
         <div className="contents" aria-hidden={dialogOpen ? true : undefined} inert={dialogOpen ? true : undefined}>
           <Suspense fallback={<CaptureToolLoading label="Loading clip editor" />}>
-            <ClipEditor
-            clip={editorClip}
-            exportPending={pendingClipActions.has(`clip:${editorClip.id}:export`)}
-            trimPending={pendingClipActions.has(`clip:${editorClip.id}:trim`)}
-            canvasPending={pendingClipActions.has(`clip:${editorClip.id}:canvas`)}
-            inspectorOpen={snapshot.settings.clipEditorInspectorOpen}
-            defaultTrackLevels={snapshot.capture.config.defaultTrackLevels}
-            onClose={closeEditor}
-            onFavorite={(favorite) => void setClipFavorite({ id: editorClip.id, favorite })}
-            onRename={() => setRenameTarget(editorClip)}
-            onReveal={() => void revealClip(editorClip.id)}
-            onInspectorOpenChange={(open) => void updateSettings({ clipEditorInspectorOpen: open })}
-            onCanvasSizeChange={(canvasSize: ClipCanvasSize) => void runClipAction(`clip:${editorClip.id}:canvas`, () => setClipCanvasSize({ id: editorClip.id, canvasSize })).then(() => {
-              showTransientToast(canvasSize === '9:16' ? 'Canvas set to 9:16' : 'Canvas restored to original', setToast);
-            })}
-            onSaveTrim={(startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, videoEdits: VideoEdits, music: MontageMusicTrack | null) => runClipAction(`clip:${editorClip.id}:trim`, () => setClipTrim({ id: editorClip.id, startMs, endMs, audioTrackTrims, videoEdits, music })).then(() => {
-              showTransientToast('Timeline edits saved', setToast);
-            })}
-            onAudioTrackLevelChange={(trackIndex, level) => setClipAudioTrackLevel({ id: editorClip.id, trackIndex, level })}
-            onExport={(preset: ClipExportPreset, startMs, endMs, audioTrackTrims: Array<ClipAudioTrackTrim | null>, exportId: string, videoEdits: VideoEdits, music: MontageMusicTrack | null) => runClipAction(`clip:${editorClip.id}:export`, () => prepareClipShare({ id: editorClip.id, startMs, endMs, preset, audioTrackTrims, exportId, videoEdits, music })).then((prepared) => {
-              if (prepared) showTransientToast('Clip ready to drag', setToast);
-              return prepared;
-            })}
-            onCancelExport={async (exportId) => {
-              await cancelClipExport(exportId);
-              showTransientToast('Export cancelled', setToast);
-            }}
-            onDelete={() => setDeleteTarget(editorClip)}
+            <ClipWorkspace
+              key={editorClip.id}
+              clip={editorClip}
+              defaultTrackLevels={snapshot.capture.config.defaultTrackLevels}
+              clips={snapshot.clips}
+              inspectorOpen={snapshot.settings.clipEditorInspectorOpen}
+              onClose={closeEditor}
+              onFavorite={(favorite) => void setClipFavorite({ id: editorClip.id, favorite })}
+              onRename={() => setRenameTarget(editorClip)}
+              onDelete={() => setDeleteTarget(editorClip)}
+              onReveal={(clip) => void revealClip(clip.id)}
+              onInspectorOpenChange={(open) => void updateSettings({ clipEditorInspectorOpen: open })}
+              onDraftsChanged={refreshMontageDrafts}
             />
           </Suspense>
         </div>

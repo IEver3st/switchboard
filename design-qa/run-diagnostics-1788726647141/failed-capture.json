@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 2,
+  "version": "0.8.4",
+  "exportedAt": "2026-09-06T20:31:00.097Z",
+  "droppedJournalWrites": 0,
+  "limits": "Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "windowsRelease": "10.0.26200",
+    "windowsVersion": "Windows 11 Pro",
+    "electron": "44.0.0",
+    "chrome": "152.0.7977.54",
+    "node": "24.18.1",
+    "packaged": false,
+    "softwareRendering": false,
+    "graphics": {
+      "gpuDevice": [
+        {
+          "active": false,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 4098,
+          "deviceId": 5056,
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVersion": "32.0.13018.6"
+        },
+        {
+          "active": false,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 5140,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.26100.5074"
+        }
+      ],
+      "auxAttributes": {
+        "optimus": false,
+        "amdSwitchable": false,
+        "sandboxed": false
+      }
+    },
+    "graphicsFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    },
+    "displays": [
+      {
+        "width": 2560,
+        "height": 1440,
+        "scaleFactor": 1,
+        "displayFrequency": 120,
+        "colorDepth": 24,
+        "rotation": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "scaleFactor": 1,
+        "displayFrequency": 240,
+        "colorDepth": 24,
+        "rotation": 0
+      }
+    ]
+  },
+  "capture": {
+    "settings": {
+      "enabled": false,
+      "source": "automatic-game",
+      "sourceSelected": false,
+      "displayIndex": 0,
+      "encoder": "auto",
+      "codec": "auto",
+      "resolution": "1440p",
+      "fps": 60,
+      "quality": 4,
+      "replaySeconds": 60,
+      "includeSystemAudio": false,
+      "includeMic": false,
+      "includeChatAudio": false,
+      "includeCursor": false
+    },
+    "runtime": {
+      "state": "stopped",
+      "backend": "Windows Graphics Capture",
+      "encoder": "Not selected",
+      "encodedFrames": 0,
+      "droppedFrames": 0,
+      "bufferedSeconds": 0,
+      "segmentCount": 0,
+      "saveQueueDepth": 0,
+      "observedBitrateBps": 0,
+      "error": null,
+      "warning": null,
+      "activeSourceType": null,
+      "activeSourceAvailable": null
+    },
+    "capabilities": {
+      "backend": "unavailable",
+      "encoders": [],
+      "codecs": [
+        "h264"
+      ],
+      "maximumFps": 60,
+      "systemAudio": false,
+      "microphoneAudio": false,
+      "exclusiveFullscreen": false
+    },
+    "sources": {
+      "displays": 0,
+      "windows": 0,
+      "available": 0
+    },
+    "storage": {
+      "availableBytes": 2374264705024,
+      "replayCacheBytes": 0,
+      "lowSpace": false,
+      "criticalSpace": false
+    },
+    "engines": [
+      {
+        "kind": "audio",
+        "state": "stopped",
+        "message": null
+      },
+      {
+        "kind": "capture",
+        "state": "stopped",
+        "message": null
+      }
+    ]
+  },
+  "diagnosticRun": {
+    "id": "f6c02626-9c30-46ca-be0e-b08ca5a45cbb",
+    "status": "completed",
+    "startedAt": "2026-09-06T20:30:52.543Z",
+    "completedAt": "2026-09-06T20:31:00.006Z",
+    "summary": "Both hardware and software display capture failed. Codec selection alone does not explain the problem; the file includes the capture errors.",
+    "checks": [
+      {
+        "id": "environment",
+        "label": "Windows and graphics",
+        "status": "pass",
+        "detail": "Windows 11 Pro (10.0.26200) · Switchboard 0.8.4. GPU and driver details collected for export."
+      },
+      {
+        "id": "sources",
+        "label": "Capture sources",
+        "status": "pass",
+        "detail": "2 displays and 4 eligible windows. Window titles are omitted."
+      },
+      {
+        "id": "game-detection",
+        "label": "Automatic game detection",
+        "status": "warning",
+        "detail": "No eligible game window was found. Keep the game open and unminimized, or select a window or display. Changing codecs does not resolve missing game detection."
+      },
+      {
+        "id": "storage.cache",
+        "label": "Replay cache",
+        "status": "pass",
+        "detail": "Write access confirmed. 2211.2 GiB available."
+      },
+      {
+        "id": "storage.clips",
+        "label": "Clip storage",
+        "status": "pass",
+        "detail": "Write access confirmed. 2211.2 GiB available."
+      },
+      {
+        "id": "audio.system",
+        "label": "Game audio endpoint",
+        "status": "skipped",
+        "detail": "This track is disabled."
+      },
+      {
+        "id": "audio.microphone",
+        "label": "Microphone endpoint",
+        "status": "skipped",
+        "detail": "This track is disabled."
+      },
+      {
+        "id": "audio.chat",
+        "label": "Chat audio endpoint",
+        "status": "skipped",
+        "detail": "This track is disabled."
+      },
+      {
+        "id": "ffmpeg",
+        "label": "FFmpeg installation",
+        "status": "pass",
+        "detail": "FFmpeg capture failure fixture (not a real encoder)\nFFmpeg capture failure fixture (not a real encoder)"
+      },
+      {
+        "id": "encoder.h264_amf",
+        "label": "h264_amf",
+        "status": "pass",
+        "detail": "Synthetic encoding passed. Live capture is tested separately.",
+        "durationMs": 777.4358
+      },
+      {
+        "id": "encoder.libx264",
+        "label": "libx264",
+        "status": "pass",
+        "detail": "Synthetic encoding passed. Live capture is tested separately.",
+        "durationMs": 790.9643
+      },
+      {
+        "id": "encoder-selection",
+        "label": "Current codec and encoder",
+        "status": "pass",
+        "detail": "The current preference resolves to h264_amf."
+      },
+      {
+        "id": "capture.current",
+        "label": "Current source and settings",
+        "status": "skipped",
+        "detail": "No supported current source/encoder pair is available. Display tests below isolate capture from game detection."
+      },
+      {
+        "id": "capture.hardware",
+        "label": "Display · hardware H.264",
+        "status": "fail",
+        "detail": "Windows Graphics Capture / h264_amf failed (exit -1313558101, frames 0).\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)",
+        "durationMs": 800.7582
+      },
+      {
+        "id": "capture.software",
+        "label": "Display · software H.264",
+        "status": "fail",
+        "detail": "Windows Graphics Capture / libx264 failed (exit -1313558101, frames 0).\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)",
+        "durationMs": 782.6327
+      },
+      {
+        "id": "capture.duplication",
+        "label": "Display · Desktop Duplication",
+        "status": "fail",
+        "detail": "Desktop Duplication / libx264 failed (exit -1313558101, frames 0).\n[gfxcapture @ fixture] Test graphics-device initialization failure (0x80070057)\nTask finished with error code: -1313558101 (Unknown error occurred)",
+        "durationMs": 781.1817
+      },
+      {
+        "id": "capture.scope",
+        "label": "Test coverage",
+        "status": "skipped",
+        "detail": "Capture probes encode three frames to a discard sink. No recording is saved. Replay ring saves, long-running stability, and recorded audio are not tested."
+      }
+    ]
+  },
+  "developer": {
+    "enabled": false,
+    "sessionId": null,
+    "startedAt": null,
+    "discardedEvents": 0,
+    "limits": "Latest 2,000 events / 2 MiB; 8 KiB per event; 120 events per second. Discarded events include evictions, rate limits, and invalid records.",
+    "events": []
+  },
+  "samples": []
+}

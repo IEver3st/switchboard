@@ -1,0 +1,314 @@
+{
+  "checks": [
+    {
+      "check": "Grid 1080x720: bounded mounting, populated viewports, no overlap/overflow",
+      "samples": [
+        {
+          "mounted": 10,
+          "visible": 6,
+          "overlap": false,
+          "top": 0,
+          "height": 33711,
+          "overflow": false
+        },
+        {
+          "mounted": 18,
+          "visible": 9,
+          "overlap": false,
+          "top": 8291.83984375,
+          "height": 33711,
+          "overflow": false
+        },
+        {
+          "mounted": 18,
+          "visible": 9,
+          "overlap": false,
+          "top": 16583.6796875,
+          "height": 33711,
+          "overflow": false
+        },
+        {
+          "mounted": 18,
+          "visible": 12,
+          "overlap": false,
+          "top": 24875.51953125,
+          "height": 33711,
+          "overflow": false
+        },
+        {
+          "mounted": 11,
+          "visible": 8,
+          "overlap": false,
+          "top": 33166.71875,
+          "height": 33711,
+          "overflow": false
+        }
+      ]
+    },
+    {
+      "check": "List 1080x720: bounded mounting, populated viewports, no overlap/overflow",
+      "samples": [
+        {
+          "mounted": 7,
+          "visible": 4,
+          "overlap": false,
+          "top": 0,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 11,
+          "visible": 6,
+          "overlap": false,
+          "top": 11975.6796875,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 11,
+          "visible": 6,
+          "overlap": false,
+          "top": 23950.720703125,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 11,
+          "visible": 6,
+          "overlap": false,
+          "top": 35926.3984375,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 8,
+          "visible": 5,
+          "overlap": false,
+          "top": 47901.44140625,
+          "height": 48446,
+          "overflow": false
+        }
+      ]
+    },
+    {
+      "check": "Grid 1420x900: bounded mounting, populated viewports, no overlap/overflow",
+      "samples": [
+        {
+          "mounted": 15,
+          "visible": 11,
+          "overlap": false,
+          "top": 0,
+          "height": 25657,
+          "overflow": false
+        },
+        {
+          "mounted": 28,
+          "visible": 16,
+          "overlap": false,
+          "top": 6242.56005859375,
+          "height": 25657,
+          "overflow": false
+        },
+        {
+          "mounted": 28,
+          "visible": 16,
+          "overlap": false,
+          "top": 12484.48046875,
+          "height": 25657,
+          "overflow": false
+        },
+        {
+          "mounted": 22,
+          "visible": 16,
+          "overlap": false,
+          "top": 18727.0390625,
+          "height": 25657,
+          "overflow": false
+        },
+        {
+          "mounted": 17,
+          "visible": 9,
+          "overlap": false,
+          "top": 24968.9609375,
+          "height": 25657,
+          "overflow": false
+        }
+      ]
+    },
+    {
+      "check": "List 1420x900: bounded mounting, populated viewports, no overlap/overflow",
+      "samples": [
+        {
+          "mounted": 8,
+          "visible": 6,
+          "overlap": false,
+          "top": 0,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 12,
+          "visible": 8,
+          "overlap": false,
+          "top": 11939.2001953125,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 13,
+          "visible": 7,
+          "overlap": false,
+          "top": 23879.0390625,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 12,
+          "visible": 8,
+          "overlap": false,
+          "top": 35818.23828125,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 9,
+          "visible": 7,
+          "overlap": false,
+          "top": 47757.44140625,
+          "height": 48446,
+          "overflow": false
+        }
+      ]
+    },
+    {
+      "check": "Grid 1920x1080: bounded mounting, populated viewports, no overlap/overflow",
+      "samples": [
+        {
+          "mounted": 22,
+          "visible": 12,
+          "overlap": false,
+          "top": 0,
+          "height": 21950,
+          "overflow": false
+        },
+        {
+          "mounted": 35,
+          "visible": 20,
+          "overlap": false,
+          "top": 5279.35986328125,
+          "height": 21950,
+          "overflow": false
+        },
+        {
+          "mounted": 35,
+          "visible": 20,
+          "overlap": false,
+          "top": 10558.7197265625,
+          "height": 21950,
+          "overflow": false
+        },
+        {
+          "mounted": 34,
+          "visible": 24,
+          "overlap": false,
+          "top": 15838.7197265625,
+          "height": 21950,
+          "overflow": false
+        },
+        {
+          "mounted": 21,
+          "visible": 16,
+          "overlap": false,
+          "top": 21116.80078125,
+          "height": 21950,
+          "overflow": false
+        }
+      ]
+    },
+    {
+      "check": "List 1920x1080: bounded mounting, populated viewports, no overlap/overflow",
+      "samples": [
+        {
+          "mounted": 9,
+          "visible": 7,
+          "overlap": false,
+          "top": 0,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 14,
+          "visible": 9,
+          "overlap": false,
+          "top": 11903.3603515625,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 15,
+          "visible": 9,
+          "overlap": false,
+          "top": 23806.720703125,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 14,
+          "visible": 9,
+          "overlap": false,
+          "top": 35710.71875,
+          "height": 48446,
+          "overflow": false
+        },
+        {
+          "mounted": 11,
+          "visible": 8,
+          "overlap": false,
+          "top": 47613.44140625,
+          "height": 48446,
+          "overflow": false
+        }
+      ]
+    },
+    {
+      "check": "Grid: every clip reachable through a complete scroll sweep",
+      "seen": 442,
+      "maxMounted": 28
+    },
+    {
+      "check": "List: every clip reachable through a complete scroll sweep",
+      "seen": 442,
+      "maxMounted": 13
+    },
+    {
+      "check": "Native Tab and Shift+Tab cross the virtual row boundary"
+    },
+    {
+      "check": "Distant focus retains only its row"
+    },
+    {
+      "check": "Backward keyboard navigation scrolls focus below the sticky header"
+    },
+    {
+      "check": "Open context menu retains its trigger while scrolling"
+    },
+    {
+      "check": "Favorite survives unmount/remount through canonical state"
+    },
+    {
+      "check": "Search includes unmounted clips; no-results and clear restore library"
+    },
+    {
+      "check": "Select all includes all 442 clips across virtual rows"
+    },
+    {
+      "check": "Editor restores thumbnail focus and scroll position"
+    },
+    {
+      "check": "Reduced-motion library has no running animations"
+    },
+    {
+      "check": "Canonical favorite and bounded mounting survive renderer reload"
+    }
+  ]
+}

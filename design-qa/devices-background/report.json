@@ -1,0 +1,126 @@
+[
+  {
+    "name": "1080x720-devices",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 602.515625,
+    "focused": null
+  },
+  {
+    "name": "1420x900-devices",
+    "width": 1420,
+    "height": 900,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 714.171875,
+    "focused": null
+  },
+  {
+    "name": "1920x1080-devices",
+    "width": 1920,
+    "height": 1080,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 804.921875,
+    "focused": null
+  },
+  {
+    "name": "1420x900-before",
+    "width": 1420,
+    "height": 900,
+    "overflow": false,
+    "background": false,
+    "animations": 0,
+    "controlsBottom": 714.171875,
+    "focused": null
+  },
+  {
+    "name": "1420x900-keyboard-focus",
+    "width": 1420,
+    "height": 900,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 714.171875,
+    "focused": "Open controls for HyperX QuadCast 2"
+  },
+  {
+    "name": "1420x900-return-focus",
+    "width": 1420,
+    "height": 900,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 714.171875,
+    "focused": "Open controls for Logitech G502 X Plus"
+  },
+  {
+    "name": "1080x720-disconnected",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 602.515625,
+    "focused": "Open controls for Logitech G502 X Plus"
+  },
+  {
+    "name": "1080x720-empty",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 0,
+    "focused": null
+  },
+  {
+    "name": "1080x720-disabled-modules",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 0,
+    "focused": null
+  },
+  {
+    "name": "1080x720-reduced-motion",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 602.515625,
+    "focused": null
+  },
+  {
+    "name": "1080x720-forced-colors",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "background": false,
+    "animations": 0,
+    "controlsBottom": 602.515625,
+    "focused": null
+  },
+  {
+    "idleTraceSeconds": 5,
+    "paintEvents": 0
+  },
+  {
+    "name": "1080x720-reloaded",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "background": true,
+    "animations": 0,
+    "controlsBottom": 602.515625,
+    "focused": null
+  }
+]

@@ -1,0 +1,163 @@
+# Browser inspect: http://localhost:5199/
+- load: 200 OK — final url: http://localhost:5199/#…
+- viewport: 1420x900 css px (dpr 1), scrollWidth 1420
+- title: Switchboard
+- page text length: 3021 chars
+- screenshot: C:\Users\User\Desktop\Development\Applications\switchboard\.opencode\vision\browser-inspect-2026-09-04T06-28-15-ahpjew-1420x900.png
+
+## Coordinate text map (DOM-OCR, y-sorted, 89 runs)
+- y=11.3 x=1249.4 "Restore defaults" <button> 11px/600
+- y=19.5 x=56.3 "Settings" <span> 12px/400
+- y=19.5 x=132.9 "Capture" <strong> 12px/650
+- y=97.5 x=350 "Capture" <h2> 20px/680
+- y=97.5 x=1214.5 "Reset section" <button> 10.5px/400
+- y=135 x=350 "Control the isolated capture host, source, encoder, and recorded inputs." <p> 11px/400
+- y=147.5 x=28.8 "Categories" <div> 10px/650
+- y=183.7 x=58.8 "General" <span> 11.5px/540
+- y=192.5 x=350 "Engine and shortcut" <h3> 10.5px/650
+- y=228.7 x=58.8 "Capture" <span> 11.5px/630
+- y=236.6 x=365 "Capture engine" <div> 11.5px/630
+- y=260.5 x=365 "Start the isolated Capture host now and restore it on the next launch." <div> 10.5px/400
+- y=273.7 x=58.8 "Clips" <span> 11.5px/540
+- y=318.7 x=58.8 "Games" <span> 11.5px/540
+- y=319.1 x=365 "Save replay shortcut" <div> 11.5px/630
+- y=325.9 x=1066.5 "Ctrl+Shift+F10" <span> 16px/400
+- y=343 x=365 "Select the shortcut, then press a new key combination. Escape cancels." <div> 10.5px/400
+- y=363.7 x=58.8 "Modules" <span> 11.5px/540
+- y=408.7 x=58.8 "Diagnostics" <span> 11.5px/540
+- y=410.9 x=350 "Auto Capture" <h3> 10.5px/650
+- y=449.3 x=365 "Automatically save gameplay highlights" <div> 11.5px/630
+- y=453.7 x=58.8 "About" <span> 11.5px/540
+- y=473.1 x=365 "Auto Capture is ready to configure, but Instant Replay must be enabled before ev" <div> 10.5px/400
+- y=545.7 x=365 "Before event" <div> 11.5px/630
+- y=552.5 x=1036.5 "20 sec" <span> 16px/400
+- y=569.6 x=365 "Footage retained before the first event marker." <div> 10.5px/400
+- y=622.5 x=365 "After event" <div> 11.5px/630
+- y=639.1 x=1036.5 "10 sec" <span> 16px/400
+- y=646.4 x=365 "Switchboard waits for this footage without blocking Capture or starting another " <div> 10.5px/400
+- y=713.3 x=365 "Merge nearby events" <div> 11.5px/630
+- y=737.1 x=365 "Overlapping highlights become one clip with every event retained as a timeline m" <div> 10.5px/400
+- y=804 x=365 "Merge threshold" <div> 11.5px/630
+- y=806.6 x=47.5 "Bug or feature" <span> 13px/600
+- y=820.6 x=1036.5 "15 sec" <span> 16px/400
+- y=827.9 x=365 "An event inside this gap extends the pending highlight instead of creating a dup" <div> 10.5px/400
+- y=851.6 x=46.3 "Back" <span> 13px/600
+- y=900.5 x=365 "Notify when an auto clip is saved" <div> 11.5px/630
+- y=924.3 x=365 "Off by default so frequent gameplay events do not interrupt play." <div> 10.5px/400
+- y=997.3 x=350 "Reaction clipping" <h3> 10.5px/650
+- y=1035.6 x=365 "Allow reaction clipping" <div> 11.5px/630
+- y=1059.5 x=365 "Starts only while Instant Replay is capturing. Microphone analysis stays on this" <div> 10.5px/400
+- y=1126.4 x=365 "Reaction sensitivity" <div> 11.5px/630
+- y=1143 x=1036.5 "Balanced" <span> 16px/400
+- y=1150.3 x=365 "Requires a sustained voice-shaped burst that is clearly louder than your locally" <div> 10.5px/400
+- y=1217.1 x=365 "Before reaction" <div> 11.5px/630
+- y=1233.8 x=1036.5 "20 sec" <span> 16px/400
+- y=1241 x=365 "Footage preserved from the rolling replay buffer before the detected voice react" <div> 10.5px/400
+- y=1313.6 x=365 "After reaction" <div> 11.5px/630
+- y=1320.4 x=1036.5 "10 sec" <span> 16px/400
+- y=1337.5 x=365 "Additional footage retained after the reaction before the clip is finalized." <div> 10.5px/400
+- y=1390.4 x=365 "Minimum gap between reactions" <div> 11.5px/630
+- y=1407 x=1036.5 "15 sec" <span> 16px/400
+- y=1414.3 x=365 "Prevents one loud exchange from producing a queue of nearly identical clips. Ove" <div> 10.5px/400
+- y=1501.1 x=350 "Supported games" <h3> 10.5px/650
+- y=1562 x=350 "Video" <h3> 10.5px/650
+- y=1600.4 x=365 "Capture source" <div> 11.5px/630
+- y=1617 x=1036.5 "Automatic game" <span> 16px/400
+- y=1624.3 x=365 "Automatic game capture follows an eligible foreground game. Window and display m" <div> 10.5px/400
+- y=1691.1 x=365 "Preferred encoder" <div> 11.5px/630
+- y=1707.8 x=1036.5 "Automatic" <span> 16px/400
+- y=1715 x=365 "No hardware encoder has been reported yet. Automatic remains the only supported " <div> 10.5px/400
+- y=1787.6 x=365 "Video codec" <div> 11.5px/630
+- y=1794.4 x=1036.5 "H.264" <span> 16px/400
+- y=1811.5 x=365 "Only codecs reported by the active capture host are available." <div> 10.5px/400
+- y=1884.4 x=350 "Audio and pointer" <h3> 10.5px/650
+- y=1928.5 x=365 "Record microphone" <div> 11.5px/630
+- y=1940.6 x=1250.7 "Unavailable" <span> 11px/600
+- y=1952.3 x=365 "The current capture host has not reported microphone capture support." <div> 10.5px/400
+- y=2011 x=365 "Record system audio" <div> 11.5px/630
+- y=2023.1 x=1250.7 "Unavailable" <span> 11px/600
+- y=2034.8 x=365 "The current capture host has not reported system-audio support." <div> 10.5px/400
+- y=2093.5 x=365 "Record chat audio separately" <div> 11.5px/630
+- y=2105.6 x=1250.7 "Unavailable" <span> 11px/600
+- y=2117.3 x=365 "The current capture host has not reported system-audio support." <div> 10.5px/400
+- y=2176 x=365 "Capture cursor" <div> 11.5px/630
+- y=2199.8 x=365 "Include the Windows pointer in saved footage." <div> 10.5px/400
+- y=2272.8 x=350 "Replay audio devices" <h3> 10.5px/650
+- y=2311.1 x=365 "Choose which Game, Chat, and Microphone devices feed Instant Replay. Each stays " <div> 10.5px/400
+- y=2376.8 x=377.5 "Game device" <span> 10.5px/600
+- y=2376.8 x=701 "Chat device" <span> 10.5px/600
+- y=2376.8 x=1024.5 "Microphone device" <span> 10.5px/600
+- y=2408.9 x=391 "Automatic (default system audio)" <span> 16px/400
+- y=2408.9 x=714.5 "Automatic (default system audio)" <span> 16px/400
+- y=2408.9 x=1038 "Automatic (follow Audio settings)" <span> 16px/400
+- y=2468.9 x=365 "The capture host has not reported audio support yet. Device choices unlock once " <p> 10.5px/400
+- y=2538.6 x=350 "Workspace" <h3> 10.5px/650
+- y=2582.7 x=365 "Capture workspace" <div> 11.5px/630
+- y=2584.4 x=1023 "Open Capture" <button> 16px/400
+- y=2606.5 x=365 "Replay configuration, the save action, and the clip library stay on the Capture " <div> 10.5px/400
+
+## Region outline (7 blocks, y-sorted)
+- main "SettingsSettings/CaptureRestore defaults" @ (0,0) 1420x900
+- section "Reaction clippingAllow reaction clipping" @ (350,997.3) 988x468.9
+- section "Supported games" @ (350,1501.1) 988x25.9
+- section "VideoCapture sourceAutomatic game captur" @ (350,1562) 988x287.4
+- section "Audio and pointerRecord microphoneThe cu" @ (350,1884.4) 988x353.4
+- section "Replay audio devicesReplay audio devices" @ (350,2272.8) 988x230.8
+- section "WorkspaceCapture workspaceReplay configu" @ (350,2538.6) 988x105.9
+
+## Interactive controls (33)
+- button "Restore defaults" @ (1249.4,11.3) 148.1x37.5
+- input "Search settings" @ (17.5,82.5) 245x42.5
+- button "General" @ (17.5,172.5) 245x42.5
+- button "Capture" @ (17.5,217.5) 245x42.5
+- button "Clips" @ (17.5,262.5) 245x42.5
+- button "Games" @ (17.5,307.5) 245x42.5
+- button "Modules" @ (17.5,352.5) 245x42.5
+- button "Diagnostics" @ (17.5,397.5) 245x42.5
+- button "About" @ (17.5,442.5) 245x42.5
+- button "Bug or feature" @ (7.5,797.5) 245x42.5
+- button "Back (Esc)" @ (7.5,842.5) 255x42.5
+- button "Reset section" @ (1214.5,97.5) 123.5x35
+- [role=switch] "Capture engine" @ (1270.5,243.4) 52.5x30
+- button "Save replay shortcut: Ctrl+Shift+F10. Press to change" @ (1023,320.9) 300x40
+- [role=switch] "Automatically save gameplay highlights" @ (1270.5,465.9) 52.5x30
+- [role=combobox] "Before event" @ (1023,547.5) 300x40 [disabled]
+- [role=combobox] "After event" @ (1023,634.1) 300x40 [disabled]
+- [role=switch] "Merge nearby events" @ (1270.5,729.9) 52.5x30 [disabled]
+- [role=combobox] "Merge threshold" @ (1023,815.6) 300x40 [disabled]
+- [role=switch] "Notify when an auto clip is saved" @ (1270.5,907.3) 52.5x30 [disabled]
+- [role=switch] "Allow reaction clipping" @ (1270.5,1052.3) 52.5x30
+- [role=combobox] "Reaction sensitivity" @ (1023,1138) 300x40 [disabled]
+- [role=combobox] "Before reaction" @ (1023,1228.8) 300x40 [disabled]
+- [role=combobox] "After reaction" @ (1023,1315.4) 300x40 [disabled]
+- [role=combobox] "Minimum gap between reactions" @ (1023,1402) 300x40 [disabled]
+- [role=combobox] "Capture source" @ (1023,1612) 300x40
+- [role=combobox] "Preferred encoder" @ (1023,1702.8) 300x40
+- [role=combobox] "Video codec" @ (1023,1789.4) 300x40 [disabled]
+- [role=switch] "Capture cursor" @ (1270.5,2182.8) 52.5x30
+- [role=combobox] "Game audio device" @ (377.5,2403.9) 286x40 [disabled]
+- [role=combobox] "Chat audio device" @ (701,2403.9) 286x40 [disabled]
+- [role=combobox] "Microphone device" @ (1024.5,2403.9) 286x40 [disabled]
+- button "Open Capture" @ (1023,2584.4) 300x40
+
+## Headings (10)
+- h1 "Settings" 16px @ (-1.2,-1.2) 1.3x1.3
+- h2 "Capture" 20px @ (350,97.5) 434.6x31.3
+- h3 "Engine and shortcut" 10.5px @ (350,192.5) 988x18.4
+- h3 "Auto Capture" 10.5px @ (350,410.9) 988x18.4
+- h3 "Reaction clipping" 10.5px @ (350,997.3) 988x18.4
+- h3 "Supported games" 10.5px @ (350,1501.1) 988x18.4
+- h3 "Video" 10.5px @ (350,1562) 988x18.4
+- h3 "Audio and pointer" 10.5px @ (350,1884.4) 988x18.4
+- h3 "Replay audio devices" 10.5px @ (350,2272.8) 988x18.4
+- h3 "Workspace" 10.5px @ (350,2538.6) 988x18.4
+
+## Canvas/image regions (pixel content — use Qwen-MM Core only when pixel evidence is material)
+- img (empty alt, decorative?) @ (22.5,18.8)
+
+## Accessibility summary
+- headings: h1×1, h2×1, h3×8
+- landmarks: 4
+
+## Viewport 1420x900 (ok)
+- horizontal overflow: none (scrollWidth 1420 <= 1420)

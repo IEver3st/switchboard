@@ -44,12 +44,16 @@ internal sealed class ReactionDetector : IAudioPacketObserver
     private const double SilenceDb = -96;
     private const double InitialNoiseFloorDb = -60;
     private const double InitialSpeechBaselineDb = -30;
-    private const int CalibrationMilliseconds = 1_500;
-    private const int RearmMilliseconds = 750;
+    private const int CalibrationMilliseconds = 5_000;
+    private const int SpeechCalibrationMilliseconds = 3_000;
+    private const int RearmMilliseconds = 3_000;
+    private const int MaximumEvidenceGapMilliseconds = 100;
 
     private readonly Func<long> now;
     private ReactionDetectorConfiguration configuration = ReactionDetectorConfiguration.Disabled;
-    private long firstFrameAt;
+    private long lastFrameAt;
+    private double calibrationMilliseconds;
+    private double speechCalibrationMilliseconds;
     private long lastReactionAt;
     private long pendingReactionAt;
     private double pendingConfidence;
@@ -60,6 +64,7 @@ internal sealed class ReactionDetector : IAudioPacketObserver
     private double speechBaselineDb = InitialSpeechBaselineDb;
     private double triggerThresholdDb = -18;
     private double excitedMilliseconds;
+    private double evidenceGapMilliseconds;
     private double settledMilliseconds;
     private bool reactionArmed = true;
     private bool hasSpeechBaseline;
@@ -127,13 +132,17 @@ internal sealed class ReactionDetector : IAudioPacketObserver
 
         var timestamp = now();
         var frameMilliseconds = Math.Clamp(frameCount * 1_000d / sampleRate, 1, 250);
-        if (firstFrameAt == 0)
+        if (lastFrameAt > 0 && timestamp - lastFrameAt > 250)
         {
-            firstFrameAt = timestamp;
+            // Missing packets are neither sustained voice nor settled audio.
+            excitedMilliseconds = 0;
+            evidenceGapMilliseconds = 0;
+            settledMilliseconds = 0;
         }
+        lastFrameAt = timestamp;
 
         Volatile.Write(ref inputLevelDb, levelDb);
-        var calibrating = timestamp - firstFrameAt < CalibrationMilliseconds;
+        var calibrating = IsCalibrating;
         var voiceFloor = Math.Max(-50, Volatile.Read(ref noiseFloorDb) + 8);
         var voiceShaped = !silent
                           && levelDb >= voiceFloor
@@ -150,7 +159,12 @@ internal sealed class ReactionDetector : IAudioPacketObserver
         }
         if (calibrating)
         {
-            if (voiceShaped) UpdateSpeechBaseline(levelDb, frameMilliseconds, timeConstantMilliseconds: 2_500);
+            calibrationMilliseconds = Math.Min(CalibrationMilliseconds, calibrationMilliseconds + frameMilliseconds);
+            if (voiceShaped)
+            {
+                speechCalibrationMilliseconds = Math.Min(SpeechCalibrationMilliseconds, speechCalibrationMilliseconds + frameMilliseconds);
+                UpdateSpeechBaseline(levelDb, frameMilliseconds, timeConstantMilliseconds: levelDb > speechBaselineDb ? 300 : 10_000);
+            }
             excitedMilliseconds = 0;
             UpdateThreshold(currentConfiguration);
             RecordAnalysis(analysisStartedAt);
@@ -183,16 +197,26 @@ internal sealed class ReactionDetector : IAudioPacketObserver
         if (inCooldown || !reactionArmed)
         {
             excitedMilliseconds = 0;
+            evidenceGapMilliseconds = 0;
         }
         else if (candidate)
         {
             excitedMilliseconds = Math.Min(1_000, excitedMilliseconds + frameMilliseconds);
+            evidenceGapMilliseconds = 0;
         }
         else
         {
-            excitedMilliseconds = Math.Max(0, excitedMilliseconds - frameMilliseconds * 1.75);
-            if (voiceShaped) UpdateSpeechBaseline(levelDb, frameMilliseconds, timeConstantMilliseconds: 12_000);
+            evidenceGapMilliseconds += frameMilliseconds;
+            if (evidenceGapMilliseconds > MaximumEvidenceGapMilliseconds) excitedMilliseconds = 0;
         }
+
+        // Hold the baseline only while evaluating a new burst. Keep learning
+        // during cooldown and long exchanges, so sustained loud conversation
+        // becomes normal instead of repeatedly qualifying against a quiet start.
+        // A slow downward release prevents quiet words from lowering the bar.
+        if (voiceShaped && (inCooldown || !reactionArmed || !candidate))
+            UpdateSpeechBaseline(levelDb, frameMilliseconds,
+                timeConstantMilliseconds: levelDb > baseline ? 2_000 : 60_000);
 
         if (!inCooldown && reactionArmed && excitedMilliseconds >= profile.MinimumSustainMilliseconds)
         {
@@ -250,7 +274,7 @@ internal sealed class ReactionDetector : IAudioPacketObserver
                 ? "unavailable"
                 : !inputActive
                     ? "waiting"
-                    : firstFrameAt == 0 || timestamp - firstFrameAt < CalibrationMilliseconds
+                    : IsCalibrating
                         ? "calibrating"
                         : cooldownRemaining > 0 ? "cooldown" : "listening";
         return new ReactionDetectionRuntime(
@@ -263,15 +287,23 @@ internal sealed class ReactionDetector : IAudioPacketObserver
             Math.Round(Math.Max(0, averageMilliseconds), 4),
             cooldownRemaining,
             lastDetectedAt > 0 ? lastDetectedAt : null,
-            unavailableReason);
+            unavailableReason ?? (state == "calibrating"
+                ? "Learning your normal speaking level. Speak normally for a few seconds."
+                : null));
     }
+
+    private bool IsCalibrating => calibrationMilliseconds < CalibrationMilliseconds
+                                 || speechCalibrationMilliseconds < SpeechCalibrationMilliseconds;
 
     public void Pause(bool resetCounters = false)
     {
-        firstFrameAt = 0;
+        lastFrameAt = 0;
+        calibrationMilliseconds = 0;
+        speechCalibrationMilliseconds = 0;
         Interlocked.Exchange(ref pendingReactionAt, 0);
         Interlocked.Exchange(ref lastReactionAt, 0);
         excitedMilliseconds = 0;
+        evidenceGapMilliseconds = 0;
         settledMilliseconds = 0;
         reactionArmed = true;
         hasSpeechBaseline = false;
@@ -332,7 +364,7 @@ internal sealed class ReactionDetector : IAudioPacketObserver
 
     private sealed record ReactionDetectorConfiguration(bool Enabled, string Sensitivity, int CooldownSeconds)
     {
-        public static readonly ReactionDetectorConfiguration Disabled = new(false, "balanced", 15);
+        public static readonly ReactionDetectorConfiguration Disabled = new(false, "balanced", 60);
 
         public ReactionDetectorConfiguration Validate()
         {
@@ -351,9 +383,9 @@ internal sealed class ReactionDetector : IAudioPacketObserver
     {
         public static SensitivityProfile For(string sensitivity) => sensitivity switch
         {
-            "low" => new(-13, 10, 260),
-            "high" => new(-23, 5, 120),
-            _ => new(-18, 7, 180),
+            "low" => new(-10, 14, 900),
+            "high" => new(-20, 9, 450),
+            _ => new(-14, 12, 650),
         };
     }
 }

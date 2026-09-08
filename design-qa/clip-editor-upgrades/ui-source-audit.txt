@@ -1,0 +1,78 @@
+{
+  "path": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture",
+  "filesScanned": 42,
+  "errors": 0,
+  "warnings": 10,
+  "findings": [
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\clip-editor.css",
+      "line": 309,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\clip-editor.css",
+      "line": 413,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\clip-editor.css",
+      "line": 438,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\clip-editor.css",
+      "line": 1370,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\clip-editor.css",
+      "line": 1425,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\ClipCard.tsx",
+      "line": 44,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\ClipList.tsx",
+      "line": 67,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\ClipThumbnail.tsx",
+      "line": 28,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\montage-v2.css",
+      "line": 194,
+      "message": "Confirm a visible focus replacement exists."
+    },
+    {
+      "rule": "outline-none",
+      "severity": "warning",
+      "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\montage-v2.css",
+      "line": 825,
+      "message": "Confirm a visible focus replacement exists."
+    }
+  ]
+}

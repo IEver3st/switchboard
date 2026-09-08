@@ -20,6 +20,7 @@ internal sealed class AudioEngine : IDisposable
     private bool disposed;
     private string? error;
     private string? routingError;
+    private Exception? routingFailure;
     private double modelInitializationMs;
     private DateTimeOffset startedAt;
 
@@ -36,11 +37,13 @@ internal sealed class AudioEngine : IDisposable
         lock (controlGate)
         {
             ThrowIfDisposed();
+            var validated = nextSettings.Validate();
+            var nextDsp = MicrophoneDspConfiguration.From(validated, configurationVersion + 1);
             StopCore();
-            settings = nextSettings.Validate();
+            settings = validated;
             InitializeSuppressorCore();
             configurationVersion++;
-            dspConfiguration = MicrophoneDspConfiguration.From(settings, configurationVersion);
+            dspConfiguration = nextDsp;
             running = true;
             startedAt = DateTimeOffset.UtcNow;
             StartMicrophoneCore();
@@ -63,9 +66,11 @@ internal sealed class AudioEngine : IDisposable
         {
             ThrowIfDisposed();
             var previousSettings = settings;
-            settings = nextSettings.Validate();
+            var validated = nextSettings.Validate();
+            var nextDsp = MicrophoneDspConfiguration.From(validated, configurationVersion + 1);
+            settings = validated;
             configurationVersion++;
-            dspConfiguration = MicrophoneDspConfiguration.From(settings, configurationVersion);
+            dspConfiguration = nextDsp;
             if (!running) return GetSnapshotCore();
 
             var nextInputId = settings.MicrophoneBus?.DeviceId;
@@ -165,11 +170,13 @@ internal sealed class AudioEngine : IDisposable
         lock (controlGate)
         {
             if (!running) return;
+            if (settings is not null) microphone?.RecoverMonitoring(settings);
             var endpointsChanged = Interlocked.Exchange(ref endpointChangePending, 0) != 0;
             var microphoneNeedsRecovery = microphone is null || microphone.CaptureStopped;
             var routingNeedsRecovery = routing is null
                                        || Interlocked.Exchange(ref routingRecoveryPending, 0) != 0
-                                       || endpointsChanged;
+                                       || endpointsChanged
+                                       || microphoneNeedsRecovery;
             if (!microphoneNeedsRecovery && !routingNeedsRecovery) return;
 
             if (routingNeedsRecovery)
@@ -295,6 +302,7 @@ internal sealed class AudioEngine : IDisposable
     private void StartRoutingCore()
     {
         if (settings is null) throw new InvalidOperationException("Audio settings are unavailable.");
+        microphone?.ResetRoutingBuffers();
         var virtualMicrophoneSource = microphone?.VirtualMicrophoneSource ?? new SilentSampleProvider();
         var streamMicrophoneSource = microphone?.StreamMicrophoneSource ?? new SilentSampleProvider();
         var clipMicrophoneSource = microphone?.ClipMicrophoneSource ?? new SilentSampleProvider();
@@ -312,6 +320,7 @@ internal sealed class AudioEngine : IDisposable
             routing = next;
             next = null;
             routingError = null;
+            Volatile.Write(ref routingFailure, null);
             Interlocked.Exchange(ref routingRecoveryPending, 0);
         }
         finally
@@ -323,13 +332,10 @@ internal sealed class AudioEngine : IDisposable
 
     private void OnRoutingFailed(Exception routeError)
     {
-        lock (controlGate)
-        {
-            if (!running) return;
-            routingError = $"Audio routing stopped: {routeError.Message}";
-            Interlocked.Exchange(ref routingRecoveryPending, 1);
-            SnapshotChanged?.Invoke(GetSnapshotCore());
-        }
+        // WASAPI stop/dispose may join this callback while controlGate is held.
+        // Publish only a recovery signal here; the control-rate loop owns teardown.
+        Volatile.Write(ref routingFailure, routeError);
+        Interlocked.Exchange(ref routingRecoveryPending, 1);
     }
 
     private void OnEndpointsChanged() => Interlocked.Exchange(ref endpointChangePending, 1);
@@ -391,8 +397,8 @@ internal sealed class AudioEngine : IDisposable
             pipeline?.LastError ?? error);
         return new AudioHostSnapshot(
             new AudioHostCapabilities(
-                routingAvailable && endpoints.ApplicationRoutingAvailable ? "available" : "unavailable",
                 routingAvailable ? "available" : "unavailable",
+                routingAvailable && endpoints.ApplicationRoutingAvailable ? "available" : "unavailable",
                 routingAvailable ? "available" : "unavailable",
                 microphoneAvailable ? "available" : "unavailable",
                 suppressionAvailable ? "available" : "unavailable",
@@ -430,7 +436,7 @@ internal sealed class AudioEngine : IDisposable
             pipeline?.InputFormat,
             pipeline?.MonitoringDeviceId,
             running,
-            error ?? routingError,
+            error ?? (Volatile.Read(ref routingFailure) is { } failed ? $"Audio routing stopped: {failed.Message}" : routingError),
             driver,
             applications,
             buses,
@@ -450,6 +456,7 @@ internal sealed class AudioEngine : IDisposable
         suppressor = new BypassNoiseSuppressor("The audio engine is stopped.");
         error = null;
         routingError = null;
+        Volatile.Write(ref routingFailure, null);
         Interlocked.Exchange(ref endpointChangePending, 0);
         Interlocked.Exchange(ref routingRecoveryPending, 0);
     }

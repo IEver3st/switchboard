@@ -1,0 +1,62 @@
+{
+  "viewport": {
+    "width": 864,
+    "height": 576
+  },
+  "requestedClips": 20,
+  "cards": 12,
+  "rows": 0,
+  "columns": 3,
+  "cardWidths": {
+    "minimum": 250.66668701171875,
+    "maximum": 250.66668701171875
+  },
+  "libraryBounds": {
+    "left": 72,
+    "right": 864.0000610351562,
+    "width": 792.0000610351562
+  },
+  "toolbarBounds": {
+    "left": 88.00000762939453,
+    "right": 848.0000686645508,
+    "width": 760.0000610351562
+  },
+  "commandHeaderBounds": {
+    "top": 38.000003814697266,
+    "bottom": 136.0000114440918,
+    "height": 98.00000762939453
+  },
+  "commandTopBounds": null,
+  "searchBounds": {
+    "width": 320.0000305175781
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today · September 7"
+  ],
+  "lazyImages": 12,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": null,
+  "selectionPerformance": null,
+  "preferences": null,
+  "motion": {
+    "reduced": true,
+    "animations": 0
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\unified-clips-20260907\\capture-20-clips-1080x720-reduced-motion.png",
+  "imageSize": {
+    "width": 1620,
+    "height": 1080
+  }
+}

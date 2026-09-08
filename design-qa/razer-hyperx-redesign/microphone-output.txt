@@ -1,0 +1,182 @@
+
+Error occurred in handler for 'devices:set-setting': Error: Review: microphone disconnected during write.
+    at file:///C:/Users/User/Desktop/Development/Applications/switchboard/scripts/verify-microphone-workbench.mjs:96:79
+    at async Session.<anonymous> (node:electron/js2c/browser_init:2:122837)
+{
+  "captures": [
+    {
+      "name": "1080x720-ready",
+      "metrics": {
+        "width": 1080,
+        "height": 722,
+        "scroll": 1080,
+        "bottom": 702.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-ready",
+      "metrics": {
+        "width": 1420,
+        "height": 900,
+        "scroll": 1420,
+        "bottom": 872.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-ready",
+      "metrics": {
+        "width": 1920,
+        "height": 1080,
+        "scroll": 1920,
+        "bottom": 1052.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-breathing",
+      "metrics": {
+        "width": 1080,
+        "height": 722,
+        "scroll": 1080,
+        "bottom": 702.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "true",
+          "state": "checked",
+          "thumbState": "checked",
+          "translate": "20px"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-lighting-off",
+      "metrics": {
+        "width": 1080,
+        "height": 722,
+        "scroll": 1080,
+        "bottom": 702.0000228881836,
+        "overflow": []
+      },
+      "switches": [
+        {
+          "label": "Lighting",
+          "checked": "false",
+          "state": "unchecked",
+          "thumbState": "unchecked",
+          "translate": "2px"
+        },
+        {
+          "label": "Follow physical mute",
+          "checked": "false",
+          "state": "unchecked",
+          "thumbState": "unchecked",
+          "translate": "2px"
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "label": "Input volume",
+      "actual": 59
+    },
+    {
+      "label": "Direct monitoring",
+      "actual": 19
+    },
+    {
+      "label": "Brightness",
+      "actual": 73
+    },
+    {
+      "label": "Effect speed",
+      "actual": 51
+    },
+    {
+      "label": "Lighting profile",
+      "value": "Broadcast"
+    },
+    {
+      "label": "Lighting profile",
+      "value": "Breathe"
+    },
+    {
+      "label": "Lighting profile",
+      "value": "Night"
+    },
+    {
+      "label": "Lighting pattern",
+      "value": "Solid"
+    },
+    {
+      "label": "Lighting pattern",
+      "value": "Breathing"
+    },
+    {
+      "label": "Lighting pattern",
+      "value": "Pulse"
+    }
+  ],
+  "persistence": true,
+  "rejectedWriteRestored": true
+}

@@ -1,0 +1,1479 @@
+{
+  "userData": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-impeccable-audit-c1q9n5",
+  "results": [
+    {
+      "name": "devices",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 148,
+      "unnamed": []
+    },
+    {
+      "name": "mouse",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 271,
+      "unnamed": []
+    },
+    {
+      "name": "keyboard",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 163,
+      "unnamed": []
+    },
+    {
+      "name": "microphone",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "capture",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "26 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 608,
+      "unnamed": []
+    },
+    {
+      "name": "replay",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "26 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 2,
+      "reducedMotion": true,
+      "domNodes": 699,
+      "unnamed": []
+    },
+    {
+      "name": "settings-general",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 214,
+      "unnamed": []
+    },
+    {
+      "name": "settings-capture",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 433,
+      "unnamed": []
+    },
+    {
+      "name": "settings-modules",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288,
+      "unnamed": []
+    },
+    {
+      "name": "settings-about",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 450,
+      "unnamed": []
+    },
+    {
+      "name": "audio-microphone",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 378,
+      "unnamed": []
+    },
+    {
+      "name": "devices",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 155,
+      "unnamed": []
+    },
+    {
+      "name": "mouse",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 274,
+      "unnamed": []
+    },
+    {
+      "name": "keyboard",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 164,
+      "unnamed": []
+    },
+    {
+      "name": "microphone",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "capture",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "27 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "27 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "28 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "30 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "34 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "35 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "36 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "37 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "37 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "41 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 1063,
+      "unnamed": []
+    },
+    {
+      "name": "replay",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "27 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "27 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "28 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "30 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "34 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "35 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "36 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "37 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "37 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "41 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 2,
+      "reducedMotion": true,
+      "domNodes": 1154,
+      "unnamed": []
+    },
+    {
+      "name": "settings-general",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 214,
+      "unnamed": []
+    },
+    {
+      "name": "settings-capture",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 433,
+      "unnamed": []
+    },
+    {
+      "name": "settings-modules",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288,
+      "unnamed": []
+    },
+    {
+      "name": "settings-about",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.mixer-mix-picker__label",
+          "text": "Mix",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 450,
+      "unnamed": []
+    },
+    {
+      "name": "audio-microphone",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 378,
+      "unnamed": []
+    },
+    {
+      "name": "devices",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 155,
+      "unnamed": []
+    },
+    {
+      "name": "mouse",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 274,
+      "unnamed": []
+    },
+    {
+      "name": "keyboard",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 164,
+      "unnamed": []
+    },
+    {
+      "name": "microphone",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "capture",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "27 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "28 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "28 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "31 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "34 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "35 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "36 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "37 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "38 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "41 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 1063,
+      "unnamed": []
+    },
+    {
+      "name": "replay",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "time",
+          "text": "24 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "25 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "27 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "28 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "28 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "31 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "34 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "35 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "36 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "37 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "38 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "time",
+          "text": "41 min ago",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 2,
+      "reducedMotion": true,
+      "domNodes": 1154,
+      "unnamed": []
+    },
+    {
+      "name": "settings-general",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 214,
+      "unnamed": []
+    },
+    {
+      "name": "settings-capture",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 433,
+      "unnamed": []
+    },
+    {
+      "name": "settings-modules",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288,
+      "unnamed": []
+    },
+    {
+      "name": "settings-about",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.mixer-mix-picker__label",
+          "text": "Mix",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 450,
+      "unnamed": []
+    },
+    {
+      "name": "audio-microphone",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 378,
+      "unnamed": []
+    }
+  ]
+}

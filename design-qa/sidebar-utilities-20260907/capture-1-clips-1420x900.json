@@ -1,0 +1,62 @@
+{
+  "viewport": {
+    "width": 1420,
+    "height": 900
+  },
+  "requestedClips": 1,
+  "cards": 1,
+  "rows": 0,
+  "columns": 5,
+  "cardWidths": {
+    "minimum": 249.3125,
+    "maximum": 249.3125
+  },
+  "libraryBounds": {
+    "left": 72,
+    "right": 1420,
+    "width": 1348
+  },
+  "toolbarBounds": {
+    "left": 464.65625,
+    "right": 1400,
+    "width": 935.34375
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 94,
+    "height": 56
+  },
+  "commandTopBounds": null,
+  "searchBounds": {
+    "width": 320
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today · September 7"
+  ],
+  "lazyImages": 1,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": null,
+  "selectionPerformance": null,
+  "preferences": null,
+  "motion": {
+    "reduced": false,
+    "animations": 0
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\sidebar-utilities-20260907\\capture-1-clips-1420x900.png",
+  "imageSize": {
+    "width": 2130,
+    "height": 1350
+  }
+}

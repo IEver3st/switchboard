@@ -1,0 +1,62 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "requestedClips": 1,
+  "cards": 1,
+  "rows": 0,
+  "columns": 5,
+  "cardWidths": {
+    "minimum": 346.3958435058594,
+    "maximum": 346.3958435058594
+  },
+  "libraryBounds": {
+    "left": 72,
+    "right": 1920,
+    "width": 1848
+  },
+  "toolbarBounds": {
+    "left": 649.0416870117188,
+    "right": 1900.0000610351562,
+    "width": 1250.9583740234375
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 94,
+    "height": 56
+  },
+  "commandTopBounds": null,
+  "searchBounds": {
+    "width": 320
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today · September 7"
+  ],
+  "lazyImages": 1,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": null,
+  "selectionPerformance": null,
+  "preferences": null,
+  "motion": {
+    "reduced": false,
+    "animations": 0
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\capture-single-row\\capture-1-clips-1920x1080.png",
+  "imageSize": {
+    "width": 2880,
+    "height": 1620
+  }
+}

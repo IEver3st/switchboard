@@ -1,0 +1,897 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-clip-upgrades-o4RW2z",
+  "screenshots": [
+    {
+      "name": "1080x720-edit",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-audio",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-edit",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-audio",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-edit",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1536,
+          "right": 1604,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-audio",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1536,
+          "right": 1604,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "audio-automation",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "timing",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "text-privacy",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "picture",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "source-details",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "montage-music-empty",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-music",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-music",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-music",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1536,
+          "right": 1604,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-four-channels-long-title",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "no-audio",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "loading-audio",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "audio-unavailable",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "audio-recovered",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "1080x720 trim is in first viewport",
+    "1080x720 channel volume and audio trim are in first viewport",
+    "1080x720 audio has no unrelated video controls or overflow",
+    "1420x900 trim is in first viewport",
+    "1420x900 channel volume and audio trim are in first viewport",
+    "1420x900 audio has no unrelated video controls or overflow",
+    "1920x1080 trim is in first viewport",
+    "1920x1080 channel volume and audio trim are in first viewport",
+    "1920x1080 audio has no unrelated video controls or overflow",
+    "Microphone mute persists",
+    "Unmute restores prior microphone level",
+    "Selected channel owns the trim controls",
+    "Trim applies only to selected microphone channel",
+    "Automation stays on selected microphone channel",
+    "Mute interval persists",
+    "Undo reverses the automation edit",
+    "Frame stepping keeps its precise canonical update",
+    "Speed and freeze editing still persists",
+    "Returning to Edit preserves the chosen video tool",
+    "Text overlay edits persist",
+    "Framing edits persist",
+    "Audio trim and automation survive reload",
+    "Inspector navigation remains visible while content scrolls",
+    "Keyboard focus moves between inspector tasks with visible focus",
+    "Montage music import and fade controls persist",
+    "Four channels and full long title access remain usable",
+    "Silent clips show no unsupported mixer controls",
+    "Unavailable waveform retries through the existing audio loader",
+    "Native review remained hidden"
+  ],
+  "errors": []
+}

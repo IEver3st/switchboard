@@ -1,0 +1,150 @@
+{
+  "viewport": {
+    "width": 1080,
+    "height": 722
+  },
+  "requestedClips": 240,
+  "cards": 240,
+  "rows": 0,
+  "columns": 3,
+  "cardWidths": {
+    "minimum": 314.66668701171875,
+    "maximum": 314.66668701171875
+  },
+  "libraryBounds": {
+    "left": 72,
+    "right": 1080,
+    "width": 1008
+  },
+  "toolbarBounds": {
+    "left": 90,
+    "right": 1062,
+    "width": 972
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 130,
+    "height": 92
+  },
+  "commandTopBounds": {
+    "height": 48
+  },
+  "searchBounds": {
+    "width": 520
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today · September 4",
+    "Yesterday · September 3",
+    "September 2",
+    "September 1",
+    "August 31",
+    "August 30",
+    "August 29",
+    "August 28",
+    "August 27",
+    "August 26",
+    "August 25"
+  ],
+  "lazyImages": 234,
+  "decodedImages": 6,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": {
+    "searchFocused": true,
+    "searchMatches": 60,
+    "favoriteMatches": 35,
+    "gameMatches": 120,
+    "dateFilterApplied": true,
+    "sortChangedOrder": true,
+    "listItems": 240,
+    "overflowMenuActions": [
+      "Open editor",
+      "Remove from favorites",
+      "Rename",
+      "Export for sharing",
+      "Show in folder",
+      "Delete…"
+    ],
+    "contextMenuActions": [
+      "Open editor",
+      "Remove from favorites",
+      "Rename",
+      "Export for sharing",
+      "Show in folder",
+      "Delete…"
+    ],
+    "deleteDialogText": "Delete clip?Switchboard Capture · Sep 4, 2026, 3:11 PM CDT and its media file will be moved to the Recycle Bin.CancelDelete clip",
+    "montageSelection": true,
+    "montageOpened": true,
+    "openedClipId": "scale-qa-000",
+    "clipOpened": true,
+    "replayControls": {
+      "source": true,
+      "fields": 9,
+      "shortcut": true
+    },
+    "replayKeyboard": {
+      "replayTriggerFocused": true,
+      "replayFocusInside": true,
+      "sourceOptions": [
+        "Detect active gameAutomatic gameAutomatic · Selected"
+      ],
+      "sourceFocusRestored": true,
+      "sourceFocusAfter": {
+        "tag": "BUTTON",
+        "className": "capture-source-trigger",
+        "label": "Capture source: Automatic game"
+      },
+      "replayFocusRestored": true,
+      "replayFocusAfter": {
+        "tag": "BUTTON",
+        "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 px-3 text-xs capture-recorder-settings-trigger",
+        "label": "Open replay settings. Replay Off. Instant Replay is turned off in Capture Settings."
+      }
+    }
+  },
+  "selectionPerformance": {
+    "samplesMs": [
+      5.799999999930151,
+      1.8000000000465661,
+      1.5,
+      1.5,
+      1.599999999976717,
+      1.5,
+      1.5,
+      1.5,
+      1.599999999976717,
+      1.400000000023283
+    ],
+    "medianMs": 1.5,
+    "renders": [
+      {
+        "name": "ClipCard",
+        "calls": 10
+      },
+      {
+        "name": "ClipGrid",
+        "calls": 10
+      }
+    ]
+  },
+  "motion": {
+    "reduced": false,
+    "animations": 0
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\capture-polish\\after\\capture-240-clips-1080x720.png",
+  "imageSize": {
+    "width": 1620,
+    "height": 1083
+  }
+}

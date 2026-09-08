@@ -1,0 +1,57 @@
+{
+  "viewport": {
+    "width": 1080,
+    "height": 720
+  },
+  "requestedClips": 0,
+  "cards": 0,
+  "rows": 0,
+  "columns": 0,
+  "cardWidths": null,
+  "libraryBounds": {
+    "left": 72,
+    "right": 1080,
+    "width": 1008
+  },
+  "toolbarBounds": {
+    "left": 538.3958740234375,
+    "right": 1064.0000610351562,
+    "width": 525.6041870117188
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 96.98958587646484,
+    "height": 58.989585876464844
+  },
+  "commandTopBounds": null,
+  "searchBounds": {
+    "width": 281.60418701171875
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": true,
+  "dateGroups": [],
+  "lazyImages": 0,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": null,
+  "selectionPerformance": null,
+  "preferences": null,
+  "motion": {
+    "reduced": false,
+    "animations": 4
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\capture-single-row\\capture-0-clips-1080x720.png",
+  "imageSize": {
+    "width": 1620,
+    "height": 1080
+  }
+}

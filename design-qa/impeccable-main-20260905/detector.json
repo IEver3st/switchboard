@@ -1,0 +1,28 @@
+[
+  {
+    "antipattern": "overused-font",
+    "name": "Overused font",
+    "description": "Inter, Roboto, Fraunces, Geist, Plus Jakarta Sans, and Space Grotesk are used on so many sites they no longer feel distinctive. Each new wave of AI-generated UIs converges on the same handful of faces. Choose a face that gives your interface personality.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\components\\capture\\video-edit-controls.css",
+    "line": 28,
+    "snippet": "font-family: Arial",
+    "importedBy": [
+      "VideoEditControls.tsx"
+    ]
+  },
+  {
+    "antipattern": "layout-transition",
+    "name": "Layout property animation",
+    "description": "Animating width, height, padding, or margin causes layout thrash and janky performance. Use transform and opacity instead, or grid-template-rows for height animations.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\src\\renderer\\src\\globals.css",
+    "line": 3006,
+    "snippet": "transition: width",
+    "importedBy": [
+      "main.tsx"
+    ]
+  }
+]

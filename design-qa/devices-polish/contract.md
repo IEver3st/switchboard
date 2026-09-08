@@ -1,0 +1,12 @@
+# Devices visual contract
+- Surface/job: device gallery; identify connected hardware and open its controls.
+- Authority: supplied three-device screenshot, DESIGN.md, incumbent gallery.
+- First viewport: real hardware lineup leads; all three names, connection state, battery and navigation remain visible. Shell recedes.
+- Hierarchy/density: image, product name, manufacturer and state, quiet Configure action. Open centered composition with consistent label baselines.
+- Type: existing Inter; 20px route title, 17px device name, 10–11px metadata; tabular battery/count.
+- Material: existing graphite tokens; no resting cards, decorative color or shadows. Violet only for interaction; semantic connection dots.
+- Controls: existing full-device semantic buttons; persistent action cue, tonal hover/press, visible keyboard focus and return focus.
+- Signature: authentic hardware silhouettes, compact manufacturer nameplates, aligned device status beneath each object.
+- Avoid: generic dashboard cards, ambient glow, barely visible metadata, stretched copy rows.
+- States: empty, disconnected, low battery, missing imagery, long names, large collections, focus/hover, reduced motion.
+- Responsive: 1080x720, 1420x900, 1920x1080, with no page horizontal overflow or initial scroll for the normal lineup.

@@ -1,0 +1,1267 @@
+{
+  "schemaVersion": 2,
+  "version": "0.8.3",
+  "exportedAt": "2026-09-06T19:24:46.392Z",
+  "droppedJournalWrites": 6,
+  "limits": "Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "windowsRelease": "10.0.26200",
+    "windowsVersion": "Windows 11 Pro",
+    "electron": "44.0.0",
+    "chrome": "152.0.7977.54",
+    "node": "24.18.1",
+    "packaged": false,
+    "softwareRendering": false,
+    "graphics": {
+      "gpuDevice": [
+        {
+          "active": true,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVendor": "NVIDIA",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 4098,
+          "deviceId": 5056,
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVersion": "32.0.13018.6"
+        },
+        {
+          "active": false,
+          "vendorId": 4318,
+          "deviceId": 11141,
+          "deviceString": "NVIDIA GeForce RTX 5090",
+          "driverVersion": "32.0.16.1656"
+        },
+        {
+          "active": false,
+          "vendorId": 5140,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.26100.5074"
+        }
+      ],
+      "auxAttributes": {
+        "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)",
+        "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)",
+        "glVendor": "Google Inc. (NVIDIA)",
+        "displayType": "ANGLE_D3D11",
+        "optimus": false,
+        "amdSwitchable": false,
+        "sandboxed": true
+      }
+    },
+    "graphicsFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    },
+    "displays": [
+      {
+        "width": 2560,
+        "height": 1440,
+        "scaleFactor": 1,
+        "displayFrequency": 120,
+        "colorDepth": 24,
+        "rotation": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "scaleFactor": 1,
+        "displayFrequency": 240,
+        "colorDepth": 24,
+        "rotation": 0
+      }
+    ]
+  },
+  "capture": {
+    "settings": {
+      "enabled": false,
+      "source": "automatic-game",
+      "sourceSelected": false,
+      "displayIndex": 0,
+      "encoder": "amf",
+      "codec": "h264",
+      "resolution": "1080p",
+      "fps": 30,
+      "quality": 4,
+      "replaySeconds": 60,
+      "includeSystemAudio": false,
+      "includeMic": false,
+      "includeChatAudio": false,
+      "includeCursor": false
+    },
+    "runtime": {
+      "state": "stopped",
+      "backend": "Windows Graphics Capture",
+      "encoder": "AMD AMF H.264",
+      "encodedFrames": 0,
+      "droppedFrames": 0,
+      "bufferedSeconds": 0,
+      "segmentCount": 0,
+      "saveQueueDepth": 0,
+      "observedBitrateBps": 0,
+      "error": null,
+      "warning": null,
+      "activeSourceType": null,
+      "activeSourceAvailable": null
+    },
+    "capabilities": {
+      "backend": "windows-graphics-capture",
+      "encoders": [
+        "h264_amf",
+        "libx264"
+      ],
+      "codecs": [
+        "h264"
+      ],
+      "maximumFps": 120,
+      "systemAudio": true,
+      "microphoneAudio": true,
+      "exclusiveFullscreen": false
+    },
+    "sources": {
+      "displays": 2,
+      "windows": 0,
+      "available": 3
+    },
+    "storage": {
+      "availableBytes": 2380953702400,
+      "replayCacheBytes": 0,
+      "lowSpace": false,
+      "criticalSpace": false
+    },
+    "engines": [
+      {
+        "kind": "audio",
+        "state": "stopped",
+        "message": null
+      },
+      {
+        "kind": "capture",
+        "state": "stopped",
+        "message": null,
+        "processes": []
+      }
+    ]
+  },
+  "developer": {
+    "enabled": true,
+    "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+    "startedAt": "2026-09-06T19:24:42.557Z",
+    "discardedEvents": 0,
+    "limits": "Latest 2,000 events / 2 MiB; 8 KiB per event; 120 events per second. Discarded events include evictions, rate limits, and invalid records.",
+    "events": [
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {},
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 1,
+        "sampledAt": "2026-09-06T19:24:42.557Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "host.request",
+        "data": {
+          "command": "setDiagnostics",
+          "request": "e3328e93-8cb5-4fc1-b94a-728c1af1d681",
+          "timeoutMs": 10000
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 2,
+        "sampledAt": "2026-09-06T19:24:42.557Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {
+          "pid": 45180
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 3,
+        "sampledAt": "2026-09-06T19:24:42.557Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capture.diagnostics-context",
+        "data": {
+          "state": "error",
+          "source": "display",
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 4,
+        "sampledAt": "2026-09-06T19:24:42.557Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.response",
+        "data": {
+          "command": "setDiagnostics",
+          "request": "e3328e93-8cb5-4fc1-b94a-728c1af1d681",
+          "elapsedMs": 0.5599000000001979
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 5,
+        "sampledAt": "2026-09-06T19:24:42.557Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "environment",
+        "data": {
+          "version": "0.8.3",
+          "platform": "win32",
+          "arch": "x64",
+          "osRelease": "10.0.26200",
+          "osVersion": "Windows 11 Pro",
+          "electron": "44.0.0",
+          "packaged": false,
+          "softwareRendering": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 6,
+        "sampledAt": "2026-09-06T19:24:42.558Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.settings",
+        "data": {
+          "enabled": true,
+          "source": "automatic-game",
+          "sourceSelected": false,
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": false,
+          "includeMic": false,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 7,
+        "sampledAt": "2026-09-06T19:24:42.558Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "graphics.info",
+        "data": {
+          "details": "{\"gpuDevice\":[{\"active\":true,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVendor\":\"NVIDIA\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":4098,\"deviceId\":5056,\"deviceString\":\"AMD Radeon(TM) Graphics\",\"driverVersion\":\"32.0.13018.6\"},{\"active\":false,\"vendorId\":4318,\"deviceId\":11141,\"deviceString\":\"NVIDIA GeForce RTX 5090\",\"driverVersion\":\"32.0.16.1656\"},{\"active\":false,\"vendorId\":5140,\"deviceId\":140,\"deviceString\":\"Microsoft Basic Render Driver\",\"driverVersion\":\"10.0.26100.5074\"}],\"auxAttributes\":{\"glRenderer\":\"ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1656)\",\"glVersion\":\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\",\"glVendor\":\"Google Inc. (NVIDIA)\",\"displayType\":\"ANGLE_D3D11\",\"optimus\":false,\"amdSwitchable\":false,\"sandboxed\":true}}"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 8,
+        "sampledAt": "2026-09-06T19:24:42.559Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "737cb7a5-3626-4e1b-9ccc-406fab93446f"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 9,
+        "sampledAt": "2026-09-06T19:24:42.576Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 10,
+        "sampledAt": "2026-09-06T19:24:42.576Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "737cb7a5-3626-4e1b-9ccc-406fab93446f",
+          "elapsedMs": 1.740799999999581
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 11,
+        "sampledAt": "2026-09-06T19:24:42.578Z",
+        "source": "main"
+      },
+      {
+        "level": "error",
+        "event": "host.exit",
+        "data": {
+          "code": 1,
+          "signal": null,
+          "expected": false,
+          "pid": 45180
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 12,
+        "sampledAt": "2026-09-06T19:24:42.593Z",
+        "source": "capture"
+      },
+      {
+        "level": "error",
+        "event": "host.state",
+        "data": {
+          "state": "error",
+          "previousState": "error",
+          "pid": null,
+          "message": "Engine exited with code 1"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 13,
+        "sampledAt": "2026-09-06T19:24:42.594Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "starting",
+          "previousState": "error",
+          "pid": null,
+          "message": "Starting isolated engine host…"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 14,
+        "sampledAt": "2026-09-06T19:24:43.621Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "host.spawn",
+        "data": {
+          "packaged": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 15,
+        "sampledAt": "2026-09-06T19:24:43.624Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.request",
+        "data": {
+          "command": "start",
+          "request": "6d752c47-47b6-41e4-a292-a552960ae74a",
+          "timeoutMs": 60000
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 16,
+        "sampledAt": "2026-09-06T19:24:43.630Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {
+          "pid": 32764
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 17,
+        "sampledAt": "2026-09-06T19:24:43.722Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capture.diagnostics-context",
+        "data": {
+          "state": "stopped",
+          "source": null,
+          "encoder": "Not selected",
+          "backend": "Unavailable",
+          "encodedFrames": 0
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 18,
+        "sampledAt": "2026-09-06T19:24:43.725Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "stopped",
+          "previousState": "starting",
+          "pid": null,
+          "message": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 19,
+        "sampledAt": "2026-09-06T19:24:44.551Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.state",
+        "data": {
+          "state": "starting",
+          "source": "automatic-game",
+          "activeSourceType": null,
+          "encoder": "Not selected",
+          "backend": "Unavailable",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 20,
+        "sampledAt": "2026-09-06T19:24:44.560Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.snapshot-applied",
+        "data": {
+          "state": "starting",
+          "encoder": "Not selected",
+          "backend": "Unavailable",
+          "encodedFrames": 0,
+          "bufferedSeconds": 0,
+          "segmentCount": 0,
+          "activeSourceType": null,
+          "error": null,
+          "warning": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 21,
+        "sampledAt": "2026-09-06T19:24:44.570Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "starting",
+          "previousState": "stopped",
+          "pid": 32764,
+          "message": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 22,
+        "sampledAt": "2026-09-06T19:24:44.580Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capture.start",
+        "data": {
+          "source": "automatic-game",
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "replaySeconds": 60,
+          "targetBitrate": 13200000,
+          "maximumBitrate": 16896000,
+          "systemAudio": false,
+          "chatAudio": false,
+          "microphone": false,
+          "reactionClipping": false,
+          "hasSystemEndpoint": false,
+          "hasChatEndpoint": false,
+          "hasMicrophoneEndpoint": false,
+          "usesAudioHostPipe": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 23,
+        "sampledAt": "2026-09-06T19:24:44.583Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capabilities.probe-start",
+        "data": {
+          "cached": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 24,
+        "sampledAt": "2026-09-06T19:24:44.583Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "ffmpeg.version",
+        "data": {
+          "version": "FFmpeg capture failure fixture (not a real encoder)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 25,
+        "sampledAt": "2026-09-06T19:24:44.652Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "encoder.probe-result",
+        "data": {
+          "encoder": "h264_amf",
+          "working": true,
+          "elapsedMs": 68.4661
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 26,
+        "sampledAt": "2026-09-06T19:24:44.865Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "encoder.probe-result",
+        "data": {
+          "encoder": "libx264",
+          "working": true,
+          "elapsedMs": 63.8414
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 27,
+        "sampledAt": "2026-09-06T19:24:44.929Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "capabilities.selected",
+        "data": {
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "workingEncoders": "h264_amf,libx264",
+          "filters": "gfxcapture,ddagrab"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 28,
+        "sampledAt": "2026-09-06T19:24:44.929Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.state",
+        "data": {
+          "state": "waiting",
+          "source": "automatic-game",
+          "activeSourceType": null,
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 29,
+        "sampledAt": "2026-09-06T19:24:44.933Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.snapshot-applied",
+        "data": {
+          "state": "waiting",
+          "encoder": "AMD AMF H.264",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "bufferedSeconds": 0,
+          "segmentCount": 0,
+          "activeSourceType": null,
+          "error": null,
+          "warning": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 30,
+        "sampledAt": "2026-09-06T19:24:44.934Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "running",
+          "previousState": "starting",
+          "pid": 32764,
+          "message": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 31,
+        "sampledAt": "2026-09-06T19:24:44.943Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.response",
+        "data": {
+          "command": "start",
+          "request": "6d752c47-47b6-41e4-a292-a552960ae74a",
+          "elapsedMs": 1315.8564999999999
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 32,
+        "sampledAt": "2026-09-06T19:24:44.945Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "host.request",
+        "data": {
+          "command": "listSources",
+          "request": "9f7aeca8-6db7-4883-a2a2-820959a59b6a",
+          "timeoutMs": 15000
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 33,
+        "sampledAt": "2026-09-06T19:24:44.946Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:capture:set-config",
+          "request": "22765e37-8d02-4a3c-adc5-79af35eeb76d"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 34,
+        "sampledAt": "2026-09-06T19:24:44.983Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.configure-requested",
+        "data": {
+          "enabled": false,
+          "source": "automatic-game",
+          "sourceSelected": false,
+          "displayIndex": 0,
+          "encoder": "amf",
+          "codec": "h264",
+          "resolution": "1080p",
+          "fps": 30,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": false,
+          "includeMic": false,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 35,
+        "sampledAt": "2026-09-06T19:24:44.984Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "host.response",
+        "data": {
+          "command": "listSources",
+          "request": "9f7aeca8-6db7-4883-a2a2-820959a59b6a",
+          "elapsedMs": 798.5748000000003
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 36,
+        "sampledAt": "2026-09-06T19:24:45.745Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.stop-processes",
+        "data": {
+          "videoPid": null,
+          "videoExited": null,
+          "exitCode": null,
+          "preserveRing": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 37,
+        "sampledAt": "2026-09-06T19:24:45.754Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.state",
+        "data": {
+          "state": "stopped",
+          "source": "automatic-game",
+          "activeSourceType": null,
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 38,
+        "sampledAt": "2026-09-06T19:24:45.755Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.snapshot-applied",
+        "data": {
+          "state": "stopped",
+          "encoder": "AMD AMF H.264",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "bufferedSeconds": 0,
+          "segmentCount": 0,
+          "activeSourceType": null,
+          "error": null,
+          "warning": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 39,
+        "sampledAt": "2026-09-06T19:24:45.755Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "host.state",
+        "data": {
+          "state": "stopped",
+          "previousState": "running",
+          "pid": null,
+          "message": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 40,
+        "sampledAt": "2026-09-06T19:24:45.764Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.stop-processes",
+        "data": {
+          "videoPid": null,
+          "videoExited": null,
+          "exitCode": null,
+          "preserveRing": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 41,
+        "sampledAt": "2026-09-06T19:24:45.766Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "capture.state",
+        "data": {
+          "state": "stopped",
+          "source": "automatic-game",
+          "activeSourceType": null,
+          "encoder": "h264_amf",
+          "backend": "Windows Graphics Capture",
+          "encodedFrames": 0,
+          "droppedFrames": 0,
+          "videoRunning": false,
+          "systemAudioRunning": false,
+          "chatAudioRunning": false,
+          "microphoneRunning": false,
+          "error": null
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 42,
+        "sampledAt": "2026-09-06T19:24:45.766Z",
+        "source": "capture"
+      },
+      {
+        "level": "info",
+        "event": "host.exit",
+        "data": {
+          "code": 0,
+          "signal": null,
+          "expected": true,
+          "pid": 32764
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 43,
+        "sampledAt": "2026-09-06T19:24:45.783Z",
+        "source": "capture"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:capture:set-config",
+          "request": "22765e37-8d02-4a3c-adc5-79af35eeb76d",
+          "elapsedMs": 803.1291999999994
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 44,
+        "sampledAt": "2026-09-06T19:24:45.786Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:settings:update",
+          "request": "6935a2e6-e4c7-497a-b8ba-97ae3f878e24"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 45,
+        "sampledAt": "2026-09-06T19:24:45.788Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:settings:update",
+          "request": "6935a2e6-e4c7-497a-b8ba-97ae3f878e24",
+          "elapsedMs": 4.271400000001449
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 46,
+        "sampledAt": "2026-09-06T19:24:45.793Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "4219cb79-0bb1-41d0-a1da-7552c968d530"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 47,
+        "sampledAt": "2026-09-06T19:24:45.804Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 1
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 48,
+        "sampledAt": "2026-09-06T19:24:45.804Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "4219cb79-0bb1-41d0-a1da-7552c968d530",
+          "elapsedMs": 2.5100000000002183
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 49,
+        "sampledAt": "2026-09-06T19:24:45.807Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "6525db27-2565-433a-b93c-e23939c90a86"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 50,
+        "sampledAt": "2026-09-06T19:24:45.992Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 1
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 51,
+        "sampledAt": "2026-09-06T19:24:45.992Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "6525db27-2565-433a-b93c-e23939c90a86",
+          "elapsedMs": 0.9995999999991909
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 52,
+        "sampledAt": "2026-09-06T19:24:45.993Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "96180e2b-377b-42d1-9db1-500ff031a88c"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 53,
+        "sampledAt": "2026-09-06T19:24:46.098Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 1
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 54,
+        "sampledAt": "2026-09-06T19:24:46.098Z",
+        "source": "main"
+      },
+      {
+        "level": "error",
+        "event": "operation.failed",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "96180e2b-377b-42d1-9db1-500ff031a88c",
+          "elapsedMs": 2.3245000000006257,
+          "error": "Error: ENOENT: no such file or directory, open '<path>'\n    at async open (node:internal/fs/promises:640:25)\n    at async writeFile (node:internal/fs/promises:1260:14)\n    at async AppController.exportResourceDiagnostics (<path>\n    at async DebugDiagnosticsCollector.measureAsync (<path>\n    at async DeveloperDiagnosticsCollector.trace (<path>\n    at async Session.<anonymous> (node:electron/js2c/browser_init:2:122837)"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 55,
+        "sampledAt": "2026-09-06T19:24:46.101Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "b5cea2f7-3a29-4749-9a73-389fd855d64d"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 56,
+        "sampledAt": "2026-09-06T19:24:46.391Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 1
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "b881edb9-2638-4628-8a96-fd3b0bfe93c7",
+        "sequence": 57,
+        "sampledAt": "2026-09-06T19:24:46.391Z",
+        "source": "main"
+      }
+    ]
+  },
+  "samples": [
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-06T19:24:45.792Z",
+      "sequence": 2,
+      "uptimeSeconds": 13.8,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget",
+        "rapid-growth"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 818,
+        "electronWorkingSetMb": 778.6,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 818,
+        "cpuPercent": 0.8,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 42664,
+          "type": "GPU",
+          "privateMb": 573.9,
+          "workingSetMb": 364.9,
+          "peakWorkingSetMb": 425.2,
+          "cpuPercent": 0.5
+        },
+        {
+          "pid": 23652,
+          "type": "Browser",
+          "privateMb": 118.3,
+          "workingSetMb": 158.9,
+          "peakWorkingSetMb": 164.8,
+          "cpuPercent": 0.2
+        },
+        {
+          "pid": 47724,
+          "type": "Tab",
+          "privateMb": 113.5,
+          "workingSetMb": 200.1,
+          "peakWorkingSetMb": 200.1,
+          "cpuPercent": 0.2
+        },
+        {
+          "pid": 36844,
+          "type": "Utility",
+          "privateMb": 12.3,
+          "workingSetMb": 54.7,
+          "peakWorkingSetMb": 54.8,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 158.6,
+        "heapUsedMb": 21.9,
+        "heapTotalMb": 50.3,
+        "externalMb": 4.3,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "FSReqPromise": 1,
+          "PipeWrap": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 28,
+        "jsHeapTotalMb": 48.1,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 338,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 6037.7
+      },
+      "debug": {
+        "startedAt": "2026-09-06T19:24:45.792Z",
+        "sampledAt": "2026-09-06T19:24:45.792Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": null,
+        "eventLoopDelayMaxMs": null,
+        "operations": [],
+        "processes": [
+          {
+            "pid": 42664,
+            "type": "GPU",
+            "privateMb": 573.9,
+            "workingSetMb": 364.9,
+            "peakWorkingSetMb": 425.2,
+            "cpuPercent": 0.5,
+            "role": "GPU"
+          },
+          {
+            "pid": 23652,
+            "type": "Browser",
+            "privateMb": 118.3,
+            "workingSetMb": 158.9,
+            "peakWorkingSetMb": 164.8,
+            "cpuPercent": 0.2,
+            "role": "Browser"
+          },
+          {
+            "pid": 47724,
+            "type": "Tab",
+            "privateMb": 113.5,
+            "workingSetMb": 200.1,
+            "peakWorkingSetMb": 200.1,
+            "cpuPercent": 0.2,
+            "role": "Tab"
+          },
+          {
+            "pid": 36844,
+            "type": "Utility",
+            "privateMb": 12.3,
+            "workingSetMb": 54.7,
+            "peakWorkingSetMb": 54.8,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    }
+  ]
+}

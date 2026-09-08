@@ -3,12 +3,16 @@ import {
   Cable,
   CircleDot,
   Settings,
+  Layers,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId, SystemSnapshot } from '../../../../shared/contracts';
 import { visiblePagesForProfile } from '../../../../shared/workspace-profile';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
+import { switchboardApi } from '@/lib/demo-api';
+import { useSystemStore } from '@/stores/use-system-store';
 
 const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 'audio' | 'capture' }> = [
   { id: 'devices', label: 'Devices', icon: Cable },

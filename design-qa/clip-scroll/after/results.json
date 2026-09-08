@@ -1,0 +1,325 @@
+{
+  "fixtureClips": 1200,
+  "hidden": false,
+  "results": [
+    {
+      "viewport": [
+        1080,
+        720
+      ],
+      "layout": "grid",
+      "mountedMax": 27,
+      "blankFrames": 0,
+      "missingRows": 0,
+      "gaps": [],
+      "jumps": [
+        {
+          "ratio": 1,
+          "missing": 0
+        },
+        {
+          "ratio": 0,
+          "missing": 0
+        },
+        {
+          "ratio": 0.51,
+          "missing": 0
+        },
+        {
+          "ratio": 0.15,
+          "missing": 0
+        },
+        {
+          "ratio": 0.9,
+          "missing": 0
+        }
+      ],
+      "medianFrameMs": 13.399999998509884,
+      "p95FrameMs": 23.5,
+      "horizontalOverflow": false,
+      "scrollHeight": 107499,
+      "renders": [
+        {
+          "name": "ClipCard",
+          "calls": 1248
+        },
+        {
+          "name": "ClipGrid",
+          "calls": 207
+        }
+      ],
+      "work": {
+        "LayoutCount": 247,
+        "RecalcStyleCount": 249,
+        "LayoutDuration": 0.205523,
+        "RecalcStyleDuration": 0.230628,
+        "ScriptDuration": 1.748547,
+        "TaskDuration": 3.073827
+      }
+    },
+    {
+      "viewport": [
+        1080,
+        720
+      ],
+      "layout": "list",
+      "mountedMax": 20,
+      "blankFrames": 0,
+      "missingRows": 0,
+      "gaps": [],
+      "jumps": [
+        {
+          "ratio": 1,
+          "missing": 0
+        },
+        {
+          "ratio": 0,
+          "missing": 0
+        },
+        {
+          "ratio": 0.51,
+          "missing": 0
+        },
+        {
+          "ratio": 0.15,
+          "missing": 0
+        },
+        {
+          "ratio": 0.9,
+          "missing": 0
+        }
+      ],
+      "medianFrameMs": 14,
+      "p95FrameMs": 21.300000000745058,
+      "horizontalOverflow": false,
+      "scrollHeight": 132995,
+      "renders": [
+        {
+          "name": "ClipList",
+          "calls": 213
+        }
+      ],
+      "work": {
+        "LayoutCount": 206,
+        "RecalcStyleCount": 206,
+        "LayoutDuration": 0.226469,
+        "RecalcStyleDuration": 0.263506,
+        "ScriptDuration": 1.864386,
+        "TaskDuration": 3.123862
+      }
+    },
+    {
+      "viewport": [
+        1420,
+        900
+      ],
+      "layout": "grid",
+      "mountedMax": 65,
+      "blankFrames": 0,
+      "missingRows": 0,
+      "gaps": [],
+      "jumps": [
+        {
+          "ratio": 1,
+          "missing": 0
+        },
+        {
+          "ratio": 0,
+          "missing": 0
+        },
+        {
+          "ratio": 0.51,
+          "missing": 0
+        },
+        {
+          "ratio": 0.15,
+          "missing": 0
+        },
+        {
+          "ratio": 0.9,
+          "missing": 0
+        }
+      ],
+      "medianFrameMs": 22.300000000745058,
+      "p95FrameMs": 63,
+      "horizontalOverflow": false,
+      "scrollHeight": 56141,
+      "renders": [
+        {
+          "name": "ClipCard",
+          "calls": 3305
+        },
+        {
+          "name": "ClipGrid",
+          "calls": 221
+        }
+      ],
+      "work": {
+        "LayoutCount": 210,
+        "RecalcStyleCount": 206,
+        "LayoutDuration": 0.316893,
+        "RecalcStyleDuration": 0.3895989999999999,
+        "ScriptDuration": 3.67823,
+        "TaskDuration": 5.701695
+      }
+    },
+    {
+      "viewport": [
+        1420,
+        900
+      ],
+      "layout": "list",
+      "mountedMax": 25,
+      "blankFrames": 0,
+      "missingRows": 0,
+      "gaps": [],
+      "jumps": [
+        {
+          "ratio": 1,
+          "missing": 0
+        },
+        {
+          "ratio": 0,
+          "missing": 0
+        },
+        {
+          "ratio": 0.51,
+          "missing": 0
+        },
+        {
+          "ratio": 0.15,
+          "missing": 0
+        },
+        {
+          "ratio": 0.9,
+          "missing": 0
+        }
+      ],
+      "medianFrameMs": 10.699999999254942,
+      "p95FrameMs": 19.199999999254942,
+      "horizontalOverflow": false,
+      "scrollHeight": 132995,
+      "renders": [
+        {
+          "name": "ClipList",
+          "calls": 214
+        }
+      ],
+      "work": {
+        "LayoutCount": 216,
+        "RecalcStyleCount": 206,
+        "LayoutDuration": 0.17511500000000002,
+        "RecalcStyleDuration": 0.20205799999999996,
+        "ScriptDuration": 1.4839390000000003,
+        "TaskDuration": 2.550561
+      }
+    },
+    {
+      "viewport": [
+        1920,
+        1080
+      ],
+      "layout": "grid",
+      "mountedMax": 60,
+      "blankFrames": 0,
+      "missingRows": 0,
+      "gaps": [],
+      "jumps": [
+        {
+          "ratio": 1,
+          "missing": 0
+        },
+        {
+          "ratio": 0,
+          "missing": 0
+        },
+        {
+          "ratio": 0.51,
+          "missing": 0
+        },
+        {
+          "ratio": 0.15,
+          "missing": 0
+        },
+        {
+          "ratio": 0.9,
+          "missing": 0
+        }
+      ],
+      "medianFrameMs": 17.900000002235174,
+      "p95FrameMs": 61.30000000074506,
+      "horizontalOverflow": false,
+      "scrollHeight": 69248,
+      "renders": [
+        {
+          "name": "ClipCard",
+          "calls": 2815
+        },
+        {
+          "name": "ClipGrid",
+          "calls": 220
+        }
+      ],
+      "work": {
+        "LayoutCount": 214,
+        "RecalcStyleCount": 207,
+        "LayoutDuration": 0.24643599999999988,
+        "RecalcStyleDuration": 0.31152400000000013,
+        "ScriptDuration": 2.9994949999999996,
+        "TaskDuration": 4.668021000000001
+      }
+    },
+    {
+      "viewport": [
+        1920,
+        1080
+      ],
+      "layout": "list",
+      "mountedMax": 30,
+      "blankFrames": 0,
+      "missingRows": 0,
+      "gaps": [],
+      "jumps": [
+        {
+          "ratio": 1,
+          "missing": 0
+        },
+        {
+          "ratio": 0,
+          "missing": 0
+        },
+        {
+          "ratio": 0.51,
+          "missing": 0
+        },
+        {
+          "ratio": 0.15,
+          "missing": 0
+        },
+        {
+          "ratio": 0.9,
+          "missing": 0
+        }
+      ],
+      "medianFrameMs": 15.399999998509884,
+      "p95FrameMs": 24.099999997764826,
+      "horizontalOverflow": false,
+      "scrollHeight": 132995,
+      "renders": [
+        {
+          "name": "ClipList",
+          "calls": 214
+        }
+      ],
+      "work": {
+        "LayoutCount": 221,
+        "RecalcStyleCount": 207,
+        "LayoutDuration": 0.22452499999999986,
+        "RecalcStyleDuration": 0.2643709999999999,
+        "ScriptDuration": 2.0303900000000006,
+        "TaskDuration": 3.464462000000001
+      }
+    }
+  ],
+  "errors": []
+}

@@ -144,6 +144,7 @@ export class SniperDpiRuntime {
 }
 
 export interface G502DirectSession {
+  setStatusLighting?(color: string | null): Promise<void>;
   readonly isClosed: boolean;
   getCapabilities(policy?: MouseBatteryLightingPolicy): Promise<DeviceCapabilities>;
   setControl(change: DeviceControlChange): Promise<void>;
@@ -327,6 +328,7 @@ export class G502NativeSession implements G502DirectSession {
       capabilities.lighting = this.rgbLighting.buildCapability(true);
     }
     if (this.batteryLighting && capabilities.lighting) {
+      capabilities.lighting.statusLightingSupported = true;
       capabilities.lighting.batteryLightingEnabled = capabilities.lighting.enabled;
       await this.batteryLighting.update(policy, capabilities.battery);
       capabilities.lighting.batteryStatus = this.batteryLighting.status;
@@ -354,8 +356,16 @@ export class G502NativeSession implements G502DirectSession {
           throw new Error('Lighting is off to save battery. Charge the mouse or change the battery lighting cutoff.');
         }
         await this.batteryLighting?.restore();
+        await this.rgbLighting?.setStatusOverride(null);
       }
       await this.writeControl(change);
+    });
+  }
+
+  public setStatusLighting(color: string | null): Promise<void> {
+    return this.serialize(async () => {
+      if (!this.rgbLighting?.supportsBatteryLighting) throw new Error('Status lighting is unavailable on this mouse.');
+      await this.rgbLighting.setStatusOverride(color);
     });
   }
 

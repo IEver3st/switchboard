@@ -35,14 +35,15 @@ export const MixerFader = memo(function MixerFader({
     const next = gainToPercent(value);
     setPercentage(next);
     setDraft(String(next));
-  }, [value]);
+  }, [value, disabled]);
 
   const commitPercentage = useCallback((nextPercentage: number) => {
+    if (disabled || !Number.isFinite(nextPercentage)) return;
     const normalized = clampPercent(nextPercentage);
     setPercentage(normalized);
     setDraft(String(normalized));
     onCommit(normalized / 100);
-  }, [onCommit]);
+  }, [onCommit, disabled]);
 
   const handleKeyDownCapture = (event: KeyboardEvent<HTMLSpanElement>) => {
     if (disabled) return;

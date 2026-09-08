@@ -1,0 +1,27 @@
+{
+  "sizes": [
+    {
+      "width": 1080,
+      "height": 720,
+      "menusContained": true
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "menusContained": true
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "menusContained": true
+    }
+  ],
+  "checks": [
+    "Custom speed/text/canvas menus with native keyboard selection and focus return",
+    "Clicked-position trims, speed conversion, split, duplicate, remove, undo, boundary disabling and zoom/scroll",
+    "Music lane mute/remove and undo; keyboard context menu",
+    "Single clip and independent audio-lane trimming, save/reopen/reset, keyboard invocation, reduced motion"
+  ],
+  "isolatedUserData": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-montage-qa-sbEM0G",
+  "errors": []
+}

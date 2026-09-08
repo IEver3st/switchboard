@@ -1,0 +1,42 @@
+{
+  "output": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\developer-diagnostics-1788722286944",
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-developer-diagnostics-14mOhJ",
+  "assertions": [
+    "Developer mode starts disabled",
+    "export is gated in main when Developer mode is off",
+    "export immediate.json succeeds",
+    "diagnostics exports before any resource sample",
+    "Developer mode starts an event timeline",
+    "events: app stays hidden and unfocused",
+    "events: no page overflow at 1080x720",
+    "export visible without scrolling at 1080x720",
+    "events: app stays hidden and unfocused",
+    "events: no page overflow at 1420x900",
+    "export visible without scrolling at 1420x900",
+    "events: app stays hidden and unfocused",
+    "events: no page overflow at 1920x1080",
+    "export visible without scrolling at 1920x1080",
+    "host request retains original FFmpeg failure detail",
+    "live-host startup failure stays Error beyond the old automatic recovery delay",
+    "export capture-failure.json succeeds",
+    "export retains canonical capture Error state",
+    "native FFmpeg stderr reaches the export",
+    "export includes actual capture filter and encoder arguments",
+    "export correlates the rejected source change",
+    "export redacts the isolated profile path",
+    "capture-error: app stays hidden and unfocused",
+    "capture-error: no page overflow at 1080x720",
+    "isolated host PID is available for recovery test",
+    "actual host exit starts a replacement host"
+  ],
+  "screenshots": [
+    "events-1080x720.png",
+    "events-1420x900.png",
+    "events-1920x1080.png",
+    "capture-error-1080x720.png"
+  ],
+  "errors": [
+    "Error: Script failed to execute, this normally means an error was thrown. Check the renderer console for the error."
+  ],
+  "passed": false
+}

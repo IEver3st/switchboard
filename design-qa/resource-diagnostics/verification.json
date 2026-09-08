@@ -1,0 +1,27 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-resource-debug-s85dVx",
+  "assertions": [
+    "off by default",
+    "empty export has a visible error",
+    "toggle enables canonical diagnostics and renderer observer",
+    "no page overflow at 1080x720",
+    "no page overflow at 1420x900",
+    "no page overflow at 1920x1080",
+    "export contains a five-second sample history",
+    "renderer long task observed",
+    "canonical state work attributed",
+    "real process metrics attributed",
+    "enabled preference survives renderer reload",
+    "enabled preference persisted on disk",
+    "disable clears runtime metrics and observer",
+    "stopped session remains exportable and cancel is honored",
+    "diagnostics reset stops recording",
+    "toggle accepts keyboard focus"
+  ],
+  "screenshots": [
+    "diagnostics-1080x720.png",
+    "diagnostics-1420x900.png",
+    "diagnostics-1920x1080.png"
+  ],
+  "passed": true
+}

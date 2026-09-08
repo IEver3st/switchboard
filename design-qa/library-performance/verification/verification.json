@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "favorite updates visible and canonical state",
+    "capture 1080x720: no page overflow",
+    "settings 1080x720: no page overflow",
+    "capture 1420x900: no page overflow",
+    "settings 1420x900: no page overflow",
+    "capture 1920x1080: no page overflow",
+    "settings 1920x1080: no page overflow",
+    "reduced-motion Diagnostics has no running animations",
+    "canonical settings and favorite survive renderer reload"
+  ],
+  "settings": {
+    "softwareRendering": true,
+    "onboardingCompleted": true
+  }
+}

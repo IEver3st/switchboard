@@ -46,24 +46,26 @@ export function PreciseTrimControls({ startMs, endMs, durationMs, fps, onChange,
   </div>;
 }
 
-export function VideoEditControls({ edits = {}, startMs, endMs, durationMs, onChange }: {
+export function VideoEditControls({ edits = {}, startMs, endMs, durationMs, onChange, showSpeed = true, expandPicture = false }: {
   edits?: VideoEdits; startMs: number; endMs: number; durationMs: number; onChange: (edits: VideoEdits, key: string) => void;
+  showSpeed?: boolean; expandPicture?: boolean;
 }) {
   const text = edits.text;
+  const PictureGroup = expandPicture ? 'div' : 'details';
   return <div className="editor-video-tools">
-    <section><h3>Playback speed <output>{(editedDurationMs(startMs, endMs, edits) / 1000).toFixed(2)} s output</output></h3>
+    {showSpeed ? <section><h3>Playback speed <output>{(editedDurationMs(startMs, endMs, edits) / 1000).toFixed(2)} s output</output></h3>
       <Select value={String(edits.speed ?? 1)} onValueChange={(value) => onChange({ ...edits, speed: Number(value) }, 'speed')}>
         <SelectTrigger aria-label="Playback speed" className="no-drag"><SelectValue /></SelectTrigger>
         <SelectContent>{[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4].map((speed) => <SelectItem value={String(speed)} key={speed}>{speed}×{speed === 1 ? ' · Normal' : speed < 1 ? ' · Slow motion' : ''}</SelectItem>)}</SelectContent>
       </Select>
-    </section>
-    <details className="editor-picture"><summary>Picture</summary><section><h3>Adjust picture <button type="button" onClick={() => onChange({ ...edits, brightness: 0, contrast: 1, saturation: 1, flipHorizontal: false }, 'reset-picture')}>Reset</button></h3>
+    </section> : null}
+    <PictureGroup className="editor-picture">{!expandPicture ? <summary>Picture</summary> : null}<section><h3>Adjust picture <button type="button" onClick={() => onChange({ ...edits, brightness: 0, contrast: 1, saturation: 1, flipHorizontal: false }, 'reset-picture')}>Reset</button></h3>
       {(['brightness', 'contrast', 'saturation'] as const).map((key) => {
         const value = edits[key] ?? (key === 'brightness' ? 0 : 1);
         return <label className="editor-adjustment" key={key}><span>{key.charAt(0).toUpperCase() + key.slice(1)}<output>{Math.round(value * 100)}{key === 'brightness' ? '' : '%'}</output></span><Slider aria-label={key.charAt(0).toUpperCase() + key.slice(1)} min={key === 'brightness' ? -30 : key === 'contrast' ? 50 : 0} max={key === 'brightness' ? 30 : key === 'contrast' ? 150 : 200} step={1} value={[Math.round(value * 100)]} onValueChange={([next]) => { if (next !== undefined) onChange({ ...edits, [key]: next / 100 }, key); }} /></label>;
       })}
       <label className="editor-switch">Flip horizontally<Switch aria-label="Flip horizontally" checked={edits.flipHorizontal ?? false} onCheckedChange={(flipHorizontal) => onChange({ ...edits, flipHorizontal }, 'flip')} /></label>
-    </section></details>
+    </section></PictureGroup>
     <section><h3>Text <button type="button" onClick={() => onChange({ ...edits, text: text ? undefined : { content: 'Your title', startMs, endMs, position: 'bottom', size: 'medium' } }, 'text-toggle')}>{text ? 'Remove' : 'Add title'}</button></h3>
       {text ? <>
         <label className="editor-text-content"><span>Title</span><textarea aria-label="Title text" maxLength={160} rows={2} value={text.content} onChange={(event) => onChange({ ...edits, text: { ...text, content: event.target.value } }, 'text-content')} /></label>

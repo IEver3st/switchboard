@@ -18,6 +18,7 @@ const finalizeSegmentSlackMs = 1_250;
 const maximumPendingWindows = 8;
 const maximumEventAgeMs = 60_000;
 const maximumFutureSkewMs = 5_000;
+export const reactionClippingProviderId = 'microphone-reaction';
 
 export type AutoCapturePreserveRequest = PendingCaptureWindow & {
   events: GameEvent[];
@@ -34,6 +35,7 @@ export type AutoCaptureEventPolicy = {
 export type AutoCaptureEngineOptions = {
   getSettings: () => AutoCaptureSettings;
   getMaximumWindowMs: () => number;
+  getLastReactionSavedAt?: () => number;
   preserve: (request: AutoCapturePreserveRequest) => Promise<void>;
   onRuntime: (runtime: AutoCaptureRuntime) => void;
   log: AutoCaptureLog;
@@ -56,6 +58,7 @@ export class AutoCaptureEngine {
   private providerError: string | null = null;
   private saving = 0;
   private disposed = false;
+  private lastReaction: { timestamp: number; endsAt: number } | null = null;
   private runtime: AutoCaptureRuntime = {
     state: 'disabled',
     activeGameId: null,
@@ -134,6 +137,22 @@ export class AutoCaptureEngine {
     const postRollMs = Math.min(requestedPostMs, maximumWindowMs);
     const preRollMs = Math.min(requestedPreMs, Math.max(0, maximumWindowMs - postRollMs));
     const next = planCaptureWindow(event, preRollMs, postRollMs);
+    const isReaction = event.providerId === reactionClippingProviderId;
+    if (isReaction) {
+      // Host restarts and source changes reset native detection history. Main
+      // owns save admission, including windows that have already been finalized.
+      // Saved timestamps are conservative end bounds and survive app restarts.
+      const savedAt = this.options.getLastReactionSavedAt?.() ?? 0;
+      const lastAt = Math.max(this.lastReaction?.timestamp ?? 0, savedAt);
+      const lastEnd = Math.max(this.lastReaction?.endsAt ?? 0, savedAt);
+      if (lastAt > 0 && (event.timestamp - lastAt < settings.reactionClipping.cooldownSeconds * 1_000
+        || next.startedAt < lastEnd)) {
+        this.runtime.eventsIgnored += 1;
+        this.options.log('reaction_suppressed', { reason: 'cooldown_or_overlap' });
+        this.publish();
+        return false;
+      }
+    }
     const latest = [...this.pending.values()].at(-1);
     const mergeNearbyEvents = policy?.mergeNearbyEvents ?? settings.mergeNearbyEvents;
     const mergeThresholdMs = mergeNearbyEvents
@@ -168,6 +187,7 @@ export class AutoCaptureEngine {
         durationMs: next.endsAt - next.startedAt,
       });
     }
+    if (isReaction) this.lastReaction = { timestamp: event.timestamp, endsAt: next.endsAt };
     this.options.log('event_received', { game: event.gameId, provider: event.providerId, type: event.type, timestamp: event.timestamp });
     this.publish();
     return true;

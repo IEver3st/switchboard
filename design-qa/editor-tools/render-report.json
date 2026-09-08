@@ -1,0 +1,29 @@
+{
+  "seconds": 2.7437723000000003,
+  "projectDurationMs": 9000,
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_type": "video",
+        "width": 1280,
+        "height": 720,
+        "tags": {
+          "encoder": "Lavc63.1.100 h264_nvenc"
+        }
+      },
+      {
+        "codec_type": "audio",
+        "tags": {}
+      }
+    ],
+    "format": {
+      "duration": "9.021354",
+      "size": "239665"
+    }
+  },
+  "progressSamples": 10,
+  "cancellationMs": 20.290600000000268,
+  "audioSource": "GTA 6 Raul Batista Mission Theme Music - Smooth Audio - Extended Look Trailer Music - BluBird.mp3"
+}

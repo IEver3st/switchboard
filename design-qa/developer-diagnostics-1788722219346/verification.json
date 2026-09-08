@@ -1,0 +1,30 @@
+{
+  "output": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\developer-diagnostics-1788722219346",
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-developer-diagnostics-ZdW8dj",
+  "assertions": [
+    "Developer mode starts disabled",
+    "export is gated in main when Developer mode is off",
+    "export immediate.json succeeds",
+    "diagnostics exports before any resource sample",
+    "Developer mode starts an event timeline",
+    "events: app stays hidden and unfocused",
+    "events: no page overflow at 1080x720",
+    "export visible without scrolling at 1080x720",
+    "events: app stays hidden and unfocused",
+    "events: no page overflow at 1420x900",
+    "export visible without scrolling at 1420x900",
+    "events: app stays hidden and unfocused",
+    "events: no page overflow at 1920x1080",
+    "export visible without scrolling at 1920x1080",
+    "host request retains original FFmpeg failure detail"
+  ],
+  "screenshots": [
+    "events-1080x720.png",
+    "events-1420x900.png",
+    "events-1920x1080.png"
+  ],
+  "errors": [
+    "Error: live-host startup failure stays Error beyond the old automatic recovery delay"
+  ],
+  "passed": false
+}

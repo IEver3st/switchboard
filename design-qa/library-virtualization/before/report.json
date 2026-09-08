@@ -1,0 +1,1620 @@
+{
+  "hardwareAcceleration": true,
+  "sampleDurationMs": 60000,
+  "initial": {
+    "heapMb": 58,
+    "domNodes": 15643,
+    "images": 443,
+    "decodedImages": 32,
+    "cards": 442,
+    "privateMb": 574,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 143
+      },
+      {
+        "type": "GPU",
+        "privateMb": 207
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 212
+      }
+    ]
+  },
+  "snapshotTaskMs": 259,
+  "afterUpdates": {
+    "heapMb": 58,
+    "domNodes": 15643,
+    "images": 443,
+    "decodedImages": 32,
+    "cards": 442,
+    "privateMb": 574,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 147
+      },
+      {
+        "type": "GPU",
+        "privateMb": 202
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 213
+      }
+    ]
+  },
+  "settingsSamples": [
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 596,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 151
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 537,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 216
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 442,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 442,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 442,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 442,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 442,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 442,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 442,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 441,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 122
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 402,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 83
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 402,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 83
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 406,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 86
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 405,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 93
+        },
+        {
+          "type": "GPU",
+          "privateMb": 216
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 84
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 400,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 400,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 400,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 400,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 399,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 399,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 399,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 399,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 399,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 399,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 82
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 398,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 398,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 91
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 397,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 397,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 397,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 397,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 397,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 397,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    },
+    {
+      "heapMb": 58,
+      "domNodes": 208,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 397,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 90
+        },
+        {
+          "type": "GPU",
+          "privateMb": 214
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 81
+        }
+      ]
+    }
+  ],
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-library-performance-nuzwDe"
+}

@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "version": "0.7.0",
+  "exportedAt": "2026-09-04T23:53:10.913Z",
+  "droppedJournalWrites": 0,
+  "limits": "Last 120 debug samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. No payloads or media paths are collected.",
+  "samples": [
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-04T23:53:08.516Z",
+      "sequence": 2,
+      "uptimeSeconds": 3.5,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget",
+        "rapid-growth"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 484.3,
+        "electronWorkingSetMb": 628.2,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 484.3,
+        "cpuPercent": 1.2,
+        "processCount": 4
+      },
+      "electronProcesses": [
+        {
+          "pid": 16232,
+          "type": "GPU",
+          "privateMb": 250.2,
+          "workingSetMb": 160.3,
+          "peakWorkingSetMb": 171.8,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 49632,
+          "type": "Tab",
+          "privateMb": 111.4,
+          "workingSetMb": 213.1,
+          "peakWorkingSetMb": 213.9,
+          "cpuPercent": 0.5
+        },
+        {
+          "pid": 46164,
+          "type": "Browser",
+          "privateMb": 110.5,
+          "workingSetMb": 177,
+          "peakWorkingSetMb": 177,
+          "cpuPercent": 0.6
+        },
+        {
+          "pid": 10420,
+          "type": "Utility",
+          "privateMb": 12.1,
+          "workingSetMb": 77.8,
+          "peakWorkingSetMb": 77.8,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 177.7,
+        "heapUsedMb": 26.1,
+        "heapTotalMb": 40.7,
+        "externalMb": 4.5,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 3,
+          "ProcessWrap": 1,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 61,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 317,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 5747.3
+      },
+      "debug": {
+        "startedAt": "2026-09-04T23:53:08.516Z",
+        "sampledAt": "2026-09-04T23:53:08.516Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": null,
+        "eventLoopDelayMaxMs": null,
+        "operations": [],
+        "processes": [
+          {
+            "pid": 16232,
+            "type": "GPU",
+            "privateMb": 250.2,
+            "workingSetMb": 160.3,
+            "peakWorkingSetMb": 171.8,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 49632,
+            "type": "Tab",
+            "privateMb": 111.4,
+            "workingSetMb": 213.1,
+            "peakWorkingSetMb": 213.9,
+            "cpuPercent": 0.5,
+            "role": "Tab"
+          },
+          {
+            "pid": 46164,
+            "type": "Browser",
+            "privateMb": 110.5,
+            "workingSetMb": 177,
+            "peakWorkingSetMb": 177,
+            "cpuPercent": 0.6,
+            "role": "Browser"
+          },
+          {
+            "pid": 10420,
+            "type": "Utility",
+            "privateMb": 12.1,
+            "workingSetMb": 77.8,
+            "peakWorkingSetMb": 77.8,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      }
+    }
+  ]
+}

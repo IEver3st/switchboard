@@ -1,5 +1,6 @@
 export const settingsCategoryIds = [
   'general',
+  'setup',
   'audio',
   'capture',
   'clips',
@@ -25,6 +26,7 @@ export const settingsCategories: ReadonlyArray<{
   resettable: boolean;
 }> = [
   { id: 'general', label: 'General', resettable: true },
+  { id: 'setup', label: 'Setup', resettable: false },
   { id: 'audio', label: 'Audio', resettable: true },
   { id: 'capture', label: 'Capture', resettable: true },
   { id: 'clips', label: 'Clips', resettable: true },
@@ -35,6 +37,8 @@ export const settingsCategories: ReadonlyArray<{
 ];
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
+  { id: 'setup.scenes', category: 'setup', title: 'Scenes, quick controls, and status lighting', description: 'Save your whole setup, switch scenes, and configure desktop shortcuts and device cues.', keywords: ['scenes', 'profiles', 'automatic', 'shortcut', 'quick', 'lighting', 'status'] },
+  { id: 'capture.systemAudioMode', category: 'capture', title: 'Game-only audio', description: 'Capture sound from the selected game or window without other desktop apps.', keywords: ['game only', 'process', 'music', 'exclude', 'desktop audio'] },
   {
     id: 'general.runDiagnostics', category: 'general', title: 'Run diagnostics',
     description: 'Test capture setup and save the results without enabling Developer mode.',

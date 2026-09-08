@@ -1,0 +1,58 @@
+[
+  {
+    "name": "general",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "contentOverflow": false,
+    "reducedMotion": true
+  },
+  {
+    "name": "general",
+    "width": 1420,
+    "height": 900,
+    "overflow": false,
+    "contentOverflow": false,
+    "reducedMotion": true
+  },
+  {
+    "name": "general",
+    "width": 1920,
+    "height": 1080,
+    "overflow": false,
+    "contentOverflow": false,
+    "reducedMotion": true
+  },
+  {
+    "name": "custom",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "contentOverflow": false,
+    "reducedMotion": true
+  },
+  {
+    "name": "full",
+    "width": 1420,
+    "height": 900,
+    "overflow": false,
+    "contentOverflow": false,
+    "reducedMotion": true
+  },
+  {
+    "name": "checks",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "contentOverflow": false,
+    "reducedMotion": true
+  },
+  {
+    "name": "results-focus",
+    "width": 1080,
+    "height": 720,
+    "overflow": false,
+    "contentOverflow": false,
+    "reducedMotion": true
+  }
+]

@@ -1,0 +1,1774 @@
+{
+  "userData": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-impeccable-audit-c1q9n5",
+  "results": [
+    {
+      "name": "devices",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 144,
+      "unnamed": []
+    },
+    {
+      "name": "mouse",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 2.93,
+          "required": 4.5,
+          "color": "color(srgb 0.560784 0.490196 1 / 0.65)",
+          "background": [
+            29.31764705882353,
+            29.886274509803922,
+            51.20392156862745
+          ],
+          "font": "7px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 267,
+      "unnamed": []
+    },
+    {
+      "name": "keyboard",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 159,
+      "unnamed": []
+    },
+    {
+      "name": "microphone",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 178,
+      "unnamed": []
+    },
+    {
+      "name": "capture",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 171,
+      "unnamed": []
+    },
+    {
+      "name": "replay",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 2,
+      "reducedMotion": true,
+      "domNodes": 255,
+      "unnamed": []
+    },
+    {
+      "name": "settings-general",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.settings-workspaces__locked",
+          "text": "Always on",
+          "ratio": 3.98,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            16.08627450980392,
+            19.6078431372549,
+            26.89019607843137
+          ],
+          "font": "11px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 210,
+      "unnamed": []
+    },
+    {
+      "name": "settings-capture",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 429,
+      "unnamed": []
+    },
+    {
+      "name": "settings-modules",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span",
+          "text": "5",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "10.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · Huntsman V2 Analog",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · QuadCast 2",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · G502 X Plus",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Capture · v0.1.0",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Audio · v0.1.0",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span",
+          "text": "2",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "10.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.0.1",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Community · Integration · v0.0.1",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 284,
+      "unnamed": []
+    },
+    {
+      "name": "settings-about",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 178,
+      "unnamed": []
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 450,
+      "unnamed": []
+    },
+    {
+      "name": "audio-microphone",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.audio-eyebrow",
+          "text": "Preset",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.audio-eyebrow",
+          "text": "Test",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 378,
+      "unnamed": []
+    },
+    {
+      "name": "devices",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 155,
+      "unnamed": []
+    },
+    {
+      "name": "mouse",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 2.93,
+          "required": 4.5,
+          "color": "color(srgb 0.560784 0.490196 1 / 0.65)",
+          "background": [
+            29.31764705882353,
+            29.886274509803922,
+            51.20392156862745
+          ],
+          "font": "7px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 274,
+      "unnamed": []
+    },
+    {
+      "name": "keyboard",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 164,
+      "unnamed": []
+    },
+    {
+      "name": "microphone",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "capture",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 175,
+      "unnamed": []
+    },
+    {
+      "name": "replay",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 259,
+      "unnamed": []
+    },
+    {
+      "name": "settings-general",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.settings-workspaces__locked",
+          "text": "Always on",
+          "ratio": 3.98,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            16.08627450980392,
+            19.6078431372549,
+            26.89019607843137
+          ],
+          "font": "11px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 214,
+      "unnamed": []
+    },
+    {
+      "name": "settings-capture",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 433,
+      "unnamed": []
+    },
+    {
+      "name": "settings-modules",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span",
+          "text": "5",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "10.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · Huntsman V2 Analog",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · QuadCast 2",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · G502 X Plus",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Capture · v0.1.0",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Audio · v0.1.0",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span",
+          "text": "2",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "10.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.0.1",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Community · Integration · v0.0.1",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288,
+      "unnamed": []
+    },
+    {
+      "name": "settings-about",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.mixer-mix-picker__label",
+          "text": "Mix",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 450,
+      "unnamed": []
+    },
+    {
+      "name": "audio-microphone",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.audio-eyebrow",
+          "text": "Preset",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.audio-eyebrow",
+          "text": "Test",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 378,
+      "unnamed": []
+    },
+    {
+      "name": "devices",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 155,
+      "unnamed": []
+    },
+    {
+      "name": "mouse",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 3.31,
+          "required": 4.5,
+          "color": "color(srgb 0.545098 0.584314 0.654902 / 0.65)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "7px"
+        },
+        {
+          "selector": "span.report-rate-control__unit",
+          "text": "Hz",
+          "ratio": 2.93,
+          "required": 4.5,
+          "color": "color(srgb 0.560784 0.490196 1 / 0.65)",
+          "background": [
+            29.31764705882353,
+            29.886274509803922,
+            51.20392156862745
+          ],
+          "font": "7px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 274,
+      "unnamed": []
+    },
+    {
+      "name": "keyboard",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 164,
+      "unnamed": []
+    },
+    {
+      "name": "microphone",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "capture",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 175,
+      "unnamed": []
+    },
+    {
+      "name": "replay",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 259,
+      "unnamed": []
+    },
+    {
+      "name": "settings-general",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.settings-workspaces__locked",
+          "text": "Always on",
+          "ratio": 3.98,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            16.08627450980392,
+            19.6078431372549,
+            26.89019607843137
+          ],
+          "font": "11px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 214,
+      "unnamed": []
+    },
+    {
+      "name": "settings-capture",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 433,
+      "unnamed": []
+    },
+    {
+      "name": "settings-modules",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span",
+          "text": "5",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "10.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · Huntsman V2 Analog",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · QuadCast 2",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.1.0 · G502 X Plus",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Capture · v0.1.0",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Audio · v0.1.0",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span",
+          "text": "2",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "10.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Official · Device · v0.0.1",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.module-list-row__meta",
+          "text": "Community · Integration · v0.0.1",
+          "ratio": 4.21,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            10,
+            12,
+            17
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288,
+      "unnamed": []
+    },
+    {
+      "name": "settings-about",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 182,
+      "unnamed": []
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.mixer-mix-picker__label",
+          "text": "Mix",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        },
+        {
+          "selector": "span.audio-meter__readout",
+          "text": "-∞ dB",
+          "ratio": 3.82,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            20,
+            24,
+            33
+          ],
+          "font": "10px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 450,
+      "unnamed": []
+    },
+    {
+      "name": "audio-microphone",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Devices",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.switchboard-sidebar__label",
+          "text": "Capture",
+          "ratio": 4.24,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            9,
+            11,
+            15
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.audio-eyebrow",
+          "text": "Preset",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        },
+        {
+          "selector": "span.audio-eyebrow",
+          "text": "Test",
+          "ratio": 4.07,
+          "required": 4.5,
+          "color": "rgb(107, 117, 135)",
+          "background": [
+            14,
+            17,
+            23
+          ],
+          "font": "9.5px"
+        }
+      ],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 378,
+      "unnamed": []
+    }
+  ]
+}

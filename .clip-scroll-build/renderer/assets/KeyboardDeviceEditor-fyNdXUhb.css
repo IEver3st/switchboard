@@ -1,0 +1,64 @@
+.device-workbench[data-device-kind="keyboard"] .keyboard-workbench {
+  grid-template-columns: minmax(0, 1fr) 304px;
+  grid-template-rows: auto auto;
+  align-content: center;
+  align-items: center;
+  gap: 28px clamp(36px, 5vw, 80px);
+  max-width: 1320px;
+}
+
+.keyboard-workbench .keyboard-stage { grid-row: 1; align-self: end; }
+.keyboard-workbench .keyboard-stage .device-render--hero { height: clamp(280px, 38vh, 420px); }
+.keyboard-workbench .keyboard-stage__footer { margin-top: 12px; }
+.keyboard-control-rail { grid-column: 2; grid-row: 1 / span 2; display: grid; gap: 36px; min-width: 0; }
+.keyboard-control-rail .keyboard-primary-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.keyboard-control-rail .keyboard-control-row { flex-wrap: nowrap; min-height: 36px; }
+.keyboard-workbench .keyboard-control-rail .keyboard-lighting { grid-column: 1; grid-row: auto; align-self: auto; }
+.keyboard-control-rail .keyboard-lighting__power > span { color: var(--text-description); font-size: 11px; }
+.keyboard-control-rail .keyboard-lighting__body { margin-top: 18px; gap: 22px; }
+.keyboard-control-rail .keyboard-lighting__effects [role="group"] { background: transparent; border: 0; padding: 0; gap: 6px; overflow: visible; }
+.keyboard-control-rail .keyboard-effect-option { border: 0; background: var(--surface-1); min-height: 36px; font-size: 11px; font-weight: 550; }
+.keyboard-control-rail .keyboard-effect-option:hover:not(:disabled) { background: var(--surface-hover); }
+.keyboard-control-rail .keyboard-effect-option[data-state="on"] { background: color-mix(in srgb, var(--accent-brand) 14%, var(--surface-1)); color: var(--accent-brand); }
+.keyboard-control-rail .keyboard-effect-option:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.keyboard-control-rail .keyboard-brightness { gap: 16px; }
+.keyboard-control-rail .keyboard-brightness output { font-size: 18px; font-weight: 600; line-height: 1; }
+.keyboard-workbench .keyboard-input-features { grid-column: 1; grid-row: 2; align-self: start; width: min(100%, 660px); justify-self: center; }
+.keyboard-input-features summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; cursor: pointer; list-style: none; border-radius: 4px; }
+.keyboard-input-features summary::-webkit-details-marker { display: none; }
+.keyboard-input-features summary > span { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.keyboard-input-features summary strong { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.keyboard-input-features summary small { color: var(--text-description); font-size: 11px; }
+.keyboard-input-features summary > svg { width: 14px; height: 14px; color: var(--text-description); flex: none; }
+.keyboard-input-features[open] summary > svg { transform: rotate(180deg); }
+.keyboard-input-features summary:hover strong { color: var(--foreground); }
+.keyboard-input-features summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.keyboard-workbench .keyboard-input-features dl { margin-top: 8px; gap: 16px 28px; }
+.keyboard-workbench .keyboard-input-features dd { font-size: 11px; }
+.keyboard-workbench:has(.keyboard-unavailable) .keyboard-stage { grid-row: 2; }
+.keyboard-workbench:has(.keyboard-unavailable) .keyboard-control-rail { grid-row: 2 / span 2; }
+.keyboard-workbench:has(.keyboard-unavailable) .keyboard-input-features { grid-row: 3; }
+
+@media (max-height: 780px) and (min-width: 820px) {
+  .device-workbench[data-device-kind="keyboard"] .keyboard-workbench { gap: 16px 32px; }
+  .keyboard-workbench .keyboard-stage .device-render--hero { height: 270px; }
+  .keyboard-control-rail { gap: 24px; }
+  .keyboard-control-rail .keyboard-primary-controls { gap: 8px; }
+  .keyboard-control-rail .keyboard-lighting__body { gap: 18px; margin-top: 14px; }
+  .keyboard-control-rail .keyboard-lighting__parameters { gap: 16px; }
+}
+@media (max-width: 1120px) and (min-width: 820px) {
+  .device-workbench[data-device-kind="keyboard"] .keyboard-workbench { grid-template-columns: minmax(0, 1fr) 280px; }
+}
+@media (max-width: 819px) {
+  .device-workbench[data-device-kind="keyboard"] .keyboard-workbench { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .keyboard-workbench .keyboard-stage .device-render--hero { height: 260px; }
+  .keyboard-workbench .keyboard-control-rail { grid-column: 1; grid-row: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
+  .keyboard-workbench .keyboard-control-rail .keyboard-lighting { grid-column: 2; grid-row: 1; }
+  .keyboard-workbench .keyboard-input-features,
+  .keyboard-workbench:has(.keyboard-unavailable) .keyboard-input-features { grid-row: auto; }
+}
+@media (max-width: 560px) {
+  .keyboard-workbench .keyboard-control-rail { grid-template-columns: minmax(0, 1fr); }
+  .keyboard-workbench .keyboard-control-rail .keyboard-lighting { grid-column: 1; grid-row: auto; }
+}

@@ -1,0 +1,98 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-clip-upgrades-XmMapX",
+  "screenshots": [
+    {
+      "name": "1080x720-picture-expanded",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-picture-expanded",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "Picture adjustments are visible immediately",
+    "Picture adjustment persists through main",
+    "Picture reset persists",
+    "Picture flip persists"
+  ],
+  "errors": []
+}

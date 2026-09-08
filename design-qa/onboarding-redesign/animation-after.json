@@ -1,0 +1,96 @@
+{
+  "results": [
+    {
+      "paused": false,
+      "frames": {
+        "count": 720,
+        "p95": 4.300000000000182,
+        "max": 8.299999999999727,
+        "width": 1920,
+        "height": 1080
+      },
+      "metrics": {
+        "Paint": {
+          "count": 0,
+          "totalMs": 0
+        },
+        "PrePaint": {
+          "count": 786,
+          "totalMs": 44.55
+        },
+        "Layout": {
+          "count": 0,
+          "totalMs": 0
+        },
+        "UpdateLayoutTree": {
+          "count": 721,
+          "totalMs": 53.53
+        },
+        "RasterTask": {
+          "count": 0,
+          "totalMs": 0
+        }
+      }
+    },
+    {
+      "paused": true,
+      "frames": {
+        "count": 721,
+        "p95": 4.300000000000182,
+        "max": 4.399999999999636,
+        "width": 1920,
+        "height": 1080
+      },
+      "metrics": {
+        "Paint": {
+          "count": 82,
+          "totalMs": 8.58
+        },
+        "PrePaint": {
+          "count": 1017,
+          "totalMs": 6.19
+        },
+        "Layout": {
+          "count": 0,
+          "totalMs": 0
+        },
+        "UpdateLayoutTree": {
+          "count": 79,
+          "totalMs": 9.38
+        },
+        "RasterTask": {
+          "count": 87,
+          "totalMs": 6.24
+        }
+      }
+    }
+  ],
+  "sameViewport": true,
+  "pass": true,
+  "motionControls": {
+    "pausedCount": 0,
+    "resumedCount": 2,
+    "reducedCount": 0,
+    "reducedAnimations": []
+  },
+  "captures": [
+    {
+      "filename": "optimized-1080x720.png",
+      "width": 1080,
+      "height": 722,
+      "overflow": false
+    },
+    {
+      "filename": "optimized-1420x900.png",
+      "width": 1420,
+      "height": 900,
+      "overflow": false
+    },
+    {
+      "filename": "optimized-1920x1080.png",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false
+    }
+  ]
+}

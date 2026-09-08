@@ -28,6 +28,8 @@ using var meterTelemetryDemand = new MeterTelemetryDemand();
 var process = Process.GetCurrentProcess();
 var previousCpuTime = process.TotalProcessorTime;
 var previousCpuSampleAt = Stopwatch.GetTimestamp();
+var endpointInventoryPending = 0;
+endpoints.Changed += () => Interlocked.Exchange(ref endpointInventoryPending, 1);
 
 engine.SnapshotChanged += snapshot =>
 {
@@ -154,6 +156,8 @@ async Task PublishStatusTelemetryAsync(CancellationToken cancellationToken)
     while (await statusTimer.WaitForNextTickAsync(cancellationToken))
     {
         engine.RecoverIfNeeded();
+        if (Interlocked.Exchange(ref endpointInventoryPending, 0) != 0)
+            await WriteAsync(new { type = "event", @event = "audioDevicesChanged" });
         await WriteAsync(new { type = "event", @event = "audioSnapshot", payload = engine.GetSnapshot() });
         await WriteStatusAsync();
     }

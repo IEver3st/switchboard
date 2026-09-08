@@ -1,0 +1,21 @@
+{
+  "fixtureClips": 1200,
+  "boundary": "Isolated native Electron fixture with prepared copies of a real thumbnail. The existing running app was not operated.",
+  "before": "prepared-before/results.json",
+  "after": "final/results.json",
+  "interactions": "interactions/results.json",
+  "blankJumpDestinationsBefore": 6,
+  "jumpChecksBefore": 6,
+  "blankJumpDestinationsAfter": 0,
+  "jumpChecksAfter": 36,
+  "checks": {
+    "focusedClipTests": "17 passed",
+    "types": "passed",
+    "structureAndSource": "passed",
+    "productionBuild": "passed",
+    "scopedWhitespace": "passed",
+    "nativeGridAndList": "passed at 1080x720, 1420x900, 1920x1080",
+    "focusMenusFiltersSelectionFavoriteReload": "passed in grid and list at all three sizes"
+  },
+  "temporaryCleanup": "Bulk cleanup was rejected by automatic approval review: blocked by policy. Temporary fixture directories and isolated build outputs remain."
+}

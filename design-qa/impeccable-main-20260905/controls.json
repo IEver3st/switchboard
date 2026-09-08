@@ -1,0 +1,292 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "name": "modules-locked",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 277
+    },
+    {
+      "name": "module-search-focus",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 147
+    },
+    {
+      "name": "modules-unlocked",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 443
+    },
+    {
+      "name": "capture-unavailable",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 601
+    },
+    {
+      "name": "capture-search-focus",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 175
+    },
+    {
+      "name": "replay-unavailable",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 692
+    },
+    {
+      "name": "modules-locked",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 281
+    },
+    {
+      "name": "module-search-focus",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 151
+    },
+    {
+      "name": "modules-unlocked",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 443
+    },
+    {
+      "name": "capture-unavailable",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 1056
+    },
+    {
+      "name": "capture-search-focus",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 175
+    },
+    {
+      "name": "replay-unavailable",
+      "viewport": {
+        "width": 1420,
+        "height": 900
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 1147
+    },
+    {
+      "name": "modules-locked",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 281
+    },
+    {
+      "name": "module-search-focus",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 151
+    },
+    {
+      "name": "modules-unlocked",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 288
+    },
+    {
+      "name": "audio-mixer",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 443
+    },
+    {
+      "name": "capture-unavailable",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 1056
+    },
+    {
+      "name": "capture-search-focus",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 175
+    },
+    {
+      "name": "replay-unavailable",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 1147
+    },
+    {
+      "name": "modules-125-percent",
+      "viewport": {
+        "width": 1080,
+        "height": 720
+      },
+      "contrast": [],
+      "overflow": [],
+      "images": [],
+      "activeAnimations": 0,
+      "reducedMotion": true,
+      "domNodes": 281
+    }
+  ],
+  "mode": "hidden Electron with fixture devices; same isolated profile"
+}

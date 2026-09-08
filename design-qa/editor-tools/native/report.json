@@ -1,0 +1,116 @@
+{
+  "sizes": [
+    {
+      "width": 1080,
+      "height": 720,
+      "scroll": 881,
+      "client": 881,
+      "segments": 5,
+      "playBottom": 482,
+      "musicBottom": 708,
+      "overflow": false
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "scroll": 1195,
+      "client": 1195,
+      "segments": 5,
+      "playBottom": 662,
+      "musicBottom": 888,
+      "overflow": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "scroll": 1695,
+      "client": 1695,
+      "segments": 5,
+      "playBottom": 842,
+      "musicBottom": 1068,
+      "overflow": false
+    }
+  ],
+  "checks": [
+    "Speed and title preview",
+    "Undo/redo, picture adjustment by keyboard, flip, title size/placement, frame trim and canonical autosave",
+    "Music source trimming and real waveform",
+    "Actual montage render, progress and draggable prepared file",
+    "Clip speed, title, trim, save and actual prepared share",
+    "Reopened canonical clip music and edits",
+    "Montage reload with title, speed and music",
+    "Custom sizes, invalid input, reduced motion and mid-export cancellation preserving existing output"
+  ],
+  "isolatedUserData": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-montage-qa-99hiRf",
+  "nativeDragValidated": true,
+  "exportProbe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_type": "video"
+      },
+      {
+        "codec_type": "audio"
+      }
+    ],
+    "format": {
+      "duration": "23.821333",
+      "size": "427303"
+    }
+  },
+  "clipSaved": {
+    "id": "montage-qa-1",
+    "path": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-montage-qa-99hiRf\\clips\\montage-1.mp4",
+    "name": "Opening play",
+    "game": "Switchboard QA",
+    "createdAt": 1788574928723,
+    "durationMs": 4000,
+    "fileSize": 71984,
+    "width": 640,
+    "height": 360,
+    "fps": 10,
+    "codec": "h264",
+    "thumbnailPath": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-montage-qa-99hiRf\\cache\\thumbnails\\montage-qa-1.v2.jpg",
+    "favorite": false,
+    "titleEdited": true,
+    "music": {
+      "id": "d7096982-aa01-4038-9305-cfe858e0043f",
+      "asset": {
+        "id": "b04275e3-0dec-47bf-83d6-bb192568b4a6",
+        "name": "Custom soundtrack",
+        "originalName": "Custom soundtrack.mp3",
+        "durationMs": 5028,
+        "fileSize": 710420,
+        "codec": "mp3",
+        "createdAt": 1788574941922
+      },
+      "timelineStartMs": 0,
+      "sourceStartMs": 1100,
+      "sourceEndMs": 3300,
+      "volume": 0.18,
+      "muted": false,
+      "fadeInMs": 975,
+      "fadeOutMs": 975,
+      "loop": true
+    },
+    "videoEdits": {
+      "speed": 2,
+      "text": {
+        "content": "CLIP TITLE",
+        "startMs": 0,
+        "endMs": 4000,
+        "position": "bottom",
+        "size": "medium"
+      }
+    },
+    "trimStartMs": 0,
+    "trimEndMs": 3900,
+    "canvasSize": "original",
+    "audioChannels": [
+      "game"
+    ]
+  },
+  "reducedMotion": true,
+  "errors": []
+}

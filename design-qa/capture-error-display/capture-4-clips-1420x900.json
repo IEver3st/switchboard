@@ -1,0 +1,63 @@
+{
+  "viewport": {
+    "width": 1420,
+    "height": 900
+  },
+  "requestedClips": 4,
+  "cards": 4,
+  "rows": 0,
+  "columns": 5,
+  "cardWidths": {
+    "minimum": 249.3125,
+    "maximum": 249.3125
+  },
+  "libraryBounds": {
+    "left": 72,
+    "right": 1420,
+    "width": 1348
+  },
+  "toolbarBounds": {
+    "left": 602.3229370117188,
+    "right": 1400.0000610351562,
+    "width": 797.6771240234375
+  },
+  "commandHeaderBounds": {
+    "top": 38,
+    "bottom": 94,
+    "height": 56
+  },
+  "commandTopBounds": null,
+  "searchBounds": {
+    "width": 320
+  },
+  "toolbarOverflow": false,
+  "activeControls": {
+    "favorites": false,
+    "game": "all",
+    "filter": "Filter",
+    "view": "Grid view"
+  },
+  "emptyState": false,
+  "dateGroups": [
+    "Today · September 7",
+    "Yesterday · September 6"
+  ],
+  "lazyImages": 4,
+  "decodedImages": 0,
+  "horizontalOverflow": false,
+  "manualReviewOpened": null,
+  "interactions": null,
+  "selectionPerformance": null,
+  "preferences": null,
+  "motion": {
+    "reduced": false,
+    "animations": 4
+  },
+  "rendererErrors": [],
+  "resizeTransitions": null,
+  "imagePath": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\capture-error-display\\capture-4-clips-1420x900.png",
+  "imageSize": {
+    "width": 2130,
+    "height": 1350
+  }
+}

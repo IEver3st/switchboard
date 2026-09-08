@@ -1,0 +1,319 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-clip-upgrades-AmYRsk",
+  "screenshots": [
+    {
+      "name": "1080x720-picture-expanded",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-four-channels-long-title",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-four-channels-long-title",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-four-channels-long-title",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1536,
+          "right": 1604,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1080x720-music",
+      "inner": {
+        "width": 1080,
+        "height": 720
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1080,
+        "height": 720
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1012,
+          "right": 1080,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 732,
+          "right": 800,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "280px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 800,
+          "width": 280,
+          "right": 1080,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1420x900-music",
+      "inner": {
+        "width": 1420,
+        "height": 900
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1420,
+        "height": 900
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1352,
+          "right": 1420,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1036,
+          "right": 1104,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1104,
+          "width": 316,
+          "right": 1420,
+          "basis": "auto"
+        }
+      ]
+    },
+    {
+      "name": "1920x1080-music",
+      "inner": {
+        "width": 1920,
+        "height": 1080
+      },
+      "bounds": {
+        "x": -20008,
+        "y": -20000,
+        "width": 1920,
+        "height": 1080
+      },
+      "geometry": [
+        {
+          "selector": ".montage-v2-layout",
+          "x": 68,
+          "width": 1852,
+          "right": 1920,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-workspace",
+          "x": 68,
+          "width": 1536,
+          "right": 1604,
+          "basis": "auto"
+        },
+        {
+          "selector": ".montage-v2-inspector",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "316px"
+        },
+        {
+          "selector": ".montage-v2-inspector__content",
+          "x": 1604,
+          "width": 316,
+          "right": 1920,
+          "basis": "auto"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "Picture adjustments are visible immediately",
+    "Picture adjustment persists through main",
+    "Picture reset persists",
+    "1080x720 all four channels and trim fit first viewport",
+    "1420x900 all four channels and trim fit first viewport",
+    "1920x1080 all four channels and trim fit first viewport",
+    "1080x720 music has no horizontal overflow",
+    "1420x900 music has no horizontal overflow",
+    "1920x1080 music has no horizontal overflow",
+    "Confirmation stayed hidden"
+  ],
+  "errors": []
+}

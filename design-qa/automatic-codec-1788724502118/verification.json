@@ -1,0 +1,24 @@
+{
+  "output": "C:\\Users\\User\\Desktop\\Development\\Applications\\switchboard\\design-qa\\automatic-codec-1788724502118",
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-automatic-codec-zIHGlz",
+  "assertions": [
+    "Settings control applies Automatic through canonical IPC",
+    "Automatic survives renderer reload",
+    "settings-capture: app stays hidden and unfocused",
+    "settings-capture: no page overflow at 1080x720",
+    "settings-capture: app stays hidden and unfocused",
+    "settings-capture: no page overflow at 1420x900",
+    "settings-capture: app stays hidden and unfocused",
+    "settings-capture: no page overflow at 1920x1080",
+    "Actual native host resolves Automatic to fixture-tested AMD H.264"
+  ],
+  "screenshots": [
+    "settings-capture-1080x720.png",
+    "settings-capture-1420x900.png",
+    "settings-capture-1920x1080.png"
+  ],
+  "errors": [
+    "Error: document.querySelector(\"[aria-label=\\\"Close settings\\\"]\").click();: Error: Cannot read properties of null (reading 'click')"
+  ],
+  "passed": false
+}
