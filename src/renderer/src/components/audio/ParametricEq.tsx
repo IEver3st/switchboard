@@ -88,7 +88,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragIdRef = useRef<string | null>(null);
 
-  useEffect(() => setDraft(bands), [bands]);
+  useEffect(() => setDraft(bands), [bands, disabled]);
   useEffect(() => {
     if (!draft.some((band) => band.id === selectedId)) setSelectedId(draft[0]?.id ?? '');
   }, [draft, selectedId]);
@@ -109,6 +109,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
   const path = useMemo(() => curvePath(draft, geometry), [draft, geometry]);
 
   const updateBand = (id: string, update: Partial<EqBand>, commit = false) => {
+    if (disabled) return;
     const next = draft.map((band) => band.id === id ? { ...band, ...update } : band);
     setDraft(next);
     if (commit) onCommit(next);
@@ -222,6 +223,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
               stroke={band.enabled ? NODE_COLORS[index % NODE_COLORS.length] : 'var(--text-muted)'}
               strokeWidth={band.id === selected.id ? 2 : 1.5}
               role="slider"
+              aria-disabled={disabled || undefined}
               tabIndex={disabled ? -1 : 0}
               aria-label={`EQ band ${index + 1}`}
               aria-valuemin={-12}

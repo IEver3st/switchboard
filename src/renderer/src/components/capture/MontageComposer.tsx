@@ -1,3 +1,9 @@
+import { ClipAudioInspector } from './ClipAudioInspector';
+import { EditedAudioPreview } from './EditedAudioPreview';
+import { Star, Pencil } from 'lucide-react';
+import { speedAt, sourceToEditedMs, type VideoEdits } from '../../../../shared/video-edits';
+import { AdvancedVideoControls, AudioAutomationControls, NumberControl, type EditTool } from './AdvancedVideoControls';
+import { EditedVideoCanvas } from './EditedVideoCanvas';
 import { PreciseTimeField, PreciseTrimControls, VideoEditControls } from './VideoEditControls';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VideoEditPreview } from './VideoEditPreview';
@@ -7,7 +13,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -27,7 +32,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import type { Clip, ClipAudioChannel, ClipCanvasSize, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
+import type { Clip, ClipCanvasSize, ClipExportPreset, PreparedShareFile } from '../../../../shared/contracts';
 import type {
   MontageAudioWaveform,
   MontageProjectV2,
@@ -40,7 +45,6 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { channelColor } from '@/components/audio/channel-identity';
 import { formatBytes, formatDuration, formatVideoQuality } from '@/lib/format';
 import { montageV2Api } from '@/lib/montage-v2-api';
 import { AddMontageClipsDialog } from './AddMontageClipsDialog';
@@ -63,16 +67,11 @@ import {
   updateMontageSegment,
 } from './montage-v2-model';
 import './montage-v2.css';
-
-const channelLabels: Record<ClipAudioChannel, string> = {
-  game: 'Game',
-  chat: 'Chat',
-  microphone: 'Microphone',
-  media: 'Media',
-};
+import './clip-inspector.css';
 
 type PreviewState = 'loading' | 'ready' | 'error';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+const draftSaveError = 'Your latest edits are still open. The draft could not be saved to disk.';
 
 type HistoryState = {
   past: MontageProjectV2[];
@@ -90,7 +89,9 @@ export function MontageComposer({
   onInspectorOpenChange,
   onReveal,
   onDraftsChanged,
+  sourceClipActions,
 }: {
+  sourceClipActions?: { clip: Clip; onRename: () => void; onFavorite: (favorite: boolean) => void; onDelete: () => void };
   initialProject: MontageProjectV2;
   clips: readonly Clip[];
   inspectorOpen: boolean;
@@ -99,6 +100,11 @@ export function MontageComposer({
   onReveal: (clip: Clip) => void;
   onDraftsChanged: () => void;
 }) {
+  const [editTool, setEditTool] = useState<EditTool>('framing');
+  const [selectedAudioTrack, setSelectedAudioTrack] = useState(0);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const duckGainRef = useRef(1);
+  const playbackClockRef = useRef({ wall: 0, time: 0 });
   const editorRef = useRef<HTMLElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
   const videoARef = useRef<HTMLVideoElement>(null);
@@ -106,12 +112,14 @@ export function MontageComposer({
   const musicRef = useRef<HTMLAudioElement>(null);
   const musicSettingsRef = useRef<HTMLDivElement>(null);
   const [musicSettingsRequested, setMusicSettingsRequested] = useState(false);
-  const [inspectorSection, setInspectorSection] = useState<'segment' | 'music'>('segment');
+  const [inspectorSection, setInspectorSection] = useState<'segment' | 'audio' | 'music'>('segment');
   const playbackFrameRef = useRef<number | null>(null);
   const currentMsRef = useRef(0);
   const lastRenderedMsRef = useRef(0);
   const activeSlotRef = useRef<0 | 1>(0);
   const playingRef = useRef(false);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const discardingRef = useRef(false);
   const projectRef = useRef(initialProject);
   const clipsRef = useRef(clips);
   const masterVolumeRef = useRef(1);
@@ -126,6 +134,8 @@ export function MontageComposer({
     mergedAt: 0,
   }));
   const project = history.present;
+  const [nameDraft, setNameDraft] = useState(project.name);
+  useEffect(() => setNameDraft(project.name), [project.name]);
   const [selectedSegmentId, setSelectedSegmentId] = useState(project.segments[0]?.id ?? '');
   const [currentMs, setCurrentMs] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -252,7 +262,7 @@ export function MontageComposer({
     const targetSeconds = playback.sourceTimeMs / 1_000;
     if (Math.abs(audio.currentTime - targetSeconds) > 0.08) audio.currentTime = targetSeconds;
     audio.muted = previewMutedRef.current;
-    audio.volume = clamp(playback.gain * masterVolumeRef.current, 0, 1);
+    audio.volume = clamp(playback.gain * masterVolumeRef.current * duckGainRef.current, 0, 1);
     if (resume) {
       try { await audio.play(); } catch { setMusicPreviewWarning('Music preview could not start. Export remains available.'); }
     }
@@ -299,7 +309,8 @@ export function MontageComposer({
       await syncMusic(nextMs, resume);
       if (generation !== seekGenerationRef.current) return;
       if (resume) {
-        await targetVideo.play();
+        playbackClockRef.current = { wall: performance.now(), time: nextMs };
+        if (!mapping.frozen) await targetVideo.play();
         setPlaying(true);
         playingRef.current = true;
       }
@@ -330,18 +341,19 @@ export function MontageComposer({
     const currentProject = projectRef.current;
     const mapping = mapMontageTime(currentProject.segments, currentMsRef.current);
     const video = activeSlotRef.current === 0 ? videoARef.current : videoBRef.current;
-    if (!mapping || !video || video.paused) return;
-    const sourceTimeMs = video.currentTime * 1_000;
-    const thresholdMs = Math.max(8, 500 / Math.max(1, clipsRef.current.find((clip) => clip.id === mapping.segment.clipId)?.fps || 30));
-    if (sourceTimeMs >= mapping.segment.trimEndMs - thresholdMs) {
-      void advancePlayback();
-      return;
+    if (!mapping || !video) return;
+    const nextMs = Math.min(currentProject.durationMs, playbackClockRef.current.time + performance.now() - playbackClockRef.current.wall);
+    if (nextMs >= mapping.montageEndMs) { void advancePlayback(); return; }
+    const desired = mapMontageTime(currentProject.segments, nextMs);
+    if (!desired) return;
+    video.playbackRate = speedAt(desired.sourceTimeMs, desired.segment.videoEdits);
+    if (desired.frozen) {
+      video.pause();
+      if (Math.abs(video.currentTime * 1000 - desired.sourceTimeMs) > 25) video.currentTime = desired.sourceTimeMs / 1000;
+    } else {
+      if (Math.abs(video.currentTime * 1000 - desired.sourceTimeMs) > 160) video.currentTime = desired.sourceTimeMs / 1000;
+      if (video.paused) void video.play().catch(() => { pausePlayback(); setError('Preview playback could not continue.'); });
     }
-    const nextMs = clamp(
-      mapping.montageStartMs + (sourceTimeMs - mapping.segment.trimStartMs) / (mapping.segment.videoEdits?.speed ?? 1),
-      mapping.montageStartMs,
-      mapping.montageEndMs,
-    );
     currentMsRef.current = nextMs;
     if (Math.abs(nextMs - lastRenderedMsRef.current) >= 50) {
       lastRenderedMsRef.current = nextMs;
@@ -357,12 +369,12 @@ export function MontageComposer({
         const desired = musicPlayback.sourceTimeMs / 1_000;
         if (Math.abs(audio.currentTime - desired) > 0.16) audio.currentTime = desired;
         audio.muted = previewMutedRef.current;
-        audio.volume = clamp(musicPlayback.gain * masterVolumeRef.current, 0, 1);
+        audio.volume = clamp(musicPlayback.gain * masterVolumeRef.current * duckGainRef.current, 0, 1);
         if (audio.paused) void audio.play().catch(() => undefined);
       }
     }
     playbackFrameRef.current = window.requestAnimationFrame(tickPlayback);
-  }, [advancePlayback]);
+  }, [advancePlayback, pausePlayback]);
 
   useEffect(() => {
     if (!playing) {
@@ -387,13 +399,6 @@ export function MontageComposer({
       }
     };
   }, []);
-
-  useEffect(() => {
-    const videos = [videoARef.current, videoBRef.current].filter((video): video is HTMLVideoElement => Boolean(video));
-    const handleEnded = () => { if (playingRef.current) void advancePlayback(); };
-    for (const video of videos) video.addEventListener('ended', handleEnded);
-    return () => { for (const video of videos) video.removeEventListener('ended', handleEnded); };
-  }, [advancePlayback]);
 
   useEffect(() => {
     if (project.segments.some((segment) => segment.id === selectedSegmentId)) return;
@@ -442,24 +447,29 @@ export function MontageComposer({
     return () => { active = false; };
   }, [project.music?.asset.id]);
 
-  useEffect(() => {
-    const generation = project.updatedAt;
+  const persistDraft = useCallback(async (generation: MontageProjectV2) => {
+    if (discardingRef.current) return;
     setSaveState('saving');
-    const timer = window.setTimeout(() => {
-      void montageV2Api.saveMontageDraft(project)
-        .then(() => {
-          if (projectRef.current.updatedAt !== generation) return;
-          setSaveState('saved');
-          onDraftsChanged();
-        })
-        .catch((cause) => {
-          if (projectRef.current.updatedAt !== generation) return;
-          setSaveState('error');
-          setError(`Autosave failed: ${errorMessage(cause)}`);
-        });
-    }, 450);
+    try {
+      await montageV2Api.saveMontageDraft(generation);
+      if (discardingRef.current || projectRef.current !== generation) return;
+      setSaveState('saved');
+      setError(previous => previous === draftSaveError ? null : previous);
+      onDraftsChanged();
+    } catch (cause) {
+      if (discardingRef.current || projectRef.current !== generation) return;
+      console.warn('Draft save failed', cause);
+      setSaveState('error');
+      setError(draftSaveError);
+    }
+  }, [onDraftsChanged]);
+
+  useEffect(() => {
+    setSaveState('saving');
+    const timer = window.setTimeout(() => { void persistDraft(project); }, 450);
+    autosaveTimerRef.current = timer;
     return () => window.clearTimeout(timer);
-  }, [onDraftsChanged, project]);
+  }, [persistDraft, project]);
 
   useEffect(() => {
     if (!viewerFullscreen) return;
@@ -484,7 +494,8 @@ export function MontageComposer({
     applyVideoVolume(video, mapping.segment);
     await syncMusic(currentMsRef.current, true);
     try {
-      await video.play();
+      playbackClockRef.current = { wall: performance.now(), time: currentMsRef.current };
+      if (!mapping.frozen) await video.play();
       setPlaying(true);
       playingRef.current = true;
     } catch {
@@ -556,12 +567,16 @@ export function MontageComposer({
   };
 
   const discardDraft = async () => {
+    if (exportPending || discardingRef.current) return;
+    discardingRef.current = true;
+    if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
     pausePlayback();
     try {
       await montageV2Api.deleteMontageDraft(project.id);
       onDraftsChanged();
       onClose();
     } catch (cause) {
+      discardingRef.current = false;
       setError(errorMessage(cause));
     }
   };
@@ -656,6 +671,7 @@ export function MontageComposer({
     <section
       ref={editorRef}
       className="montage-v2-shell"
+      data-editor-kind={project.sourceClipId ? "clip" : "montage"}
       role="dialog"
       aria-modal="true"
       aria-labelledby="montage-v2-title"
@@ -668,10 +684,12 @@ export function MontageComposer({
         <div className="montage-v2-header__identity">
           <Input
             id="montage-v2-title"
-            value={project.name}
+            value={nameDraft}
             maxLength={120}
-            aria-label="Montage name"
-            onChange={(event) => changeProject({ ...project, name: event.currentTarget.value || 'Untitled montage' }, 'project:name')}
+            aria-label={project.sourceClipId ? "Clip edit name" : "Montage name"}
+            onChange={(event) => setNameDraft(event.currentTarget.value)}
+            onBlur={() => { const name = nameDraft.trim() || (project.sourceClipId ? 'Untitled clip' : 'Untitled montage'); setNameDraft(name); if (name !== project.name) changeProject({ ...project, name }, 'project:name'); }}
+            onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { event.stopPropagation(); setNameDraft(project.name); } }}
           />
           <span data-state={saveState} role="status">
             <Save aria-hidden="true" />
@@ -679,10 +697,14 @@ export function MontageComposer({
           </span>
         </div>
         <div className="montage-v2-header__actions">
+          {sourceClipActions ? <>
+            <Button variant="ghost" size="icon" className="montage-v2-favorite" aria-label={sourceClipActions.clip.favorite ? 'Unfavorite clip' : 'Favorite clip'} aria-pressed={sourceClipActions.clip.favorite} onClick={() => sourceClipActions.onFavorite(!sourceClipActions.clip.favorite)}><Star className="size-4" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Rename source clip" onClick={sourceClipActions.onRename}><Pencil className="size-4" /></Button>
+          </> : null}
           <label className="montage-v2-output">Canvas
             <Select value={project.canvasSize} onValueChange={(value) => changeProject({ ...project, canvasSize: value as ClipCanvasSize })}>
-              <SelectTrigger aria-label="Montage canvas" className="no-drag w-32"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="original">Original</SelectItem><SelectItem value="9:16">9:16 vertical</SelectItem></SelectContent>
+              <SelectTrigger aria-label={project.sourceClipId ? "Clip canvas" : "Montage canvas"} className="no-drag w-32"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="original">Original</SelectItem><SelectItem value="16:9">16:9 landscape</SelectItem><SelectItem value="9:16">9:16 vertical</SelectItem><SelectItem value="1:1">1:1 square</SelectItem><SelectItem value="4:5">4:5 portrait</SelectItem></SelectContent>
             </Select>
           </label>
           <Tooltip>
@@ -699,8 +721,9 @@ export function MontageComposer({
               startMs={0}
               endMs={project.durationMs}
               selectedDurationMs={project.durationMs}
+              getPreviewCanvas={() => { pausePlayback(); return editorRef.current?.querySelector<HTMLCanvasElement>('.edited-video-frame canvas') ?? null; }}
               sourceBytes={proportionalBytes}
-              projectType="montage"
+              projectType={project.sourceClipId ? "single" : "montage"}
               segmentCount={project.segments.length}
               exportPending={exportPending}
               disabled={missingSegmentCount > 0 || project.durationMs < 100}
@@ -724,50 +747,25 @@ export function MontageComposer({
           {error ?? (missingSegmentCount > 0
             ? `${missingSegmentCount} montage ${missingSegmentCount === 1 ? 'segment references' : 'segments reference'} missing media. Remove or restore the source before export.`
             : musicPreviewWarning)}
-          <button type="button" onClick={() => { setError(null); setMusicPreviewWarning(null); }}>Dismiss</button>
+          {error === draftSaveError ? <button type="button" disabled={saveState === 'saving'} onClick={() => void persistDraft(projectRef.current)}>{saveState === 'saving' ? 'Saving…' : 'Retry save'}</button> : <button type="button" onClick={() => { setError(null); setMusicPreviewWarning(null); }}>Dismiss</button>}
         </div>
       ) : null}
 
       <div className="montage-v2-layout" data-inspector={inspectorOpen ? 'open' : 'closed'}>
         <main className="montage-v2-workspace">
-          <div className="montage-v2-preview" data-state={previewState} data-fullscreen={viewerFullscreen || undefined} data-canvas={project.canvasSize}>
-            <video ref={videoARef} data-slot="0" data-active={activeSlot === 0 || undefined} preload="metadata" aria-label="Montage preview" />
-            <video ref={videoBRef} data-slot="1" data-active={activeSlot === 1 || undefined} preload="metadata" aria-hidden={activeSlot !== 1} />
-            <VideoEditPreview videoRef={activeSlot === 0 ? videoARef : videoBRef} edits={mapMontageTime(project.segments, currentMs)?.segment.videoEdits} canvasSize={project.canvasSize} />
+          <div className="montage-v2-preview" data-edited="true" data-state={previewState} data-fullscreen={viewerFullscreen || undefined} data-canvas={project.canvasSize}>
+            <video ref={videoARef} muted data-slot="0" data-active={activeSlot === 0 || undefined} preload="metadata" aria-label="Montage preview" />
+            <video ref={videoBRef} muted data-slot="1" data-active={activeSlot === 1 || undefined} preload="metadata" aria-hidden={activeSlot !== 1} />
+            <EditedAudioPreview state={(() => { const mapping = mapMontageTime(project.segments, currentMs); return mapping ? { segment: mapping.segment, sourceMs: mapping.sourceTimeMs, frozen: mapping.frozen, playing, volume: masterVolume, muted: previewMuted, ducking: project.music?.ducking } : null; })()}
+              onDuckGain={gain => { duckGainRef.current = gain; }} onError={setMusicPreviewWarning} />
+            <EditedVideoCanvas videoRef={activeSlot === 0 ? videoARef : videoBRef} edits={mapMontageTime(project.segments, currentMs)?.segment.videoEdits} canvasSize={project.canvasSize}
+              sourceMs={mapMontageTime(project.segments, currentMs)?.sourceTimeMs ?? 0} startMs={mapMontageTime(project.segments, currentMs)?.segment.trimStartMs ?? 0}
+              tool={inspectorSection === 'segment' ? editTool : 'audio'} selectedOverlayId={selectedOverlayId} onPause={pausePlayback}
+              onChange={(videoEdits, key) => {
+                const segment = mapMontageTime(projectRef.current.segments, currentMsRef.current)?.segment;
+                if (segment) changeProject(updateMontageSegment(projectRef.current, segment.id, item => ({ ...item, videoEdits })), key);
+              }} />
             <audio ref={musicRef} preload="metadata" />
-            <div className="montage-v2-preview__transport no-drag">
-              <button type="button" aria-label="Back to start" onClick={() => void seekMontage(0, false)}><SkipBack /></button>
-              <button type="button" className="montage-v2-play" disabled={previewState !== 'ready'} onClick={() => void togglePlayback()}>{playing ? <Pause /> : <Play />}{playing ? 'Pause' : 'Play'}</button>
-              <output aria-label="Playback time">{formatEditorTime(currentMs)} <span>/ {formatEditorTime(project.durationMs)}</span></output>
-              <span className="montage-v2-transport-spacer" />
-              <button type="button" aria-label={previewMuted ? 'Unmute preview' : 'Mute preview'} onClick={() => {
-                const next = !previewMuted;
-                setPreviewMuted(next);
-                previewMutedRef.current = next;
-                for (const media of [videoARef.current, videoBRef.current, musicRef.current]) if (media) media.muted = next;
-              }}>{previewMuted ? <VolumeX /> : <Volume2 />}</button>
-              <Slider
-                className="montage-v2-preview__volume"
-                min={0}
-                max={100}
-                step={1}
-                value={[Math.round(masterVolume * 100)]}
-                aria-label="Preview volume"
-                onValueChange={([value]) => {
-                  if (typeof value !== 'number') return;
-                  const next = value / 100;
-                  setMasterVolume(next);
-                  masterVolumeRef.current = next;
-                  const mapping = mapMontageTime(projectRef.current.segments, currentMsRef.current);
-                  const video = activeSlotRef.current === 0 ? videoARef.current : videoBRef.current;
-                  if (mapping && video) applyVideoVolume(video, mapping.segment);
-                  void syncMusic(currentMsRef.current, false);
-                }}
-              />
-              <button type="button" aria-label={viewerFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={() => setViewerFullscreen((current) => !current)}>
-                {viewerFullscreen ? <Minimize /> : <Maximize />}
-              </button>
-            </div>
             {previewState !== 'ready' ? (
               <div className="montage-v2-preview__status" role={previewState === 'error' ? 'alert' : 'status'}>
                 <strong>{previewState === 'error' ? 'Preview unavailable' : 'Preparing montage'}</strong>
@@ -777,6 +775,46 @@ export function MontageComposer({
           </div>
 
           <MontageV2Timeline
+            viewerFullscreen={viewerFullscreen}
+            playbackControls={
+              <div className="montage-v2-preview__playback" role="group" aria-label="Playback controls">
+                <button type="button" aria-label="Back to start" onClick={() => void seekMontage(0, false)}><SkipBack /></button>
+                <button type="button" className="montage-v2-play" disabled={previewState !== 'ready'} onClick={() => void togglePlayback()}>{playing ? <Pause /> : <Play />}{playing ? 'Pause' : 'Play'}</button>
+                <output aria-label="Playback time">{formatEditorTime(currentMs)} <span>/ {formatEditorTime(project.durationMs)}</span></output>
+              </div>
+            }
+            previewControls={
+              <div className="montage-v2-preview__utilities">
+                <button type="button" aria-label={previewMuted ? 'Unmute preview' : 'Mute preview'} onClick={() => {
+                  const next = !previewMuted;
+                  setPreviewMuted(next);
+                  previewMutedRef.current = next;
+                  if (musicRef.current) musicRef.current.muted = next;
+                }}>{previewMuted ? <VolumeX /> : <Volume2 />}</button>
+                <Slider
+                  variant="fader"
+                  className="montage-v2-preview__volume"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[Math.round(masterVolume * 100)]}
+                  aria-label="Preview volume"
+                  onValueChange={([value]) => {
+                    if (typeof value !== 'number') return;
+                    const next = value / 100;
+                    setMasterVolume(next);
+                    masterVolumeRef.current = next;
+                    const mapping = mapMontageTime(projectRef.current.segments, currentMsRef.current);
+                    const video = activeSlotRef.current === 0 ? videoARef.current : videoBRef.current;
+                    if (mapping && video) applyVideoVolume(video, mapping.segment);
+                    void syncMusic(currentMsRef.current, false);
+                  }}
+                />
+                <button type="button" aria-label={viewerFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={() => setViewerFullscreen((current) => !current)}>
+                  {viewerFullscreen ? <Minimize /> : <Maximize />}
+                </button>
+              </div>
+            }
             project={project}
             clips={clips}
             selectedSegmentId={selectedSegmentId}
@@ -785,11 +823,12 @@ export function MontageComposer({
             waveform={waveform}
             canUndo={history.past.length > 0}
             canRedo={history.future.length > 0}
+            onEditAudio={(trackIndex) => { if (trackIndex !== undefined) setSelectedAudioTrack(trackIndex); setInspectorSection('audio'); onInspectorOpenChange(true); }}
             musicPending={musicPending}
             onEditMusic={openMusicSettings}
             onZoomChange={setZoom}
             onProjectChange={changeProject}
-            onSelectSegment={(id) => { setSelectedSegmentId(id); setInspectorSection('segment'); }}
+            onSelectSegment={(id) => { setSelectedSegmentId(id); if (inspectorSection === 'music') setInspectorSection('segment'); }}
             onSeek={(timeMs) => void seekMontage(timeMs, false)}
             onAddClips={() => setAddClipsOpen(true)}
             onAddMusic={() => void importMusic()}
@@ -801,81 +840,41 @@ export function MontageComposer({
           />
         </main>
 
-        <aside className="montage-v2-inspector" aria-label="Montage inspector" aria-hidden={!inspectorOpen || undefined} inert={!inspectorOpen ? true : undefined}>
-          <ScrollArea className="h-full">
+        <aside className="montage-v2-inspector clip-inspector no-drag" aria-label={project.sourceClipId ? 'Clip inspector' : 'Montage inspector'} aria-hidden={!inspectorOpen || undefined} inert={!inspectorOpen ? true : undefined}>
+          <header className="clip-inspector__header">
+            <div className="clip-inspector__eyebrow"><span>Inspector</span>{selectedSegment ? <span>{formatEditorTime(inspectorSection === 'music' ? project.durationMs : segmentDurationMs(selectedSegment))} {inspectorSection === 'music' ? 'total' : 'selected'}</span> : null}</div>
+            <h2 title={inspectorSection === 'music' ? project.name : selectedClip?.name}>{inspectorSection === 'music' ? project.name : selectedClip?.name ?? 'Missing source'}</h2>
+            <div className="clip-inspector__navigation" role="group" aria-label="Inspector section">
+              <Button type="button" variant="ghost" size="sm" aria-pressed={inspectorSection === 'segment'} onClick={() => setInspectorSection('segment')}>Edit</Button>
+              <Button type="button" variant="ghost" size="sm" aria-pressed={inspectorSection === 'audio'} onClick={() => setInspectorSection('audio')}><Volume2 aria-hidden="true" />Audio</Button>
+              {!project.sourceClipId ? <Button type="button" variant="ghost" size="sm" aria-pressed={inspectorSection === 'music'} onClick={openMusicSettings}><Music2 aria-hidden="true" />Music</Button> : null}
+            </div>
+          </header>
+          <ScrollArea className="clip-inspector__scroll" key={inspectorSection}>
             <div className="montage-v2-inspector__content">
-              <div className="montage-v2-inspector-tabs" role="group" aria-label="Inspector section">
-                <Button variant="ghost" size="sm" aria-pressed={inspectorSection === 'segment'} onClick={() => setInspectorSection('segment')}>Selected clip</Button>
-                <Button variant="ghost" size="sm" aria-pressed={inspectorSection === 'music'} onClick={openMusicSettings}><Music2 className="size-3.5" />Music</Button>
-              </div>
-              {inspectorSection === 'segment' ? <>
-              <div className="montage-v2-inspector__heading">
-                <span>Montage inspector</span>
-                <h2>{selectedClip?.name ?? 'Missing source'}</h2>
-                {selectedClip ? (
-                  <button type="button" onClick={() => onReveal(selectedClip)}><FolderOpen /> Show source</button>
-                ) : null}
-              </div>
-
-              <InspectorSection title="Trim & edit">
-                {selectedSegment ? (
-                  <>
-                    <PreciseTrimControls startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs} durationMs={selectedSegment.sourceDurationMs} fps={selectedClip?.fps ?? 30}
-                      onChange={(trimStartMs, trimEndMs) => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, trimStartMs, trimEndMs })), `segment:${selectedSegment.id}:trim`)}
-                      getCurrentMs={() => mapMontageTime(projectRef.current.segments, currentMsRef.current)?.sourceTimeMs ?? selectedSegment.trimStartMs}
-                      onSeek={(sourceMs) => {
-                        const current = projectRef.current;
-                        const segment = current.segments.find((item) => item.id === selectedSegment.id)!;
-                        void seekMontage(montageStartForSegment(current.segments, segment.id) + (sourceMs - segment.trimStartMs) / (segment.videoEdits?.speed ?? 1));
-                      }} />
-                    <VideoEditControls edits={selectedSegment.videoEdits} startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs} durationMs={selectedSegment.sourceDurationMs}
-                      onChange={(videoEdits, key) => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, videoEdits })), `segment:${selectedSegment.id}:${key}`)} />
-                    <details className="editor-source-details"><summary>Clip audio & source</summary>
-                    <div className="montage-v2-readout-grid">
-                      <Readout label="Position" value={`${project.segments.findIndex((segment) => segment.id === selectedSegment.id) + 1} of ${project.segments.length}`} />
-                      <Readout label="Source" value={selectedClip ? formatVideoQuality(selectedClip.width, selectedClip.height, selectedClip.fps) : 'Unavailable'} />
-                      <Readout label="Duration" value={formatDuration(segmentDurationMs(selectedSegment) / 1_000)} />
-                      <Readout label="Size" value={selectedClip ? formatBytes(selectedClip.fileSize) : 'Unavailable'} />
-                    </div>
-                    <LabeledSlider
-                      label="Clip audio"
-                      value={selectedSegment.muted ? 0 : Math.round(selectedSegment.volume * 100)}
-                      onChange={(value) => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, muted: false, volume: value / 100 })), `segment:${selectedSegment.id}:volume`)}
-                    />
-                    {selectedClip?.audioChannels && selectedClip.audioChannels.length > 0 ? (
-                      <div className="montage-v2-channel-mix">
-                        <p>Source-channel levels are applied during export.</p>
-                        {selectedClip.audioChannels.map((channel, trackIndex) => {
-                          const level = selectedSegment.audioTrackLevels?.[trackIndex] ?? 100;
-                          return (
-                            <label key={`${channel}-${trackIndex}`} style={{ '--track-color': channelColor(channel) } as CSSProperties}>
-                              <span><i aria-hidden="true" />{channelLabels[channel]}<output>{level}%</output></span>
-                              <Slider min={0} max={100} step={1} value={[level]} aria-label={`${channelLabels[channel]} export level`} onValueChange={([next]) => {
-                                if (typeof next !== 'number') return;
-                                changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => {
-                                  const levels = [...(segment.audioTrackLevels ?? [])];
-                                  while (levels.length <= trackIndex) levels.push(100);
-                                  levels[trackIndex] = next;
-                                  while (levels.at(-1) === 100) levels.pop();
-                                  return { ...segment, audioTrackLevels: levels.length > 0 ? levels : undefined };
-                                }), `segment:${selectedSegment.id}:track:${trackIndex}`);
-                              }} />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    </details>
-                    <Button type="button" variant="secondary" size="sm" className="w-full" onClick={() => changeProject(updateMontageSegment(project, selectedSegment.id, (segment) => ({ ...segment, muted: !segment.muted })))}>
-                      {selectedSegment.muted ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
-                      {selectedSegment.muted ? 'Restore clip audio' : 'Mute clip audio'}
-                    </Button>
-                  </>
-                ) : null}
-              </InspectorSection>
-
+              {inspectorSection === 'segment' && selectedSegment && selectedClip ? <>
+                <section className="inspector-control-section inspector-video-trim" aria-labelledby="inspector-trim-heading">
+                  <div className="inspector-section-title"><h3 id="inspector-trim-heading">Trim clip</h3><span>{selectedClip.fps} fps</span></div>
+                  <PreciseTrimControls startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs} durationMs={selectedSegment.sourceDurationMs} fps={selectedClip.fps}
+                    onChange={(trimStartMs, trimEndMs) => changeProject(updateMontageSegment(project, selectedSegment.id, segment => ({ ...segment, trimStartMs, trimEndMs })), `segment:${selectedSegment.id}:trim`)}
+                    getCurrentMs={() => mapMontageTime(projectRef.current.segments, currentMsRef.current)?.sourceTimeMs ?? selectedSegment.trimStartMs}
+                    onSeek={sourceMs => { void seekMontage(montageStartForSegment(project.segments, selectedSegment.id) + sourceToEditedMs(selectedSegment.trimStartMs, sourceMs, selectedSegment.videoEdits)); }} />
+                </section>
+                <section className="inspector-control-section" aria-label="Video adjustments">
+                  <AdvancedVideoControls edits={selectedSegment.videoEdits} clip={selectedClip} startMs={selectedSegment.trimStartMs} endMs={selectedSegment.trimEndMs}
+                    currentMs={mapMontageTime(project.segments, currentMs)?.sourceTimeMs ?? selectedSegment.trimStartMs}
+                    tool={editTool} onToolChange={setEditTool} selectedOverlayId={selectedOverlayId} onSelectOverlay={setSelectedOverlayId}
+                    onSeek={sourceMs => { void seekMontage(montageStartForSegment(project.segments, selectedSegment.id) + sourceToEditedMs(selectedSegment.trimStartMs, sourceMs, selectedSegment.videoEdits)); }}
+                    onChange={(videoEdits, key) => changeProject(updateMontageSegment(project, selectedSegment.id, segment => ({ ...segment, videoEdits })), key)} />
+                </section>
               </> : null}
-              {inspectorSection === 'music' ?
+              {inspectorSection === 'audio' && selectedSegment && selectedClip ? <ClipAudioInspector
+                clip={selectedClip} segment={selectedSegment} selectedTrackIndex={selectedAudioTrack} onSelectTrack={setSelectedAudioTrack}
+                currentMs={mapMontageTime(project.segments, currentMs)?.sourceTimeMs ?? selectedSegment.trimStartMs}
+                onChange={(next, key) => changeProject(updateMontageSegment(project, selectedSegment.id, () => next), key)}
+                onSeek={sourceMs => { void seekMontage(montageStartForSegment(project.segments, selectedSegment.id) + sourceToEditedMs(selectedSegment.trimStartMs, sourceMs, selectedSegment.videoEdits)); }} /> : null}
+              {inspectorSection !== 'music' && !selectedClip ? <p className="inspector-empty" role="status">The source clip is unavailable. Restore it to continue editing.</p> : null}
+              {!project.sourceClipId && inspectorSection === 'music' ?
               <div ref={musicSettingsRef} className="montage-v2-music-settings" tabIndex={-1}>
               <InspectorSection title="Music">
                 {!project.music ? (
@@ -920,6 +919,15 @@ export function MontageComposer({
                       <PreciseTimeField label="Fade out" valueMs={project.music.fadeOutMs} maximumMs={30_000} onChange={(value) => changeProject(updateMontageMusic(project, (track) => ({ ...track, fadeOutMs: value })), 'music:fade-out')} />
                     </div>
                     <div className="montage-v2-switch-field"><span><strong>Loop track</strong><small>Fill remaining montage</small></span><Switch checked={project.music.loop} onCheckedChange={(loop) => changeProject(updateMontageMusic(project, (track) => ({ ...track, loop })))} aria-label="Loop music track" /></div>
+                    <details className="advanced-music-automation"><summary>Volume automation & voice ducking</summary>
+                      <AudioAutomationControls automation={project.music.automation ?? { points: [], mutes: [] }} currentMs={currentMs} startMs={0} endMs={project.durationMs}
+                        onSeek={time => { void seekMontage(time); }} onChange={(automation, key) => changeProject(updateMontageMusic(project, track => ({ ...track, automation })), key ? `music:automation:${key}` : undefined)} />
+                      <div className="montage-v2-switch-field"><span><strong>Duck music under voice</strong><small>Uses activity on the separate microphone track</small></span><Switch aria-label="Duck music under voice" checked={project.music.ducking?.enabled ?? false}
+                        disabled={!project.segments.some(segment => clipsById.get(segment.clipId)?.audioChannels?.includes('microphone'))}
+                        onCheckedChange={enabled => changeProject(updateMontageMusic(project, track => ({ ...track, ducking: { amount: 0.75, attackMs: 80, releaseMs: 500, ...track.ducking, enabled } })))} /></div>
+                      {!project.segments.some(segment => clipsById.get(segment.clipId)?.audioChannels?.includes('microphone')) ? <p>A separate microphone track is required.</p> : null}
+                      {project.music.ducking?.enabled ? <NumberControl label="Ducking reduction %" value={project.music.ducking.amount * 100} onChange={amount => changeProject(updateMontageMusic(project, track => ({ ...track, ducking: { ...track.ducking!, amount: amount / 100 } })), 'music:ducking')} /> : null}
+                    </details>
                     <div className="montage-v2-music-actions">
                       <Button type="button" variant="secondary" size="sm" disabled={musicPending} onClick={() => void importMusic()}>{musicPending ? 'Importing…' : 'Replace music'}</Button>
                       <Button type="button" variant="ghost" size="sm" onClick={() => changeProject(updateMontageMusic(project, (track) => ({ ...track, muted: !track.muted })))}>{project.music.muted ? 'Unmute' : 'Mute'}</Button>
@@ -928,6 +936,12 @@ export function MontageComposer({
                 )}
               </InspectorSection>
               </div> : null}
+              {selectedClip && inspectorSection !== 'music' ? <details className="inspector-disclosure inspector-source-info">
+                <summary><span>Source details</span><small>{formatVideoQuality(selectedClip.width, selectedClip.height, selectedClip.fps)}</small></summary>
+                <p className="inspector-source-name">{selectedClip.name}</p>
+                <dl><div><dt>Duration</dt><dd>{formatEditorTime(selectedClip.durationMs)}</dd></div><div><dt>Size</dt><dd>{formatBytes(selectedClip.fileSize)}</dd></div>{!project.sourceClipId ? <div><dt>Segment</dt><dd>{project.segments.findIndex(segment => segment.id === selectedSegmentId) + 1} of {project.segments.length}</dd></div> : null}</dl>
+                <Button type="button" variant="ghost" size="sm" onClick={() => onReveal(selectedClip)}><FolderOpen />Show source</Button>
+              </details> : null}
             </div>
           </ScrollArea>
         </aside>
@@ -949,9 +963,9 @@ export function MontageComposer({
   );
 
   function applyVideoVolume(video: HTMLVideoElement, segment: MontageV2Segment): void {
-    video.playbackRate = segment.videoEdits?.speed ?? 1;
+    video.playbackRate = speedAt(video.currentTime * 1000, segment.videoEdits);
     video.preservesPitch = true;
-    video.muted = previewMutedRef.current;
+    video.muted = true;
     video.volume = clamp((segment.muted ? 0 : segment.volume) * masterVolumeRef.current, 0, 1);
   }
 }
@@ -960,15 +974,11 @@ function InspectorSection({ title, children }: { title: string; children: ReactN
   return <section className="montage-v2-inspector__section"><h3>{title}</h3>{children}</section>;
 }
 
-function Readout({ label, value }: { label: string; value: string }) {
-  return <div><span>{label}</span><strong>{value}</strong></div>;
-}
-
 function LabeledSlider({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
   return (
     <label className="montage-v2-slider-field">
       <span><strong>{label}</strong><output>{value}%</output></span>
-      <Slider min={0} max={100} step={1} value={[value]} onValueChange={([next]) => { if (typeof next === 'number') onChange(next); }} aria-label={label} />
+      <Slider variant="fader" min={0} max={100} step={1} value={[value]} onValueChange={([next]) => { if (typeof next === 'number') onChange(next); }} aria-label={label} />
     </label>
   );
 }

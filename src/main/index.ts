@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { resolveApplicationIdentity, shouldApplyDevelopmentIdentity } from './application-identity';
 import { AppController } from './controller';
+import { QuickControlsWindow } from './quick-controls-window';
 import { requestsDemoUpdate } from './development-flags';
 import { registerIpc } from './ipc';
 import { parseByteRange } from './media-byte-range';
@@ -28,6 +29,7 @@ app.on('child-process-gone', (_event, details) => {
 });
 
 let mainWindow: BrowserWindow | null = null;
+const quickControls = new QuickControlsWindow();
 let tray: Tray | null = null;
 let controller: AppController | null = null;
 let cleanupIpc: (() => void) | null = null;
@@ -171,10 +173,10 @@ function showWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow();
   else {
     controller?.setRendererActive(true);
-    mainWindow.show();
+    if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') mainWindow.show();
   }
   void controller?.initialize().then(() => controller?.refreshAudioDevices()).catch(() => undefined);
-  mainWindow.focus();
+  if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') mainWindow.focus();
 }
 
 async function getRendererRuntimeProbe(): Promise<unknown> {
@@ -222,6 +224,7 @@ function createTray(): Tray {
 }
 
 async function shutdown(): Promise<void> {
+  quickControls.dispose();
   if (protocol.isProtocolHandled('switchboard-media')) await protocol.unhandle('switchboard-media');
   cleanupMontageV2Ipc?.();
   cleanupMontageV2Ipc = null;
@@ -275,6 +278,7 @@ if (verifyPackagedUpdater) {
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController({
+      onQuickControls: (open, held) => quickControls.setOpen(open, held),
       demoUpdate: demoUpdateRequested,
       getRendererRuntime: getRendererRuntimeProbe,
       onUpdateInstallRequested: (installing, background) => {
@@ -313,7 +317,7 @@ if (verifyPackagedUpdater) {
       if (url.hostname === 'clip') return streamMedia(path, range, clipContentType(path));
       return net.fetch(pathToFileURL(path).toString(), range ? { headers: { Range: range } } : undefined);
     });
-    cleanupIpc = registerIpc(controller, () => mainWindow);
+    cleanupIpc = registerIpc(controller, () => mainWindow, () => quickControls.getWindow());
     cleanupMontageV2Ipc = registerMontageV2Ipc(controller, () => mainWindow);
     tray = createTray();
     if (startInTrayAfterUpdate) controller.setRendererActive(false);

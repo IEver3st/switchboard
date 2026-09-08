@@ -3,6 +3,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Switchboard.CaptureHost;
 
+if (args.Contains("--desktop-controls")) { Environment.ExitCode = DesktopControls.Run(); return; }
+
 var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

@@ -89,6 +89,12 @@ export class LogitechDeviceModule implements DeviceModule {
     await this.dependencies.writeControl(agentDeviceId, device, change);
   }
 
+  public async setStatusLighting(device: Device, color: string | null): Promise<void> {
+    if (device.id !== this.directDeviceId || !this.directSession?.setStatusLighting)
+      throw new Error('The native mouse lighting session is unavailable.');
+    await this.directSession.setStatusLighting(color);
+  }
+
   public deactivate(): Promise<void> {
     this.clearDirectRetry();
     return this.stopDirectSession();

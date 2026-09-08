@@ -33,10 +33,6 @@ export const ClipCard = memo(function ClipCard({ clip, actions, selectionMode, s
                 {selectedOrder ? <span aria-hidden="true">{selectedOrder}</span> : null}
               </label>
             ) : <ClipFavorite clip={clip} onChange={(favorite) => actions.favorite(clip, favorite)} className="absolute bottom-2 right-2" />}
-            <div className="capture-clip-card__quick-actions" hidden={selectionMode}>
-              <ClipActionsMenu clip={clip} actions={actions} />
-              <ClipShare clip={clip} onShare={() => actions.export(clip)} className="capture-clip-card__share" />
-            </div>
           </div>
           <div className="capture-clip-card__footer min-w-0">
             <div className="capture-clip-card__details min-w-0">
@@ -49,6 +45,10 @@ export const ClipCard = memo(function ClipCard({ clip, actions, selectionMode, s
                 <span className="capture-clip-card__game truncate">{clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ' · Manual Capture'}</span>
                 <span className="capture-clip-card__time shrink-0"><time dateTime={new Date(clip.createdAt).toISOString()} title={new Date(clip.createdAt).toLocaleString()}>{formatRelativeTime(clip.createdAt)}</time></span>
               </p>
+            </div>
+            <div className="capture-clip-card__quick-actions" hidden={selectionMode}>
+              <ClipShare clip={clip} onShare={() => actions.export(clip)} className="capture-clip-card__share" />
+              <ClipActionsMenu clip={clip} actions={actions} />
             </div>
           </div>
         </article>

@@ -19,7 +19,9 @@ export const performanceMemoryBudgetsMb = {
   captureEngine: 1_000,
 } as const;
 
+export type ExternalProcessResource = { pid: number; name: string; privateMemoryMb: number; workingSetMb: number; cpuPercent: number };
 export type PerformanceRuntimeContext = {
+  externalProcesses?: ExternalProcessResource[];
   rendererActive: boolean;
   guardEnabled: boolean;
   detailedDiagnostics?: boolean;
@@ -299,10 +301,11 @@ export function buildResourceTelemetrySample(input: {
       engineReportedMemoryMb: round(engineReportedMemoryMb),
       enginePrivateMb: round(enginePrivateMb),
       engineWorkingSetMb: round(engineWorkingSetMb),
-      attributedMemoryMb: round(electronPrivateMb + enginePrivateMb),
+      attributedMemoryMb: round(electronPrivateMb + enginePrivateMb + sum((input.context.externalProcesses ?? []).map(item => item.privateMemoryMb))),
       cpuPercent: input.performance.totalCpuPercent,
       processCount: input.performance.activeProcesses,
     },
+    externalProcesses: input.context.externalProcesses ?? [],
     electronProcesses: input.metrics.map((metric) => ({
       pid: metric.pid,
       type: metric.type,
@@ -346,6 +349,7 @@ export function measurePerformance(
   measuredAt: number,
 ): Omit<PerformanceSnapshot, 'guardState' | 'warning'> {
   const rendererMetrics = metrics.filter((metric) => metric.type === 'Tab');
+  const external = context.externalProcesses ?? [];
   const coreMetrics = metrics.filter((metric) => metric.type !== 'Tab');
   const activeEngines = context.engines.filter((engine) => engine.state === 'running' || engine.state === 'starting');
   const enginePrivateMb = sum(activeEngines.map(enginePrivateMemoryMb));
@@ -361,10 +365,10 @@ export function measurePerformance(
   return {
     coreMemoryMb: round(coreMemoryMb),
     rendererMemoryMb: round(rendererMemoryMb),
-    totalMemoryMb: round(coreMemoryMb + rendererMemoryMb + enginePrivateMb),
-    residentMemoryMb: round(residentMemoryMb),
-    totalCpuPercent: round(sum(metrics.map((metric) => metric.cpu.percentCPUUsage)) + engineCpuPercent),
-    activeProcesses: metrics.length + activeEngineProcesses,
+    totalMemoryMb: round(coreMemoryMb + rendererMemoryMb + enginePrivateMb + sum(external.map(item => item.privateMemoryMb))),
+    residentMemoryMb: round(residentMemoryMb + sum(external.map(item => item.workingSetMb))),
+    totalCpuPercent: round(sum(metrics.map((metric) => metric.cpu.percentCPUUsage)) + engineCpuPercent + sum(external.map(item => item.cpuPercent))),
+    activeProcesses: metrics.length + activeEngineProcesses + external.length,
     budgetMemoryMb: (context.rendererActive ? performanceMemoryBudgetsMb.rendererOpen : performanceMemoryBudgetsMb.coreTray)
       + (audioActive ? performanceMemoryBudgetsMb.audioEngine : 0)
       + (captureActive ? performanceMemoryBudgetsMb.captureEngine : 0),

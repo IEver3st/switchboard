@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AutoCaptureSettings, GameEvent } from '../src/shared/contracts';
-import { AutoCaptureEngine, eventEnabled, type AutoCapturePreserveRequest } from '../src/main/autocapture/auto-capture-engine';
+import { AutoCaptureEngine, eventEnabled, reactionClippingProviderId, type AutoCapturePreserveRequest } from '../src/main/autocapture/auto-capture-engine';
 import { EventDeduplicator } from '../src/main/autocapture/event-deduplicator';
 import {
   markersForClip,
@@ -41,6 +41,53 @@ function gameEvent(timestamp: number, overrides: Partial<GameEvent> = {}): GameE
 }
 
 describe('Auto Capture event processing', () => {
+  test('blocks overlapping reactions after finalization and across source changes without blocking game events', async () => {
+    let now = 100_000;
+    const preserved: AutoCapturePreserveRequest[] = [];
+    const engine = createEngine({ now: () => now, preserve: async (request) => { preserved.push(request); } });
+    const policy = { enabled: true, preRollSeconds: 20, postRollSeconds: 10, mergeNearbyEvents: true, mergeThresholdSeconds: 0 };
+    const reaction = () => gameEvent(now, { providerId: reactionClippingProviderId, source: 'microphone', type: 'highlight' });
+    expect(engine.handleEvent(reaction(), policy)).toBeTrue();
+    now = 111_000;
+    await engine.flush('test');
+    now = 120_000;
+    engine.setActiveProvider('another-game', 'another-provider', true);
+    expect(engine.handleEvent({ ...reaction(), gameId: 'another-game' }, policy)).toBeFalse();
+    expect(engine.handleEvent(gameEvent(now))).toBeTrue();
+    now = 130_000;
+    expect(engine.handleEvent(reaction(), policy)).toBeTrue();
+    await engine.flush('test');
+    expect(preserved.filter((request) => request.providerId === reactionClippingProviderId)).toHaveLength(2);
+    await engine.dispose();
+  });
+
+  test('retains the configured reaction cooldown across flushes and uses saved clips after app restart', async () => {
+    let now = 100_000;
+    const settings = structuredClone(baseSettings);
+    settings.reactionClipping.cooldownSeconds = 60;
+    let savedAt = 0;
+    const options = {
+      now: () => now,
+      getSettings: () => settings,
+      getLastReactionSavedAt: () => savedAt,
+      preserve: async () => { savedAt = now; },
+    };
+    const policy = { enabled: true, preRollSeconds: 20, postRollSeconds: 10, mergeNearbyEvents: true, mergeThresholdSeconds: 0 };
+    const reaction = () => gameEvent(now, { providerId: reactionClippingProviderId, source: 'microphone', type: 'highlight' });
+    const first = createEngine(options);
+    expect(first.handleEvent(reaction(), policy)).toBeTrue();
+    now = 111_000;
+    await first.flush('test');
+    now = 140_000;
+    expect(first.handleEvent(reaction(), policy)).toBeFalse();
+    await first.dispose();
+    const restarted = createEngine(options);
+    expect(restarted.handleEvent(reaction(), policy)).toBeFalse();
+    now = 171_000;
+    expect(restarted.handleEvent(reaction(), policy)).toBeTrue();
+    await restarted.dispose();
+  });
+
   test('deduplicates equivalent provider events inside the 500 ms window', () => {
     const deduplicator = new EventDeduplicator();
     expect(deduplicator.isDuplicate(gameEvent(10_000))).toBeFalse();
@@ -167,12 +214,14 @@ describe('Auto Capture provider lifecycle', () => {
 
 function createEngine(overrides: Partial<{
   getSettings: () => AutoCaptureSettings;
+  getLastReactionSavedAt: () => number;
   now: () => number;
   preserve: (request: AutoCapturePreserveRequest) => Promise<void>;
 }> = {}): AutoCaptureEngine {
   const timers = new Set<object>();
   return new AutoCaptureEngine({
     getSettings: overrides.getSettings ?? (() => baseSettings),
+    getLastReactionSavedAt: overrides.getLastReactionSavedAt,
     getMaximumWindowMs: () => 60_000,
     preserve: overrides.preserve ?? (async () => undefined),
     onRuntime: () => undefined,

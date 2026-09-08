@@ -35,8 +35,9 @@ internal sealed record CaptureSettings(
     string? MicrophoneDevice = null,
     bool ReactionClippingEnabled = false,
     string ReactionSensitivity = "balanced",
-    int ReactionCooldownSeconds = 15,
-    string? AudioFallbackReason = null)
+    int ReactionCooldownSeconds = 60,
+    string? AudioFallbackReason = null,
+    string SystemAudioMode = "system")
 {
     public int SegmentSeconds => 1;
     public int SegmentRetentionSeconds => ReplaySeconds + SegmentSeconds * 3;
@@ -47,6 +48,10 @@ internal sealed record CaptureSettings(
 
     public CaptureSettings Validate()
     {
+        if (SystemAudioMode is not ("system" or "game"))
+            throw new ArgumentOutOfRangeException(nameof(SystemAudioMode));
+        if (IncludeSystemAudio && SystemAudioMode == "game" && Source == "display")
+            throw new InvalidOperationException("Game-only audio needs a game or window capture source.");
         if (Source is not ("automatic-game" or "window" or "display"))
             throw new ArgumentOutOfRangeException(nameof(Source));
         if (Source == "window" && string.IsNullOrWhiteSpace(SourceId))

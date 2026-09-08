@@ -1,3 +1,5 @@
+import { automationExpression, buildEditedAudioGraph, buildEditedVideoGraph, hasAdvancedEdits } from './clip-effects-renderer';
+import { canvasDimensions } from '../../shared/video-edits';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -70,7 +72,7 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
       const segmentPath = join(temporaryDirectory, `segment-${String(index).padStart(4, '0')}.mp4`);
       const durationMs = editedDurationMs(entry.segment.trimStartMs, entry.segment.trimEndMs, entry.segment.videoEdits);
       encoder = await renderMontageSegment(executable, entry, segmentPath, target, input.signal, encoder, videoKbps, audioKbps,
-        (fraction) => input.onProgress?.((beforeMs + fraction * durationMs) / input.project.durationMs * 0.9));
+        (fraction) => input.onProgress?.((beforeMs + fraction * durationMs) / input.project.durationMs * 0.9), Boolean(input.project.music?.ducking?.enabled));
       renderedSegments.push(segmentPath);
       beforeMs += durationMs;
       input.onProgress?.(beforeMs / input.project.durationMs * 0.9);
@@ -92,7 +94,7 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
     if (!mixPlan) {
       await run(executable, [
         '-hide_banner', '-loglevel', 'error', ...concatInput,
-        '-c', 'copy', '-movflags', '+faststart', '-y', input.destination,
+        '-map', '0:v:0', '-map', '0:a:0', '-c', 'copy', '-movflags', '+faststart', '-y', input.destination,
       ], input.signal);
     } else {
       await run(executable, [
@@ -122,6 +124,7 @@ async function renderMontageSegment(
   videoKbps?: number,
   audioKbps = 128,
   onProgress?: (fraction: number) => void,
+  includeVoice = false,
 ): Promise<ShareVideoEncoder> {
   const { clip } = entry;
   const sourceStartMs = entry.segment.trimStartMs;
@@ -131,22 +134,28 @@ async function renderMontageSegment(
     videoEdits: entry.segment.videoEdits ? { ...entry.segment.videoEdits, text: entry.segment.videoEdits.text ? { ...entry.segment.videoEdits.text, startMs: entry.segment.videoEdits.text.startMs - sourceStartMs, endMs: entry.segment.videoEdits.text.endMs - sourceStartMs } : undefined } : undefined,
   };
   const streamCount = await getAudioStreamCount(clip.path, signal);
-  const durationSeconds = editedDurationMs(segment.trimStartMs, segment.trimEndMs, segment.videoEdits) / 1_000;
+  const durationSeconds = editedDurationMs(entry.segment.trimStartMs, entry.segment.trimEndMs, entry.segment.videoEdits) / 1_000;
   const textPath = segment.videoEdits?.text?.content ? `${destination}.txt` : undefined;
   if (textPath) await writeFile(textPath, segment.videoEdits!.text!.content, 'utf8');
-  const videoFilter = buildMontageV2VideoFilter(segment, target, textPath);
-  const audioFilter = buildMontageV2SegmentAudioFilter(streamCount, segment);
+  const advanced = hasAdvancedEdits(entry.segment.videoEdits) || !['original', '9:16'].includes(target.canvasSize) || includeVoice;
   const inputArguments = ['-ss', (sourceStartMs / 1000).toFixed(3), '-t', (segment.trimEndMs / 1000).toFixed(3), '-i', clip.path];
   let filter: string;
   let audioMap: string;
-
-  if (audioFilter) {
-    filter = `${videoFilter};${audioFilter}`;
+  if (advanced) {
+    const effectDirectory = `${destination}.effects`;
+    await mkdir(effectDirectory, { recursive: true });
+    const video = await buildEditedVideoGraph(clip, entry.segment, target, effectDirectory);
+    const audio = buildEditedAudioGraph(clip, entry.segment, streamCount, includeVoice);
+    filter = `${video};${audio}`;
     audioMap = '[aout]';
   } else {
-    inputArguments.push('-f', 'lavfi', '-t', durationSeconds.toFixed(3), '-i', 'anullsrc=r=48000:cl=stereo');
-    filter = videoFilter;
-    audioMap = '1:a:0';
+    const videoFilter = buildMontageV2VideoFilter(segment, target, textPath);
+    const audioFilter = buildMontageV2SegmentAudioFilter(streamCount, segment);
+    if (audioFilter) { filter = `${videoFilter};${audioFilter}`; audioMap = '[aout]'; }
+    else {
+      inputArguments.push('-f', 'lavfi', '-t', durationSeconds.toFixed(3), '-i', 'anullsrc=r=48000:cl=stereo');
+      filter = videoFilter; audioMap = '1:a:0';
+    }
   }
 
   const encode = async (selectedEncoder: ShareVideoEncoder) => {
@@ -158,7 +167,7 @@ async function renderMontageSegment(
       : ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18'];
     await run(executable, [
       '-hide_banner', '-loglevel', 'error', ...inputArguments,
-      '-filter_complex', filter, '-map', '[vout]', '-map', audioMap,
+      '-filter_complex_threads', '2', '-filter_complex', filter, '-map', '[vout]', '-map', audioMap, ...(includeVoice ? ['-map', '[voiceout]'] : []),
       ...codec, '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
       '-t', durationSeconds.toFixed(3), '-movflags', '+faststart', '-y', destination,
@@ -291,10 +300,13 @@ export function buildMontageMusicMixPlan(
     `atrim=duration=${(projectDurationMs / 1_000).toFixed(3)}`,
   );
 
+  musicChain.push(`volume='${automationExpression(track.automation)}':eval=frame`);
+  const ducking = track.ducking?.enabled ? track.ducking : null;
   const filter = [
     `[0:a:0]aresample=48000,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[montage-clips]`,
     `[1:a:0]${musicChain.join(',')}[montage-music]`,
-    '[montage-clips][montage-music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[aout]',
+    ...(ducking ? [`[montage-music][0:a:1]sidechaincompress=threshold=0.02:ratio=8:attack=${ducking.attackMs}:release=${ducking.releaseMs}:mix=${ducking.amount}[ducked-music]`] : []),
+    `[montage-clips][${ducking ? 'ducked-music' : 'montage-music'}]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[aout]`,
   ].join(';');
   return { inputArguments: ['-i', musicPath], filter, audioMap: '[aout]' };
 }
@@ -367,17 +379,7 @@ export async function probeMontageAudio(path: string): Promise<{ durationMs: num
 
 function montageVideoTarget(clip: Clip, canvasSize: MontageProjectV2['canvasSize']): MontageVideoTarget {
   if (clip.width <= 0 || clip.height <= 0) throw new Error(`Video dimensions are unavailable for ${clip.name}.`);
-  const sourceWidth = Math.max(2, Math.floor(clip.width / 2) * 2);
-  const sourceHeight = Math.max(2, Math.floor(clip.height / 2) * 2);
-  if (canvasSize === '9:16') {
-    return {
-      width: Math.max(2, Math.floor(sourceHeight * 9 / 16 / 2) * 2),
-      height: sourceHeight,
-      fps: Math.max(1, clip.fps || 30),
-      canvasSize,
-    };
-  }
-  return { width: sourceWidth, height: sourceHeight, fps: Math.max(1, clip.fps || 30), canvasSize };
+  return { ...canvasDimensions(clip.width, clip.height, canvasSize), fps: Math.max(1, clip.fps || 30), canvasSize };
 }
 
 async function getAudioStreamCount(path: string, signal?: AbortSignal): Promise<number> {

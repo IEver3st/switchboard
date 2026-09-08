@@ -331,6 +331,7 @@ export const lightingProfileSchema = z.object({
 export type LightingProfile = z.infer<typeof lightingProfileSchema>;
 
 export const lightingCapabilitySchema = z.object({
+  statusLightingSupported: z.boolean().optional(),
   batteryStatus: z.enum(['monitoring', 'warning', 'cutoff', 'charging', 'disabled', 'unavailable', 'error']).optional(),
   batteryStatusReason: z.string().optional(),
   batteryLightingEnabled: z.boolean().optional(),
@@ -904,6 +905,7 @@ export const captureConfigSchema = z.object({
   replaySeconds: z.number().int().min(15).max(300),
   includeMic: z.boolean(),
   includeSystemAudio: z.boolean(),
+  systemAudioMode: z.enum(['system', 'game']).default('system'),
   includeChatAudio: z.boolean().default(false),
   includeCursor: z.boolean(),
   microphoneDeviceId: z.string().min(1).max(512).nullable().default(null),
@@ -925,6 +927,7 @@ export const setCaptureConfigInputSchema = captureConfigSchema
   .partial()
   .extend({
     // Persisted defaults must not become writes when an IPC patch omits a field.
+    systemAudioMode: captureConfigSchema.shape.systemAudioMode.unwrap().optional(),
     includeChatAudio: captureConfigSchema.shape.includeChatAudio.unwrap().optional(),
     microphoneDeviceId: captureConfigSchema.shape.microphoneDeviceId.unwrap().optional(),
     systemAudioDeviceId: captureConfigSchema.shape.systemAudioDeviceId.unwrap().optional(),
@@ -1193,7 +1196,7 @@ export type AutoCaptureState = z.infer<typeof autoCaptureStateSchema>;
 export const clipAudioChannelSchema = z.enum(['game', 'chat', 'microphone', 'media']);
 export type ClipAudioChannel = z.infer<typeof clipAudioChannelSchema>;
 
-export const clipCanvasSizeSchema = z.enum(['original', '9:16']);
+export const clipCanvasSizeSchema = z.enum(['original', '16:9', '9:16', '1:1', '4:5']);
 export type ClipCanvasSize = z.infer<typeof clipCanvasSizeSchema>;
 
 export const clipAudioWaveformTrackSchema = z.object({
@@ -1414,7 +1417,72 @@ export const idleDiagnosticRun: DiagnosticRun = {
   id: null, status: 'idle', startedAt: null, completedAt: null, summary: '', checks: [],
 };
 
+export const sceneDeviceSettingsSchema = z.object({
+  deviceId: z.string().min(1).max(256),
+  name: z.string().max(160),
+  dpi: z.number().int().positive().optional(),
+  reportRate: z.number().int().positive().optional(),
+  lighting: z.object({
+    enabled: z.boolean(), effectId: z.string().optional(), color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+    brightness: z.number().min(0).max(100).optional(), speed: z.number().min(1).max(100).optional(),
+    zones: z.array(z.object({ id: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i) })).max(256).default([]),
+  }).optional(),
+});
+export const sceneAudioSchema = audioStateSchema.pick({
+  enabled: true, outputDevice: true, microphoneDevice: true, mixes: true, chatMix: true,
+  monitoring: true, monitoringEnabled: true, monitoringDeviceId: true, micProcessors: true, channelProcessing: true,
+}).extend({ buses: z.array(audioBusSchema.pick({ id: true, enabled: true, deviceId: true })) });
+export const sceneValuesSchema = z.object({
+  audio: sceneAudioSchema.nullable(),
+  capture: captureConfigSchema.omit({ hotkey: true, clipsDirectory: true }).nullable(),
+  devices: z.array(sceneDeviceSettingsSchema).max(32),
+});
+export type SceneValues = z.infer<typeof sceneValuesSchema>;
+export const setupSceneSchema = z.object({
+  id: z.string().min(1).max(100), name: z.string().trim().min(1).max(64),
+  executable: z.string().trim().max(120).regex(/^(?:[^\\/:*?"<>|]+\.exe)?$/i).default(''),
+  automatic: z.boolean().default(false), restoreOnExit: z.boolean().default(true),
+  values: sceneValuesSchema,
+});
+export type SetupScene = z.infer<typeof setupSceneSchema>;
+export const saveSceneInputSchema = setupSceneSchema.omit({ id: true, values: true }).extend({
+  id: z.string().min(1).max(100).optional(), captureCurrent: z.boolean(),
+  includeAudio: z.boolean(), includeCapture: z.boolean(), includeDevices: z.boolean(),
+});
+export type SaveSceneInput = z.infer<typeof saveSceneInputSchema>;
+export const setupPreferencesSchema = z.object({
+  quickControlsEnabled: z.boolean().default(false),
+  quickShortcut: z.enum(['Control+Alt+Space', 'Control+Shift+Space', 'Alt+Space']).default('Control+Alt+Space'),
+  quickActions: z.array(z.enum(['scenes', 'replay', 'microphone', 'output', 'chatmix'])).max(5)
+    .default(['scenes', 'replay', 'microphone', 'output', 'chatmix']),
+  lighting: z.object({
+    enabled: z.boolean().default(false), deviceIds: z.array(z.string().min(1).max(256)).max(32).default([]),
+    clipSaved: z.boolean().default(true), microphoneMuted: z.boolean().default(true), captureError: z.boolean().default(true),
+  }).default({ enabled: false, deviceIds: [], clipSaved: true, microphoneMuted: true, captureError: true }),
+});
+export type SetupPreferences = z.infer<typeof setupPreferencesSchema>;
+export const quickActionInputSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('microphone'), muted: z.boolean() }),
+  z.object({ type: z.literal('output'), deviceId: z.string().min(1).max(512) }),
+  z.object({ type: z.literal('chatmix'), value: z.number().min(-1).max(1) }),
+]);
+export type QuickActionInput = z.infer<typeof quickActionInputSchema>;
+export const setupRuntimeSchema = z.object({
+  activeSceneId: z.string().nullable().default(null),
+  state: z.enum(['idle', 'applying', 'active', 'partial', 'restoring']).default('idle'),
+  issues: z.array(z.string().max(2048)).max(64).default([]),
+  desktopState: z.enum(['disabled', 'starting', 'ready', 'error']).default('disabled'),
+  desktopError: z.string().nullable().default(null),
+  lightingState: z.enum(['idle', 'acknowledged', 'error']).default('idle'),
+  lightingMessage: z.string().default(''),
+});
+export const setupStateSchema = z.object({
+  scenes: z.array(setupSceneSchema).max(32).default([]), preferences: setupPreferencesSchema.default(() => setupPreferencesSchema.parse({})),
+  runtime: setupRuntimeSchema.default(() => setupRuntimeSchema.parse({})),
+  restore: z.object({ before: sceneValuesSchema, applied: sceneValuesSchema, automatic: z.boolean(), executable: z.string(), restoreOnExit: z.boolean() }).nullable().default(null),
+});
 export const systemSnapshotSchema = z.object({
+  setup: setupStateSchema.default(() => setupStateSchema.parse({})),
   version: z.string(),
   prototypeMode: z.boolean(),
   appUpdate: appUpdateStateSchema,
@@ -1702,6 +1770,10 @@ export const feedbackHandoffResultSchema = z.object({
 export type FeedbackHandoffResult = z.infer<typeof feedbackHandoffResultSchema>;
 
 export const ipcChannels = {
+  saveScene: 'setup:save-scene', deleteScene: 'setup:delete-scene', applyScene: 'setup:apply-scene',
+  restoreScene: 'setup:restore-scene', setSetupPreferences: 'setup:set-preferences',
+  openQuickControls: 'setup:open-quick-controls', closeQuickControls: 'setup:close-quick-controls',
+  runQuickAction: 'setup:quick-action',
   getSnapshot: 'system:get-snapshot',
   refreshDevices: 'devices:refresh',
   setModuleState: 'modules:set-state',
@@ -1774,6 +1846,14 @@ export const ipcChannels = {
 } as const;
 
 export interface SwitchboardApi {
+  saveScene(input: SaveSceneInput): Promise<SystemSnapshot>;
+  deleteScene(id: string): Promise<SystemSnapshot>;
+  applyScene(id: string): Promise<SystemSnapshot>;
+  restoreScene(): Promise<SystemSnapshot>;
+  setSetupPreferences(input: SetupPreferences): Promise<SystemSnapshot>;
+  openQuickControls(): Promise<void>;
+  closeQuickControls(): Promise<void>;
+  runQuickAction(input: QuickActionInput): Promise<SystemSnapshot>;
   setUiScale(percent: AppSettings['uiScalePercent']): void;
   getSnapshot(): Promise<SystemSnapshot>;
   refreshDevices(): Promise<SystemSnapshot>;

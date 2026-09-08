@@ -252,7 +252,7 @@ internal sealed class StereoParametricEqualizer
             float rawB0, rawB1, rawB2, rawA0, rawA1, rawA2;
             if (band.Type.Equals("low-shelf", StringComparison.OrdinalIgnoreCase))
             {
-                var alpha = sine / 2f * MathF.Sqrt((a + 1f / a) * (1f / Math.Max(band.Q, 0.2f) - 1f) + 2f);
+                var alpha = sine / (2f * Math.Max(band.Q, 0.2f));
                 var twoSqrtAAlpha = 2f * MathF.Sqrt(a) * alpha;
                 rawB0 = a * ((a + 1f) - (a - 1f) * cosine + twoSqrtAAlpha);
                 rawB1 = 2f * a * ((a - 1f) - (a + 1f) * cosine);
@@ -263,7 +263,7 @@ internal sealed class StereoParametricEqualizer
             }
             else if (band.Type.Equals("high-shelf", StringComparison.OrdinalIgnoreCase))
             {
-                var alpha = sine / 2f * MathF.Sqrt((a + 1f / a) * (1f / Math.Max(band.Q, 0.2f) - 1f) + 2f);
+                var alpha = sine / (2f * Math.Max(band.Q, 0.2f));
                 var twoSqrtAAlpha = 2f * MathF.Sqrt(a) * alpha;
                 rawB0 = a * ((a + 1f) + (a - 1f) * cosine + twoSqrtAAlpha);
                 rawB1 = -2f * a * ((a - 1f) + (a + 1f) * cosine);

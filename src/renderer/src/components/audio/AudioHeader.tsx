@@ -103,14 +103,17 @@ export function audioStatusLine({
   engineRunning,
   realtimeMetering,
   routingSupport,
+  processingSupport,
 }: {
   tab: AudioWorkspaceTab;
   engineRunning: boolean;
   realtimeMetering: AudioSupportLevel;
   routingSupport: AudioSupportLevel;
+  processingSupport: AudioSupportLevel;
 }) {
-  if (!engineRunning) return 'Audio engine off — turn on in Settings';
+  if (!engineRunning) return 'Audio engine off · Turn on in Settings';
+  if (tab === 'mixer' && routingSupport === 'unavailable') return 'Routing unavailable · Mix settings are saved';
   if (tab === 'mixer' && realtimeMetering !== 'available') return 'Live levels unavailable';
-  if (tab === 'mixer' && routingSupport === 'unavailable') return 'App routing unavailable';
-  return tab === 'mixer' ? 'Personal mix · Live levels' : 'Live processing controls';
+  if (tab !== 'mixer' && processingSupport !== 'available') return 'Processing unavailable for this channel';
+  return tab === 'mixer' ? 'Live mix levels' : 'Live processing controls';
 }

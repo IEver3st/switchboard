@@ -25,7 +25,9 @@ const runElectron = (script, ...arguments_) =>
     });
   });
 
-if (command === 'capture') {
+if (command === 'setup') {
+  await runElectron('scripts/verify-setup-ui.mjs');
+} else if (command === 'capture') {
   await runElectron('scripts/capture-native-ui.mjs');
 } else if (command === 'verify') {
   await runElectron('scripts/verify-native-ui.mjs', '--phase=write');
@@ -48,6 +50,8 @@ if (command === 'capture') {
   await runElectron('scripts/capture-native-ui.mjs', '--verify-audio-noise');
 } else if (command === 'audio-mixer') {
   await runElectron('scripts/verify-audio-mixer-ui.mjs');
+} else if (command === 'audio-workflow') {
+  await runElectron('scripts/verify-audio-workflow.mjs', ...commandArguments);
 } else if (command === 'audio-polish') {
   await runElectron('scripts/capture-audio-polish-ui.mjs');
 } else if (command === 'clip-editor') {
@@ -58,6 +62,8 @@ if (command === 'capture') {
   await runElectron('scripts/verify-montage-redesign.mjs');
 } else if (command === 'capture-scale') {
   await runElectron('scripts/capture-scale-qa.mjs', ...commandArguments);
+} else if (command === 'clip-scroll') {
+  await runElectron('scripts/verify-clip-scroll.mjs', ...commandArguments);
 } else if (command === 'capture-window-previews') {
   const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-window-previews-'));
   cleanEnvironment.SWITCHBOARD_CAPTURE_WINDOW_PREVIEW_USER_DATA = isolatedUserData;

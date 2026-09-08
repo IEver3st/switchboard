@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, type CSSProperties } from 'react';
 import type { Clip } from '../../../../shared/contracts';
 import { clipGameLabel } from '../../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../../shared/auto-capture';
@@ -33,12 +33,34 @@ export const ClipList = memo(function ClipList({ clips, actions, selectionMode, 
       {virtual.indexes(groupIndex).map((index) => {
         const clip = group.clips[index];
         if (!clip) return null;
-        const selectedOrder = selectionOrder.get(clip.id) ?? null;
-        const selected = selectedOrder !== null;
-        const activate = () => selectionMode ? onToggleSelection(clip) : actions.open(clip);
-        const autoCaptureSummary = autoCaptureClipSummary(clip);
         return (
-        <ClipContextMenu key={clip.id} clip={clip} actions={actions}><li className="capture-clip-list__item group" style={virtual.itemStyle(index)} aria-posinset={index + 1} aria-setsize={group.clips.length} data-library-clip-id={clip.id} data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
+          <ClipListItem key={clip.id} clip={clip} actions={actions} style={virtual.itemStyle(index)}
+            position={index + 1} total={group.clips.length} selectionMode={selectionMode}
+            selectedOrder={selectionOrder.get(clip.id) ?? null} onToggleSelection={onToggleSelection} />
+        );
+      })}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+});
+
+const ClipListItem = memo(function ClipListItem({ clip, actions, style, position, total, selectionMode, selectedOrder, onToggleSelection }: {
+  clip: Clip;
+  actions: ClipActions;
+  style: CSSProperties;
+  position: number;
+  total: number;
+  selectionMode: boolean;
+  selectedOrder: number | null;
+  onToggleSelection: (clip: Clip) => void;
+}) {
+  const selected = selectedOrder !== null;
+  const activate = () => selectionMode ? onToggleSelection(clip) : actions.open(clip);
+  const autoCaptureSummary = autoCaptureClipSummary(clip);
+  return (
+        <ClipContextMenu clip={clip} actions={actions}><li className="capture-clip-list__item group" style={style} aria-posinset={position} aria-setsize={total} data-library-clip-id={clip.id} data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
           <div className="capture-clip-list__preview">
             <ClipThumbnail
               clip={clip}
@@ -88,10 +110,5 @@ export const ClipList = memo(function ClipList({ clips, actions, selectionMode, 
             />
           </div>
         </li></ClipContextMenu>
-      );})}
-          </ul>
-        </section>
-      ))}
-    </div>
   );
 });

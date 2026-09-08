@@ -23,6 +23,8 @@ internal sealed class SpscFloatRing : ISampleProvider
     public WaveFormat WaveFormat { get; }
     public long DroppedSamples => Volatile.Read(ref droppedSamples);
 
+    public void DiscardBufferedSamples() => Volatile.Write(ref readSequence, Volatile.Read(ref writeSequence));
+
     public void WriteFloat32(ReadOnlySpan<byte> source, bool silent)
     {
         var incoming = Math.Min(source.Length / sizeof(float), samples.Length);
@@ -279,7 +281,8 @@ internal sealed class AudioOutput : IDisposable
             .WithEventSync()
             .WithLatency(AudioConstants.LatencyMilliseconds)
             .Build();
-        output.Init(new FloatWaveProvider(source));
+        try { output.Init(new FloatWaveProvider(source)); }
+        catch { output.Dispose(); throw; }
         output.PlaybackStopped += OnPlaybackStopped;
     }
 

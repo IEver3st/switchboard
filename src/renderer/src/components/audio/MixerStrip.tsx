@@ -63,6 +63,7 @@ function MasterStrip({
   return (
     <article
       className={cn('audio-strip audio-strip--master mixer-channel--master', muted && 'is-muted')}
+      aria-busy={pending || undefined}
       style={{ '--channel-color': 'var(--accent-brand)' } as CSSProperties}
     >
       <header className="audio-strip__head">

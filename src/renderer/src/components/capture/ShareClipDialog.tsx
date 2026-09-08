@@ -1,6 +1,6 @@
 import { montageSizeChoices } from '../../../../shared/video-edits';
 import { Input } from '@/components/ui/input';
-import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
 import { Check, FolderOpen, Grip, Share2, Video } from 'lucide-react';
 import type { Clip, ClipExportPreset, ClipExportProgress, PreparedShareFile } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled = false, projectType = 'single', segmentCount = 1, sourceBytes, selectedDurationMs, onExport, onCancelExport }: {
+export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled = false, projectType = 'single', segmentCount = 1, sourceBytes, selectedDurationMs, getPreviewCanvas, onExport, onCancelExport }: {
   clip: Clip;
   startMs: number;
   endMs: number;
@@ -44,10 +44,17 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
   segmentCount?: number;
   sourceBytes?: number;
   selectedDurationMs?: number;
+  getPreviewCanvas?: () => HTMLCanvasElement | null;
   onExport: (preset: ClipExportPreset, exportId: string, targetSizeMb?: number) => Promise<boolean | PreparedShareFile | null>;
   onCancelExport?: (exportId: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
+  const drawPreview = useCallback((destination: HTMLCanvasElement | null) => {
+    if (!previewCanvas || !destination) return;
+    destination.width = previewCanvas.width; destination.height = previewCanvas.height;
+    destination.getContext('2d')?.drawImage(previewCanvas, 0, 0);
+  }, [previewCanvas]);
   const [preset, setPreset] = useState<ClipExportPreset>('10mb');
   const [montageSize, setMontageSize] = useState('balanced');
   const [customSize, setCustomSize] = useState('250');
@@ -85,7 +92,9 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && exportPending) return;
     setOpen(nextOpen);
+    if (nextOpen) setPreviewCanvas(getPreviewCanvas?.() ?? null);
     if (!nextOpen) {
+      setPreviewCanvas(null);
       setPrepared(null);
       setError(null);
       setActiveExportId(null);
@@ -160,7 +169,7 @@ export function ShareClipDialog({ clip, startMs, endMs, exportPending, disabled 
             aria-label={canDrag ? `${visibleName}, ready to drag into another app` : `${visibleName} preview`}
           >
             <div className="relative aspect-video overflow-hidden bg-background">
-              {!thumbnailFailed && clip.thumbnailPath ? (
+              {previewCanvas ? <canvas ref={drawPreview} aria-label="Edited frame at the playhead" className="size-full object-contain" /> : !thumbnailFailed && clip.thumbnailPath ? (
                 <img
                   src={`switchboard-media://thumbnail/${encodeURIComponent(clip.id)}`}
                   alt=""

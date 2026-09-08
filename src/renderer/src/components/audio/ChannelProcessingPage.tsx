@@ -24,7 +24,7 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
   const processing = snapshot.audio.channelProcessing.find((candidate) => candidate.busId === busId);
   const bus = snapshot.audio.buses.find((candidate) => candidate.id === busId);
   const support = snapshot.audio.capabilities.channelDsp;
-  const pending = false;
+  const pending = useSystemStore((state) => state.pendingAudioOperations > 0);
   const unavailable = support === 'unavailable';
   const unavailableMessage = snapshot.audio.host?.driver.state !== 'ready' ? snapshot.audio.host?.driver.message : null;
 

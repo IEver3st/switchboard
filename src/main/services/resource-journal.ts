@@ -30,6 +30,7 @@ export type ResourceTelemetrySample = {
     cpuPercent: number;
     processCount: number;
   };
+  externalProcesses?: Array<{ pid: number; name: string; privateMemoryMb: number; workingSetMb: number; cpuPercent: number }>;
   electronProcesses: Array<{
     pid: number;
     type: string;

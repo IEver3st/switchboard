@@ -1,7 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { editedTimeAt, sourceToEditedMs, speedAt } from '../../../../shared/video-edits';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   Copy,
   Music2,
+  Volume2,
   Plus,
   Redo2,
   Scissors,
@@ -10,8 +12,11 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import type { Clip } from '../../../../shared/contracts';
+import type { Clip, ClipAudioWaveform } from '../../../../shared/contracts';
 import type { MontageAudioWaveform, MontageProjectV2, MontageV2Segment } from '../../../../shared/montage-v2';
+import { switchboardApi } from '@/lib/demo-api';
+import { channelColor } from '@/components/audio/channel-identity';
+import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { TimelineContextMenu, type TimelineMenuAction } from './TimelineContextMenu';
@@ -29,6 +34,9 @@ import {
 } from './montage-v2-model';
 
 export function MontageV2Timeline({
+  playbackControls,
+  previewControls,
+  viewerFullscreen,
   project,
   clips,
   selectedSegmentId,
@@ -39,6 +47,7 @@ export function MontageV2Timeline({
   canRedo,
   musicPending,
   onEditMusic,
+  onEditAudio,
   onZoomChange,
   onProjectChange,
   onSelectSegment,
@@ -51,6 +60,9 @@ export function MontageV2Timeline({
   onUndo,
   onRedo,
 }: {
+  playbackControls: ReactNode;
+  previewControls: ReactNode;
+  viewerFullscreen: boolean;
   project: MontageProjectV2;
   clips: readonly Clip[];
   selectedSegmentId: string;
@@ -61,6 +73,7 @@ export function MontageV2Timeline({
   canRedo: boolean;
   musicPending: boolean;
   onEditMusic: () => void;
+  onEditAudio: (trackIndex?: number) => void;
   onZoomChange: (zoom: number) => void;
   onProjectChange: (project: MontageProjectV2, mergeKey?: string) => void;
   onSelectSegment: (segmentId: string) => void;
@@ -101,6 +114,24 @@ export function MontageV2Timeline({
   const width = viewportWidth * zoom;
   const pixelsPerMs = width / Math.max(1, project.durationMs);
   const selected = project.segments.find((segment) => segment.id === selectedSegmentId);
+  const singleClip = project.sourceClipId ? clipsById.get(project.sourceClipId) : undefined;
+  const [clipWaveform, setClipWaveform] = useState<ClipAudioWaveform | null>(null);
+  const [audioError, setAudioError] = useState(false);
+  useEffect(() => {
+    setClipWaveform(null);
+    setAudioError(false);
+    if (!project.sourceClipId) return;
+    let active = true;
+    void switchboardApi.loadClipAudioWaveform(project.sourceClipId)
+      .then(value => { if (active) setClipWaveform(value); })
+      .catch(() => { if (active) setAudioError(true); });
+    return () => { active = false; };
+  }, [project.sourceClipId]);
+  const audioTracks = clipWaveform && clipWaveform.clipId === project.sourceClipId ? clipWaveform.tracks : (singleClip?.audioChannels ?? []).map((channel, trackIndex) => ({
+    trackIndex, channel, label: channel === 'microphone' ? 'Microphone' : channel[0]!.toUpperCase() + channel.slice(1), samples: [],
+  }));
+  const audioStatus = audioError ? 'Audio analysis unavailable' : clipWaveform ? 'No audio streams' : 'Reading audio tracks…';
+  const laneCount = Math.max(1, audioTracks.length);
   const rulerTicks = useMemo(() => createRulerTicks(project.durationMs, pixelsPerMs), [pixelsPerMs, project.durationMs]);
 
   const fitTimeline = () => {
@@ -122,7 +153,7 @@ export function MontageV2Timeline({
     const drag = trimRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const frame = 1000 / Math.max(1, clipsById.get(drag.segment.clipId)?.fps || 30);
-    const rawDelta = (event.clientX - drag.startX) / drag.pixelsPerMs * (drag.segment.videoEdits?.speed ?? 1);
+    const rawDelta = (event.clientX - drag.startX) / drag.pixelsPerMs * speedAt(drag.edge === 'start' ? drag.segment.trimStartMs : drag.segment.trimEndMs, drag.segment.videoEdits);
     const deltaMs = event.shiftKey ? Math.round(rawDelta) : Math.round(Math.round(rawDelta / frame) * frame);
     const requested = (drag.edge === 'start' ? drag.segment.trimStartMs : drag.segment.trimEndMs) + deltaMs;
     const next = updateMontageSegment(project, drag.segment.id, (segment) => drag.edge === 'start'
@@ -185,35 +216,50 @@ export function MontageV2Timeline({
   contextActions.push('separator', { label: 'Undo', disabled: !canUndo, onSelect: onUndo }, { label: 'Redo', disabled: !canRedo, onSelect: onRedo });
 
   return (
-    <section className="montage-v2-timeline" aria-label="Montage timeline">
-      <div className="montage-v2-timeline__toolbar">
+    <section className="montage-v2-timeline" aria-label={project.sourceClipId ? "Clip timeline" : "Montage timeline"}>
+      <div className="montage-v2-timeline__toolbar no-drag" data-fullscreen={viewerFullscreen || undefined}>
         <div className="montage-v2-timeline__tools">
           <ToolbarButton label="Undo" icon={Undo2} disabled={!canUndo} onClick={onUndo} />
           <ToolbarButton label="Redo" icon={Redo2} disabled={!canRedo} onClick={onRedo} />
           <span className="montage-v2-toolbar-divider" aria-hidden="true" />
-          <Button type="button" variant="secondary" size="sm" onClick={onAddClips}>
-            <Plus className="size-3.5" /> Add clips
-          </Button>
-          <Button type="button" variant="secondary" size="sm" disabled={musicPending} onClick={project.music ? onEditMusic : onAddMusic}>
+          {!project.sourceClipId ? <Button type="button" variant="secondary" size="sm" className="montage-v2-add-clips" aria-label="Add clips" title="Add clips" onClick={onAddClips}>
+            <Plus className="size-3.5" /> <span>Add clips</span>
+          </Button> : null}
+          {project.sourceClipId ? <Button type="button" variant="secondary" size="sm" onClick={() => onEditAudio()}><Volume2 className="size-3.5" />Audio channels</Button> : <Button type="button" variant="secondary" size="sm" disabled={musicPending} onClick={project.music ? onEditMusic : onAddMusic}>
             <Music2 className="size-3.5" /> {musicPending ? 'Importing…' : project.music ? 'Music settings' : 'Add music'}
-          </Button>
-          <ToolbarButton label="Split at playhead" icon={Scissors} disabled={!selected || segmentDurationMs(selected) < 200} onClick={onSplit} />
-          <ToolbarButton label="Duplicate segment" icon={Copy} disabled={!selected} onClick={onDuplicate} />
+          </Button>}
+          <ToolbarButton label="Split at playhead" icon={Scissors} disabled={!selected || segmentDurationMs(selected) < 200 || project.segments.length >= 500} onClick={onSplit} />
+          <ToolbarButton label="Duplicate segment" icon={Copy} disabled={!selected || project.segments.length >= 500} onClick={onDuplicate} />
           <ToolbarButton label="Remove segment" icon={Trash2} disabled={!selected || project.segments.length <= 1} onClick={onRemove} />
         </div>
-        <div className="montage-v2-timeline__zoom">
-          <ToolbarButton label="Zoom out" icon={ZoomOut} disabled={zoom <= 1} onClick={() => onZoomChange(clamp(zoom / 1.5, 1, 32))} />
-          <button type="button" className="montage-v2-fit" aria-pressed={zoom === 1} onClick={fitTimeline}>Fit</button>
-          <output aria-label={`Timeline zoom ${zoom.toFixed(1)} times fit`}>{zoom === 1 ? 'Full' : `${zoom.toFixed(1)}×`}</output>
-          <ToolbarButton label="Zoom in" icon={ZoomIn} disabled={zoom >= 32} onClick={() => onZoomChange(clamp(zoom * 1.5, 1, 32))} />
+        {playbackControls}
+        <div className="montage-v2-timeline__view-controls">
+          {previewControls}
+          <div className="montage-v2-timeline__zoom">
+            <ToolbarButton label="Zoom out" icon={ZoomOut} disabled={zoom <= 1} onClick={() => onZoomChange(clamp(zoom / 1.5, 1, 32))} />
+            <button type="button" className="montage-v2-fit" aria-pressed={zoom === 1} onClick={fitTimeline}>Fit</button>
+            <output aria-label={`Timeline zoom ${zoom.toFixed(1)} times fit`}>{zoom === 1 ? 'Full' : `${zoom.toFixed(1)}×`}</output>
+            <ToolbarButton label="Zoom in" icon={ZoomIn} disabled={zoom >= 32} onClick={() => onZoomChange(clamp(zoom * 1.5, 1, 32))} />
+          </div>
         </div>
       </div>
 
-      <div className="montage-v2-timeline__desk">
-        <div className="montage-v2-lane-labels" aria-hidden="true">
+      <div className="montage-v2-timeline__desk" data-single={Boolean(project.sourceClipId)} style={project.sourceClipId ? { height: `calc(26px + var(--video-lane-height) + ${laneCount * 48}px)` } : undefined}>
+        <div className="montage-v2-lane-labels" style={project.sourceClipId ? { gridTemplateRows: `25px var(--video-lane-height) repeat(${laneCount}, 48px)` } : undefined}>
           <div className="montage-v2-ruler-label">Timeline</div>
           <div><strong>Video</strong><span>{project.segments.length} segments</span></div>
-          <div><strong>Music</strong><span>{project.music ? 'Imported audio' : 'Empty lane'}</span></div>
+          {project.sourceClipId ? audioTracks.length ? audioTracks.map(track => <div key={track.trackIndex} className="clip-channel-label" style={{ '--track-color': channelColor(track.channel ?? 'aux'), '--control-accent': channelColor(track.channel ?? 'aux') } as CSSProperties}>
+            <strong>{track.label} <output>{selected?.audioTrackLevels?.[track.trackIndex] ?? 100}%</output></strong>
+            <Slider variant="fader" min={0} max={100} step={1} disabled={!selected} value={[selected?.audioTrackLevels?.[track.trackIndex] ?? 100]} aria-label={`${track.label} channel level`} onValueChange={([level]) => {
+              if (!selected || level === undefined) return;
+              onProjectChange(updateMontageSegment(project, selected.id, segment => {
+                const levels = [...(segment.audioTrackLevels ?? [])];
+                while (levels.length <= track.trackIndex) levels.push(100);
+                levels[track.trackIndex] = level;
+                return { ...segment, audioTrackLevels: levels };
+              }), `segment:${selected.id}:track:${track.trackIndex}`);
+            }} />
+          </div>) : <div><strong>Audio</strong><span>{audioStatus}</span></div> : <div><strong>Music</strong><span>{project.music ? 'Imported audio' : 'Empty lane'}</span></div>}
         </div>
         <div ref={viewportRef} className="montage-v2-timeline__viewport">
           <TimelineContextMenu label={`${contextPoint.music ? 'Music' : contextClip?.name ?? 'Timeline'} · ${formatTimecode(contextPoint.timelineMs, true)}`} actions={contextActions} onContextMenu={(event) => {
@@ -227,12 +273,12 @@ export function MontageV2Timeline({
             if (!segment) return;
             const start = montageStartForSegment(project.segments, segment.id);
             const frame = 1000 / Math.max(1, clipsById.get(segment.clipId)?.fps || 30);
-            const source = segment.trimStartMs + (requested - start) * (segment.videoEdits?.speed ?? 1);
+            const source = editedTimeAt(segment.trimStartMs, segment.trimEndMs, requested - start, segment.videoEdits).sourceMs;
             const sourceMs = clamp(Math.round(Math.round(source / frame) * frame), segment.trimStartMs, segment.trimEndMs);
-            setContextPoint({ segmentId: segment.id, sourceMs, timelineMs: music ? Math.round(requested) : start + (sourceMs - segment.trimStartMs) / (segment.videoEdits?.speed ?? 1), music });
+            setContextPoint({ segmentId: segment.id, sourceMs, timelineMs: music ? Math.round(requested) : start + sourceToEditedMs(segment.trimStartMs, sourceMs, segment.videoEdits), music });
             if (!music) onSelectSegment(segment.id);
           }}>
-          <div ref={contentRef} className="montage-v2-timeline__content" style={{ width: `${width}px` }}>
+          <div ref={contentRef} className="montage-v2-timeline__content" style={{ width: `${width}px`, height: project.sourceClipId ? `calc(25px + var(--video-lane-height) + ${laneCount * 48}px)` : undefined }}>
             <div className="montage-v2-ruler" role="slider" tabIndex={0} aria-label="Montage playhead"
               aria-valuemin={0} aria-valuemax={project.durationMs} aria-valuenow={Math.round(currentMs)} aria-valuetext={formatTimecode(currentMs, true)}
               onPointerDown={(event) => {
@@ -245,7 +291,8 @@ export function MontageV2Timeline({
               onPointerUp={(event) => { scrubPointerRef.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }}
               onPointerCancel={() => { scrubPointerRef.current = null; }}
               onKeyDown={(event) => {
-                const delta = event.shiftKey ? 1000 : 1000 / Math.max(1, clipsById.get(selected?.clipId ?? '')?.fps || 30) / (selected?.videoEdits?.speed ?? 1);
+                const mapping = mapMontageTime(project.segments, currentMs);
+                const delta = event.shiftKey ? 1000 : 1000 / Math.max(1, clipsById.get(mapping?.segment.clipId ?? '')?.fps || 30) / speedAt(mapping?.sourceTimeMs ?? 0, mapping?.segment.videoEdits);
                 const time = event.key === 'Home' ? 0 : event.key === 'End' ? project.durationMs : event.key === 'ArrowLeft' ? currentMs - delta : event.key === 'ArrowRight' ? currentMs + delta : null;
                 if (time === null) return;
                 event.preventDefault();
@@ -370,7 +417,23 @@ export function MontageV2Timeline({
               })}
             </div>
 
-            <div className="montage-v2-music-lane">
+            {project.sourceClipId ? audioTracks.length ? audioTracks.map(track => <div key={track.trackIndex} className="clip-channel-lane" style={{ '--track-color': channelColor(track.channel ?? 'aux'), '--control-accent': channelColor(track.channel ?? 'aux') } as CSSProperties}>
+              {project.segments.map(segment => {
+                const start = montageStartForSegment(project.segments, segment.id);
+                const duration = segmentDurationMs(segment);
+                const trim = segment.audioTrackTrims?.[track.trackIndex];
+                const samples = Array.from({ length: Math.min(256, Math.max(2, Math.round(duration * pixelsPerMs / 4))) }, (_, index) => index);
+                return <button key={segment.id} type="button" className="clip-channel-region" data-segment-id={segment.id} data-muted={segment.muted || segment.audioTrackLevels?.[track.trackIndex] === 0 || undefined}
+                  style={{ left: start * pixelsPerMs, width: duration * pixelsPerMs }} aria-label={`Edit ${track.label} audio for ${clipsById.get(segment.clipId)?.name ?? 'missing clip'}`}
+                  onClick={() => { onSelectSegment(segment.id); onEditAudio(track.trackIndex); }}>
+                  {track.samples.length ? <svg viewBox={`0 0 ${samples.length} 48`} preserveAspectRatio="none" aria-hidden="true">{samples.map(index => {
+                    const sourceMs = editedTimeAt(segment.trimStartMs, segment.trimEndMs, index / samples.length * duration, segment.videoEdits).sourceMs;
+                    const sample = trim && (sourceMs < trim.startMs || sourceMs >= trim.endMs) ? 0 : track.samples[Math.min(track.samples.length - 1, Math.floor(sourceMs / segment.sourceDurationMs * track.samples.length))] ?? 0;
+                    return <line key={index} x1={index} x2={index} y1={24 - sample * 22} y2={24 + sample * 22} />;
+                  })}</svg> : <span>{audioError ? 'Waveform unavailable' : clipWaveform ? 'No waveform data' : 'Reading waveform…'}</span>}
+                </button>;
+              })}
+            </div>) : <div className="clip-channel-lane"><span>{audioStatus}</span></div> : <div className="montage-v2-music-lane">
               {project.music ? (
                 <button
                   type="button"
@@ -420,7 +483,7 @@ export function MontageV2Timeline({
                   <Music2 aria-hidden="true" /> {musicPending ? 'Importing audio…' : 'Add music from your computer'}
                 </button>
               )}
-            </div>
+            </div>}
 
             <div className="montage-v2-playhead" style={{ left: `${currentMs * pixelsPerMs}px` }} aria-hidden="true"><span /></div>
           </div>

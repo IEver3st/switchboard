@@ -4,6 +4,7 @@ import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainEvent, type 
 import { join } from 'node:path';
 import { z } from 'zod';
 import {
+  saveSceneInputSchema, setupPreferencesSchema, quickActionInputSchema,
   applyAudioPresetInputSchema,
   audioPresetIdInputSchema,
   updateSettingsInputSchema,
@@ -47,9 +48,16 @@ import { AudioMeterDeliveryGate } from './services/audio-meter-delivery';
 import { getPreparedShareService } from './services/prepared-share';
 import { getStartupSnapshot } from './startup-readiness';
 
-function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null): void {
+let getQuickWindow: () => BrowserWindow | null = () => null;
+const quickChannels = new Set<string>([ipcChannels.getSnapshot, ipcChannels.applyScene, ipcChannels.restoreScene,
+  ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.runQuickAction, ipcChannels.saveReplay,
+  ipcChannels.setCaptureConfig, ipcChannels.updateSettings, ipcChannels.setAudioEnabled,
+  ipcChannels.setAudioMasterGain, ipcChannels.setAudioMasterEnabled, ipcChannels.setAudioBusDevice]);
+function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null, channel = ''): void {
   const window = getMainWindow();
-  if (!window || window.isDestroyed() || event.sender.id !== window.webContents.id) {
+  const quick = quickChannels.has(channel) ? getQuickWindow() : null;
+  if ((!window || window.isDestroyed() || event.sender.id !== window.webContents.id)
+    && (!quick || quick.isDestroyed() || event.sender.id !== quick.webContents.id)) {
     throw new Error('Rejected IPC from an untrusted webContents instance.');
   }
 
@@ -72,19 +80,28 @@ function handle<TInput, TResult>(
   action: (input: TInput) => TResult | Promise<TResult>,
 ): void {
   ipcMain.handle(channel, async (event, input) => {
-    assertTrustedSender(event, getMainWindow);
+    assertTrustedSender(event, getMainWindow, channel);
     return developerDiagnostics.trace('main', `ipc:${channel}`, () =>
       debugDiagnostics.measureAsync(`ipc:${channel}`, async () => action(parse(input))));
   });
 }
 
-export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null): () => void {
+export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null, getQuickControlsWindow: () => BrowserWindow | null = () => null): () => void {
+  getQuickWindow = getQuickControlsWindow;
+  handle(ipcChannels.runQuickAction, getMainWindow, input => quickActionInputSchema.parse(input), input => controller.runQuickAction(input));
+  handle(ipcChannels.saveScene, getMainWindow, input => saveSceneInputSchema.parse(input), input => controller.saveScene(input));
+  handle(ipcChannels.deleteScene, getMainWindow, input => z.string().min(1).max(100).parse(input), id => controller.deleteScene(id));
+  handle(ipcChannels.applyScene, getMainWindow, input => z.string().min(1).max(100).parse(input), id => controller.applyScene(id));
+  handle(ipcChannels.restoreScene, getMainWindow, input => z.undefined().parse(input), () => controller.restoreScene());
+  handle(ipcChannels.setSetupPreferences, getMainWindow, input => setupPreferencesSchema.parse(input), input => controller.setSetupPreferences(input));
+  handle(ipcChannels.openQuickControls, getMainWindow, input => z.undefined().parse(input), () => controller.openQuickControls());
+  handle(ipcChannels.closeQuickControls, getMainWindow, input => z.undefined().parse(input), () => controller.closeQuickControls());
   handle(ipcChannels.exportResourceDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.exportResourceDiagnostics());
   handle(ipcChannels.runDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.runDiagnostics());
   handle(ipcChannels.cancelDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.cancelDiagnostics());
   const audioMeterDelivery = new AudioMeterDeliveryGate();
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
-    assertTrustedSender(event, getMainWindow);
+    assertTrustedSender(event, getMainWindow, ipcChannels.getSnapshot);
     return debugDiagnostics.measureAsync('ipc:snapshot:get', async () => { return getStartupSnapshot(controller); });
   });
   ipcMain.handle(ipcChannels.refreshDevices, async (event) => {
@@ -460,9 +477,10 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   );
 
   const unsubscribe = controller.subscribe((snapshot) => {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    debugDiagnostics.measure('ipc:snapshot:send', () => window.webContents.send(ipcChannels.snapshotUpdated, snapshot));
+    for (const window of [getMainWindow(), getQuickWindow()]) {
+      if (!window || window.isDestroyed()) continue;
+      debugDiagnostics.measure('ipc:snapshot:send', () => window.webContents.send(ipcChannels.snapshotUpdated, snapshot));
+    }
   });
   const unsubscribeAudioMeters = controller.subscribeAudioMeters((frame) => {
     const window = getMainWindow();
@@ -480,6 +498,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   });
 
   return () => {
+    getQuickWindow = () => null;
     controller.setAudioMeteringRequested(false);
     unsubscribe();
     unsubscribeAudioMeters();

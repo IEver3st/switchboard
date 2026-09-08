@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Monitor, RefreshCw, Settings2, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Layers, Monitor, RefreshCw, Settings2, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
 import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
 import { CaptureAudioDeviceSelect } from './capture-audio-device-select';
@@ -15,6 +15,8 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatReplayLength } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
+import { switchboardApi } from '@/lib/demo-api';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ClipLibraryToolbar } from './ClipLibraryToolbar';
 import type { ClipLibraryControls } from './clip-library-model';
 
@@ -23,6 +25,8 @@ const qualityLabels: Record<number, string> = { 1: 'Economy', 2: 'Balanced', 3: 
 
 export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot; controls: ClipLibraryControls }) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
+  const setPage = useSystemStore((state) => state.setPage);
+  const sceneName = snapshot.setup.scenes.find(scene => scene.id === snapshot.setup.runtime.activeSceneId)?.name;
   const config = snapshot.capture.config;
   const runtime = snapshot.capture.runtime;
   const sourceOptions = sourceChoices(config, snapshot.capture.sources);
@@ -71,6 +75,25 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
           notice={notice}
           onSourceChange={changeSource}
         />
+        <div className="capture-page-utilities" role="group" aria-label="Scene and quick controls">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="capture-page-utilities__button" aria-label="Scenes" onClick={() => {
+                window.sessionStorage.setItem('switchboard.settings.category', 'setup');
+                setPage('settings');
+              }}><Layers className="size-3.5" aria-hidden="true" /><span>Scenes</span></Button>
+            </TooltipTrigger>
+            <TooltipContent>Scenes{sceneName ? ` · ${sceneName}` : ''}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="capture-page-utilities__button" aria-label="Open quick controls" onClick={() => {
+                void switchboardApi.openQuickControls().catch(error => useSystemStore.setState({ error: String(error) }));
+              }}><SlidersHorizontal className="size-3.5" aria-hidden="true" /><span>Quick controls</span></Button>
+            </TooltipTrigger>
+            <TooltipContent>Quick controls</TooltipContent>
+          </Tooltip>
+        </div>
         <ClipLibraryToolbar controls={controls} />
       </div>
     </section>

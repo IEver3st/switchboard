@@ -2154,8 +2154,8 @@ textarea:focus-visible {
   width: 100%;
   overflow: visible;
   border: 0;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 7px;
+  background: var(--surface-2);
   box-shadow: none;
   contain-intrinsic-size: auto 320px;
   transition: none;
@@ -2163,13 +2163,13 @@ textarea:focus-visible {
 
 .capture-clip-card:hover,
 .capture-clip-card:focus-within {
-  background: transparent;
+  background: var(--surface-interactive);
 }
 
 .capture-clip-card__media {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: 7px 7px 0 0;
   background: #0b0a09;
   box-shadow: none;
   transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
@@ -2191,13 +2191,13 @@ textarea:focus-visible {
 
 .capture-clip-card__footer {
   display: flex;
-  min-height: 50px;
+  min-height: 64px;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border: 0;
   background: transparent;
-  padding: 7px 2px 0;
+  padding: 10px 12px;
 }
 
 .capture-clip-card__details {
@@ -2206,10 +2206,10 @@ textarea:focus-visible {
 
 .capture-clip-card__title {
   display: -webkit-box;
-  min-height: 40px;
+  min-height: 20px;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 }
 
 .capture-clip-card__game {
@@ -2262,7 +2262,8 @@ textarea:focus-visible {
 }
 
 .capture-clip-card__quick-actions {
-  position: absolute;
+  position: static;
+  flex: none;
   z-index: 2;
   bottom: 8px;
   left: 8px;
@@ -2272,11 +2273,15 @@ textarea:focus-visible {
   opacity: 1;
 }
 
+.capture-clip-card__quick-actions[hidden] {
+  display: none;
+}
+
 .capture-clip-card .capture-clip-action {
-  border-color: rgb(255 255 255 / 13%);
-  background: rgb(12 11 10 / 88%);
+  border-color: transparent;
+  background: transparent;
   color: var(--text-secondary);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
+  box-shadow: none;
   opacity: 1;
 }
 
@@ -2287,8 +2292,8 @@ textarea:focus-visible {
 }
 
 .capture-clip-card .capture-clip-card__share {
-  pointer-events: none;
-  opacity: 0;
+  pointer-events: auto;
+  opacity: 1;
   transition: opacity 120ms ease-out;
 }
 

@@ -33,7 +33,7 @@ import {
 
 const supportedAudioExtensions = new Set(['.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.opus']);
 const maximumImportedAudioBytes = 4 * 1_024 * 1_024 * 1_024;
-const maximumDrafts = 20;
+const maximumDrafts = 500;
 
 const managedAssetSchema = montageAudioAssetSchema.extend({
   fileName: z.string().regex(/^[0-9a-f-]+\.[a-z0-9]+$/i),
@@ -54,6 +54,7 @@ export class MontageV2Service {
   private manifest: MontageManifest = { schemaVersion: 1, assets: [], drafts: [] };
   private loadPromise: Promise<void> | null = null;
   private disposed = false;
+  private writeQueue: Promise<void> = Promise.resolve();
 
   public async importAudio(): Promise<MontageAudioAsset | null> {
     this.assertActive();
@@ -91,11 +92,9 @@ export class MontageV2Service {
       createdAt: Date.now(),
     });
 
-    this.manifest.assets.push(asset);
     try {
-      await this.persist();
+      await this.mutateManifest(manifest => { manifest.assets.push(asset); });
     } catch (error) {
-      this.manifest.assets = this.manifest.assets.filter((candidate) => candidate.id !== id);
       await rm(destination, { force: true });
       throw error;
     }
@@ -132,22 +131,20 @@ export class MontageV2Service {
     await this.ensureLoaded();
     const project = this.canonicalizeProject(input);
     const saved = montageProjectV2Schema.parse({ ...project, updatedAt: Date.now() });
-    const existingIndex = this.manifest.drafts.findIndex((candidate) => candidate.id === saved.id);
-    if (existingIndex >= 0) this.manifest.drafts.splice(existingIndex, 1);
-    this.manifest.drafts.unshift(saved);
-    this.manifest.drafts = this.manifest.drafts
-      .sort((left, right) => right.updatedAt - left.updatedAt)
-      .slice(0, maximumDrafts);
-    await this.persist();
+    await this.mutateManifest(manifest => {
+      const existingIndex = manifest.drafts.findIndex(candidate => candidate.id === saved.id);
+      if (existingIndex < 0 && manifest.drafts.length >= maximumDrafts) throw new Error('The draft library is full. Discard an older draft before saving another.');
+      if (existingIndex >= 0) manifest.drafts.splice(existingIndex, 1);
+      manifest.drafts.unshift(saved);
+      manifest.drafts.sort((left, right) => right.updatedAt - left.updatedAt);
+    });
     return structuredClone(saved);
   }
 
   public async deleteDraft(projectId: string): Promise<void> {
     this.assertActive();
     await this.ensureLoaded();
-    const previousLength = this.manifest.drafts.length;
-    this.manifest.drafts = this.manifest.drafts.filter((candidate) => candidate.id !== projectId);
-    if (this.manifest.drafts.length !== previousLength) await this.persist();
+    await this.mutateManifest(manifest => { manifest.drafts = manifest.drafts.filter(candidate => candidate.id !== projectId); });
   }
 
   public async export(
@@ -183,9 +180,9 @@ export class MontageV2Service {
     }
 
     const suffix = input.targetSizeMb ? `-${input.targetSizeMb}mb` : input.preset === 'original' ? '' : `-${input.preset}`;
-    const canvasSuffix = project.canvasSize === '9:16' ? '-9x16' : '';
+    const canvasSuffix = project.canvasSize === 'original' ? '' : `-${project.canvasSize.replace(':', 'x')}`;
     const selection = await dialog.showSaveDialog({
-      title: 'Export montage',
+      title: project.sourceClipId ? 'Export clip' : 'Export montage',
       defaultPath: join(app.getPath('videos'), `${sanitizeFileBase(project.name)}${canvasSuffix}${suffix}.mp4`),
       filters: [{ name: 'Video', extensions: ['mp4'] }],
     });
@@ -310,15 +307,24 @@ export class MontageV2Service {
   }
 
   private async persist(): Promise<void> {
-    const parsed = montageManifestSchema.parse(this.manifest);
-    const temporary = `${this.manifestPath()}.${randomUUID()}.tmp`;
-    await mkdir(this.rootDirectory(), { recursive: true });
-    try {
-      await writeFile(temporary, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
-      await rename(temporary, this.manifestPath());
-    } finally {
-      await rm(temporary, { force: true });
-    }
+    return this.mutateManifest(() => {});
+  }
+
+  private async mutateManifest(mutate: (manifest: MontageManifest) => void): Promise<void> {
+    const write = this.writeQueue.catch(() => undefined).then(async () => {
+      const next = structuredClone(this.manifest);
+      mutate(next);
+      const parsed = montageManifestSchema.parse(next);
+      const temporary = `${this.manifestPath()}.${randomUUID()}.tmp`;
+      await mkdir(this.rootDirectory(), { recursive: true });
+      try {
+        await writeFile(temporary, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
+        await rename(temporary, this.manifestPath());
+        this.manifest = parsed;
+      } finally { await rm(temporary, { force: true }); }
+    });
+    this.writeQueue = write;
+    return write;
   }
 
   private rootDirectory(): string {

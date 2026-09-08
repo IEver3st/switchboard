@@ -672,6 +672,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             {
                 systemAudio = !capture.IncludeSystemAudio
                     ? null
+                    : capture.SystemAudioMode == "game"
+                        ? await AudioPipeCapture.CreateProcessLoopbackAsync(source.ProcessId
+                            ?? throw new InvalidOperationException("The selected source has no process for game-only audio."), cancellationToken)
                     : capture.ClipMixPipeName is { Length: > 0 } pipeName
                         ? new AudioHostPipeInput(pipeName, "Switchboard clip mix")
                         : capture.SystemAudioDeviceId is { Length: > 0 } systemEndpointId
@@ -681,6 +684,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             catch (Exception systemAudioError)
             {
                 systemAudio = null;
+                // Never silently substitute desktop audio or silently save a game-only clip without its track.
+                if (capture.IncludeSystemAudio && capture.SystemAudioMode == "game") throw;
                 audioWarnings.Add($"Game audio unavailable: {systemAudioError.Message}");
             }
             try
@@ -1652,6 +1657,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         || previous.Quality != next.Quality
         || previous.IncludeMic != next.IncludeMic
         || previous.IncludeSystemAudio != next.IncludeSystemAudio
+        || previous.SystemAudioMode != next.SystemAudioMode
         || previous.IncludeChatAudio != next.IncludeChatAudio
         || previous.IncludeCursor != next.IncludeCursor
         || previous.TargetVideoBitrateBps != next.TargetVideoBitrateBps

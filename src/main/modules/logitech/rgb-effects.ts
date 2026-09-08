@@ -91,6 +91,8 @@ export class LogitechRgbEffectsController {
   private claimed = false;
   private perKeyPrepared = false;
   private batteryOverride = false;
+  private batteryValue: 'red' | 'off' | null = null;
+  private statusColor: string | null = null;
   private restoreSoftwareLighting = false;
   private restoreFirmwarePower = true;
   private readonly zoneColors = new Map<number, string>();
@@ -382,6 +384,17 @@ export class LogitechRgbEffectsController {
 
   /** Temporary RAM-only override. Never mutate the user's effect, colors, or zones. */
   public async setBatteryOverride(value: 'red' | 'off' | null): Promise<void> {
+    this.batteryValue = value;
+    await this.setTemporaryOverride(value ?? this.statusColor);
+  }
+
+  public async setStatusOverride(color: string | null): Promise<void> {
+    if (color !== null) assertColor(color);
+    this.statusColor = color;
+    await this.setTemporaryOverride(this.batteryValue ?? color);
+  }
+
+  private async setTemporaryOverride(value: string | null): Promise<void> {
     if (value === null) {
       if (!this.batteryOverride) return;
       this.perKeyPrepared = false;
@@ -421,12 +434,14 @@ export class LogitechRgbEffectsController {
       const effect = preferredEffect(cluster, 'static');
       if (!effect) throw new Error('The mouse does not support a static red battery warning.');
       await this.transport.request(this.deviceIndex, this.featureIndex, 1,
-        [cluster.index, effect.index, ...buildEffectParameters(effect, '#ff0000', 25, 50, 'right'), persistUntilRelease]);
+        [cluster.index, effect.index, ...buildEffectParameters(effect, value === 'red' ? '#ff0000' : value, 25, 50, 'right'), persistUntilRelease]);
     }
     if (this.perKeyFeatureIndex !== null && this.zoneColors.size > 0) {
       await this.preparePerKey();
       for (const zoneId of this.zoneColors.keys()) {
-        await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 1, [zoneId, 64, 0, 0]);
+        const color = value === 'red' ? '#ff0000' : value;
+        const rgb = [1, 3, 5].map(offset => Math.round(parseInt(color.slice(offset, offset + 2), 16) * 0.25));
+        await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 1, [zoneId, ...rgb]);
       }
       await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 7, [0]);
     }

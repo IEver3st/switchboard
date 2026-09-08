@@ -14,6 +14,7 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
   const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const setAudioApplicationRoute = useSystemStore((state) => state.setAudioApplicationRoute);
   const setChatMix = useSystemStore((state) => state.setChatMix);
+  const pending = useSystemStore((state) => state.pendingAudioOperations > 0);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
   const buses = mixerChannelOrder
@@ -45,7 +46,7 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
           mixLabel={selectedMix.label}
           devices={snapshot.audio.devices}
           engineRunning={engineRunning}
-          pending={false}
+          pending={pending}
           onGainCommit={(gain) => void setAudioMasterGain({ mixId: selectedMix.id, gain })}
           onEnabledChange={(enabled) => void setAudioMasterEnabled({ mixId: selectedMix.id, enabled })}
         />
@@ -61,7 +62,7 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
               mixId={selectedMix.id}
               devices={snapshot.audio.devices}
               engineRunning={engineRunning}
-              pending={false}
+              pending={pending}
               presetName={presetNameFor(channel)}
               applications={snapshot.audio.applications.filter((application) => application.currentDestination === bus.id)}
               routingSupport={routingSupport}
@@ -81,7 +82,7 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
       <ChatMixSlider
         value={snapshot.audio.chatMix}
         disabled={!gameEnabled || !chatEnabled}
-        pending={false}
+        pending={pending}
         onCommit={(value) => void setChatMix(value)}
       />
 

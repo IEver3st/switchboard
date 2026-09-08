@@ -175,6 +175,14 @@ export class StateStore {
     }
 
     next.prototypeMode = true;
+    next.setup.runtime.desktopState = 'disabled';
+    next.setup.runtime.desktopError = null;
+    next.setup.runtime.lightingState = 'idle';
+    next.setup.runtime.lightingMessage = '';
+    if (next.setup.restore) {
+      next.setup.runtime.state = 'partial';
+      next.setup.runtime.issues = ['A previous scene is saved. Restore it or apply a scene to continue.'];
+    } else { next.setup.runtime.state = 'idle'; next.setup.runtime.activeSceneId = null; next.setup.runtime.issues = []; }
     next.engines = runtimeEngineKinds.map((kind) => ({
       kind,
       state: 'stopped',

@@ -246,6 +246,16 @@ The export retains the latest 120 samples; disabling stops the extra probes and
 retains the report for export. See [Resource diagnostics](docs/resource-diagnostics.md)
 for measurement semantics, limits, and the comparison workflow.
 
+Setup scenes and status cues follow canonical state events. Clip-saved lighting
+uses one 1.5-second timer, cancelled when disabled or disposed. Desktop controls
+run the bundled Capture.Host in a separate media-free mode only while a global
+quick shortcut or automatic scene is enabled. Application matching checks the
+configured executable names every two seconds, stopping when no automatic scenes
+remain. Shortcut release checks run every 16 ms only while that shortcut is held.
+The helper exits on stdin EOF; shutdown waits for exit and force-stops after two
+seconds. Resource samples reuse the existing five-second performance sampler.
+The quick panel is created on request and destroyed on release, blur, or close.
+
 On-demand capture diagnostics use canonical transient state owned by main and
 narrow run/cancel IPC operations. A stopped capture engine gets a temporary host
 that is disposed after the run; an existing host serializes checks through its

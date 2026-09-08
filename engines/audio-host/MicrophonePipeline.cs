@@ -24,6 +24,7 @@ internal sealed class MicrophonePipeline : IDisposable
     private readonly FrameTimingMetrics callbackTimings = new();
     private readonly MMDeviceEnumerator enumerator = new();
     private readonly WasapiRecorder capture;
+    private readonly MMDevice inputDevice;
     private readonly CaptureSampleConverter converter;
     private readonly float[] frame;
     private readonly float[] dryFrame;
@@ -31,7 +32,10 @@ internal sealed class MicrophonePipeline : IDisposable
     private readonly Thread processingThread;
     private MicrophoneDspConfiguration configuration;
     private WasapiPlayer? monitorOutput;
+    private MMDevice? monitorDevice;
     private ProcessedWaveProvider? monitorProvider;
+    private string? monitoringError;
+    private volatile bool monitoringStopped;
     private volatile bool stopping;
     private volatile bool captureStopped;
     private string? lastError;
@@ -65,29 +69,43 @@ internal sealed class MicrophonePipeline : IDisposable
         clipMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels);
         frame = new float[suppressor.FrameLength];
         dryFrame = new float[suppressor.FrameLength];
-        var inputId = settings.MicrophoneBus?.DeviceId;
-        if (string.IsNullOrWhiteSpace(inputId)) throw new InvalidOperationException("No physical microphone is selected.");
-        InputDeviceId = inputId;
-        var inputDevice = enumerator.GetDevice(inputId);
-        if (inputDevice.State != DeviceState.Active) throw new InvalidOperationException("The selected microphone is not available.");
-        capture = new WasapiRecorderBuilder()
-            .WithDevice(inputDevice)
-            .WithSharedMode()
-            .WithEventSync()
-            .WithBufferLength(20)
-            .Build();
-        converter = new CaptureSampleConverter(capture.WaveFormat);
-        InputFormat = converter.Description;
-        InputSampleRate = converter.InputSampleRate;
-        capture.DataAvailable += OnDataAvailable;
-        capture.RecordingStopped += OnRecordingStopped;
-        processingThread = new Thread(ProcessFrames)
+        try
         {
-            IsBackground = true,
-            Name = "Switchboard microphone DSP",
-            Priority = ThreadPriority.AboveNormal,
-        };
-        ConfigureMonitoring(settings);
+            var inputId = settings.MicrophoneBus?.DeviceId;
+            if (string.IsNullOrWhiteSpace(inputId)) throw new InvalidOperationException("No physical microphone is selected.");
+            InputDeviceId = inputId;
+            inputDevice = enumerator.GetDevice(inputId);
+            if (inputDevice.State != DeviceState.Active || inputDevice.DataFlow != DataFlow.Capture)
+                throw new InvalidOperationException("The selected microphone is not available.");
+            if (EndpointCatalog.IsSwitchboard(inputDevice.FriendlyName, inputDevice.DeviceFriendlyName))
+                throw new InvalidOperationException("Choose a physical microphone instead of a Switchboard transport endpoint.");
+            capture = new WasapiRecorderBuilder()
+                .WithDevice(inputDevice)
+                .WithSharedMode()
+                .WithEventSync()
+                .WithBufferLength(20)
+                .Build();
+            converter = new CaptureSampleConverter(capture.WaveFormat);
+            InputFormat = converter.Description;
+            InputSampleRate = converter.InputSampleRate;
+            capture.DataAvailable += OnDataAvailable;
+            capture.RecordingStopped += OnRecordingStopped;
+            processingThread = new Thread(ProcessFrames)
+            {
+                IsBackground = true,
+                Name = "Switchboard microphone DSP",
+                Priority = ThreadPriority.AboveNormal,
+            };
+            TryConfigureMonitoring(settings);
+        }
+        catch
+        {
+            capture?.Dispose();
+            inputDevice?.Dispose();
+            enumerator.Dispose();
+            samplesAvailable.Dispose();
+            throw;
+        }
     }
 
     public string InputDeviceId { get; }
@@ -95,7 +113,7 @@ internal sealed class MicrophonePipeline : IDisposable
     public int InputSampleRate { get; }
     public string? MonitoringDeviceId { get; private set; }
     public bool CaptureStopped => captureStopped;
-    public string? LastError => Volatile.Read(ref lastError) ?? suppressor.LastError;
+    public string? LastError => Volatile.Read(ref lastError) ?? Volatile.Read(ref monitoringError) ?? suppressor.LastError;
     public float MeterLevel => Volatile.Read(ref meterLevel);
     public float MeterPeak => Volatile.Read(ref meterPeak);
     public long CaptureOverruns => Interlocked.Read(ref captureOverruns);
@@ -115,17 +133,34 @@ internal sealed class MicrophonePipeline : IDisposable
     public void Start()
     {
         processingThread.Start();
-        monitorOutput?.Play();
         capture.StartRecording();
+        try { monitorOutput?.Play(); }
+        catch (Exception outputError)
+        {
+            StopMonitoring();
+            Volatile.Write(ref monitoringError, $"Microphone monitoring is unavailable: {outputError.Message}");
+        }
     }
 
     public void UpdateConfiguration(AudioHostSettings settings, MicrophoneDspConfiguration nextConfiguration)
     {
         Volatile.Write(ref configuration, nextConfiguration);
-        ConfigureMonitoring(settings);
+        TryConfigureMonitoring(settings);
+    }
+
+    public void RecoverMonitoring(AudioHostSettings settings)
+    {
+        if (settings.MonitoringEnabled && (monitorOutput is null || monitoringStopped)) TryConfigureMonitoring(settings);
     }
 
     public void MarkRecovery() => Interlocked.Increment(ref recoveries);
+
+    public void ResetRoutingBuffers()
+    {
+        virtualMicrophoneSamples.DiscardBufferedSamples();
+        streamMicrophoneSamples.DiscardBufferedSamples();
+        clipMicrophoneSamples.DiscardBufferedSamples();
+    }
 
     public async Task RunMicrophoneTestAsync(CancellationToken cancellationToken)
     {
@@ -183,6 +218,7 @@ internal sealed class MicrophonePipeline : IDisposable
         capture.DataAvailable -= OnDataAvailable;
         capture.RecordingStopped -= OnRecordingStopped;
         capture.Dispose();
+        inputDevice.Dispose();
         enumerator.Dispose();
         samplesAvailable.Dispose();
     }
@@ -288,6 +324,19 @@ internal sealed class MicrophonePipeline : IDisposable
         }
     }
 
+    private void TryConfigureMonitoring(AudioHostSettings settings)
+    {
+        try
+        {
+            ConfigureMonitoring(settings);
+            Volatile.Write(ref monitoringError, null);
+        }
+        catch (Exception outputError)
+        {
+            Volatile.Write(ref monitoringError, $"Microphone monitoring is unavailable: {outputError.Message}");
+        }
+    }
+
     private void ConfigureMonitoring(AudioHostSettings settings)
     {
         Volatile.Write(ref testOutputDeviceId, settings.MonitoringDeviceId);
@@ -297,29 +346,59 @@ internal sealed class MicrophonePipeline : IDisposable
             StopMonitoring();
             return;
         }
-        if (monitorOutput is not null && string.Equals(MonitoringDeviceId, settings.MonitoringDeviceId, StringComparison.OrdinalIgnoreCase))
+        if (monitorOutput is not null && !monitoringStopped && string.Equals(MonitoringDeviceId, settings.MonitoringDeviceId, StringComparison.OrdinalIgnoreCase))
         {
             monitorProvider?.SetVolume(settings.Monitoring);
             return;
         }
 
-        StopMonitoring();
-        var outputDevice = enumerator.GetDevice(settings.MonitoringDeviceId);
-        if (outputDevice.State != DeviceState.Active) throw new InvalidOperationException("The selected monitoring output is not available.");
-        processedSamples.Clear();
-        var provider = new ProcessedWaveProvider(processedSamples);
-        provider.SetVolume(settings.Monitoring);
-        var output = new WasapiPlayerBuilder()
-            .WithDevice(outputDevice)
-            .WithSharedMode()
-            .WithEventSync()
-            .WithLatency(20)
-            .Build();
-        output.Init(provider);
-        monitorProvider = provider;
-        monitorOutput = output;
-        MonitoringDeviceId = settings.MonitoringDeviceId;
-        if (processingThread.IsAlive) output.Play();
+        MMDevice? outputDevice = null;
+        WasapiPlayer? output = null;
+        try
+        {
+            outputDevice = enumerator.GetDevice(settings.MonitoringDeviceId);
+            if (outputDevice.State != DeviceState.Active || outputDevice.DataFlow != DataFlow.Render)
+                throw new InvalidOperationException("The selected monitoring output is not available.");
+            if (EndpointCatalog.IsSwitchboard(outputDevice.FriendlyName, outputDevice.DeviceFriendlyName))
+                throw new InvalidOperationException("Choose a physical output for microphone monitoring.");
+            var provider = new ProcessedWaveProvider(processedSamples);
+            provider.SetVolume(settings.Monitoring);
+            output = new WasapiPlayerBuilder()
+                .WithDevice(outputDevice)
+                .WithSharedMode()
+                .WithEventSync()
+                .WithLatency(20)
+                .Build();
+            output.Init(provider);
+            StopMonitoring();
+            monitorProvider = provider;
+            monitorDevice = outputDevice;
+            monitorOutput = output;
+            MonitoringDeviceId = settings.MonitoringDeviceId;
+            monitoringStopped = false;
+            output.PlaybackStopped += OnMonitoringStopped;
+            outputDevice = null;
+            output = null;
+            if (processingThread.IsAlive) monitorOutput.Play();
+        }
+        catch
+        {
+            if (output is null && monitorOutput is not null && MonitoringDeviceId == settings.MonitoringDeviceId) StopMonitoring();
+            throw;
+        }
+        finally
+        {
+            output?.Dispose();
+            outputDevice?.Dispose();
+        }
+    }
+
+    private void OnMonitoringStopped(object? sender, StoppedEventArgs eventArgs)
+    {
+        if (stopping || eventArgs.Exception is null) return;
+        monitoringStopped = true;
+        MonitoringDeviceId = null;
+        Volatile.Write(ref monitoringError, eventArgs.Exception.Message);
     }
 
     private void CaptureTestFrame(ReadOnlySpan<float> processedFrame)
@@ -341,12 +420,19 @@ internal sealed class MicrophonePipeline : IDisposable
     private void StopMonitoring()
     {
         var output = monitorOutput;
+        var device = monitorDevice;
         monitorOutput = null;
+        monitorDevice = null;
         monitorProvider = null;
         MonitoringDeviceId = null;
-        if (output is null) return;
-        try { output.Stop(); } catch { }
-        output.Dispose();
-        processedSamples.Clear();
+        monitoringStopped = false;
+        if (output is not null)
+        {
+            output.PlaybackStopped -= OnMonitoringStopped;
+            try { output.Stop(); } catch { }
+            output.Dispose();
+        }
+        device?.Dispose();
+        processedSamples.DiscardBufferedSamples();
     }
 }

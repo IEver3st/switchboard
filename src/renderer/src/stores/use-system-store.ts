@@ -75,6 +75,7 @@ interface SystemStore {
   loading: boolean;
   error: string | null;
   pendingDeviceIds: string[];
+  pendingAudioOperations: number;
   initialize(): Promise<() => void>;
   setPage(page: PageId): void;
   selectDevice(id: string): void;
@@ -157,6 +158,11 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
       set({ error: error instanceof Error ? error.message : String(error) });
     }
   };
+  const runAudio = async (action: AsyncAction): Promise<void> => {
+    set(state => ({ pendingAudioOperations: state.pendingAudioOperations + 1 }));
+    try { await run(action); }
+    finally { set(state => ({ pendingAudioOperations: state.pendingAudioOperations - 1 })); }
+  };
 
   return {
     snapshot: null,
@@ -165,6 +171,7 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     loading: true,
     error: null,
     pendingDeviceIds: [],
+    pendingAudioOperations: 0,
     async initialize() {
       let receivedSubscriptionSnapshot = false;
       const unsubscribe = switchboardApi.subscribe((snapshot) => {
@@ -249,34 +256,34 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     },
     setDeviceSetting: (input) => run(() => switchboardApi.setDeviceSetting(input)),
     setDeviceAppearanceOverride: (input) => run(() => switchboardApi.setDeviceAppearanceOverride(input)),
-    setAudioEnabled: (enabled) => run(() => switchboardApi.setAudioEnabled(enabled)),
-    setAudioMasterGain: (input) => run(() => switchboardApi.setAudioMasterGain(input)),
-    setAudioMasterEnabled: (input) => run(() => switchboardApi.setAudioMasterEnabled(input)),
-    setAudioBusGain: (input) => run(() => switchboardApi.setAudioBusGain(input)),
-    setAudioBusEnabled: (input) => run(() => switchboardApi.setAudioBusEnabled(input)),
-    setAudioChannelEnabled: (input) => run(() => switchboardApi.setAudioChannelEnabled(input)),
-    setAudioBusDevice: (input) => run(() => switchboardApi.setAudioBusDevice(input)),
-    setAudioApplicationRoute: (input) => run(() => switchboardApi.setAudioApplicationRoute(input)),
-    applyAudioPreset: (input) => run(() => switchboardApi.applyAudioPreset(input)),
-    createAudioPreset: (input) => run(() => switchboardApi.createAudioPreset(input)),
-    renameAudioPreset: (input) => run(() => switchboardApi.renameAudioPreset(input)),
-    duplicateAudioPreset: (input) => run(() => switchboardApi.duplicateAudioPreset(input)),
-    deleteAudioPreset: (input) => run(() => switchboardApi.deleteAudioPreset(input)),
-    importAudioPreset: () => run(() => switchboardApi.importAudioPreset()),
+    setAudioEnabled: (enabled) => runAudio(() => switchboardApi.setAudioEnabled(enabled)),
+    setAudioMasterGain: (input) => runAudio(() => switchboardApi.setAudioMasterGain(input)),
+    setAudioMasterEnabled: (input) => runAudio(() => switchboardApi.setAudioMasterEnabled(input)),
+    setAudioBusGain: (input) => runAudio(() => switchboardApi.setAudioBusGain(input)),
+    setAudioBusEnabled: (input) => runAudio(() => switchboardApi.setAudioBusEnabled(input)),
+    setAudioChannelEnabled: (input) => runAudio(() => switchboardApi.setAudioChannelEnabled(input)),
+    setAudioBusDevice: (input) => runAudio(() => switchboardApi.setAudioBusDevice(input)),
+    setAudioApplicationRoute: (input) => runAudio(() => switchboardApi.setAudioApplicationRoute(input)),
+    applyAudioPreset: (input) => runAudio(() => switchboardApi.applyAudioPreset(input)),
+    createAudioPreset: (input) => runAudio(() => switchboardApi.createAudioPreset(input)),
+    renameAudioPreset: (input) => runAudio(() => switchboardApi.renameAudioPreset(input)),
+    duplicateAudioPreset: (input) => runAudio(() => switchboardApi.duplicateAudioPreset(input)),
+    deleteAudioPreset: (input) => runAudio(() => switchboardApi.deleteAudioPreset(input)),
+    importAudioPreset: () => runAudio(() => switchboardApi.importAudioPreset()),
     exportAudioPreset: async (input) => {
       set({ error: null });
       try { await switchboardApi.exportAudioPreset(input); }
       catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
     },
-    setAudioChannelProcessor: (input) => run(() => switchboardApi.setAudioChannelProcessor(input)),
-    setAudioMonitoring: (input) => run(() => switchboardApi.setAudioMonitoring(input)),
+    setAudioChannelProcessor: (input) => runAudio(() => switchboardApi.setAudioChannelProcessor(input)),
+    setAudioMonitoring: (input) => runAudio(() => switchboardApi.setAudioMonitoring(input)),
     testMicrophone: async () => {
       set({ error: null });
       try { await switchboardApi.testMicrophone(); }
       catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
     },
-    setChatMix: (value) => run(() => switchboardApi.setChatMix(value)),
-    setMicProcessor: (input) => run(() => switchboardApi.setMicProcessor(input)),
+    setChatMix: (value) => runAudio(() => switchboardApi.setChatMix(value)),
+    setMicProcessor: (input) => runAudio(() => switchboardApi.setMicProcessor(input)),
     setCaptureConfig: (input) => run(() => switchboardApi.setCaptureConfig(input)),
     saveReplay: () => run(() => switchboardApi.saveReplay()),
     chooseClipDirectory: () => run(() => switchboardApi.chooseClipDirectory()),

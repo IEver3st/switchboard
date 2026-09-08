@@ -34,6 +34,14 @@ function subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () =>
 }
 
 const api: SwitchboardApi & MontageV2Api = {
+  saveScene: input => ipcRenderer.invoke(ipcChannels.saveScene, input),
+  deleteScene: id => ipcRenderer.invoke(ipcChannels.deleteScene, id),
+  applyScene: id => ipcRenderer.invoke(ipcChannels.applyScene, id),
+  restoreScene: () => ipcRenderer.invoke(ipcChannels.restoreScene),
+  setSetupPreferences: input => ipcRenderer.invoke(ipcChannels.setSetupPreferences, input),
+  openQuickControls: () => ipcRenderer.invoke(ipcChannels.openQuickControls),
+  closeQuickControls: () => ipcRenderer.invoke(ipcChannels.closeQuickControls),
+  runQuickAction: input => ipcRenderer.invoke(ipcChannels.runQuickAction, input),
   setUiScale: (percent) => {
     if (![90, 100, 110, 125, 150].includes(percent)) throw new Error('Unsupported UI scale.');
     webFrame.setZoomFactor(percent / 100);

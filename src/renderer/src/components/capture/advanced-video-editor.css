@@ -1,0 +1,31 @@
+.advanced-video-controls, .advanced-audio-tools { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.advanced-video-controls p, .advanced-audio-tools p { color:var(--muted-foreground); font-size:11px; line-height:1.5; }
+.advanced-video-controls label { display:flex; flex-direction:column; gap:5px; font-size:11px; color:var(--muted-foreground); min-width:0; }
+.advanced-video-controls textarea { width:100%; resize:vertical; border-radius:4px; background:var(--surface-2); color:var(--foreground); padding:8px; font-size:12px; }
+.advanced-number { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.advanced-number > span { font-size:10px; color:var(--muted-foreground); }
+.advanced-number input { min-width:0; font-variant-numeric:tabular-nums; }
+.advanced-point-row { display:flex; align-items:center; gap:8px; min-width:0; }
+.advanced-point-row > :first-child { flex:1; min-width:0; }
+.advanced-point-row > button { color:var(--muted-foreground); font-size:10px; text-align:left; padding:6px 2px; font-variant-numeric:tabular-nums; }
+.advanced-point-row .advanced-number, .advanced-point-row .editor-time-field { max-width:110px; }
+.advanced-keyframe-ruler { position:relative; height:32px; margin:0 8px 6px; background:var(--surface-2); border-radius:3px; }
+.advanced-keyframe-ruler > button { position:absolute; top:9px; width:13px; height:13px; transform:translateX(-50%) rotate(45deg); background:var(--accent-brand); border:2px solid var(--surface-2); }
+.advanced-keyframe-ruler > button[aria-pressed="true"] { border-color:var(--foreground); }
+.advanced-add-tools { display:flex; flex-wrap:wrap; gap:5px; }
+.advanced-add-tools > button { flex:1; }
+.advanced-overlay-item { display:flex; flex-direction:column; gap:3px; border-radius:4px; padding:8px; font-size:12px; overflow:hidden; text-align:left; background:var(--surface-2); }
+.advanced-overlay-item[aria-pressed="true"] { background:var(--surface-interactive); box-shadow:inset 2px 0 var(--accent-brand); }
+.advanced-overlay-item small { color:var(--muted-foreground); font-size:10px; }
+.advanced-mute-range { display:flex; flex-direction:column; gap:4px; }
+.advanced-mute-range > button { color:var(--muted-foreground); font-size:10px; text-align:right; padding:5px; }
+.edited-video-stage { position:absolute; inset:0 0 48px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.edited-video-frame { position:relative; flex:none; overflow:hidden; touch-action:none; }
+.edited-video-frame canvas { display:block; width:100%; height:100%; }
+.edited-video-frame[data-tool="framing"] { cursor:grab; }
+.edited-video-frame[data-tool="framing"]:active { cursor:grabbing; }
+.edited-framing-outline { position:absolute; inset:1px; border:1px solid color-mix(in srgb,var(--accent-brand) 60%,transparent); pointer-events:none; }
+.edited-overlay-selection { position:absolute; outline:2px solid var(--accent-brand); cursor:move; }
+.edited-overlay-selection > span { position:absolute; width:12px; height:12px; right:0; bottom:0; background:var(--accent-brand); cursor:nwse-resize; }
+.montage-v2-preview[data-edited="true"] > video { opacity:0; pointer-events:none; }
+.advanced-video-controls button:focus-visible, .advanced-video-controls textarea:focus-visible, .advanced-audio-tools button:focus-visible { outline:2px solid var(--accent-brand); outline-offset:2px; }

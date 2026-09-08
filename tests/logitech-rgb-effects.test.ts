@@ -172,6 +172,24 @@ describe('Logitech device-reported RGB effects', () => {
   });
 });
 
+test('status cues yield to battery cutoff and restore the exact selected effect after both clear', async () => {
+  const { controller, requests } = await probeController();
+  await controller.setEffect('wave');
+  const before = controller.buildCapability(true);
+  await controller.setStatusOverride('#36d978');
+  const green = requests.findLast(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1);
+  expect(green?.parameters.slice(1)).toEqual([14, 54, 30]);
+  await controller.setBatteryOverride('off');
+  await controller.setStatusOverride('#ffb347');
+  expect(requests.findLast(item => item.featureIndex === rgbFeatureIndex && item.functionId === 8 && item.parameters[0] === 1)?.parameters).toEqual([1, 3, 0]);
+  await controller.setBatteryOverride(null);
+  const amber = requests.findLast(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1);
+  expect(amber?.parameters.slice(1)).toEqual([64, 45, 18]);
+  await controller.setStatusOverride(null);
+  expect(controller.buildCapability(true)).toEqual(before);
+  expect(requests.every(item => item.featureIndex === rgbFeatureIndex || item.featureIndex === perKeyFeatureIndex)).toBe(true);
+});
+
 async function probeController(): Promise<{
   controller: LogitechRgbEffectsController;
   requests: RequestRecord[];

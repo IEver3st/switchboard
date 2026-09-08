@@ -1,5 +1,18 @@
 # Architecture
 
+Setup scenes are persisted by main through `SetupScenes` and the canonical shared
+contract. Audio, capture, and device changes use the existing host and module
+operations; failed subsystems report partial application. Automatic restoration
+preserves subsystems edited during a scene. Saved recovery state survives restart.
+`DesktopControlsService` launches the bundled Capture.Host with `--desktop-controls`
+for Win32 shortcuts and application matching, without initializing capture/media.
+Its bounded JSON events are validated in main. The sandboxed quick panel has a
+separate trusted-window IPC allowlist. Status cues enter vendor modules through a
+narrow temporary-lighting operation; battery warnings/cutoff take precedence, and
+clearing the cue restores the user's effect. Game-only capture uses NAudio process
+loopback for the selected source PID and children, bypasses the desktop clip mix,
+and fails explicitly when process activation is unavailable.
+
 ## Control plane
 
 Electron owns product lifecycle, module state, profiles, settings, diagnostics, and UI. It does not process realtime audio/video frames.

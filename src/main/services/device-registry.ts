@@ -129,6 +129,18 @@ export class DeviceRegistry {
     await this.refresh();
   }
 
+  public async setStatusLighting(deviceId: string, color: string | null): Promise<void> {
+    const snapshot = this.getSnapshot();
+    const device = snapshot.devices.find(item => item.id === deviceId);
+    if (!device?.connected || !snapshot.modules.some(item => item.id === device.moduleId && item.enabled))
+      throw new Error('Device is unavailable.');
+    if (!device.capabilities.lighting?.statusLightingSupported) throw new Error('This device does not support status lighting.');
+    if (this.fixtureMode) return;
+    const module = this.allModules().find(item => item.id === device.moduleId);
+    if (!module?.setStatusLighting) throw new Error('Status lighting is unavailable.');
+    await module.setStatusLighting(device, color);
+  }
+
   public dispose(): Promise<void> {
     if (this.disposePromise) return this.disposePromise;
     this.disposed = true;

@@ -232,6 +232,14 @@ function syncAudioMeterTimer(): void {
 }
 
 const demoApi: SwitchboardApi = {
+  async saveScene() { throw new Error('Scene changes are available in the desktop app.'); },
+  async deleteScene() { throw new Error('Scene changes are available in the desktop app.'); },
+  async applyScene() { throw new Error('Scenes require the desktop app.'); },
+  async restoreScene() { throw new Error('Scenes require the desktop app.'); },
+  async setSetupPreferences() { throw new Error('Setup preferences require the desktop app.'); },
+  async openQuickControls() { throw new Error('Quick controls require the desktop app.'); },
+  async closeQuickControls() {},
+  async runQuickAction() { throw new Error('Quick controls require the desktop app.'); },
   setUiScale() {},
   async getSnapshot() {
     ensureTimer();

@@ -125,6 +125,12 @@ var validSettings = new CaptureSettings(
     CacheDirectory: Path.GetTempPath(),
     ClipsDirectory: Path.GetTempPath());
 _ = validSettings.Validate();
+AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { SystemAudioMode = "game" }),
+    "Changing to process audio must replace the existing desktop audio recorder.");
+try { _ = (validSettings with { Source = "display", SystemAudioMode = "game" }).Validate(); throw new Exception("Game-only display audio was accepted."); }
+catch (InvalidOperationException) { }
+try { _ = (validSettings with { SystemAudioMode = "invalid" }).Validate(); throw new Exception("Invalid audio scope was accepted."); }
+catch (ArgumentOutOfRangeException) { }
 await AssertDiagnosticProbeCleanupAsync();
 AssertEqual("h264_amf", ReplayEngine.SelectEncoder(validSettings, ["h264_amf", "h264_qsv", "av1_amf", "libx264"]),
     "Automatic codec must choose tested AMD H.264 on the reported Radeon/Intel configuration.");
@@ -490,11 +496,26 @@ Console.WriteLine("Capture.Host deterministic tests passed.");
 
 static void TestReactionDetector()
 {
+    // Reproduce a quiet start followed by normal conversational emphasis.
+    // These 250 ms syllables used to pass the balanced 180 ms sustain gate.
+    long conversationTime = 1_000;
+    var conversation = new ReactionDetector(() => conversationTime);
+    conversation.Configure(true, "balanced", 15);
+    for (var index = 0; index < 120; index++) FeedTone(conversation, ref conversationTime, -32);
+    for (var phrase = 0; phrase < 120; phrase++)
+    {
+        for (var index = 0; index < 5; index++) FeedTone(conversation, ref conversationTime, -16);
+        for (var index = 0; index < 15; index++) FeedTone(conversation, ref conversationTime, -28);
+        for (var index = 0; index < 80; index++) FeedSilence(conversation, ref conversationTime);
+    }
+    AssertValue(0, conversation.Snapshot(true).ReactionsDetected,
+        "Ten minutes of ordinary conversational emphasis must not flood the clip library.");
+
     long now = 1_000;
     var detector = new ReactionDetector(() => now);
     detector.Configure(enabled: true, sensitivity: "balanced", cooldownSeconds: 15);
 
-    for (var index = 0; index < 34; index++) FeedTone(detector, ref now, rmsDb: -30);
+    for (var index = 0; index < 120; index++) FeedTone(detector, ref now, rmsDb: -30);
     for (var index = 0; index < 20; index++) FeedTone(detector, ref now, rmsDb: -29);
     AssertValue(false, detector.TryTakeDetection(out _),
         "Ordinary speech near the learned baseline must not create a reaction.");
@@ -504,7 +525,7 @@ static void TestReactionDetector()
     AssertValue(false, detector.TryTakeDetection(out _),
         "A single loud transient must not pass the reaction sustain gate.");
 
-    for (var index = 0; index < 5; index++) FeedTone(detector, ref now, rmsDb: -8);
+    for (var index = 0; index < 13; index++) FeedTone(detector, ref now, rmsDb: -8);
     AssertValue(true, detector.TryTakeDetection(out var first),
         "A sustained voice-shaped burst above the learned baseline must create a reaction.");
     AssertValue(true, first.Confidence >= 0.58 && first.Confidence <= 0.98,
@@ -515,10 +536,19 @@ static void TestReactionDetector()
     AssertValue(false, detector.TryTakeDetection(out _),
         "One continuous loud exchange must not produce another clip when cooldown expires.");
 
-    for (var index = 0; index < 20; index++) FeedTone(detector, ref now, rmsDb: -29);
-    for (var index = 0; index < 5; index++) FeedTone(detector, ref now, rmsDb: -8);
+    // A long louder conversation must be learned, including during cooldown.
+    for (var phrase = 0; phrase < 10; phrase++)
+    {
+        for (var index = 0; index < 80; index++) FeedSilence(detector, ref now);
+        for (var index = 0; index < 80; index++) FeedTone(detector, ref now, rmsDb: -8);
+    }
+    AssertValue(false, detector.TryTakeDetection(out _),
+        "Pauses in a louder conversation must not repeatedly retrigger against the old baseline.");
+
+    for (var index = 0; index < 2_400; index++) FeedTone(detector, ref now, rmsDb: -29);
+    for (var index = 0; index < 13; index++) FeedTone(detector, ref now, rmsDb: -8);
     AssertValue(true, detector.TryTakeDetection(out _),
-        "Reaction detection must resume after the bounded cooldown.");
+        "A distinct sustained reaction must be accepted after normal conversation resumes.");
 
     var runtime = detector.Snapshot(inputActive: true);
     AssertValue(true, runtime.AnalyzedFrames >= 80,
@@ -533,9 +563,52 @@ static void TestReactionDetector()
 
     var loudMicrophone = new ReactionDetector(() => now);
     loudMicrophone.Configure(enabled: true, sensitivity: "balanced", cooldownSeconds: 15);
-    for (var index = 0; index < 80; index++) FeedTone(loudMicrophone, ref now, rmsDb: -10);
+    for (var index = 0; index < 240; index++) FeedTone(loudMicrophone, ref now, rmsDb: -10);
     AssertValue(false, loudMicrophone.TryTakeDetection(out _),
         "Steady speech at a high microphone gain must not bypass the learned baseline.");
+
+    foreach (var sensitivity in new[] { "low", "balanced", "high" })
+    {
+        var startup = new ReactionDetector(() => now);
+        startup.Configure(true, sensitivity, 5);
+        for (var cycle = 0; cycle < 2; cycle++)
+        {
+            startup.Pause();
+            startup.Pause();
+            for (var index = 0; index < 200; index++) FeedSilence(startup, ref now);
+            AssertEqual("calibrating", startup.Snapshot(true).State,
+                "Silence alone must not complete voice calibration after start or reconnect.");
+            for (var index = 0; index < 80; index++) FeedTone(startup, ref now, -12);
+            AssertValue(false, startup.TryTakeDetection(out _),
+                "The first normal speech after silence must establish the baseline without clipping.");
+
+            startup.Pause();
+            for (var index = 0; index < 120; index++) FeedTone(startup, ref now, -32);
+            // Separate short syllables must not accumulate into one reaction.
+            for (var phrase = 0; phrase < 20; phrase++)
+            {
+                for (var index = 0; index < 5; index++) FeedTone(startup, ref now, -8);
+                for (var index = 0; index < 4; index++) FeedSilence(startup, ref now);
+            }
+            AssertValue(false, startup.TryTakeDetection(out _),
+                $"{sensitivity}: disconnected short bursts must not pass sustain.");
+
+            startup.Pause();
+            for (var index = 0; index < 120; index++) FeedTone(startup, ref now, -32);
+            for (var index = 0; index < 5; index++) FeedTone(startup, ref now, -8);
+            now += 2_000;
+            for (var index = 0; index < 5; index++) FeedTone(startup, ref now, -8);
+            AssertValue(false, startup.TryTakeDetection(out _),
+                $"{sensitivity}: a packet outage must break sustained evidence.");
+            for (var index = 0; index < 20; index++) FeedTone(startup, ref now, -8);
+            AssertValue(true, startup.TryTakeDetection(out _),
+                $"{sensitivity}: a sustained reaction must still be detected after reconnect.");
+            startup.Configure(false, sensitivity, 5);
+            FeedTone(startup, ref now, -8);
+            AssertValue(false, startup.TryTakeDetection(out _), "Disabled input must not emit detections.");
+            startup.Configure(true, sensitivity, 5);
+        }
+    }
 }
 
 static void FeedTone(ReactionDetector detector, ref long now, double rmsDb)

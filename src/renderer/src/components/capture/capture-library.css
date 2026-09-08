@@ -25,6 +25,35 @@
   padding: 12px 20px;
 }
 
+.capture-page-utilities {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.capture-command-header .capture-page-utilities__button {
+  height: 32px;
+  gap: 6px;
+  padding-inline: 10px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.capture-command-header .capture-page-utilities__button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+@media (max-width: 1480px) {
+  .capture-command-header .capture-page-utilities__button {
+    width: 32px;
+    padding-inline: 0;
+  }
+  .capture-page-utilities__button > span { display: none; }
+}
+
 .capture-command-header .capture-command-header__identity {
   flex: none;
   gap: 6px;
@@ -260,11 +289,11 @@
 }
 
 .capture-library .capture-clip-card__footer {
-  align-items: flex-start;
+  align-items: center;
 }
 
 .capture-library .capture-clip-card__details > h3 {
-  min-height: 40px;
+  min-height: 20px;
 }
 
 .capture-library .capture-clip-card__title {

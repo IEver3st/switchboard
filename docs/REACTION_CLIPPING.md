@@ -21,15 +21,23 @@ The realtime callback calculates only RMS level, peak-to-RMS crest factor, and z
 
 ## Detector policy
 
-The first 1.5 seconds calibrate a local noise and speaking baseline. A candidate must:
+Calibration requires five seconds of received audio, including three seconds of voice-shaped input. Silence cannot arm the detector. Diagnostics explain that normal speech is needed. A candidate must:
 
 - clear an absolute level floor and rise above the learned speech baseline;
 - look voice-shaped by bounded zero-crossing and crest-factor checks;
-- remain above the sensitivity profile for 120 to 260 ms;
+- accumulate 450 to 900 ms of qualifying voice, allowing gaps of at most 100 ms;
 - be outside the configured 5 to 120 second cooldown;
-- follow at least 750 ms of settled input after the previous reaction.
+- follow at least three seconds of settled input after the previous reaction.
 
-The first voice-shaped frame initializes the speech baseline to the actual input level, including when speech starts after silent calibration. The noise floor adapts only during non-voice frames. The speech baseline follows ordinary voice slowly and does not chase a reaction while it is being scored. High microphone gain alone cannot bypass the relative-rise requirement. After a detection, the detector rearms only after 750 ms of non-voice or voice below its lower settling threshold; a continuous loud exchange cannot create another reaction just because its cooldown expired. Low, Balanced, and High sensitivity change the absolute floor, relative rise, and sustain duration together. The UI exposes pre-roll, post-roll, and cooldown; overlapping reaction windows use the existing bounded merge path.
+| Sensitivity | Minimum level | Rise above normal speech | Qualifying voice |
+| --- | --- | --- | --- |
+| Low | -10 dBFS | 14 dB | 900 ms |
+| Balanced | -14 dBFS | 12 dB | 650 ms |
+| High | -20 dBFS | 9 dB | 450 ms |
+
+The first voice-shaped frame initializes the speech baseline to the actual input level. During calibration, louder speech is learned quickly. Once listening, the baseline follows louder speech with a two-second time constant and quieter speech with a 60-second time constant. Learning pauses while scoring a new burst but continues during cooldown and loud exchanges. Quiet words therefore do not immediately lower the threshold, and a louder conversation becomes the new normal. The noise floor adapts only during non-voice frames. High microphone gain alone cannot bypass the relative-rise requirement. Packet outages longer than 250 ms clear sustain and settling evidence.
+
+New configurations default to a 60-second cooldown; saved user preferences remain intact. Main also enforces the configured cooldown and rejects reaction windows that overlap the previous admitted reaction, even after finalization or a source/host restart. After an app restart, the latest saved reaction clip's creation time supplies a conservative cooldown and window-end bound. Deleting that clip removes this persisted bound. Game events and manual replay saves keep their existing behavior. These guards use existing event delivery, clip metadata, and save timers; they add no polling, process, or audio storage.
 
 The detector needs ordinary speech to establish a useful baseline. If the first speech is already a shout, it may learn that level and miss the initial reaction. Quiet laughter and reactions without a sufficient level rise also remain outside this heuristic's reliable coverage.
 
@@ -54,4 +62,4 @@ Primary references:
 
 ## Validation boundary
 
-Deterministic tests cover calibration, ordinary-speech rejection including high-gain speech, transient rejection, sustained-reaction acceptance, confidence bounds, cooldown, suppression of sustained loud input beyond cooldown, rearming after settled speech, settings validation, independent reaction policy, and persistence. A hardware acceptance pass must still measure false positives and missed reactions across the owner’s microphone, gain, room noise, keyboard, laughter, speech, and game sessions. Build or synthetic-waveform evidence does not prove subjective reaction accuracy.
+The ten-minute synthetic conversational-emphasis regression produced 30 detections with the old policy and zero with this policy. Deterministic tests also cover silent startup, high-gain speech, separated syllables, packet gaps, sustained-reaction acceptance at every sensitivity, adaptation during loud conversations, recovery, repeated pause/disable/re-enable, confidence bounds, settings validation, overlap suppression after finalization, and cooldown restoration from saved clips. A hardware acceptance pass must still measure false positives and missed reactions across the owner's microphone, gain, room noise, keyboard, laughter, speech, and game sessions. Build or synthetic-waveform evidence does not prove subjective reaction accuracy.

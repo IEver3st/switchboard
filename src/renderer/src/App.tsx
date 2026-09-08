@@ -82,7 +82,9 @@ export function App() {
     void workspaceLoaders[target]?.().then(() => setPreloadRevision((revision) => revision + 1));
   }, [snapshot?.settings.developerMode]);
   const AudioWorkspace = resolvedAudioPage?.default ?? AudioPage;
-  const CaptureWorkspace = resolvedCapturePage?.default ?? CapturePage;
+  // Keep the component identity stable when idle preloading completes. Swapping
+  // a mounted lazy page for its resolved type discards an open editor's state.
+  const CaptureWorkspace = CapturePage;
   const DevicesWorkspace = resolvedDevicesPage?.default ?? DevicesPage;
   const shouldOfferClipReview = snapshot
     ? reviewableAutoCapturedClips(
