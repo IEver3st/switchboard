@@ -3,6 +3,7 @@ import type { Device } from 'node-hid';
 import { HidppLongTransport } from '../src/main/modules/logitech/hidpp-long-transport';
 import { G502NativeSession } from '../src/main/modules/logitech/devices/g502-x-plus/sniper-dpi';
 import { crcCcitt } from '../src/main/modules/logitech/devices/g502-x-plus/onboard-profile';
+import { deviceCapabilitiesSchema } from '../src/shared/contracts';
 
 const infoBytes = [1, 5, 1, 5, 2, 11, 16, 0, 255, 10, 4];
 
@@ -12,6 +13,7 @@ function mouseFixture() {
   let owned = false;
   let rejectRelease = false;
   let corruptReadback = false;
+  let rejectRgbProbe = false;
   let commits = 0;
   let writeBytes: number[] | null = null;
   const operations: string[] = [];
@@ -51,6 +53,7 @@ function mouseFixture() {
       if (feature === 3) return reply([11]);
       if (feature === 9) {
         if (fn === 0) {
+          if (rejectRgbProbe) throw new Error('RGB not ready');
           if (params[0] === 255) return reply([0, 0, 1]);
           if (params[1] === 255) return reply([0, 0, 0, 0, 2]);
           return reply([0, 0, 0, params[1] === 0 ? 0 : 1]);
@@ -95,6 +98,9 @@ function mouseFixture() {
   };
   return { transport, sector, operations, commits: () => commits,
     power: () => power,
+    resetLighting: () => { power = 1; owned = false; },
+    restoreReadback: () => { corruptReadback = false; },
+    rejectRgbProbe: (reject: boolean) => { rejectRgbProbe = reject; },
     rejectRelease: () => { rejectRelease = true; },
     corruptReadback: () => { corruptReadback = true; } };
 }
@@ -129,6 +135,39 @@ test('Off stays live across both profile modes without writing onboard lighting 
     expect(mouse.commits()).toBe(1);
     expect(mouse.sector.subarray(208, 252)).toEqual(before.subarray(208, 252));
     expect(mouse.power()).toBe(3);
+  } finally { await session?.close(); open.mockRestore(); }
+});
+
+test('startup and receiver recovery retain Off through a failed readback and repeated session restarts', async () => {
+  const mouse = mouseFixture();
+  const open = spyOn(HidppLongTransport, 'open').mockResolvedValue(mouse.transport as unknown as HidppLongTransport);
+  let session: G502NativeSession | undefined;
+  try {
+    session = await G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, undefined);
+    await session.setControl({ type: 'lighting-enabled', enabled: false });
+    mouse.resetLighting();
+    mouse.corruptReadback();
+    const unknown = await session.getCapabilities();
+    expect(unknown.lighting).toMatchObject({ enabled: false, state: 'unknown', selectionSaved: true });
+    let saved = deviceCapabilitiesSchema.parse(JSON.parse(JSON.stringify(unknown)));
+    await session.close();
+    await session.close();
+    mouse.restoreReadback();
+    mouse.rejectRgbProbe(true);
+    await expect(G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, saved))
+      .rejects.toThrow('RGB not ready');
+    mouse.rejectRgbProbe(false);
+    for (let restart = 0; restart < 2; restart++) {
+      mouse.resetLighting();
+      session = await G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, saved);
+      expect(mouse.power()).toBe(3);
+      mouse.resetLighting();
+      saved = await session.getCapabilities();
+      expect(saved.lighting).toMatchObject({ enabled: false, state: 'acknowledged', selectionSaved: true });
+      expect(mouse.power()).toBe(3);
+      await session.close();
+    }
+    expect(mouse.commits()).toBe(0);
   } finally { await session?.close(); open.mockRestore(); }
 });
 

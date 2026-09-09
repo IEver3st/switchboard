@@ -443,6 +443,7 @@ function applyConfirmedLightingControl(
 
   // Temporary battery cutoff must not replace the user's persisted lighting choice.
   if (lighting.batteryLightingEnabled !== undefined) lighting.batteryLightingEnabled = lighting.enabled;
+  if (lighting.source === 'software') lighting.selectionSaved = true;
   syncLightingWritability(lighting);
 
   if (lighting.state !== 'maintained') {

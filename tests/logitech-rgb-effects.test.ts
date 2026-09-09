@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { lightingCapabilitySchema, type LightingCapability } from '../src/shared/contracts';
 import {
   LogitechRgbEffectsController,
   type LogitechRgbTransport,
@@ -75,14 +76,85 @@ describe('Logitech temporary battery lighting', () => {
 });
 
 describe('Logitech device-reported RGB effects', () => {
-  test('revoked live ownership becomes Unknown even when cached lighting was Off', async () => {
+  test('revoked live ownership automatically restores the selected Off state', async () => {
     const { controller, transport } = await probeController();
     await controller.setEnabled(false);
     await controller.refreshState();
     expect(controller.buildCapability(true).state).toBe('acknowledged');
     await transport.request(1, rgbFeatureIndex, 5, [1, 0, 0]);
+    await transport.request(1, rgbFeatureIndex, 8, [1, 1, 0]);
     await controller.refreshState();
-    expect(controller.buildCapability(true)).toMatchObject({ enabled: false, state: 'unknown' });
+    expect(controller.buildCapability(true)).toMatchObject({ enabled: false, state: 'acknowledged' });
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(3);
+  });
+
+  test('a saved selection survives failed recovery, serialization, and reopening', async () => {
+    const { controller, transport } = await probeController();
+    await controller.setZoneColor('zone-1', '#123456');
+    await controller.setBrightness(60);
+    const selected = controller.buildCapability(true);
+    const request = transport.request.bind(transport);
+    transport.request = async () => { throw new Error('mouse asleep'); };
+    await controller.refreshState();
+    expect(controller.buildCapability(true).state).toBe('unknown');
+    const saved = lightingCapabilitySchema.parse(JSON.parse(JSON.stringify(controller.buildCapability(true))));
+    const reopened = await probeController(saved);
+    await reopened.controller.restoreSelection();
+    expect(reopened.controller.buildCapability(true)).toMatchObject({
+      state: 'acknowledged', enabled: true, activeEffectId: selected.activeEffectId,
+      color: selected.color, brightness: selected.brightness, zones: selected.zones,
+    });
+    transport.request = request;
+    await controller.refreshState();
+    expect(controller.buildCapability(true).state).toBe('acknowledged');
+  });
+
+  test('upgrades the legacy saved Off selection after ownership loss', async () => {
+    const initial = await probeController();
+    const saved = { ...initial.controller.buildCapability(true), enabled: false,
+      state: 'unknown' as const, stateReason: 'The mouse changed RGB control or power state. Choose an effect or Turn off to reapply lighting.' };
+    delete (saved as Partial<{ selectionSaved: boolean }>).selectionSaved;
+    const { controller, transport } = await probeController(saved);
+    await controller.restoreSelection();
+    expect(controller.buildCapability(true)).toMatchObject({ enabled: false, state: 'acknowledged' });
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(3);
+  });
+
+  test('does not invent a selection or rewrite healthy animated lighting each discovery', async () => {
+    const { controller, requests } = await probeController();
+    requests.length = 0;
+    await controller.refreshState();
+    await controller.restoreSelection();
+    expect(requests).toEqual([]);
+    await controller.setEffect('wave');
+    await controller.setSpeed(23);
+    await controller.setDirection('left');
+    const wave = requests.findLast(item => item.featureIndex === rgbFeatureIndex && item.functionId === 1);
+    requests.length = 0;
+    await controller.refreshState();
+    expect(requests.every(item => item.parameters[0] === 0)).toBe(true);
+    controller.invalidate();
+    await controller.refreshState();
+    expect(requests.findLast(item => item.featureIndex === rgbFeatureIndex && item.functionId === 1)).toEqual(wave);
+  });
+
+  test('recovery preserves battery cutoff and status cue priority until both clear', async () => {
+    const { controller, transport, requests } = await probeController();
+    await controller.setEffect('wave');
+    await controller.setStatusOverride('#36d978');
+    await controller.setBatteryOverride('off');
+    await transport.request(1, rgbFeatureIndex, 5, [1, 0, 0]);
+    await transport.request(1, rgbFeatureIndex, 8, [1, 1, 0]);
+    await controller.refreshState();
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(3);
+    controller.invalidate();
+    await controller.restoreSelection();
+    expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(3);
+    await controller.setBatteryOverride(null);
+    expect(requests.findLast(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1)?.parameters.slice(1)).toEqual([14, 54, 30]);
+    await controller.setStatusOverride(null);
+    expect(controller.buildCapability(true)).toMatchObject({ enabled: true, activeEffectId: 'wave', state: 'acknowledged' });
+    expect((await transport.request(1, rgbFeatureIndex, 5, [0, 0, 0]))[5]).toBe(3);
   });
 
   test('reclaims and reapplies an explicit Off after firmware may have lost live ownership', async () => {
@@ -190,7 +262,7 @@ test('status cues yield to battery cutoff and restore the exact selected effect 
   expect(requests.every(item => item.featureIndex === rgbFeatureIndex || item.featureIndex === perKeyFeatureIndex)).toBe(true);
 });
 
-async function probeController(): Promise<{
+async function probeController(previous?: LightingCapability): Promise<{
   controller: LogitechRgbEffectsController;
   requests: RequestRecord[];
   transport: LogitechRgbTransport;
@@ -241,6 +313,7 @@ async function probeController(): Promise<{
     1,
     rgbFeatureIndex,
     perKeyFeatureIndex,
+    previous,
   );
   if (!controller) throw new Error('The RGB test controller was not discovered.');
   return { controller, requests, transport };

@@ -109,7 +109,13 @@ export class LogitechRgbEffectsController {
   ) {
     // A stored onboard record is not a readback of the live LEDs.
     previous = previous?.source === 'software' ? previous : undefined;
-    this.hasSelection = previous?.state === 'acknowledged' || previous?.state === 'maintained';
+    this.hasSelection = previous?.selectionSaved ?? Boolean(previous && (
+      previous.state === 'acknowledged' || previous.state === 'maintained'
+      // Older snapshots only produced these reasons after checking an accepted
+      // selection. Migrate those without taking over untouched firmware RGB.
+      || previous.stateReason === 'The mouse changed RGB control or power state. Choose an effect or Turn off to reapply lighting.'
+      || previous.stateReason === 'Current lighting could not be checked. Choose an effect or Turn off to retry.'
+    ));
     this.color = previous?.color ?? '#89cff0';
     this.brightness = previous?.brightness ?? 100;
     this.speed = previous?.speed ?? 50;
@@ -118,10 +124,9 @@ export class LogitechRgbEffectsController {
       ? previous!.activeEffectId
       : (this.availableEffects[0]?.id ?? 'static');
     this.enabled = previous?.batteryLightingEnabled ?? previous?.enabled ?? true;
-    for (const [index, zoneId] of zoneIds.entries()) {
+    for (const zoneId of zoneIds) {
       const previousZone = previous?.zones?.find((zone) => zone.id === zoneKey(zoneId));
       this.zoneColors.set(zoneId, previousZone?.color ?? this.color);
-      if (index === 0 && previousZone) this.color = previousZone.color;
     }
   }
 
@@ -212,6 +217,7 @@ export class LogitechRgbEffectsController {
       muteLinked: false,
       muteLinkedWritable: false,
       state: this.acknowledged ? 'acknowledged' : 'unknown',
+      selectionSaved: this.hasSelection,
       stateReason: this.acknowledged
         ? this.enabled
           ? 'RGB power is on and the mouse acknowledged the effect. The visible effect has no readback.'
@@ -399,11 +405,13 @@ export class LogitechRgbEffectsController {
       if (!this.batteryOverride) return;
       this.perKeyPrepared = false;
       if (this.restoreSoftwareLighting) {
+        await this.claim();
         if (this.enabled) {
           await this.applyEffect(this.activeEffectId);
           if (this.activeEffectId === 'static') await this.paintAllZones();
         } else await this.applyOff();
         await this.confirmPower(this.enabled);
+        this.acknowledged = true;
       } else {
         await this.confirmPower(this.restoreFirmwarePower);
         // Unlike best-effort shutdown, restoration must surface a rejected release.
@@ -413,7 +421,7 @@ export class LogitechRgbEffectsController {
       return;
     }
     if (!this.batteryOverride) {
-      this.restoreSoftwareLighting = this.claimed;
+      this.restoreSoftwareLighting = this.hasSelection;
       if (!this.claimed) {
         const power = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
         if (power[5] !== 1 && power[5] !== 3) {
@@ -455,19 +463,29 @@ export class LogitechRgbEffectsController {
   }
 
   public async refreshState(): Promise<void> {
-    if (!this.acknowledged || this.batteryOverride) return;
+    if (!this.hasSelection && !this.batteryOverride) return;
     try {
+      if (!this.acknowledged && !this.batteryOverride) {
+        await this.restoreSelection();
+        return;
+      }
       const ownership = await this.transport.request(this.deviceIndex, this.featureIndex, 5, [0, 0, 0]);
       const power = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
-      if ((ownership[5]! & 3) !== 3 || power[5] !== (this.enabled ? 1 : 3)) {
-        this.invalidate('The mouse changed RGB control or power state. Choose an effect or Turn off to reapply lighting.');
+      const enabled = this.batteryOverride ? (this.batteryValue ?? this.statusColor) !== 'off' : this.enabled;
+      if ((ownership[5]! & 3) !== 3 || power[5] !== (enabled ? 1 : 3)) {
+        this.invalidate();
+        await this.restoreSelection();
       }
     } catch {
-      this.invalidate('Current lighting could not be checked. Choose an effect or Turn off to retry.');
+      this.invalidate('Lighting could not be restored. Switchboard will retry when the mouse responds.');
     }
   }
 
   public async restoreSelection(): Promise<void> {
+    if (this.batteryOverride) {
+      await this.setTemporaryOverride(this.batteryValue ?? this.statusColor);
+      return;
+    }
     if (!this.hasSelection) return;
     await this.setEnabled(this.enabled);
   }

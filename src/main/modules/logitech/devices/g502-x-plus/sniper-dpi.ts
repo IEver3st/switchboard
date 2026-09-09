@@ -245,18 +245,16 @@ export class G502NativeSession implements G502DirectSession {
           console.warn('Direct G502 X Plus onboard profile is temporarily unavailable.', error);
         }
       }
-      let rgbLighting: LogitechRgbEffectsController | null = null;
-      try {
-        rgbLighting = await LogitechRgbEffectsController.probe(
-          transport,
-          deviceIndex,
-          rgbEffectsFeatureIndex,
-          perKeyLightingFeatureIndex,
-          previous?.lighting,
-        );
-      } catch (error) {
-        console.warn('Direct G502 X Plus LIGHTSYNC discovery is temporarily unavailable.', error);
-      }
+      // A failed probe must retry through the module's existing session-open
+      // recovery, not publish a permanent session with no lighting controller
+      // and overwrite the saved selection with a missing capability.
+      const rgbLighting = await LogitechRgbEffectsController.probe(
+        transport,
+        deviceIndex,
+        rgbEffectsFeatureIndex,
+        perKeyLightingFeatureIndex,
+        previous?.lighting,
+      );
       session = new G502NativeSession(
         transport,
         deviceIndex,
@@ -581,7 +579,7 @@ export class G502NativeSession implements G502DirectSession {
     try {
       await this.rgbLighting?.restoreSelection();
     } catch (error) {
-      this.rgbLighting?.invalidate('The profile mode changed, but lighting could not be restored. Choose an effect or Turn off to retry.');
+      this.rgbLighting?.invalidate('Lighting could not be restored. Switchboard will retry when the mouse responds.');
       console.warn('G502 live lighting restoration failed.', error);
     }
   }

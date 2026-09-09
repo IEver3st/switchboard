@@ -354,6 +354,9 @@ export const lightingCapabilitySchema = z.object({
   muteLinked: z.boolean().default(false),
   muteLinkedWritable: z.boolean().default(false),
   state: z.enum(['maintained', 'acknowledged', 'unknown']).optional(),
+  // The capability values retain the last accepted selection even when live
+  // readback becomes unknown. Discovery must not discard startup restoration.
+  selectionSaved: z.boolean().optional(),
   stateReason: z.string().optional(),
   physicalEffectVerified: z.boolean().default(false),
   profileMode: deviceProfileModeSchema,

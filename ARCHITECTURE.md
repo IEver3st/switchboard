@@ -127,8 +127,14 @@ not evidence of visible LED state and are never written by lighting controls.
 Explicit lighting commands claim RGB ownership, apply the effect, and verify
 RGB power readback. Onboard-mode transitions invalidate prior acknowledgement
 and restore the user's selected live lighting, including Off. Startup restores
-a previously acknowledged software selection. The existing discovery cycle
-checks power and ownership; lost control becomes Unknown instead of a false Off.
+a saved software selection, independently of its last live-readback status.
+The persisted `selectionSaved` flag preserves that intent through Unknown,
+disconnect, and restart; legacy acknowledged selections and ownership-loss
+snapshots are migrated when the controller opens. The existing discovery cycle
+checks power and ownership and reapplies the selection after either changes.
+Failed checks or restoration remain Unknown and retry on the next cycle.
+Recovery preserves active battery/status overrides and restores the selection
+when those clear; a healthy effect is not continually restarted.
 The effect itself remains acknowledged, not visually verified. Session shutdown
 releases RGB ownership and can return the mouse to its firmware effect.
 
