@@ -135,9 +135,12 @@ internal static class ReplaySyncTests
         }
     }
 
-    // Real FFmpeg, synthetic media only: no screen, microphone, or device access.
-    public static async Task RunMediaAsync()
+    // Real FFmpeg, synthetic media only: no screen or microphone capture.
+    // The default is software; an explicit NVENC codec requires NVIDIA hardware.
+    public static async Task RunMediaAsync(string encoder = "libx264")
     {
+        if (encoder is not ("libx264" or "h264_nvenc" or "hevc_nvenc" or "av1_nvenc"))
+            throw new ArgumentOutOfRangeException(nameof(encoder));
         var root = Path.Combine(Path.GetTempPath(), $"switchboard-sync-media-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
         var ffmpeg = FfmpegLocator.FindFfmpeg();
@@ -147,7 +150,7 @@ internal static class ReplaySyncTests
             File.WriteAllText(Path.Combine(root, "timeline-origin.txt"), origin.ToString("O"));
             var settings = new CaptureSettings(ReplaySeconds: 6, Fps: 30, CacheDirectory: root, ClipsDirectory: root);
             var source = new CaptureSource("fixture", "display", "Synthetic", null, null, null, true);
-            var videoArgs = ReplayEngine.BuildVideoArguments(settings, source, "Desktop Duplication", "libx264", root,
+            var videoArgs = ReplayEngine.BuildVideoArguments(settings, source, "Desktop Duplication", encoder, root,
                 timelineOrigin: origin).ToList();
             videoArgs[videoArgs.IndexOf("-i") + 1] =
                 "color=c=black:s=160x90:r=30:d=12,drawbox=c=white:t=fill:enable='between(t,1.633333,1.733333)+between(t,5.633333,5.733333)+between(t,9.633333,9.733333)'";
@@ -199,6 +202,8 @@ internal static class ReplaySyncTests
                     await RunProcess(ffmpeg, ReplayEngine.BuildRemuxArguments(videoConcat, audioConcat, null, null, output,
                         selectedVideo[^1].EndedAt - selectedVideo[0].StartedAt, "Game", "Chat", "Microphone",
                         selectedAudio[0].StartedAt - selectedVideo[0].StartedAt));
+                    await AssertVideoCadence(ffmpeg, root, output, name, settings.Fps,
+                        (selectedVideo[^1].EndedAt - selectedVideo[0].StartedAt).TotalSeconds);
                     var error = await MeasureMarkerError(ffmpeg, root, output, name);
                     Console.WriteLine($"Replay sync {name}: maximum flash/tone difference {error * 1000:F1} ms.");
                     if (error > 0.080) throw new Exception($"{name} audio/video sync exceeded 80 ms: {error:F3} s.");
@@ -247,6 +252,25 @@ internal static class ReplaySyncTests
             Console.WriteLine("Production first-frame clock expressions passed for video and the Audio.Host pipe mix.");
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    private static async Task AssertVideoCadence(string ffmpeg, string root, string clip, string name, int fps, double duration)
+    {
+        var hashes = Path.Combine(root, $"{name}.framehash");
+        // Decode every frame without CFR duplication hiding gaps in the saved file.
+        // A millisecond timebase preserves the MKV segment timestamp precision.
+        await RunProcess(ffmpeg, ["-v", "error", "-xerror", "-i", clip, "-map", "0:v:0",
+            "-c:v", "rawvideo", "-pix_fmt", "gray", "-fps_mode", "passthrough",
+            "-enc_time_base", "1:1000", "-f", "framehash", hashes]);
+        var timestamps = File.ReadLines(hashes).Where(line => !line.StartsWith('#') && !string.IsNullOrWhiteSpace(line))
+            .Select(line => long.Parse(line.Split(',')[2].Trim(), CultureInfo.InvariantCulture)).ToArray();
+        var expectedFrames = (int)Math.Round(duration * fps);
+        if (Math.Abs(timestamps.Length - expectedFrames) > 2)
+            throw new Exception($"{name}: decoded {timestamps.Length} frames, expected approximately {expectedFrames}.");
+        var deltas = timestamps.Zip(timestamps.Skip(1), (first, second) => second - first).ToArray();
+        if (deltas.Length == 0 || deltas.Any(delta => Math.Abs(delta - 1000d / fps) > 1.1))
+            throw new Exception($"{name}: saved video has a frame gap or overlapping timestamps at a segment boundary.");
+        Console.WriteLine($"Replay cadence {name}: {timestamps.Length} decoded frames, {deltas.Min()}-{deltas.Max()} ms spacing.");
     }
 
     private static async Task<double> MeasureMarkerError(string ffmpeg, string root, string clip, string name)

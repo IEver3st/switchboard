@@ -114,10 +114,13 @@ currently running development app.
 Capture video uses one FFmpeg input per encoder process. Do not force a
 threaded packet queue for that single raw-video input. A large packet limit can
 retain entire unencoded frames and consume hundreds of megabytes without
-improving steady-state throughput. NVENC also runs with zero encoder output
-delay because the rolling segment writer consumes frames immediately; the
-automatic delay allocation reserves roughly another 250 MB of private memory
-without benefiting replay capture. `bun run measure:capture-host` exercises the
+improving steady-state throughput. NVENC uses a three-frame output pipeline and
+four encoder surfaces, with B-frame reordering and lookahead disabled. A zero
+output delay makes FFmpeg wait on each submitted frame; the bounded pipeline
+allows encoding to overlap without restoring automatic frame retention. Source
+timestamps still own media time. Forced keyframes are IDRs so a replay can start
+after earlier segments are evicted. NVIDIA game-load cadence and memory still
+require hardware validation. `bun run measure:capture-host` exercises the
 rebuilt development host at 1440p60 and fails if the video process crosses its
 825 MB private-memory gate or continues growing after a 30-second warmup. Growth
 uses the median of the first and final thirds of the sample window, so one

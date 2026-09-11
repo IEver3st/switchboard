@@ -1112,7 +1112,15 @@ internal sealed class ReplayEngine : IAsyncDisposable
         {
             yield return "-preset"; yield return "p4";
             yield return "-tune"; yield return "hq";
-            yield return "-delay"; yield return "0";
+            // FFmpeg's delay is the output pipeline depth, not a capture clock
+            // offset. Zero waits on every submitted frame. Keep a small overlap
+            // for GPU scheduling jitter and bound the associated frame surfaces.
+            yield return "-delay"; yield return "3";
+            yield return "-surfaces"; yield return "4";
+            yield return "-bf"; yield return "0";
+            yield return "-rc-lookahead"; yield return "0";
+            // Replay can begin at any segment after older references are evicted.
+            yield return "-forced-idr"; yield return "1";
             yield return "-rc"; yield return "vbr";
             yield return "-cq"; yield return Math.Clamp(27 - capture.Quality * 2, 15, 25).ToString(CultureInfo.InvariantCulture);
         }

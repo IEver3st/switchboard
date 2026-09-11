@@ -86,7 +86,14 @@ if (args.Contains("--sync-loopback-probe", StringComparer.Ordinal))
 }
 if (args.Contains("--sync-media-probe", StringComparer.Ordinal))
 {
-    await ReplaySyncTests.RunMediaAsync();
+    // An explicit NVENC codec runs the same saved-media checks on NVIDIA hardware.
+    await ReplaySyncTests.RunMediaAsync(args.Length > 1 ? args[1] : "libx264");
+    return;
+}
+NvencReplayTests.AssertArguments();
+if (args.Contains("--encoder-policy-only", StringComparer.Ordinal))
+{
+    Console.WriteLine("Replay encoder policy tests passed.");
     return;
 }
 await ReplaySyncTests.RunAsync();
@@ -148,7 +155,6 @@ AssertEqual("av1_amf", ReplayEngine.SelectEncoder(validSettings with { Codec = "
     "An explicit codec must be preserved.");
 AssertThrows<InvalidOperationException>(() => ReplayEngine.SelectEncoder(validSettings, ["libsvtav1"]),
     "Automatic must not fall through to costly software AV1.");
-var nvencArguments = ReplayEngine.EncoderArguments(validSettings, "av1_nvenc").ToArray();
 var amfSource = new CaptureSource("display:1", "display", "Test display", null, null, "1", true);
 foreach (var backend in new[] { "Windows Graphics Capture", "Desktop Duplication" })
 foreach (var amfEncoder in new[] { "h264_amf", "hevc_amf", "av1_amf" })
@@ -168,8 +174,6 @@ AssertValue(true, softwareAv1Arguments.Zip(softwareAv1Arguments.Skip(1)).Any(pai
     "SVT-AV1 requires a numeric preset, not the x264 veryfast preset.");
 AssertValue(false, softwareAv1Arguments.Contains("-b:v"), "SVT-AV1 capped CRF must not also request target-bitrate mode.");
 AssertValue(true, softwareAv1Arguments.Contains("-maxrate"), "SVT-AV1 must retain the replay bitrate cap.");
-AssertValue(true, nvencArguments.Zip(nvencArguments.Skip(1)).Any(pair => pair.First == "-delay" && pair.Second == "0"),
-    "NVENC capture must not retain the encoder's automatic frame-delay allocation.");
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { Fps = 59 }).Validate(), "Unsupported FPS must fail validation.");
 AssertThrows<InvalidOperationException>(() => (validSettings with { Source = "window", SourceId = null }).Validate(), "Window capture requires a target.");
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { ReactionSensitivity = "maximum" }).Validate(),
