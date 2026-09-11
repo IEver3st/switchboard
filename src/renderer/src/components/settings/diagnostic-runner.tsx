@@ -11,7 +11,6 @@ export function DiagnosticRunner({ snapshot, expanded = false }: { snapshot: Sys
   const running = run.status === 'running';
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
-  const current = run.checks.find(check => check.status === 'running');
   const priority = { running: 0, fail: 1, warning: 2, pass: 3, skipped: 4 };
   const checks = [...run.checks].sort((a, b) => priority[a.status] - priority[b.status]);
   const attention = checks.filter(check => check.status === 'fail' || check.status === 'warning');
@@ -30,7 +29,7 @@ export function DiagnosticRunner({ snapshot, expanded = false }: { snapshot: Sys
   return <section id="setting-general.runDiagnostics" data-setting-id="general.runDiagnostics" className="diagnostic-runner" data-expanded={expanded || undefined} aria-labelledby="diagnostic-runner-title" tabIndex={-1}>
     <div className="diagnostic-runner__heading">
       <div className="diagnostic-runner__copy"><h3 id="diagnostic-runner-title">{expanded ? 'Capture checks' : 'Troubleshoot capture'}</h3>
-        <p>Check game detection, encoders, audio endpoints, and storage.</p>
+        <p>Check capture and collect one minute of detailed diagnostics automatically.</p>
         <p className="diagnostic-runner__note">Short tests use your capture source and display. Test frames are discarded; active recordings stay running.</p></div>
       <div className="diagnostic-runner__actions">
         {running ? <Button variant="secondary" size="sm" disabled={pending} onClick={() => void act('cancel')}>{pending ? 'Cancelling…' : 'Cancel diagnostics'}</Button>
@@ -39,7 +38,7 @@ export function DiagnosticRunner({ snapshot, expanded = false }: { snapshot: Sys
       </div>
     </div>
     {run.status !== 'idle' && <p className="diagnostic-runner__summary" role="status" aria-live="polite">
-      {running ? `Running: ${current?.label ?? 'preparing checks'}…` : run.summary}
+      {run.summary}
       {expanded && run.completedAt && <time dateTime={run.completedAt}>Completed {new Date(run.completedAt).toLocaleString()}</time>}
     </p>}
     {expanded && run.status === 'idle' && <div className="diagnostic-empty-state"><CircleMinus aria-hidden /><div><strong>No checks run in this session</strong><p>Run diagnostics to test detection, encoders, audio, and storage. Live pipeline and device details are available in the other views.</p></div></div>}

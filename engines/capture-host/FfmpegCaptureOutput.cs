@@ -2,6 +2,9 @@ using System.Globalization;
 
 namespace Switchboard.CaptureHost;
 
+internal readonly record struct FfmpegCaptureProgress(long? Frames = null, int? DroppedFrames = null,
+    int? DuplicatedFrames = null, double? Fps = null, double? Speed = null, long? OutputTimeUs = null, bool Completed = false);
+
 internal static class FfmpegCaptureOutput
 {
     // FFmpeg shares pipe:2 between progress records and encoder/filter diagnostics.
@@ -14,9 +17,11 @@ internal static class FfmpegCaptureOutput
         Action<long> onFrames,
         Action<int> onDroppedFrames,
         CancellationToken cancellationToken,
-        Action<string>? onDiagnostic = null)
+        Action<string>? onDiagnostic = null,
+        Action<FfmpegCaptureProgress>? onProgress = null)
     {
         var diagnostics = new Queue<string>();
+        var progress = new FfmpegCaptureProgress();
         try
         {
             while (await reader.ReadLineAsync(cancellationToken) is { } line)
@@ -27,9 +32,33 @@ internal static class FfmpegCaptureOutput
                     var key = line[..separator];
                     var value = line[(separator + 1)..];
                     if (key == "frame" && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var frames))
+                    {
                         onFrames(frames);
+                        progress = progress with { Frames = frames };
+                    }
                     if (key == "drop_frames" && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var dropped))
+                    {
                         onDroppedFrames(dropped);
+                        progress = progress with { DroppedFrames = dropped };
+                    }
+                    if (onProgress is not null)
+                    {
+                        if (key == "dup_frames" && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var duplicated))
+                            progress = progress with { DuplicatedFrames = duplicated };
+                        if (key == "out_time_us" && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var time))
+                            progress = progress with { OutputTimeUs = time };
+                        if (key is "fps" or "speed")
+                        {
+                            double? number = double.TryParse(value.TrimEnd('x'), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+                                && double.IsFinite(parsed) ? parsed : null;
+                            progress = key == "fps" ? progress with { Fps = number } : progress with { Speed = number };
+                        }
+                        if (key == "progress")
+                        {
+                            onProgress(progress with { Completed = value == "end" });
+                            progress = new FfmpegCaptureProgress();
+                        }
+                    }
                     if (IsProgressKey(key)) continue;
                 }
 

@@ -822,12 +822,23 @@ internal sealed class ReplayEngine : IAsyncDisposable
             });
             ffmpeg = childProcesses.Start(start, "FFmpeg capture");
             Diagnostics.Write("info", "ffmpeg.spawned", () => new() { ["attempt"] = attempt, ["pid"] = ffmpeg.Id });
+            long lastProgressTrace = 0;
             ffmpegOutputTask = FfmpegCaptureOutput.ReadAsync(
                 ffmpeg.StandardError,
                 frames => encodedFrames = frames,
                 dropped => droppedFrames = dropped,
                 lifetime.Token,
-                line => Diagnostics.Write("warning", "ffmpeg.output", () => new() { ["attempt"] = attempt, ["line"] = line }));
+                line => Diagnostics.Write("warning", "ffmpeg.output", () => new() { ["attempt"] = attempt, ["line"] = line }),
+                progress => {
+                    if (!Diagnostics.Enabled || !progress.Completed && lastProgressTrace != 0
+                        && Stopwatch.GetElapsedTime(lastProgressTrace).TotalSeconds < 5) return;
+                    lastProgressTrace = Stopwatch.GetTimestamp();
+                    Diagnostics.Write("debug", "ffmpeg.progress", () => new() {
+                        ["attempt"] = attempt, ["frames"] = progress.Frames, ["droppedFrames"] = progress.DroppedFrames,
+                        ["duplicatedFrames"] = progress.DuplicatedFrames, ["fps"] = progress.Fps,
+                        ["speed"] = progress.Speed, ["outputTimeUs"] = progress.OutputTimeUs, ["completed"] = progress.Completed,
+                    });
+                });
             _ = DrainAsync(ffmpeg.StandardOutput, lifetime.Token);
 
             await Task.Delay(350, cancellationToken);

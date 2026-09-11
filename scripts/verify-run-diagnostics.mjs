@@ -45,6 +45,9 @@ async function until(expression, timeout = 20000) {
 async function clickText(text) {
   await js(`const button = [...document.querySelectorAll('button')].find(button => button.textContent.trim() === ${JSON.stringify(text)}); if (!button) throw new Error('Missing button'); button.click();`);
 }
+async function startRun() {
+  await js(`const button = [...document.querySelectorAll('button')].find(button => ['Run diagnostics', 'Run again'].includes(button.textContent.trim())); if (!button) throw new Error('Missing run button'); button.click();`);
+}
 async function exportTo(name) {
   const path = join(output, name);
   dialog.showSaveDialog = async () => ({ canceled: false, filePath: path });
@@ -82,20 +85,28 @@ void app.whenReady().then(async () => {
   await until('Boolean(document.querySelector(".diagnostic-runner"))');
   assert(await js('return !(await window.switchboard.getSnapshot()).settings.developerMode'), 'Run diagnostics is available without Developer mode');
   for (const [w,h] of [[1080,720],[1420,900],[1920,1080]]) await capture('idle',w,h);
+  if (!process.argv.includes('--active-only')) {
   const configBefore = await js('return (await window.switchboard.getSnapshot()).capture.config');
-  await clickText('Run diagnostics');
+  await startRun();
   await until('(await window.switchboard.getSnapshot()).diagnostics.status === "running"');
   const runId = await js('return (await window.switchboard.getSnapshot()).diagnostics.id');
   assert(await js(`return (await window.switchboard.runDiagnostics()).diagnostics.id === ${JSON.stringify(runId)}`), 'Repeated start requests join the existing run');
+  await until('Boolean((await window.switchboard.getSnapshot()).performance.debug)');
+  await until('Boolean(window.switchboardDebugRuntime)');
+  assert(await js('const s = await window.switchboard.getSnapshot(); return !s.settings.developerMode && !s.settings.detailedDiagnostics'), 'Automatic detailed collection does not change saved Developer mode preferences');
   for (const [w,h] of [[1080,720],[1420,900],[1920,1080]]) await capture('running',w,h);
   window.reload();
   await until('Boolean(document.querySelector(".diagnostic-runner")) && !document.querySelector(".startup-screen")');
   assert(await js(`return (await window.switchboard.getSnapshot()).diagnostics.id === ${JSON.stringify(runId)}`), 'Run state survives renderer reload');
-  await until('(await window.switchboard.getSnapshot()).diagnostics.status !== "running"', 45000);
+  await until('(await window.switchboard.getSnapshot()).diagnostics.status !== "running"', 90000);
   const failed = await exportTo('failed-capture.json');
   assert(failed.diagnosticRun.checks.some(check => check.id === 'encoder.h264_amf' && check.status === 'pass'), 'Encoder probe success appears in export');
   assert(failed.diagnosticRun.checks.some(check => check.id === 'capture.software' && check.status === 'fail' && check.detail.includes('0x80070057')), 'Real child-process stderr reaches the exported capture failure');
   assert(failed.environment.graphics && !failed.developer.enabled, 'GPU context exports without enabling background developer logging');
+  assert(failed.samples.length >= 10 && failed.developer.events.length > 0, 'A completed run automatically retains a minute of detailed resource samples and events');
+  assert(!((await js('return await window.switchboard.getSnapshot()')).performance.debug), 'Automatic resource probes stop when the run completes');
+  await until('!window.switchboardDebugRuntime');
+  assert(failed.schemaVersion === 3 && failed.captureSampledAt && failed.diagnosticRun.captureAtStart && failed.diagnosticRun.captureAtEnd, 'Export labels current capture context separately from the start and end of the run');
   assert(await js(`return JSON.stringify((await window.switchboard.getSnapshot()).capture.config) === ${JSON.stringify(JSON.stringify(configBefore))}`), 'Diagnostic run preserves capture preferences');
   assert(await js('return (await window.switchboard.getSnapshot()).engines.find(engine => engine.kind === "capture").state === "stopped"'), 'Disabled Replay stays disabled after diagnostic host cleanup');
   await js('document.querySelector(".diagnostic-runner__results").open = true; [...document.querySelectorAll(".diagnostic-runner__results li")].find(el => el.textContent.includes("Display · software H.264")).querySelector("details").open = true;');
@@ -107,32 +118,52 @@ void app.whenReady().then(async () => {
   await clickText('Save diagnostics');
   await until('document.body.textContent.includes("Could not save diagnostics. Choose another location and try again.")');
   await capture('save-error',1080,720);
-  await clickText('Run diagnostics');
+  await startRun();
   await until('(await window.switchboard.getSnapshot()).diagnostics.checks.some(check => check.id === "ffmpeg" && check.status === "running")');
   await clickText('Cancel diagnostics');
   await until('(await window.switchboard.getSnapshot()).diagnostics.status === "cancelled"');
+  const cancelled = await exportTo('cancelled.json');
+  assert(cancelled.samples.length > 0 && cancelled.developer.events.length > 0 && !cancelled.developer.enabled, 'Cancellation stops automatic collection and retains the partial trace');
   await capture('cancelled',1080,720);
   delete process.env.SWITCHBOARD_DIAGNOSTIC_PROBE_DELAY_MS;
   process.env.SWITCHBOARD_DIAGNOSTIC_CAPTURE_SUCCESS = '1';
-  await clickText('Run diagnostics');
-  await until('(await window.switchboard.getSnapshot()).diagnostics.status === "completed"');
+  await startRun();
+  await until('(await window.switchboard.getSnapshot()).diagnostics.status === "completed"', 90000);
   const success = await exportTo('working-display.json');
   assert(success.diagnosticRun.checks.some(check => check.id === 'capture.hardware' && check.status === 'pass'), 'Successful discard-sink capture produces a passed check');
   assert(success.diagnosticRun.checks.some(check => check.id === 'capture.duplication' && check.status === 'pass'), 'Alternative display backend is tested automatically');
   await capture('completed',1080,720);
+  }
+  delete process.env.SWITCHBOARD_DIAGNOSTIC_PROBE_DELAY_MS;
   process.env.SWITCHBOARD_DIAGNOSTIC_RECORDING_FIXTURE = '1';
   await js('await window.switchboard.setCaptureConfig({ enabled: true, source: "display", displayIndex: 0, includeMic: false, includeSystemAudio: false, includeChatAudio: false });');
   await until('(await window.switchboard.getSnapshot()).capture.runtime.state === "buffering"');
   const before = await js('const s = await window.switchboard.getSnapshot(); return { pid: s.engines.find(e => e.kind === "capture").pid, frames: s.capture.runtime.encodedFrames };');
-  await clickText('Run diagnostics');
-  await until('(await window.switchboard.getSnapshot()).diagnostics.status === "completed"');
+  await startRun();
+  await until('(await window.switchboard.getSnapshot()).diagnostics.status === "running"');
+  await js('await window.switchboard.updateSettings({ developerMode: true }); sessionStorage.setItem("switchboard.settings.category", "diagnostics");');
+  window.reload();
+  await until('Boolean(document.querySelector(".diagnostics-workspace"))');
+  await clickText('Resources');
+  assert(await js('const control = document.querySelector(\'[aria-label="Detailed resource diagnostics"]\'); return control?.getAttribute("aria-checked") === "true" && control.disabled'), 'Resources view shows automatic collection as active without a manual toggle');
+  for (const [w,h] of [[1080,720],[1420,900],[1920,1080]]) await capture('automatic-resources',w,h);
+  await until('(await window.switchboard.getSnapshot()).diagnostics.status === "completed"', 90000);
   assert(await js('return (await window.switchboard.getSnapshot()).diagnostics.checks.some(check => check.id === "capture.active" && check.status === "skipped")'), 'Active recording skips encoder and capture probes');
   assert(await js(`const s = await window.switchboard.getSnapshot(); return s.capture.runtime.state === 'buffering' && s.engines.find(e => e.kind === 'capture').pid === ${before.pid}`), 'An active native recorder keeps its host and state during diagnostics');
+  const active = await exportTo('active-replay.json');
+  assert(active.developer.events.some(event => event.event === 'ffmpeg.progress' && event.data.duplicatedFrames === 2 && event.data.speed === 1), 'A running replay exports duplicate-frame and encoding-throughput telemetry');
+  assert(active.capture.runtime.encodedFrames > active.diagnosticRun.captureAtStart.runtime.encodedFrames, 'Export reflects current frames rather than the stale pre-run snapshot');
   await js('await window.switchboard.setCaptureConfig({ enabled: false });');
+  const stopped = await exportTo('stopped-after-run.json');
+  assert(stopped.capture.runtime.state === 'stopped' && stopped.diagnosticRun.captureAtEnd.runtime.state === 'buffering', 'Current stopped capture stays distinct from recording at diagnostic completion');
+  await js('await window.switchboard.updateSettings({ developerMode: true, detailedDiagnostics: true }); await window.switchboard.runDiagnostics(); await window.switchboard.cancelDiagnostics();');
+  assert(await js('const s = await window.switchboard.getSnapshot(); return s.settings.developerMode && s.settings.detailedDiagnostics && Boolean(s.performance.debug)'), 'Cancellation preserves pre-existing manual detailed collection');
+  await clickText('Checks');
   await window.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  await js('[...document.querySelectorAll("button")].find(el => el.textContent.trim() === "Run diagnostics").focus();');
+  await js('[...document.querySelectorAll("button")].find(el => el.textContent.trim() === "Run again").focus();');
   await capture('focus-reduced-motion',1080,720);
-  assert(await js('return document.activeElement.textContent.trim() === "Run diagnostics"'), 'Run button is keyboard focusable');
+  assert(await js('return document.activeElement.textContent.trim() === "Run again"'), 'Run button is keyboard focusable');
+  await js('await window.switchboard.updateSettings({ developerMode: false });');
   report.passed = true;
   await writeFile(join(output,'verification.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify(report)); app.quit();

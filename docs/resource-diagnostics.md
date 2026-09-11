@@ -1,7 +1,9 @@
 # Resource diagnostics
 
 For capture problems, open **Settings > General > Run diagnostics**. Developer
-mode is not required. The run checks game/source detection, storage access,
+mode is not required. Each run automatically collects a minute of detailed
+resource samples and an event timeline. Return to the game and reproduce the
+problem, including saving a clip, while collection runs. The run checks game/source detection, storage access,
 audio endpoint availability, FFmpeg, encoder support, and short capture attempts
 using the current source and selected display. It compares hardware and software
 encoding and an alternative display backend. Test frames are discarded; audio
@@ -11,7 +13,9 @@ Results explain detected failures and show individual check details. Choose
 **Save diagnostics** to save one local JSON report with the checks, bounded
 FFmpeg errors, graphics information, and capture context. Nothing is uploaded.
 Capture preferences remain unchanged. An active recording stays running and
-competing encoder/capture probes are skipped. Cancel stops the test processes.
+competing encoder/capture probes are skipped. Completion or cancellation stops
+the automatic collectors and test processes, preserving any manually enabled
+recording preferences. Partial results remain exportable after cancellation.
 Checks establish what worked during that run; they do not prove sustained game
 capture or fix a hardware failure automatically.
 
@@ -31,15 +35,22 @@ the event timeline continues while Developer mode remains on.
 
 ## Capture and application events
 
-The schema-version-2 export includes:
+The schema-version-3 export includes:
 
 - Windows build, Electron/Chromium versions, GPU names and driver versions,
   graphics feature status, and display dimensions, refresh rates, and scaling.
 - Capture settings, current runtime/error state, backend and encoder capabilities,
   source counts, storage headroom, and host/child process identities.
+  `captureSampledAt` timestamps the current capture context. A completed
+  `diagnosticRun` separately retains `captureAtStart` and `captureAtEnd`, so a
+  startup snapshot cannot be mistaken for the state when the file was exported.
 - Native encoder probes, the FFmpeg version, selected capture filter and encoder
   arguments, startup stderr, process exits, source resolution, state changes,
   and recovery attempts. A video-attempt number connects a process to its output.
+  While recording, `ffmpeg.progress` reports encoded, dropped, and duplicated
+  frames, output time, FPS, and encoding speed at most every five seconds, plus
+  final progress. These describe encoder output; they do not prove that every
+  output frame contains a fresh game image or that playback is smooth.
 - Main-process capture requests/rejections, host commands and responses with
   request IDs and elapsed times, invalid host messages/snapshots, renderer exits,
   failed loads, unresponsiveness, and IPC action failures. Command bodies and
@@ -64,7 +75,9 @@ Absolute paths, URLs, email addresses, and credential fields are redacted.
 Capture context uses an explicit field selection; it excludes clip paths,
 endpoint identifiers, window titles, command payloads, and media. Events are
 also appended to the existing rotating local resource journals. Turning
-Developer mode off clears its in-memory timeline; existing journal files follow
+Developer mode off clears its in-memory timeline unless a diagnostic run still
+owns collection. The most recent diagnostic run retains a bounded copy for
+export until the next run or application exit. Existing journal files follow
 the retention preference. Re-enabling starts a new session.
 
 ## What is measured

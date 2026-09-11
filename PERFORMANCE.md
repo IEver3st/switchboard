@@ -240,7 +240,10 @@ and a 120-events-per-second cap; the capture host caps diagnostic emissions at
 60 per second. Events reuse the resource journal's bounded write queue and
 retention policy. Native health records reuse existing snapshots. Disabled
 Developer mode emits/retains no developer events and stops optional main/renderer
-resource probes. Existing capture processes are not restarted to toggle logging.
+resource probes unless an on-demand diagnostic run owns collection. Existing
+capture processes are not restarted to toggle logging. FFmpeg progress reuses
+its existing output stream and emits at most every five seconds plus final
+progress while diagnostics are enabled; it adds no polling timer.
 
 Settings > Diagnostics provides detailed resource recording and local JSON export.
 It reuses the five-second sampler, keeps renderer publication at 30 seconds, and
@@ -263,9 +266,15 @@ On-demand capture diagnostics use canonical transient state owned by main and
 narrow run/cancel IPC operations. A stopped capture engine gets a temporary host
 that is disposed after the run; an existing host serializes checks through its
 lifecycle gate. Active recordings skip competing encoder/capture probes. There
-is no background diagnostic timer. Runs have a 90-second deadline and each
-FFmpeg probe has a five-second timeout with bounded output and child-process
-cleanup on timeout or cancellation. Three-frame capture probes discard output.
+is no background diagnostic timer. Each run owns a cancellable one-minute
+observation window using the existing five-second resource sampler. Initial and
+final samples are awaited, including on cancellation; completed events and
+samples remain exportable without leaving optional collectors enabled. Saved
+Developer mode preferences are unchanged. Native checks have a 90-second
+deadline and each FFmpeg diagnostic probe has a five-second timeout with bounded
+output and child-process cleanup on timeout or cancellation. Startup capability
+probes use the same isolated process runner with a 15-second cold-driver allowance;
+their closed stdin cannot consume the capture host's JSON commands. Three-frame capture probes discard output.
 Configuration changes and shutdown cancel the run; diagnostics do not change
 capture preferences. Completed results remain available until the next run or
 application restart, including when Developer mode is disabled.

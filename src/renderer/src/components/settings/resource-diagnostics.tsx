@@ -11,7 +11,8 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState('');
   const developerMode = snapshot.settings.developerMode === true;
-  const recording = developerMode && snapshot.settings.detailedDiagnostics;
+  const diagnosticRunActive = snapshot.diagnostics.status === 'running';
+  const recording = diagnosticRunActive || developerMode && snapshot.settings.detailedDiagnostics;
   const debug = recording ? snapshot.performance.debug : undefined;
   async function exportReport() {
     setExporting(true);
@@ -26,10 +27,10 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
   }
   return <section className="diagnostics-recording" aria-labelledby="diagnostics-recording-title">
     <h3 id="diagnostics-recording-title">Debug recording</h3>
-    <p>Developer mode records capture startup, FFmpeg errors, source and encoder selection, host events, and failed commands. Export after reproducing the problem.</p>
+    <p>Run diagnostics collects events and resources automatically for one minute. Developer mode also allows longer recording. Export after reproducing the problem.</p>
     <SettingSwitch settingId="diagnostics.detailed" title="Detailed resource diagnostics"
       description="Samples every 5 seconds. Adds measurement overhead."
-      checked={recording} disabled={pending || !developerMode}
+      checked={recording} disabled={pending || !developerMode || diagnosticRunActive}
       onCheckedChange={enabled => {
         setMessage('');
         setPending(true);
@@ -40,7 +41,7 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
         <p role="status" data-recording={recording}>{pending ? 'Saving…' : recording
           ? debug ? `Events and resources · since ${new Date(debug.startedAt).toLocaleTimeString()}` : 'Events recording · collecting resource sample…'
           : developerMode ? 'Events recording · resource sampling off' : 'Developer mode is off'}</p>
-        {showExport && <Button variant="secondary" size="sm" disabled={exporting || pending || !developerMode} onClick={() => void exportReport()} title="Save the event timeline, capture state, Windows and GPU details, and any resource samples. Paths and credentials are redacted.">{exporting ? 'Exporting…' : 'Export diagnostics'}</Button>}
+        {showExport && <Button variant="secondary" size="sm" disabled={exporting || pending || !developerMode && !snapshot.diagnostics.id} onClick={() => void exportReport()} title="Save the event timeline, capture state, Windows and GPU details, and any resource samples. Paths and credentials are redacted.">{exporting ? 'Exporting…' : 'Export diagnostics'}</Button>}
       </div>
       {message && <p role="status">{message}</p>}
       {debug && <>

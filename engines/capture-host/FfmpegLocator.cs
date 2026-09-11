@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Switchboard.CaptureHost;
 
 internal static class FfmpegLocator
@@ -47,22 +45,20 @@ internal static class FfmpegLocator
     {
         var arguments = new[]
         {
-            "-hide_banner", "-loglevel", "error",
+            "-nostdin", "-hide_banner", "-loglevel", "error",
             // Current NVIDIA encoders reject dimensions below their hardware minimum.
             // Probe at a small, universally useful encode size instead of producing a
             // false negative that silently selects the software fallback.
             "-f", "lavfi", "-i", "color=size=640x360:rate=1",
             "-frames:v", "1", "-c:v", encoder, "-f", "null", "-",
         };
-        using var process = CreateProcess(ffmpegPath, arguments);
-        process.Start();
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        await outputTask;
-        var error = await errorTask;
-        if (!string.IsNullOrWhiteSpace(error)) onDiagnostic?.Invoke(error.Length > 4096 ? error[..4096] : error);
-        return process.ExitCode == 0;
+        // Startup probes must never inherit the host's JSON command input. Reuse
+        // the isolated, bounded runner so cancellation also reaps the child.
+        // Cold driver initialization can take several seconds; keep a 15-second
+        // startup allowance rather than mistaking it for unsupported hardware.
+        var result = await CaptureDiagnosticRunner.RunProcessAsync(ffmpegPath, arguments, cancellationToken, timeoutMs: 15_000);
+        if (!string.IsNullOrWhiteSpace(result.Output)) onDiagnostic?.Invoke(result.Output[..Math.Min(4096, result.Output.Length)]);
+        return result.ExitCode == 0;
     }
 
     public static async Task<string> ReadVersionAsync(string ffmpegPath, CancellationToken cancellationToken)
@@ -103,24 +99,7 @@ internal static class FfmpegLocator
         IEnumerable<string> arguments,
         CancellationToken cancellationToken)
     {
-        using var process = CreateProcess(executable, arguments);
-        process.Start();
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        return string.Concat(await outputTask, "\n", await errorTask);
-    }
-
-    private static Process CreateProcess(string executable, IEnumerable<string> arguments)
-    {
-        var start = new ProcessStartInfo(executable)
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        foreach (var argument in arguments) start.ArgumentList.Add(argument);
-        return new Process { StartInfo = start };
+        var result = await CaptureDiagnosticRunner.RunProcessAsync(executable, arguments, cancellationToken, timeoutMs: 15_000);
+        return result.Output;
     }
 }

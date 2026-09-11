@@ -62,3 +62,23 @@ test('a stalled renderer does not queue more probes or block process samples', a
   expect(published).toHaveLength(2);
   expect(monitor.getDebugHistory().at(-1)!.rendererRuntime).toBeNull();
 });
+
+test('an awaited refresh completes a fresh diagnostic sample after an in-flight interval sample', async () => {
+  let finish!: (value: unknown) => void;
+  let probes = 0;
+  debugDiagnostics.setEnabled(true);
+  monitor = new PerformanceMonitor({
+    getProcessMetrics: () => [],
+    getContext: () => ({ rendererActive: true, guardEnabled: false, detailedDiagnostics: true, engines: [] }),
+    getRendererRuntime: () => ++probes === 1 ? new Promise(resolve => { finish = resolve; }) : Promise.resolve(null),
+    publish: () => {}, recordSample: () => {},
+  });
+  monitor.start();
+  const finalSample = monitor.refresh();
+  expect(monitor.getDebugHistory()).toHaveLength(0);
+  finish(null);
+  await finalSample;
+  expect(monitor.getDebugHistory()).toHaveLength(2);
+  debugDiagnostics.setEnabled(false);
+  expect(monitor.getDebugHistory().at(-1)?.debug).toBeDefined();
+});

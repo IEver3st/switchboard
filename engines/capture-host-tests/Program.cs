@@ -2,6 +2,14 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+if (await StartupProbeTests.RunFixtureAsync(args)) return;
+if (args.Contains("--startup-probe-only"))
+{
+    await StartupProbeTests.AssertStdinIsolationAsync();
+    Console.WriteLine("Startup probe command isolation passed.");
+    return;
+}
+
 // Opt-in, hidden live probe. Encodes three display frames to a discard sink;
 // never saves screen content or opens a window. Pass the display index explicitly.
 if (args.Length == 2 && args[0] == "--amf-live-probe")
@@ -25,7 +33,8 @@ if (args.Length == 2 && args[0] == "--amf-live-probe")
 
 if (args.Length == 2 && args[0] == "--diagnostic-hang")
 {
-    await File.WriteAllTextAsync(args[1], Environment.ProcessId.ToString());
+    await File.WriteAllTextAsync(args[1] + ".pending", Environment.ProcessId.ToString());
+    File.Move(args[1] + ".pending", args[1]);
     await Task.Delay(TimeSpan.FromMinutes(5));
     return;
 }
@@ -44,7 +53,11 @@ if (Environment.GetEnvironmentVariable("SWITCHBOARD_CAPTURE_FAILURE_FIXTURE") ==
         if (Environment.GetEnvironmentVariable("SWITCHBOARD_DIAGNOSTIC_RECORDING_FIXTURE") == "1" && args.Contains("-segment_time"))
         {
             var frame = 0;
-            while (true) { Console.Error.WriteLine($"frame={++frame}"); await Task.Delay(100); }
+            while (true)
+            {
+                Console.Error.WriteLine($"frame={++frame}\nfps=10\ndup_frames=2\ndrop_frames=0\nspeed=1.0x\nout_time_us={frame * 100000}\nprogress=continue");
+                await Task.Delay(100);
+            }
         }
         if (Environment.GetEnvironmentVariable("SWITCHBOARD_DIAGNOSTIC_CAPTURE_SUCCESS") == "1")
         {
@@ -97,6 +110,7 @@ if (args.Contains("--encoder-policy-only", StringComparer.Ordinal))
     return;
 }
 await ReplaySyncTests.RunAsync();
+await StartupProbeTests.AssertStdinIsolationAsync();
 
 var start = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 var segments = Enumerable.Range(0, 5)
@@ -691,17 +705,21 @@ static async Task AssertFfmpegCaptureDiagnosticsAsync()
     using var input = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(string.Join('\n', new[]
     {
         "frame=2", "fps=0.0", "stream_0_0_q=0.0", "bitrate=N/A", "total_size=0",
-        "out_time_us=0", "out_time_ms=0", "out_time=00:00:00.000000", "dup_frames=0",
-        "drop_frames=1", "speed=N/A", "progress=continue", driverError,
+        "out_time_us=33333", "out_time_ms=33", "out_time=00:00:00.033333", "dup_frames=7",
+        "drop_frames=1", "speed=0.75x", "progress=continue", driverError, "speed=N/A",
         "Task finished with error code: -1313558101 (Unknown error occurred)", "progress=end",
     })));
     using var reader = new StreamReader(input);
     long frames = 0;
     var dropped = 0;
+    var progress = new List<FfmpegCaptureProgress>();
     var diagnostics = await FfmpegCaptureOutput.ReadAsync(reader, value => frames = value,
-        value => dropped = value, CancellationToken.None);
+        value => dropped = value, CancellationToken.None, onProgress: progress.Add);
     AssertValue(2L, frames, "FFmpeg frame telemetry must survive diagnostic collection.");
     AssertValue(1, dropped, "FFmpeg dropped-frame telemetry must survive diagnostic collection.");
+    AssertValue(true, progress.Count == 2 && progress[0].DuplicatedFrames == 7 && progress[0].Speed == 0.75
+        && progress[0].OutputTimeUs == 33333 && progress[1].Speed is null && progress[1].Completed,
+        "Completed progress batches must retain duplicate frames and throughput, with unavailable values left null.");
     AssertEqual(driverError + "\nTask finished with error code: -1313558101 (Unknown error occurred)",
         diagnostics, "Retain driver diagnostics, including equals signs, without progress records.");
     AssertValue(true, FfmpegCaptureOutput.FailureMessage(-1313558101, diagnostics, duringStartup: true)

@@ -98,7 +98,7 @@ export class PerformanceMonitor {
   private lastGuardState: PerformanceSnapshot['guardState'] | null = null;
   private previousTotalMemoryMb: number | null = null;
   private sequence = 0;
-  private sampling = false;
+  private sampling: Promise<void> | null = null;
   private disposed = false;
   private pendingRendererProbe: Promise<unknown> | null = null;
   private debugEpoch = 0;
@@ -122,9 +122,12 @@ export class PerformanceMonitor {
     this.timer.unref();
   }
 
-  public refresh(): void {
+  public async refresh(): Promise<void> {
     if (this.disposed || !this.started) return;
-    void this.sample(true);
+    // A diagnostic run must be able to retain its final sample before stopping
+    // optional probes, including when the interval sample is already in flight.
+    if (this.sampling) await this.sampling;
+    await this.sample(true);
   }
 
   public dispose(): void {
@@ -134,9 +137,16 @@ export class PerformanceMonitor {
     this.timer = null;
   }
 
-  private async sample(forcePublish: boolean): Promise<void> {
-    if (this.disposed || this.sampling) return;
-    this.sampling = true;
+  private sample(forcePublish: boolean): Promise<void> {
+    if (this.disposed) return Promise.resolve();
+    if (this.sampling) return this.sampling;
+    const task = this.sampleOnce(forcePublish);
+    this.sampling = task;
+    void task.finally(() => { if (this.sampling === task) this.sampling = null; });
+    return task;
+  }
+
+  private async sampleOnce(forcePublish: boolean): Promise<void> {
     try {
       const context = this.options.getContext();
       const debugEpoch = this.debugEpoch;
@@ -213,8 +223,6 @@ export class PerformanceMonitor {
       }
     } catch (error) {
       console.warn('Performance sampling failed.', error);
-    } finally {
-      this.sampling = false;
     }
   }
 }

@@ -16,6 +16,7 @@ import { sanitizeDiagnosticCheck, summarizeDiagnosticChecks } from './services/d
 import { diagnosticCheckSchema, type DiagnosticCheck } from '../shared/contracts';
 import { release as osRelease, version as osVersion } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { existsSync } from 'node:fs';
 import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, parse, resolve } from 'node:path';
@@ -208,7 +209,11 @@ export class AppController {
   private diagnosticRunTask: Promise<void> | null = null;
   private diagnosticRunHost: EngineSupervisor | null = null;
   private diagnosticRunCancelled = false;
+  private diagnosticCollectionAbort: AbortController | null = null;
+  private diagnosticRunTrace: ReturnType<typeof developerDiagnostics.snapshot> | null = null;
+  private diagnosticRunSamples: ReturnType<PerformanceMonitor['getDebugHistory']> = [];
   private diagnosticCaptureContext: ReturnType<typeof captureDiagnosticContext> | null = null;
+  private diagnosticCaptureEndContext: ReturnType<typeof captureDiagnosticContext> | null = null;
   private diagnosticRunGraphics: ReturnType<typeof diagnosticGpuInfo> | { unavailable: string } = { unavailable: 'Diagnostics have not run.' };
   private readonly appliedEngineStatuses = new Map<EngineStatus['kind'], EngineStatus>();
   private readonly audioSnapshotUpdateGate = new AudioSnapshotUpdateGate();
@@ -325,8 +330,9 @@ export class AppController {
         externalProcesses: this.desktopControls.getResources(),
         rendererActive: this.rendererActive,
         guardEnabled: this.store.getPerformanceGuardEnabled(),
-        detailedDiagnostics: this.store.getDetailedDiagnosticsEnabled(),
-        engines: (['audio', 'capture'] as const).map((kind) => this.engines.getStatus(kind)),
+        detailedDiagnostics: this.detailedDiagnosticsEnabled(),
+        engines: (['audio', 'capture'] as const).map((kind) =>
+          kind === 'capture' && this.diagnosticRunHost ? this.diagnosticRunHost.getStatus(kind) : this.engines.getStatus(kind)),
       }),
       publish: (performance) => { this.store.setPerformance(performance); },
       getRendererRuntime: options.getRendererRuntime,
@@ -402,7 +408,7 @@ export class AppController {
   private async initializeOnce(): Promise<void> {
     await this.prepareSnapshot();
     if (this.disposed) return;
-    debugDiagnostics.setEnabled(this.store.getDetailedDiagnosticsEnabled());
+    debugDiagnostics.setEnabled(this.detailedDiagnosticsEnabled());
     this.performance.start();
     await this.appUpdates.initialize(appUpdatePreferences(this.store.get().settings));
     if (this.disposed) return;
@@ -1478,7 +1484,7 @@ export class AppController {
   }
 
   public async updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot> {
-    const diagnosticsWereEnabled = this.store.getDetailedDiagnosticsEnabled();
+    const diagnosticsWereEnabled = this.detailedDiagnosticsEnabled();
     const automaticScanWasEnabled = this.store.get().settings.scanGamesAutomatically;
     const disablingDeveloperMode = input.developerMode === false;
     if (disablingDeveloperMode) {
@@ -1497,7 +1503,7 @@ export class AppController {
       }
     });
 
-    const diagnosticsEnabled = this.store.getDetailedDiagnosticsEnabled();
+    const diagnosticsEnabled = this.detailedDiagnosticsEnabled();
     if (diagnosticsEnabled !== diagnosticsWereEnabled) {
       debugDiagnostics.setEnabled(diagnosticsEnabled);
       if (diagnosticsEnabled) this.performance.clearDebugHistory();
@@ -1533,11 +1539,16 @@ export class AppController {
     const snapshot = this.store.get();
     const run = snapshot.diagnostics;
     const exportRun = run.id !== null && run.status !== 'running';
-    const exportCapture = structuredClone(exportRun ? this.diagnosticCaptureContext ?? captureDiagnosticContext(snapshot) : captureDiagnosticContext(snapshot));
+    const captureSampledAt = new Date().toISOString();
+    const exportCapture = captureDiagnosticContext(snapshot);
     const exportGraphics = structuredClone(exportRun ? this.diagnosticRunGraphics : this.diagnosticsGpu);
     if (!developerDiagnostics.enabled && !exportRun) throw new Error('Run diagnostics or enable Developer mode before exporting diagnostics.');
-    const samples = this.performance.getDebugHistory();
+    const useSavedCollection = exportRun && !developerDiagnostics.enabled;
+    const samples = useSavedCollection ? this.diagnosticRunSamples : this.performance.getDebugHistory();
     developerDiagnostics.record('main', 'info', 'diagnostics.export-requested', { resourceSamples: samples.length });
+    const trace = useSavedCollection ? this.diagnosticRunTrace ?? developerDiagnostics.snapshot() : developerDiagnostics.snapshot();
+    const runContext = exportRun ? structuredClone({ ...run,
+      captureAtStart: this.diagnosticCaptureContext, captureAtEnd: this.diagnosticCaptureEndContext }) : null;
     const result = await dialog.showSaveDialog({
       title: 'Export diagnostics',
       defaultPath: `switchboard-diagnostics-${Date.now()}.json`,
@@ -1546,7 +1557,7 @@ export class AppController {
     if (result.canceled || !result.filePath) return false;
     if (!developerDiagnostics.enabled && !exportRun) throw new Error('Developer mode was disabled before the export completed.');
     await writeFile(result.filePath, JSON.stringify({
-      schemaVersion: 2, version: snapshot.version, exportedAt: new Date().toISOString(),
+      schemaVersion: 3, version: snapshot.version, exportedAt: new Date().toISOString(),
       droppedJournalWrites: this.resourceJournal.getDroppedWrites(),
       limits: 'Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.',
       environment: {
@@ -1559,9 +1570,9 @@ export class AppController {
           displayFrequency: display.displayFrequency, colorDepth: display.colorDepth, rotation: display.rotation,
         })),
       },
-      capture: exportCapture,
-      ...(exportRun ? { diagnosticRun: run } : {}),
-      developer: developerDiagnostics.snapshot(),
+      captureSampledAt, capture: exportCapture,
+      ...(runContext ? { diagnosticRun: runContext } : {}),
+      developer: trace,
       samples,
     }, null, 2), 'utf8');
     return true;
@@ -1571,10 +1582,15 @@ export class AppController {
     if (this.diagnosticRunTask || this.disposed) return this.store.get();
     const runId = randomUUID();
     this.diagnosticRunCancelled = false;
+    this.diagnosticCollectionAbort = new AbortController();
+    this.diagnosticRunTrace = null;
+    this.diagnosticRunSamples = [];
+    this.diagnosticCaptureEndContext = null;
+    this.diagnosticRunGraphics = { unavailable: 'GPU metadata has not completed for this run.' };
     this.diagnosticCaptureContext = captureDiagnosticContext(this.store.get());
     const snapshot = this.store.update(draft => {
       draft.diagnostics = { id: runId, status: 'running', startedAt: new Date().toISOString(), completedAt: null,
-        summary: 'Checking this installation and capture setup…', checks: [] };
+        summary: 'Collecting detailed diagnostics for one minute. Return to the game and reproduce the issue while checks run.', checks: [] };
     }, { persist: false });
     this.diagnosticRunTask = this.executeDiagnosticRun(runId).finally(() => { this.diagnosticRunTask = null; });
     return snapshot;
@@ -1583,6 +1599,7 @@ export class AppController {
   public async cancelDiagnostics(): Promise<SystemSnapshot> {
     if (this.diagnosticRunTask) {
       this.diagnosticRunCancelled = true;
+      this.diagnosticCollectionAbort?.abort();
       this.diagnosticRunHost?.send('capture', 'cancelDiagnostics', { runId: this.store.get().diagnostics.id });
       await this.diagnosticRunTask;
     }
@@ -1603,7 +1620,16 @@ export class AppController {
   private async executeDiagnosticRun(runId: string): Promise<void> {
     let ownedHost: EngineSupervisor | null = null;
     let failure: string | null = null;
+    const collection = this.diagnosticCollectionAbort!;
+    const collectionDeadline = performance.now() + 60_000;
     try {
+      if (!this.store.getDetailedDiagnosticsEnabled()) this.performance.clearDebugHistory();
+      debugDiagnostics.setEnabled(true);
+      this.recordDiagnosticCheck(runId, { id: 'resources', label: 'Detailed diagnostics', status: 'running',
+        detail: 'Recording events, frame progress, and resources for one minute. Return to the game and save a clip while this runs.' });
+      await Promise.all([this.syncDeveloperDiagnostics(), this.performance.refresh()]);
+      if (this.diagnosticRunCancelled) return;
+      developerDiagnostics.record('main', 'info', 'diagnostics.run-started', { runId, collectionSeconds: 60 });
       this.recordDiagnosticCheck(runId, { id: 'environment', label: 'Windows and graphics', status: 'running', detail: 'Reading installation and GPU information.' });
       let gpuTimeout: NodeJS.Timeout | undefined;
       const gpu = await Promise.race([
@@ -1629,6 +1655,10 @@ export class AppController {
       if (this.diagnosticRunCancelled) return;
       z.object({ completed: z.literal(true) }).parse(await host.request('capture', 'runDiagnostics',
         { runId, settings: this.toHostSettings(this.store.get().capture.config) }, 95_000));
+      // Release the host's lifecycle gate before observing the actual workload.
+      // Automatic game capture can now resume while resource collection continues.
+      if (ownedHost) { await ownedHost.stop('capture'); ownedHost = null; this.diagnosticRunHost = null; }
+      await delay(Math.max(0, collectionDeadline - performance.now()), undefined, { signal: collection.signal, ref: false });
     } catch (error) {
       if (!this.diagnosticRunCancelled) {
         failure = error instanceof Error ? error.message : String(error);
@@ -1637,6 +1667,23 @@ export class AppController {
     } finally {
       if (ownedHost) await ownedHost.stop('capture').catch(() => undefined);
       this.diagnosticRunHost = null;
+      await this.performance.refresh();
+      this.diagnosticRunSamples = this.performance.getDebugHistory();
+      this.diagnosticCaptureEndContext = captureDiagnosticContext(this.store.get());
+      this.recordDiagnosticCheck(runId, { id: 'resources', label: 'Detailed diagnostics',
+        status: this.diagnosticRunSamples.length ? 'pass' : 'warning',
+        detail: `${this.diagnosticRunSamples.length} resource samples collected with the event timeline.${this.diagnosticRunCancelled ? ' Collection ended early.' : ''} Frame progress is included when Replay is running; this does not verify saved-video smoothness.` });
+      developerDiagnostics.record('main', 'info', 'diagnostics.run-finished', { runId,
+        cancelled: this.diagnosticRunCancelled, resourceSamples: this.diagnosticRunSamples.length });
+      this.diagnosticRunTrace = { ...developerDiagnostics.snapshot(), enabled: false };
+      collection.abort();
+      this.diagnosticCollectionAbort = null;
+      debugDiagnostics.setEnabled(this.detailedDiagnosticsEnabled());
+      if (!this.detailedDiagnosticsEnabled()) {
+        this.performance.invalidateDebugSample();
+        this.store.update(draft => { delete draft.performance.debug; }, { persist: false });
+      }
+      await this.syncDeveloperDiagnostics();
       this.store.update(draft => {
         draft.diagnostics.status = this.diagnosticRunCancelled ? 'cancelled' : failure ? 'error' : 'completed';
         draft.diagnostics.completedAt = new Date().toISOString();
@@ -1654,7 +1701,7 @@ export class AppController {
   }
 
   private async syncDeveloperDiagnostics(): Promise<void> {
-    const enabled = this.store.get().settings.developerMode === true;
+    const enabled = this.store.get().settings.developerMode === true || this.diagnosticCollectionAbort !== null;
     if (enabled === developerDiagnostics.enabled) return;
     const generation = ++this.diagnosticsGeneration;
     developerDiagnostics.setEnabled(enabled);
@@ -1679,6 +1726,10 @@ export class AppController {
       this.diagnosticsGpu = { unavailable: 'GPU metadata query failed.' };
       developerDiagnostics.record('main', 'warning', 'graphics.query-failed', { error: String(error).slice(0, 4096) });
     });
+  }
+
+  private detailedDiagnosticsEnabled(): boolean {
+    return this.diagnosticCollectionAbort !== null || this.store.getDetailedDiagnosticsEnabled();
   }
 
   public async checkAppUpdates(): Promise<SystemSnapshot> {
@@ -1711,6 +1762,7 @@ export class AppController {
   }
 
   public async resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot> {
+    if (scope === 'all' || scope === 'capture' || scope === 'diagnostics' || scope === 'general') await this.cancelDiagnostics();
     if (scope === 'all' || scope === 'audio') await this.engines.stop('audio');
     if (scope === 'all' || scope === 'capture') await this.engines.stop('capture');
     if (scope === 'general' && this.store.get().settings.developerMode === true && defaultSettings.developerMode !== true) {

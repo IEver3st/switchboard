@@ -85,7 +85,7 @@ void app.whenReady().then(async () => {
   await js('await window.switchboard.updateSettings({ developerMode: true }); sessionStorage.setItem("switchboard.settings.category", "diagnostics"); document.querySelector("button[aria-label=Settings]").click();');
   await until('Boolean(document.querySelector(".settings-diagnostics"))');
   const immediate = await exportTo('immediate.json');
-  assert(immediate.schemaVersion === 2 && immediate.samples.length === 0, 'diagnostics exports before any resource sample');
+  assert(immediate.schemaVersion === 3 && immediate.samples.length === 0, 'diagnostics exports before any resource sample');
   assert(immediate.developer.events.some(event => event.event === 'diagnostics.enabled'), 'Developer mode starts an event timeline');
   for (const [width, height] of [[1080, 720], [1420, 900], [1920, 1080]]) {
     await capture('events', width, height);
