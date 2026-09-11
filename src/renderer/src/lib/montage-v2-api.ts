@@ -1,4 +1,4 @@
-import type { MontageProjectV2, MontageV2Api } from '../../../shared/montage-v2';
+import { montageDraftRetentionMs, type MontageProjectV2, type MontageV2Api } from '../../../shared/montage-v2';
 
 const runtimeApi = window.switchboard as (typeof window.switchboard & Partial<MontageV2Api>) | undefined;
 let demoDrafts: MontageProjectV2[] = [];
@@ -11,6 +11,7 @@ const demoApi: MontageV2Api = {
     return { assetId, samples: [] };
   },
   async listMontageDrafts() {
+    demoDrafts = demoDrafts.filter(draft => draft.updatedAt + montageDraftRetentionMs > Date.now());
     return structuredClone(demoDrafts);
   },
   async saveMontageDraft(project) {

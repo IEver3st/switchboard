@@ -234,6 +234,9 @@ export class AppController {
   private registeredShortcut: string | null = null;
   private captureRestartTimer: NodeJS.Timeout | null = null;
   private captureRestartAttempts = 0;
+  private captureConfigurationQueue: Promise<unknown> = Promise.resolve();
+  private captureConfigurationPending = 0;
+  private captureRetryConfig: CaptureConfig | null = null;
   private captureAudioIntegrationSignature: string | null = null;
   private captureAudioIntegrationUpdate: Promise<void> | null = null;
   private audioRestartTimer: NodeJS.Timeout | null = null;
@@ -441,7 +444,7 @@ export class AppController {
     }
     const currentCapture = this.store.get().capture;
     if (currentCapture.config.enabled && !currentCapture.storage.warning) {
-      starts.push(this.startCaptureEngine(currentCapture.config));
+      starts.push(this.queueCaptureConfiguration(() => this.startCaptureEngine(currentCapture.config)));
     }
     const results = await Promise.allSettled(starts);
     for (const result of results) {
@@ -1155,6 +1158,31 @@ export class AppController {
   }
 
   public async setCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot> {
+    const requested = Object.keys(input).length === 0 ? this.captureRetryConfig ?? input : input;
+    this.clearCaptureRecovery();
+    this.captureRetryConfig = null;
+    return this.queueCaptureConfiguration(() => this.applyCaptureConfig(requested));
+  }
+
+  private queueCaptureConfiguration<T>(operation: () => Promise<T>): Promise<T> {
+    this.captureConfigurationPending += 1;
+    const result = this.captureConfigurationQueue.then(async () => {
+      if (this.disposed) throw new Error('Capture is shutting down.');
+      // Let a route update already sent to the host finish before configuring again.
+      await this.captureAudioIntegrationUpdate;
+      return operation();
+    });
+    this.captureConfigurationQueue = result.catch(() => undefined);
+    return result.finally(() => {
+      this.captureConfigurationPending -= 1;
+      const runtime = this.store.get().capture.runtime;
+      if (runtime.error || runtime.state === 'error' || runtime.state === 'stopped') {
+        this.scheduleCaptureHostRecovery(runtime.error);
+      }
+    });
+  }
+
+  private async applyCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot> {
     await this.cancelDiagnostics();
     const before = this.store.get();
     const mergedInput: SetCaptureConfigInput = { ...input };
@@ -1182,9 +1210,8 @@ export class AppController {
       await this.autoCaptureCoordinator.flushBeforeCaptureStops(disabling ? 'capture-disabled' : 'replay-buffer-changed');
     }
     if (disabling) {
-      if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
-      this.captureRestartTimer = null;
-      this.captureRestartAttempts = 0;
+      this.clearCaptureRecovery();
+      this.captureRetryConfig = null;
       this.captureAudioIntegrationSignature = null;
       this.store.update((draft) => {
         draft.capture.config = nextConfig;
@@ -1222,6 +1249,9 @@ export class AppController {
             );
             this.captureAudioIntegrationSignature = this.getCaptureAudioIntegrationSignature(nextConfig);
             this.applyCaptureSnapshot(hostSnapshot);
+            if (hostSnapshot.runtime.error || hostSnapshot.runtime.state === 'error') {
+              throw new Error(hostSnapshot.runtime.error ?? 'Capture could not start.');
+            }
           } catch (configureError) {
             if (nextConfig.enabled && isEngineNotRunningError(configureError)) {
               await this.startCaptureEngine(nextConfig);
@@ -1238,6 +1268,9 @@ export class AppController {
       });
       if (hotkeyChanged) this.registerCaptureShortcut(before.capture.config.hotkey, false);
       if (nextConfig.enabled) {
+        // Keep the rejected source/encoder for recovery without claiming it was
+        // confirmed or silently reverting to the previously saved source.
+        this.captureRetryConfig = nextConfig;
         this.store.update(draft => {
           draft.capture.runtime.state = 'error';
           draft.capture.runtime.error = operationError instanceof Error ? operationError.message : String(operationError);
@@ -1255,6 +1288,8 @@ export class AppController {
         module.enabled = nextConfig.enabled;
       }
     });
+
+    this.captureRetryConfig = null;
 
     return snapshot;
   }
@@ -2205,6 +2240,7 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    this.clearCaptureRecovery();
     await this.scenes.dispose();
     this.unsubscribeSetup?.(); this.unsubscribeSetup = null;
     await this.desktopControls.dispose();
@@ -2220,11 +2256,11 @@ export class AppController {
     this.clipExportProgressListeners.clear();
     this.appUpdates.dispose();
     await this.initialization?.catch(() => undefined);
+    await this.captureConfigurationQueue;
     await this.autoCaptureCoordinator.dispose();
     if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
     this.audioRestartTimer = null;
-    if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
-    this.captureRestartTimer = null;
+    this.clearCaptureRecovery();
     this.captureAudioIntegrationUpdate = null;
     if (this.registeredShortcut) globalShortcut.unregister(this.registeredShortcut);
     this.captureSourceThumbnails.clear();
@@ -2322,6 +2358,9 @@ export class AppController {
       );
       this.captureAudioIntegrationSignature = this.getCaptureAudioIntegrationSignature(config);
       this.applyCaptureSnapshot(hostSnapshot);
+      if (hostSnapshot.runtime.error || hostSnapshot.runtime.state === 'error') {
+        throw new Error(hostSnapshot.runtime.error ?? 'Capture could not start.');
+      }
       try {
         await this.refreshCaptureSources();
       } catch (error) {
@@ -2437,12 +2476,9 @@ export class AppController {
     );
     if (status.kind === 'capture' && status.state === 'error') {
       void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
-      // A live host reports encoder/source failures without exiting. Restarting that
-      // host with the last persisted settings hides a rejected source change as
-      // "Waiting" and discards its useful failure state. Only recover host exits.
-      if (!this.engines.hasLiveProcess('capture')) this.scheduleCaptureHostRecovery(status.message);
+      this.scheduleCaptureHostRecovery(status.message);
     } else if (status.kind === 'capture' && status.state === 'stopped'
-      && !this.engines.hasLiveProcess('capture') && this.store.get().capture.config.enabled) {
+      && this.store.get().capture.config.enabled) {
       void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
       this.scheduleCaptureHostRecovery(status.message ?? 'Capture.Host stopped unexpectedly while Instant Replay stayed enabled.');
     } else if (status.kind === 'audio' && status.state === 'error') {
@@ -2575,7 +2611,7 @@ export class AppController {
   }
 
   private scheduleCaptureAudioIntegrationSync(): void {
-    if (this.disposed || this.captureAudioIntegrationUpdate) return;
+    if (this.disposed || this.captureAudioIntegrationUpdate || this.captureConfigurationPending > 0 || this.captureRestartTimer) return;
     const snapshot = this.store.get();
     if (!snapshot.capture.config.enabled) {
       this.captureAudioIntegrationSignature = null;
@@ -2646,6 +2682,7 @@ export class AppController {
           draft.capture.runtime.state = 'error';
           draft.capture.runtime.error = parsed.data.message;
         }, { persist: false });
+        this.scheduleCaptureHostRecovery(parsed.data.message);
       }
     }
   }
@@ -2734,8 +2771,8 @@ export class AppController {
       segmentCount: snapshot.runtime.segmentCount, activeSourceType: snapshot.runtime.activeSource?.type ?? null,
       error: snapshot.runtime.error?.slice(0, 4096) ?? null, warning: snapshot.runtime.warning?.slice(0, 4096) ?? null,
     });
-    if (snapshot.runtime.state === 'buffering' || snapshot.runtime.state === 'waiting') {
-      this.captureRestartAttempts = 0;
+    if (!snapshot.runtime.error && (snapshot.runtime.state === 'buffering' || snapshot.runtime.state === 'saving' || snapshot.runtime.state === 'waiting')) {
+      this.clearCaptureRecovery();
     }
     this.store.update((draft) => {
       const shortcutRegistered = draft.capture.runtime.shortcutRegistered;
@@ -2749,6 +2786,9 @@ export class AppController {
         ),
       );
     }, { persist: false });
+    if (snapshot.runtime.error || snapshot.runtime.state === 'error' || snapshot.runtime.state === 'stopped') {
+      this.scheduleCaptureHostRecovery(snapshot.runtime.error);
+    }
     const current = this.store.get();
     void this.autoCaptureCoordinator.reconcile(
       snapshot.runtime.activeSource,
@@ -2760,33 +2800,33 @@ export class AppController {
   }
 
   private scheduleCaptureHostRecovery(reason?: string): void {
-    if (this.disposed || this.captureRestartTimer || !this.store.get().capture.config.enabled) return;
-    if (this.captureRestartAttempts >= 3) {
-      this.store.update((draft) => {
-        draft.capture.runtime.state = 'error';
-        draft.capture.runtime.error = 'Capture.Host failed repeatedly. Instant Replay was left enabled but automatic recovery stopped.';
-      }, { persist: false });
-      return;
-    }
-
-    this.captureRestartAttempts += 1;
-    const delayMs = this.captureRestartAttempts * 1_000;
+    if (this.disposed || this.captureRestartTimer || this.captureConfigurationPending > 0 || !this.store.get().capture.config.enabled) return;
+    // Error-driven backoff, never an idle poll. Keep trying while Capture is
+    // enabled; healthy source-waiting, manual changes, disable and disposal cancel it.
+    const delayMs = Math.min(30_000, 1_000 * 2 ** Math.min(this.captureRestartAttempts, 5));
+    this.captureRestartAttempts = Math.min(this.captureRestartAttempts + 1, 6);
     this.store.update((draft) => {
-      draft.capture.runtime.state = 'recovering';
-      draft.capture.runtime.warning = `Capture.Host stopped unexpectedly${reason ? `: ${reason}` : ''}. Recovery attempt ${this.captureRestartAttempts} of 3.`;
-      draft.capture.runtime.error = undefined;
+      draft.capture.runtime.warning = `Capture will retry automatically in ${delayMs / 1_000} seconds.${reason ? ` ${reason}` : ''}`;
     }, { persist: false });
     this.captureRestartTimer = setTimeout(() => {
       this.captureRestartTimer = null;
       if (this.disposed || !this.store.get().capture.config.enabled) return;
-      void this.startCaptureEngine(this.store.get().capture.config).catch((restartError) => {
+      void this.queueCaptureConfiguration(async () => {
         this.store.update((draft) => {
           draft.capture.runtime.state = 'recovering';
-          draft.capture.runtime.warning = restartError instanceof Error ? restartError.message : String(restartError);
+          draft.capture.runtime.error = undefined;
+          draft.capture.runtime.warning = undefined;
         }, { persist: false });
-        this.scheduleCaptureHostRecovery();
-      });
+        return this.applyCaptureConfig(this.captureRetryConfig ?? {});
+      }).catch(() => { /* applyCaptureConfig retains the error and queues recovery. */ });
     }, delayMs);
+    this.captureRestartTimer.unref();
+  }
+
+  private clearCaptureRecovery(): void {
+    if (this.captureRestartTimer) clearTimeout(this.captureRestartTimer);
+    this.captureRestartTimer = null;
+    this.captureRestartAttempts = 0;
   }
 
   private registerCaptureShortcut(accelerator: string, throwOnFailure: boolean): void {

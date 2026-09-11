@@ -999,7 +999,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             "-segment_format", "matroska",
             "-segment_list", Path.Combine(outputDirectory, $"{filePrefix}-timeline.csv"),
             "-segment_list_type", "csv",
-            "-segment_list_size", (capture.SegmentRetentionSeconds + 8).ToString(CultureInfo.InvariantCulture),
+            "-segment_list_size", capture.SegmentListSize.ToString(CultureInfo.InvariantCulture),
             "-reset_timestamps", "1",
             "-avoid_negative_ts", "make_zero",
             Path.Combine(outputDirectory, $"{filePrefix}-%09d.mka"),
@@ -1076,7 +1076,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return Path.Combine(outputDirectory, "segment-timeline.csv");
         yield return "-segment_list_type"; yield return "csv";
         yield return "-segment_list_size";
-        yield return (capture.SegmentRetentionSeconds + 8).ToString(CultureInfo.InvariantCulture);
+        yield return capture.SegmentListSize.ToString(CultureInfo.InvariantCulture);
         yield return "-reset_timestamps";
         yield return "1";
         yield return "-avoid_negative_ts";

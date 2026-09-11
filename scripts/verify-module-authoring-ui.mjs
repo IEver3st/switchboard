@@ -110,7 +110,7 @@ async function runReview() {
     hasToggle: Boolean(document.querySelector('[data-module-details] [role="switch"]')),
     focusedLabel: document.activeElement?.getAttribute('aria-label'),
   })`);
-  assert(details.title === 'HyperX QuadCast', 'Module details opened for the wrong module.');
+  assert(details.title === 'HyperX', 'Module details opened for the wrong module.');
   assert(details.sections.includes('Overview') && details.sections.includes('Support') && details.sections.includes('Diagnostics'), 'Module details omitted progressive information groups.');
   assert(details.hasToggle, 'Module details omitted the enable control.');
   assert(details.focusedLabel === 'Close', `Module details focused ${details.focusedLabel ?? 'nothing'} instead of the safe close action.`);

@@ -69,6 +69,11 @@ StateStore + optional engine command
 broadcast immutable snapshot
 ```
 
+Onboarding persists capture and audio choices with Capture stopped, then starts
+the configured engine once on Finish. Startup failures leave setup open for retry.
+Bundled Razer, HyperX, and Logitech modules are opt-in on a fresh profile; loading
+an existing profile preserves its explicit module enablement choices.
+
 ## Modules
 
 A module represents a protocol or major capability, not one model:
@@ -217,13 +222,20 @@ Automatic game capture holds a conservative, stable game-window identity and wai
 
 Capture source enumeration owns only a host it starts; it cannot stop a recorder
 whose first configuration is still being accepted. A live host's encoder/source
-error remains a capture error. Main restarts the host only after a process exit,
-so a failed configuration is not silently replaced with the previous automatic
-source. Developer mode enables a narrow native diagnostic event stream, validated,
+error remains a capture error. While Capture is enabled, main retries host exits,
+stopped recorders and live encoder/source errors with backoff until recovery.
+Configuration and recovery commands are serialized; a rejected source/encoder
+remains the retry target and is only persisted after acknowledgement. A manual
+change replaces that target. Healthy buffering or source-waiting, disable and
+shutdown cancel pending recovery. Developer mode enables a narrow native diagnostic event stream, validated,
 redacted, bounded, and journaled in main. It carries configuration summaries,
 FFmpeg startup/output, and lifecycle events without media buffers or window titles.
 
-Clip edits remain nondestructive metadata in the canonical clip record. Shared
+Clip edits remain nondestructive metadata in the canonical clip record. Edit
+drafts expire three hours after their last successful main-owned save.
+The draft service prunes expired entries on load, list and manifest writes;
+expiry never removes source clips or imported audio. The visible draft library
+requests a fresh list at its next expiry without a polling interval. Shared
 video-edit and managed-music schemas are composed into the clip and montage
 contracts. Source-time trims and titles survive speed changes and segment splits;
 montage positions use the resulting output duration. Imported music stays in the

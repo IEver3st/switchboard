@@ -76,6 +76,28 @@
 
 .capture-clip-count__separator { color: var(--text-muted); }
 
+.capture-status-transition {
+  display: grid;
+  align-items: center;
+  min-width: 96px;
+  min-height: 20px;
+}
+
+.capture-status-transition__state {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.capture-status-transition .capture-recorder-status__dot {
+  background: currentColor;
+}
+
+.capture-recorder-status[data-tone="ready"] .capture-status-transition { color: var(--status-success); }
+.capture-recorder-status[data-tone="warning"] .capture-status-transition { color: var(--status-warning); }
+.capture-recorder-status[data-tone="danger"] .capture-status-transition { color: var(--status-danger); }
+
 .capture-command-header .capture-recorder-status--action {
   gap: 5px;
   padding-inline: 7px;
@@ -225,6 +247,47 @@
   .capture-command-header .capture-recorder-toggle { padding-inline: 0; }
 }
 
+.capture-clip-save__preview {
+  display: flex;
+  aspect-ratio: 16 / 9;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 7px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.capture-clip-save__spinner {
+  width: 28px;
+  height: 28px;
+  color: var(--accent-brand);
+  stroke-width: 2;
+  animation: capture-clip-save-spin 1s linear infinite;
+}
+
+.capture-clip-save__details {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capture-clip-save__title { width: 62%; height: 10px; }
+.capture-clip-save__metadata { width: 38%; height: 7px; }
+
+.capture-clip-save.capture-clip-list__item:hover {
+  background: transparent;
+}
+
+@keyframes capture-clip-save-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 1120px) {
   .capture-command-header .capture-tool-control--date { padding-inline: 8px; }
   .capture-command-header .capture-tool-label,
@@ -258,13 +321,23 @@
 
 .capture-command-header .capture-recorder-settings-trigger {
   width: auto;
+  gap: 8px;
   padding-inline: 10px;
 }
 
 .capture-command-header .capture-recorder-length {
-  color: inherit;
+  color: var(--text-secondary);
   font-size: inherit;
 }
+
+.capture-recorder-settings-divider {
+  width: 1px;
+  height: 12px;
+  flex: none;
+  background: var(--border);
+}
+
+.capture-recorder-settings-chevron { color: var(--text-muted); }
 
 .capture-command-header .capture-tool-control--view {
   height: 32px;

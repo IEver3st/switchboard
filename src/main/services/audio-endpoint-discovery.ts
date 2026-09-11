@@ -12,8 +12,9 @@ const discoveredEndpointSchema = z.object({
   name: z.string().trim().min(1),
   flow: z.enum(['render', 'capture']),
   isDefault: z.boolean(),
-  formFactor: audioEndpointFormFactorSchema.nullable(),
-  interfaceName: z.string().nullable(),
+  // Audio.Host omits null properties. Physical drivers may not expose either.
+  formFactor: audioEndpointFormFactorSchema.nullish().transform((value) => value ?? null),
+  interfaceName: z.string().nullish(),
   volume: z.number(),
   muted: z.boolean(),
   isSwitchboard: z.boolean().default(false),
@@ -22,6 +23,19 @@ const discoveredEndpointSchema = z.object({
 const discoveredEndpointsSchema = z.array(discoveredEndpointSchema);
 const virtualDevicePattern = /\bvirtual(?: audio)? device\b/i;
 const maximumOutputBytes = 2 * 1024 * 1024;
+
+export function parseAudioEndpoints(value: unknown): AudioDevice[] {
+  return discoveredEndpointsSchema.parse(value).map((endpoint) => ({
+    id: endpoint.id,
+    name: endpoint.name,
+    direction: endpoint.flow === 'render' ? 'output' : 'input',
+    isDefault: endpoint.isDefault,
+    available: true,
+    formFactor: endpoint.formFactor,
+    isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name),
+    isSwitchboard: endpoint.isSwitchboard,
+  }));
+}
 
 type DiscoveryOptions = {
   appPath: string;
@@ -41,18 +55,7 @@ export class AudioEndpointDiscovery {
     const environment = { ...process.env };
     delete environment.ELECTRON_RUN_AS_NODE;
     const stdout = await run(command, commandArguments, cwd, environment, this.options.timeoutMs ?? 15_000);
-    const endpoints = discoveredEndpointsSchema.parse(JSON.parse(stdout));
-
-    return endpoints.map((endpoint) => ({
-      id: endpoint.id,
-      name: endpoint.name,
-      direction: endpoint.flow === 'render' ? 'output' : 'input',
-      isDefault: endpoint.isDefault,
-      available: true,
-      formFactor: endpoint.formFactor,
-      isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name),
-      isSwitchboard: endpoint.isSwitchboard,
-    }));
+    return parseAudioEndpoints(JSON.parse(stdout));
   }
 
   private resolveCommand(): { command: string; arguments: string[]; cwd: string } {

@@ -25,6 +25,16 @@ visible without turning a single Chromium spike into a release failure.
 
 ## Required measurements
 
+Main schedules capture recovery only after an enabled recorder stops or fails.
+Retries back off through 1, 2, 4, 8, 16 and 30 seconds, then remain at 30 seconds
+until recovery, with one unreferenced timeout and no concurrent configuration.
+Healthy buffering/saving or normal source-waiting, manual changes, disabling
+Capture and shutdown clear the timeout. Healthy capture adds no recovery poll.
+
+The Capture library schedules one timeout for its earliest draft expiry, three
+hours after the last save. It reloads drafts from main at that deadline and
+clears the timeout when the library is empty or the route unmounts.
+
 AMF capture uses a BGRA download and CPU conversion to NV12 before hardware
 encoding to avoid capture-texture Direct3D failures. A September 7, 2026 live
 1440p/60 H.264 discard-sink probe on the RX 9070 XT setup encoded 3,600 frames
@@ -136,7 +146,10 @@ clock by 100 ms to allow normal callback delivery. This prevents long quiet
 periods from accumulating an encoding backlog. The timeout and writer stop on
 input disposal; analysis-only inputs create neither. Each writer retains a
 48 KiB silence buffer instead of a 512 KiB batching buffer. Segment manifests
-retain the replay duration plus bounded headroom; eviction also removes files
+retain metadata for the maximum supported replay duration plus bounded headroom,
+so increasing replay length does not restart capture or leave the old duration
+limit in place. File eviction uses the current duration and a 64-bit byte budget;
+it also removes files
 that aged out of the manifest while the host was paused.
 
 Audio meter telemetry is demand-driven end to end. Audio.Host produces 20 Hz

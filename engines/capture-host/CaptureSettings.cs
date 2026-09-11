@@ -39,10 +39,14 @@ internal sealed record CaptureSettings(
     string? AudioFallbackReason = null,
     string SystemAudioMode = "system")
 {
+    public const int MaximumReplaySeconds = 300;
     public int SegmentSeconds => 1;
     public int SegmentRetentionSeconds => ReplaySeconds + SegmentSeconds * 3;
+    // FFmpeg cannot resize a running segment list. Keep bounded metadata for the
+    // largest supported replay; file eviction still follows the current setting.
+    public int SegmentListSize => MaximumReplaySeconds / SegmentSeconds + 11;
     public long EstimatedReplayBytes => (long)Math.Ceiling(
-        (TargetVideoBitrateBps + SystemAudioBitrateBps + (IncludeMic ? MicrophoneBitrateBps : 0) + (IncludeChatAudio ? ChatAudioBitrateBps : 0))
+        ((long)TargetVideoBitrateBps + SystemAudioBitrateBps + (IncludeMic ? MicrophoneBitrateBps : 0) + (IncludeChatAudio ? ChatAudioBitrateBps : 0))
         * ReplaySeconds / 8d * 1.2);
     public long MaximumCacheBytes => Math.Max(256L * 1024 * 1024, EstimatedReplayBytes * 2);
 
@@ -63,7 +67,7 @@ internal sealed record CaptureSettings(
         if (Encoder is not ("auto" or "nvenc" or "amf" or "qsv" or "software"))
             throw new ArgumentOutOfRangeException(nameof(Encoder));
         if (Quality is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(Quality));
-        if (ReplaySeconds is < 15 or > 300) throw new ArgumentOutOfRangeException(nameof(ReplaySeconds));
+        if (ReplaySeconds is < 15 or > MaximumReplaySeconds) throw new ArgumentOutOfRangeException(nameof(ReplaySeconds));
         if (TargetVideoBitrateBps < 1_000_000 || MaximumVideoBitrateBps < TargetVideoBitrateBps)
             throw new ArgumentOutOfRangeException(nameof(TargetVideoBitrateBps));
         if (string.IsNullOrWhiteSpace(CacheDirectory) || string.IsNullOrWhiteSpace(ClipsDirectory))

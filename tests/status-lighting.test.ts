@@ -5,6 +5,7 @@ import { StatusLighting } from '../src/main/services/status-lighting';
 test('status policy prioritizes errors over saved clips and mute, then restores on disable', async () => {
   const snapshot = createDefaultSnapshot();
   const device = snapshot.devices.find(item => item.capabilities.lighting)!;
+  snapshot.modules.find(module => module.id === device.moduleId)!.enabled = true;
   device.capabilities.lighting!.statusLightingSupported = true;
   snapshot.setup.preferences.lighting = { enabled: true, deviceIds: [device.id], captureError: true, clipSaved: true, microphoneMuted: true };
   const mic = snapshot.devices.find(item => item.capabilities.muteState)!;
@@ -29,6 +30,7 @@ test('status policy prioritizes errors over saved clips and mute, then restores 
 test('a partially failed lighting write remains eligible for shutdown restoration', async () => {
   const snapshot = createDefaultSnapshot();
   const device = snapshot.devices.find(item => item.capabilities.lighting)!;
+  snapshot.modules.find(module => module.id === device.moduleId)!.enabled = true;
   device.capabilities.lighting!.statusLightingSupported = true;
   snapshot.setup.preferences.lighting.enabled = true; snapshot.setup.preferences.lighting.deviceIds = [device.id];
   snapshot.capture.config.enabled = true; snapshot.capture.runtime.state = 'error';

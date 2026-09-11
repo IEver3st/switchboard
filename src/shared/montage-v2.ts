@@ -14,6 +14,7 @@ import {
 } from './contracts';
 
 export const montageV2SchemaVersion = 2 as const;
+export const montageDraftRetentionMs = 3 * 60 * 60 * 1_000;
 
 export const montageV2SegmentSchema = z.object({
   videoEdits: videoEditsSchema.optional(),

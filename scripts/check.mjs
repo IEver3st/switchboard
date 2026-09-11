@@ -151,7 +151,7 @@ assert(
     && !captureHeaderSource.includes('aria-label="Replay buffer"')
     && !captureHeaderSource.includes('state.saveReplay')
     && /<section aria-label="Clips commands"[^>]*>\s*<div className="capture-command-header__row/.test(captureHeaderSource)
-    && captureHeaderSource.includes('className="capture-recorder-settings-trigger"')
+    && /className="[^"]*\bcapture-recorder-settings-trigger\b[^"]*"/.test(captureHeaderSource)
     && captureHeaderSource.includes('<ClipLibraryToolbar controls={controls} />'),
   'CaptureHeader must keep replay configuration integrated into the unified Clips command header.',
 );

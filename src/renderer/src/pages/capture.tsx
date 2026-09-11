@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Clip, SystemSnapshot } from '../../../shared/contracts';
-import type { MontageProjectV2 } from '../../../shared/montage-v2';
+import { montageDraftRetentionMs, type MontageProjectV2 } from '../../../shared/montage-v2';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../shared/auto-capture';
 import { CaptureHeader } from '@/components/capture/CaptureHeader';
@@ -54,6 +54,14 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   }, []);
 
   useEffect(refreshMontageDrafts, [refreshMontageDrafts]);
+
+  useEffect(() => {
+    if (montageDrafts.length === 0) return;
+    const expiresAt = Math.min(...montageDrafts.map(draft => draft.updatedAt + montageDraftRetentionMs));
+    // Ask main for the current library at the next expiry; no idle polling.
+    const timer = window.setTimeout(refreshMontageDrafts, Math.max(100, Math.min(montageDraftRetentionMs, expiresAt - Date.now())));
+    return () => window.clearTimeout(timer);
+  }, [montageDrafts, refreshMontageDrafts]);
 
   const clipLibraryControls = useClipLibraryControls(snapshot.clips, (clips) => {
     try {
@@ -171,6 +179,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
           />
         ) : null}
         <ClipLibrary
+          pendingSaveCount={snapshot.capture.runtime.saveQueueDepth}
           retainedClipId={editorClipId}
           actions={actions}
           replayEnabled={snapshot.capture.config.enabled}

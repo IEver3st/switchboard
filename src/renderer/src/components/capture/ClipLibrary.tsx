@@ -6,7 +6,8 @@ import { ClipList } from './ClipList';
 import type { ClipLibraryControls } from './clip-library-model';
 import type { ClipActions } from './types';
 
-export function ClipLibrary({ actions, replayEnabled, hotkey, captureUnavailableReason, controls, retainedClipId }: {
+export function ClipLibrary({ actions, replayEnabled, hotkey, captureUnavailableReason, controls, retainedClipId, pendingSaveCount }: {
+  pendingSaveCount: number;
   retainedClipId?: string | null;
   actions: ClipActions;
   replayEnabled: boolean;
@@ -18,12 +19,13 @@ export function ClipLibrary({ actions, replayEnabled, hotkey, captureUnavailable
 
   return (
     <section aria-labelledby="clips-heading" className="capture-library min-h-0 flex-1">
+      <span className="sr-only" role="status">{pendingSaveCount > 0 ? pendingSaveCount === 1 ? 'Saving clip…' : `Saving ${pendingSaveCount} clips…` : ''}</span>
       <div className="capture-library__content">
-        {clips.length > 0 ? (
+        {clips.length > 0 || pendingSaveCount > 0 ? (
           layout === 'grid' ? (
-            <ClipGrid clips={clips} actions={actions} grouped selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} retainedClipId={retainedClipId} />
+            <ClipGrid pendingSaveCount={pendingSaveCount} clips={clips} actions={actions} grouped selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} retainedClipId={retainedClipId} />
           ) : (
-            <ClipList clips={clips} actions={actions} selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} retainedClipId={retainedClipId} />
+            <ClipList pendingSaveCount={pendingSaveCount} clips={clips} actions={actions} selectionMode={montageSelectionMode} selectedClipIds={selectedClipIds} onToggleSelection={controls.onToggleClipSelection} retainedClipId={retainedClipId} />
           )
         ) : controls.totalClipCount === 0 ? (
           <EmptyLibrary replayEnabled={replayEnabled} hotkey={hotkey} captureUnavailableReason={captureUnavailableReason} />

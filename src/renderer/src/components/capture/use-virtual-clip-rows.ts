@@ -1,9 +1,8 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { flushSync } from 'react-dom';
-import type { Clip } from '../../../../shared/contracts';
 import { visibleClipIndexes } from './virtual-clip-rows';
 
-type Group = { key: string; clips: Clip[] };
+type Group = { key: string; clips: Array<{ id: string; pendingSave?: true }> };
 type Geometry = { columns: number; height: number; gap: number; indexes: number[][] };
 type ViewportGeometry = { tops: number[]; height: number };
 
@@ -159,7 +158,7 @@ export function useVirtualClipRows(groups: Group[], layout: 'grid' | 'list', ret
     if (!item || !root.current?.contains(item)) return;
     const controls = focusable(item);
     if (event.target !== (event.shiftKey ? controls[0] : controls.at(-1))) return;
-    const clips = groups.flatMap(group => group.clips);
+    const clips = groups.flatMap(group => group.clips).filter(clip => !clip.pendingSave);
     const index = clips.findIndex(clip => clip.id === item.dataset.libraryClipId);
     const next = clips[index + (event.shiftKey ? -1 : 1)];
     if (!next) return;

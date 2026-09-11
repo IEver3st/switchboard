@@ -1,6 +1,13 @@
 import { describe, expect, mock, spyOn, test } from 'bun:test';
 import type { DeviceModule } from '../src/main/modules/device-module';
-import { createDefaultSnapshot } from '../src/shared/defaults';
+import { createDefaultSnapshot as createDisabledSnapshot } from '../src/shared/defaults';
+
+// These lifecycle fixtures exercise explicitly enabled hardware modules.
+function createEnabledDeviceSnapshot() {
+  const snapshot = createDisabledSnapshot();
+  for (const module of snapshot.modules) module.enabled = module.installed && module.kind === 'device';
+  return snapshot;
+}
 
 mock.module('electron', () => ({
   app: {
@@ -13,7 +20,7 @@ const { DeviceRegistry, selectHidDeviceEnumerator } = await import('../src/main/
 
 describe('device registry lifecycle', () => {
   test('battery preference refresh cannot enumerate or open hardware in fixture mode', async () => {
-    const snapshot = createDefaultSnapshot();
+    const snapshot = createEnabledDeviceSnapshot();
     const discover = mock(async () => []);
     const enumerate = mock(async () => []);
     const registry = new DeviceRegistry(() => snapshot, () => {}, {
@@ -28,7 +35,7 @@ describe('device registry lifecycle', () => {
   });
 
   test('battery preference refresh delivers the latest saved device policy to discovery', async () => {
-    const snapshot = createDefaultSnapshot();
+    const snapshot = createEnabledDeviceSnapshot();
     snapshot.settings.mouseBatteryLighting.mouse = {
       flashEnabled: true, warningPercentage: 25, flashIntervalMinutes: 7, cutoffEnabled: true, cutoffPercentage: 8,
     };
@@ -44,7 +51,7 @@ describe('device registry lifecycle', () => {
   });
 
   test('does not enumerate HID when every device module is disabled, and resumes on enable', async () => {
-    let snapshot = createDefaultSnapshot();
+    let snapshot = createEnabledDeviceSnapshot();
     snapshot.modules = snapshot.modules.map(module => ({ ...module, enabled: false }));
     let enumerations = 0;
     const registry = new DeviceRegistry(
@@ -70,7 +77,7 @@ describe('device registry lifecycle', () => {
   });
 
   test('arms one discovery timer on enable and clears it on disable and repeated disposal', async () => {
-    const snapshot = createDefaultSnapshot();
+    const snapshot = createEnabledDeviceSnapshot();
     snapshot.modules.forEach(module => { module.enabled = false; });
     const setTimer = spyOn(globalThis, 'setInterval');
     const clearTimer = spyOn(globalThis, 'clearInterval');
@@ -113,7 +120,7 @@ describe('device registry lifecycle', () => {
   });
 
   test('removes preview fixture devices before real discovery starts', async () => {
-    let snapshot = createDefaultSnapshot();
+    let snapshot = createEnabledDeviceSnapshot();
     const registry = new DeviceRegistry(
       () => snapshot,
       (devices) => { snapshot = { ...snapshot, devices }; },
@@ -131,7 +138,7 @@ describe('device registry lifecycle', () => {
     const stalledEnumeration = new Promise<[]>((resolve) => { releaseFirst = resolve; });
     let enumerationCount = 0;
     const registry = new DeviceRegistry(
-      createDefaultSnapshot,
+      createEnabledDeviceSnapshot,
       () => undefined,
       {
         modules: [{ id: 'device.logitech-hidpp', discover: async () => [] }],
@@ -173,7 +180,7 @@ describe('device registry lifecycle', () => {
         };
       },
     };
-    let snapshot = createDefaultSnapshot();
+    let snapshot = createEnabledDeviceSnapshot();
     const registry = new DeviceRegistry(
       () => snapshot,
       (devices) => { snapshot = { ...snapshot, devices }; },
@@ -203,7 +210,7 @@ describe('device registry lifecycle', () => {
         // The device write and its protocol-level acknowledgement already finished.
       },
     };
-    let snapshot = createDefaultSnapshot();
+    let snapshot = createEnabledDeviceSnapshot();
     const registry = new DeviceRegistry(
       () => snapshot,
       (devices) => { snapshot = { ...snapshot, devices }; },
@@ -243,7 +250,7 @@ describe('device registry lifecycle', () => {
         moduleDisposed = true;
       },
     };
-    const snapshot = createDefaultSnapshot();
+    const snapshot = createEnabledDeviceSnapshot();
     const publications: unknown[] = [];
     const registry = new DeviceRegistry(
       () => snapshot,
@@ -286,7 +293,7 @@ describe('device registry lifecycle', () => {
         deactivated = true;
       },
     };
-    let snapshot = createDefaultSnapshot();
+    let snapshot = createEnabledDeviceSnapshot();
     const registry = new DeviceRegistry(
       () => snapshot,
       (devices) => { snapshot = { ...snapshot, devices }; },
@@ -312,7 +319,7 @@ describe('device registry lifecycle', () => {
   });
 
   test('keeps fixture mute-lighting capability and persisted setting in sync', async () => {
-    const snapshot = createDefaultSnapshot();
+    const snapshot = createEnabledDeviceSnapshot();
     const microphone = snapshot.devices.find((device) => device.id === 'hyperx-quadcast2-1');
     expect(microphone).toBeDefined();
     let current = snapshot;
@@ -331,7 +338,7 @@ describe('device registry lifecycle', () => {
   });
 
   test('restores fixture connection state after a module is re-enabled without scanning physical hardware', async () => {
-    let current = createDefaultSnapshot();
+    let current = createEnabledDeviceSnapshot();
     let enumerations = 0;
     const registry = new DeviceRegistry(
       () => current,

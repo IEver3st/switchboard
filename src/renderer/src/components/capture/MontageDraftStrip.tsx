@@ -23,7 +23,7 @@ export function MontageDraftStrip({
   const clipIds = new Set(clips.map((clip) => clip.id));
   return (
     <section className="montage-v2-drafts" aria-label="Saved edit drafts">
-      <div className="montage-v2-drafts__label"><Clapperboard aria-hidden="true" /><span><strong>Edit drafts</strong><small>Autosaved locally</small></span></div>
+      <div className="montage-v2-drafts__label"><Clapperboard aria-hidden="true" /><span><strong>Edit drafts</strong><small title="Drafts expire 3 hours after their last save.">Saved for 3 hours</small></span></div>
       <div className="montage-v2-drafts__list">
         {drafts.slice(activePage * 3, activePage * 3 + 3).map((draft) => {
           const missing = draft.segments.filter((segment) => !clipIds.has(segment.clipId)).length;

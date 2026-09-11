@@ -6,8 +6,23 @@ import { StateStore } from '../src/main/services/state-store';
 import { reconcileAudioDevices } from '../src/shared/audio-devices';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 import type { AudioDevice } from '../src/shared/contracts';
+import { parseAudioEndpoints } from '../src/main/services/audio-endpoint-discovery';
 
 describe('audio endpoint discovery', () => {
+  test('accepts physical Windows devices whose optional metadata is omitted by the host', () => {
+    const devices = parseAudioEndpoints([
+      { id: 'speakers', name: 'Speakers (USB Audio)', flow: 'render', isDefault: true, volume: 1, muted: false },
+      { id: 'headset', name: 'Headset earpiece', flow: 'render', isDefault: false, formFactor: 'headset', interfaceName: null, volume: 1, muted: false },
+      { id: 'mic', name: 'Microphone (USB Audio)', flow: 'capture', isDefault: true, formFactor: null, volume: 1, muted: false },
+    ]);
+    expect(devices.map((device) => device.id)).toEqual(['speakers', 'headset', 'mic']);
+    expect(devices.every((device) => device.available && !device.isSwitchboard && !device.isVirtual)).toBeTrue();
+    const audio = createDefaultSnapshot().audio;
+    reconcileAudioDevices(audio, devices);
+    expect(audio.buses.find((bus) => bus.id === 'game')?.deviceId).toBe('speakers');
+    expect(audio.buses.find((bus) => bus.id === 'mic')?.deviceId).toBe('mic');
+    expect(() => parseAudioEndpoints([{ id: 'bad', name: 'Invalid', flow: 'wrong' }])).toThrow();
+  });
   test('does not advertise fabricated hardware before Windows discovery runs', () => {
     const audio = createDefaultSnapshot().audio;
 

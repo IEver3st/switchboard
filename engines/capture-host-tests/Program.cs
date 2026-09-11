@@ -146,6 +146,27 @@ var validSettings = new CaptureSettings(
     CacheDirectory: Path.GetTempPath(),
     ClipsDirectory: Path.GetTempPath());
 _ = validSettings.Validate();
+foreach (var seconds in new[] { 60, 180, 300 })
+foreach (var bitrate in new[] { 10_000_000, 35_000_000, 120_000_000 })
+{
+    var replaySettings = validSettings with { ReplaySeconds = seconds, TargetVideoBitrateBps = bitrate };
+    var fullRing = Enumerable.Range(0, seconds + 20).Select(index => new ReplaySegmentInfo(
+        $"segment-{index:D9}.mkv", start.AddSeconds(index), start.AddSeconds(index + 1),
+        bitrate / 8, Complete: true)).ToArray();
+    var evicted = ReplaySegmentRing.SelectEvictionCandidates(fullRing,
+        TimeSpan.FromSeconds(replaySettings.SegmentRetentionSeconds), replaySettings.MaximumCacheBytes);
+    var replay = ReplaySegmentRing.SelectForReplayCore(fullRing.Except(evicted).ToArray(), TimeSpan.FromSeconds(seconds));
+    AssertValue(seconds, replay.Count, $"A wrapped {seconds}s replay at {bitrate}bps must retain its full duration.");
+}
+var shortSettings = validSettings with { ReplaySeconds = 120 };
+var grownSettings = shortSettings with { ReplaySeconds = 180 };
+var manifestSource = new CaptureSource("display:1", "display", "Test display", null, null, "1", true);
+var manifestArguments = ReplayEngine.BuildVideoArguments(shortSettings, manifestSource,
+    "Windows Graphics Capture", "h264_nvenc", "").ToArray();
+AssertValue(false, ReplayEngine.RequiresRestart(shortSettings, grownSettings),
+    "Changing replay length must preserve the running encoder and footage.");
+AssertValue(true, int.Parse(ValuesFollowing(manifestArguments, "-segment_list_size").Single()) >= 311,
+    "An encoder started with a shorter replay must retain manifest entries for a later five-minute replay.");
 AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { SystemAudioMode = "game" }),
     "Changing to process audio must replace the existing desktop audio recorder.");
 try { _ = (validSettings with { Source = "display", SystemAudioMode = "game" }).Validate(); throw new Exception("Game-only display audio was accepted."); }
@@ -221,6 +242,8 @@ var surroundSystemAudioArguments = ReplayEngine.BuildAudioArguments(
     "system",
     validSettings.SystemAudioBitrateBps,
     outputChannels: 2);
+AssertValue(true, int.Parse(ValuesFollowing(surroundSystemAudioArguments, "-segment_list_size").Single()) >= 311,
+    "Audio manifests must also support increasing replay length without restarting.");
 AssertSequence(
     ValuesFollowing(surroundSystemAudioArguments, "-ac"),
     ["8", "2"],

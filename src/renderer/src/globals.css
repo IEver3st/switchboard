@@ -9576,6 +9576,8 @@ button.onboarding-card:disabled {
   .onboarding-main { padding-block: 24px; }
   .onboarding-workspace { margin-top: 28px; gap: 40px; }
   .onboarding-stage { min-height: 438px; }
+  .onboarding-summary > div { min-height: 26px; padding-block: 3px; }
+  .onboarding-stage[data-step-index='4'] .onboarding-actions { margin-top: 16px; }
 }
 
 @media (max-width: 780px) {

@@ -64,6 +64,12 @@ if (command === 'setup') {
   await runElectron('scripts/capture-scale-qa.mjs', ...commandArguments);
 } else if (command === 'clip-scroll') {
   await runElectron('scripts/verify-clip-scroll.mjs', ...commandArguments);
+} else if (command === 'clip-save') {
+  await runElectron('scripts/verify-clip-save-ui.mjs');
+} else if (command === 'capture-status') {
+  await runElectron('scripts/verify-capture-status-ui.mjs');
+} else if (command === 'draft-retention') {
+  await runElectron('scripts/verify-draft-retention-ui.mjs');
 } else if (command === 'capture-window-previews') {
   const isolatedUserData = await mkdtemp(join(tmpdir(), 'switchboard-window-previews-'));
   cleanEnvironment.SWITCHBOARD_CAPTURE_WINDOW_PREVIEW_USER_DATA = isolatedUserData;

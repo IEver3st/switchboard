@@ -370,7 +370,7 @@ describe('Razer Huntsman V2 Analog module', () => {
     await reloaded.load();
     expect(reloaded.get().modules.find((module) => module.id === 'device.razer-huntsman')).toMatchObject({
       installed: true,
-      enabled: true,
+      enabled: false,
     });
   });
 });

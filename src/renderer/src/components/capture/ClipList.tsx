@@ -7,10 +7,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ClipActionsMenu, ClipContextMenu, ClipFavorite, ClipShare } from './ClipActions';
 import { groupClips } from './ClipGrid';
 import { ClipThumbnail } from './ClipThumbnail';
+import { ClipSavePlaceholder } from './ClipSavePlaceholder';
 import type { ClipActions } from './types';
 import { useVirtualClipRows } from './use-virtual-clip-rows';
 
-export const ClipList = memo(function ClipList({ clips, actions, selectionMode, selectedClipIds, onToggleSelection, retainedClipId }: {
+export const ClipList = memo(function ClipList({ clips, actions, selectionMode, selectedClipIds, onToggleSelection, retainedClipId, pendingSaveCount = 0 }: {
+  pendingSaveCount?: number;
   retainedClipId?: string | null;
   clips: Clip[];
   actions: ClipActions;
@@ -18,7 +20,7 @@ export const ClipList = memo(function ClipList({ clips, actions, selectionMode, 
   selectedClipIds: string[];
   onToggleSelection: (clip: Clip) => void;
 }) {
-  const groups = useMemo(() => groupClips(clips), [clips]);
+  const groups = useMemo(() => groupClips(clips, pendingSaveCount), [clips, pendingSaveCount]);
   const virtual = useVirtualClipRows(groups, 'list', retainedClipId);
   const selectionOrder = useMemo(() => new Map(selectedClipIds.map((id, index) => [id, index + 1])), [selectedClipIds]);
   return (
@@ -27,12 +29,13 @@ export const ClipList = memo(function ClipList({ clips, actions, selectionMode, 
         <section key={group.key} aria-labelledby={`clip-list-group-${group.key}`}>
           <div className="capture-clip-group__header flex items-center gap-2.5">
             <h3 id={`clip-list-group-${group.key}`} className="m-0 text-[11px] font-semibold tracking-[-0.01em] text-text-secondary">{group.label}</h3>
-            <span className="text-[9.5px] tabular-nums text-text-description">{group.clips.length}</span>
+            <span className="text-[9.5px] tabular-nums text-text-description">{group.clips.filter(clip => !('pendingSave' in clip)).length}</span>
           </div>
           <ul className="capture-clip-list capture-virtual-group" data-virtual-clip-group={group.key} style={virtual.listStyle(group.clips.length)} aria-label={`${group.label} clips in list view`}>
       {virtual.indexes(groupIndex).map((index) => {
         const clip = group.clips[index];
         if (!clip) return null;
+        if ('pendingSave' in clip) return <ClipSavePlaceholder key={clip.id} layout="list" style={virtual.itemStyle(index)} position={index + 1} total={group.clips.length} />;
         return (
           <ClipListItem key={clip.id} clip={clip} actions={actions} style={virtual.itemStyle(index)}
             position={index + 1} total={group.clips.length} selectionMode={selectionMode}

@@ -59,11 +59,12 @@ export function CaptureAudioDeviceSelect({
   className?: string;
   triggerId?: string;
 }) {
-  const selectedValue = value && devices.some((device) => device.id === value) ? value : 'auto';
+  const selectedValue = value ?? 'auto';
+  const unavailable = Boolean(value) && !devices.some((device) => device.id === value);
   return (
     <Select
       value={selectedValue}
-      disabled={disabled || (devices.length === 0 && selectedValue === 'auto')}
+      disabled={disabled}
       onValueChange={(next) => onChange(next === 'auto' ? null : next)}
     >
       <SelectTrigger id={triggerId} aria-label={label} className={cn('h-8 w-full min-w-0 text-[11px]', className)}>
@@ -71,6 +72,7 @@ export function CaptureAudioDeviceSelect({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="auto">{automaticLabel}</SelectItem>
+        {unavailable && value ? <SelectItem value={value} disabled>Unavailable device</SelectItem> : null}
         {devices.map((device) => (
           <SelectItem key={device.id} value={device.id}>
             {device.name}{device.isDefault ? ' · Default' : ''}{device.isVirtual ? ' · Virtual' : ''}

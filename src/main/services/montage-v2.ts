@@ -20,6 +20,7 @@ import { getPreparedShareService } from './prepared-share';
 import type { Clip, ClipExportPreset, PreparedShareFile } from '../../shared/contracts';
 import {
   montageAudioAssetSchema,
+  montageDraftRetentionMs,
   montageProjectV2Schema,
   type MontageAudioAsset,
   type MontageAudioWaveform,
@@ -123,6 +124,7 @@ export class MontageV2Service {
   public async listDrafts(): Promise<MontageProjectV2[]> {
     this.assertActive();
     await this.ensureLoaded();
+    await this.pruneExpiredDrafts();
     return structuredClone([...this.manifest.drafts].sort((left, right) => right.updatedAt - left.updatedAt));
   }
 
@@ -304,6 +306,15 @@ export class MontageV2Service {
       this.manifest = { schemaVersion: 1, assets: [], drafts: [] };
       await this.persist();
     }
+    await this.pruneExpiredDrafts();
+  }
+
+  private async pruneExpiredDrafts(): Promise<void> {
+    await this.writeQueue.catch(() => undefined);
+    const now = Date.now();
+    if (this.manifest.drafts.some(draft => draft.updatedAt + montageDraftRetentionMs <= now)) {
+      await this.persist();
+    }
   }
 
   private async persist(): Promise<void> {
@@ -313,6 +324,8 @@ export class MontageV2Service {
   private async mutateManifest(mutate: (manifest: MontageManifest) => void): Promise<void> {
     const write = this.writeQueue.catch(() => undefined).then(async () => {
       const next = structuredClone(this.manifest);
+      const now = Date.now();
+      next.drafts = next.drafts.filter(draft => draft.updatedAt + montageDraftRetentionMs > now);
       mutate(next);
       const parsed = montageManifestSchema.parse(next);
       const temporary = `${this.manifestPath()}.${randomUUID()}.tmp`;

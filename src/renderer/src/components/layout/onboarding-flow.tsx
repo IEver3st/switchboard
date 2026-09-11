@@ -218,7 +218,8 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
       resolution,
       replaySeconds,
       hotkey,
-      enabled: replay,
+      // Persist setup choices without starting/probing an encoder between steps.
+      enabled: false,
     });
     const failure = useSystemStore.getState().error;
     if (failure) {
@@ -254,6 +255,12 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
     setPending(true);
     setError(null);
     useSystemStore.getState().clearError();
+    await useSystemStore.getState().setCaptureConfig({ enabled: replay });
+    const captureFailure = useSystemStore.getState().error;
+    if (captureFailure) {
+      fail(captureFailure);
+      return;
+    }
     const filtered = developerMode ? workspaces : workspaces.filter((entry) => entry !== 'audio');
     await useSystemStore.getState().updateSettings({ visibleWorkspaces: filtered, onboardingCompleted: true });
     const failure = useSystemStore.getState().error;
@@ -565,7 +572,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
                             <div className="onboarding-row">
                               <span className="onboarding-row__copy">
                                 <strong>Capture engine</strong>
-                                <small>Replay runs automatically while Capture is enabled.</small>
+                                <small>Replay starts when you finish setup.</small>
                               </span>
                               <Switch
                                 checked={replay}
