@@ -206,10 +206,16 @@ The application updater performs one delayed launch check and then checks every 
 
 ## Soak tests
 
-Montage export encodes each segment once at its final bitrate, seeks before
+Montage export normally encodes each segment once at its final bitrate, seeks before
 decoding trimmed sources, and copies video during final assembly. It selects the
 existing supported share encoder, falling back to CPU for the remaining sequence
-if hardware encoding fails. FFmpeg progress is forwarded only during an export;
+if hardware encoding fails. An oversized result automatically retries from the
+original sources with software two-pass encoding at the same bitrate. If needed,
+one final attempt reduces video bitrate using the measured size and updates the
+output resolution for that budget. Audio, edits, and the full duration remain;
+only a verified file within the target is published. These corrections add work
+only to oversized exports, with at most three attempts and one FFmpeg process at
+a time. FFmpeg progress is forwarded only during an export and stays monotonic;
 cancel waits for the worker to close before cleaning temporary files. Final
 output size is verified, and a cancelled replacement preserves the existing file.
 Native editor/render evidence and the bounded CPU comparison are recorded in

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { randomUUID } from 'node:crypto';
+import { existsSync, statSync } from 'node:fs';
 import { mkdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,15 +12,89 @@ const ffmpeg = process.env.SWITCHBOARD_FFMPEG_INTEGRATION;
 const ffprobe = process.env.SWITCHBOARD_FFPROBE_INTEGRATION;
 const integration = ffmpeg && ffprobe ? describe : describe.skip;
 const workspace = join(tmpdir(), `switchboard-montage-render-${randomUUID()}`);
+const complexSource = join(workspace, 'complex.mp4');
 
 integration('montage v2 FFmpeg render', () => {
   beforeAll(async () => {
     await mkdir(workspace, { recursive: true });
+    await run(ffmpeg!, [
+      '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=1280x720:r=30:d=1',
+      '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=1',
+      '-vf', 'noise=alls=80:allf=t+u:all_seed=42',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '12', '-c:a', 'aac', '-y', complexSource,
+    ]);
+    process.env.SWITCHBOARD_FFMPEG = ffmpeg!;
+    process.env.SWITCHBOARD_FFPROBE = ffprobe!;
   });
 
   afterAll(async () => {
     await rm(workspace, { recursive: true, force: true });
   });
+
+  test('automatically fits short complex segments under the target without truncating them', async () => {
+    const clip = { ...fixtureClip('complex', complexSource), width: 1_280, height: 720 };
+    const initial = createMontageProjectV2([clip, clip, clip, clip]);
+    for (const withMusic of [false, true]) {
+      const project = normalizeMontageProject({ ...initial,
+        segments: initial.segments.map((segment) => ({ ...segment, trimStartMs: 100, trimEndMs: 700,
+          videoEdits: { speed: 2, flipHorizontal: true },
+        })),
+        ...(withMusic ? { music: { ...createMontageMusicTrack({ id: randomUUID(), name: 'Music', originalName: 'complex.mp4',
+          durationMs: 1_000, fileSize: (await stat(complexSource)).size, createdAt: Date.now() }),
+          ducking: { enabled: true, amount: 0.5, attackMs: 50, releaseMs: 100 },
+        } } : {}),
+      });
+      const destination = join(workspace, `complex-limited-${withMusic}.mp4`);
+      const progress: number[] = [];
+      let firstAttemptBytes: number | undefined;
+      await renderMontageV2({ project,
+        entries: project.segments.map((segment) => ({ clip, segment })), destination,
+        ...(withMusic ? { musicPath: complexSource } : {}),
+        preset: 'original', targetSizeMb: 0.15, onProgress: (value) => {
+          progress.push(value);
+          if (firstAttemptBytes === undefined && existsSync(destination)) firstAttemptBytes = statSync(destination).size;
+        },
+      });
+      const output = JSON.parse(await run(ffprobe!, ['-v', 'error', '-show_entries',
+        'stream=codec_type,nb_frames:format=duration,size', '-of', 'json', destination]));
+      expect(firstAttemptBytes).toBeGreaterThan(0.15 * 1_048_576);
+      expect(Number(output.format.size)).toBeLessThanOrEqual(0.15 * 1_048_576);
+      expect(Number(output.format.duration)).toBeGreaterThanOrEqual(1.2);
+      expect(Number(output.format.duration)).toBeLessThan(1.4);
+      expect(Number(output.streams[0].nb_frames)).toBe(36);
+      expect(output.streams.map((stream: { codec_type: string }) => stream.codec_type)).toEqual(['video', 'audio']);
+      await run(ffmpeg!, ['-v', 'error', '-xerror', '-i', destination, '-f', 'null', '-']);
+      expect(progress.at(-1)).toBe(1);
+      expect(progress.slice(0, -1).every((value) => value < 1)).toBe(true);
+      expect(progress.every((value, index) => index === 0 || value >= progress[index - 1]!)).toBe(true);
+    }
+  }, 30_000);
+
+  test('cancels during automatic size correction without reporting success and can export again', async () => {
+    const clip = { ...fixtureClip('complex', complexSource), width: 1_280, height: 720 };
+    const initial = createMontageProjectV2([clip]);
+    const project = normalizeMontageProject({ ...initial,
+      segments: initial.segments.map((segment) => ({ ...segment, trimStartMs: 100, trimEndMs: 400 })),
+    });
+    const destination = join(workspace, 'cancelled-correction.mp4');
+    const controller = new AbortController();
+    const progress: number[] = [];
+    let oversizedProgress: number | undefined;
+    const input = { project, entries: [{ clip, segment: project.segments[0]! }], destination,
+      preset: 'original' as const, targetSizeMb: 0.0375,
+    };
+    await expect(renderMontageV2({ ...input, signal: controller.signal, onProgress: (value) => {
+      progress.push(value);
+      if (oversizedProgress !== undefined && value > oversizedProgress && value < 1) controller.abort();
+      if (oversizedProgress === undefined && existsSync(destination) && statSync(destination).size > 0.0375 * 1_048_576) {
+        oversizedProgress = value;
+      }
+    } })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(controller.signal.aborted).toBe(true);
+    expect(progress).not.toContain(1);
+    await renderMontageV2(input);
+    expect((await stat(destination)).size).toBeLessThanOrEqual(0.0375 * 1_048_576);
+  }, 30_000);
 
   test('sizes edited video to its bitrate budget while preserving Original resolution and portrait framing', async () => {
     const source = join(workspace, 'detail.mp4');

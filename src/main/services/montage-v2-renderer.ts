@@ -58,57 +58,83 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
   const targetBytes = input.targetSizeMb ? input.targetSizeMb * 1_048_576 : input.preset !== 'original' ? exportPresetBytes[input.preset] : undefined;
   const budgetKbps = targetBytes ? targetBytes * 8 * 0.9 / Math.max(0.1, input.project.durationMs / 1000) / 1000 : undefined;
   const audioKbps = budgetKbps && budgetKbps < 420 ? 64 : 128;
-  const videoKbps = budgetKbps ? Math.floor(budgetKbps - audioKbps) : undefined;
+  let videoKbps = budgetKbps ? Math.floor(budgetKbps - audioKbps) : undefined;
+  let reportedProgress = 0;
+  const reportProgress = (value: number) => {
+    reportedProgress = Math.max(reportedProgress, value);
+    input.onProgress?.(reportedProgress);
+  };
   try {
     if (videoKbps !== undefined && videoKbps < 120) throw new Error('This size is too small for the montage runtime. Choose a larger target.');
-    const target = montageVideoTarget(first.clip, input.project.canvasSize, videoKbps);
-    const renderedSegments: string[] = [];
-    let beforeMs = 0;
-    let encoder = input.encoder ?? 'libx264';
-    for (let index = 0; index < input.entries.length; index += 1) {
+    // A VBV bitrate limit is not a file-size limit. Short segments can each spend
+    // their initial buffer, and mux/audio overhead is only known after encoding.
+    // Keep the fast first attempt; correct overshoots from the sources using
+    // measured size and software two-pass encoding, never a truncated output.
+    const attempts = targetBytes ? 3 : 1;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
       if (input.signal?.aborted) throw abortError();
-      const entry = input.entries[index];
-      if (!entry) continue;
-      const segmentPath = join(temporaryDirectory, `segment-${String(index).padStart(4, '0')}.mp4`);
-      const durationMs = editedDurationMs(entry.segment.trimStartMs, entry.segment.trimEndMs, entry.segment.videoEdits);
-      encoder = await renderMontageSegment(executable, entry, segmentPath, target, input.signal, encoder, videoKbps, audioKbps,
-        (fraction) => input.onProgress?.((beforeMs + fraction * durationMs) / input.project.durationMs * 0.9), Boolean(input.project.music?.ducking?.enabled));
-      renderedSegments.push(segmentPath);
-      beforeMs += durationMs;
-      input.onProgress?.(beforeMs / input.project.durationMs * 0.9);
-    }
+      const target = montageVideoTarget(first.clip, input.project.canvasSize, videoKbps);
+      const renderedSegments: string[] = [];
+      let beforeMs = 0;
+      let encoder: ShareVideoEncoder = attempt === 0 ? input.encoder ?? 'libx264' : 'libx264';
+      const progressStart = attempt === 0 ? 0 : attempt === 1 ? 0.8 : 0.88;
+      const progressEnd = targetBytes ? (attempt === 0 ? 0.8 : attempt === 1 ? 0.88 : 0.91) : 0.92;
+      const segmentProgress = (fraction: number) => reportProgress(progressStart + fraction * (progressEnd - progressStart) * 0.98);
+      for (let index = 0; index < input.entries.length; index += 1) {
+        if (input.signal?.aborted) throw abortError();
+        const entry = input.entries[index];
+        if (!entry) continue;
+        const segmentPath = join(temporaryDirectory, `segment-${String(index).padStart(4, '0')}.mp4`);
+        const durationMs = editedDurationMs(entry.segment.trimStartMs, entry.segment.trimEndMs, entry.segment.videoEdits);
+        encoder = await renderMontageSegment(executable, entry, segmentPath, target, input.signal, encoder, videoKbps, audioKbps,
+          (fraction) => segmentProgress((beforeMs + fraction * durationMs) / input.project.durationMs),
+          Boolean(input.project.music?.ducking?.enabled), attempt > 0);
+        renderedSegments.push(segmentPath);
+        beforeMs += durationMs;
+        segmentProgress(beforeMs / input.project.durationMs);
+      }
 
-    await writeFile(
-      concatPath,
-      renderedSegments.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n'),
-      'utf8',
-    );
+      await writeFile(
+        concatPath,
+        renderedSegments.map((path) => `file '${path.replace(/'/g, "'\\''")}'`).join('\n'),
+        'utf8',
+      );
 
-    const concatInput = ['-f', 'concat', '-safe', '0', '-i', concatPath];
-    const mixPlan = input.project.music && input.musicPath
-      ? buildMontageMusicMixPlan(input.project.music, input.project.durationMs, input.musicPath)
-      : null;
+      const concatInput = ['-f', 'concat', '-safe', '0', '-i', concatPath];
+      const mixPlan = input.project.music && input.musicPath
+        ? buildMontageMusicMixPlan(input.project.music, input.project.durationMs, input.musicPath)
+        : null;
 
-    input.onProgress?.(0.92);
-    // Each segment is encoded once at the final bitrate. Concatenation copies video.
-    if (!mixPlan) {
-      await run(executable, [
-        '-hide_banner', '-loglevel', 'error', ...concatInput,
-        '-map', '0:v:0', '-map', '0:a:0', '-c', 'copy', '-movflags', '+faststart', '-y', input.destination,
-      ], input.signal);
-    } else {
-      await run(executable, [
-        '-hide_banner', '-loglevel', 'error', ...concatInput, ...mixPlan.inputArguments,
-        '-filter_complex', mixPlan.filter, '-map', '0:v:0', '-map', mixPlan.audioMap,
-        '-c:v', 'copy', '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
-        '-movflags', '+faststart', '-y', input.destination,
-      ], input.signal);
+      // Concatenation copies video; retries always render the original sources.
+      if (!mixPlan) {
+        await run(executable, [
+          '-hide_banner', '-loglevel', 'error', ...concatInput,
+          '-map', '0:v:0', '-map', '0:a:0', '-c', 'copy', '-movflags', '+faststart', '-y', input.destination,
+        ], input.signal);
+      } else {
+        await run(executable, [
+          '-hide_banner', '-loglevel', 'error', ...concatInput, ...mixPlan.inputArguments,
+          '-filter_complex', mixPlan.filter, '-map', '0:v:0', '-map', mixPlan.audioMap,
+          '-c:v', 'copy', '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
+          '-movflags', '+faststart', '-y', input.destination,
+        ], input.signal);
+      }
+      reportProgress(progressEnd);
+      const outputBytes = (await stat(input.destination)).size;
+      if (!targetBytes || outputBytes <= targetBytes) {
+        if (input.signal?.aborted) throw abortError();
+        reportProgress(1);
+        return;
+      }
+      // First use two-pass at the same bitrate to retain detail. If that still
+      // overshoots, use its measured size to lower video while keeping audio.
+      if (attempt > 0) {
+        const audioBytes = audioKbps * 1_000 * input.project.durationMs / 8_000;
+        const correction = Math.min(0.85, (targetBytes * 0.9 - audioBytes) / Math.max(1, outputBytes - audioBytes));
+        videoKbps = Math.max(1, Math.floor(videoKbps! * correction));
+      }
     }
-    // Verify the actual container size before exposing a successful share.
-    if (targetBytes && (await stat(input.destination)).size > targetBytes) {
-      throw new Error('The encoded file exceeded its size target. Choose a larger target and try again.');
-    }
-    input.onProgress?.(1);
+    throw new Error('The video encoder could not finish compressing this export.');
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
@@ -125,6 +151,7 @@ async function renderMontageSegment(
   audioKbps = 128,
   onProgress?: (fraction: number) => void,
   includeVoice = false,
+  twoPass = false,
 ): Promise<ShareVideoEncoder> {
   const { clip } = entry;
   const sourceStartMs = entry.segment.trimStartMs;
@@ -165,13 +192,25 @@ async function renderMontageSegment(
       : selectedEncoder === 'h264_amf' ? ['-c:v', selectedEncoder, '-quality', 'balanced', '-rc', 'cqp', '-qp_i', '18', '-qp_p', '18']
       : selectedEncoder === 'h264_qsv' ? ['-c:v', selectedEncoder, '-preset', 'fast', '-global_quality', '18']
       : ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18'];
-    await run(executable, [
+    const arguments_ = [
       '-hide_banner', '-loglevel', 'error', ...inputArguments,
       '-filter_complex_threads', '2', '-filter_complex', filter, '-map', '[vout]', '-map', audioMap, ...(includeVoice ? ['-map', '[voiceout]'] : []),
       ...codec, '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
-      '-t', durationSeconds.toFixed(3), '-movflags', '+faststart', '-y', destination,
-    ], signal, durationSeconds, onProgress);
+      '-t', durationSeconds.toFixed(3),
+    ];
+    if (twoPass) {
+      const passLog = `${destination}.pass`;
+      await run(executable, [
+        ...arguments_, '-pass', '1', '-passlogfile', passLog,
+        '-f', 'null', '-y', process.platform === 'win32' ? 'NUL' : '/dev/null',
+      ], signal, durationSeconds, (fraction) => onProgress?.(fraction * 0.5));
+      await run(executable, [
+        ...arguments_, '-pass', '2', '-passlogfile', passLog, '-movflags', '+faststart', '-y', destination,
+      ], signal, durationSeconds, (fraction) => onProgress?.(0.5 + fraction * 0.5));
+    } else {
+      await run(executable, [...arguments_, '-movflags', '+faststart', '-y', destination], signal, durationSeconds, onProgress);
+    }
   };
   try { await encode(encoder); return encoder; }
   catch (error) { if (encoder === 'libx264' || signal?.aborted) throw error; await encode('libx264'); return 'libx264'; }
