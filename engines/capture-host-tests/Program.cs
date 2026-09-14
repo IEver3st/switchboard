@@ -2,6 +2,10 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+if (args.Contains("--resource-benchmark")) { await CaptureResourceTests.BenchmarkAsync(); return; }
+if (args.Contains("--software-resource-probes")) { await CaptureResourceTests.ProbeSoftwareAsync(); return; }
+if (args.Contains("--resource-policy-only")) { CaptureResourceTests.AssertArguments(); Console.WriteLine("Capture resource policy passed."); return; }
+
 if (await StartupProbeTests.RunFixtureAsync(args)) return;
 if (args.Contains("--startup-probe-only"))
 {
@@ -104,6 +108,7 @@ if (args.Contains("--sync-media-probe", StringComparer.Ordinal))
     return;
 }
 NvencReplayTests.AssertArguments();
+CaptureResourceTests.AssertArguments();
 if (args.Contains("--encoder-policy-only", StringComparer.Ordinal))
 {
     Console.WriteLine("Replay encoder policy tests passed.");

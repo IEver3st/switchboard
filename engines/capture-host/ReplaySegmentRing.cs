@@ -142,7 +142,9 @@ internal sealed class ReplaySegmentRing
         return selected;
     }
 
-    public IReadOnlyList<ReplaySegmentInfo> Evict(
+    // Return retained completed bytes from this inventory, including locked
+    // files whose deletion failed. Callers need not rescan the same ring.
+    public long Evict(
         string sessionDirectory,
         TimeSpan maximumDuration,
         long maximumBytes,
@@ -163,12 +165,13 @@ internal sealed class ReplaySegmentRing
             }
         }
         var candidates = SelectEvictionCandidates(segments, maximumDuration, maximumBytes);
+        var retainedBytes = segments.Where(segment => segment.Complete).Sum(segment => segment.SizeBytes);
         foreach (var segment in candidates)
         {
-            try { File.Delete(segment.Path); } catch (IOException) { }
+            try { File.Delete(segment.Path); retainedBytes -= segment.SizeBytes; } catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
-        return candidates;
+        return retainedBytes;
     }
 
     internal static IReadOnlyList<ReplaySegmentInfo> SelectEvictionCandidates(

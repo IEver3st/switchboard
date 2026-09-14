@@ -73,19 +73,76 @@ const waveformCacheLimit = 16;
 const audioPreviewCacheLimit = 16;
 const persistedAudioPreviewLimit = 32;
 
+// A scan can span time in the tray. Preserve saves, edits and deletions made
+// after it began instead of replacing canonical state with its old snapshot.
+export function mergeReconciledClips(indexed: readonly Clip[], current: readonly Clip[], scanned: readonly Clip[]): Clip[] {
+  const before = new Map(indexed.map(clip => [clip.id, clip]));
+  const found = new Map(scanned.map(clip => [clip.id, clip]));
+  const merged = current.flatMap(clip => {
+    const original = before.get(clip.id);
+    if (!original) return [clip];
+    const reconciled = found.get(clip.id);
+    if (!reconciled) return [];
+    return [{ ...reconciled, ...clip,
+      thumbnailPath: clip.thumbnailPath === original.thumbnailPath ? reconciled.thumbnailPath : clip.thumbnailPath }];
+  });
+  const paths = new Set(merged.map(clip => resolve(clip.path).toLocaleLowerCase()));
+  for (const clip of scanned) {
+    const path = resolve(clip.path).toLocaleLowerCase();
+    if (!before.has(clip.id) && !paths.has(path)) { merged.push(clip); paths.add(path); }
+  }
+  return merged.sort((left, right) => right.createdAt - left.createdAt);
+}
+
 export class ClipLibraryService {
   private thumbnailQueue: Promise<void> = Promise.resolve();
+  private backgroundActive = true;
+  private readonly backgroundAbort = new AbortController();
+  private readonly backgroundWaiters = new Set<() => void>();
+  private readonly reconciliations = new Set<Promise<Clip[]>>();
   private readonly waveformCache = new Map<string, Promise<ClipAudioWaveform>>();
   private readonly audioPreviewCache = new Map<string, Promise<string>>();
 
   public constructor(private readonly thumbnailDirectory: string) {}
 
-  public async reconcile(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
+  public setBackgroundWorkActive(active: boolean): void {
+    this.backgroundActive = active;
+    if (active) this.wakeBackgroundWork();
+  }
+
+  public async dispose(): Promise<void> {
+    this.backgroundAbort.abort();
+    this.wakeBackgroundWork();
+    await Promise.allSettled([...this.reconciliations, this.thumbnailQueue]);
+  }
+
+  private wakeBackgroundWork(): void {
+    for (const wake of this.backgroundWaiters) wake();
+    this.backgroundWaiters.clear();
+  }
+
+  private async waitForBackgroundWork(): Promise<void> {
+    while (!this.backgroundActive && !this.backgroundAbort.signal.aborted) {
+      await new Promise<void>(resolve => this.backgroundWaiters.add(resolve));
+    }
+    this.backgroundAbort.signal.throwIfAborted();
+  }
+
+  public reconcile(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
+    const task = this.reconcileCore(indexed, directory);
+    this.reconciliations.add(task);
+    void task.then(() => this.reconciliations.delete(task), () => this.reconciliations.delete(task));
+    return task;
+  }
+
+  private async reconcileCore(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
+    await this.waitForBackgroundWork();
     await mkdir(directory, { recursive: true });
     await mkdir(this.thumbnailDirectory, { recursive: true });
     await this.pruneAudioPreviews().catch((error) => console.warn('Clip audio preview cleanup failed.', error));
     const existing: Clip[] = [];
     for (const indexedClip of indexed) {
+      await this.waitForBackgroundWork();
       const clip = normalizeClipRecord(indexedClip);
       try {
         await access(clip.path);
@@ -107,6 +164,7 @@ export class ClipLibraryService {
 
     const byPath = new Map(existing.map((clip) => [resolve(clip.path).toLocaleLowerCase(), clip]));
     const handle = await opendir(directory);
+    const unindexed: string[] = [];
     let inspected = 0;
     for await (const entry of handle) {
       if (!entry.isFile() || !supportedExtensions.has(extname(entry.name).toLocaleLowerCase())) continue;
@@ -114,11 +172,17 @@ export class ClipLibraryService {
       inspected += 1;
       const path = resolve(directory, entry.name);
       if (byPath.has(path.toLocaleLowerCase())) continue;
+      unindexed.push(path);
+    }
+    // Close the directory handle before waiting for the interface to reopen.
+    for (const path of unindexed) {
+      await this.waitForBackgroundWork();
       try {
-        const clip = await this.createClipFromFile(path);
+        const clip = await this.createClipFromFile(path, this.backgroundAbort.signal);
         existing.push(clip);
         byPath.set(path.toLocaleLowerCase(), clip);
       } catch (error) {
+        this.backgroundAbort.signal.throwIfAborted();
         console.warn('Skipped an unreadable clip during library reconciliation.', basename(path), error);
       }
     }
@@ -135,25 +199,29 @@ export class ClipLibraryService {
     this.thumbnailQueue = this.thumbnailQueue
       .catch(() => undefined)
       .then(async () => {
+        await this.waitForBackgroundWork();
         let audioChannels = clip.audioChannels;
         if (audioChannels === undefined) {
-          audioChannels = (await this.probe(clip.path)).audioChannels;
+          audioChannels = (await this.probe(clip.path, this.backgroundAbort.signal)).audioChannels;
         }
+        await this.waitForBackgroundWork();
         if (clip.thumbnailPath && basename(clip.thumbnailPath) === `${clip.id}.v2.jpg`) {
           try {
             await access(clip.thumbnailPath);
+            this.backgroundAbort.signal.throwIfAborted();
             onReady({ thumbnailPath: clip.thumbnailPath, audioChannels });
             return;
-          } catch { }
+          } catch { this.backgroundAbort.signal.throwIfAborted(); }
         }
         const thumbnailPath = join(this.thumbnailDirectory, `${clip.id}.v2.jpg`);
-        await this.generateThumbnail(clip.path, thumbnailPath, clip.durationMs);
+        await this.generateThumbnail(clip.path, thumbnailPath, clip.durationMs, this.backgroundAbort.signal);
+        this.backgroundAbort.signal.throwIfAborted();
         onReady({ thumbnailPath, audioChannels });
         if (clip.thumbnailPath && resolve(clip.thumbnailPath) !== resolve(thumbnailPath)) {
           await rm(clip.thumbnailPath, { force: true });
         }
       })
-      .catch((error) => console.warn('Clip thumbnail generation failed.', error));
+      .catch((error) => { if (!this.backgroundAbort.signal.aborted) console.warn('Clip thumbnail generation failed.', error); });
   }
 
   public async removeThumbnail(clip: Clip): Promise<void> {
@@ -219,8 +287,8 @@ export class ClipLibraryService {
     return pending;
   }
 
-  public async createClipFromFile(path: string): Promise<Clip> {
-    const [file, media] = await Promise.all([stat(path), this.probe(path)]);
+  public async createClipFromFile(path: string, signal?: AbortSignal): Promise<Clip> {
+    const [file, media] = await Promise.all([stat(path), this.probe(path, signal)]);
     const game = inferClipGame(parse(path).name);
     const createdAt = file.birthtimeMs > 0 ? Math.round(file.birthtimeMs) : Math.round(file.mtimeMs);
     return {
@@ -418,12 +486,12 @@ export class ClipLibraryService {
     ], signal);
   }
 
-  private async probe(path: string): Promise<ProbeResult> {
+  private async probe(path: string, signal?: AbortSignal): Promise<ProbeResult> {
     const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
     const output = await run(executable, [
       '-v', 'error', '-print_format', 'json', '-show_entries',
       'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate:stream_tags=title,name,handler_name', path,
-    ]);
+    ], signal);
     const parsed = JSON.parse(output) as {
       format?: { duration?: string };
       streams?: Array<{
@@ -528,8 +596,9 @@ export class ClipLibraryService {
     await Promise.all(previews.slice(persistedAudioPreviewLimit).map(({ path }) => rm(path, { force: true })));
   }
 
-  private async generateThumbnail(path: string, thumbnailPath: string, durationMs: number): Promise<void> {
+  private async generateThumbnail(path: string, thumbnailPath: string, durationMs: number, signal?: AbortSignal): Promise<void> {
     await mkdir(dirname(thumbnailPath), { recursive: true });
+    signal?.throwIfAborted();
     const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
     const durationSeconds = durationMs / 1_000;
     const seekSeconds = durationSeconds <= 1
@@ -540,7 +609,7 @@ export class ClipLibraryService {
       await run(executable, [
         '-hide_banner', '-loglevel', 'error', '-ss', seekSeconds.toFixed(3), '-i', path,
         '-frames:v', '1', '-vf', "scale='min(960,iw)':-2:flags=lanczos", '-q:v', '2', '-y', temporary,
-      ]);
+      ], signal);
       await rename(temporary, thumbnailPath);
     } finally {
       await rm(temporary, { force: true });

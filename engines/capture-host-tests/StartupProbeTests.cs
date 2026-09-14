@@ -5,6 +5,10 @@ internal static class StartupProbeTests
 {
     internal static async Task<bool> RunFixtureAsync(string[] args)
     {
+        if (args.Contains("switchboard_probe_timeout_fixture")) {
+            await Task.Delay(Timeout.Infinite);
+            return true;
+        }
         if (args.Contains("switchboard_stdin_fixture"))
         {
             // An inherited, still-open host command pipe would block here or feed
@@ -20,6 +24,16 @@ internal static class StartupProbeTests
 
     internal static async Task AssertStdinIsolationAsync()
     {
+        string? timeoutDetail = null;
+        if (await FfmpegLocator.ProbeEncoderAsync(Environment.ProcessPath!, "switchboard_probe_timeout_fixture",
+                CancellationToken.None, detail => timeoutDetail = detail, timeoutMs: 300) || timeoutDetail is null)
+            throw new Exception("An optional encoder timeout must be diagnosed and excluded without aborting startup.");
+        using (var cancellation = new CancellationTokenSource(300)) {
+            try {
+                await FfmpegLocator.ProbeEncoderAsync(Environment.ProcessPath!, "switchboard_probe_timeout_fixture", cancellation.Token);
+                throw new Exception("User cancellation must not become an unsupported encoder result.");
+            } catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        }
         using var job = new WindowsChildProcessJob();
         var start = new ProcessStartInfo(Environment.ProcessPath!)
         {

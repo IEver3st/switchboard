@@ -5,6 +5,9 @@ import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { promisify } from 'node:util';
 import { estimateWindowedGrowth } from './performance-statistics.mjs';
+import { Session } from 'node:inspector/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,6 +25,9 @@ const trayCpuBudgetPercent = positiveNumber(process.env.SWITCHBOARD_IDLE_TRAY_CP
 app.setName('switchboard-idle-measure');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
+// An isolated settings profile must not silently scan the real video library.
+await mkdir(resolve(isolatedUserData, 'videos'), { recursive: true });
+app.setPath('videos', resolve(isolatedUserData, 'videos'));
 if (process.env.SWITCHBOARD_IDLE_DISABLE_GPU === '1') {
   process.env.SWITCHBOARD_DISABLE_HARDWARE_ACCELERATION = '1';
 }
@@ -38,7 +44,16 @@ void app.whenReady().then(async () => {
   const open = await measureState('open-idle', warmupDurationMs, sampleDurationMs, sampleIntervalMs);
   window.close();
   await waitForRendererDestroyed();
+  const profilePath = process.env.SWITCHBOARD_IDLE_CPU_PROFILE;
+  const profiler = profilePath ? new Session() : null;
+  if (profiler) { profiler.connect(); await profiler.post('Profiler.enable'); await profiler.post('Profiler.start'); }
   const tray = await measureState('tray-idle', warmupDurationMs, sampleDurationMs, sampleIntervalMs);
+  if (profiler) {
+    const { profile } = await profiler.post('Profiler.stop');
+    profiler.disconnect();
+    await mkdir(dirname(resolve(profilePath)), { recursive: true });
+    await writeFile(resolve(profilePath), JSON.stringify(profile));
+  }
 
   const result = {
     mode: process.env.SWITCHBOARD_IDLE_REAL_DEVICES === '1' ? 'isolated-live-devices' : 'isolated-native-fixtures',

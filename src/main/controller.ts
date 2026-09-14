@@ -110,7 +110,7 @@ import { applyClipTrackLevel, hasEffectiveClipMixChanged, resolveClipTrackLevel 
 import type { FeedbackEnvironment } from '../shared/feedback-report';
 import { reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
-import { ClipLibraryService, selectShareVideoEncoder } from './services/clip-library';
+import { ClipLibraryService, mergeReconciledClips, selectShareVideoEncoder } from './services/clip-library';
 import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
 import { AudioConfiguration, applyAudioPreferenceChanges, assertAudioConfigurationApplied } from './services/audio-configuration';
 import { AppUpdateService, type AppUpdatePreferences } from './services/app-update-service';
@@ -577,6 +577,7 @@ export class AppController {
   public setRendererActive(active: boolean): SystemSnapshot {
     if (this.rendererActive === active) return this.store.get();
     this.rendererActive = active;
+    this.clipLibrary.setBackgroundWorkActive(active);
     if (this.audioMeterDemandGate.setRendererActive(active)) this.syncAudioMeterDemand();
     if (active) void this.refreshAudioDevices();
     this.performance.refresh();
@@ -2271,6 +2272,7 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    await this.clipLibrary.dispose();
     await this.captureSourceRefresh.dispose();
     this.clearCaptureRecovery();
     await this.scenes.dispose();
@@ -2558,9 +2560,10 @@ export class AppController {
     const before = this.store.get();
     try {
       const clips = await this.clipLibrary.reconcile(before.clips, this.capturePaths.clipsDirectory);
+      if (this.disposed) return;
       this.store.update((draft) => {
-        draft.clips = clips;
-        draft.capture.storage.clipsBytes = clips.reduce((sum, clip) => sum + clip.fileSize, 0);
+        draft.clips = mergeReconciledClips(before.clips, draft.clips, clips);
+        draft.capture.storage.clipsBytes = draft.clips.reduce((sum, clip) => sum + clip.fileSize, 0);
       });
       for (const clip of clips.filter((candidate) => this.clipLibrary.needsEnrichment(candidate))) {
         this.clipLibrary.enqueueThumbnail(clip, (enrichment) => {
@@ -2571,6 +2574,7 @@ export class AppController {
         });
       }
     } catch (reconcileError) {
+      if (this.disposed) return;
       this.store.update((draft) => {
         draft.capture.storage.warning = `Clip library reconciliation failed: ${reconcileError instanceof Error ? reconcileError.message : String(reconcileError)}`;
       }, { persist: false });

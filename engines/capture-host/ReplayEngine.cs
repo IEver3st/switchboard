@@ -977,6 +977,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         var arguments = new List<string>
         {
             "-hide_banner", "-loglevel", "warning", "-nostats",
+            "-filter_threads", "1",
             "-thread_queue_size", "512",
             "-f", input.FfmpegSampleFormat,
             "-ar", input.SampleRate.ToString(CultureInfo.InvariantCulture),
@@ -1020,6 +1021,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
         yield return "-loglevel";
         yield return "warning";
         yield return "-nostats";
+        yield return "-filter_threads";
+        yield return CaptureCpuBudget.FilterThreads(Environment.ProcessorCount).ToString(CultureInfo.InvariantCulture);
         yield return "-progress";
         yield return "pipe:2";
         yield return "-f";
@@ -1038,8 +1041,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
         }
         if (encoderName.StartsWith("lib", StringComparison.OrdinalIgnoreCase))
             filters.Add("hwdownload,format=bgra,format=yuv420p");
-        else if (encoderName.EndsWith("_amf", StringComparison.OrdinalIgnoreCase))
-            // AMF owns the upload; capture-owned D3D11 textures fail on some GPUs.
+        else if (encoderName.EndsWith("_amf", StringComparison.OrdinalIgnoreCase)
+                 || encoderName.EndsWith("_qsv", StringComparison.OrdinalIgnoreCase))
+            // AMF owns its upload; QSV requires NV12/QSV frames, not the capture
+            // backend's BGRA D3D11 textures. Keep NVIDIA's direct path separate.
             filters.Add("hwdownload,format=bgra,format=nv12");
         if (filters.Count > 0)
         {
@@ -1117,6 +1122,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
 
     internal static IEnumerable<string> EncoderArguments(CaptureSettings capture, string encoder)
     {
+        foreach (var argument in CaptureCpuBudget.SoftwareEncoderArguments(encoder)) yield return argument;
         var target = capture.TargetVideoBitrateBps.ToString(CultureInfo.InvariantCulture);
         var maximum = capture.MaximumVideoBitrateBps.ToString(CultureInfo.InvariantCulture);
         if (encoder.Contains("nvenc", StringComparison.OrdinalIgnoreCase))
@@ -1259,48 +1265,35 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         await ReconcileReactionInputAsync(capture, capture, forceRestart: true);
                     }
 
+                    long retainedCacheBytes = 0;
                     if (sessionDirectory is not null && ring is not null)
                     {
-                        ring.Evict(
+                        var audioBytes = ring.Evict(
                             sessionDirectory,
                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
                             capture.MaximumCacheBytes,
                             captureRunning: systemAudioFfmpeg is { HasExited: false },
                             searchPattern: "system-*.mka");
-                        ring.Evict(
+                        audioBytes += ring.Evict(
                             sessionDirectory,
                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
                             capture.MaximumCacheBytes,
                             captureRunning: chatAudioFfmpeg is { HasExited: false },
                             searchPattern: "chat-*.mka");
-                        ring.Evict(
+                        audioBytes += ring.Evict(
                             sessionDirectory,
                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
                             capture.MaximumCacheBytes,
                             captureRunning: microphoneFfmpeg is { HasExited: false },
                             searchPattern: "microphone-*.mka");
-                        var audioBytes = ring.List(
-                                sessionDirectory,
-                                captureRunning: systemAudioFfmpeg is { HasExited: false },
-                                searchPattern: "system-*.mka")
-                            .Concat(ring.List(
-                                sessionDirectory,
-                                captureRunning: chatAudioFfmpeg is { HasExited: false },
-                                searchPattern: "chat-*.mka"))
-                            .Concat(ring.List(
-                                sessionDirectory,
-                                captureRunning: microphoneFfmpeg is { HasExited: false },
-                                searchPattern: "microphone-*.mka"))
-                            .Where(segment => segment.Complete)
-                            .Sum(segment => segment.SizeBytes);
-                        ring.Evict(
+                        retainedCacheBytes = audioBytes + ring.Evict(
                             sessionDirectory,
                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
                             Math.Max(1, capture.MaximumCacheBytes - audioBytes),
                             captureRunning: ffmpeg is { HasExited: false });
                     }
 
-                    var storage = GetStorageStatus(capture, GetReplayCacheBytes());
+                    var storage = GetStorageStatus(capture, retainedCacheBytes);
                     var systemAudioProcessWarning = capture.IncludeSystemAudio && systemAudioFfmpeg is { HasExited: true }
                         ? "The game-audio encoder stopped. Video is still buffering."
                         : null;

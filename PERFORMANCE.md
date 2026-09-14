@@ -172,6 +172,56 @@ rearms one timer. Repeated start/disposal cannot accumulate timers.
 
 ## Startup responsiveness
 
+Library reconciliation and thumbnail enrichment wait while the main interface
+is in the tray, including when its renderer is retained. Reopening resumes queued
+work through the existing renderer-active signal, with no waiting poll or timer.
+The current media operation may finish on close; shutdown aborts its child,
+releases paused work, and waits for cleanup. Explicit imports, exports and replay
+saves remain available independently. Reconciliation merges against current
+canonical clips so saves, edits and deletions made while paused survive resume.
+
+The idle harness now isolates its Videos folder as well as its settings profile.
+Previously an apparently empty fixture could scan real unindexed clips in the
+user's Videos folder; profiling found repeated FFprobe launches in tray mode.
+Those old samples are library-indexing measurements, not core idle baselines.
+Set `SWITCHBOARD_IDLE_CPU_PROFILE` to an output path to record a main-process
+CPU profile during the tray phase; profile runs are diagnostic, not budget gates.
+The corrected September 14, 2026 hidden native fixture run, with empty media
+storage and no engines, passed both 60-second median gates: 315.5 MiB with the
+renderer and 257.7 MiB in tray mode. Both reported 0.0% median whole-machine CPU
+at the sampler's one-decimal precision. This isolates idle overhead; it does not
+measure gameplay, physical devices, populated libraries, or active replay.
+
+Replay video conversion uses at most two filter workers; each independent audio
+encoder uses one filter worker. Software video encoding uses half the logical
+processors, clamped to one through eight workers. x265 and SVT-AV1 receive their
+own pool limits because their internal pools do not obey FFmpeg's thread count
+alone. Startup and on-demand synthetic encoder probes share these limits, with
+one filter worker. This bounds worker pools, not total process CPU utilization;
+high-resolution software capture can still miss its frame budget.
+
+An optional encoder probe timeout is diagnosed and excluded from the current
+capability inventory. It cannot discard already-working hardware encoders and
+restart the entire probe sequence. User cancellation still aborts the operation,
+and the timed-out child is reaped before another probe starts.
+
+The one-second replay maintenance pass obtains each stream inventory once and
+uses post-eviction byte totals for its storage guard. This reduces ring inventory
+reads from eleven to four per tick without extending retention or polling
+intervals. Failed deletions remain included in those byte totals. Snapshots and
+save requests still read fresh inventories, and the timer stops with the host.
+
+`dotnet run -c Release --project engines/capture-host-tests -- --resource-benchmark`
+compares previous automatic threading with production limits using 600 synthetic
+1080p60 BGRA frames, with no desktop/audio access. On September 14, 2026, setting
+`DOTNET_PROCESSOR_COUNT=4` and limiting the FFmpeg child to four logical processors
+on a Ryzen 9 9950X3D reduced peak private memory from 455.1 to 357.8 MiB and peak
+threads from 31 to 19. CPU time was 11.19 vs 10.61 seconds; elapsed encode time
+increased from 3.30 to 4.40 seconds, still faster than the ten-second source.
+This is a synthetic scheduling constraint, not an Intel or low-end hardware
+emulation, NVIDIA gameplay test, sustained resource gate, or quality comparison.
+The encoder preset, bitrate, frame rate and resolution remain unchanged.
+
 `bun run measure:startup` builds the production Electron bundles and measures the isolated native review path from main-process JavaScript entry to a committed control-plane shell. The budget is 1,500 ms; the harness uses canonical fixture devices so physical HID latency cannot make the result nondeterministic. Overlay dismissal is reported separately because Chromium throttles animation frames for a hidden review window.
 
 `bun run measure:settings` builds the same production bundles and measures the

@@ -202,6 +202,10 @@ before submitting them to the selected AMD hardware encoder. This avoids
 capture-texture Direct3D interop failures that synthetic encoder probes do not
 exercise. Recording and on-demand diagnostics share this conversion path;
 NVENC retains direct hardware frames. AMF adds CPU conversion and upload costs.
+QSV also receives an explicit BGRA download and NV12 conversion: the bundled
+Intel H.264 encoder accepts NV12/QSV inputs, not the capture backend's BGRA
+D3D11 textures. This compatibility path adds CPU conversion and upload costs;
+Intel device capture and gameplay cadence require physical validation.
 
 Production target:
 

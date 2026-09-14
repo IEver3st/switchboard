@@ -75,8 +75,7 @@ internal static class CaptureDiagnosticRunner
             emit(new(id, encoder, "running", "Testing a synthetic frame; no screen content is used."));
             try
             {
-                var probe = await RunProcessAsync(ffmpeg, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
-                    "color=size=640x360:rate=1", "-frames:v", "1", "-c:v", encoder, "-f", "null", "-"], cancellationToken);
+                var probe = await RunProcessAsync(ffmpeg, FfmpegLocator.BuildEncoderProbeArguments(encoder), cancellationToken);
                 if (probe.ExitCode == 0) working.Add(encoder);
                 emit(new(id, encoder, probe.ExitCode == 0 ? "pass" : "skipped",
                     probe.ExitCode == 0 ? "Synthetic encoding passed. Live capture is tested separately." : $"Unavailable on this system; excluded from automatic selection.\n{probe.Output}", probe.DurationMs));

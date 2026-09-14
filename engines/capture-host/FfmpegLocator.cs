@@ -41,25 +41,37 @@ internal static class FfmpegLocator
         string ffmpegPath,
         string encoder,
         CancellationToken cancellationToken,
-        Action<string>? onDiagnostic = null)
+        Action<string>? onDiagnostic = null,
+        int timeoutMs = 15_000)
     {
-        var arguments = new[]
-        {
-            "-nostdin", "-hide_banner", "-loglevel", "error",
-            // Current NVIDIA encoders reject dimensions below their hardware minimum.
-            // Probe at a small, universally useful encode size instead of producing a
-            // false negative that silently selects the software fallback.
-            "-f", "lavfi", "-i", "color=size=640x360:rate=1",
-            "-frames:v", "1", "-c:v", encoder, "-f", "null", "-",
-        };
+        var arguments = BuildEncoderProbeArguments(encoder);
         // Startup probes must never inherit the host's JSON command input. Reuse
         // the isolated, bounded runner so cancellation also reaps the child.
         // Cold driver initialization can take several seconds; keep a 15-second
         // startup allowance rather than mistaking it for unsupported hardware.
-        var result = await CaptureDiagnosticRunner.RunProcessAsync(ffmpegPath, arguments, cancellationToken, timeoutMs: 15_000);
-        if (!string.IsNullOrWhiteSpace(result.Output)) onDiagnostic?.Invoke(result.Output[..Math.Min(4096, result.Output.Length)]);
-        return result.ExitCode == 0;
+        try {
+            var result = await CaptureDiagnosticRunner.RunProcessAsync(ffmpegPath, arguments, cancellationToken, timeoutMs);
+            if (!string.IsNullOrWhiteSpace(result.Output)) onDiagnostic?.Invoke(result.Output[..Math.Min(4096, result.Output.Length)]);
+            return result.ExitCode == 0;
+        } catch (TimeoutException error) {
+            // A stalled optional codec must not discard a working NVENC/QSV/AMF
+            // result and send the entire capture startup into a reprobe loop.
+            onDiagnostic?.Invoke(error.Message);
+            return false;
+        }
     }
+
+    internal static IReadOnlyList<string> BuildEncoderProbeArguments(string encoder) => [
+            "-nostdin", "-hide_banner", "-loglevel", "error",
+            "-filter_threads", "1",
+            // Current NVIDIA encoders reject dimensions below their hardware minimum.
+            // Probe at a small, universally useful encode size instead of producing a
+            // false negative that silently selects the software fallback.
+            "-f", "lavfi", "-i", "color=size=640x360:rate=1",
+            "-frames:v", "1", "-c:v", encoder,
+            .. CaptureCpuBudget.SoftwareEncoderArguments(encoder),
+            "-f", "null", "-",
+        ];
 
     public static async Task<string> ReadVersionAsync(string ffmpegPath, CancellationToken cancellationToken)
     {
