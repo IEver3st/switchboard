@@ -3,6 +3,7 @@ import { SetupScenes } from './services/setup-scenes';
 import { quickActionInputSchema, type QuickActionInput } from '../shared/contracts';
 import { DesktopControlsService } from './services/desktop-controls';
 import { NativeResourceCollector } from './services/native-resource-collector';
+import { CaptureSourceRefresh, listCaptureSources } from './services/capture-source-refresh';
 import type { ResourceMonitorSnapshot } from '../shared/resource-monitor';
 import { StatusLighting } from './services/status-lighting';
 import { snapshotSceneValues } from '../shared/setup-scenes';
@@ -39,7 +40,6 @@ import projectPackage from '../../package.json';
 import {
   captureConfigSchema,
   captureHostSnapshotSchema,
-  captureSourceSchema,
   autoCaptureSettingsPatchSchema,
   autoCaptureSettingsSchema,
   audioHostSnapshotSchema,
@@ -249,6 +249,18 @@ export class AppController {
   private readonly captureSourceThumbnails = new Map<string, Buffer>();
   private readonly validatedCaptureWindowSourceIds = new Set<string>();
   private captureSourceThumbnailRefresh: Promise<void> | null = null;
+  private readonly captureSourceRefresh = new CaptureSourceRefresh({
+    scan: signal => this.scanCaptureSources(signal),
+    state: state => { if (!this.disposed) this.store.update(draft => {
+      draft.capture.sourceRefreshState = state;
+    }, { persist: false }); },
+    failure: (error, attempt) => {
+      console.warn(`Capture source discovery attempt ${attempt} failed.`, error);
+      developerDiagnostics.record('main', 'warning', 'capture.source-refresh-failed', {
+        attempt, error: String(error).slice(0, 4096),
+      });
+    },
+  });
   private captureSourceThumbnailsRefreshedAt = 0;
   private gameScan: Promise<SystemSnapshot> | null = null;
   private readonly activeClipExports = new Map<string, AbortController>();
@@ -1473,31 +1485,37 @@ export class AppController {
   }
 
   public async refreshCaptureSources(): Promise<SystemSnapshot> {
-    // Source enumeration owns only a host it started. During first enable, the
-    // recorder can already be running before the accepted config is persisted.
-    const wasRunning = this.engines.hasLiveProcess('capture');
-    if (!wasRunning) await this.engines.start('capture');
-    try {
-      const sources = z.array(captureSourceSchema).parse(
-        await this.engines.request('capture', 'listSources', undefined, 15_000),
-      );
-      const nativeSources = await this.listNativeCaptureSources(sources);
-      const visibleSources = onlySourcesAvailableToElectron(
-        sources,
-        nativeSources,
-        captureIndexedDisplays().map((display) => display.id),
-      );
-      this.validatedCaptureWindowSourceIds.clear();
-      for (const source of visibleSources) {
-        if (source.type === 'window') this.validatedCaptureWindowSourceIds.add(source.id);
-      }
-      const orderedSources = orderCaptureSourcesByDisplayPosition(visibleSources);
-      const snapshot = this.store.update((draft) => { draft.capture.sources = orderedSources; }, { persist: false });
-      this.replaceCaptureSourceThumbnails(orderedSources, nativeSources);
-      return snapshot;
-    } finally {
-      if (!wasRunning) await this.engines.stop('capture');
+    await this.captureSourceRefresh.refresh();
+    return this.store.get();
+  }
+
+  private async scanCaptureSources(signal: AbortSignal): Promise<void> {
+    const executable = app.isPackaged ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
+      : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
+    const sources = await listCaptureSources(executable, signal);
+    // Electron owns thumbnail work and has no cancellation API. Shutdown must
+    // still release our scan and ignore any late thumbnail result.
+    let cancelPreviewWait = () => {};
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      cancelPreviewWait = () => reject(new Error('Source discovery cancelled.'));
+      signal.addEventListener('abort', cancelPreviewWait, { once: true });
+      if (signal.aborted) cancelPreviewWait();
+    });
+    const nativeSources = await Promise.race([this.listNativeCaptureSources(sources), cancelled])
+      .finally(() => signal.removeEventListener('abort', cancelPreviewWait));
+    if (signal.aborted) return;
+    const visibleSources = onlySourcesAvailableToElectron(
+      sources,
+      nativeSources,
+      captureIndexedDisplays().map((display) => display.id),
+    );
+    this.validatedCaptureWindowSourceIds.clear();
+    for (const source of visibleSources) {
+      if (source.type === 'window') this.validatedCaptureWindowSourceIds.add(source.id);
     }
+    const orderedSources = orderCaptureSourcesByDisplayPosition(visibleSources);
+    this.store.update((draft) => { draft.capture.sources = orderedSources; }, { persist: false });
+    this.replaceCaptureSourceThumbnails(orderedSources, nativeSources);
   }
 
   public scanGames(): Promise<SystemSnapshot> {
@@ -2253,6 +2271,7 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
+    await this.captureSourceRefresh.dispose();
     this.clearCaptureRecovery();
     await this.scenes.dispose();
     this.unsubscribeSetup?.(); this.unsubscribeSetup = null;

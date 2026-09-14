@@ -684,7 +684,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.9.10',
+  currentVersion: '0.9.11',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -730,7 +730,7 @@ export const seedClips: Clip[] = [];
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
     setup: setupStateSchema.parse({}),
-    version: '0.9.10',
+    version: '0.9.11',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),
@@ -744,6 +744,7 @@ export function createDefaultSnapshot(): SystemSnapshot {
       storage: structuredClone(defaultCaptureStorage),
       capabilities: structuredClone(defaultCaptureCapabilities),
       sources: [],
+      sourceRefreshState: 'idle',
       autoCapture: structuredClone(defaultAutoCapture),
     },
     clips: structuredClone(seedClips),

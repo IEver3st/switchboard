@@ -3,10 +3,48 @@ import type { ProcessMetric } from 'electron';
 import {
   buildResourceTelemetrySample,
   PerformanceBudgetGuard,
+  PerformanceMonitor,
   measurePerformance,
   shouldCollectRendererRuntime,
 } from '../src/main/services/performance-monitor';
 import { stoppedEngines } from '../src/shared/defaults';
+import type { PerformanceSnapshot } from '../src/shared/contracts';
+import { debugDiagnostics } from '../src/main/services/debug-diagnostics';
+
+test('collector recovery publishes on the next sample and preserves the failed sample in export history', async () => {
+  let now = Date.UTC(2026, 8, 14);
+  let failed = true;
+  const published: PerformanceSnapshot[] = [];
+  debugDiagnostics.setEnabled(true);
+  const monitor = new PerformanceMonitor({
+    now: () => now, getProcessMetrics: () => [],
+    getContext: () => ({ rendererActive: false, guardEnabled: false, detailedDiagnostics: true, engines: stoppedEngines }),
+    publish: snapshot => published.push(snapshot),
+    recordSample: () => {},
+    nativeCollector: { restarts: 1, stop: () => {}, collect: async () => {
+      if (failed) throw new Error('Windows resource collection timed out.');
+      return { requested: 1, inaccessible: 0, durationMs: 1, monitorPid: 42, processes: [{
+        pid: 42, startedAt: '2026-09-14T00:00:00Z', name: 'fixture', cpuSeconds: 1,
+        privateMb: 10, residentMb: 10, peakResidentMb: 10, readBytes: 0, writeBytes: 0, handles: 3,
+      }] };
+    } },
+  });
+  // Exercise the interval path without waiting 30 seconds or forcing publication.
+  const sample = () => (monitor as unknown as { sample(force: boolean): Promise<void> }).sample(false);
+  try {
+    await sample();
+    expect(published.at(-1)!.resources!.status).toBe('unavailable');
+    now += 5000; failed = false;
+    await sample();
+    expect(published).toHaveLength(2);
+    expect(published.at(-1)!.resources!.status).toBe('available');
+    expect(published.at(-1)!.resources!.error).toBeNull();
+    expect(monitor.getDebugHistory()[0]!.nativeResources!.error).toContain('timed out');
+    now += 5000;
+    await sample();
+    expect(published).toHaveLength(2); // Healthy steady sampling still uses 30s publication.
+  } finally { monitor.dispose(); debugDiagnostics.setEnabled(false); }
+});
 
 function metric(type: ProcessMetric['type'], privateKb: number, workingSetKb: number, cpuPercent: number): ProcessMetric {
   return {

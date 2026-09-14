@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace Switchboard.CaptureHost;
 
@@ -11,6 +13,7 @@ internal static class ResourceDiagnostics
     public static int Run()
     {
         if (!OperatingSystem.IsWindows()) return 1;
+        Console.WriteLine("{\"type\":\"ready\"}");
         string? line;
         while ((line = Console.ReadLine()) is not null)
         {
@@ -27,15 +30,29 @@ internal static class ResourceDiagnostics
                 {
                     try
                     {
-                        using var process = Process.GetProcessById(id);
-                        var ioAvailable = GetProcessIoCounters(process.Handle, out var io);
+                        // Read only this PID through one limited-query handle. Process's
+                        // lazy name/memory properties can enumerate system-wide process
+                        // information repeatedly, once for every requested PID.
+                        using var process = OpenProcess(0x1000, false, id); // PROCESS_QUERY_LIMITED_INFORMATION
+                        var memory = new MemoryCounters { Size = (uint)Marshal.SizeOf<MemoryCounters>() };
+                        if (process.IsInvalid
+                            || !GetProcessTimes(process, out var created, out _, out var kernel, out var user)
+                            || !K32GetProcessMemoryInfo(process, ref memory, memory.Size))
+                        { inaccessible++; continue; }
+                        var name = new StringBuilder(1024);
+                        var nameLength = name.Capacity;
+                        var processName = QueryFullProcessImageName(process, 0, name, ref nameLength)
+                            ? Path.GetFileNameWithoutExtension(name.ToString()) : $"Process {id}";
+                        processName = processName[..Math.Min(processName.Length, 160)];
+                        var ioAvailable = GetProcessIoCounters(process, out var io);
+                        var handlesAvailable = GetProcessHandleCount(process, out var handles);
                         processes.Add(new {
-                            pid = id, startedAt = process.StartTime.ToUniversalTime().ToString("O"), name = process.ProcessName,
-                            cpuSeconds = process.TotalProcessorTime.TotalSeconds,
-                            privateMb = process.PrivateMemorySize64 / 1048576d, residentMb = process.WorkingSet64 / 1048576d,
-                            peakResidentMb = process.PeakWorkingSet64 / 1048576d,
+                            pid = id, startedAt = DateTime.FromFileTimeUtc(created).ToString("O"), name = processName,
+                            cpuSeconds = kernel / 10000000d + user / 10000000d,
+                            privateMb = (double)memory.PrivateUsage / 1048576d, residentMb = (double)memory.WorkingSet / 1048576d,
+                            peakResidentMb = (double)memory.PeakWorkingSet / 1048576d,
                             readBytes = ioAvailable ? (double?)io.ReadBytes : null, writeBytes = ioAvailable ? (double?)io.WriteBytes : null,
-                            handles = (int?)process.HandleCount,
+                            handles = handlesAvailable ? (int?)Math.Min(handles, int.MaxValue) : null,
                         });
                     }
                     catch (Exception error) when (error is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
@@ -51,7 +68,28 @@ internal static class ResourceDiagnostics
 
     [StructLayout(LayoutKind.Sequential)]
     private struct IoCounters { public ulong ReadOperations, WriteOperations, OtherOperations, ReadBytes, WriteBytes, OtherBytes; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MemoryCounters
+    {
+        public uint Size, PageFaults;
+        public nuint PeakWorkingSet, WorkingSet, QuotaPeakPagedPool, QuotaPagedPool,
+            QuotaPeakNonPagedPool, QuotaNonPagedPool, PagefileUsage, PeakPagefileUsage, PrivateUsage;
+    }
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeProcessHandle OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int pid);
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetProcessIoCounters(IntPtr process, out IoCounters counters);
+    private static extern bool GetProcessTimes(SafeProcessHandle process, out long created, out long exited, out long kernel, out long user);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool K32GetProcessMemoryInfo(SafeProcessHandle process, ref MemoryCounters counters, uint size);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool QueryFullProcessImageName(SafeProcessHandle process, uint flags, StringBuilder name, ref int size);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetProcessHandleCount(SafeProcessHandle process, out uint count);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetProcessIoCounters(SafeProcessHandle process, out IoCounters counters);
 }

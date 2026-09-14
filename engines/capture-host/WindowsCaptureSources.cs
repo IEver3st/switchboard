@@ -283,6 +283,12 @@ internal sealed class WindowsCaptureSources
         _ = GetWindowThreadProcessId(handle, out var processId);
         if (processId == 0 || processId == Environment.ProcessId) return null;
 
+        // Picker inventory and explicit-source checks need no executable metadata.
+        // MainModule/FileVersionInfo can stall on protected or slow-backed images.
+        if (!includeGameSignals)
+            return new WindowInfo(handle, (int)processId, title, string.Empty, string.Empty,
+                title, string.Empty, false, false);
+
         var classBuilder = new StringBuilder(256);
         GetClassName(handle, classBuilder, classBuilder.Capacity);
         var className = classBuilder.ToString();

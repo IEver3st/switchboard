@@ -100,7 +100,9 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
       <div role="group" aria-label="Resource time range" className="resource-ranges">{[5, 15, 30, 60].map(value => <button type="button" key={value} aria-pressed={minutes === value} onClick={() => setMinutes(value)}>{value === 60 ? '1h' : `${value}m`}</button>)}</div>
     </div>
     <div className="resource-monitor__caption"><p>{pending ? 'Saving…' : resources ? `${recording ? 'Recording' : 'Recording stopped'} · ${resources.sampleCount} samples · ${clock(resources.sampledAt)}` : recording ? 'Collecting the first resource sample…' : 'Recording is off'}</p><span>Whole-machine CPU · app processes only</span></div>
-    {resources?.error && <p className="resource-monitor__error" role="status">{resources.error}</p>}
+    {resources?.error && <p className="resource-monitor__error" role="status">{recording
+      ? 'Resource counters are temporarily unavailable. Retrying automatically; other diagnostics remain available.'
+      : 'Some resource samples could not be collected. Available diagnostics can still be exported.'}</p>}
     {resources?.status === 'partial' && <p className="resource-monitor__error" role="status">{resources.inaccessible} processes could not be read. Aggregate charts show gaps for incomplete samples.</p>}
     <div className="resource-instruments">
       <section className="resource-instrument resource-instrument--cpu" aria-label="CPU history">
@@ -150,7 +152,8 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
           <div><dt>Power source</dt><dd>{resources.host.power === 'ac' ? 'External power' : resources.host.power === 'battery' ? 'Battery' : 'Unknown'}</dd></div><div><dt>System idle</dt><dd>{resources.host.idleState} · {number(resources.host.idleSeconds, ' s')}</dd></div>
           <div><dt>System memory</dt><dd>{memory(resources.host.freeMemoryMb)} free / {memory(resources.host.totalMemoryMb)}</dd></div><div><dt>Logical processors</dt><dd>{resources.logicalProcessors}</dd></div><div><dt>Thermal / CPU speed limit</dt><dd>Unavailable on this collector</dd></div>
         </dl><dl><div><dt>Coverage</dt><dd>{active.length} / {resources.requested} requested</dd></div><div><dt>Inaccessible or exited during collection</dt><dd>{resources.inaccessible}</dd></div><div><dt>Collector PID / restarts</dt><dd>{resources.monitorPid ?? 'Unavailable'} / {resources.restarts}</dd></div><div><dt>Observed starts / exits</dt><dd>{resources.observedStarts} / {resources.observedExits}</dd></div><div><dt>Discarded process lifetimes</dt><dd>{resources.droppedProcesses}</dd></div></dl></div>
-        <p className="resource-note">Starts count first observations. Processes that start and exit between samples are not captured. Charts retain up to 720 points; exports also retain the latest 120 full samples. Display refreshes every 30 seconds.</p>
+        {resources.error && <p className="resource-note">Last collection detail: {resources.error}</p>}
+        <p className="resource-note">Starts count first observations. Processes that start and exit between samples are not captured. Charts retain up to 720 points; exports also retain the latest 120 full samples. Display refreshes every 30 seconds and when collection recovers.</p>
       </details>
     </>}
     {debug && <details className="resource-disclosure"><summary>Main loop & operations <span>{debug.operations.length} operations</span></summary>

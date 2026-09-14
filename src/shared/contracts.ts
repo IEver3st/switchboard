@@ -1502,6 +1502,7 @@ export const systemSnapshotSchema = z.object({
     storage: captureStorageSchema,
     capabilities: captureCapabilitiesSchema,
     sources: z.array(captureSourceSchema),
+    sourceRefreshState: z.enum(['idle', 'refreshing', 'retrying', 'ready', 'unavailable']).default('idle'),
     autoCapture: autoCaptureStateSchema,
   }),
   clips: z.array(clipSchema),

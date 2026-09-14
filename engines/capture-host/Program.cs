@@ -5,6 +5,13 @@ using Switchboard.CaptureHost;
 
 if (args.Contains("--desktop-controls")) { Environment.ExitCode = DesktopControls.Run(); return; }
 if (args.Contains("--resource-diagnostics")) { Environment.ExitCode = ResourceDiagnostics.Run(); return; }
+if (args.Contains("--list-sources"))
+{
+    // Picker discovery cannot block or restart an active replay engine.
+    Console.WriteLine(JsonSerializer.Serialize(new WindowsCaptureSources().ListSources(),
+        new JsonSerializerOptions(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }));
+    return;
+}
 
 var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {

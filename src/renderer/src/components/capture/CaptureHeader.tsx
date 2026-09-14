@@ -248,6 +248,9 @@ function ReplayConfiguration({
                 <RefreshCw className={cn('size-3.5', refreshPending && 'animate-spin motion-reduce:animate-none')} />
                 {refreshPending ? 'Refreshing sources…' : 'Refresh capture sources'}
               </Button>
+              {snapshot.capture.sourceRefreshState === 'unavailable' ? (
+                <p className="text-[11px] text-muted-foreground" role="status">Sources could not be refreshed. Your selection is unchanged. Try Refresh again.</p>
+              ) : null}
             </CollapsibleContent>
           </Collapsible>
         </PopoverContent>
@@ -315,6 +318,7 @@ function CaptureSourcePicker({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [previewRevision, setPreviewRevision] = useState(0);
+  const sourceRefreshState = useSystemStore(state => state.snapshot?.capture.sourceRefreshState);
   const [refreshPending, setRefreshPending] = useState(false);
   const selected = options.find((option) => option.value === value);
   const currentType: CaptureSourceOption['type'] = selected?.type ?? (value === 'automatic-game' ? 'automatic-game' : 'display');
@@ -377,6 +381,13 @@ function CaptureSourcePicker({
           </Button>
         </div>
 
+        {sourceRefreshState === 'retrying' || sourceRefreshState === 'unavailable' ? (
+          <p className="px-3 pb-2 text-[11px] text-muted-foreground" role="status">
+            {sourceRefreshState === 'retrying'
+              ? 'Taking longer than usual. Retrying automatically…'
+              : 'Sources could not be refreshed. Your selection is unchanged. Try Refresh again.'}
+          </p>
+        ) : null}
         <div className="capture-source-grid" role="group" aria-label="Available capture sources">
           {options.map((option) => (
             <CaptureSourceOptionButton

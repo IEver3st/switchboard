@@ -99,6 +99,7 @@ export class PerformanceMonitor {
   private timer: NodeJS.Timeout | null = null;
   private started = false;
   private lastPublishedAt = 0;
+  private lastResourceStatus: NonNullable<PerformanceSnapshot['resources']>['status'] | undefined;
   private lastResourceRecordedAt = 0;
   private lastGuardState: PerformanceSnapshot['guardState'] | null = null;
   private previousTotalMemoryMb: number | null = null;
@@ -182,7 +183,7 @@ export class PerformanceMonitor {
           power: 'unknown', idleSeconds: null, idleState: 'unknown', thermal: 'unavailable', cpuSpeedLimit: null,
         };
         try { hostState = this.options.getHostState?.() ?? hostState; } catch { /* Preserve explicit unknowns. */ }
-        snapshot.resources = this.resourceHistory.record({ at: new Date(measuredAt).toISOString(), native, identities,
+        snapshot.resources = this.resourceHistory.record({ at: new Date(this.now()).toISOString(), native, identities,
           logicalProcessors: availableParallelism(), restarts: this.options.nativeCollector.restarts, error,
           host: { ...hostState, totalMemoryMb: bytesToMb(totalmem()), freeMemoryMb: bytesToMb(freemem()) } });
       } else {
@@ -259,8 +260,10 @@ export class PerformanceMonitor {
         }
         this.options.recordSample?.(resourceSample);
       }
-      if (forcePublish || guardChanged || measuredAt - this.lastPublishedAt >= publishIntervalMs) {
+      const resourceStatusChanged = this.lastResourceStatus !== snapshot.resources?.status;
+      if (forcePublish || guardChanged || resourceStatusChanged || measuredAt - this.lastPublishedAt >= publishIntervalMs) {
         this.lastPublishedAt = measuredAt;
+        this.lastResourceStatus = snapshot.resources?.status;
         this.lastGuardState = snapshot.guardState;
         this.options.publish(snapshot);
       }

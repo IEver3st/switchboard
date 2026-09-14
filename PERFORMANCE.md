@@ -251,11 +251,23 @@ The G502 X Plus native-control path holds one non-exclusive HID++ long-report ha
 
 The QuadCast 2 path holds one non-exclusive blocking-read handle for absolute tap-mute events and one non-exclusive feature-report handle only while maintained lighting is active. Lighting refreshes every 55 ms because the researched display frame expires on-device; the timer is unreferenced and stops on module disable, disconnect, write failure, or shutdown. A failed mute read closes its handle and retries after one second while the device remains present.
 
+## Source discovery
+
+Source-picker refreshes are on demand and coalesced. A media-free helper exits
+after one inventory, with a 15-second deadline and 1 MiB output limit. Failed
+scans retry after one and two seconds, then stop until another refresh request.
+Shutdown aborts discovery and its retry delay. No discovery polling timer or
+helper remains idle, and discovery never restarts the recording host.
+
 ## Opt-in resource debugging
 
 Detailed recording adds one media-free Windows counter helper. It has no polling
 timer: the existing five-second sampler requests up to 255 known PIDs plus the
-helper itself. Only one request may be pending, bounded to 2.5 seconds and 256 KiB.
+helper itself. Only one request may be pending. A ready handshake gives cold
+.NET startup up to 15 seconds; each subsequent sample is bounded to 2.5 seconds
+and 256 KiB. Counter reads use one limited-query handle per PID rather than
+repeated system-wide process snapshots. Collector health transitions publish
+immediately; ordinary healthy readings retain the 30-second publication interval.
 Disable, diagnostic cancellation/completion, reset and shutdown stop the helper;
 a failed helper retries on the next existing sample. Its memory/CPU/I/O appear
 under Collector, separately from the ordinary performance guard's engine budget.

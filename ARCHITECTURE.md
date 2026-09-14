@@ -22,7 +22,11 @@ Detailed resource recording reuses the performance sampler and starts the bundle
 Capture.Host in `--resource-diagnostics` mode. This mode initializes no capture or
 audio engine. Main sends only known app/engine process IDs over stdin; the helper
 adds itself, reads Windows CPU time, memory, handle and I/O counters, and closes
-each process handle after the request. Main validates bounded responses, computes
+each limited-query process handle after the request. The helper signals readiness
+before the sample deadline starts, so cold runtime startup does not consume the
+counter-read budget. Timed-out helpers are killed and the next sample restarts
+them; collection recovery publishes immediately without ending a diagnostic run.
+Main validates bounded responses, computes
 per-lifetime deltas, and owns the transient history in the shared resource contract.
 Renderer reloads retain that history; settings persistence omits it. JSON export
 schema 4 includes the same history and process summaries, plus existing full
@@ -230,8 +234,13 @@ subsecond offset and segment durations during stream-copy assembly.
 
 Automatic game capture holds a conservative, stable game-window identity and waits rather than switching to unrelated foreground applications. This does not claim exclusive-fullscreen graphics hooking; a future hook can implement the existing source boundary without changing renderer IPC.
 
-Capture source enumeration owns only a host it starts; it cannot stop a recorder
-whose first configuration is still being accepted. A live host's encoder/source
+Capture picker enumeration uses a short-lived `--list-sources` helper that never
+constructs the replay engine. It reads window titles/handles without executable
+metadata, and cannot block, stop, or restart a recorder. Main coalesces concurrent
+refresh requests and retries failed scans twice, retaining the last source list
+until a complete replacement is available. Discovery status stays in the picker;
+failures are recorded in diagnostics rather than global error notifications.
+A live host's encoder/source
 error remains a capture error. While Capture is enabled, main retries host exits,
 stopped recorders and live encoder/source errors with backoff until recovery.
 Configuration and recovery commands are serialized; a rejected source/encoder

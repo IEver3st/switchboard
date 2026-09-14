@@ -345,6 +345,7 @@ function migrateLegacyCaptureState(value: unknown): unknown {
         ? { ...defaults.capture.capabilities, ...capture.capabilities }
         : defaults.capture.capabilities,
       sources: Array.isArray(capture.sources) ? capture.sources : [],
+      sourceRefreshState: 'idle',
       autoCapture: isRecord(capture.autoCapture)
         ? {
             settings: isRecord(capture.autoCapture.settings)
