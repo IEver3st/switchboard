@@ -253,6 +253,20 @@ The QuadCast 2 path holds one non-exclusive blocking-read handle for absolute ta
 
 ## Opt-in resource debugging
 
+Detailed recording adds one media-free Windows counter helper. It has no polling
+timer: the existing five-second sampler requests up to 255 known PIDs plus the
+helper itself. Only one request may be pending, bounded to 2.5 seconds and 256 KiB.
+Disable, diagnostic cancellation/completion, reset and shutdown stop the helper;
+a failed helper retries on the next existing sample. Its memory/CPU/I/O appear
+under Collector, separately from the ordinary performance guard's engine budget.
+Main retains 720 compact trend points (about an hour), 256 process lifetimes and
+the existing 120 full samples. Full samples contain only their current native
+counters rather than nested histories. Canonical renderer publication remains at
+30 seconds or guard-state changes. Optional state is omitted from persisted
+settings. Partial samples create chart gaps, and the first counter sample has no
+rate. CPU uses whole-machine normalization; I/O includes network and device I/O.
+Short-lived processes between samples and GPU/thermal counters remain unavailable.
+
 Developer mode starts an event-driven diagnostic timeline with no extra polling
 timer. Main retains at most 2,000 events / 2 MiB, with an 8 KiB per-event limit
 and a 120-events-per-second cap; the capture host caps diagnostic emissions at

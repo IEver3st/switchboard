@@ -18,6 +18,16 @@ and fails explicitly when process activation is unavailable.
 
 ## Control plane
 
+Detailed resource recording reuses the performance sampler and starts the bundled
+Capture.Host in `--resource-diagnostics` mode. This mode initializes no capture or
+audio engine. Main sends only known app/engine process IDs over stdin; the helper
+adds itself, reads Windows CPU time, memory, handle and I/O counters, and closes
+each process handle after the request. Main validates bounded responses, computes
+per-lifetime deltas, and owns the transient history in the shared resource contract.
+Renderer reloads retain that history; settings persistence omits it. JSON export
+schema 4 includes the same history and process summaries, plus existing full
+samples, runtime data, event timeline and capture/environment context.
+
 Electron owns product lifecycle, module state, profiles, settings, diagnostics, and UI. It does not process realtime audio/video frames.
 
 ```text

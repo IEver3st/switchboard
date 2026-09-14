@@ -214,7 +214,7 @@ export class StateStore {
   }
 
   private persist(): Promise<void> {
-    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot, performance: { ...this.snapshot.performance, debug: undefined } }, null, 2));
+    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot, performance: { ...this.snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
     this.persistChain = this.persistChain
       .catch(() => undefined)
       .then(async () => {

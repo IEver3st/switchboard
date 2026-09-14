@@ -6,7 +6,7 @@ import './diagnostics-workspace.css';
 
 export function DiagnosticsWorkspace({ children, targetSetting }: { children: ReactNode; targetSetting?: string | null }) {
   const root = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState('checks');
+  const [view, setView] = useState('resources');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [copyFallback, setCopyFallback] = useState('');
@@ -18,7 +18,7 @@ export function DiagnosticsWorkspace({ children, targetSetting }: { children: Re
   async function copy() {
     const pane = root.current?.querySelector<HTMLElement>(`[data-diagnostic-pane="${view}"]`);
     const overview = root.current?.querySelector<HTMLElement>('.diagnostics-overview');
-    const details = Array.from(pane?.querySelectorAll('h3, h4, dt, dd, p, output, summary, th, td') ?? [])
+    const details = Array.from(pane?.querySelectorAll('h3, h4, dt, dd, p, output, summary, th, td, .resource-instrument__label') ?? [])
       .map(element => element.textContent?.trim()).filter(Boolean).join('\n');
     const text = `Switchboard diagnostics · ${new Date().toISOString()}\n\n${overview?.innerText ?? ''}\n\n${details}`;
     setCopyFallback('');

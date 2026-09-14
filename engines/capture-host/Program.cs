@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Switchboard.CaptureHost;
 
 if (args.Contains("--desktop-controls")) { Environment.ExitCode = DesktopControls.Run(); return; }
+if (args.Contains("--resource-diagnostics")) { Environment.ExitCode = ResourceDiagnostics.Run(); return; }
 
 var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {

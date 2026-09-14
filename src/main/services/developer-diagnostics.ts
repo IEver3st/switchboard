@@ -82,6 +82,11 @@ export class DeveloperDiagnosticsCollector {
     };
   }
 
+  public recentEvents() {
+    return this.entries.slice(-60).map(({ event }) => ({ at: event.sampledAt, source: event.source,
+      level: event.level, event: event.event, detail: JSON.stringify(event.data).slice(0, 2048) }));
+  }
+
   public async trace<T>(source: EventSource, operation: string, action: () => T | Promise<T>): Promise<T> {
     if (!this.active) return action();
     const session = this.sessionId;

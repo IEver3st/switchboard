@@ -2,6 +2,8 @@ import { normalizeMusicTrack } from '../shared/montage-audio';
 import { SetupScenes } from './services/setup-scenes';
 import { quickActionInputSchema, type QuickActionInput } from '../shared/contracts';
 import { DesktopControlsService } from './services/desktop-controls';
+import { NativeResourceCollector } from './services/native-resource-collector';
+import type { ResourceMonitorSnapshot } from '../shared/resource-monitor';
 import { StatusLighting } from './services/status-lighting';
 import { snapshotSceneValues } from '../shared/setup-scenes';
 import { sceneAudioSchema, setupPreferencesSchema, type SceneValues, type SaveSceneInput, type SetupPreferences } from '../shared/contracts';
@@ -206,6 +208,7 @@ export class AppController {
   private readonly appUpdates: AppUpdateService;
   private readonly performance: PerformanceMonitor;
   private readonly resourceJournal: ResourceJournal;
+  private diagnosticRunResources: ResourceMonitorSnapshot | undefined;
   private diagnosticRunTask: Promise<void> | null = null;
   private diagnosticRunHost: EngineSupervisor | null = null;
   private diagnosticRunCancelled = false;
@@ -328,6 +331,11 @@ export class AppController {
       { additionalModules: () => [...this.localDeviceModules.values()] },
     );
     this.performance = new PerformanceMonitor({
+      nativeCollector: new NativeResourceCollector(app.isPackaged ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
+        : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe')),
+      getHostState: () => ({ power: powerMonitor.isOnBatteryPower() ? 'battery' : 'ac',
+        idleSeconds: powerMonitor.getSystemIdleTime(), idleState: powerMonitor.getSystemIdleState(60),
+        thermal: 'unavailable', cpuSpeedLimit: null }),
       getProcessMetrics: () => app.getAppMetrics(),
       getContext: () => ({
         externalProcesses: this.desktopControls.getResources(),
@@ -1580,6 +1588,7 @@ export class AppController {
     if (!developerDiagnostics.enabled && !exportRun) throw new Error('Run diagnostics or enable Developer mode before exporting diagnostics.');
     const useSavedCollection = exportRun && !developerDiagnostics.enabled;
     const samples = useSavedCollection ? this.diagnosticRunSamples : this.performance.getDebugHistory();
+    const resources = useSavedCollection ? this.diagnosticRunResources : this.performance.getResourceHistory();
     developerDiagnostics.record('main', 'info', 'diagnostics.export-requested', { resourceSamples: samples.length });
     const trace = useSavedCollection ? this.diagnosticRunTrace ?? developerDiagnostics.snapshot() : developerDiagnostics.snapshot();
     const runContext = exportRun ? structuredClone({ ...run,
@@ -1592,9 +1601,10 @@ export class AppController {
     if (result.canceled || !result.filePath) return false;
     if (!developerDiagnostics.enabled && !exportRun) throw new Error('Developer mode was disabled before the export completed.');
     await writeFile(result.filePath, JSON.stringify({
-      schemaVersion: 3, version: snapshot.version, exportedAt: new Date().toISOString(),
+      schemaVersion: 4, version: snapshot.version, exportedAt: new Date().toISOString(),
       droppedJournalWrites: this.resourceJournal.getDroppedWrites(),
-      limits: 'Developer events and capture context plus the last 120 optional resource samples. Timings are inclusive wall time, not CPU attribution. Native child CPU, GPU load and Windows handle counts are unavailable. Renderer heap is approximate. Paths, URLs, and credentials are redacted; window titles and media are omitted.',
+      limits: 'Last 120 detailed resource samples, up to 720 five-second trend points and 256 process lifetimes. CPU percentages are normalized to logical processors. Process CPU and I/O totals cover observed deltas only; short-lived processes between samples are not counted. I/O includes file, network and device operations, not disk traffic alone. Resident sums can double-count shared pages; process peaks are lifetime peaks and are not simultaneous. Null means unavailable or awaiting a second sample. Operation timings are inclusive wall time, not CPU attribution. GPU load, thermal state and CPU speed limit are unavailable. Renderer heap is approximate. Paths, URLs, and credentials in diagnostic events are redacted; window titles, command lines and media are omitted.',
+      resources,
       environment: {
         platform: process.platform, arch: process.arch, windowsRelease: osRelease(), windowsVersion: osVersion(),
         electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
@@ -1620,6 +1630,7 @@ export class AppController {
     this.diagnosticCollectionAbort = new AbortController();
     this.diagnosticRunTrace = null;
     this.diagnosticRunSamples = [];
+    this.diagnosticRunResources = undefined;
     this.diagnosticCaptureEndContext = null;
     this.diagnosticRunGraphics = { unavailable: 'GPU metadata has not completed for this run.' };
     this.diagnosticCaptureContext = captureDiagnosticContext(this.store.get());
@@ -1704,6 +1715,7 @@ export class AppController {
       this.diagnosticRunHost = null;
       await this.performance.refresh();
       this.diagnosticRunSamples = this.performance.getDebugHistory();
+      this.diagnosticRunResources = this.performance.getResourceHistory();
       this.diagnosticCaptureEndContext = captureDiagnosticContext(this.store.get());
       this.recordDiagnosticCheck(runId, { id: 'resources', label: 'Detailed diagnostics',
         status: this.diagnosticRunSamples.length ? 'pass' : 'warning',
@@ -1866,8 +1878,9 @@ export class AppController {
     if (scope === 'all' || scope === 'general') await this.syncDeveloperDiagnostics();
     if (scope === 'all' || scope === 'diagnostics' || scope === 'general' && !snapshot.settings.developerMode) {
       this.performance.invalidateDebugSample();
+      this.performance.clearDebugHistory();
       debugDiagnostics.setEnabled(false);
-      snapshot = this.store.update(draft => { delete draft.performance.debug; }, { persist: false });
+      snapshot = this.store.update(draft => { delete draft.performance.debug; delete draft.performance.resources; }, { persist: false });
       this.performance.refresh();
     }
     if (scope === 'all' || scope === 'general') {

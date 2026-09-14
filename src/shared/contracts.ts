@@ -1,4 +1,5 @@
 import { montageMusicTrackSchema } from './montage-audio';
+import { resourceMonitorSchema } from './resource-monitor';
 import { z } from 'zod';
 import { videoEditsSchema } from './video-edits';
 
@@ -1313,6 +1314,7 @@ export const debugDiagnosticsSchema = z.object({
 export type DebugDiagnostics = z.infer<typeof debugDiagnosticsSchema>;
 
 export const performanceSnapshotSchema = z.object({
+  resources: resourceMonitorSchema.optional(),
   debug: debugDiagnosticsSchema.optional(),
   coreMemoryMb: z.number().min(0),
   rendererMemoryMb: z.number().min(0),

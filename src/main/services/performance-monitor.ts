@@ -1,6 +1,9 @@
 import { debugDiagnostics } from './debug-diagnostics';
+import { developerDiagnostics } from './developer-diagnostics';
 import type { ProcessMetric } from 'electron';
-import { freemem, totalmem } from 'node:os';
+import { freemem, totalmem, availableParallelism } from 'node:os';
+import { ResourceHistory, type ResourceIdentity } from './resource-history';
+import type { NativeResourceSample, ResourceMonitorSnapshot } from '../../shared/resource-monitor';
 import { z } from 'zod';
 import type { DebugDiagnostics, EngineStatus, PerformanceSnapshot } from '../../shared/contracts';
 import type { ResourceTelemetrySample } from './resource-journal';
@@ -35,6 +38,8 @@ type PerformanceMonitorOptions = {
   getRendererRuntime?: () => Promise<unknown>;
   recordSample?: (sample: ResourceTelemetrySample) => void;
   now?: () => number;
+  nativeCollector?: { collect(pids: number[]): Promise<NativeResourceSample>; stop(): void; reset?(): void; readonly restarts: number };
+  getHostState?: () => Pick<ResourceMonitorSnapshot['host'], 'power' | 'idleSeconds' | 'idleState' | 'thermal' | 'cpuSpeedLimit'>;
 };
 
 type ResourceSample = Pick<PerformanceSnapshot, 'totalMemoryMb' | 'totalCpuPercent' | 'budgetMemoryMb' | 'budgetCpuPercent'>;
@@ -103,12 +108,15 @@ export class PerformanceMonitor {
   private pendingRendererProbe: Promise<unknown> | null = null;
   private debugEpoch = 0;
   private debugHistory: ResourceTelemetrySample[] = [];
+  private readonly resourceHistory = new ResourceHistory();
+
+  public getResourceHistory(): ResourceMonitorSnapshot | undefined { return this.resourceHistory.snapshot(); }
 
   public getDebugHistory(): ResourceTelemetrySample[] { return structuredClone(this.debugHistory); }
 
-  public clearDebugHistory(): void { this.debugEpoch++; this.debugHistory = []; }
+  public clearDebugHistory(): void { this.debugEpoch++; this.debugHistory = []; this.resourceHistory.clear(); this.options.nativeCollector?.reset?.(); }
 
-  public invalidateDebugSample(): void { this.debugEpoch++; }
+  public invalidateDebugSample(): void { this.debugEpoch++; this.options.nativeCollector?.stop(); }
 
   public constructor(private readonly options: PerformanceMonitorOptions) {
     this.now = options.now ?? Date.now;
@@ -131,6 +139,7 @@ export class PerformanceMonitor {
   }
 
   public dispose(): void {
+    this.options.nativeCollector?.stop();
     this.disposed = true;
     this.started = false;
     if (this.timer) clearInterval(this.timer);
@@ -157,6 +166,29 @@ export class PerformanceMonitor {
       const guard = this.guard.evaluate(measured, context.guardEnabled);
       const snapshot: PerformanceSnapshot = { ...measured, ...guard };
       if (debugGeneration) snapshot.debug = debugDiagnostics.snapshot();
+      if (debugGeneration && this.options.nativeCollector) {
+        const identities: ResourceIdentity[] = [
+          ...metrics.map(metric => ({ pid: metric.pid, role: metric.type, group: 'desktop' as const })),
+          ...(context.externalProcesses ?? []).map(item => ({ pid: item.pid, role: item.name, group: 'desktop' as const })),
+          ...context.engines.filter(engine => engine.state === 'running' || engine.state === 'starting').flatMap(engine =>
+            engine.processes?.length ? engine.processes.map(item => ({ pid: item.pid, role: `${engine.kind}:${item.role}`, group: engine.kind }))
+              : engine.pid ? [{ pid: engine.pid, role: engine.kind, group: engine.kind }] : []),
+        ];
+        let native: NativeResourceSample | null = null, error: string | null = null;
+        try { native = await this.options.nativeCollector.collect(identities.map(item => item.pid)); }
+        catch (failure) { error = failure instanceof Error ? failure.message : 'Windows resource collection failed.'; }
+        if (this.disposed || debugEpoch !== this.debugEpoch || !this.options.getContext().detailedDiagnostics) return;
+        let hostState: ReturnType<NonNullable<PerformanceMonitorOptions['getHostState']>> = {
+          power: 'unknown', idleSeconds: null, idleState: 'unknown', thermal: 'unavailable', cpuSpeedLimit: null,
+        };
+        try { hostState = this.options.getHostState?.() ?? hostState; } catch { /* Preserve explicit unknowns. */ }
+        snapshot.resources = this.resourceHistory.record({ at: new Date(measuredAt).toISOString(), native, identities,
+          logicalProcessors: availableParallelism(), restarts: this.options.nativeCollector.restarts, error,
+          host: { ...hostState, totalMemoryMb: bytesToMb(totalmem()), freeMemoryMb: bytesToMb(freemem()) } });
+      } else {
+        if (!debugGeneration) this.options.nativeCollector?.stop();
+        snapshot.resources = this.resourceHistory.snapshot();
+      }
       const guardChanged = this.lastGuardState !== snapshot.guardState;
       const rapidGrowth = this.previousTotalMemoryMb !== null
         && measured.totalMemoryMb - this.previousTotalMemoryMb >= Math.max(32, measured.budgetMemoryMb * 0.1);
@@ -204,13 +236,24 @@ export class PerformanceMonitor {
           ),
         });
         if (snapshot.debug) {
+          if (snapshot.resources) snapshot.resources = this.resourceHistory.attachRuntime({
+            mainHeapMb: resourceSample.mainRuntime.heapUsedMb, mainExternalMb: resourceSample.mainRuntime.externalMb,
+            mainArrayBuffersMb: resourceSample.mainRuntime.arrayBuffersMb, activeResources: resourceSample.mainRuntime.activeResources,
+            rendererHeapMb: resourceSample.rendererRuntime?.jsHeapUsedMb ?? null, domNodes: resourceSample.rendererRuntime?.domNodes ?? null,
+            canvases: resourceSample.rendererRuntime?.canvasCount ?? null, images: resourceSample.rendererRuntime?.imageCount ?? null,
+            videos: resourceSample.rendererRuntime?.videoCount ?? null, longTasks: resourceSample.rendererRuntime?.longTasks?.count ?? null,
+          }, developerDiagnostics.recentEvents());
           snapshot.debug.processes = [
             ...resourceSample.electronProcesses.map(p => ({ ...p, role: p.type })),
+            ...(context.externalProcesses ?? []).map(p => ({ pid: p.pid, role: p.name, privateMb: p.privateMemoryMb, workingSetMb: p.workingSetMb, cpuPercent: p.cpuPercent })),
             ...resourceSample.engines.filter(e => e.state === 'running' || e.state === 'starting').flatMap<DebugDiagnostics['processes'][number]>(e => e.processes.length
               ? e.processes.map(p => ({ pid: p.pid, role: `${e.kind}:${p.role}`, privateMb: p.privateMemoryMb, workingSetMb: p.workingSetMb, cpuPercent: null }))
               : [{ pid: e.pid ?? 0, role: e.kind, privateMb: e.reportedMemoryMb, workingSetMb: e.reportedMemoryMb, cpuPercent: e.cpuPercent }]),
           ].sort((a, b) => b.privateMb - a.privateMb);
           resourceSample.debug = snapshot.debug;
+          // Raw records retain this sample's counters, not a quadratic copy of history.
+          if (snapshot.resources) resourceSample.nativeResources = { ...snapshot.resources, history: snapshot.resources.history.slice(-1),
+            processes: snapshot.resources.processes.filter(item => item.sampledAt === snapshot.resources!.sampledAt) };
           this.debugHistory.push(resourceSample);
           if (this.debugHistory.length > 120) this.debugHistory.shift();
         }

@@ -1,4 +1,5 @@
 import type { DebugDiagnostics, DeveloperDiagnosticEvent } from '../../shared/contracts';
+import type { ResourceMonitorSnapshot } from '../../shared/resource-monitor';
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -7,6 +8,7 @@ const defaultMaximumFileBytes = 8 * 1_024 * 1_024;
 const pruneIntervalMs = 6 * 60 * 60 * 1_000;
 
 export type ResourceTelemetrySample = {
+  nativeResources?: ResourceMonitorSnapshot;
   debug?: DebugDiagnostics;
   schemaVersion: 1;
   kind: 'resource-sample';
