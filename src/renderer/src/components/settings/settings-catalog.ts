@@ -444,13 +444,6 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['logs', 'history', 'days', 'crash', 'privacy'],
   },
   {
-    id: 'diagnostics.telemetry',
-    category: 'diagnostics',
-    title: 'Telemetry',
-    description: 'Remote telemetry is hard-disabled in the current schema.',
-    keywords: ['privacy', 'analytics', 'tracking', 'collection'],
-  },
-  {
     id: 'diagnostics.memory',
     category: 'diagnostics',
     title: 'Process usage',

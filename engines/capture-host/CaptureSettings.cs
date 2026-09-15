@@ -115,7 +115,10 @@ internal sealed record CaptureStorageStatus(
     long ReplayCacheBytes,
     bool LowSpace,
     bool CriticalSpace,
-    string? Warning = null);
+    string? Warning = null,
+    long? CacheAvailableBytes = null,
+    long? CacheTotalBytes = null,
+    string? StorageProblem = null);
 
 internal sealed record CaptureRuntime(
     string State,

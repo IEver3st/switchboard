@@ -15,6 +15,7 @@ import {
   toggleDraftWorkspace,
   visiblePagesForProfile,
   workspacePreset,
+  usesCaptureOnlyShell,
 } from '../src/shared/workspace-profile';
 
 describe('visible workspaces', () => {
@@ -139,5 +140,24 @@ describe('onboarding draft', () => {
       'audio',
       'capture',
     ]);
+  });
+});
+
+
+describe('capture-only shell', () => {
+  it('uses confirmed module and audio configuration, including disabled replay', () => {
+    const snapshot = createDefaultSnapshot();
+    snapshot.modules.forEach(module => { module.enabled = false; });
+    snapshot.audio.enabled = false;
+    snapshot.capture.config.enabled = false;
+    expect(usesCaptureOnlyShell(snapshot)).toBeTrue();
+    const device = snapshot.modules.find(module => module.kind === 'device')!;
+    device.enabled = true;
+    expect(usesCaptureOnlyShell(snapshot)).toBeFalse();
+    device.enabled = false;
+    snapshot.audio.enabled = true;
+    expect(usesCaptureOnlyShell(snapshot)).toBeFalse();
+    snapshot.settings.visibleWorkspaces = ['capture'];
+    expect(usesCaptureOnlyShell(snapshot)).toBeTrue();
   });
 });

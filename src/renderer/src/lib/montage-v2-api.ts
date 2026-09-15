@@ -11,7 +11,7 @@ const demoApi: MontageV2Api = {
     return { assetId, samples: [] };
   },
   async listMontageDrafts() {
-    demoDrafts = demoDrafts.filter(draft => draft.updatedAt + montageDraftRetentionMs > Date.now());
+    demoDrafts = demoDrafts.filter(draft => draft.kept || draft.updatedAt + montageDraftRetentionMs > Date.now());
     return structuredClone(demoDrafts);
   },
   async saveMontageDraft(project) {

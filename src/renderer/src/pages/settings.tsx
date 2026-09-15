@@ -777,6 +777,7 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
 
 function ClipsSettings({ snapshot, onReset }: CategoryProps) {
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
+  const chooseReplayCacheDirectory = useSystemStore((state) => state.chooseReplayCacheDirectory);
   const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
   const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
   const config = snapshot.capture.config;
@@ -907,12 +908,15 @@ function ClipsSettings({ snapshot, onReset }: CategoryProps) {
         {storage.warning ? <p className="clip-storage__warning"><AlertTriangle aria-hidden />{storage.warning}</p> : null}
         <SettingFolder
           settingId="capture.storage"
-          title="Storage location"
+          title="Saved clips"
           path={clipDirectory}
           onChange={() => void chooseClipDirectory()}
           onOpen={() => void openClipsDirectory()}
           className="clip-storage-location"
         />
+        <SettingRow settingId="capture.replay-cache" title="Replay cache" description={`${storage.cacheAvailableBytes == null ? 'Capacity unavailable' : `${formatBytes(storage.cacheAvailableBytes)} free`} · Changing this location restarts the replay buffer. Existing clips stay where they are.`}>
+          <div className="min-w-0 text-right"><p className="max-w-72 truncate text-xs text-muted-foreground" title={storage.cacheDirectory}>{storage.cacheDirectory}</p><Button size="sm" onClick={() => void chooseReplayCacheDirectory()}>Change cache folder</Button></div>
+        </SettingRow>
       </section>
     </div>
   );
@@ -973,7 +977,7 @@ function ModulesSettings({
   );
 }
 
-function DiagnosticsSettings({ snapshot, onReset, targetSetting }: CategoryProps & { targetSetting?: string | null }) {
+function DiagnosticsSettings({ snapshot, targetSetting }: CategoryProps & { targetSetting?: string | null }) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const [pendingSetting, setPendingSetting] = useState<'retention' | 'guard' | null>(null);
   const developerMode = snapshot.settings.developerMode === true;
@@ -990,7 +994,7 @@ function DiagnosticsSettings({ snapshot, onReset, targetSetting }: CategoryProps
 
   return (
     <div className="settings-diagnostics">
-      <SettingsCategoryHeader title="Diagnostics" description="Find the failure, inspect the evidence, and save what you need." onReset={onReset} />
+      <SettingsCategoryHeader title="Diagnostics" />
       <DiagnosticsWorkspace targetSetting={targetSetting}>
       <section className="diagnostics-overview" aria-label="Current health">
         <article id="setting-diagnostics.memory" data-setting-id="diagnostics.memory" tabIndex={-1} className="diagnostics-overview__system">
@@ -1026,7 +1030,6 @@ function DiagnosticsSettings({ snapshot, onReset, targetSetting }: CategoryProps
       <section className="diagnostics-maintenance" aria-labelledby="diagnostics-maintenance-title">
         <div className="diagnostics-section__heading">
           <h3 id="diagnostics-maintenance-title">Local records</h3>
-          <span id="setting-diagnostics.telemetry" data-setting-id="diagnostics.telemetry" tabIndex={-1} className="diagnostics-local-only">Telemetry off</span>
         </div>
         <div className="diagnostics-maintenance__controls">
           <div id="setting-diagnostics.retention" data-setting-id="diagnostics.retention" tabIndex={-1} className="diagnostics-maintenance__control">

@@ -2,6 +2,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+var healthySpace = 20L * 1024 * 1024 * 1024;
+foreach (var pair in new (long? Clips, long? Cache)[] { (0, healthySpace), (healthySpace, 0), (0, 0), (null, healthySpace), (healthySpace, null) })
+    if (!StorageHeadroom.Evaluate(pair.Clips, pair.Cache, 0).Critical) throw new Exception("Unavailable or zero storage must block capture.");
+if (StorageHeadroom.Evaluate(healthySpace, healthySpace, 0).Critical) throw new Exception("Healthy storage should allow capture.");
+if (args.Contains("--storage-policy-only")) { Console.WriteLine("Capture storage headroom policy passed."); return; }
+
 if (args.Contains("--resource-benchmark")) { await CaptureResourceTests.BenchmarkAsync(); return; }
 if (args.Contains("--software-resource-probes")) { await CaptureResourceTests.ProbeSoftwareAsync(); return; }
 if (args.Contains("--resource-policy-only")) { CaptureResourceTests.AssertArguments(); Console.WriteLine("Capture resource policy passed."); return; }

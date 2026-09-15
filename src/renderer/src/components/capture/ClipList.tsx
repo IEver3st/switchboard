@@ -18,7 +18,7 @@ export const ClipList = memo(function ClipList({ clips, actions, selectionMode, 
   actions: ClipActions;
   selectionMode: boolean;
   selectedClipIds: string[];
-  onToggleSelection: (clip: Clip) => void;
+  onToggleSelection: (clip: Clip, range?: boolean) => void;
 }) {
   const groups = useMemo(() => groupClips(clips, pendingSaveCount), [clips, pendingSaveCount]);
   const virtual = useVirtualClipRows(groups, 'list', retainedClipId);
@@ -57,13 +57,13 @@ const ClipListItem = memo(function ClipListItem({ clip, actions, style, position
   total: number;
   selectionMode: boolean;
   selectedOrder: number | null;
-  onToggleSelection: (clip: Clip) => void;
+  onToggleSelection: (clip: Clip, range?: boolean) => void;
 }) {
   const selected = selectedOrder !== null;
   const activate = () => selectionMode ? onToggleSelection(clip) : actions.open(clip);
   const autoCaptureSummary = autoCaptureClipSummary(clip);
   return (
-        <ClipContextMenu clip={clip} actions={actions}><li className="capture-clip-list__item group" style={style} aria-posinset={position} aria-setsize={total} data-library-clip-id={clip.id} data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
+        <ClipContextMenu clip={clip} actions={actions}><li onClickCapture={event => { if (selectionMode && event.shiftKey) { event.preventDefault(); event.stopPropagation(); onToggleSelection(clip, true); } }} className="capture-clip-list__item group" style={style} aria-posinset={position} aria-setsize={total} data-library-clip-id={clip.id} data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
           <div className="capture-clip-list__preview">
             <ClipThumbnail
               clip={clip}
@@ -74,7 +74,7 @@ const ClipListItem = memo(function ClipListItem({ clip, actions, style, position
             />
             {selectionMode ? (
               <label className="capture-clip-selection-control">
-                <Checkbox checked={selected} onCheckedChange={() => onToggleSelection(clip)} aria-label={`${selected ? 'Remove' : 'Add'} ${clip.name} ${selected ? 'from' : 'to'} montage`} />
+                <Checkbox checked={selected} onCheckedChange={() => onToggleSelection(clip)} aria-label={`${selected ? 'Remove' : 'Add'} ${clip.name} ${selected ? 'from' : 'to'} selection`} />
                 {selectedOrder ? <span aria-hidden="true">{selectedOrder}</span> : null}
               </label>
             ) : <ClipFavorite
@@ -95,7 +95,7 @@ const ClipListItem = memo(function ClipListItem({ clip, actions, style, position
               </button>
             </h3>
             <p className="m-0 mt-0.5 truncate text-[11px] font-medium leading-4 text-text-secondary">
-              {clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ' · Manual Capture'}
+              {clip.availability === 'unavailable' ? 'Unavailable · ' : ''}{clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ' · Manual Capture'}
             </p>
             <p className="capture-clip-list__metadata">
               <span><time dateTime={new Date(clip.createdAt).toISOString()} title={new Date(clip.createdAt).toLocaleString()}>{formatRelativeTime(clip.createdAt)}</time></span>
@@ -105,7 +105,7 @@ const ClipListItem = memo(function ClipListItem({ clip, actions, style, position
           </div>
 
           <div className="capture-clip-list__actions" hidden={selectionMode}>
-            <ClipShare clip={clip} onShare={() => actions.export(clip)} className="border-0 bg-transparent text-muted-foreground opacity-100 hover:bg-accent hover:text-foreground" />
+            {clip.availability !== 'unavailable' ? <ClipShare clip={clip} onShare={() => actions.export(clip)} className="border-0 bg-transparent text-muted-foreground opacity-100 hover:bg-accent hover:text-foreground" /> : null}
             <ClipActionsMenu
               clip={clip}
               actions={actions}

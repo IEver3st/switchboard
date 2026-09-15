@@ -77,3 +77,24 @@ test('a resumed scan preserves saves, edits and deletions made while paused', ()
   expect(actual.map(item => item.id).sort()).toEqual(['edited', 'imported', 'saved']);
   expect(actual.find(item => item.id === 'edited')).toMatchObject({ favorite: true, name: 'Renamed' });
 });
+
+
+test('unavailable files retain identity and metadata, then recover when the drive returns', async () => {
+  const { directory, service } = await fixture();
+  const path = join(directory, 'temporarily-missing.mp4');
+  const original = { ...clip('retained', path), favorite: true, titleEdited: true, name: 'My moment', trimStartMs: 100 };
+  const unavailable = await service.reconcile([original], directory);
+  expect(unavailable).toHaveLength(1);
+  expect(unavailable[0]).toMatchObject({ ...original, availability: 'unavailable' });
+  expect(service.needsEnrichment(unavailable[0]!)).toBeFalse();
+  await writeFile(path, 'fixture');
+  const restored = await service.reconcile(unavailable, directory);
+  expect(restored[0]).toMatchObject({ ...original, availability: 'available' });
+});
+
+test('an offline library folder does not discard clip records', async () => {
+  const { directory, service } = await fixture();
+  const offline = join(directory, 'offline');
+  const original = clip('offline-clip', join(offline, 'clip.mp4'));
+  expect(await service.reconcile([original], offline)).toEqual([{ ...original, availability: 'unavailable' }]);
+});

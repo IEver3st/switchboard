@@ -43,6 +43,7 @@ export type MontageV2Segment = z.infer<typeof montageV2SegmentSchema>;
 export const montageProjectV2Schema = z.object({
   schemaVersion: z.literal(montageV2SchemaVersion),
   type: z.literal('montage'),
+  kept: z.boolean().optional(),
   sourceClipId: z.string().min(1).max(256).optional(),
   id: z.string().uuid(),
   name: z.string().trim().min(1).max(120),

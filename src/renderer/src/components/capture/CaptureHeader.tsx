@@ -57,7 +57,7 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
 
   return (
     <section aria-label="Clips commands" className="capture-command-header capture-toolbar sticky top-0 z-20">
-      <div className="capture-command-header__row">
+      <div className="capture-command-header__row" data-selecting={controls.montageSelectionMode || undefined}>
         <div className="capture-command-header__identity">
           <h2 id="clips-heading">Clips</h2>
           <span className="capture-clip-count" aria-live="polite" aria-label={clipCount} title={clipCount}>
@@ -126,6 +126,7 @@ function ReplayConfiguration({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const replayTriggerRef = useRef<HTMLButtonElement>(null);
   const setCaptureConfig = useSystemStore((state) => state.setCaptureConfig);
+  const chooseReplayCacheDirectory = useSystemStore((state) => state.chooseReplayCacheDirectory);
   const chooseClipDirectory = useSystemStore((state) => state.chooseClipDirectory);
   const openClipsDirectory = useSystemStore((state) => state.openClipsDirectory);
   const refreshCaptureSources = useSystemStore((state) => state.refreshCaptureSources);
@@ -244,6 +245,7 @@ function ReplayConfiguration({
                 </div>
               </div>
 
+              <div className="capture-replay-location"><div><strong>Replay cache</strong><span>{snapshot.capture.storage.cacheAvailableBytes == null ? 'Capacity unavailable' : `${formatBytes(snapshot.capture.storage.cacheAvailableBytes)} free`}</span></div><Button type="button" size="sm" onClick={() => void chooseReplayCacheDirectory()}>Change cache</Button></div>
               <Button type="button" variant="ghost" size="sm" className="capture-replay-refresh" disabled={refreshPending} onClick={() => { setRefreshPending(true); void refreshCaptureSources().finally(() => setRefreshPending(false)); }}>
                 <RefreshCw className={cn('size-3.5', refreshPending && 'animate-spin motion-reduce:animate-none')} />
                 {refreshPending ? 'Refreshing sources…' : 'Refresh capture sources'}
@@ -626,8 +628,8 @@ function captureSetupProblem(snapshot: SystemSnapshot): string | null {
 }
 
 function captureNotice(snapshot: SystemSnapshot): { label: string; message: string; tone: 'danger' | 'warning'; storage?: boolean } | null {
-  if (snapshot.capture.storage.criticalSpace) return { label: 'Storage critical', message: 'Storage is too low to save replays. Choose another clip folder in Advanced settings below.', tone: 'danger', storage: true };
-  if (snapshot.capture.storage.lowSpace) return { label: 'Low storage', message: 'Storage is running low. Choose another clip folder in Advanced settings below.', tone: 'warning', storage: true };
+  if (snapshot.capture.storage.criticalSpace) return { label: 'Storage critical', message: snapshot.capture.storage.warning ?? 'Storage is unavailable. Check saved clips and replay cache in Advanced settings.', tone: 'danger', storage: true };
+  if (snapshot.capture.storage.lowSpace) return { label: 'Low storage', message: snapshot.capture.storage.warning ?? 'Storage is running low. Check saved clips and replay cache in Advanced settings.', tone: 'warning', storage: true };
   if (!snapshot.capture.config.enabled) return null;
   if (snapshot.capture.runtime.error || snapshot.capture.runtime.state === 'error') return { label: 'Replay failed', message: 'Replay will retry automatically while Capture is enabled. You can also check the source and encoder below or retry now.', tone: 'danger' };
   if (snapshot.capture.runtime.state === 'recovering') return { label: 'Recovering', message: 'Replay is reconnecting to the capture source automatically.', tone: 'warning' };

@@ -1,7 +1,7 @@
 import { sceneAudioSchema, sceneValuesSchema, type Device, type DeviceControlChange, type SceneValues, type SystemSnapshot } from './contracts';
 
 export function snapshotSceneValues(snapshot: SystemSnapshot, scope = { includeAudio: true, includeCapture: true, includeDevices: true }): SceneValues {
-  const { hotkey: _hotkey, clipsDirectory: _directory, ...capture } = snapshot.capture.config;
+  const { hotkey: _hotkey, clipsDirectory: _directory, replayCacheDirectory: _cacheDirectory, ...capture } = snapshot.capture.config;
   return sceneValuesSchema.parse({
     audio: scope.includeAudio ? sceneAudioSchema.parse(snapshot.audio) : null,
     capture: scope.includeCapture ? capture : null,

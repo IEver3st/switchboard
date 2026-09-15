@@ -4,6 +4,7 @@ import type {
   CaptureResolution,
   CaptureSourceType,
   PageId,
+  SystemSnapshot,
   VisibleWorkspace,
 } from './contracts';
 
@@ -48,6 +49,14 @@ function filterAudioWhenLocked(workspaces: VisibleWorkspace[], developerMode: bo
 export function isCaptureOnlyWorkspaces(settings: Pick<AppSettings, 'visibleWorkspaces'>): boolean {
   const workspaces = normalizeVisibleWorkspaces(settings.visibleWorkspaces) ?? [...defaultVisibleWorkspaces];
   return workspaces.length === 1 && workspaces[0] === 'capture';
+}
+
+/** Shell presentation follows confirmed configuration, never transient engine state. */
+export function usesCaptureOnlyShell(snapshot: Pick<SystemSnapshot, 'settings' | 'modules' | 'audio'>): boolean {
+  const visible = visiblePagesForProfile(snapshot.settings);
+  if (visible.length === 1 && visible[0] === 'capture') return true;
+  return !snapshot.audio.enabled
+    && !snapshot.modules.some((module) => module.enabled && module.kind !== 'capture');
 }
 
 export function needsOnboarding(settings: Pick<AppSettings, 'onboardingCompleted'>): boolean {

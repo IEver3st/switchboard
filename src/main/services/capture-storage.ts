@@ -21,16 +21,16 @@ export class CaptureStorageService {
     return join(this.videosDirectory, 'Switchboard', 'Clips');
   }
 
-  public resolvePaths(customDirectory: string | null): CapturePaths {
+  public resolvePaths(customDirectory: string | null, replayCacheDirectory?: string | null): CapturePaths {
     return {
       clipsDirectory: resolve(customDirectory ?? this.getDefaultClipsDirectory()),
-      cacheDirectory: join(this.userDataDirectory, 'cache', 'replay'),
+      cacheDirectory: replayCacheDirectory ? resolve(replayCacheDirectory) : join(this.userDataDirectory, 'cache', 'replay'),
       thumbnailDirectory: join(this.userDataDirectory, 'cache', 'thumbnails'),
     };
   }
 
-  public async validate(customDirectory: string | null): Promise<CapturePaths> {
-    const paths = this.resolvePaths(customDirectory);
+  public async validate(customDirectory: string | null, replayCacheDirectory?: string | null): Promise<CapturePaths> {
+    const paths = this.resolvePaths(customDirectory, replayCacheDirectory);
     await Promise.all([
       this.assertWritableDirectory(paths.clipsDirectory),
       this.assertWritableDirectory(paths.cacheDirectory),
@@ -40,43 +40,16 @@ export class CaptureStorageService {
   }
 
   public async getStorageStatus(paths: CapturePaths, clipsBytes: number, replayCacheBytes: number): Promise<CaptureStorage> {
-    let availableBytes = 0;
-    let volumeTotalBytes = 0;
-    let volumeAvailableBytes = 0;
-    let warning: string | undefined;
-    try {
-      const [cacheStats, clipsStats] = await Promise.all([
-        statfs(paths.cacheDirectory, { bigint: true }),
-        statfs(paths.clipsDirectory, { bigint: true }),
-      ]);
-      availableBytes = Math.min(
-        Number(cacheStats.bavail * cacheStats.bsize),
-        Number(clipsStats.bavail * clipsStats.bsize),
-      );
-      volumeTotalBytes = Number(clipsStats.blocks * clipsStats.bsize);
-      volumeAvailableBytes = Number(clipsStats.bavail * clipsStats.bsize);
-    } catch (error) {
-      warning = `Storage is unavailable: ${error instanceof Error ? error.message : String(error)}`;
-    }
-    const lowSpace = availableBytes > 0 && availableBytes < 5 * GIB;
-    const criticalSpace = availableBytes > 0 && availableBytes < GIB;
-    if (!warning && criticalSpace) warning = 'Storage is critically low. Instant Replay cannot safely write new data.';
-    else if (!warning && lowSpace) warning = 'Storage is running low.';
-    return {
-      clipsDirectory: paths.clipsDirectory,
-      cacheDirectory: paths.cacheDirectory,
-      availableBytes,
-      volumeTotalBytes,
-      volumeAvailableBytes,
-      clipsBytes,
-      replayCacheBytes,
-      lowSpace,
-      criticalSpace,
-      ...(warning ? { warning } : {}),
+    const probe = async (path: string) => {
+      try { const stats = await statfs(path, { bigint: true }); return { free: Number(stats.bavail * stats.bsize), total: Number(stats.blocks * stats.bsize) }; }
+      catch { return null; }
     };
+    const [cache, clips] = await Promise.all([probe(paths.cacheDirectory), probe(paths.clipsDirectory)]);
+    return { clipsDirectory: paths.clipsDirectory, cacheDirectory: paths.cacheDirectory,
+      clipsBytes, replayCacheBytes, ...storageCapacityStatus(clips, cache) };
   }
 
-  private async assertWritableDirectory(directory: string): Promise<void> {
+  public async assertWritableDirectory(directory: string): Promise<void> {
     await mkdir(directory, { recursive: true });
     const testPath = join(directory, `.switchboard-write-test-${randomUUID()}.tmp`);
     let file: Awaited<ReturnType<typeof open>> | undefined;
@@ -89,4 +62,20 @@ export class CaptureStorageService {
       await rm(testPath, { force: true });
     }
   }
+}
+
+export function storageCapacityStatus(clips: { free: number; total: number } | null, cache: { free: number; total: number } | null) {
+  const clipsProblem = !clips || clips.free < 5 * GIB;
+  const cacheProblem = !cache || cache.free < 5 * GIB;
+  const storageProblem = clipsProblem && cacheProblem ? 'both' as const : clipsProblem ? 'clips' as const : cacheProblem ? 'cache' as const : null;
+  const criticalSpace = !clips || !cache || Math.min(clips.free, cache.free) < GIB;
+  const lowSpace = clipsProblem || cacheProblem;
+  const location = storageProblem === 'both' ? 'Saved clips and replay cache' : storageProblem === 'cache' ? 'Replay cache' : 'Saved clips';
+  const warning = !clips || !cache ? `${location} storage is unavailable. Reconnect the drive or choose another location.`
+    : criticalSpace ? `${location} storage is critically low. Free space or choose another location.`
+    : lowSpace ? `${location} storage is running low.` : undefined;
+  return { availableBytes: clips && cache ? Math.min(clips.free, cache.free) : 0,
+    volumeTotalBytes: clips?.total ?? 0, volumeAvailableBytes: clips?.free ?? 0,
+    cacheAvailableBytes: cache?.free ?? null, cacheTotalBytes: cache?.total ?? null,
+    storageProblem, criticalSpace, lowSpace, ...(warning ? { warning } : {}) };
 }

@@ -23,7 +23,7 @@ export function MontageDraftStrip({
   const clipIds = new Set(clips.map((clip) => clip.id));
   return (
     <section className="montage-v2-drafts" aria-label="Saved edit drafts">
-      <div className="montage-v2-drafts__label"><Clapperboard aria-hidden="true" /><span><strong>Edit drafts</strong><small title="Drafts expire 3 hours after their last save.">Saved for 3 hours</small></span></div>
+      <div className="montage-v2-drafts__label"><Clapperboard aria-hidden="true" /><span><strong>Projects & drafts</strong><small title="Kept projects stay until discarded. Temporary drafts expire after 3 hours.">Kept projects stay saved</small></span></div>
       <div className="montage-v2-drafts__list">
         {drafts.slice(activePage * 3, activePage * 3 + 3).map((draft) => {
           const missing = draft.segments.filter((segment) => !clipIds.has(segment.clipId)).length;
@@ -31,7 +31,7 @@ export function MontageDraftStrip({
             <div key={draft.id} className="montage-v2-draft" data-missing={missing > 0 || undefined}>
               <button type="button" title={`Resume ${draft.name}`} onClick={() => onResume(draft)}>
                 <strong>{draft.name}</strong>
-                <span>{draft.sourceClipId ? 'Clip edit' : `${draft.segments.length} clips`} · {formatDuration(draft.durationMs / 1_000)}{missing > 0 ? ` · ${missing} missing` : ''}</span>
+                <span>{draft.kept ? 'Kept project' : draft.sourceClipId ? 'Clip edit' : `${draft.segments.length} clips`} · {formatDuration(draft.durationMs / 1_000)}{missing > 0 ? ` · ${missing} missing` : ''}</span>
               </button>
               <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Discard ${draft.name}`} onClick={() => onDelete(draft)}>
                 <Trash2 className="size-3.5" />

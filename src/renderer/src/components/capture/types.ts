@@ -1,6 +1,7 @@
 import type { Clip } from '../../../../shared/contracts';
 
 export interface ClipActions {
+  recover?(clip: Clip, action: 'retry' | 'locate' | 'remove'): void;
   open(clip: Clip): void;
   favorite(clip: Clip, favorite: boolean): void;
   rename(clip: Clip): void;

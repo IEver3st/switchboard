@@ -1,5 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Clip, SystemSnapshot } from '../../../shared/contracts';
+import { switchboardApi } from '@/lib/demo-api';
+import { ClipManagementDialog } from '@/components/capture/ClipManagementDialog';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { Clip, ClipOperationInput, SystemSnapshot } from '../../../shared/contracts';
 import { montageDraftRetentionMs, type MontageProjectV2 } from '../../../shared/montage-v2';
 import { clipGameLabel } from '../../../shared/clip-library';
 import { autoCaptureClipSummary } from '../../../shared/auto-capture';
@@ -21,11 +23,30 @@ const loadMontageComposer = () => import('@/components/capture/MontageComposer')
 const ClipWorkspace = lazy(() => import('../components/capture/ClipWorkspace').then(module => ({ default: module.ClipWorkspace })));
 const MontageComposer = lazy(() => loadMontageComposer().then((module) => ({ default: module.MontageComposer })));
 
+let captureScrollTop = 0;
+
 export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled }: {
   snapshot: SystemSnapshot;
   requestedClipId?: string | null;
   onRequestedClipHandled?: () => void;
 }) {
+  const libraryRoot = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const viewport = libraryRoot.current?.closest<HTMLElement>('[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
+    const saved = captureScrollTop;
+    let restoring = true;
+    const restore = () => { if (restoring && viewport.scrollHeight >= saved + viewport.clientHeight) { viewport.scrollTop = saved; restoring = false; } };
+    const observer = new ResizeObserver(restore);
+    if (viewport.firstElementChild) observer.observe(viewport.firstElementChild);
+    restore();
+    const record = () => { if (!restoring) captureScrollTop = viewport.scrollTop; };
+    const interact = () => { restoring = false; };
+    viewport.addEventListener('scroll', record, { passive: true });
+    viewport.addEventListener('wheel', interact, { passive: true });
+    viewport.addEventListener('pointerdown', interact);
+    return () => { observer.disconnect(); viewport.removeEventListener('scroll', record); viewport.removeEventListener('wheel', interact); viewport.removeEventListener('pointerdown', interact); };
+  }, []);
   const setClipFavorite = useSystemStore((state) => state.setClipFavorite);
   const revealClip = useSystemStore((state) => state.revealClip);
   const deleteClip = useSystemStore((state) => state.deleteClip);
@@ -37,6 +58,9 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   const [editorClipId, setEditorClipId] = useState<string | null>(null);
   const [montageProject, setMontageProject] = useState<MontageProjectV2 | null>(null);
   const [montageDrafts, setMontageDrafts] = useState<MontageProjectV2[]>([]);
+  const [management, setManagement] = useState<{ clips: Clip[]; action: 'delete' | 'remove' } | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
+  const [operationFailures, setOperationFailures] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Clip | null>(null);
   const [renameTarget, setRenameTarget] = useState<Clip | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -45,7 +69,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   const restoreFocusClipId = useRef<string | null>(null);
   const editorClip = snapshot.clips.find((clip) => clip.id === editorClipId) ?? null;
   const editorOpen = Boolean(editorClip || montageProject);
-  const dialogOpen = Boolean(deleteTarget || renameTarget);
+  const dialogOpen = Boolean(deleteTarget || renameTarget || management);
 
   const refreshMontageDrafts = useCallback(() => {
     void montageV2Api.listMontageDrafts()
@@ -57,7 +81,8 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
 
   useEffect(() => {
     if (montageDrafts.length === 0) return;
-    const expiresAt = Math.min(...montageDrafts.map(draft => draft.updatedAt + montageDraftRetentionMs));
+    const expiresAt = Math.min(...montageDrafts.filter(draft => !draft.kept).map(draft => draft.updatedAt + montageDraftRetentionMs));
+    if (!Number.isFinite(expiresAt)) return;
     // Ask main for the current library at the next expiry; no idle polling.
     const timer = window.setTimeout(refreshMontageDrafts, Math.max(100, Math.min(montageDraftRetentionMs, expiresAt - Date.now())));
     return () => window.clearTimeout(timer);
@@ -72,6 +97,18 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
       showTransientToast(errorMessage(error), setToast);
     }
   });
+  const operate = useCallback(async (ids: string[], action: ClipOperationInput['action']) => {
+    setBulkPending(true); setOperationFailures([]);
+    try {
+      const result = await switchboardApi.operateClips({ ids, action });
+      useSystemStore.setState({ snapshot: result.snapshot });
+      setOperationFailures(result.failures.map(item => `${item.name}: ${item.message}`));
+    } catch (error) { setOperationFailures([errorMessage(error)]); }
+    finally { setBulkPending(false); }
+  }, []);
+  clipLibraryControls.bulkPending = bulkPending;
+  clipLibraryControls.onBulkFavorite = favorite => { void operate(clipLibraryControls.selectedClipIds, favorite ? 'favorite' : 'unfavorite'); };
+  clipLibraryControls.onBulkDelete = () => setManagement({ clips: snapshot.clips.filter(clip => clipLibraryControls.selectedClipIdSet.has(clip.id)), action: 'delete' });
   const offeredAutoCaptureProvider = snapshot.capture.autoCapture.providers.find((provider) => (
     !provider.developmentOnly
       && provider.gameId === snapshot.capture.autoCapture.runtime.activeGameId
@@ -136,7 +173,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
   }, [snapshot.capture.autoCapture.settings.notifyWhenSaved, snapshot.capture.runtime.lastSavedAt, snapshot.clips]);
 
   const actions = useMemo<ClipActions>(() => ({
-    open: (clip) => { void loadClipEditor(); setMontageProject(null); setEditorClipId(clip.id); },
+    open: (clip) => { if (clip.availability === 'unavailable') { void operate([clip.id], 'retry'); return; } void loadClipEditor(); setMontageProject(null); setEditorClipId(clip.id); },
     favorite: (clip, favorite) => void setClipFavorite({ id: clip.id, favorite }),
     rename: (clip) => setRenameTarget(clip),
     reveal: (clip) => void revealClip(clip.id),
@@ -146,17 +183,19 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
       if (draft) return montageV2Api.exportMontageV2({ exportId: crypto.randomUUID(), project: reconcileMontageProject(draft, snapshot.clips), preset: 'original' });
       return exportClip({ id: clip.id, startMs: clip.trimStartMs ?? 0, endMs: clip.trimEndMs ?? clip.durationMs, preset: 'original' });
     }).then(exported => { if (exported) showTransientToast('Clip exported', setToast); }).catch(error => showTransientToast(errorMessage(error), setToast)),
-    delete: (clip) => setDeleteTarget(clip),
-  }), [exportClip, revealClip, runClipAction, setClipFavorite, snapshot.clips]);
+    delete: (clip) => setManagement({ clips: [clip], action: 'delete' }),
+    recover: (clip, action) => { if (action === 'remove') setManagement({ clips: [clip], action }); else void operate([clip.id], action); },
+  }), [exportClip, revealClip, runClipAction, setClipFavorite, snapshot.clips, operate]);
 
   return (
-    <div className="relative flex min-h-full flex-1 flex-col" data-testid="capture-library">
+    <div ref={libraryRoot} className="relative flex min-h-full flex-1 flex-col" data-testid="capture-library">
       <div
         className="flex min-h-full flex-1 flex-col"
         aria-hidden={editorOpen || dialogOpen ? true : undefined}
         inert={editorOpen || dialogOpen ? true : undefined}
       >
         <CaptureHeader snapshot={snapshot} controls={clipLibraryControls} />
+        {operationFailures.length > 0 ? <div role="alert" className="mx-5 my-2 flex items-start gap-3 text-xs text-destructive"><div className="max-h-32 flex-1 overflow-auto">{operationFailures.map((message, index) => <p key={index}>{message}</p>)}</div><Button size="sm" variant="ghost" onClick={() => setOperationFailures([])}>Dismiss</Button></div> : null}
         {!clipLibraryControls.montageSelectionMode ? (
           <MontageDraftStrip
             drafts={montageDrafts}
@@ -205,7 +244,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
               onClose={closeEditor}
               onFavorite={(favorite) => void setClipFavorite({ id: editorClip.id, favorite })}
               onRename={() => setRenameTarget(editorClip)}
-              onDelete={() => setDeleteTarget(editorClip)}
+              onDelete={() => setManagement({ clips: [editorClip], action: 'delete' })}
               onReveal={(clip) => void revealClip(clip.id)}
               onInspectorOpenChange={(open) => void updateSettings({ clipEditorInspectorOpen: open })}
               onDraftsChanged={refreshMontageDrafts}
@@ -231,6 +270,7 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
         </div>
       ) : null}
 
+      {management ? <ClipManagementDialog clips={management.clips} action={management.action} onClose={() => setManagement(null)} onComplete={clipLibraryControls.onCancelMontage} /> : null}
       {deleteTarget ? (
         <DeleteClipDialog
           clip={deleteTarget}

@@ -4,7 +4,7 @@ import { AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, domAnimation, LazyMotion } from 'motion/react';
 import type { PageId } from '../../shared/contracts';
 import { reviewableAutoCapturedClips } from '../../shared/clip-review';
-import { defaultPageForProfile, isPageVisibleForProfile } from '../../shared/workspace-profile';
+import { defaultPageForProfile, isPageVisibleForProfile, usesCaptureOnlyShell } from '../../shared/workspace-profile';
 import { Sidebar } from '@/components/layout/sidebar';
 import { OnboardingFlow } from '@/components/layout/onboarding-flow';
 import { StartupScreen } from '@/components/layout/startup-screen';
@@ -70,6 +70,7 @@ export function App() {
     || snapshot?.settings.developerMode === true && snapshot.settings.detailedDiagnostics),
     [snapshot?.diagnostics.status, snapshot?.settings.developerMode, snapshot?.settings.detailedDiagnostics]);
   const page = useSystemStore((state) => state.page);
+  const captureOnly = snapshot ? usesCaptureOnlyShell(snapshot) : false;
   const loading = useSystemStore((state) => state.loading);
   const error = useSystemStore((state) => state.error);
   const initialize = useSystemStore((state) => state.initialize);
@@ -145,10 +146,14 @@ export function App() {
 
   useEffect(() => {
     if (!snapshot || showOnboarding) return;
+    if (captureOnly && page !== 'settings' && page !== 'modules' && page !== 'capture') {
+      setPage('capture');
+      return;
+    }
     if (!isPageVisibleForProfile(page, snapshot.settings)) {
       setPage(defaultPageForProfile(snapshot.settings));
     }
-  }, [page, showOnboarding, snapshot, setPage]);
+  }, [page, showOnboarding, snapshot, setPage, captureOnly]);
 
   return (
     <LazyMotion features={domAnimation} strict>
@@ -162,13 +167,13 @@ export function App() {
           {page === 'settings' || page === 'modules' ? (
             <main className="min-h-0 min-w-0 flex-1 bg-background">
               <h1 className="sr-only">{pageTitles[page]}</h1>
-              <SettingsPage snapshot={snapshot} onClose={() => setPage(previousWorkspaceRef.current)} />
+              <SettingsPage snapshot={snapshot} onClose={() => setPage(captureOnly ? 'capture' : previousWorkspaceRef.current)} />
             </main>
           ) : (
             <>
-              <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} onNavigateIntent={preloadWorkspace} />
+              {!captureOnly ? <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} onNavigateIntent={preloadWorkspace} /> : null}
               <div className="app-shell__workspace flex min-w-0 flex-1 flex-col">
-                <TitleStrip />
+                <TitleStrip captureOnly={captureOnly} onOpenSettings={() => setPage('settings')} />
                 <section className="app-shell__content flex min-h-0 flex-1 flex-col">
                   <main className="min-h-0 flex-1 bg-background">
                     <h1 className="sr-only">{pageTitles[page]}</h1>

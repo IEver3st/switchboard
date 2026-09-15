@@ -16,7 +16,7 @@ export const ClipCard = memo(function ClipCard({ clip, actions, selectionMode, s
   actions: ClipActions;
   selectionMode: boolean;
   selectedOrder: number | null;
-  onToggleSelection: (clip: Clip) => void;
+  onToggleSelection: (clip: Clip, range?: boolean) => void;
 }) {
   const selected = selectedOrder !== null;
   const autoCaptureSummary = autoCaptureClipSummary(clip);
@@ -24,12 +24,12 @@ export const ClipCard = memo(function ClipCard({ clip, actions, selectionMode, s
   return (
     <li className="min-w-0" style={style} aria-posinset={position} aria-setsize={total} data-library-clip-id={clip.id}>
       <ClipContextMenu clip={clip} actions={actions}>
-        <article className="capture-clip-card group" data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
+        <article onClickCapture={event => { if (selectionMode && event.shiftKey) { event.preventDefault(); event.stopPropagation(); onToggleSelection(clip, true); } }} className="capture-clip-card group" data-selection-mode={selectionMode || undefined} data-selected={selected || undefined}>
           <div className="capture-clip-card__media relative overflow-hidden rounded-[7px] border border-border">
             <ClipThumbnail clip={clip} onOpen={activate} selectionMode={selectionMode} selected={selected} />
             {selectionMode ? (
               <label className="capture-clip-selection-control">
-                <Checkbox checked={selected} onCheckedChange={() => onToggleSelection(clip)} aria-label={`${selected ? 'Remove' : 'Add'} ${clip.name} ${selected ? 'from' : 'to'} montage`} />
+                <Checkbox checked={selected} onCheckedChange={() => onToggleSelection(clip)} aria-label={`${selected ? 'Remove' : 'Add'} ${clip.name} ${selected ? 'from' : 'to'} selection`} />
                 {selectedOrder ? <span aria-hidden="true">{selectedOrder}</span> : null}
               </label>
             ) : <ClipFavorite clip={clip} onChange={(favorite) => actions.favorite(clip, favorite)} className="absolute bottom-2 right-2" />}
@@ -42,12 +42,12 @@ export const ClipCard = memo(function ClipCard({ clip, actions, selectionMode, s
                 </button>
               </h3>
               <p className="capture-clip-card__metadata m-0 flex min-w-0 items-center text-[9.5px] tabular-nums leading-4 text-muted-foreground">
-                <span className="capture-clip-card__game truncate">{clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ' · Manual Capture'}</span>
+                <span className="capture-clip-card__game truncate">{clip.availability === 'unavailable' ? 'Unavailable · ' : ''}{clipGameLabel(clip)}{autoCaptureSummary ? ` · ${autoCaptureSummary} · Auto Capture` : ' · Manual Capture'}</span>
                 <span className="capture-clip-card__time shrink-0"><time dateTime={new Date(clip.createdAt).toISOString()} title={new Date(clip.createdAt).toLocaleString()}>{formatRelativeTime(clip.createdAt)}</time></span>
               </p>
             </div>
             <div className="capture-clip-card__quick-actions" hidden={selectionMode}>
-              <ClipShare clip={clip} onShare={() => actions.export(clip)} className="capture-clip-card__share" />
+              {clip.availability !== 'unavailable' ? <ClipShare clip={clip} onShare={() => actions.export(clip)} className="capture-clip-card__share" /> : null}
               <ClipActionsMenu clip={clip} actions={actions} />
             </div>
           </div>

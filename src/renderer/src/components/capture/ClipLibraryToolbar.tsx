@@ -1,4 +1,4 @@
-import { ArrowDownUp, Check, Clapperboard, Grid2X2, List, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDownUp, Check, CheckSquare, Star, Trash2, Clapperboard, Grid2X2, List, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -37,19 +37,22 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
 
   if (controls.montageSelectionMode) {
     return (
-      <div className="capture-montage-selection" role="region" aria-label="Montage selection" data-testid="montage-selection-toolbar">
+      <div className="capture-montage-selection" role="region" aria-label="Clip selection" data-testid="montage-selection-toolbar">
         <div className="min-w-0">
-          <strong aria-live="polite">{controls.selectedClipIds.length > 0 ? `${controls.selectedClipIds.length} selected` : 'Select clips for a montage'}</strong>
-          {controls.selectedClipIds.length < 2 ? <span>Choose at least 2 clips</span> : null}
+          <strong aria-live="polite">{controls.selectedClipIds.length > 0 ? `${controls.selectedClipIds.length} selected` : 'Select clips'}</strong>
+          <span>Shift-click to select a range</span>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <fieldset disabled={controls.bulkPending} className="flex shrink-0 flex-wrap items-center gap-2 border-0 p-0">
+          <Button type="button" size="sm" variant="ghost" disabled={!controls.selectedClipIds.length} onClick={() => controls.onBulkFavorite?.(true)}><Star className="size-3.5" />Favorite</Button>
+          <Button type="button" size="sm" variant="ghost" disabled={!controls.selectedClipIds.length} onClick={() => controls.onBulkFavorite?.(false)}>Unfavorite</Button>
+          <Button type="button" size="sm" variant="ghost" disabled={!controls.selectedClipIds.length} onClick={controls.onBulkDelete}><Trash2 className="size-3.5" />Delete</Button>
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" disabled={clips.length === 0 || clips.every((clip) => controls.selectedClipIdSet.has(clip.id))} onClick={controls.onSelectAllVisible}>Select all{hasFilters ? ' shown' : ''}</Button>
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" onClick={controls.onCancelMontage}>Cancel</Button>
-          <Button type="button" variant="primary" size="sm" className="h-7 px-2.5 text-[11px]" disabled={controls.selectedClipIds.length < 2} onClick={controls.onCreateMontage}>
+          <Button type="button" variant="primary" size="sm" className="h-7 px-2.5 text-[11px]" disabled={controls.selectedClipIds.length < 2 || controls.clips.some(clip => controls.selectedClipIdSet.has(clip.id) && clip.availability === 'unavailable')} onClick={controls.onCreateMontage}>
             <Clapperboard className="size-3.5" aria-hidden="true" />
             {controls.selectedClipIds.length >= 2 ? `Create Montage · ${controls.selectedClipIds.length} clips` : 'Create Montage'}
           </Button>
-        </div>
+        </fieldset>
       </div>
     );
   }
@@ -94,6 +97,7 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
             <ToggleGroupItem value="list" aria-label="List view" title="List view" className="h-8 min-w-8 px-0"><List className="size-3.5" /></ToggleGroupItem>
           </ToggleGroup>
 
+          <Button type="button" variant="ghost" size="icon" aria-label="Select clips" title="Select clips" disabled={totalClipCount === 0} onClick={controls.onStartMontage}><CheckSquare className="size-4" /></Button>
           <Button type="button" variant="secondary" size="sm" className="capture-montage-trigger h-8 shrink-0 gap-1.5 px-3 text-[11px]" aria-label="Create Montage" disabled={totalClipCount < 2} onClick={controls.onStartMontage}>
             <Clapperboard className="size-3.5" aria-hidden="true" /> <span><span className="capture-montage-create">Create </span>Montage</span>
           </Button>

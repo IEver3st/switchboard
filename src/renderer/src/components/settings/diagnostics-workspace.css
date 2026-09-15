@@ -5,7 +5,7 @@
 .diagnostics-workspace > .diagnostics-attention { order: 1; margin: 0; }
 .diagnostics-toolbar { order: 2; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .diagnostics-views, .diagnostics-tools { display: flex; align-items: center; gap: 4px; }
-.diagnostics-views { background: var(--surface-1); padding: 4px; border-radius: 6px; }
+.diagnostics-views { gap: 2px; padding: 0; }
 .diagnostics-views button { padding: 8px 12px; border-radius: 4px; color: var(--text-secondary); font-size: 12px; font-weight: 550; }
 .diagnostics-views button[aria-pressed="true"] { color: var(--text-primary); background: var(--surface-interactive); box-shadow: inset 0 -2px var(--accent-brand); }
 .diagnostics-views button:hover { background: var(--surface-hover); }
@@ -71,3 +71,5 @@
   .diagnostics-workspace .diagnostics-readout { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .diagnostics-workspace .diagnostics-readout output { text-align: left; }
 }
+
+.settings-diagnostics .settings-category-header { margin-bottom: 18px; }

@@ -700,6 +700,7 @@ export function MontageComposer({
           </span>
         </div>
         <div className="montage-v2-header__actions">
+          <Button variant="ghost" size="sm" aria-pressed={project.kept === true} onClick={() => changeProject({ ...project, kept: !project.kept })}>{project.kept ? 'Project kept' : 'Keep project'}</Button>
           {sourceClipActions ? <>
             <Button variant="ghost" size="icon" className="montage-v2-favorite" aria-label={sourceClipActions.clip.favorite ? 'Unfavorite clip' : 'Favorite clip'} aria-pressed={sourceClipActions.clip.favorite} onClick={() => sourceClipActions.onFavorite(!sourceClipActions.clip.favorite)}><Star className="size-4" /></Button>
             <Button variant="ghost" size="icon" aria-label="Rename source clip" onClick={sourceClipActions.onRename}><Pencil className="size-4" /></Button>

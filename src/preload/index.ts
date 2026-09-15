@@ -83,6 +83,8 @@ const api: SwitchboardApi & MontageV2Api = {
   subscribeAudioMeters,
   setCaptureConfig: (input) => ipcRenderer.invoke(ipcChannels.setCaptureConfig, input),
   saveReplay: () => ipcRenderer.invoke(ipcChannels.saveReplay),
+  chooseReplayCacheDirectory: () => ipcRenderer.invoke(ipcChannels.chooseReplayCacheDirectory),
+  operateClips: (input) => ipcRenderer.invoke(ipcChannels.operateClips, input),
   chooseClipDirectory: () => ipcRenderer.invoke(ipcChannels.chooseClipDirectory),
   openClipsDirectory: () => ipcRenderer.invoke(ipcChannels.openClipsDirectory),
   refreshCaptureSources: () => ipcRenderer.invoke(ipcChannels.refreshCaptureSources),

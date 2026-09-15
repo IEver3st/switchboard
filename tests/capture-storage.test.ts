@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CaptureStorageService } from '../src/main/services/capture-storage';
+import { CaptureStorageService, storageCapacityStatus } from '../src/main/services/capture-storage';
 
 const temporaryRoots: string[] = [];
 
@@ -54,5 +54,24 @@ describe('capture storage configuration', () => {
     expect(status.volumeAvailableBytes).toBeGreaterThan(0);
     expect(status.volumeAvailableBytes).toBeLessThanOrEqual(status.volumeTotalBytes);
     expect(status.clipsBytes).toBe(12_345);
+  });
+});
+
+
+describe('storage headroom', () => {
+  test('zero and unknown capacity on either volume block capture', () => {
+    const healthy = { free: 20 * 1024 ** 3, total: 100 * 1024 ** 3 };
+    for (const capacity of [null, { free: 0, total: healthy.total }]) {
+      expect(storageCapacityStatus(capacity, healthy)).toMatchObject({ criticalSpace: true, storageProblem: 'clips' });
+      expect(storageCapacityStatus(healthy, capacity)).toMatchObject({ criticalSpace: true, storageProblem: 'cache' });
+    }
+    expect(storageCapacityStatus(healthy, healthy).criticalSpace).toBeFalse();
+  });
+  test('cache location does not move saved clips or thumbnail storage', async () => {
+    const { root, service } = await fixture();
+    const paths = await service.validate(null, join(root, 'Other drive', 'Switchboard Replay Cache'));
+    expect(paths.clipsDirectory).toBe(service.getDefaultClipsDirectory());
+    expect(paths.cacheDirectory).toBe(join(root, 'Other drive', 'Switchboard Replay Cache'));
+    expect(paths.thumbnailDirectory).toBe(join(root, 'UserData', 'cache', 'thumbnails'));
   });
 });

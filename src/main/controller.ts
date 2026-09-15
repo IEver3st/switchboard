@@ -21,7 +21,7 @@ import { release as osRelease, version as osVersion } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { existsSync } from 'node:fs';
-import { copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
+import { access, copyFile, readFile, rm, statfs, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, parse, resolve } from 'node:path';
 import {
   app,
@@ -57,6 +57,8 @@ import {
   type CaptureHostSnapshot,
   type CaptureSource,
   type Clip,
+  type ClipOperationInput,
+  type ClipOperationResult,
   type ClipAudioChannel,
   type ClipExportProgress,
   type CreateModuleProjectInput,
@@ -1444,44 +1446,41 @@ export class AppController {
     return updated;
   }
 
-  public async chooseClipDirectory(): Promise<SystemSnapshot> {
+  public chooseClipDirectory(): Promise<SystemSnapshot> { return this.chooseCaptureDirectory('clips'); }
+  public chooseReplayCacheDirectory(): Promise<SystemSnapshot> { return this.chooseCaptureDirectory('cache'); }
+
+  private async chooseCaptureDirectory(kind: 'clips' | 'cache'): Promise<SystemSnapshot> {
     const selection = await dialog.showOpenDialog({
-      title: 'Choose Switchboard Clips folder',
-      defaultPath: this.capturePaths.clipsDirectory,
+      title: kind === 'clips' ? 'Choose saved clips folder' : 'Choose replay cache parent folder',
+      defaultPath: kind === 'clips' ? this.capturePaths.clipsDirectory : this.capturePaths.cacheDirectory,
       properties: ['openDirectory', 'createDirectory'],
     });
-    if (selection.canceled || selection.filePaths.length === 0) return this.store.get();
-    const selected = selection.filePaths[0]!;
-    const paths = await this.captureStorage.validate(selected);
-    const before = this.store.get();
-    if (before.capture.config.enabled) {
-      const hostSnapshot = captureHostSnapshotSchema.parse(
-        await this.engines.request(
-          'capture',
-          'configure',
-          this.toHostSettings({ ...before.capture.config, clipsDirectory: selected }, paths),
-          45_000,
-        ),
-      );
-      this.applyCaptureSnapshot(hostSnapshot);
-    }
-    this.capturePaths = paths;
-    const storage = await this.captureStorage.getStorageStatus(
-      paths,
-      before.clips.reduce((sum, clip) => sum + clip.fileSize, 0),
-      before.capture.runtime.replayCacheBytes,
-    );
-    const snapshot = this.store.update((draft) => {
-      draft.capture.config.clipsDirectory = selected;
-      draft.capture.storage = storage;
+    if (selection.canceled || !selection.filePaths[0]) return this.store.get();
+    // Cache cleanup must only ever own a dedicated child, never the selected folder itself.
+    const selected = kind === 'clips' ? selection.filePaths[0] : join(selection.filePaths[0], 'Switchboard Replay Cache');
+    return this.queueCaptureConfiguration(async () => {
+      const before = this.store.get();
+      if (before.capture.runtime.saveQueueDepth > 0) throw new Error('Wait for the replay save to finish before changing storage.');
+      const config = { ...before.capture.config, [kind === 'clips' ? 'clipsDirectory' : 'replayCacheDirectory']: selected };
+      const paths = this.captureStorage.resolvePaths(config.clipsDirectory, config.replayCacheDirectory);
+      await this.captureStorage.assertWritableDirectory(kind === 'clips' ? paths.clipsDirectory : paths.cacheDirectory);
+      const storage = await this.captureStorage.getStorageStatus(paths, before.clips.reduce((sum, clip) => sum + clip.fileSize, 0), 0);
+      if (config.enabled && storage.criticalSpace) throw new Error(`${storage.warning ?? 'Storage is unavailable.'} Turn Capture off to change locations separately.`);
+      if (config.enabled) {
+        const hostSnapshot = captureHostSnapshotSchema.parse(await this.engines.request('capture', 'configure', this.toHostSettings(config, paths), 45_000));
+        this.applyCaptureSnapshot(hostSnapshot);
+      }
+      this.capturePaths = paths;
+      const snapshot = this.store.update(draft => { draft.capture.config = config; draft.capture.storage = storage; });
+      if (kind === 'clips') void this.reconcileClipLibrary();
+      return snapshot;
     });
-    void this.reconcileClipLibrary();
-    return snapshot;
   }
 
   public async openClipsDirectory(): Promise<void> {
-    this.capturePaths = await this.captureStorage.validate(this.store.get().capture.config.clipsDirectory);
-    const result = await shell.openPath(this.capturePaths.clipsDirectory);
+    const config = this.store.get().capture.config;
+    const paths = this.captureStorage.resolvePaths(config.clipsDirectory, config.replayCacheDirectory);
+    const result = await shell.openPath(paths.clipsDirectory);
     if (result) throw new Error(result);
   }
 
@@ -1906,7 +1905,7 @@ export class AppController {
       this.appUpdates.setPreferences(appUpdatePreferences(snapshot.settings));
     }
     if (scope === 'all' || scope === 'capture') {
-      this.capturePaths = await this.captureStorage.validate(defaultCaptureConfig.clipsDirectory);
+      this.capturePaths = await this.captureStorage.validate(defaultCaptureConfig.clipsDirectory, defaultCaptureConfig.replayCacheDirectory);
       const storage = await this.captureStorage.getStorageStatus(
         this.capturePaths,
         snapshot.clips.reduce((sum, clip) => sum + clip.fileSize, 0),
@@ -1927,12 +1926,64 @@ export class AppController {
     shell.showItemInFolder(knownClip.path);
   }
 
+  private clipManagementQueue: Promise<void> = Promise.resolve();
+  public operateClips(input: ClipOperationInput): Promise<ClipOperationResult> {
+    const operation = this.clipManagementQueue.then(() => this.performClipOperation(input));
+    this.clipManagementQueue = operation.then(() => undefined, () => undefined);
+    return operation;
+  }
+  private async performClipOperation(input: ClipOperationInput): Promise<ClipOperationResult> {
+    const failures: ClipOperationResult['failures'] = [];
+    const indexed = new Map(this.store.get().clips.map(clip => [clip.id, clip]));
+    const removed = new Set<string>();
+    const favorites = new Set<string>();
+    for (const id of new Set(input.ids)) {
+      const clip = indexed.get(id);
+      try {
+        if (!clip) throw new Error('Clip is no longer in the library.');
+        if (input.action === 'delete') {
+          await shell.trashItem(clip.path);
+          removed.add(id);
+          await this.clipLibrary.removeThumbnail(clip).catch(error => console.warn('Thumbnail cleanup failed after recycle.', error));
+        }
+        else if (input.action === 'favorite' || input.action === 'unfavorite') {
+          favorites.add(id);
+        } else if (input.action === 'remove') {
+          if (clip.availability !== 'unavailable') throw new Error('Only unavailable clips can be removed without deleting media.');
+          removed.add(id);
+        } else {
+          let path = clip.path;
+          if (input.action === 'locate') {
+            const selection = await dialog.showOpenDialog({ title: `Locate ${clip.name}`, properties: ['openFile'], filters: [{ name: 'Video', extensions: ['mp4', 'mkv', 'mov', 'webm'] }] });
+            if (selection.canceled || !selection.filePaths[0]) continue;
+            path = selection.filePaths[0];
+            if (this.store.get().clips.some(c => c.id !== id && resolve(c.path).toLowerCase() === resolve(path).toLowerCase())) throw new Error('That file is already in the library.');
+          }
+          await access(path);
+          const probed = await this.clipLibrary.createClipFromFile(path);
+          // Relinking different footage would silently invalidate existing edits.
+          if (Math.abs(probed.durationMs - clip.durationMs) > 250 || probed.width !== clip.width || probed.height !== clip.height) throw new Error('The selected video does not match this clip’s duration and dimensions.');
+          this.store.update(draft => { const target = draft.clips.find(c => c.id === id); if (target) Object.assign(target, { path, availability: 'available', fileSize: probed.fileSize }); });
+        }
+      } catch (error) {
+        if (input.action === 'retry') this.store.update(draft => { const target = draft.clips.find(c => c.id === id); if (target) target.availability = 'unavailable'; });
+        failures.push({ id, name: clip?.name ?? id, message: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    if (removed.size || favorites.size) this.store.update(draft => {
+      draft.clips = draft.clips.filter(clip => !removed.has(clip.id));
+      for (const clip of draft.clips) if (favorites.has(clip.id)) clip.favorite = input.action === 'favorite';
+      draft.capture.storage.clipsBytes = draft.clips.reduce((sum, clip) => sum + clip.fileSize, 0);
+    });
+    return { snapshot: this.store.get(), failures };
+  }
+
   public async deleteClip(id: string): Promise<SystemSnapshot> {
     const clip = this.store.get().clips.find((candidate) => candidate.id === id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
     await shell.trashItem(clip.path);
-    await this.clipLibrary.removeThumbnail(clip);
+    await this.clipLibrary.removeThumbnail(clip).catch(error => console.warn('Thumbnail cleanup failed after recycle.', error));
     return this.store.update((draft) => {
       draft.clips = draft.clips.filter((candidate) => candidate.id !== id);
       draft.capture.storage.clipsBytes = draft.clips.reduce((sum, candidate) => sum + candidate.fileSize, 0);
@@ -2377,7 +2428,7 @@ export class AppController {
   }
 
   private async startCaptureEngine(config: CaptureConfig): Promise<void> {
-    this.capturePaths = await this.captureStorage.validate(config.clipsDirectory);
+    this.capturePaths = await this.captureStorage.validate(config.clipsDirectory, config.replayCacheDirectory);
     const storage = await this.captureStorage.getStorageStatus(
       this.capturePaths,
       this.store.get().clips.reduce((sum, clip) => sum + clip.fileSize, 0),
@@ -2526,7 +2577,7 @@ export class AppController {
   private async initializeCaptureStorage(): Promise<void> {
     const snapshot = this.store.get();
     try {
-      this.capturePaths = await this.captureStorage.validate(snapshot.capture.config.clipsDirectory);
+      this.capturePaths = await this.captureStorage.validate(snapshot.capture.config.clipsDirectory, snapshot.capture.config.replayCacheDirectory);
       const storage = await this.captureStorage.getStorageStatus(
         this.capturePaths,
         snapshot.clips.reduce((sum, clip) => sum + clip.fileSize, 0),
@@ -2534,8 +2585,8 @@ export class AppController {
       );
       this.store.update((draft) => { draft.capture.storage = storage; });
     } catch (storageError) {
-      const paths = this.captureStorage.resolvePaths(snapshot.capture.config.clipsDirectory);
-      const message = `Clips storage is unavailable: ${storageError instanceof Error ? storageError.message : String(storageError)}`;
+      const paths = this.captureStorage.resolvePaths(snapshot.capture.config.clipsDirectory, snapshot.capture.config.replayCacheDirectory);
+      const message = `Capture storage is unavailable: ${storageError instanceof Error ? storageError.message : String(storageError)}`;
       this.store.update((draft) => {
         draft.capture.config.enabled = false;
         draft.capture.runtime.state = 'error';
@@ -2546,10 +2597,13 @@ export class AppController {
           availableBytes: 0,
           volumeTotalBytes: 0,
           volumeAvailableBytes: 0,
+          cacheAvailableBytes: null,
+          cacheTotalBytes: null,
+          storageProblem: 'both',
           clipsBytes: draft.clips.reduce((sum, clip) => sum + clip.fileSize, 0),
           replayCacheBytes: 0,
           lowSpace: false,
-          criticalSpace: false,
+          criticalSpace: true,
           warning: message,
         };
       });

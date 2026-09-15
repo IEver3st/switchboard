@@ -93,6 +93,12 @@ Navigation rules:
 - Avoid notification dots unless they correspond to a real state that needs attention.
 - Do not add a route for a feature that has no working product path.
 
+### Capture-only shell
+
+When Capture is the only visible workspace, or all non-capture modules and the audio engine are disabled, omit the primary sidebar and open Capture. Derive this from confirmed configuration, not transient engine health or replay activity. Keep Settings full-page and return to Capture when it closes. Other enabled modules restore the standard shell unless the user explicitly selected only Capture.
+
+The existing media library and recorder remain the focal area at all three supported sizes. Use the reclaimed sidebar width for media, retain the compact type and graphite surfaces, and place the product mark and name, and an icon-only Settings cog in the existing 38px title strip. Reserve native window-control space and keep Settings outside the drag region. Empty libraries, disabled replay, loading, and capture errors retain this same shell; no extra dashboard or introductory panel is needed.
+
 ## Workspace patterns
 
 ### Device gallery
@@ -308,3 +314,12 @@ Before accepting renderer work, verify:
 - Keyboard, focus, contrast, reduced motion, and Electron drag behavior still work.
 - The route has no page-level horizontal overflow at 1080 x 720, 1420 x 900, or 1920 x 1080.
 - Native Electron evidence covers the changed route. Browser and DOM checks remain supporting evidence only.
+
+
+### Library management and recovery
+
+Capture keeps its recorder and source visible while selecting clips. Selection actions occupy a second compact toolbar row: favorite, unfavorite, Recycle Bin deletion, select filtered results, cancel, and montage. Shift-click extends a range in the current order. Delete confirmation names affected saved projects, reports individual failures, and retries only failed items.
+
+Unavailable media retains its library identity and metadata with Retry, Locate file, and Remove from library actions. This state must remain explicit in grid and list views. View and sort are main-owned preferences; search, filters, and scroll position survive route navigation without retaining a playing editor. Kept projects persist until explicitly discarded; temporary autosaves retain the three-hour lifetime. The editor shows whether its changes have been saved.
+
+Saved clips and replay cache have separate locations and capacity readouts. Recovery text identifies the affected location. Choosing replay cache storage owns a dedicated subfolder and restarts the buffer; it never moves saved media.

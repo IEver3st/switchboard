@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
-import { Download, FolderOpen, MoreHorizontal, Pencil, Play, Share2, Star, Trash2, type LucideIcon } from 'lucide-react';
+import { Download, FolderOpen, MoreHorizontal, RefreshCw, Pencil, Play, Share2, Star, Trash2, type LucideIcon } from 'lucide-react';
 import type { Clip } from '../../../../shared/contracts';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -65,6 +65,11 @@ function DropdownAction({ action }: { action: ClipActionDefinition }) {
 }
 
 function clipActionGroups(clip: Clip, actions: ClipActions): ClipActionDefinition[][] {
+  if (clip.availability === 'unavailable') return [
+    [ { id: 'retry', label: 'Retry', icon: RefreshCw, run: () => actions.recover?.(clip, 'retry') },
+      { id: 'locate', label: 'Locate file…', icon: FolderOpen, run: () => actions.recover?.(clip, 'locate') } ],
+    [ { id: 'remove', label: 'Remove from library…', icon: Trash2, destructive: true, run: () => actions.recover?.(clip, 'remove') } ],
+  ];
   return [
     [
       { id: 'open', label: 'Open editor', icon: Play, run: () => actions.open(clip) },

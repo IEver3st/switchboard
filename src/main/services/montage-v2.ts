@@ -312,7 +312,7 @@ export class MontageV2Service {
   private async pruneExpiredDrafts(): Promise<void> {
     await this.writeQueue.catch(() => undefined);
     const now = Date.now();
-    if (this.manifest.drafts.some(draft => draft.updatedAt + montageDraftRetentionMs <= now)) {
+    if (this.manifest.drafts.some(draft => !draft.kept && draft.updatedAt + montageDraftRetentionMs <= now)) {
       await this.persist();
     }
   }
@@ -325,7 +325,7 @@ export class MontageV2Service {
     const write = this.writeQueue.catch(() => undefined).then(async () => {
       const next = structuredClone(this.manifest);
       const now = Date.now();
-      next.drafts = next.drafts.filter(draft => draft.updatedAt + montageDraftRetentionMs > now);
+      next.drafts = next.drafts.filter(draft => draft.kept || draft.updatedAt + montageDraftRetentionMs > now);
       mutate(next);
       const parsed = montageManifestSchema.parse(next);
       const temporary = `${this.manifestPath()}.${randomUUID()}.tmp`;

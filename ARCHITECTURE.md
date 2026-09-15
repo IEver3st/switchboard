@@ -303,3 +303,10 @@ cleanup on timeout or cancellation. Three-frame capture probes discard output.
 Configuration changes and shutdown cancel the run; diagnostics do not change
 capture preferences. Completed results remain available until the next run or
 application restart, including when Developer mode is disabled.
+
+
+## Clip recovery, selection, and storage
+
+Main owns clip availability, bulk operations, library layout/sort preferences, kept montage projects, and replay-cache location. `clips:operate` validates bounded IDs and an explicit operation; relinking paths come from main's file dialog and must match duration/dimensions before preserving the original identity. Reconciliation retains unavailable records and thumbnails, including when the configured directory cannot be enumerated. Renderer selection/filter/scroll state never owns media or filesystem access.
+
+Bulk operations serialize in main, process filesystem commands sequentially, and publish successful removals/favorite changes together with per-item failures. Deletion uses Windows Recycle Bin; Remove from library only accepts unavailable entries and does not touch media. Kept projects bypass temporary-draft expiration. Both storage volumes must have known nonzero headroom to start or save; cache selection uses a dedicated `Switchboard Replay Cache` child. Location changes share the capture-configuration queue and reject an in-flight replay save.

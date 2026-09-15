@@ -84,7 +84,7 @@ export function mergeReconciledClips(indexed: readonly Clip[], current: readonly
     const reconciled = found.get(clip.id);
     if (!reconciled) return [];
     return [{ ...reconciled, ...clip,
-      thumbnailPath: clip.thumbnailPath === original.thumbnailPath ? reconciled.thumbnailPath : clip.thumbnailPath }];
+      availability: clip.path === original.path ? reconciled.availability : clip.availability, thumbnailPath: clip.thumbnailPath === original.thumbnailPath ? reconciled.thumbnailPath : clip.thumbnailPath }];
   });
   const paths = new Set(merged.map(clip => resolve(clip.path).toLocaleLowerCase()));
   for (const clip of scanned) {
@@ -137,13 +137,12 @@ export class ClipLibraryService {
 
   private async reconcileCore(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
     await this.waitForBackgroundWork();
-    await mkdir(directory, { recursive: true });
     await mkdir(this.thumbnailDirectory, { recursive: true });
     await this.pruneAudioPreviews().catch((error) => console.warn('Clip audio preview cleanup failed.', error));
     const existing: Clip[] = [];
     for (const indexedClip of indexed) {
       await this.waitForBackgroundWork();
-      const clip = normalizeClipRecord(indexedClip);
+      const clip = { ...normalizeClipRecord(indexedClip), availability: 'available' as const };
       try {
         await access(clip.path);
         if (clip.thumbnailPath) {
@@ -157,16 +156,17 @@ export class ClipLibraryService {
           existing.push(clip);
         }
       } catch {
-        // Users can remove files outside Switchboard; remove the cache-only preview too.
-        if (clip.thumbnailPath) await rm(clip.thumbnailPath, { force: true });
+        // An unavailable drive or file must not erase identity, edits, or favorites.
+        existing.push({ ...clip, availability: 'unavailable' });
       }
     }
 
     const byPath = new Map(existing.map((clip) => [resolve(clip.path).toLocaleLowerCase(), clip]));
-    const handle = await opendir(directory);
+    let handle;
+    try { handle = await opendir(directory); } catch { return existing; }
     const unindexed: string[] = [];
     let inspected = 0;
-    for await (const entry of handle) {
+    try { for await (const entry of handle) {
       if (!entry.isFile() || !supportedExtensions.has(extname(entry.name).toLocaleLowerCase())) continue;
       if (inspected >= 5_000) break;
       inspected += 1;
@@ -174,6 +174,7 @@ export class ClipLibraryService {
       if (byPath.has(path.toLocaleLowerCase())) continue;
       unindexed.push(path);
     }
+    } catch { return existing; }
     // Close the directory handle before waiting for the interface to reopen.
     for (const path of unindexed) {
       await this.waitForBackgroundWork();
@@ -190,9 +191,9 @@ export class ClipLibraryService {
   }
 
   public needsEnrichment(clip: Clip): boolean {
-    return clip.audioChannels === undefined
+    return clip.availability !== 'unavailable' && (clip.audioChannels === undefined
       || !clip.thumbnailPath
-      || basename(clip.thumbnailPath) !== `${clip.id}.v2.jpg`;
+      || basename(clip.thumbnailPath) !== `${clip.id}.v2.jpg`);
   }
 
   public enqueueThumbnail(clip: Clip, onReady: (enrichment: ClipEnrichment) => void): void {

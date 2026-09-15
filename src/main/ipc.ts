@@ -4,6 +4,7 @@ import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainEvent, type 
 import { join } from 'node:path';
 import { z } from 'zod';
 import {
+  clipOperationInputSchema,
   saveSceneInputSchema, setupPreferencesSchema, quickActionInputSchema,
   applyAudioPresetInputSchema,
   audioPresetIdInputSchema,
@@ -286,6 +287,8 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => controller.setCaptureConfig(input),
   );
   handle(ipcChannels.saveReplay, getMainWindow, input => z.undefined().parse(input), () => controller.saveReplay());
+  handle(ipcChannels.chooseReplayCacheDirectory, getMainWindow, input => z.undefined().parse(input), () => controller.chooseReplayCacheDirectory());
+  handle(ipcChannels.operateClips, getMainWindow, input => clipOperationInputSchema.parse(input), input => controller.operateClips(input));
   ipcMain.handle(ipcChannels.chooseClipDirectory, (event) => {
     assertTrustedSender(event, getMainWindow);
     return controller.chooseClipDirectory();

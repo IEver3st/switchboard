@@ -1403,6 +1403,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
         long available = 0;
         long volumeTotal = 0;
         long volumeAvailable = 0;
+        long? cacheFree = null;
+        long? cacheTotal = null;
+        string? problem = null;
         string? storageProbeError = null;
         try
         {
@@ -1412,9 +1415,11 @@ internal sealed class ReplayEngine : IAsyncDisposable
             var clipsDrive = !string.IsNullOrWhiteSpace(clipsRoot) ? new DriveInfo(clipsRoot) : null;
             var cacheAvailable = cacheDrive?.AvailableFreeSpace ?? 0;
             var clipsAvailable = clipsDrive?.AvailableFreeSpace ?? 0;
-            available = cacheAvailable > 0 && clipsAvailable > 0
-                ? Math.Min(cacheAvailable, clipsAvailable)
-                : Math.Max(cacheAvailable, clipsAvailable);
+            available = Math.Min(cacheAvailable, clipsAvailable);
+            cacheFree = cacheAvailable;
+            cacheTotal = cacheDrive?.TotalSize;
+            var threshold = Math.Max(5L * 1024 * 1024 * 1024, capture.EstimatedReplayBytes * 4);
+            problem = cacheAvailable < threshold && clipsAvailable < threshold ? "both" : cacheAvailable < threshold ? "cache" : clipsAvailable < threshold ? "clips" : null;
             volumeTotal = clipsDrive?.TotalSize ?? 0;
             volumeAvailable = clipsAvailable;
         }
@@ -1422,16 +1427,17 @@ internal sealed class ReplayEngine : IAsyncDisposable
         {
             storageProbeError = probeError.Message;
         }
-        var lowThreshold = Math.Max(5L * 1024 * 1024 * 1024, capture.EstimatedReplayBytes * 4);
-        var criticalThreshold = Math.Max(1L * 1024 * 1024 * 1024, capture.EstimatedReplayBytes * 2);
+        var capacity = StorageHeadroom.Evaluate(storageProbeError is null ? volumeAvailable : null, storageProbeError is null ? cacheFree : null, capture.EstimatedReplayBytes);
         var clipsBytes = DirectorySize(capture.ClipsDirectory, "*.mp4");
-        var critical = storageProbeError is not null || available > 0 && available < criticalThreshold;
-        var low = available > 0 && available < lowThreshold;
+        var critical = capacity.Critical;
+        var low = capacity.Low;
+        problem = capacity.Problem;
+        var location = problem == "cache" ? "Replay cache" : problem == "clips" ? "Saved clips" : "Saved clips and replay cache";
         var storageWarning = storageProbeError is not null
             ? $"Capture storage is unavailable: {storageProbeError}"
             : critical
-            ? "Storage is critically low. Correct the Clips location before recording continues."
-            : low ? "Storage is running low." : null;
+            ? $"{location} storage is critically low. Free space or choose another location."
+            : low ? $"{location} storage is running low." : null;
         return new CaptureStorageStatus(
             capture.ClipsDirectory,
             capture.CacheDirectory,
@@ -1442,7 +1448,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             cacheBytes,
             low,
             critical,
-            storageWarning);
+            storageWarning, cacheFree, cacheTotal, storageProbeError is not null ? "both" : problem);
     }
 
     private void EnsureStorageHeadroom(CaptureSettings capture, bool preventStart)

@@ -1,10 +1,11 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { Activity, ArrowDown, ArrowUp, Search } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, Clock3, Search } from 'lucide-react';
 import type { SystemSnapshot } from '../../../../shared/contracts';
 import type { ResourceMonitorSnapshot } from '../../../../shared/resource-monitor';
 import { switchboardApi } from '@/lib/demo-api';
 import { useSystemStore } from '@/stores/use-system-store';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SettingSwitch } from './settings-primitives';
 import './resource-diagnostics.css';
 
@@ -16,6 +17,22 @@ const memory = (value: number | null | undefined) => value == null ? 'Unavailabl
 const clock = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const groupNames = { desktop: 'Desktop', capture: 'Capture', audio: 'Audio', monitor: 'Collector' };
 const roleNames: Record<string, string> = { Browser: 'Main process', Tab: 'Renderer', GPU: 'GPU process', Utility: 'Utility' };
+
+function Reading({ value, format, rate = false }: { value: number | null | undefined; format(value: number): string; rate?: boolean }) {
+  return <output data-unavailable={value == null || undefined}>{value == null ? <><span aria-hidden>—</span><span className="sr-only">Unavailable</span></> : <>{format(value)}{rate && <small>/s</small>}</>}</output>;
+}
+
+function ResourceTimeRange({ minutes, onChange }: { minutes: number; onChange(minutes: number): void }) {
+  return <Select value={String(minutes)} onValueChange={value => onChange(Number(value))}>
+    <SelectTrigger className="resource-timeframe" aria-label="Resource time range">
+      <Clock3 size={14} aria-hidden /><SelectValue />
+    </SelectTrigger>
+    <SelectContent className="resource-timeframe-menu" align="end" onEscapeKeyDown={event => event.stopPropagation()}>
+      <div className="resource-timeframe-menu__label" aria-hidden>History window</div>
+      {[5, 15, 30, 60].map(value => <SelectItem key={value} value={String(value)}>{value === 60 ? 'Last hour' : `Last ${value} minutes`}</SelectItem>)}
+    </SelectContent>
+  </Select>;
+}
 
 function Trace({ points, field, secondary, color, label, format, start, end }: {
   points: Point[]; field: 'cpuPercent' | 'residentMb' | 'readBps'; secondary?: 'privateMb' | 'writeBps';
@@ -36,8 +53,8 @@ function Trace({ points, field, secondary, color, label, format, start, end }: {
       return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
     }).join(' ');
   }
-  return <><div className="resource-trace" style={{ '--trace-color': color } as CSSProperties}>
-    <div className="resource-trace__scale"><span>{format(maximum)}</span><span>0</span></div>
+  return <><div className="resource-trace" data-empty={!values.length || undefined} style={{ '--trace-color': color } as CSSProperties}>
+    {values.length > 0 && <div className="resource-trace__scale"><span>{format(maximum)}</span><span>0</span></div>}
     <svg viewBox="0 0 600 94" preserveAspectRatio="none" role="img" aria-label={`${label}, ${points.length} samples. Peak ${format(values.length ? Math.max(...values) : null)}.`}>
       <line x1="0" y1="8" x2="600" y2="8" className="resource-trace__grid" />
       <line x1="0" y1="46" x2="600" y2="46" className="resource-trace__grid" />
@@ -45,8 +62,8 @@ function Trace({ points, field, secondary, color, label, format, start, end }: {
       <path d={path(field)} className="resource-trace__line" />
       {secondary && <path d={path(secondary)} className={`resource-trace__line resource-trace__line--${secondary}`} />}
     </svg>
-    {points.filter(point => point[field] !== null).length < 2 && <span className="resource-trace__empty">{values.length ? 'Waiting for the next sample' : 'No measurements yet'}</span>}
-  </div><div className="resource-trace-time"><span>{end ? clock(new Date(start).toISOString()) : 'Earlier'}</span><span>{end ? clock(new Date(end).toISOString()) : 'Now'}</span></div></>;
+    {points.length > 0 && points.filter(point => point[field] !== null).length < 2 && <span className="resource-trace__empty">{values.length ? 'Waiting for the next sample' : 'No measurements yet'}</span>}
+  </div><div className="resource-trace-time" data-empty={!points.length || undefined}><span>{end ? clock(new Date(start).toISOString()) : '—'}</span><span>{end ? clock(new Date(end).toISOString()) : '—'}</span></div></>;
 }
 
 export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot: SystemSnapshot; showExport?: boolean }) {
@@ -83,7 +100,7 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
   return <section className="resource-monitor" aria-label="Resource monitor">
     <div className="resource-monitor__recording">
       <SettingSwitch settingId="diagnostics.detailed" title="Detailed resource diagnostics"
-        description={diagnosticRunActive ? 'One-minute diagnostic collection is running.' : developerMode ? 'Record process counters and activity every 5 seconds.' : 'Run diagnostics from Checks, or enable Developer mode to record.'}
+        description={diagnosticRunActive ? 'One-minute diagnostic collection is running.' : developerMode ? 'Collect process history while diagnosing a problem.' : 'Run diagnostics from Checks, or enable Developer mode to record.'}
         checked={recording} disabled={pending || !developerMode || diagnosticRunActive}
         onCheckedChange={enabled => { setMessage(''); setPending(true); void updateSettings({ detailedDiagnostics: enabled }).catch(() => setMessage('Could not change recording. Try again.')).finally(() => setPending(false)); }} />
       {showExport && <Button variant="secondary" size="sm" disabled={exporting || pending || !developerMode && !snapshot.diagnostics.id} onClick={() => void exportReport()}>{exporting ? 'Exporting…' : 'Export diagnostics'}</Button>}
@@ -96,10 +113,11 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
     </div>
     {message && <p role="status">{message}</p>}
     <div className="resource-monitor__heading">
-      <h3><Activity size={15} aria-hidden />Switchboard footprint</h3>
-      <div role="group" aria-label="Resource time range" className="resource-ranges">{[5, 15, 30, 60].map(value => <button type="button" key={value} aria-pressed={minutes === value} onClick={() => setMinutes(value)}>{value === 60 ? '1h' : `${value}m`}</button>)}</div>
+      <div className="resource-monitor__identity"><h3><Activity size={15} aria-hidden />Switchboard footprint</h3>
+        {(recording || resources) && <span className="resource-recording-state" data-recording={recording || undefined}>{recording ? resources ? 'Recording' : 'Collecting…' : `Last recorded ${clock(resources!.sampledAt)}`}</span>}
+      </div>
+      <ResourceTimeRange minutes={minutes} onChange={setMinutes} />
     </div>
-    <div className="resource-monitor__caption"><p>{pending ? 'Saving…' : resources ? `${recording ? 'Recording' : 'Recording stopped'} · ${resources.sampleCount} samples · ${clock(resources.sampledAt)}` : recording ? 'Collecting the first resource sample…' : 'Recording is off'}</p><span>Whole-machine CPU · app processes only</span></div>
     {resources?.error && <p className="resource-monitor__error" role="status">{recording
       ? 'Resource counters are temporarily unavailable. Retrying automatically; other diagnostics remain available.'
       : 'Some resource samples could not be collected. Available diagnostics can still be exported.'}</p>}
@@ -107,27 +125,27 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
     <div className="resource-instruments">
       <section className="resource-instrument resource-instrument--cpu" aria-label="CPU history">
         <div className="resource-instrument__label">CPU <span>normalized</span></div>
-        <output>{number(latest?.cpuPercent, '%')}</output>
-        <p>{number(total(processes.map(process => process.observedCpuSeconds)), ' s')} observed CPU time</p>
+        <Reading value={latest?.cpuPercent} format={value => number(value, '%')} />
+        <p>{processes.length ? `${number(total(processes.map(process => process.observedCpuSeconds)), ' s')} observed CPU time` : '\u00a0'}</p>
         <Trace points={points} field="cpuPercent" color="var(--accent-brand)" label="CPU percentage" format={value => number(value, '%')} start={start} end={end} />
-        <div className="resource-legend"><span>CPU</span><span>Peak {number(points.some(point => point.cpuPercent !== null) ? Math.max(...points.map(point => point.cpuPercent ?? 0)) : null, '%')}</span></div>
+        <div className="resource-legend"><span>CPU</span>{points.some(point => point.cpuPercent !== null) && <span>Peak {number(Math.max(...points.map(point => point.cpuPercent ?? 0)), '%')}</span>}</div>
       </section>
       <section className="resource-instrument resource-instrument--memory" aria-label="Memory history">
         <div className="resource-instrument__label">Resident memory <span>working set</span></div>
-        <output>{memory(latest?.residentMb)}</output>
-        <p>{memory(latest?.privateMb)} private memory</p>
+        <Reading value={latest?.residentMb} format={memory} />
+        <p>{latest?.privateMb != null ? `${memory(latest.privateMb)} private memory` : '\u00a0'}</p>
         <Trace points={points} field="residentMb" secondary="privateMb" color="var(--channel-game)" label="Resident and private memory" format={memory} start={start} end={end} />
         <div className="resource-legend"><span>Resident</span><span className="resource-legend__private">Private</span></div>
       </section>
       <section className="resource-instrument resource-instrument--io" aria-label="I/O history">
         <div className="resource-instrument__label">I/O throughput <span>read / write</span></div>
-        <div className="resource-io-readout"><output>{bytes(latest?.readBps)}{latest?.readBps != null && <small>/s</small>}</output><output>{bytes(latest?.writeBps)}{latest?.writeBps != null && <small>/s</small>}</output></div>
-        <p>{bytes(total(processes.map(process => process.observedReadBytes)))} read · {bytes(total(processes.map(process => process.observedWriteBytes)))} written</p>
+        <div className="resource-io-readout"><Reading value={latest?.readBps} format={bytes} rate /><Reading value={latest?.writeBps} format={bytes} rate /></div>
+        <p>{processes.length ? `${bytes(total(processes.map(process => process.observedReadBytes)))} read · ${bytes(total(processes.map(process => process.observedWriteBytes)))} written` : '\u00a0'}</p>
         <Trace points={points} field="readBps" secondary="writeBps" color="var(--channel-chat)" label="I/O bytes per second" format={value => `${bytes(value)}/s`} start={start} end={end} />
         <div className="resource-legend"><span>Read</span><span className="resource-legend__write">Write</span></div>
       </section>
+    {!points.length && <p className="resource-history-empty">{recording ? 'Waiting for the first resource sample…' : 'No resource samples yet. Run diagnostics to begin.'}</p>}
     </div>
-    <div className="resource-time-axis"><span>{points.length ? `${points.length} retained samples in view` : 'History appears as measurements arrive'}</span><span>5-second samples · 30-second display refresh</span></div>
     {resources && <>
       <div className="resource-groups" aria-label="Resource attribution">{(['desktop', 'capture', 'audio', 'monitor'] as const).map(group => {
         const rows = active.filter(process => process.group === group);

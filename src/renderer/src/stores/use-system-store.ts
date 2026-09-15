@@ -114,6 +114,7 @@ interface SystemStore {
   setCaptureConfig(input: SetCaptureConfigInput): Promise<void>;
   saveReplay(): Promise<void>;
   chooseClipDirectory(): Promise<void>;
+  chooseReplayCacheDirectory(): Promise<void>;
   openClipsDirectory(): Promise<void>;
   refreshCaptureSources(): Promise<void>;
   updateAutoCaptureSettings(input: AutoCaptureSettingsPatch): Promise<void>;
@@ -286,6 +287,7 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     setMicProcessor: (input) => runAudio(() => switchboardApi.setMicProcessor(input)),
     setCaptureConfig: (input) => run(() => switchboardApi.setCaptureConfig(input)),
     saveReplay: () => run(() => switchboardApi.saveReplay()),
+    chooseReplayCacheDirectory: () => run(() => switchboardApi.chooseReplayCacheDirectory()),
     chooseClipDirectory: () => run(() => switchboardApi.chooseClipDirectory()),
     openClipsDirectory: async () => {
       set({ error: null });

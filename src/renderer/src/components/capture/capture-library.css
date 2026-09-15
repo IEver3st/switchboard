@@ -425,3 +425,7 @@
 .capture-virtual-group .capture-clip-list__item[aria-posinset="1"] {
   border-top-width: 0;
 }
+
+.capture-command-header__row[data-selecting="true"] { flex-wrap: wrap; row-gap: 4px; }
+.capture-command-header__row[data-selecting="true"] .capture-montage-selection { flex-basis: 100%; min-width: 0; }
+.capture-command-header__row[data-selecting="true"] .capture-montage-selection > fieldset { min-width: 0; }

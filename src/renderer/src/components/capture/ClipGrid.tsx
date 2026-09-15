@@ -14,7 +14,7 @@ export const ClipGrid = memo(function ClipGrid({ clips, actions, grouped, select
   grouped: boolean;
   selectionMode: boolean;
   selectedClipIds: string[];
-  onToggleSelection: (clip: Clip) => void;
+  onToggleSelection: (clip: Clip, range?: boolean) => void;
 }) {
   const groups = useMemo(() => groupClips(clips, pendingSaveCount, grouped), [clips, grouped, pendingSaveCount]);
   const virtual = useVirtualClipRows(groups, 'grid', retainedClipId);

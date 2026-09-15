@@ -566,6 +566,8 @@ const demoApi: SwitchboardApi = {
   async saveReplay() {
     throw new Error('Saving a real replay requires the Switchboard desktop capture host.');
   },
+  async chooseReplayCacheDirectory() { throw new Error('Folder selection requires the Switchboard desktop application.'); },
+  async operateClips() { throw new Error('Clip management requires the Switchboard desktop application.'); },
   async chooseClipDirectory() { throw new Error('Folder selection requires the Switchboard desktop application.'); },
   async openClipsDirectory() { throw new Error('Opening the Clips folder requires the Switchboard desktop application.'); },
   async refreshCaptureSources() { return emit(); },

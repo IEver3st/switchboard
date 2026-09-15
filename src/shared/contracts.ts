@@ -917,6 +917,7 @@ export const captureConfigSchema = z.object({
   chatAudioDeviceId: z.string().min(1).max(512).nullable().default(null),
   hotkey: z.string().min(1).max(128),
   clipsDirectory: z.string().max(4_096).nullable(),
+  replayCacheDirectory: z.string().max(4_096).nullable().optional(),
   defaultTrackLevels: defaultClipTrackLevelsSchema.default({
     game: 100,
     chat: 100,
@@ -927,7 +928,7 @@ export const captureConfigSchema = z.object({
 export type CaptureConfig = z.infer<typeof captureConfigSchema>;
 
 export const setCaptureConfigInputSchema = captureConfigSchema
-  .omit({ clipsDirectory: true })
+  .omit({ clipsDirectory: true, replayCacheDirectory: true })
   .partial()
   .extend({
     // Persisted defaults must not become writes when an IPC patch omits a field.
@@ -973,6 +974,9 @@ export const captureStorageSchema = z.object({
   volumeAvailableBytes: z.number().nonnegative(),
   clipsBytes: z.number().nonnegative(),
   replayCacheBytes: z.number().nonnegative(),
+  cacheAvailableBytes: z.number().nonnegative().nullable().optional(),
+  cacheTotalBytes: z.number().nonnegative().nullable().optional(),
+  storageProblem: z.enum(['clips', 'cache', 'both']).nullable().optional(),
   lowSpace: z.boolean(),
   criticalSpace: z.boolean(),
   warning: z.string().optional(),
@@ -1246,6 +1250,7 @@ export const clipAutoCaptureMetadataSchema = z.object({
 export type ClipAutoCaptureMetadata = z.infer<typeof clipAutoCaptureMetadataSchema>;
 
 export const clipSchema = z.object({
+  availability: z.enum(['available', 'unavailable']).optional(),
   id: z.string().min(1),
   path: z.string().min(1),
   name: z.string().min(1),
@@ -1271,6 +1276,15 @@ export const clipSchema = z.object({
   autoCapture: clipAutoCaptureMetadataSchema.optional(),
 });
 export type Clip = z.infer<typeof clipSchema>;
+
+export const clipOperationInputSchema = z.object({
+  ids: z.array(z.string().min(1).max(256)).min(1).max(5000),
+  action: z.enum(['favorite', 'unfavorite', 'delete', 'retry', 'locate', 'remove']),
+}).superRefine((input, context) => {
+  if (input.action === 'locate' && input.ids.length !== 1) context.addIssue({ code: 'custom', message: 'Locate one clip at a time.' });
+});
+export type ClipOperationInput = z.infer<typeof clipOperationInputSchema>;
+export type ClipOperationResult = { snapshot: SystemSnapshot; failures: Array<{ id: string; name: string; message: string }> };
 
 export const clipReviewStateSchema = z.object({
   reviewedThrough: z.number().int().nonnegative(),
@@ -1381,6 +1395,7 @@ export const appSettingsSchema = z.object({
   telemetry: z.literal(false),
   scanGamesAutomatically: z.boolean(),
   clipEditorInspectorOpen: z.boolean(),
+  clipLibraryView: z.object({ layout: z.enum(['grid', 'list']), sort: z.enum(['newest', 'oldest', 'largest', 'smallest', 'longest', 'shortest']) }).optional(),
   deviceAppearanceOverrides: z.record(z.string(), deviceAppearanceOverrideSchema).default({}),
   mouseBatteryLighting: z.record(z.string(), mouseBatteryLightingPolicySchema).default({}),
   developerMode: z.boolean().default(false),
@@ -1439,7 +1454,7 @@ export const sceneAudioSchema = audioStateSchema.pick({
 }).extend({ buses: z.array(audioBusSchema.pick({ id: true, enabled: true, deviceId: true })) });
 export const sceneValuesSchema = z.object({
   audio: sceneAudioSchema.nullable(),
-  capture: captureConfigSchema.omit({ hotkey: true, clipsDirectory: true }).nullable(),
+  capture: captureConfigSchema.omit({ hotkey: true, clipsDirectory: true, replayCacheDirectory: true }).nullable(),
   devices: z.array(sceneDeviceSettingsSchema).max(32),
 });
 export type SceneValues = z.infer<typeof sceneValuesSchema>;
@@ -1816,6 +1831,8 @@ export const ipcChannels = {
   setCaptureConfig: 'capture:set-config',
   saveReplay: 'capture:save-replay',
   chooseClipDirectory: 'capture:choose-clip-directory',
+  chooseReplayCacheDirectory: 'capture:choose-replay-cache-directory',
+  operateClips: 'clips:operate',
   openClipsDirectory: 'capture:open-clips-directory',
   refreshCaptureSources: 'capture:refresh-sources',
   updateAutoCaptureSettings: 'capture:auto-capture:update-settings',
@@ -1896,6 +1913,8 @@ export interface SwitchboardApi {
   setCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot>;
   saveReplay(): Promise<SystemSnapshot>;
   chooseClipDirectory(): Promise<SystemSnapshot>;
+  chooseReplayCacheDirectory(): Promise<SystemSnapshot>;
+  operateClips(input: ClipOperationInput): Promise<ClipOperationResult>;
   openClipsDirectory(): Promise<void>;
   refreshCaptureSources(): Promise<SystemSnapshot>;
   updateAutoCaptureSettings(input: AutoCaptureSettingsPatch): Promise<SystemSnapshot>;

@@ -208,6 +208,20 @@ textarea:focus-visible {
   min-height: 0;
 }
 
+.capture-title-strip {
+  padding-right: calc(12px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .capture-title-strip__settings:hover svg {
+    animation: capture-settings-spin 1.8s linear infinite;
+  }
+}
+
+@keyframes capture-settings-spin {
+  to { transform: rotate(360deg); }
+}
+
 .app-shell__content {
   position: relative;
   overflow: hidden;

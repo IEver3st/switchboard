@@ -42,7 +42,7 @@ describe('settings search metadata', () => {
       'capture.codec', 'capture.microphone', 'capture.systemAudio', 'capture.cursor', 'capture.workspace',
       'games.automaticScan', 'games.library',
       'modules.automaticUpdates', 'modules.installed', 'modules.available',
-      'diagnostics.telemetry', 'diagnostics.retention', 'diagnostics.guard',
+      'diagnostics.retention', 'diagnostics.guard',
       'diagnostics.memory', 'diagnostics.engines', 'diagnostics.capture-path',
       'diagnostics.capture-health', 'diagnostics.deviceIdentity',
       'diagnostics.reaction-clipping',

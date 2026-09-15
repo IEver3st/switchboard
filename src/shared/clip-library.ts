@@ -34,17 +34,16 @@ export function clipGameLabel(clip: Pick<Clip, 'game' | 'path' | 'name'>): strin
   return inferClipGame(fileName) ?? 'Desktop';
 }
 
-export function createDefaultClipTitle(_game?: string | null, createdAt = Date.now()): string {
+export function createDefaultClipTitle(game?: string | null, createdAt = Date.now()): string {
   const capturedAt = new Date(createdAt);
   const timestamp = capturedAt.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    timeZoneName: 'short',
   });
-  return `Switchboard Capture · ${timestamp}`;
+  const label = game?.trim();
+  return `${label && !desktopSourceName.test(label) ? label : 'Desktop'} · ${timestamp}`;
 }
 
 export function isGeneratedClipTitle(name: string): boolean {
