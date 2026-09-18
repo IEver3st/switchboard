@@ -80,11 +80,11 @@ export function markersForClip(events: readonly GameEvent[], clipStartedAt: numb
 export function autoCaptureTitle(game: string, events: readonly GameEvent[]): string {
   const nativeOrDerivedMulti = events.filter((event) => event.type === 'multi_kill').at(-1);
   const kills = events.filter((event) => event.type === 'kill' || event.type === 'headshot').length;
-  if (nativeOrDerivedMulti?.label) return `${game} - ${nativeOrDerivedMulti.label}`;
-  if (kills > 1) return `${game} - ${kills} Kills`;
+  if (nativeOrDerivedMulti?.label) return `SB ${game} - ${nativeOrDerivedMulti.label}`;
+  if (kills > 1) return `SB ${game} - ${kills} Kills`;
   const priority = ['match_win', 'round_win', 'headshot', 'kill', 'objective', 'assist', 'knockdown', 'death'] as const;
   const highlight = priority.map((type) => events.find((event) => event.type === type)).find(Boolean) ?? events[0];
-  return `${game} - ${highlight?.label ?? eventTypeLabel(highlight?.type ?? 'highlight')}`;
+  return `SB ${game} - ${highlight?.label ?? eventTypeLabel(highlight?.type ?? 'highlight')}`;
 }
 
 export function eventTypeLabel(type: GameEvent['type']): string {

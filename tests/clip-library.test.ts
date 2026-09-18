@@ -64,7 +64,7 @@ describe('canonical clip metadata', () => {
     expect(parsed.favorite).toBeFalse();
     expect(parsed.titleEdited).toBeFalse();
     expect(parsed.canvasSize).toBe('original');
-    expect(normalizeClipRecord(parsed).name).toStartWith('Desktop · ');
+    expect(normalizeClipRecord(parsed).name).toStartWith('SB Desktop · ');
   });
 
   test('validates canvas size changes and builds a centered vertical export crop', () => {
@@ -115,13 +115,15 @@ describe('canonical clip metadata', () => {
 
   test('keeps custom names and infers generated game identity without exposing filenames', () => {
     expect(inferClipGame('FiveM_2026-08-26_01-33-08')).toBe('FiveM');
+    expect(inferClipGame('SB_FiveM_2026-08-26_01-33-08')).toBe('FiveM');
+    expect(inferClipGame('SB_Display1_2026-08-26_01-33-08_2')).toBeUndefined();
     expect(inferClipGame('Display1_2026-08-26_01-33-08')).toBeUndefined();
-    expect(createDefaultClipTitle('War Thunder', Date.UTC(2026, 8, 2, 16, 18))).toStartWith('War Thunder · ');
+    expect(createDefaultClipTitle('War Thunder', Date.UTC(2026, 8, 2, 16, 18))).toStartWith('SB War Thunder · ');
     expect(clipGameLabel(clip(1, { game: undefined }))).toBe('FiveM');
-    expect(normalizeClipRecord(clip(1, { name: 'War Thunder clip', titleEdited: false })).name).toStartWith('War Thunder · ');
+    expect(normalizeClipRecord(clip(1, { name: 'War Thunder clip', titleEdited: false })).name).toStartWith('SB War Thunder · ');
     const desktopClip = clip(1, { game: 'Display 1', name: 'Display 1 clip', titleEdited: false });
     expect(clipGameLabel(desktopClip)).toBe('Desktop');
-    expect(normalizeClipRecord(desktopClip).name).toStartWith('Desktop · ');
+    expect(normalizeClipRecord(desktopClip).name).toStartWith('SB Desktop · ');
     expect(normalizeClipRecord(clip(1, { name: 'Downtown pursuit', titleEdited: true })).name).toBe('Downtown pursuit');
   });
 

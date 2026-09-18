@@ -32,7 +32,7 @@ internal static class ClipFileNames
 
     public static string CreateUniquePath(string directory, string? sourceName, DateTimeOffset createdAt)
     {
-        var stem = $"{Sanitize(sourceName)}_{createdAt.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture)}";
+        var stem = $"SB_{Sanitize(sourceName)}_{createdAt.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture)}";
         var candidate = Path.Combine(directory, $"{stem}.mp4");
         for (var suffix = 2; File.Exists(candidate) || File.Exists($"{candidate}.clip-writing"); suffix++)
         {

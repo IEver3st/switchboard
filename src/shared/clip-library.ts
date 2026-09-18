@@ -16,7 +16,7 @@ export interface ClipLibraryQuery {
   now?: number;
 }
 
-const generatedCaptureName = /^(.*?)[_ -]\d{4}-\d{2}-\d{2}(?:[_ -]\d{2}[-_:]\d{2}[-_:]\d{2})?(?:_\d+)?$/i;
+const generatedCaptureName = /^(?:SB_)?(.*?)[_ -]\d{4}-\d{2}-\d{2}(?:[_ -]\d{2}[-_:]\d{2}[-_:]\d{2})?(?:_\d+)?$/i;
 const desktopSourceName = /^(?:display|desktop|screen)\s*\d*$/i;
 const switchboardCaptureTitle = /^switchboard capture\s*·\s*/i;
 
@@ -43,7 +43,7 @@ export function createDefaultClipTitle(game?: string | null, createdAt = Date.no
     minute: '2-digit',
   });
   const label = game?.trim();
-  return `${label && !desktopSourceName.test(label) ? label : 'Desktop'} · ${timestamp}`;
+  return `SB ${label && !desktopSourceName.test(label) ? label : 'Desktop'} · ${timestamp}`;
 }
 
 export function isGeneratedClipTitle(name: string): boolean {
