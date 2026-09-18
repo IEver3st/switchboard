@@ -1594,6 +1594,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         arguments.AddRange(audioTracks.Count > 0 ? ["-c:v", "copy", "-c:a", "copy"] : ["-c", "copy"]);
         arguments.AddRange([
             "-t", replayDuration.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
+            "-metadata", "comment=Created with Switchboard",
             "-movflags", "+faststart",
             "-f", "mp4",
             temporaryOutputPath,

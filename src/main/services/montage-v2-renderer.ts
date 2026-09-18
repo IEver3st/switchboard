@@ -100,6 +100,7 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
         'utf8',
       );
 
+      const outputMetadata = ['-metadata', 'comment=Created with Switchboard'];
       const concatInput = ['-f', 'concat', '-safe', '0', '-i', concatPath];
       const mixPlan = input.project.music && input.musicPath
         ? buildMontageMusicMixPlan(input.project.music, input.project.durationMs, input.musicPath)
@@ -109,14 +110,14 @@ export async function renderMontageV2(input: MontageV2RenderInput): Promise<void
       if (!mixPlan) {
         await run(executable, [
           '-hide_banner', '-loglevel', 'error', ...concatInput,
-          '-map', '0:v:0', '-map', '0:a:0', '-c', 'copy', '-movflags', '+faststart', '-y', input.destination,
+          '-map', '0:v:0', '-map', '0:a:0', '-c', 'copy', ...outputMetadata, '-movflags', '+faststart', '-y', input.destination,
         ], input.signal);
       } else {
         await run(executable, [
           '-hide_banner', '-loglevel', 'error', ...concatInput, ...mixPlan.inputArguments,
           '-filter_complex', mixPlan.filter, '-map', '0:v:0', '-map', mixPlan.audioMap,
           '-c:v', 'copy', '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ar', '48000', '-ac', '2',
-          '-movflags', '+faststart', '-y', input.destination,
+          ...outputMetadata, '-movflags', '+faststart', '-y', input.destination,
         ], input.signal);
       }
       reportProgress(progressEnd);

@@ -202,6 +202,10 @@ internal static class ReplaySyncTests
                     await RunProcess(ffmpeg, ReplayEngine.BuildRemuxArguments(videoConcat, audioConcat, null, null, output,
                         selectedVideo[^1].EndedAt - selectedVideo[0].StartedAt, "Game", "Chat", "Microphone",
                         selectedAudio[0].StartedAt - selectedVideo[0].StartedAt));
+                    var metadata = await CaptureDiagnosticRunner.RunProcessAsync(FfmpegLocator.FindFfprobe(ffmpeg),
+                        ["-v", "error", "-show_entries", "format_tags=comment", "-of", "default=nw=1:nk=1", output], default);
+                    Equal(0, metadata.ExitCode, "Saved replay metadata must be readable.");
+                    Equal("Created with Switchboard", metadata.Output, "Saved replays must identify the app.");
                     await AssertVideoCadence(ffmpeg, root, output, name, settings.Fps,
                         (selectedVideo[^1].EndedAt - selectedVideo[0].StartedAt).TotalSeconds);
                     var error = await MeasureMarkerError(ffmpeg, root, output, name);

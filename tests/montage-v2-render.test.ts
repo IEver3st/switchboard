@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import type { Clip } from '../src/shared/contracts';
 import { createMontageMusicTrack, createMontageProjectV2, normalizeMontageProject } from '../src/renderer/src/components/capture/montage-v2-model';
 import { renderMontageV2 } from '../src/main/services/montage-v2-renderer';
+import { ClipLibraryService } from '../src/main/services/clip-library';
 
 const ffmpeg = process.env.SWITCHBOARD_FFMPEG_INTEGRATION;
 const ffprobe = process.env.SWITCHBOARD_FFPROBE_INTEGRATION;
@@ -30,6 +31,18 @@ integration('montage v2 FFmpeg render', () => {
   afterAll(async () => {
     await rm(workspace, { recursive: true, force: true });
   });
+
+  test('writes app attribution into original and compressed clip exports', async () => {
+    const library = new ClipLibraryService(join(workspace, 'thumbnails'));
+    const clip = fixtureClip('metadata', complexSource);
+    for (const preset of ['original', '10mb'] as const) {
+      const destination = join(workspace, `metadata-${preset}.mp4`);
+      await library.renderExport(clip, destination, { id: clip.id, startMs: 0, endMs: 1_000, preset });
+      const metadata = JSON.parse(await run(ffprobe!, ['-v', 'error', '-show_entries',
+        'format_tags=comment', '-of', 'json', destination]));
+      expect(metadata.format.tags.comment).toBe('Created with Switchboard');
+    }
+  }, 30_000);
 
   test('automatically fits short complex segments under the target without truncating them', async () => {
     const clip = { ...fixtureClip('complex', complexSource), width: 1_280, height: 720 };
@@ -56,7 +69,8 @@ integration('montage v2 FFmpeg render', () => {
         },
       });
       const output = JSON.parse(await run(ffprobe!, ['-v', 'error', '-show_entries',
-        'stream=codec_type,nb_frames:format=duration,size', '-of', 'json', destination]));
+        'stream=codec_type,nb_frames:format=duration,size:format_tags=comment', '-of', 'json', destination]));
+      expect(output.format.tags.comment).toBe('Created with Switchboard');
       expect(firstAttemptBytes).toBeGreaterThan(0.15 * 1_048_576);
       expect(Number(output.format.size)).toBeLessThanOrEqual(0.15 * 1_048_576);
       expect(Number(output.format.duration)).toBeGreaterThanOrEqual(1.2);

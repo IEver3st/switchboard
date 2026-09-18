@@ -326,6 +326,7 @@ export class ClipLibraryService {
     const common = [
       '-hide_banner', '-loglevel', 'error', '-ss', seek, '-i', clip.path, '-t', duration,
       '-map', '0:v:0', '-map_metadata', '0',
+      '-metadata', 'comment=Created with Switchboard',
     ];
     const originalVideo = ['-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-vf', buildClipVideoFilter(clip.canvasSize)];
     const progress = options.onProgress
@@ -422,7 +423,8 @@ export class ClipLibraryService {
         'utf8',
       );
 
-      const common = ['-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', concatPath];
+      const common = ['-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', concatPath,
+        '-metadata', 'comment=Created with Switchboard'];
       if (input.preset === 'original') {
         await run(executable, [...common, '-c', 'copy', '-movflags', '+faststart', '-y', destination], signal);
         return;
