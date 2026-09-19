@@ -2,6 +2,22 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+if (args.Contains("--calibrate-audio"))
+{
+    // A subprocess fixture used only by native UI tests. Never opens devices.
+    using var request = System.Text.Json.JsonDocument.Parse((await Console.In.ReadLineAsync())!);
+    await Task.Delay(8000);
+    if (Environment.GetEnvironmentVariable("SWITCHBOARD_AUDIO_SYNC_FIXTURE_FAIL") == "1")
+    { Console.Error.WriteLine("Fixture: could not hear the test clearly."); Environment.ExitCode = 1; return; }
+    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { profile = new {
+        advanceMs = 185, microphoneDeviceId = request.RootElement.GetProperty("microphoneDeviceId").GetString() ?? "fixture-mic",
+        outputDeviceId = request.RootElement.GetProperty("outputDeviceId").GetString() ?? "fixture-output",
+        measuredAt = DateTimeOffset.UtcNow.ToString("O") }, spreadMs = 3, matchedPulses = 5 }));
+    return;
+}
+if (args.Contains("--audio-sync-only")) { await AudioSyncCalibrationTests.RunAsync(); return; }
+if (args.Contains("--sync-calibration-media")) { await ReplaySyncTests.RunMediaAsync("libx264", 185); return; }
+
 var healthySpace = 20L * 1024 * 1024 * 1024;
 foreach (var pair in new (long? Clips, long? Cache)[] { (0, healthySpace), (healthySpace, 0), (0, 0), (null, healthySpace), (healthySpace, null) })
     if (!StorageHeadroom.Evaluate(pair.Clips, pair.Cache, 0).Critical) throw new Exception("Unavailable or zero storage must block capture.");
@@ -121,6 +137,7 @@ if (args.Contains("--encoder-policy-only", StringComparer.Ordinal))
     return;
 }
 await ReplaySyncTests.RunAsync();
+await AudioSyncCalibrationTests.RunAsync();
 await StartupProbeTests.AssertStdinIsolationAsync();
 
 var start = DateTimeOffset.Parse("2026-08-26T00:00:00Z");

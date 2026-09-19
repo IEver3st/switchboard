@@ -37,7 +37,8 @@ internal sealed record CaptureSettings(
     string ReactionSensitivity = "balanced",
     int ReactionCooldownSeconds = 60,
     string? AudioFallbackReason = null,
-    string SystemAudioMode = "system")
+    string SystemAudioMode = "system",
+    AudioSyncProfile? MicrophoneSync = null)
 {
     public const int MaximumReplaySeconds = 300;
     public int SegmentSeconds => 1;
@@ -52,6 +53,10 @@ internal sealed record CaptureSettings(
 
     public CaptureSettings Validate()
     {
+        if (MicrophoneSync is { } sync && (sync.AdvanceMs is < 0 or > 1200
+            || string.IsNullOrWhiteSpace(sync.MicrophoneDeviceId) || sync.MicrophoneDeviceId.Length > 512
+            || string.IsNullOrWhiteSpace(sync.OutputDeviceId) || sync.OutputDeviceId.Length > 512))
+            throw new InvalidOperationException("Invalid microphone sync correction.");
         if (SystemAudioMode is not ("system" or "game"))
             throw new ArgumentOutOfRangeException(nameof(SystemAudioMode));
         if (IncludeSystemAudio && SystemAudioMode == "game" && Source == "display")

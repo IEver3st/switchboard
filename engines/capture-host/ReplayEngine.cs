@@ -15,6 +15,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private Process? systemAudioFfmpeg;
     private Process? chatAudioFfmpeg;
     private Process? microphoneFfmpeg;
+    private int microphoneAdvanceMs;
     private IAudioPipeInput? systemAudio;
     private IAudioPipeInput? chatAudio;
     private AudioPipeCapture? microphoneAudio;
@@ -308,6 +309,14 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 throw new InvalidOperationException("Replay is waiting for a capture source.");
             EnsureStorageHeadroom(capture, preventStart: false);
             var segments = ring.List(sessionDirectory, captureRunning: ffmpeg is { HasExited: false });
+            if (microphoneAdvanceMs > 0)
+            {
+                var audioTail = ring.List(sessionDirectory, captureRunning: microphoneFfmpeg is { HasExited: false },
+                    searchPattern: "microphone-*.mka");
+                // The advanced mic needs future acoustic samples. Save only video
+                // whose matching mic samples have actually finished encoding.
+                segments = CompleteWithMicrophone(segments, audioTail);
+            }
             var window = requestedWindow?.Validate(capture.ReplaySeconds);
             var selected = window is { } requested
                 ? ring.SelectForWindow(segments, requested.StartedAt, requested.EndedAt)
@@ -799,8 +808,17 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 }
             }
 
+            microphoneAdvanceMs = 0;
             foreach (var input in new IAudioPipeInput?[] { systemAudio, chatAudio, microphoneAudio })
-                if (input is AudioPipeCapture deviceInput) deviceInput.SetTimelineOrigin(timelineOrigin);
+                if (input is AudioPipeCapture deviceInput)
+                {
+                    var advance = input == microphoneAudio
+                        ? ResolveMicrophoneAdvanceMs(capture, deviceInput.EndpointId, (systemAudio as AudioPipeCapture)?.EndpointId) : 0;
+                    deviceInput.SetTimelineOrigin(timelineOrigin, advance);
+                    if (input == microphoneAudio) microphoneAdvanceMs = advance;
+                    if (input == microphoneAudio && capture.MicrophoneSync is { AdvanceMs: > 0 } && advance == 0)
+                        audioWarnings.Add("Microphone sync correction is inactive for these audio devices. Recalibrate in Capture audio settings.");
+                }
 
             using var pipeTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             pipeTimeout.CancelAfter(TimeSpan.FromSeconds(8));
@@ -1665,6 +1683,17 @@ internal sealed class ReplayEngine : IAsyncDisposable
         return cachedSources;
     }
 
+    internal static int ResolveMicrophoneAdvanceMs(CaptureSettings capture, string? microphoneId, string? outputId) =>
+        capture.SystemAudioMode == "system" && capture.MicrophoneSync is { } sync
+        && sync.MicrophoneDeviceId == microphoneId && sync.OutputDeviceId == outputId ? sync.AdvanceMs : 0;
+
+    internal static IReadOnlyList<ReplaySegmentInfo> CompleteWithMicrophone(
+        IReadOnlyList<ReplaySegmentInfo> video, IReadOnlyList<ReplaySegmentInfo> microphone)
+    {
+        var end = microphone.Where(segment => segment.Complete).Select(segment => segment.EndedAt).DefaultIfEmpty(DateTimeOffset.MinValue).Max();
+        return video.Where(segment => segment.EndedAt <= end).ToArray();
+    }
+
     internal static bool RequiresRestart(CaptureSettings previous, CaptureSettings next) =>
         previous.Source != next.Source
         || previous.SourceId != next.SourceId
@@ -1685,6 +1714,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
         || previous.MicrophoneBitrateBps != next.MicrophoneBitrateBps
         || previous.ChatAudioBitrateBps != next.ChatAudioBitrateBps
         || previous.ClipMixPipeName != next.ClipMixPipeName
+        || previous.MicrophoneSync != next.MicrophoneSync
         || previous.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId
            && (previous.IncludeMic || next.IncludeMic)
         || previous.MicrophoneDeviceId != next.MicrophoneDeviceId

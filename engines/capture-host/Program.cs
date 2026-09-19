@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Switchboard.CaptureHost;
 
+if (args.Contains("--calibrate-audio")) { await AudioSyncCalibration.RunCommandAsync(); return; }
 if (args.Contains("--desktop-controls")) { Environment.ExitCode = DesktopControls.Run(); return; }
 if (args.Contains("--resource-diagnostics")) { Environment.ExitCode = ResourceDiagnostics.Run(); return; }
 if (args.Contains("--list-sources"))

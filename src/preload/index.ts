@@ -82,6 +82,7 @@ const api: SwitchboardApi & MontageV2Api = {
   setMicProcessor: (input) => ipcRenderer.invoke(ipcChannels.setMicProcessor, input),
   subscribeAudioMeters,
   setCaptureConfig: (input) => ipcRenderer.invoke(ipcChannels.setCaptureConfig, input),
+  audioCalibration: (input) => ipcRenderer.invoke(ipcChannels.audioCalibration, input),
   saveReplay: () => ipcRenderer.invoke(ipcChannels.saveReplay),
   chooseReplayCacheDirectory: () => ipcRenderer.invoke(ipcChannels.chooseReplayCacheDirectory),
   operateClips: (input) => ipcRenderer.invoke(ipcChannels.operateClips, input),

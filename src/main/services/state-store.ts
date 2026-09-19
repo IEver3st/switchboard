@@ -110,6 +110,7 @@ export class StateStore {
     const next = structuredClone(snapshot);
     const defaults = createDefaultSnapshot();
     next.diagnostics = structuredClone(defaults.diagnostics);
+    next.capture.audioCalibration = { status: 'idle', measurement: null, error: null };
     const modulesById = new Map(next.modules.map((module) => [module.id, module]));
     const bundledModules = defaults.modules.map((fallback) => {
       const existing = modulesById.get(fallback.id);
@@ -214,7 +215,7 @@ export class StateStore {
   }
 
   private persist(): Promise<void> {
-    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot, performance: { ...this.snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
+    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot, capture: { ...this.snapshot.capture, audioCalibration: undefined }, performance: { ...this.snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
     this.persistChain = this.persistChain
       .catch(() => undefined)
       .then(async () => {

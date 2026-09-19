@@ -13,6 +13,7 @@ import {
   autoCaptureSettingsPatchSchema,
   autoCaptureTestEventInputSchema,
   setCaptureConfigInputSchema,
+  audioCalibrationInputSchema,
   clipTrimInputSchema,
   createModuleProjectInputSchema,
   createAudioPresetInputSchema,
@@ -279,6 +280,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setMicProcessorInputSchema.parse(input),
     (input) => controller.setMicProcessor(input),
+  );
+  handle(
+    ipcChannels.audioCalibration,
+    getMainWindow,
+    (input) => audioCalibrationInputSchema.parse(input),
+    (input) => controller.audioCalibration(input.action),
   );
   handle(
     ipcChannels.setCaptureConfig,

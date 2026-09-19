@@ -37,6 +37,7 @@ export const settingsCategories: ReadonlyArray<{
 ];
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
+  { id: 'capture.audioSync', category: 'capture', title: 'Microphone timing', description: 'Calibrate headphone and microphone delay for clips.', keywords: ['sync', 'latency', 'offset', 'delay', 'bluetooth', 'sonar', 'calibrate'] },
   { id: 'setup.scenes', category: 'setup', title: 'Scenes, quick controls, and status lighting', description: 'Save your whole setup, switch scenes, and configure desktop shortcuts and device cues.', keywords: ['scenes', 'profiles', 'automatic', 'shortcut', 'quick', 'lighting', 'status'] },
   { id: 'capture.systemAudioMode', category: 'capture', title: 'Game-only audio', description: 'Capture sound from the selected game or window without other desktop apps.', keywords: ['game only', 'process', 'music', 'exclude', 'desktop audio'] },
   {

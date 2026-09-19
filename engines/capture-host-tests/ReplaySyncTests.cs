@@ -137,7 +137,7 @@ internal static class ReplaySyncTests
 
     // Real FFmpeg, synthetic media only: no screen or microphone capture.
     // The default is software; an explicit NVENC codec requires NVIDIA hardware.
-    public static async Task RunMediaAsync(string encoder = "libx264")
+    public static async Task RunMediaAsync(string encoder = "libx264", int microphoneDelayMs = 0)
     {
         if (encoder is not ("libx264" or "h264_nvenc" or "hevc_nvenc" or "av1_nvenc"))
             throw new ArgumentOutOfRangeException(nameof(encoder));
@@ -171,13 +171,13 @@ internal static class ReplaySyncTests
                     var samples = new float[480];
                     for (var index = 0; index < samples.Length; index++)
                     {
-                        var time = (frame + index) / 48_000.0;
+                        var time = (frame + index) / 48_000.0 - microphoneDelayMs / 1000d;
                         if (time % 4 >= 2 && time % 4 < 2.1)
                             samples[index] = (float)(0.8 * Math.Sin(time * 2 * Math.PI * 1000));
                     }
                     var bytes = MemoryMarshal.AsBytes(samples.AsSpan()).ToArray();
                     var position = clock.Position(10_000_000 + frame * 10_000_000L / 48_000, 480, false, 10_000_000 + (frame + 480) * 10_000_000L / 48_000);
-                    await writer.WriteAsync(bytes, position, default);
+                    await writer.WriteAsync(bytes, position - microphoneDelayMs * 48L, default);
                 }
             }
             await RunProcess(ffmpeg, ReplayEngine.BuildAudioArguments(settings, root, new FileAudioInput(raw), "system", 128_000));
@@ -251,7 +251,8 @@ internal static class ReplaySyncTests
             await RunProcess(ffmpeg, mixArgs);
             File.WriteAllText(Path.Combine(clockRoot, "timeline-origin.txt"), mixOrigin.ToString("O"));
             var mixEnd = ring.List(clockRoot, false, "mix-*.mka")[^1].EndedAt;
-            if (mixEnd < mixOrigin.AddSeconds(12.2) || mixEnd > DateTimeOffset.UtcNow.AddSeconds(12.2))
+            var inputSeconds = new FileInfo(raw).Length / (48_000d * sizeof(float));
+            if (mixEnd < mixOrigin.AddSeconds(inputSeconds + 0.2) || mixEnd > DateTimeOffset.UtcNow.AddSeconds(inputSeconds + 0.2))
                 throw new Exception("The clip-mix first-frame clock did not retain its startup delay.");
             Console.WriteLine("Production first-frame clock expressions passed for video and the Audio.Host pipe mix.");
         }

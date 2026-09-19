@@ -4,6 +4,7 @@ import { quickActionInputSchema, type QuickActionInput } from '../shared/contrac
 import { DesktopControlsService } from './services/desktop-controls';
 import { NativeResourceCollector } from './services/native-resource-collector';
 import { CaptureSourceRefresh, listCaptureSources } from './services/capture-source-refresh';
+import { AudioSyncCalibration, measureAudioSync } from './services/audio-sync-calibration';
 import type { ResourceMonitorSnapshot } from '../shared/resource-monitor';
 import { StatusLighting } from './services/status-lighting';
 import { snapshotSceneValues } from '../shared/setup-scenes';
@@ -194,6 +195,52 @@ type AppControllerOptions = {
 };
 
 export class AppController {
+  private readonly audioSyncCalibration = new AudioSyncCalibration({
+    measure: (route, signal) => measureAudioSync(app.isPackaged
+      ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
+      : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe'), route, signal),
+    publish: (state) => this.store.update( draft => { draft.capture.audioCalibration = state; }, { persist: false }),
+  });
+
+  private audioCalibrationRoute() {
+    const config = this.store.get().capture.config;
+    const host = this.toHostSettings(config);
+    if (config.microphoneDeviceId && !host.microphoneDeviceId && !host.processedMicrophoneDeviceId
+      || config.systemAudioDeviceId && !host.systemAudioDeviceId)
+      throw new Error('A selected audio device is unavailable. Reconnect it before calibration.');
+    if (!config.includeMic || !config.includeSystemAudio || config.systemAudioMode !== 'system' || host.clipMixPipeName)
+      throw new Error('Calibration needs the microphone and an output-device Game track. Select All audio from output device and an explicit output when using the Switchboard clip mix.');
+    return { microphoneDeviceId: (host.processedMicrophoneDeviceId ?? host.microphoneDeviceId) as string | null,
+      outputDeviceId: host.systemAudioDeviceId as string | null };
+  }
+
+  private audioCalibrationSignature(): string {
+    const config = this.store.get().capture.config;
+    return JSON.stringify([this.audioCalibrationRoute(), config.microphoneDeviceId, config.systemAudioDeviceId]);
+  }
+
+  public async audioCalibration(action: 'start' | 'cancel' | 'apply'): Promise<SystemSnapshot> {
+    if (action === 'cancel') await this.audioSyncCalibration.cancel();
+    else if (action === 'start') {
+      this.audioSyncCalibration.start(this.audioCalibrationRoute(), this.audioCalibrationSignature(), () => this.audioCalibrationSignature());
+    } else {
+      const signature = this.audioCalibrationSignature();
+      const measurement = this.audioSyncCalibration.take(signature);
+      this.store.update( draft => { draft.capture.audioCalibration = { status: 'saving', measurement, error: null }; }, { persist: false });
+      try {
+        await this.queueCaptureConfiguration(async () => {
+          if (signature !== this.audioCalibrationSignature()) throw new Error('The audio route changed. Calibrate again.');
+          return this.applyCaptureConfig({ microphoneSync: measurement.profile });
+        });
+        this.store.update( draft => { draft.capture.audioCalibration = { status: 'saved', measurement, error: null }; }, { persist: false });
+      } catch (error) {
+        this.store.update( draft => { draft.capture.audioCalibration = { status: 'error', measurement: null, error: String(error instanceof Error ? error.message : error).slice(0, 1000) }; }, { persist: false });
+        throw error;
+      }
+    }
+    return this.store.get();
+  }
+
   private readonly scenes: SetupScenes;
   private readonly desktopControls: DesktopControlsService;
   private readonly statusLighting: StatusLighting;
@@ -577,6 +624,7 @@ export class AppController {
   }
 
   public setRendererActive(active: boolean): SystemSnapshot {
+    if (!active) void this.audioSyncCalibration.cancel();
     if (this.rendererActive === active) return this.store.get();
     this.rendererActive = active;
     this.clipLibrary.setBackgroundWorkActive(active);
@@ -1181,6 +1229,7 @@ export class AppController {
   }
 
   public async setCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot> {
+    await this.audioSyncCalibration.cancel();
     const requested = Object.keys(input).length === 0 ? this.captureRetryConfig ?? input : input;
     this.clearCaptureRecovery();
     this.captureRetryConfig = null;
@@ -2322,6 +2371,7 @@ export class AppController {
   }
 
   public async dispose(): Promise<void> {
+    await this.audioSyncCalibration.dispose();
     this.disposed = true;
     await this.clipLibrary.dispose();
     await this.captureSourceRefresh.dispose();

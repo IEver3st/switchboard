@@ -41,6 +41,8 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     private long capturedBytes;
     private long writtenBytes;
     private AudioPacketTimeline? timeline;
+    private long advanceFrames;
+    public string? EndpointId => heldEndpoint?.ID;
 
     private AudioPipeCapture(
         WasapiRecorder capture,
@@ -83,13 +85,9 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
 
     public static AudioPipeCapture CreateSystemLoopback()
     {
-        var capture = new WasapiRecorderBuilder()
-            .WithSharedMode()
-            .WithEventSync()
-            .WithBufferLength(50)
-            .WithLoopbackCapture()
-            .Build();
-        return new AudioPipeCapture(capture, "System audio");
+        using var enumerator = new MMDeviceEnumerator();
+        using var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+        return CreateLoopbackEndpoint(endpoint.ID, "System audio");
     }
 
     public static async Task<AudioPipeCapture> CreateProcessLoopbackAsync(int processId, CancellationToken cancellationToken)
@@ -191,8 +189,9 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         started = true;
     }
 
-    public void SetTimelineOrigin(DateTimeOffset origin)
+    public void SetTimelineOrigin(DateTimeOffset origin, int advanceMs = 0)
     {
+        advanceFrames = (long)Math.Round(advanceMs * SampleRate / 1000d);
         var qpcNow = AudioPacketTimeline.QpcNow;
         timeline = new AudioPacketTimeline(qpcNow - (DateTimeOffset.UtcNow - origin).Ticks, SampleRate);
     }
@@ -249,7 +248,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
         var framePosition = timeline?.Position(qpcPosition, buffer.Length / capture.WaveFormat.BlockAlign,
             (flags & AudioClientBufferFlags.TimestampError) != 0, AudioPacketTimeline.QpcNow,
             devicePosition, (flags & AudioClientBufferFlags.DataDiscontinuity) != 0) ?? -1;
-        var packet = new AudioPacket(rented, buffer.Length, framePosition);
+        var packet = new AudioPacket(rented, buffer.Length, framePosition - advanceFrames);
         if (!packets.Writer.TryWrite(packet))
         {
             packet.Return();
@@ -284,7 +283,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
                     if (timeline is not null)
                     {
                         var before = writer.WrittenFrames;
-                        await writer.WriteAsync(ReadOnlyMemory<byte>.Empty, timeline.SilenceFrame, cancellationToken);
+                        await writer.WriteAsync(ReadOnlyMemory<byte>.Empty, Math.Max(0, timeline.SilenceFrame - advanceFrames), cancellationToken);
                         Interlocked.Add(ref writtenBytes, (writer.WrittenFrames - before) * blockAlign);
                     }
                     continue;

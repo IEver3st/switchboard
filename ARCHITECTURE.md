@@ -197,6 +197,12 @@ HEVC/AV1, then software H.264. Explicit codec and encoder preferences remain
 explicit. The runtime encoder label reports the selected format; saved Automatic
 policy and conservative bitrate estimates remain separate from the actual codec.
 
+Automatic codec selection is resolved in the capture host from encoders that pass
+FFmpeg probes. It prefers hardware H.264 for compatibility, then tested hardware
+HEVC/AV1, then software H.264. Explicit codec and encoder preferences remain
+explicit. The runtime encoder label reports the selected format; saved Automatic
+policy and conservative bitrate estimates remain separate from the actual codec.
+
 AMF capture downloads the backend's BGRA textures and converts them to NV12
 before submitting them to the selected AMD hardware encoder. This avoids
 capture-texture Direct3D interop failures that synthetic encoder probes do not

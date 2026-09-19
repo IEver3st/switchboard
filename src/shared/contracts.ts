@@ -896,7 +896,28 @@ export const defaultClipTrackLevelsSchema = z.object({
 });
 export type DefaultClipTrackLevels = z.infer<typeof defaultClipTrackLevelsSchema>;
 
+export const microphoneSyncProfileSchema = z.object({
+  advanceMs: z.number().int().min(0).max(1200),
+  microphoneDeviceId: z.string().min(1).max(512),
+  outputDeviceId: z.string().min(1).max(512),
+  measuredAt: z.string().datetime({ offset: true }),
+});
+export const audioSyncMeasurementSchema = z.object({
+  profile: microphoneSyncProfileSchema,
+  spreadMs: z.number().int().min(0).max(20),
+  matchedPulses: z.number().int().min(4).max(5),
+});
+export type AudioSyncMeasurement = z.infer<typeof audioSyncMeasurementSchema>;
+export const audioCalibrationStateSchema = z.object({
+  status: z.enum(['idle', 'measuring', 'ready', 'saving', 'saved', 'error']).default('idle'),
+  measurement: audioSyncMeasurementSchema.nullable().default(null),
+  error: z.string().max(1000).nullable().default(null),
+});
+export type AudioCalibrationState = z.infer<typeof audioCalibrationStateSchema>;
+export const audioCalibrationInputSchema = z.object({ action: z.enum(['start', 'cancel', 'apply']) }).strict();
+
 export const captureConfigSchema = z.object({
+  microphoneSync: microphoneSyncProfileSchema.nullable().default(null),
   enabled: z.boolean(),
   source: captureSourceTypeSchema,
   sourceId: z.string().min(1).nullable(),
@@ -931,6 +952,7 @@ export const setCaptureConfigInputSchema = captureConfigSchema
   .omit({ clipsDirectory: true, replayCacheDirectory: true })
   .partial()
   .extend({
+    microphoneSync: captureConfigSchema.shape.microphoneSync.unwrap().optional(),
     // Persisted defaults must not become writes when an IPC patch omits a field.
     systemAudioMode: captureConfigSchema.shape.systemAudioMode.unwrap().optional(),
     includeChatAudio: captureConfigSchema.shape.includeChatAudio.unwrap().optional(),
@@ -1512,6 +1534,7 @@ export const systemSnapshotSchema = z.object({
   engines: z.array(engineStatusSchema),
   audio: audioStateSchema,
   capture: z.object({
+    audioCalibration: audioCalibrationStateSchema.default({ status: 'idle', measurement: null, error: null }),
     config: captureConfigSchema,
     runtime: captureRuntimeSchema,
     storage: captureStorageSchema,
@@ -1829,6 +1852,7 @@ export const ipcChannels = {
   setAudioMeterSubscription: 'audio:set-meter-subscription',
   audioMeterUpdated: 'audio:meter-updated',
   setCaptureConfig: 'capture:set-config',
+  audioCalibration: 'capture:audio-calibration',
   saveReplay: 'capture:save-replay',
   chooseClipDirectory: 'capture:choose-clip-directory',
   chooseReplayCacheDirectory: 'capture:choose-replay-cache-directory',
@@ -1911,6 +1935,7 @@ export interface SwitchboardApi {
   setMicProcessor(input: SetMicProcessorInput): Promise<SystemSnapshot>;
   subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void;
   setCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot>;
+  audioCalibration(input: z.infer<typeof audioCalibrationInputSchema>): Promise<SystemSnapshot>;
   saveReplay(): Promise<SystemSnapshot>;
   chooseClipDirectory(): Promise<SystemSnapshot>;
   chooseReplayCacheDirectory(): Promise<SystemSnapshot>;

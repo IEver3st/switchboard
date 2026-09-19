@@ -65,7 +65,8 @@ internal sealed class AudioTimelineWriter(Stream output, int blockAlign)
 
     public async Task WriteAsync(ReadOnlyMemory<byte> packet, long position, CancellationToken cancellationToken)
     {
-        if (position < 0) position = WrittenFrames;
+        // Negative positions are calibrated samples before the session origin.
+        // Trim them instead of moving them to zero and undoing the correction.
         // Missing packets must leave time in the stream, rather than moving all
         // subsequent sound earlier. This also accounts for delayed device startup.
         while (WrittenFrames < position)

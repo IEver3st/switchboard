@@ -1,4 +1,5 @@
 import '@/components/settings/capture-settings.css';
+import { AudioSyncCalibrationSettings } from '@/components/settings/audio-sync-calibration';
 import { SetupWorkspace } from '@/components/setup/setup-workspace';
 import '@/components/settings/general-settings.css';
 import { DiagnosticsWorkspace } from '@/components/settings/diagnostics-workspace';
@@ -512,6 +513,7 @@ const captureViews = [
 type CaptureView = typeof captureViews[number]['id'];
 
 function captureViewForSetting(id: string): CaptureView {
+  if (id.startsWith('capture.audioSync')) return 'audio';
   if (id.startsWith('reactionClipping.')) return 'reactions';
   if (id.startsWith('autocapture.')) return 'automatic';
   if (['capture.microphone', 'capture.systemAudio', 'capture.systemAudioMode', 'capture.chatAudio', 'capture.audioDevices'].includes(id)) return 'audio';
@@ -673,6 +675,7 @@ function CaptureSettings({ snapshot, onReset, targetSetting }: CategoryProps & {
       <SettingSection title="Replay audio devices">
         <CaptureAudioDeviceSettings snapshot={snapshot} />
       </SettingSection>
+      <AudioSyncCalibrationSettings snapshot={snapshot} />
 
       </> : null}
       {view === 'automatic' || view === 'reactions' ? (

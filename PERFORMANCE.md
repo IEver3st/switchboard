@@ -1,5 +1,13 @@
 # Performance budgets
 
+Microphone calibration runs only on request in an isolated Capture.Host helper.
+It plays five test sounds over eleven seconds and retains two bounded arrays of
+millisecond energy values. Endpoint callbacks do no allocation, locking, logging,
+or asynchronous work. Main enforces a twenty-second process deadline and bounded
+output; cancel, tray closure, settings navigation, and shutdown release the helper.
+The saved correction is constant frame arithmetic with no extra process, polling,
+or DSP. See `docs/audio-sync-calibration.md`.
+
 These are release gates, not marketing claims.
 
 The Electron 44 Browser, sandbox utility, and GPU process floor is part of the

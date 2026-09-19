@@ -543,6 +543,9 @@ const demoApi: SwitchboardApi = {
       syncAudioMeterTimer();
     };
   },
+  async audioCalibration() {
+    throw new Error('Audio calibration requires the Windows desktop app and real audio devices.');
+  },
   async setCaptureConfig(input: SetCaptureConfigInput) {
     if (input.enabled) throw new Error('Instant Replay is available only in the Switchboard desktop application.');
     const { defaultTrackLevels, ...rest } = input;

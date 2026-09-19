@@ -539,6 +539,7 @@ export const defaultAudio: AudioState = {
 };
 
 export const defaultCaptureConfig: CaptureConfig = {
+  microphoneSync: null,
   systemAudioMode: 'system',
   enabled: false,
   source: 'automatic-game',
@@ -684,7 +685,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.9.14',
+  currentVersion: '0.9.15',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -730,7 +731,7 @@ export const seedClips: Clip[] = [];
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
     setup: setupStateSchema.parse({}),
-    version: '0.9.14',
+    version: '0.9.15',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),
@@ -739,6 +740,7 @@ export function createDefaultSnapshot(): SystemSnapshot {
     engines: structuredClone(stoppedEngines),
     audio: structuredClone(defaultAudio),
     capture: {
+      audioCalibration: { status: 'idle', measurement: null, error: null },
       config: structuredClone(defaultCaptureConfig),
       runtime: structuredClone(defaultCaptureRuntime),
       storage: structuredClone(defaultCaptureStorage),
