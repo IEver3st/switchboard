@@ -40,6 +40,7 @@ const api: SwitchboardApi & MontageV2Api = {
   restoreScene: () => ipcRenderer.invoke(ipcChannels.restoreScene),
   setSetupPreferences: input => ipcRenderer.invoke(ipcChannels.setSetupPreferences, input),
   openQuickControls: () => ipcRenderer.invoke(ipcChannels.openQuickControls),
+  setShortcutRecording: recording => ipcRenderer.invoke(ipcChannels.setShortcutRecording, recording),
   closeQuickControls: () => ipcRenderer.invoke(ipcChannels.closeQuickControls),
   runQuickAction: input => ipcRenderer.invoke(ipcChannels.runQuickAction, input),
   setUiScale: (percent) => {

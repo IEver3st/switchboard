@@ -3,6 +3,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { shortcutIdentity } from '../../shared/shortcut';
 import type { SetupPreferences } from '../../shared/contracts';
 import type { ExternalProcessResource } from './performance-monitor';
 
@@ -37,22 +38,15 @@ export class DesktopControlsService {
     this.signature = signature;
     const generation = ++this.generation;
     this.chain = this.chain.catch(() => undefined).then(async () => {
-      await this.stop();
+      await this.stopWatcher();
       if (generation !== this.generation || this.closed) return;
-      if (!config.quickControlsEnabled && !config.executables.length) { this.io.status('disabled', null); return; }
+      if (!config.quickControlsEnabled && !config.executables.length) { this.applyShortcut(config); this.io.status('disabled', null); return; }
       // Fixture reviews must not register a global shortcut or watch real applications.
       if (process.env.SWITCHBOARD_NATIVE_FIXTURES === '1') { this.io.status('disabled', null); return; }
       this.io.status('starting', null);
       let shortcutError: string | null = null;
-      if (config.quickControlsEnabled) {
-        try {
-          const registered = globalShortcut.register(config.quickShortcut, () => {
-            if (!this.closed && generation === this.generation) this.io.toggleQuick();
-          });
-          if (registered) this.accelerator = config.quickShortcut;
-          else shortcutError = 'The quick shortcut is already in use. Choose another shortcut.';
-        } catch { shortcutError = 'The quick shortcut could not be registered. Choose another shortcut.'; }
-      }
+      try { this.applyShortcut(config); }
+      catch (error) { shortcutError = error instanceof Error ? error.message : String(error); }
       if (!config.executables.length) {
         this.io.status(shortcutError ? 'error' : 'ready', shortcutError);
         return;
@@ -104,8 +98,27 @@ export class DesktopControlsService {
     });
   }
 
-  private async stop(): Promise<void> {
-    if (this.accelerator) { globalShortcut.unregister(this.accelerator); this.accelerator = null; }
+  /** Reserve the new binding before releasing the last confirmed one. */
+  applyShortcut(config: Pick<SetupPreferences, 'quickControlsEnabled' | 'quickShortcut'>): void {
+    if (this.closed) throw new Error('Switchboard is shutting down.');
+    if (process.env.SWITCHBOARD_NATIVE_FIXTURES === '1') return;
+    const next = config.quickControlsEnabled ? config.quickShortcut : null;
+    if (next && this.accelerator && shortcutIdentity(next) === shortcutIdentity(this.accelerator)) return;
+    if (next) {
+      let registered = false;
+      try {
+        registered = globalShortcut.register(next, () => {
+          if (!this.closed && this.accelerator === next) this.io.toggleQuick();
+        });
+      } catch { throw new Error('The quick shortcut could not be registered. Choose another shortcut.'); }
+      if (!registered) throw new Error('The quick shortcut is already in use or reserved by Windows. Choose another shortcut.');
+    }
+    const previous = this.accelerator;
+    this.accelerator = next;
+    if (previous) globalShortcut.unregister(previous);
+  }
+
+  private async stopWatcher(): Promise<void> {
     const worker = this.worker;
     this.worker = null;
     this.resources = null;
@@ -117,7 +130,7 @@ export class DesktopControlsService {
     });
   }
 
-  async dispose(): Promise<void> { this.closed = true; this.generation++; await this.chain; await this.stop(); this.io.closeQuick(); }
+  async dispose(): Promise<void> { this.closed = true; this.generation++; await this.chain; await this.stopWatcher(); if (this.accelerator) { globalShortcut.unregister(this.accelerator); this.accelerator = null; } this.io.closeQuick(); }
   getResources(): ExternalProcessResource[] {
     if (this.worker && Date.now() - this.lastMetricRequestAt >= 4_900) {
       this.lastMetricRequestAt = Date.now(); this.worker.stdin.write('metrics\n');

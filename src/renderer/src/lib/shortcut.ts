@@ -1,3 +1,5 @@
+import { isShortcut } from '../../../shared/shortcut';
+
 export type ShortcutKeyboardEvent = Pick<KeyboardEvent, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>;
 
 export function shortcutFromKeyboardEvent(event: ShortcutKeyboardEvent): string | null {
@@ -9,7 +11,8 @@ export function shortcutFromKeyboardEvent(event: ShortcutKeyboardEvent): string 
     event.shiftKey ? 'Shift' : null,
     event.metaKey ? 'Super' : null,
   ].filter((candidate): candidate is string => candidate !== null);
-  return [...modifiers, key].join('+');
+  const shortcut = [...modifiers, key].join('+');
+  return isShortcut(shortcut) ? shortcut : null;
 }
 
 export function displayShortcut(value: string): string {
@@ -18,6 +21,10 @@ export function displayShortcut(value: string): string {
 
 function normalizeShortcutKey(key: string, code: string): string {
   if (key === ' ') return 'Space';
+  if (key === '+') return 'Plus';
+  if (code.startsWith('Numpad') && /^\d$/.test(key)) return `num${key}`;
+  const special: Record<string, string> = { AudioVolumeUp: 'VolumeUp', AudioVolumeDown: 'VolumeDown', AudioVolumeMute: 'VolumeMute', MediaTrackNext: 'MediaNextTrack', MediaTrackPrevious: 'MediaPreviousTrack' };
+  if (special[key]) return special[key];
   if (key.length === 1) return key.toLocaleUpperCase();
   if (/^F\d{1,2}$/.test(key)) return key.toLocaleUpperCase();
   if (key === 'ArrowUp') return 'Up';

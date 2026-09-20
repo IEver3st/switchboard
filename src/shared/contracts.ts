@@ -1,6 +1,7 @@
 import { montageMusicTrackSchema } from './montage-audio';
 import { resourceMonitorSchema } from './resource-monitor';
 import { z } from 'zod';
+import { shortcutSchema } from './shortcut';
 import { videoEditsSchema } from './video-edits';
 
 export const pageIdSchema = z.enum([
@@ -1494,7 +1495,7 @@ export const saveSceneInputSchema = setupSceneSchema.omit({ id: true, values: tr
 export type SaveSceneInput = z.infer<typeof saveSceneInputSchema>;
 export const setupPreferencesSchema = z.object({
   quickControlsEnabled: z.boolean().default(false),
-  quickShortcut: z.enum(['Control+Alt+Space', 'Control+Shift+Space', 'Alt+Space']).default('Control+Alt+Space'),
+  quickShortcut: shortcutSchema.default('Control+Alt+Space'),
   quickActions: z.array(z.enum(['scenes', 'replay', 'microphone', 'output', 'chatmix'])).max(5)
     .default(['scenes', 'replay', 'microphone', 'output', 'chatmix']),
   lighting: z.object({
@@ -1816,6 +1817,7 @@ export type FeedbackHandoffResult = z.infer<typeof feedbackHandoffResultSchema>;
 export const ipcChannels = {
   saveScene: 'setup:save-scene', deleteScene: 'setup:delete-scene', applyScene: 'setup:apply-scene',
   restoreScene: 'setup:restore-scene', setSetupPreferences: 'setup:set-preferences',
+  setShortcutRecording: 'shortcuts:set-recording',
   openQuickControls: 'setup:open-quick-controls', closeQuickControls: 'setup:close-quick-controls',
   runQuickAction: 'setup:quick-action',
   getSnapshot: 'system:get-snapshot',
@@ -1900,6 +1902,7 @@ export interface SwitchboardApi {
   setSetupPreferences(input: SetupPreferences): Promise<SystemSnapshot>;
   openQuickControls(): Promise<void>;
   closeQuickControls(): Promise<void>;
+  setShortcutRecording(recording: boolean): Promise<void>;
   runQuickAction(input: QuickActionInput): Promise<SystemSnapshot>;
   setUiScale(percent: AppSettings['uiScalePercent']): void;
   getSnapshot(): Promise<SystemSnapshot>;

@@ -26,9 +26,9 @@ const service = new DesktopControlsService({
   applications: async () => undefined,
   status: (state, error) => { status = state; failure = error; },
 });
-const shortcut = 'Control+Alt+Space', conflictShortcut = 'Control+Shift+Space';
+const shortcut = 'Control+Alt+Shift+F9', conflictShortcut = 'Control+Alt+Shift+F8';
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-async function configure(enabled: boolean, accelerator: typeof shortcut | typeof conflictShortcut = shortcut) {
+async function configure(enabled: boolean, accelerator: string = shortcut) {
   status = 'waiting';
   service.configure({ quickControlsEnabled: enabled, quickShortcut: accelerator, executables: [] });
   const deadline = Date.now() + 5000;
@@ -61,8 +61,14 @@ void app.whenReady().then(async () => {
     assert(nativeRegister(conflictShortcut, () => {}), 'Review conflict shortcut is unavailable');
     await configure(true, conflictShortcut);
     assert.equal(status, 'error'); assert(failure?.includes('already in use'));
-    assert(!globalShortcut.isRegistered(shortcut), 'Changing shortcuts releases the previous registration');
-    press(); assert.equal(panel.getWindow(), null, 'Stale registration callbacks cannot reopen the panel');
+    assert(globalShortcut.isRegistered(shortcut), 'Rejected changes must preserve the previous registration');
+    press(); assert(panel.getWindow(), 'Previous binding must still work after a conflict'); panel.dispose();
+    assert.throws(() => service.applyShortcut({ quickControlsEnabled: true, quickShortcut: conflictShortcut }), /already in use/);
+    service.applyShortcut({ quickControlsEnabled: true, quickShortcut: 'Ctrl+Alt+Shift+F9' });
+    assert(globalShortcut.isRegistered(shortcut), 'Equivalent modifier aliases must not conflict');
+    service.applyShortcut({ quickControlsEnabled: true, quickShortcut: 'Control+Alt+Shift+F7' });
+    assert(!globalShortcut.isRegistered(shortcut), 'Successful changes release the previous registration');
+    press(); assert.equal(panel.getWindow(), null, 'Stale callbacks cannot reopen the panel');
     await configure(false);
     assert.equal(status, 'disabled');
     assert(globalShortcut.isRegistered(conflictShortcut), 'Disabling must not unregister another owner');

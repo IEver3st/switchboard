@@ -1,5 +1,5 @@
 // Hidden native UI acceptance. Hardware-affecting actions use explicit response fixtures.
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, globalShortcut } from 'electron';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -48,6 +48,7 @@ void app.whenReady().then(async () => { try {
   await js(main, `window.switchboard.updateSettings({onboardingCompleted:true,uiScalePercent:100,scanGamesAutomatically:false})`);
   await js(main, `window.switchboard.setCaptureConfig({hotkey:'Control+Alt+Shift+F11'})`);
   await open();
+  if (!process.argv.includes('--shortcuts-only')) {
   const replayRejection = await js(quick, `window.switchboard.saveReplay().then(()=>'',error=>error.message)`);
   assert(replayRejection.includes('Enable Instant Replay') && !replayRejection.includes('untrusted'), 'Panel replay save must pass the real sender check and reach the capture controller.');
   evidence.checks.push('Real replay-save IPC accepts the panel and reaches the stopped-engine guard.');
@@ -87,13 +88,67 @@ void app.whenReady().then(async () => { try {
   }
   await select('Desktop audio','off');
   assert(!(await state()).capture.config.includeSystemAudio, 'Desktop audio Off did not disable its recording.');
+  }
   await selectTab('app');
   const preferences = (await state()).setup.preferences;
   await click('[aria-label="Open from anywhere"]');
   await until(async()=> (await state()).setup.preferences.quickControlsEnabled !== preferences.quickControlsEnabled);
-  await select('Shortcut','Control+Shift+Space');
-  assert((await state()).setup.preferences.quickShortcut==='Control+Shift+Space','Shortcut choice did not persist through the panel IPC allowlist.');
+  await click('[aria-label^="Quick controls shortcut:"]');
+  await until(() => globalShortcut.isSuspended());
+  await capture('shortcut-recording');
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});
+  quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
+  await until(() => !globalShortcut.isSuspended());
+  assert(!quick.isDestroyed() && (await state()).setup.preferences.quickShortcut===preferences.quickShortcut,'Escape must cancel without closing the panel or changing the binding');
+  await click('[aria-label^="Quick controls shortcut:"]');
+  await until(() => globalShortcut.isSuspended());
+  await delay(30);
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'F7',modifiers:['control','shift']});
+  quick.webContents.sendInputEvent({type:'keyUp',keyCode:'F7',modifiers:['control','shift']});
+  await until(async()=> (await state()).setup.preferences.quickShortcut==='Ctrl+Shift+F7');
+  assert((await state()).setup.preferences.quickShortcut==='Ctrl+Shift+F7','Shortcut choice did not persist through the panel IPC allowlist.');
+  assert(!globalShortcut.isSuspended(), 'Successful recording must resume shortcuts');
+  await until(() => js(quick, `document.querySelector('[aria-label^="Quick controls shortcut:"]').disabled===false`));
+  let rejectShortcut;
+  fault = {channel:'setup:set-preferences', wait:new Promise(resolve => { rejectShortcut=resolve; })};
+  await click('[aria-label^="Quick controls shortcut:"]');
+  await until(() => globalShortcut.isSuspended()); await delay(30);
+  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'F6',modifiers:['control','shift']});
+  quick.webContents.sendInputEvent({type:'keyUp',keyCode:'F6',modifiers:['control','shift']});
+  await until(() => fault===null);
+  await until(() => js(quick, `document.querySelector('[aria-label^="Quick controls shortcut:"]').disabled`));
+  rejectShortcut();
+  await until(() => js(quick, `Boolean(document.querySelector('[role="alert"]'))`));
+  assert((await state()).setup.preferences.quickShortcut==='Ctrl+Shift+F7','Rejected shortcut changed canonical settings');
+  await capture('shortcut-rejected');
   await click('[aria-label="Open from anywhere"]');
+  if (process.argv.includes('--shortcuts-only')) {
+    for (const [width,height] of [[1080,720],[1420,900],[1920,1080]]) {
+      main.setMinimumSize(1,1); main.setContentSize(width,height,false);
+      await size(460,height); await capture(`shortcuts-${width}x${height}`);
+    }
+    await js(quick, 'window.switchboard.setShortcutRecording(true)');
+    assert(globalShortcut.isSuspended(), 'Recorder must suspend global handling');
+    quick.webContents.reload();
+    await until(() => !globalShortcut.isSuspended());
+    await until(() => !quick.webContents.isLoading() && js(quick, 'Boolean(window.switchboard && document.querySelector(".quick-tabs"))').catch(()=>false));
+    assert((await state()).setup.preferences.quickShortcut==='Ctrl+Shift+F7','Custom shortcut lost on reload');
+    await until(async () => JSON.parse(await readFile(join(userData,'switchboard-state.json'),'utf8')).setup.preferences.quickShortcut === 'Ctrl+Shift+F7');
+    await selectTab('app');
+    await click('[aria-label^="Quick controls shortcut:"]');
+    await until(() => globalShortcut.isSuspended());
+    quick.emit('blur');
+    await until(() => quick.isDestroyed() && !globalShortcut.isSuspended());
+    await open(); await selectTab('app');
+    await click('[aria-label^="Quick controls shortcut:"]');
+    await until(() => globalShortcut.isSuspended());
+    quick.destroy();
+    await until(() => !globalShortcut.isSuspended());
+    evidence.checks.push('Custom shortcut, Escape cancellation, pending/rejected state, reload and disk persistence, native suspension, blur and destruction cleanup.');
+    await writeFile(join(output,'shortcuts-verification.json'),JSON.stringify({...evidence,passed:true},null,2));
+    console.log(JSON.stringify({passed:true,output,layouts:evidence.layouts.length,checks:evidence.checks}));
+    clearTimeout(watchdog); app.quit(); return;
+  }
   for (const [label,key] of [['Performance guard','performanceGuard'],['Low resource rendering','softwareRendering'],['Check for app updates','automaticAppUpdates'],['Release interface in tray','destroyRendererInTray'],['Close to tray','closeToTray']]) {
     const before = (await state()).settings[key]; await click(`[aria-label="${label}"]`); await until(async () => (await state()).settings[key] === !before);
   }
@@ -118,6 +173,7 @@ void app.whenReady().then(async () => { try {
   assert(JSON.stringify((await state()).capture.config) === JSON.stringify(persisted.capture.config), 'Capture settings lost on reload.');
   await until(async () => JSON.parse(await readFile(join(userData,'switchboard-state.json'),'utf8')).capture.config.replaySeconds === 90);
   const disk = JSON.parse(await readFile(join(userData,'switchboard-state.json'),'utf8'));
+  assert(disk.setup.preferences.quickShortcut === 'Ctrl+Shift+F7' && (await state()).setup.preferences.quickShortcut === 'Ctrl+Shift+F7', 'Custom shortcut did not survive disk persistence and reload');
   assert(disk.settings.softwareRendering === persisted.settings.softwareRendering && disk.settings.closeToTray === persisted.settings.closeToTray, 'App settings were not saved to disk.');
   evidence.checks.push('Renderer reload and persisted state file agree.');
 
@@ -236,7 +292,7 @@ async function publish(){quick.webContents.send('system:snapshot-updated',fixtur
 async function expectAction(channel,input,apply,action){expected={channel,input,apply};await action();await until(()=>expected===null);await delay(30);}
 async function capture(name){
   assert(!quick.isVisible()&&!quick.isFocused(),'Panel became visible or focused.');
-  await js(quick,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  await delay(50);
   await js(quick,'document.getAnimations().forEach(animation=>{if(animation.effect?.getTiming().iterations!==Infinity)animation.finish()})');
   await quick.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
   await delay(100);

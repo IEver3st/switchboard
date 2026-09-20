@@ -13,6 +13,7 @@ import { getMontageV2Service } from './services/montage-v2';
 import { renderMontageV2 } from './services/montage-v2-renderer';
 import { montageProjectV2Schema } from '../shared/montage-v2';
 import { editedDurationMs, hasVideoEdits } from '../shared/video-edits';
+import { shortcutIdentity } from '../shared/shortcut';
 import { debugDiagnostics } from './services/debug-diagnostics';
 import { developerDiagnostics } from './services/developer-diagnostics';
 import { captureDiagnosticContext, captureDiagnosticSettings, diagnosticGpuInfo } from './services/diagnostics-export';
@@ -537,6 +538,7 @@ export class AppController {
   public async restoreScene(): Promise<SystemSnapshot> { await this.initialize(); return this.scenes.restore(); }
   public setSetupPreferences(input: SetupPreferences): SystemSnapshot {
     const preferences = setupPreferencesSchema.parse(input);
+    this.desktopControls.applyShortcut(preferences);
     return this.store.update(draft => { draft.setup.preferences = preferences; });
   }
   public openQuickControls(): void { this.options.onQuickControls?.(true); }
@@ -2970,7 +2972,7 @@ export class AppController {
   }
 
   private registerCaptureShortcut(accelerator: string, throwOnFailure: boolean): void {
-    if (this.registeredShortcut === accelerator) return;
+    if (this.registeredShortcut && shortcutIdentity(this.registeredShortcut) === shortcutIdentity(accelerator)) return;
     let registered = false;
     let registrationError: unknown;
     try {

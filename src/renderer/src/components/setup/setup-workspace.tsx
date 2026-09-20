@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SettingRow, SettingSection, SettingSwitch, SettingSelect, SettingsCategoryHeader } from '@/components/settings/settings-primitives';
+import { SettingRow, SettingSection, SettingSwitch, SettingSelect, SettingShortcut, SettingsCategoryHeader } from '@/components/settings/settings-primitives';
 import { useSetupAction } from './use-setup-action';
 import './setup.css';
 
@@ -61,9 +61,8 @@ export function SetupWorkspace({ snapshot }: { snapshot: SystemSnapshot }) {
         <Button variant="secondary" size="sm" disabled={changing} onClick={() => void run(() => switchboardApi.openQuickControls())}>Open panel</Button>
         <Switch aria-label="Enable quick controls shortcut" checked={preferences.quickControlsEnabled} disabled={changing} onCheckedChange={quickControlsEnabled => void update({ quickControlsEnabled })} />
       </SettingRow>
-      <SettingSelect settingId="setup.shortcut" title="Quick controls shortcut" description="" value={preferences.quickShortcut} disabled={changing}
-        options={['Control+Alt+Space', 'Control+Shift+Space', 'Alt+Space'].map(value => ({ value, label: value }))}
-        onValueChange={quickShortcut => void update({ quickShortcut: quickShortcut as SetupPreferences['quickShortcut'] })} />
+      <SettingShortcut settingId="setup.shortcut" title="Quick controls shortcut" value={preferences.quickShortcut} disabled={changing}
+        onValueChange={quickShortcut => void update({ quickShortcut })} />
       <DesktopStatus snapshot={snapshot} />
       </SettingSection>
       <SettingSection title="Show in quick controls">

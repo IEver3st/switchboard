@@ -3,6 +3,7 @@ import { Check, Circle, Keyboard, Mic, MicOff, RotateCcw, Settings2, SlidersHori
 import type { CaptureConfig, SetCaptureConfigInput, SetupPreferences, UpdateSettingsInput } from '../../../../shared/contracts';
 import { useSystemStore } from '@/stores/use-system-store';
 import { switchboardApi } from '@/lib/demo-api';
+import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -121,9 +122,8 @@ export function QuickControls() {
       </> : <>
         <QuickSection title="Keyboard shortcut">
           <QuickToggle label="Open from anywhere" checked={setup.preferences.quickControlsEnabled} disabled={changing} onChange={quickControlsEnabled => setupPatch({ quickControlsEnabled })} />
-          <QuickSelect label="Shortcut" value={setup.preferences.quickShortcut} disabled={changing} onChange={quickShortcut => setupPatch({ quickShortcut: quickShortcut as SetupPreferences['quickShortcut'] })}>
-            {['Control+Alt+Space', 'Control+Shift+Space', 'Alt+Space'].map(value => <QuickOption key={value} value={value}>{value.replace('Control', 'Ctrl').replaceAll('+', ' + ')}</QuickOption>)}
-          </QuickSelect>
+          <ShortcutRecorderButton label="Quick controls shortcut" value={setup.preferences.quickShortcut} disabled={changing} onValueChange={quickShortcut => setupPatch({ quickShortcut })} />
+          <p className="quick-note">Select the shortcut, then press your keys. Escape cancels.</p>
           <p className={setup.runtime.desktopError ? 'quick-error' : 'quick-note'} role="status">{setup.runtime.desktopError ?? (setup.preferences.quickControlsEnabled ? 'Press once to open. Press again or Esc to close.' : 'Enable to use the shortcut while Switchboard is in the tray.')}</p>
         </QuickSection>
         <QuickSection title="App behavior">

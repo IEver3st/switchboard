@@ -66,10 +66,21 @@ void app.whenReady().then(async () => { try {
   await wait(async () => !(await state(window)).setup.preferences.quickActions.includes('chatmix'));
   await js(window, `document.querySelector('[aria-label="Show ChatMix"]').click()`);
   await wait(async () => (await state(window)).setup.preferences.quickActions.includes('chatmix'));
-  await choose(window, 'Quick controls shortcut', 'Control+Shift+Space');
-  await wait(async () => (await state(window)).setup.preferences.quickShortcut === 'Control+Shift+Space');
+  await js(window, `document.querySelector('[aria-label^="Quick controls shortcut:"]').click()`);
+  await delay(100);
+  window.webContents.sendInputEvent({type:'keyDown',keyCode:'F8',modifiers:['control','alt']});
+  window.webContents.sendInputEvent({type:'keyUp',keyCode:'F8',modifiers:['control','alt']});
+  await wait(async () => (await state(window)).setup.preferences.quickShortcut === 'Ctrl+Alt+F8');
   for (const [width,height] of [[1080,720],[1420,900],[1920,1080]]) {
     await resize(window,width,height); await delay(100); await capture(window, `${width}x${height}-quick-settings`);
+  }
+  if (process.argv.includes('--shortcuts-only')) {
+    window.webContents.reload();
+    await wait(async () => !window.webContents.isLoading() && await js(window, 'Boolean(window.switchboard)'));
+    assert((await state(window)).setup.preferences.quickShortcut === 'Ctrl+Alt+F8', 'Custom shortcut lost on refresh');
+    await wait(async () => JSON.parse(await readFile(join(userData, 'switchboard-state.json'), 'utf8')).setup.preferences.quickShortcut === 'Ctrl+Alt+F8');
+    console.log(JSON.stringify({passed:true, output, scope:'Setup shortcut recorded through native input and persisted through real IPC; all three review sizes.'}));
+    clearTimeout(watchdog); app.quit(); return;
   }
   await js(window, `window.switchboard.openQuickControls()`);
   let quick;
@@ -106,7 +117,7 @@ void app.whenReady().then(async () => { try {
   await wait(async () => !window.webContents.isLoading() && await js(window, `Boolean(window.switchboard && document.querySelector('.app-shell'))`));
   saved = await state(window);
   assert(saved.setup.scenes.length === 2 && saved.setup.preferences.quickControlsEnabled && saved.capture.config.systemAudioMode === 'game', 'Saved setup did not survive refresh.');
-  assert(saved.setup.scenes[1].automatic && saved.setup.scenes[1].executable === 'aces.exe' && saved.setup.preferences.quickShortcut === 'Control+Shift+Space' && saved.setup.preferences.lighting.clipSaved === false, 'Setup controls did not survive refresh.');
+  assert(saved.setup.scenes[1].automatic && saved.setup.scenes[1].executable === 'aces.exe' && saved.setup.preferences.quickShortcut === 'Ctrl+Alt+F8' && saved.setup.preferences.lighting.clipSaved === false, 'Setup controls did not survive refresh.');
   await js(window, `sessionStorage.setItem('switchboard.settings.category','setup'); location.hash='devices'`);
   await delay(100); await js(window, `location.hash='settings'`);
   await wait(() => js(window, `Boolean(document.querySelector('.setup-workspace'))`));

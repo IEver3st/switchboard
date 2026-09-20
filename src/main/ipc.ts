@@ -1,6 +1,6 @@
 import { debugDiagnostics } from './services/debug-diagnostics';
 import { developerDiagnostics } from './services/developer-diagnostics';
-import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
+import { app, ipcMain, nativeImage, globalShortcut, BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { join } from 'node:path';
 import { z } from 'zod';
 import {
@@ -52,7 +52,7 @@ import { getStartupSnapshot } from './startup-readiness';
 
 let getQuickWindow: () => BrowserWindow | null = () => null;
 const quickChannels = new Set<string>([ipcChannels.getSnapshot, ipcChannels.applyScene, ipcChannels.restoreScene,
-  ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.setSetupPreferences, ipcChannels.runQuickAction, ipcChannels.saveReplay,
+  ipcChannels.setShortcutRecording, ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.setSetupPreferences, ipcChannels.runQuickAction, ipcChannels.saveReplay,
   ipcChannels.setCaptureConfig, ipcChannels.updateSettings, ipcChannels.setAudioEnabled,
   ipcChannels.setAudioMasterGain, ipcChannels.setAudioMasterEnabled, ipcChannels.setAudioBusDevice]);
 function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null, channel = ''): void {
@@ -90,6 +90,31 @@ function handle<TInput, TResult>(
 
 export function registerIpc(controller: AppController, getMainWindow: () => BrowserWindow | null, getQuickControlsWindow: () => BrowserWindow | null = () => null): () => void {
   getQuickWindow = getQuickControlsWindow;
+  let recordingOwner: Electron.WebContents | null = null;
+  let releaseRecording = () => {};
+  ipcMain.handle(ipcChannels.setShortcutRecording, (event, input) => {
+    assertTrustedSender(event, getMainWindow, ipcChannels.setShortcutRecording);
+    const recording = z.boolean().parse(input);
+    if (!recording) { if (recordingOwner === event.sender) releaseRecording(); return; }
+    releaseRecording();
+    const owner = event.sender;
+    const window = BrowserWindow.fromWebContents(owner);
+    recordingOwner = owner;
+    releaseRecording = () => {
+      recordingOwner = null;
+      globalShortcut.setSuspended(false);
+      owner.removeListener('destroyed', releaseRecording);
+      owner.removeListener('did-start-navigation', releaseRecording);
+      owner.removeListener('render-process-gone', releaseRecording);
+      window?.removeListener('blur', releaseRecording);
+      releaseRecording = () => {};
+    };
+    owner.once('destroyed', releaseRecording);
+    owner.once('did-start-navigation', releaseRecording);
+    owner.once('render-process-gone', releaseRecording);
+    window?.once('blur', releaseRecording);
+    globalShortcut.setSuspended(true);
+  });
   handle(ipcChannels.runQuickAction, getMainWindow, input => quickActionInputSchema.parse(input), input => controller.runQuickAction(input));
   handle(ipcChannels.saveScene, getMainWindow, input => saveSceneInputSchema.parse(input), input => controller.saveScene(input));
   handle(ipcChannels.deleteScene, getMainWindow, input => z.string().min(1).max(100).parse(input), id => controller.deleteScene(id));
@@ -505,6 +530,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   });
 
   return () => {
+    releaseRecording();
     getQuickWindow = () => null;
     controller.setAudioMeteringRequested(false);
     unsubscribe();
