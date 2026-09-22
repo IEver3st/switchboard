@@ -281,9 +281,11 @@ requests a fresh list at its next expiry without a polling interval. Shared
 video-edit and managed-music schemas are composed into the clip and montage
 contracts. Source-time trims and titles survive speed changes and segment splits;
 montage positions use the resulting output duration. Imported music stays in the
-main-owned asset library. Edited clip shares reuse the montage FFmpeg renderer,
-and finished montage exports register with the existing prepared-share service
-so native drag accepts an opaque share ID rather than a renderer-provided path.
+main-owned asset library. Edited clip shares reuse the montage FFmpeg renderer
+and save into session-scoped temporary storage without a destination dialog;
+finished montage exports keep their explicit destination picker. Both register
+with the prepared-share service so native drag accepts an opaque share ID rather
+than a renderer-provided path.
 
 ## Security
 

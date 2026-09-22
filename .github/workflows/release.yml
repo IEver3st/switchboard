@@ -77,6 +77,8 @@ jobs:
           $env:SWITCHBOARD_FFMPEG_INTEGRATION = $env:SWITCHBOARD_FFMPEG
           $env:SWITCHBOARD_FFPROBE_INTEGRATION = $env:SWITCHBOARD_FFPROBE
           bun test tests/montage-v2-render.test.ts
+      - name: Verify automatic clip sharing
+        run: bun run verify:clip-share
       - name: Prepare single draft release
         shell: pwsh
         env:

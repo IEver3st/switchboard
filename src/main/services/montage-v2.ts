@@ -183,39 +183,49 @@ export class MontageV2Service {
 
     const suffix = input.targetSizeMb ? `-${input.targetSizeMb}mb` : input.preset === 'original' ? '' : `-${input.preset}`;
     const canvasSuffix = project.canvasSize === 'original' ? '' : `-${project.canvasSize.replace(':', 'x')}`;
-    const selection = await dialog.showSaveDialog({
-      title: project.sourceClipId ? 'Export clip' : 'Export montage',
-      defaultPath: join(app.getPath('videos'), `${sanitizeFileBase(project.name)}${canvasSuffix}${suffix}.mp4`),
-      filters: [{ name: 'Video', extensions: ['mp4'] }],
-    });
-    if (selection.canceled || !selection.filePath) return null;
-    const destination = resolve(selection.filePath);
-    const destinationKey = destination.toLocaleLowerCase();
-    if (entries.some((entry) => entry.clip && resolve(entry.clip.path).toLocaleLowerCase() === destinationKey)) {
-      throw new Error('Choose a different file name so every source clip stays intact.');
-    }
-    if (musicPath && resolve(musicPath).toLocaleLowerCase() === destinationKey) {
-      throw new Error('Choose a different file name so the imported music stays intact.');
-    }
-
-    const proportionalSourceBytes = entries.reduce((total, entry) => {
-      if (!entry.clip) return total;
-      const duration = entry.segment.trimEndMs - entry.segment.trimStartMs;
-      return total + entry.clip.fileSize * duration / Math.max(1, entry.clip.durationMs);
-    }, 0);
-    const finalBytes = input.targetSizeMb ? input.targetSizeMb * 1_048_576 : input.preset === 'original'
-      ? proportionalSourceBytes
-      : presetTargetBytes(input.preset);
-    await Promise.all([
-      ensureDiskSpace(dirname(destination), Math.ceil(finalBytes + 96 * 1_024 * 1_024), 'destination'),
-      ensureDiskSpace(tmpdir(), Math.ceil(proportionalSourceBytes * 1.35 + 192 * 1_024 * 1_024), 'temporary export'),
-    ]);
-
+    const fileName = `${sanitizeFileBase(project.name)}${canvasSuffix}${suffix}.mp4`;
+    const temporary = Boolean(project.sourceClipId);
+    const shares = getPreparedShareService();
     if (this.activeExports.has(input.exportId)) throw new Error('This export is already running.');
-    const workingDestination = join(dirname(destination), `.switchboard-${randomUUID()}.mp4`);
     const controller = new AbortController();
     this.activeExports.set(input.exportId, controller);
+    let workingDestination: string | undefined;
     try {
+      let destination: string;
+      if (temporary) {
+        destination = await shares.allocate(input.exportId, fileName);
+      } else {
+        const selection = await dialog.showSaveDialog({
+          title: 'Export montage',
+          defaultPath: join(app.getPath('videos'), fileName),
+          filters: [{ name: 'Video', extensions: ['mp4'] }],
+        });
+        if (selection.canceled || !selection.filePath) return null;
+        destination = resolve(selection.filePath);
+      }
+      const destinationKey = destination.toLocaleLowerCase();
+      if (entries.some((entry) => entry.clip && resolve(entry.clip.path).toLocaleLowerCase() === destinationKey)) {
+        throw new Error('Choose a different file name so every source clip stays intact.');
+      }
+      if (musicPath && resolve(musicPath).toLocaleLowerCase() === destinationKey) {
+        throw new Error('Choose a different file name so the imported music stays intact.');
+      }
+
+      const proportionalSourceBytes = entries.reduce((total, entry) => {
+        if (!entry.clip) return total;
+        const duration = entry.segment.trimEndMs - entry.segment.trimStartMs;
+        return total + entry.clip.fileSize * duration / Math.max(1, entry.clip.durationMs);
+      }, 0);
+      const finalBytes = input.targetSizeMb ? input.targetSizeMb * 1_048_576 : input.preset === 'original'
+        ? proportionalSourceBytes
+        : presetTargetBytes(input.preset);
+      await Promise.all([
+        ensureDiskSpace(dirname(destination), Math.ceil(finalBytes + 96 * 1_024 * 1_024), 'destination'),
+        ensureDiskSpace(tmpdir(), Math.ceil(proportionalSourceBytes * 1.35 + 192 * 1_024 * 1_024), 'temporary export'),
+      ]);
+
+      controller.signal.throwIfAborted();
+      workingDestination = join(dirname(destination), `.switchboard-${randomUUID()}.mp4`);
       await this.saveDraft(project);
       await renderMontageV2({
         project,
@@ -228,18 +238,20 @@ export class MontageV2Service {
         preset: input.preset,
         signal: controller.signal,
       });
+      controller.signal.throwIfAborted();
       await rename(workingDestination, destination);
+      return await shares.register(input.exportId, destination, basename(destination), {
+        temporary,
+        ...(entries[0]?.clip?.thumbnailPath ? { iconPath: entries[0].clip.thumbnailPath } : {}),
+      });
     } catch (error) {
-      await rm(workingDestination, { force: true });
+      if (workingDestination) await rm(workingDestination, { force: true });
+      if (temporary) await shares.discard(input.exportId);
       if (controller.signal.aborted) return null;
       throw error;
     } finally {
       this.activeExports.delete(input.exportId);
     }
-    return getPreparedShareService().register(input.exportId, destination, basename(destination), {
-      temporary: false,
-      ...(entries[0]?.clip?.thumbnailPath ? { iconPath: entries[0].clip.thumbnailPath } : {}),
-    });
   }
 
   public cancelExport(exportId: string): void {

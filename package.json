@@ -1,6 +1,6 @@
 {
   "name": "switchboard-prototype",
-  "version": "0.9.17",
+  "version": "0.9.18",
   "private": true,
   "description": "A modular, low-overhead Electron control plane for devices, capture, and audio routing.",
   "type": "module",
@@ -23,6 +23,7 @@
     "verify:packaged-audio-host": "node ./scripts/verify-packaged-audio-host.mjs",
     "verify:packaged-updater": "node ./scripts/verify-packaged-updater.mjs",
     "verify:installed-update": "node ./scripts/verify-installed-update.mjs",
+    "verify:clip-share": "node ./scripts/verify-clip-share.mjs",
     "preview:static": "node ./scripts/build-standalone-preview.mjs",
     "build:capture-host": "node ./scripts/publish-capture-host.mjs",
     "build:audio-host": "node ./scripts/publish-audio-host.mjs",
