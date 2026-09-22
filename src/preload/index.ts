@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   audioMeterFrameSchema,
+  verticalGuideLayoutSchema,
   clipExportProgressSchema,
   feedbackSubmissionResultSchema,
   ipcChannels,
@@ -42,6 +43,7 @@ const api: SwitchboardApi & MontageV2Api = {
   openQuickControls: () => ipcRenderer.invoke(ipcChannels.openQuickControls),
   setShortcutRecording: recording => ipcRenderer.invoke(ipcChannels.setShortcutRecording, recording),
   closeQuickControls: () => ipcRenderer.invoke(ipcChannels.closeQuickControls),
+  getVerticalGuideLayout: async () => verticalGuideLayoutSchema.parse(await ipcRenderer.invoke(ipcChannels.getVerticalGuideLayout)),
   runQuickAction: input => ipcRenderer.invoke(ipcChannels.runQuickAction, input),
   setUiScale: (percent) => {
     if (![90, 100, 110, 125, 150].includes(percent)) throw new Error('Unsupported UI scale.');

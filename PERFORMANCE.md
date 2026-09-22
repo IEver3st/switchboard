@@ -1,5 +1,13 @@
 # Performance budgets
 
+The optional vertical framing guide owns one static transparent renderer only
+while enabled. It has no scripts, preload, animation, polling, media process, or
+snapshot subscription. Display-change listeners exist only for its lifetime and
+are removed on disable, display removal, renderer failure, and shutdown. Geometry,
+color, and dimming replace one serialized CSS rule on a display-sized surface.
+Quick Controls remains destroyed when
+dismissed; its glass material uses Windows composition with an opaque fallback.
+
 Microphone calibration runs only on request in an isolated Capture.Host helper.
 It plays five test sounds over eleven seconds and retains two bounded arrays of
 millisecond energy values. Endpoint callbacks do no allocation, locking, logging,

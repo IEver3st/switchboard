@@ -1,5 +1,18 @@
 # Architecture
 
+Quick Controls is a bounded floating window with persisted solid/native-acrylic
+material selection. Vertical framing uses a separate, static sandboxed window,
+without a preload, scripts, or trusted IPC. Main validates and serializes setup
+preferences, applies the native change, then publishes confirmed state. The guide
+ignores input, requests capture exclusion, survives panel/tray dismissal, and is
+destroyed on disable, renderer failure, display removal, or shutdown. Geometry is
+expressed in physical screen pixels and drawn inside a display-sized window,
+independent of Windows scaling. Outside dimming ranges from 0 to 80% with a clear
+interior. Exact custom geometry is validated against the chosen display before
+the last confirmed guide changes. New app sessions keep
+the saved geometry but start with the guide off. The guide does not crop capture;
+9:16 output remains an explicit clip-editor export choice.
+
 Setup scenes are persisted by main through `SetupScenes` and the canonical shared
 contract. Audio, capture, and device changes use the existing host and module
 operations; failed subsystems report partial application. Automatic restoration

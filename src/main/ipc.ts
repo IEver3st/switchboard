@@ -52,7 +52,7 @@ import { getStartupSnapshot } from './startup-readiness';
 
 let getQuickWindow: () => BrowserWindow | null = () => null;
 const quickChannels = new Set<string>([ipcChannels.getSnapshot, ipcChannels.applyScene, ipcChannels.restoreScene,
-  ipcChannels.setShortcutRecording, ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.setSetupPreferences, ipcChannels.runQuickAction, ipcChannels.saveReplay,
+  ipcChannels.getVerticalGuideLayout, ipcChannels.setShortcutRecording, ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.setSetupPreferences, ipcChannels.runQuickAction, ipcChannels.saveReplay,
   ipcChannels.setCaptureConfig, ipcChannels.updateSettings, ipcChannels.setAudioEnabled,
   ipcChannels.setAudioMasterGain, ipcChannels.setAudioMasterEnabled, ipcChannels.setAudioBusDevice]);
 function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null, channel = ''): void {
@@ -123,6 +123,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   handle(ipcChannels.setSetupPreferences, getMainWindow, input => setupPreferencesSchema.parse(input), input => controller.setSetupPreferences(input));
   handle(ipcChannels.openQuickControls, getMainWindow, input => z.undefined().parse(input), () => controller.openQuickControls());
   handle(ipcChannels.closeQuickControls, getMainWindow, input => z.undefined().parse(input), () => controller.closeQuickControls());
+  handle(ipcChannels.getVerticalGuideLayout, getMainWindow, input => z.undefined().parse(input), () => controller.getVerticalGuideLayout());
   handle(ipcChannels.exportResourceDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.exportResourceDiagnostics());
   handle(ipcChannels.runDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.runDiagnostics());
   handle(ipcChannels.cancelDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.cancelDiagnostics());

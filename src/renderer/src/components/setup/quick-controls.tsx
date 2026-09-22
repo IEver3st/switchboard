@@ -1,18 +1,19 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { Check, Circle, Keyboard, Mic, MicOff, RotateCcw, Settings2, SlidersHorizontal, Video, Volume2, VolumeX, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Circle, Keyboard, Mic, MicOff, RotateCcw, Settings2, SlidersHorizontal, Smartphone, Video, Volume2, VolumeX, X } from 'lucide-react';
 import type { CaptureConfig, SetCaptureConfigInput, SetupPreferences, UpdateSettingsInput } from '../../../../shared/contracts';
 import { useSystemStore } from '@/stores/use-system-store';
 import { switchboardApi } from '@/lib/demo-api';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { manageAsyncCleanup } from '@/lib/async-cleanup';
+import { VerticalFramingControls } from './vertical-framing-controls';
+import { QuickSection, QuickToggle, QuickSelect, QuickOption, QuickRange } from './quick-controls-primitives';
 import { useSetupAction } from './use-setup-action';
 import './setup.css';
 import './quick-controls.css';
 
-const tabs = [['audio', 'Audio', SlidersHorizontal], ['capture', 'Capture', Video], ['app', 'App', Settings2]] as const;
+const tabs = [['audio', 'Audio', SlidersHorizontal], ['capture', 'Capture', Video], ['frame', 'Frame', Smartphone], ['app', 'App', Settings2]] as const;
 type Tab = typeof tabs[number][0];
 
 export function QuickControls() {
@@ -40,6 +41,8 @@ export function QuickControls() {
 
   const { setup, audio, capture, settings } = snapshot;
   const { config, runtime } = capture;
+  const guide = setup.preferences.verticalGuide;
+  const glassSupported = new URLSearchParams(window.location.search).get('glassSupported') === '1';
   const audioReady = settings.developerMode && audio.enabled && audio.host?.running === true;
   const mic = audio.buses.find(bus => bus.id === 'mic');
   const personal = audio.mixes.find(mix => mix.id === 'personal');
@@ -51,13 +54,14 @@ export function QuickControls() {
   const capturePatch = (patch: SetCaptureConfigInput) => { void run(() => switchboardApi.setCaptureConfig(patch)); };
   const settingsPatch = (patch: UpdateSettingsInput) => { void run(() => switchboardApi.updateSettings(patch)); };
   const setupPatch = (patch: Partial<SetupPreferences>) => { void run(() => switchboardApi.setSetupPreferences({ ...setup.preferences, ...patch })); };
+  const guidePatch = (patch: Partial<SetupPreferences['verticalGuide']>) => setupPatch({ verticalGuide: { ...guide, ...patch } });
   const canSave = ['buffering', 'saving'].includes(runtime.state) && runtime.bufferedSeconds > 0;
   const replayState = !config.enabled ? 'Replay off' : runtime.state === 'buffering' ? 'Replay ready' : runtime.state === 'saving' ? 'Saving replay…' : runtime.state === 'starting' ? 'Starting replay…' : runtime.state === 'error' ? 'Replay needs attention' : runtime.state === 'stopped' ? 'Replay stopped' : 'Waiting for a source';
   const replayDetail = !config.enabled ? 'Turn on to keep the last few moments.' : runtime.activeSource?.name ?? 'Waiting for a capture source';
   const duration = Math.round(Math.min(config.replaySeconds, runtime.bufferedSeconds));
   const actionError = error?.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, '');
 
-  return <div className="quick-controls" ref={root}>
+  return <div className="quick-controls" ref={root} data-surface={glassSupported ? setup.preferences.quickSurface : 'solid'}>
     <header className="quick-header">
       <div><span className="quick-brand">Switchboard</span><h1>Quick controls</h1></div>
       <div className="quick-header-actions">
@@ -73,6 +77,12 @@ export function QuickControls() {
         <Switch aria-label="Instant Replay" checked={config.enabled} disabled={changing} onCheckedChange={enabled => capturePatch({ enabled })} /></div>
       <p className="quick-source" title={replayDetail}>{replayDetail}</p>
       {actions.includes('replay') ? <Button className="quick-save" variant={canSave ? 'primary' : 'secondary'} disabled={changing || !canSave} onClick={() => void run(() => switchboardApi.saveReplay())}><Video size={16} />{canSave ? `Save last ${duration} seconds` : 'Save replay'}</Button> : null}
+    </section>
+    <section className="quick-framing" aria-label="Vertical content">
+      <button type="button" className="quick-framing-open" onClick={() => { setTab('frame'); document.getElementById('quick-tab-frame')?.focus(); }}>
+        <Smartphone size={24} aria-hidden /><span><strong>Framing guide <span className="quick-ratio">{guide.frame ? 'Custom' : '9:16'}</span></strong><small>{guide.enabled ? 'Guide on · clicks pass through' : 'Keep the action in phone view'}</small></span>
+      </button>
+      <Switch aria-label="Vertical framing guide" checked={guide.enabled} disabled={changing} onCheckedChange={enabled => guidePatch({ enabled })} />
     </section>
     <nav className="quick-tabs" role="tablist" aria-label="Quick control sections" onKeyDown={event => {
       const index = tabs.findIndex(([id]) => id === tab);
@@ -119,7 +129,13 @@ export function QuickControls() {
           <QuickToggle label="Record chat separately" checked={config.includeChatAudio} disabled={changing} onChange={includeChatAudio => capturePatch({ includeChatAudio })} />
           {config.includeChatAudio ? <p className="quick-note">Uses the chat device selected in Capture settings.</p> : null}
         </QuickSection>
+      </> : tab === 'frame' ? <>
+        <VerticalFramingControls guide={guide} disabled={changing} onChange={guidePatch} />
       </> : <>
+        <QuickSection title="Panel appearance">
+          <QuickToggle label="Frosted glass" checked={setup.preferences.quickSurface === 'frosted'} disabled={changing || !glassSupported} onChange={frosted => setupPatch({ quickSurface: frosted ? 'frosted' : 'solid' })} />
+          {!glassSupported ? <p className="quick-note">Frosted glass needs Windows 11 22H2 or newer. This system uses a solid surface.</p> : <p className="quick-note">Uses Windows transparency effects. Choose a solid surface for more contrast.</p>}
+        </QuickSection>
         <QuickSection title="Keyboard shortcut">
           <QuickToggle label="Open from anywhere" checked={setup.preferences.quickControlsEnabled} disabled={changing} onChange={quickControlsEnabled => setupPatch({ quickControlsEnabled })} />
           <ShortcutRecorderButton label="Quick controls shortcut" value={setup.preferences.quickShortcut} disabled={changing} onValueChange={quickShortcut => setupPatch({ quickShortcut })} />
@@ -152,31 +168,6 @@ export function QuickControls() {
   </div>;
 }
 
-function QuickSection({ title, className = '', action, children }: { title: string; className?: string; action?: ReactNode; children: ReactNode }) {
-  return <section className={`quick-section ${className}`} aria-label={title}><div className="quick-section-heading"><h2>{title}</h2>{action}</div>{children}</section>;
-}
-function QuickToggle({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled: boolean; onChange(value: boolean): void }) {
-  return <label className="quick-row quick-toggle"><span>{label}</span><Switch aria-label={label} checked={checked} disabled={disabled} onCheckedChange={onChange} /></label>;
-}
-function QuickSelect({ label, value, disabled, onChange, children }: { label: string; value: string; disabled: boolean; onChange(value: string): void; children: ReactNode }) {
-  const id = useId();
-  // Prefix values because Radix reserves the empty string for a placeholder.
-  return <div className="quick-field"><label htmlFor={id}>{label}</label>
-    <Select value={`choice:${value}`} disabled={disabled} onValueChange={next => onChange(next.slice(7))}>
-      <SelectTrigger id={id} className="quick-select-trigger" aria-label={label} data-value={value}><SelectValue /></SelectTrigger>
-      <SelectContent className="quick-select-menu" align="end" collisionPadding={10} onEscapeKeyDown={event => event.stopPropagation()}>{children}</SelectContent>
-    </Select>
-  </div>;
-}
-function QuickOption({ value, disabled, children }: { value: string | number; disabled?: boolean; children: ReactNode }) {
-  return <SelectItem className="quick-select-option" value={`choice:${value}`} data-value={String(value)} disabled={disabled}>{children}</SelectItem>;
-}
-function QuickRange({ label, value, min, max, step, disabled, format, onCommit }: { label: string; value: number; min: number; max: number; step: number; disabled: boolean; format(value: number): string; onCommit(value: number): void }) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => { if (!disabled) setDraft(value); }, [value, disabled]);
-  const commit = (next: number) => { if (!disabled && next !== value) onCommit(next); };
-  return <label className="quick-range"><output>{format(draft)}</output><input type="range" aria-label={label} aria-valuetext={format(draft)} min={min} max={max} step={step} value={draft} disabled={disabled} onChange={event => setDraft(Number(event.target.value))} onPointerUp={event => commit(Number(event.currentTarget.value))} onKeyUp={event => commit(Number(event.currentTarget.value))} onBlur={event => commit(Number(event.currentTarget.value))} onPointerCancel={() => setDraft(value)} /></label>;
-}
 function chatMixLabel(value: number): string {
   return value === 0 ? 'Balanced' : `${Math.round(Math.abs(value) * 100)}% toward ${value < 0 ? 'Game' : 'Chat'}`;
 }

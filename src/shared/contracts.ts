@@ -1494,6 +1494,20 @@ export const saveSceneInputSchema = setupSceneSchema.omit({ id: true, values: tr
 });
 export type SaveSceneInput = z.infer<typeof saveSceneInputSchema>;
 export const setupPreferencesSchema = z.object({
+  quickSurface: z.enum(['solid', 'frosted']).default('frosted'),
+  verticalGuide: z.object({
+    enabled: z.boolean().default(false),
+    displayId: z.number().int().nullable().default(null),
+    frame: z.object({
+      x: z.number().int().min(0).max(65536), y: z.number().int().min(0).max(65536),
+      width: z.number().int().min(16).max(32768), height: z.number().int().min(16).max(32768),
+    }).nullable().default(null),
+    dim: z.number().int().min(0).max(80).default(20),
+    size: z.number().int().min(25).max(100).default(100),
+    horizontal: z.number().int().min(0).max(100).default(50),
+    vertical: z.number().int().min(0).max(100).default(50),
+    color: z.enum(['white', 'violet', 'lime']).default('white'),
+  }).default({ enabled: false, displayId: null, frame: null, dim: 20, size: 100, horizontal: 50, vertical: 50, color: 'white' }),
   quickControlsEnabled: z.boolean().default(false),
   quickShortcut: shortcutSchema.default('Control+Alt+Space'),
   quickActions: z.array(z.enum(['scenes', 'replay', 'microphone', 'output', 'chatmix'])).max(5)
@@ -1504,6 +1518,13 @@ export const setupPreferencesSchema = z.object({
   }).default({ enabled: false, deviceIds: [], clipSaved: true, microphoneMuted: true, captureError: true }),
 });
 export type SetupPreferences = z.infer<typeof setupPreferencesSchema>;
+const guideDisplaySchema = z.object({ id: z.number().int(), name: z.string(), width: z.number().int().positive(), height: z.number().int().positive() });
+export const verticalGuideLayoutSchema = z.object({
+  display: guideDisplaySchema,
+  displays: z.array(guideDisplaySchema),
+  frame: setupPreferencesSchema.shape.verticalGuide.unwrap().shape.frame.unwrap().unwrap(),
+});
+export type VerticalGuideLayout = z.infer<typeof verticalGuideLayoutSchema>;
 export const quickActionInputSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('microphone'), muted: z.boolean() }),
   z.object({ type: z.literal('output'), deviceId: z.string().min(1).max(512) }),
@@ -1818,6 +1839,7 @@ export const ipcChannels = {
   saveScene: 'setup:save-scene', deleteScene: 'setup:delete-scene', applyScene: 'setup:apply-scene',
   restoreScene: 'setup:restore-scene', setSetupPreferences: 'setup:set-preferences',
   setShortcutRecording: 'shortcuts:set-recording',
+  getVerticalGuideLayout: 'setup:get-vertical-guide-layout',
   openQuickControls: 'setup:open-quick-controls', closeQuickControls: 'setup:close-quick-controls',
   runQuickAction: 'setup:quick-action',
   getSnapshot: 'system:get-snapshot',
@@ -1902,6 +1924,7 @@ export interface SwitchboardApi {
   setSetupPreferences(input: SetupPreferences): Promise<SystemSnapshot>;
   openQuickControls(): Promise<void>;
   closeQuickControls(): Promise<void>;
+  getVerticalGuideLayout(): Promise<VerticalGuideLayout>;
   setShortcutRecording(recording: boolean): Promise<void>;
   runQuickAction(input: QuickActionInput): Promise<SystemSnapshot>;
   setUiScale(percent: AppSettings['uiScalePercent']): void;

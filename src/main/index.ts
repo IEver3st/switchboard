@@ -7,6 +7,7 @@ import { Readable } from 'node:stream';
 import { resolveApplicationIdentity, shouldApplyDevelopmentIdentity } from './application-identity';
 import { AppController } from './controller';
 import { QuickControlsWindow } from './quick-controls-window';
+import { VerticalGuideWindow } from './vertical-guide-window';
 import { requestsDemoUpdate } from './development-flags';
 import { registerIpc } from './ipc';
 import { parseByteRange } from './media-byte-range';
@@ -30,6 +31,7 @@ app.on('child-process-gone', (_event, details) => {
 
 let mainWindow: BrowserWindow | null = null;
 const quickControls = new QuickControlsWindow();
+const verticalGuide = new VerticalGuideWindow(() => controller?.verticalGuideClosed());
 let tray: Tray | null = null;
 let controller: AppController | null = null;
 let cleanupIpc: (() => void) | null = null;
@@ -224,6 +226,7 @@ function createTray(): Tray {
 }
 
 async function shutdown(): Promise<void> {
+  verticalGuide.shutdown();
   quickControls.dispose();
   if (protocol.isProtocolHandled('switchboard-media')) await protocol.unhandle('switchboard-media');
   cleanupMontageV2Ipc?.();
@@ -278,8 +281,15 @@ if (verifyPackagedUpdater) {
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController({
-      onQuickControls: open => quickControls.setOpen(open),
-      onToggleQuickControls: () => quickControls.toggle(),
+      onQuickControls: open => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.setOpen(open); },
+      onToggleQuickControls: () => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.toggle(); },
+      onSetupPreferences: async preferences => {
+        await verticalGuide.configure(preferences.verticalGuide);
+        quickControls.setSurface(preferences.quickSurface);
+        const panel = quickControls.getWindow();
+        if (panel?.isVisible()) panel.moveTop();
+      },
+      getVerticalGuideLayout: preferences => verticalGuide.getLayout(preferences),
       demoUpdate: demoUpdateRequested,
       getRendererRuntime: getRendererRuntimeProbe,
       onUpdateInstallRequested: (installing, background) => {

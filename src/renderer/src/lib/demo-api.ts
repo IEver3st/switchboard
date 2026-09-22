@@ -239,6 +239,7 @@ const demoApi: SwitchboardApi = {
   async setSetupPreferences() { throw new Error('Setup preferences require the desktop app.'); },
   async openQuickControls() { throw new Error('Quick controls require the desktop app.'); },
   async closeQuickControls() {},
+  async getVerticalGuideLayout() { throw new Error('Desktop framing requires the desktop app.'); },
   async setShortcutRecording() {},
   async runQuickAction() { throw new Error('Quick controls require the desktop app.'); },
   setUiScale() {},

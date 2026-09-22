@@ -8,7 +8,7 @@ import { AudioSyncCalibration, measureAudioSync } from './services/audio-sync-ca
 import type { ResourceMonitorSnapshot } from '../shared/resource-monitor';
 import { StatusLighting } from './services/status-lighting';
 import { snapshotSceneValues } from '../shared/setup-scenes';
-import { sceneAudioSchema, setupPreferencesSchema, type SceneValues, type SaveSceneInput, type SetupPreferences } from '../shared/contracts';
+import { sceneAudioSchema, setupPreferencesSchema, type SceneValues, type SaveSceneInput, type SetupPreferences, type VerticalGuideLayout } from '../shared/contracts';
 import { getMontageV2Service } from './services/montage-v2';
 import { renderMontageV2 } from './services/montage-v2-renderer';
 import { montageProjectV2Schema } from '../shared/montage-v2';
@@ -190,12 +190,15 @@ function sameAudioChannels(left: readonly ClipAudioChannel[] | undefined, right:
 type AppControllerOptions = {
   onQuickControls?: (open: boolean) => void;
   onToggleQuickControls?: () => void;
+  onSetupPreferences?: (preferences: SetupPreferences) => Promise<void>;
+  getVerticalGuideLayout?: (preferences: SetupPreferences['verticalGuide']) => VerticalGuideLayout;
   demoUpdate?: boolean;
   onUpdateInstallRequested?: (installing: boolean, background: boolean) => void;
   getRendererRuntime?: () => Promise<unknown>;
 };
 
 export class AppController {
+  private setupPreferencesQueue: Promise<unknown> = Promise.resolve();
   private readonly audioSyncCalibration = new AudioSyncCalibration({
     measure: (route, signal) => measureAudioSync(app.isPackaged
       ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
@@ -536,10 +539,28 @@ export class AppController {
   public deleteScene(id: string): SystemSnapshot { return this.scenes.delete(id); }
   public async applyScene(id: string): Promise<SystemSnapshot> { await this.initialize(); return this.scenes.apply(id); }
   public async restoreScene(): Promise<SystemSnapshot> { await this.initialize(); return this.scenes.restore(); }
-  public setSetupPreferences(input: SetupPreferences): SystemSnapshot {
+  public setSetupPreferences(input: SetupPreferences): Promise<SystemSnapshot> {
     const preferences = setupPreferencesSchema.parse(input);
-    this.desktopControls.applyShortcut(preferences);
-    return this.store.update(draft => { draft.setup.preferences = preferences; });
+    const operation = this.setupPreferencesQueue.then(async () => {
+      if (this.disposed) throw new Error('Switchboard is shutting down.');
+      const previous = this.store.get().setup.preferences;
+      this.desktopControls.applyShortcut(preferences);
+      try { await this.options.onSetupPreferences?.(preferences); }
+      catch (error) { if (!this.disposed) this.desktopControls.applyShortcut(previous); throw error; }
+      if (this.disposed) throw new Error('Switchboard is shutting down.');
+      return this.store.update(draft => { draft.setup.preferences = preferences; });
+    });
+    this.setupPreferencesQueue = operation.catch(() => undefined);
+    return operation;
+  }
+  public verticalGuideClosed(): void {
+    if (!this.disposed) this.store.update(draft => { draft.setup.preferences.verticalGuide.enabled = false; });
+  }
+  public getQuickSurface(): SetupPreferences['quickSurface'] { return this.store.get().setup.preferences.quickSurface; }
+  public getVerticalGuideLayout(): VerticalGuideLayout {
+    const layout = this.options.getVerticalGuideLayout?.(this.store.get().setup.preferences.verticalGuide);
+    if (!layout) throw new Error('Desktop framing is unavailable.');
+    return layout;
   }
   public openQuickControls(): void { this.options.onQuickControls?.(true); }
   public closeQuickControls(): void { this.options.onQuickControls?.(false); }

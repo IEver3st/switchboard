@@ -108,6 +108,8 @@ export class StateStore {
 
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
+    // A new app session retains geometry but does not restore a desktop overlay.
+    next.setup.preferences.verticalGuide.enabled = false;
     const defaults = createDefaultSnapshot();
     next.diagnostics = structuredClone(defaults.diagnostics);
     next.capture.audioCalibration = { status: 'idle', measurement: null, error: null };
