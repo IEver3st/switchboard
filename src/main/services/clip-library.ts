@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, watch, type FSWatcher } from 'node:fs';
 import { access, mkdir, opendir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, join, parse, resolve } from 'node:path';
@@ -82,7 +82,7 @@ export function mergeReconciledClips(indexed: readonly Clip[], current: readonly
     const original = before.get(clip.id);
     if (!original) return [clip];
     const reconciled = found.get(clip.id);
-    if (!reconciled) return [];
+    if (!reconciled) return clip.path === original.path ? [] : [clip];
     return [{ ...reconciled, ...clip,
       availability: clip.path === original.path ? reconciled.availability : clip.availability, thumbnailPath: clip.thumbnailPath === original.thumbnailPath ? reconciled.thumbnailPath : clip.thumbnailPath }];
   });
@@ -99,6 +99,10 @@ export class ClipLibraryService {
   private backgroundActive = true;
   private readonly backgroundAbort = new AbortController();
   private readonly backgroundWaiters = new Set<() => void>();
+  private watchedDirectory: string | null = null;
+  private directoryChanged: (() => void) | null = null;
+  private directoryWatcher: FSWatcher | null = null;
+  private directoryChangeTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly reconciliations = new Set<Promise<Clip[]>>();
   private readonly waveformCache = new Map<string, Promise<ClipAudioWaveform>>();
   private readonly audioPreviewCache = new Map<string, Promise<string>>();
@@ -107,10 +111,55 @@ export class ClipLibraryService {
 
   public setBackgroundWorkActive(active: boolean): void {
     this.backgroundActive = active;
-    if (active) this.wakeBackgroundWork();
+    if (active) {
+      this.wakeBackgroundWork();
+      this.startDirectoryWatcher();
+    } else {
+      this.stopDirectoryWatcher();
+    }
+  }
+
+  public watchDirectory(directory: string, onChange: () => void): void {
+    const path = resolve(directory);
+    if (path === this.watchedDirectory && this.directoryWatcher) return;
+    this.stopDirectoryWatcher();
+    this.watchedDirectory = path;
+    this.directoryChanged = onChange;
+    this.startDirectoryWatcher();
+  }
+
+  private startDirectoryWatcher(): void {
+    if (!this.backgroundActive || this.backgroundAbort.signal.aborted || !this.watchedDirectory || this.directoryWatcher) return;
+    try {
+      const watcher = watch(this.watchedDirectory, { persistent: false }, () => {
+        if (this.directoryChangeTimer) clearTimeout(this.directoryChangeTimer);
+        // Coalesce a burst of writes or renames into one library scan while the interface is open.
+        this.directoryChangeTimer = setTimeout(() => {
+          this.directoryChangeTimer = null;
+          if (this.backgroundActive && !this.backgroundAbort.signal.aborted) this.directoryChanged?.();
+        }, 250);
+      });
+      watcher.on('error', (error) => {
+        console.warn('Clip folder watch stopped.', error);
+        if (this.directoryWatcher === watcher) this.stopDirectoryWatcher();
+      });
+      this.directoryWatcher = watcher;
+    } catch (error) {
+      console.warn('Clip folder cannot be watched.', error);
+    }
+  }
+
+  private stopDirectoryWatcher(): void {
+    if (this.directoryChangeTimer) clearTimeout(this.directoryChangeTimer);
+    this.directoryChangeTimer = null;
+    this.directoryWatcher?.close();
+    this.directoryWatcher = null;
   }
 
   public async dispose(): Promise<void> {
+    this.stopDirectoryWatcher();
+    this.watchedDirectory = null;
+    this.directoryChanged = null;
     this.backgroundAbort.abort();
     this.wakeBackgroundWork();
     await Promise.allSettled([...this.reconciliations, this.thumbnailQueue]);
@@ -140,6 +189,7 @@ export class ClipLibraryService {
     await mkdir(this.thumbnailDirectory, { recursive: true });
     await this.pruneAudioPreviews().catch((error) => console.warn('Clip audio preview cleanup failed.', error));
     const existing: Clip[] = [];
+    const readableParents = new Map<string, boolean>();
     for (const indexedClip of indexed) {
       await this.waitForBackgroundWork();
       const clip = { ...normalizeClipRecord(indexedClip), availability: 'available' as const };
@@ -155,8 +205,26 @@ export class ClipLibraryService {
         } else {
           existing.push(clip);
         }
-      } catch {
-        // An unavailable drive or file must not erase identity, edits, or favorites.
+      } catch (error) {
+        // ENOENT proves deletion only when the containing folder is still readable.
+        const parent = dirname(clip.path);
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+          let readable = readableParents.get(parent);
+          if (readable === undefined) {
+            try {
+              const parentStat = await stat(parent);
+              if (!parentStat.isDirectory()) throw new Error('Clip parent is not a directory.');
+              const handle = await opendir(parent);
+              try { await handle.read(); } finally { await handle.close(); }
+              readable = true;
+            } catch {
+              readable = false;
+            }
+            readableParents.set(parent, readable);
+          }
+          if (readable) continue;
+        }
+        // An offline or inaccessible folder must not erase identity, edits, or favorites.
         existing.push({ ...clip, availability: 'unavailable' });
       }
     }

@@ -191,6 +191,9 @@ rearms one timer. Repeated start/disposal cannot accumulate timers.
 Library reconciliation and thumbnail enrichment wait while the main interface
 is in the tray, including when its renderer is retained. Reopening resumes queued
 work through the existing renderer-active signal, with no waiting poll or timer.
+The saved-clips directory watcher runs only while the interface is open, coalesces
+file changes over 250 ms, and closes in the tray or on shutdown. Reopening runs
+one reconciliation to catch changes made while the watcher was stopped.
 The current media operation may finish on close; shutdown aborts its child,
 releases paused work, and waits for cleanup. Explicit imports, exports and replay
 saves remain available independently. Reconciliation merges against current

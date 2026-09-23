@@ -256,6 +256,9 @@ export class AppController {
   private readonly clipExportProgressListeners = new Set<(progress: ClipExportProgress) => void>();
   private readonly captureStorage: CaptureStorageService;
   private readonly clipLibrary: ClipLibraryService;
+  private readonly onClipDirectoryChanged = () => { void this.reconcileClipLibrary(); };
+  private clipReconciliation: Promise<void> | null = null;
+  private clipReconciliationQueued = false;
   private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
   private readonly gameDiscovery: GameDiscoveryService;
   private readonly appUpdates: AppUpdateService;
@@ -503,6 +506,7 @@ export class AppController {
     await this.autoCaptureCoordinator.initialize(this.store.get().gameDetection.games);
     if (this.disposed) return;
     this.registerCaptureShortcut(snapshot.capture.config.hotkey, false);
+    this.clipLibrary.watchDirectory(this.capturePaths.clipsDirectory, this.onClipDirectoryChanged);
     void this.reconcileClipLibrary();
 
     const starts: Promise<unknown>[] = [];
@@ -652,7 +656,11 @@ export class AppController {
     this.rendererActive = active;
     this.clipLibrary.setBackgroundWorkActive(active);
     if (this.audioMeterDemandGate.setRendererActive(active)) this.syncAudioMeterDemand();
-    if (active) void this.refreshAudioDevices();
+    if (active) {
+      void this.refreshAudioDevices();
+      // Catch changes made while the interface was in the tray and the watcher was stopped.
+      void this.reconcileClipLibrary();
+    }
     this.performance.refresh();
     return this.store.get();
   }
@@ -1544,7 +1552,10 @@ export class AppController {
       }
       this.capturePaths = paths;
       const snapshot = this.store.update(draft => { draft.capture.config = config; draft.capture.storage = storage; });
-      if (kind === 'clips') void this.reconcileClipLibrary();
+      if (kind === 'clips') {
+        this.clipLibrary.watchDirectory(paths.clipsDirectory, this.onClipDirectoryChanged);
+        void this.reconcileClipLibrary();
+      }
       return snapshot;
     });
   }
@@ -1985,6 +1996,7 @@ export class AppController {
       );
       this.registerCaptureShortcut(defaultCaptureConfig.hotkey, false);
       snapshot = this.store.update((draft) => { draft.capture.storage = storage; });
+      this.clipLibrary.watchDirectory(this.capturePaths.clipsDirectory, this.onClipDirectoryChanged);
       void this.reconcileClipLibrary();
     }
     this.applyLoginItemSetting(snapshot.settings.launchAtStartup);
@@ -2683,7 +2695,23 @@ export class AppController {
     }
   }
 
-  private async reconcileClipLibrary(): Promise<void> {
+  private reconcileClipLibrary(): Promise<void> {
+    if (this.clipReconciliation) {
+      this.clipReconciliationQueued = true;
+      return this.clipReconciliation;
+    }
+    const task = (async () => {
+      do {
+        this.clipReconciliationQueued = false;
+        await this.reconcileClipLibraryOnce();
+      } while (this.clipReconciliationQueued && !this.disposed);
+    })();
+    this.clipReconciliation = task;
+    void task.finally(() => { if (this.clipReconciliation === task) this.clipReconciliation = null; });
+    return task;
+  }
+
+  private async reconcileClipLibraryOnce(): Promise<void> {
     const before = this.store.get();
     try {
       const clips = await this.clipLibrary.reconcile(before.clips, this.capturePaths.clipsDirectory);

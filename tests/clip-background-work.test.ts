@@ -1,5 +1,5 @@
 import { afterEach, expect, spyOn, test } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Clip } from '../src/shared/contracts';
@@ -76,19 +76,57 @@ test('a resumed scan preserves saves, edits and deletions made while paused', ()
     [edited, deleted, imported, { ...saved, id: 'discovered-duplicate' }]);
   expect(actual.map(item => item.id).sort()).toEqual(['edited', 'imported', 'saved']);
   expect(actual.find(item => item.id === 'edited')).toMatchObject({ favorite: true, name: 'Renamed' });
+  expect(mergeReconciledClips([edited], [{ ...edited, path: 'relocated.mp4' }], []))
+    .toMatchObject([{ ...edited, path: 'relocated.mp4' }]);
 });
 
 
-test('unavailable files retain identity and metadata, then recover when the drive returns', async () => {
+test('all deleted clips disappear while surviving files remain', async () => {
   const { directory, service } = await fixture();
-  const path = join(directory, 'temporarily-missing.mp4');
+  const indexed = ['deleted-a', 'deleted-b', 'kept'].map(id => clip(id, join(directory, `${id}.mp4`)));
+  await Promise.all(indexed.map(item => writeFile(item.path, 'fixture')));
+  expect(await service.reconcile(indexed, directory)).toHaveLength(3);
+  await Promise.all(indexed.slice(0, 2).map(item => rm(item.path)));
+  expect((await service.reconcile(indexed, directory)).map(item => item.id)).toEqual(['kept']);
+});
+
+test('folder changes remove deleted clips without a manual refresh and pause in the tray', async () => {
+  const { directory, service } = await fixture();
+  const path = join(directory, 'watched.mp4');
+  await writeFile(path, 'fixture');
+  const original = clip('watched', path);
+  const first = Promise.withResolvers<Clip[]>();
+  const second = Promise.withResolvers<void>();
+  let changes = 0;
+  service.watchDirectory(directory, () => {
+    changes += 1;
+    if (changes === 1) void service.reconcile([original], directory).then(first.resolve, first.reject);
+    else second.resolve();
+  });
+  await rm(path);
+  expect(await first.promise).toEqual([]);
+  service.setBackgroundWorkActive(false);
+  await writeFile(join(directory, 'while-hidden.mp4'), 'fixture');
+  await tick();
+  expect(changes).toBe(1);
+  service.setBackgroundWorkActive(true);
+  await rm(join(directory, 'while-hidden.mp4'));
+  await second.promise;
+  expect(changes).toBe(2);
+}, 5_000);
+
+test('unavailable folders retain identity and metadata, then recover when the drive returns', async () => {
+  const { directory, service } = await fixture();
+  const offline = join(directory, 'temporarily-offline');
+  const path = join(offline, 'clip.mp4');
   const original = { ...clip('retained', path), favorite: true, titleEdited: true, name: 'My moment', trimStartMs: 100 };
-  const unavailable = await service.reconcile([original], directory);
+  const unavailable = await service.reconcile([original], offline);
   expect(unavailable).toHaveLength(1);
   expect(unavailable[0]).toMatchObject({ ...original, availability: 'unavailable' });
   expect(service.needsEnrichment(unavailable[0]!)).toBeFalse();
+  await mkdir(offline);
   await writeFile(path, 'fixture');
-  const restored = await service.reconcile(unavailable, directory);
+  const restored = await service.reconcile(unavailable, offline);
   expect(restored[0]).toMatchObject({ ...original, availability: 'available' });
 });
 
