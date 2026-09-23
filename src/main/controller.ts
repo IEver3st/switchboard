@@ -481,6 +481,14 @@ export class AppController {
       draft.version = currentCoreVersion();
       draft.prototypeMode = !app.isPackaged;
     }, { persist: false });
+    // The panel shortcut needs only persisted preferences. Restore it before
+    // diagnostics, device discovery, or engine startup can delay initialization.
+    const preferences = this.store.get().setup.preferences;
+    this.desktopControls.configure({
+      quickControlsEnabled: preferences.quickControlsEnabled,
+      quickShortcut: preferences.quickShortcut,
+      executables: [],
+    });
     await this.syncDeveloperDiagnostics();
   }
 

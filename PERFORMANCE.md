@@ -188,6 +188,11 @@ rearms one timer. Repeated start/disposal cannot accumulate timers.
 
 ## Startup responsiveness
 
+The saved Quick Controls shortcut is restored immediately after settings load,
+before diagnostics, device discovery, or engine restoration. Application scene
+watching still begins after service initialization; opening the panel is not a
+prerequisite for the shortcut, including when startup remains in the tray.
+
 Library reconciliation and thumbnail enrichment wait while the main interface
 is in the tray, including when its renderer is retained. Reopening resumes queued
 work through the existing renderer-active signal, with no waiting poll or timer.
