@@ -21,7 +21,7 @@ export function gameAutomaticLabel(snapshot: SystemSnapshot): string {
 }
 
 export function chatAutomaticLabel(): string {
-  return 'Automatic (default system audio)';
+  return 'Automatic (communications output)';
 }
 
 export function micAutomaticLabel(snapshot: SystemSnapshot): string {

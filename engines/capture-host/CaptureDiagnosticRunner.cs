@@ -50,7 +50,7 @@ internal static class CaptureDiagnosticRunner
 
         CheckEndpoint("audio.system", "Game audio endpoint", settings.IncludeSystemAudio, settings.SystemAudioDeviceId, DataFlow.Render, emit);
         CheckEndpoint("audio.microphone", "Microphone endpoint", settings.IncludeMic, ReplayEngine.ResolveMicrophoneEndpointId(settings), DataFlow.Capture, emit);
-        CheckEndpoint("audio.chat", "Chat audio endpoint", settings.IncludeChatAudio, settings.ChatAudioDeviceId, DataFlow.Render, emit);
+        CheckEndpoint("audio.chat", "Chat audio endpoint", settings.IncludeChatAudio, settings.ChatAudioDeviceId, DataFlow.Render, emit, Role.Communications);
         if (recording)
         {
             emit(new("capture.active", "Capture probes", "skipped", "Replay is recording. Encoder and capture probes were skipped to keep the recording running. Endpoint checks do not test recorded audio."));
@@ -126,13 +126,13 @@ internal static class CaptureDiagnosticRunner
         emit(new("capture.scope", "Test coverage", "skipped", "Capture probes encode three frames to a discard sink. No recording is saved. Replay ring saves, long-running stability, and recorded audio are not tested."));
     }
 
-    private static void CheckEndpoint(string id, string label, bool enabled, string? endpointId, DataFlow flow, Action<DiagnosticCheck> emit)
+    private static void CheckEndpoint(string id, string label, bool enabled, string? endpointId, DataFlow flow, Action<DiagnosticCheck> emit, Role role = Role.Multimedia)
     {
         if (!enabled) { emit(new(id, label, "skipped", "This track is disabled.")); return; }
         try
         {
             using var enumerator = new MMDeviceEnumerator();
-            using var device = endpointId is { Length: > 0 } ? enumerator.GetDevice(endpointId) : enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia);
+            using var device = endpointId is { Length: > 0 } ? enumerator.GetDevice(endpointId) : enumerator.GetDefaultAudioEndpoint(flow, role);
             emit(new(id, label, device.State == DeviceState.Active && device.DataFlow == flow ? "pass" : "fail",
                 $"Endpoint state: {device.State}; direction: {device.DataFlow}. Audio signal and recording are not sampled."));
         }

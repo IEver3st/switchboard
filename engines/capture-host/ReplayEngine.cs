@@ -650,6 +650,12 @@ internal sealed class ReplayEngine : IAsyncDisposable
         }
     }
 
+    internal static AudioPipeCapture? CreateChatAudio(CaptureSettings capture)
+        => !capture.IncludeChatAudio ? null
+            : capture.ChatAudioDeviceId is { Length: > 0 } endpointId
+                ? AudioPipeCapture.CreateLoopbackEndpoint(endpointId, "Chat audio")
+                : AudioPipeCapture.CreateChatLoopback();
+
     private async Task StartFfmpegAttemptAsync(CaptureSource source, CancellationToken cancellationToken)
     {
         var capture = settings ?? throw new InvalidOperationException("Capture settings are missing.");
@@ -699,11 +705,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
             try
             {
-                chatAudio = !capture.IncludeChatAudio
-                    ? null
-                    : capture.ChatAudioDeviceId is { Length: > 0 } chatEndpointId
-                        ? AudioPipeCapture.CreateLoopbackEndpoint(chatEndpointId, "Chat audio")
-                        : AudioPipeCapture.CreateSystemLoopback();
+                chatAudio = CreateChatAudio(capture);
             }
             catch (Exception chatAudioError)
             {

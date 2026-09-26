@@ -89,4 +89,11 @@ describe('capture microphone routing', () => {
     expect(resolveCaptureSystemAudioDeviceId(state)).toBeNull();
     expect(resolveCaptureChatAudioDeviceId(state)).toBeNull();
   });
+
+  test('keeps an unavailable explicit chat output instead of silently recording the default', () => {
+    expect(resolveCaptureChatAudioDeviceId({
+      microphoneDevice: '', devices: [], host: null,
+      capture: { microphoneDeviceId: null, systemAudioDeviceId: null, chatAudioDeviceId: 'disconnected-chat' },
+    })).toBe('disconnected-chat');
+  });
 });

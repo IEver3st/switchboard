@@ -43,7 +43,9 @@ export function resolveCaptureSystemAudioDeviceId(audio: CaptureAudioRoutingStat
 }
 
 export function resolveCaptureChatAudioDeviceId(audio: CaptureAudioRoutingState): string | null {
-  return findAvailableDevice(audio.devices, audio.capture?.chatAudioDeviceId, 'output');
+  // Preserve an explicit selection through disconnects. Null means automatic to
+  // Capture.Host, so clearing a missing ID would record a different output.
+  return audio.capture?.chatAudioDeviceId ?? null;
 }
 
 export function describeCaptureAudioRoute(options: {

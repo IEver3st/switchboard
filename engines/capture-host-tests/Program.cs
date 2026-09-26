@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+if (args.Contains("--chat-loopback-probe")) { await ChatAudioTests.RunLiveAsync(); return; }
+
 if (args.Contains("--calibrate-audio"))
 {
     // A subprocess fixture used only by native UI tests. Never opens devices.

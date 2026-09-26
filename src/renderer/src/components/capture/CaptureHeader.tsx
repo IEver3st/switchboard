@@ -3,7 +3,7 @@ import { AnimatePresence, m, useReducedMotion } from 'motion/react';
 import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Layers, Monitor, RefreshCw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
 import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
-import { CaptureAudioDeviceSelect } from './capture-audio-device-select';
+import { CaptureAudioDeviceSelect, chatAutomaticLabel } from './capture-audio-device-select';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -485,7 +485,8 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
   const explicitMicUnavailable = Boolean(config.microphoneDeviceId) && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
   const chatWithoutDevice = config.includeChatAudio && !config.chatAudioDeviceId;
   const gameAndChatSame = config.includeSystemAudio && config.includeChatAudio
-    && (config.systemAudioDeviceId ?? 'auto') === (config.chatAudioDeviceId ?? 'auto');
+    && config.systemAudioMode !== 'game' && Boolean(config.systemAudioDeviceId)
+    && config.systemAudioDeviceId === config.chatAudioDeviceId;
 
   return (
     <div className="capture-replay-audio" role="group" aria-label="Replay audio inputs">
@@ -526,7 +527,7 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
             label="Chat audio device"
             value={config.chatAudioDeviceId}
             devices={outputDevices}
-            automaticLabel="Automatic (default system audio)"
+            automaticLabel={chatAutomaticLabel()}
             disabled={!systemAvailable || !config.includeChatAudio}
             onChange={(chatAudioDeviceId) => void setCaptureConfig({ chatAudioDeviceId })}
           />
@@ -557,7 +558,7 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
       ) : null}
       {chatWithoutDevice ? (
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground" role="status">
-          Chat is using the default system output. For separate Discord audio with Sonar, choose Sonar Chat here and Sonar Game above.
+          Chat uses the Windows communications output. If Discord uses another output, select that same device here.
         </p>
       ) : null}
       {gameAndChatSame ? (

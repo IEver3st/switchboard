@@ -244,6 +244,12 @@ Snapshot completed segments
 MP4 remux, no re-encode
 ```
 
+Automatic chat loopback uses the Windows communications render endpoint; desktop
+audio uses the multimedia endpoint. Explicit chat selections survive disconnects
+and fail visibly instead of silently switching devices. Diagnostics use the same
+endpoint roles. Chat remains opt-in; applications with an explicit output need
+that same output selected for the chat track.
+
 Replay streams share a session clock. WASAPI QPC anchors audio startup, then
 device frame positions preserve continuous PCM and exact missing-packet gaps;
 packet-level QPC jitter must not insert silence or cut samples. Invalid/reset

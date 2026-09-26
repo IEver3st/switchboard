@@ -706,7 +706,7 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
   const explicitMicUnavailable = Boolean(config.microphoneDeviceId)
     && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
   const gameAndChatSame = config.systemAudioMode !== 'game' && config.includeSystemAudio && config.includeChatAudio
-    && (config.systemAudioDeviceId ?? 'auto') === (config.chatAudioDeviceId ?? 'auto');
+    && Boolean(config.systemAudioDeviceId) && config.systemAudioDeviceId === config.chatAudioDeviceId;
 
   return (
     <SettingRow

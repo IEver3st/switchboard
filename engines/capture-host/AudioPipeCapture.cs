@@ -34,6 +34,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     private readonly CancellationTokenSource lifetime = new();
     private Task? writerTask;
     private bool started;
+    private int disposed;
     private int forwardPackets;
     private long droppedPackets;
     private long capturedPackets;
@@ -84,10 +85,16 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     public string? Error { get; private set; }
 
     public static AudioPipeCapture CreateSystemLoopback()
+        => CreateDefaultLoopback(Role.Multimedia, "System audio");
+
+    public static AudioPipeCapture CreateChatLoopback()
+        => CreateDefaultLoopback(Role.Communications, "Chat audio");
+
+    private static AudioPipeCapture CreateDefaultLoopback(Role role, string label)
     {
         using var enumerator = new MMDeviceEnumerator();
-        using var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-        return CreateLoopbackEndpoint(endpoint.ID, "System audio");
+        using var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, role);
+        return CreateLoopbackEndpoint(endpoint.ID, label);
     }
 
     public static async Task<AudioPipeCapture> CreateProcessLoopbackAsync(int processId, CancellationToken cancellationToken)
@@ -206,6 +213,7 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref disposed, 1) != 0) return;
         lifetime.Cancel();
         packets.Writer.TryComplete();
         if (started)
