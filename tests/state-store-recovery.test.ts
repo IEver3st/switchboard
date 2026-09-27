@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, spyOn, test } from 'bun:test';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { StateStore } from '../src/main/services/state-store';
+import { debugDiagnostics } from '../src/main/services/debug-diagnostics';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 import { captureConfigSchema, setCaptureConfigInputSchema } from '../src/shared/contracts';
 
@@ -18,6 +19,57 @@ async function fixture() {
 }
 
 describe('state recovery', () => {
+  test('coalesces a synchronous burst and excludes later non-persistent changes from the saved generation', async () => {
+    const { path } = await fixture();
+    const store = new StateStore(path);
+    await store.load();
+    const previous = JSON.parse(await readFile(path, 'utf8'));
+    for (let i = 0; i < 40; i++) {
+      store.updateBranches(['settings'], draft => { draft.settings.uiScalePercent = i === 39 ? 150 : 125; }, { emit: false });
+    }
+    store.updateBranches(['settings'], draft => { draft.settings.uiScalePercent = 110; }, { persist: false });
+    await store.flush();
+    expect(JSON.parse(await readFile(path, 'utf8')).settings.uiScalePercent).toBe(150);
+    expect(JSON.parse(await readFile(`${path}.bak`, 'utf8'))).toEqual(previous);
+    expect(store.read('settings').uiScalePercent).toBe(110);
+  });
+
+  test.each([false, true])('flush drains pending changes after an in-flight write (failure: %s) and retains the last durable backup', async (failFirstWrite) => {
+    const { path } = await fixture();
+    const store = new StateStore(path);
+    await store.load();
+    store.updateBranches(['settings'], draft => { draft.settings.uiScalePercent = 100; });
+    await store.flush();
+    let started!: () => void;
+    let release!: () => void;
+    const entered = new Promise<void>(resolve => { started = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const measure = debugDiagnostics.measureAsync.bind(debugDiagnostics);
+    let writes = 0;
+    const logged = spyOn(console, 'error').mockImplementation(() => undefined);
+    const barrier = spyOn(debugDiagnostics, 'measureAsync').mockImplementation(async (label, action) => {
+      if (label === 'state.disk-write' && ++writes === 1) {
+        started(); await gate;
+        if (failFirstWrite) throw new Error('Fixture disk write failure');
+      }
+      return measure(label, action);
+    });
+    try {
+      store.updateBranches(['settings'], draft => { draft.settings.uiScalePercent = 125; });
+      await entered;
+      const flushed = store.flush();
+      for (let i = 0; i < 40; i++) {
+        store.updateBranches(['settings'], draft => { draft.settings.uiScalePercent = i === 39 ? 150 : 110; });
+      }
+      release();
+      await flushed;
+      expect(writes).toBe(2);
+      expect(JSON.parse(await readFile(path, 'utf8')).settings.uiScalePercent).toBe(150);
+      expect(JSON.parse(await readFile(`${path}.bak`, 'utf8')).settings.uiScalePercent).toBe(failFirstWrite ? 100 : 125);
+      expect(logged.mock.calls.length).toBe(failFirstWrite ? 1 : 0);
+    } finally { release(); await store.flush(); barrier.mockRestore(); logged.mockRestore(); }
+  });
+
   test('retains selected capture inputs through unrelated IPC patches and restart', async () => {
     const { path } = await fixture();
     const store = new StateStore(path);

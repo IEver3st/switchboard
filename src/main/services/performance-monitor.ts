@@ -40,6 +40,7 @@ type PerformanceMonitorOptions = {
   publish: (snapshot: PerformanceSnapshot) => void;
   getRendererRuntime?: () => Promise<unknown>;
   recordSample?: (sample: ResourceTelemetrySample) => void;
+  developmentSample?: (sample: ResourceTelemetrySample) => void;
   now?: () => number;
   nativeCollector?: { collect(pids: number[]): Promise<NativeResourceSample>; stop(): void; reset?(): void; readonly restarts: number };
   getHostState?: () => Pick<ResourceMonitorSnapshot['host'], 'power' | 'idleSeconds' | 'idleState' | 'thermal' | 'cpuSpeedLimit'>;
@@ -169,7 +170,8 @@ export class PerformanceMonitor {
       const measured = measurePerformance(metrics, context, measuredAt);
       const guard = this.guard.evaluate(measured, context.guardEnabled);
       const snapshot: PerformanceSnapshot = { ...measured, ...guard };
-      if (debugGeneration) snapshot.debug = debugDiagnostics.snapshot();
+      const debug = debugGeneration || this.options.developmentSample ? debugDiagnostics.snapshot() : undefined;
+      if (debugGeneration) snapshot.debug = debug;
       if (debugGeneration && this.options.nativeCollector) {
         const identities: ResourceIdentity[] = [
           ...metrics.map(metric => ({ pid: metric.pid, role: metric.type, group: 'desktop' as const })),
@@ -202,7 +204,7 @@ export class PerformanceMonitor {
       const shouldRecord = Boolean(this.options.recordSample)
         && (forcePublish || guardChanged || measuredAt - this.lastResourceRecordedAt >= recordInterval);
 
-      if (shouldRecord) {
+      if (shouldRecord || this.options.developmentSample) {
         let rendererRuntime: unknown = null;
         const shouldProbeRenderer = shouldCollectRendererRuntime({
           rendererActive: context.rendererActive,
@@ -211,7 +213,7 @@ export class PerformanceMonitor {
           rapidGrowth,
           guardState: snapshot.guardState,
         });
-        if ((shouldProbeRenderer || (debugGeneration && context.rendererActive)) && this.options.getRendererRuntime) {
+        if (shouldRecord && (shouldProbeRenderer || (debugGeneration && context.rendererActive)) && this.options.getRendererRuntime) {
           try {
             if (!this.pendingRendererProbe) {
               const probe = this.options.getRendererRuntime();
@@ -224,7 +226,7 @@ export class PerformanceMonitor {
             // Renderer teardown can race a sample. The Electron process metrics remain useful.
           }
         }
-        this.lastResourceRecordedAt = measuredAt;
+        if (shouldRecord) this.lastResourceRecordedAt = measuredAt;
         this.sequence += 1;
         if (this.disposed || debugEpoch !== this.debugEpoch) return;
         // A disable while awaiting a renderer probe must not publish stale debug data.
@@ -261,7 +263,9 @@ export class PerformanceMonitor {
           this.debugHistory.push(resourceSample);
           if (this.debugHistory.length > 120) this.debugHistory.shift();
         }
-        this.options.recordSample?.(resourceSample);
+        if (shouldRecord) this.options.recordSample?.(resourceSample);
+        // Dev timings stay outside canonical product state and do not enable native probes.
+        this.options.developmentSample?.({ ...resourceSample, debug });
       }
       const resourceStatusChanged = this.lastResourceStatus !== snapshot.resources?.status;
       if (forcePublish || guardChanged || resourceStatusChanged || measuredAt - this.lastPublishedAt >= publishIntervalMs) {

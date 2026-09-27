@@ -58,6 +58,7 @@ export const settingsCategories: ReadonlyArray<{
 ];
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
+  { id: 'audio.dependencies', category: 'audio', title: 'Audio driver setup', description: 'Install or check drivers for app mixing and the processed microphone.', keywords: ['install', 'driver', 'dependency', 'cable', 'microphone', 'restart', 'setup'] },
   { id: 'capture.audioSync', category: 'capture', title: 'Microphone timing', description: 'Calibrate headphone and microphone delay for clips.', keywords: ['sync', 'latency', 'offset', 'delay', 'bluetooth', 'sonar', 'calibrate'], addedIn: '0.9.15' },
   { id: 'general.trayOnGameLaunch', category: 'general', title: 'Move to tray when a game starts', description: 'Automatically release the interface while a recognized game runs.', keywords: ['game', 'launch', 'minimize', 'close', 'tray', 'automatic', 'memory', 'resources'], addedIn: '0.9.15' },
   { id: 'setup.scenes', category: 'setup', title: 'Scenes, quick controls, and status lighting', description: 'Save your whole setup, switch scenes, and configure desktop shortcuts and device cues.', keywords: ['scenes', 'profiles', 'automatic', 'shortcut', 'quick', 'lighting', 'status', 'setup'] },
@@ -71,14 +72,14 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'general.workspace',
     category: 'modules',
     title: 'Pages and presets',
-    description: 'Choose which pages appear: Devices and Capture. Audio appears only with Developer mode.',
+    description: 'Choose which pages appear: Devices, Capture, and optional Audio.',
     keywords: ['workspace', 'workspaces', 'pages', 'clipping', 'full setup', 'onboarding', 'hide', 'show', 'devices', 'capture', 'preset', 'features'],
   },
   {
     id: 'general.developerMode',
     category: 'general',
     title: 'Developer mode',
-    description: 'Show Diagnostics and unfinished Audio routing, mixes, and processing. Audio settings do not work yet.',
+    description: 'Show advanced diagnostics and development tools.',
     keywords: ['developer', 'dev mode', 'audio', 'diagnostics', 'experimental', 'unfinished', 'debug'],
   },
   {
@@ -158,6 +159,13 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Audio engine',
     description: 'Start the isolated Audio host now and restore it on the next launch.',
     keywords: ['audio', 'engine', 'startup', 'host', 'routing'],
+  },
+  {
+    id: 'audio.applicationRouting',
+    category: 'audio',
+    title: 'Automatic app routing',
+    description: 'Categorize apps automatically, or save your own Game, Chat and Media categories.',
+    keywords: ['automatic', 'applications', 'routing', 'categories', 'overrides', 'browser', 'music', 'discord'],
   },
   {
     id: 'audio.output',
@@ -493,7 +501,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'diagnostics.engines',
     category: 'diagnostics',
     title: 'Engine status',
-    description: 'Inspect the latest Capture host state, plus Audio when Developer mode is on.',
+    description: 'Inspect the latest Capture and Audio host states.',
     keywords: ['audio host', 'capture host', 'stopped', 'running', 'pid'],
   },
   {
@@ -587,7 +595,7 @@ export function visibleSettingsCategories(settings: { developerMode?: boolean } 
 }
 
 export function isSettingsCategoryVisible(category: SettingsCategoryId, settings: { developerMode?: boolean } | null | undefined): boolean {
-  return settings?.developerMode === true || (category !== 'audio' && category !== 'diagnostics');
+  return settings?.developerMode === true || category !== 'diagnostics';
 }
 
 export function searchSettings(query: string, settings?: { developerMode?: boolean } | null): SettingsSearchEntry[] {

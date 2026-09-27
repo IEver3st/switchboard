@@ -81,7 +81,6 @@ export function App() {
   const [requestedClipId, setRequestedClipId] = useState<string | null>(null);
   const [, setPreloadRevision] = useState(0);
   const preloadWorkspace = useCallback((target: PageId) => {
-    if (target === 'audio' && snapshot?.settings.developerMode !== true) return;
     void workspaceLoaders[target]?.().then(() => setPreloadRevision((revision) => revision + 1));
   }, [snapshot?.settings.developerMode]);
   const AudioWorkspace = resolvedAudioPage?.default ?? AudioPage;

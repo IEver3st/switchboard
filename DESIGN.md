@@ -1,5 +1,17 @@
 # Switchboard design
 
+The Windows Audio → Spatial page uses mouse and keyboard controls with the existing
+audio modules and semantic switches. A top-view diagram shows configured speaker
+positions, never simulated live head telemetry. Seven speakers support dragging,
+keyboard positioning and exact height/distance/level/mute controls. Routine enable, width, amount,
+tracking and recenter controls fit the compact window; tracker setup is disclosed
+below. Pending edits retain confirmed values, rejected writes show an error, and
+unavailable or stale tracking disables recentering. Built-in headset sensors are
+the default source; OpenTrack setup appears only when selected. Driver failures
+must explain the actual unavailable condition. HIG Accessibility, Layout and
+feedback principles inform keyboard access and state clarity, adapted to the
+Windows console and existing palette without decorative motion.
+
 Switchboard should feel like a quiet, well-made instrument that gets out of the way. It is calm, seamless, and built around the state of real devices and signal paths. The interface does not need to look exciting at rest. It needs to feel friendly and inviting, make the next action obvious, and make a failure hard to misunderstand.
 
 The standard is simple: nobody using Switchboard should ever have a moment of anger, confusion, or "who designed this?" Every decision in this document exists to prevent that moment.
@@ -142,6 +154,16 @@ The EQ is the main instrument for Game, Chat, Media, and Microphone. Give the gr
 Each band keeps its assigned token from `--eq-band-1` through `--eq-band-8`. Selected nodes grow or gain a ring, selected band controls gain a structural state, and exact values use tabular numerals. Color alone never indicates selection.
 
 Do not turn the EQ into a decorative waveform. Every plotted value must come from the canonical audio state.
+
+The desktop EQ supports 0–64 bands. Near the response curve, a hover plus inserts
+a neutral bell at that frequency; Add band is the equivalent keyboard command.
+The selected band exposes type, exact values, bypass, and removal. Arrow keys
+adjust nodes, Delete removes them, and cancelled drags restore confirmed state.
+Keep the current graph as the focal surface; the band rail owns overflow instead
+of pushing the inspector down as more points are added. The visible count makes
+the processing limit explicit. Saves use the canonical acknowledgement path and
+restore confirmed values on failure. These mouse/keyboard equivalents and visible
+focus apply the accessibility baseline without changing Switchboard's visual identity.
 
 ### Capture workspace
 

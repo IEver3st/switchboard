@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { execFile } from 'node:child_process';
 import { cpus } from 'node:os';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { promisify } from 'node:util';
 import { estimateWindowedGrowth } from './performance-statistics.mjs';
@@ -34,7 +35,7 @@ if (process.env.SWITCHBOARD_IDLE_DISABLE_GPU === '1') {
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 if (process.env.SWITCHBOARD_IDLE_REAL_DEVICES !== '1') process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
-await import('../out/main/index.js');
+await import(pathToFileURL(resolve(process.env.SWITCHBOARD_IDLE_BUILD ?? resolve(projectRoot, 'out'), 'main/index.js')).href);
 
 void app.whenReady().then(async () => {
   const window = await waitForWindow();

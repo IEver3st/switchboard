@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export const Select = SelectPrimitive.Root;
@@ -31,21 +31,17 @@ export function SelectContent({ className, children, position = 'popper', ...pro
       <SelectPrimitive.Content
         position={position}
         className={cn(
-          'animate-overlay-in relative z-50 max-h-72 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg',
+          'animate-overlay-in relative z-50 max-h-[min(24rem,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg',
           position === 'popper' && 'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
           className,
         )}
         {...props}
       >
-        <SelectPrimitive.ScrollUpButton className="grid place-items-center py-1 text-muted-foreground">
-          <ChevronUp className="size-3.5" />
-        </SelectPrimitive.ScrollUpButton>
-        <SelectPrimitive.Viewport className={cn('p-1', position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]')}>
+        {/* No scroll arrows: Radix steps them on a timer, which reads as choppy.
+            The viewport scrolls natively with the wheel and keyboard. */}
+        <SelectPrimitive.Viewport className={cn('select-viewport p-1', position === 'popper' && 'max-h-[inherit] w-full min-w-[var(--radix-select-trigger-width)]')}>
           {children}
         </SelectPrimitive.Viewport>
-        <SelectPrimitive.ScrollDownButton className="grid place-items-center py-1 text-muted-foreground">
-          <ChevronDown className="size-3.5" />
-        </SelectPrimitive.ScrollDownButton>
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );

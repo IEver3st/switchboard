@@ -70,7 +70,7 @@ export function SetupWorkspace({ snapshot }: { snapshot: SystemSnapshot }) {
         <Switch aria-label={`Show ${label}`} disabled={changing} checked={preferences.quickActions.includes(key as keyof typeof actionLabels)} onCheckedChange={checked => void update({ quickActions: checked
           ? [...preferences.quickActions, key as keyof typeof actionLabels] : preferences.quickActions.filter(action => action !== key) })} />
       </SettingRow>)}
-      {!snapshot.settings.developerMode ? <p className="setup-note">Microphone, output, and ChatMix controls become available when Audio is running in Developer mode.</p> : null}
+      {!snapshot.audio.enabled ? <p className="setup-note">Microphone, output, and ChatMix controls become available when Audio is running.</p> : null}
       </SettingSection>
     </> : <>
       <SettingSection title="Status lighting">
@@ -122,7 +122,7 @@ function SceneEditor({ scene, snapshot, disabled, onSave, onApply, onDelete }: {
       <div className="setup-included-settings">
       <SettingSwitch settingId="setup.includeDevices" title="Devices" description={scene ? scene.values.devices.map(device => device.name).join(', ') || 'Not included' : ''} checked={includeDevices} disabled={disabled || !recapture} onCheckedChange={setIncludeDevices} />
       <SettingSwitch settingId="setup.includeCapture" title="Replay" description={scene ? scene.values.capture ? `${scene.values.capture.enabled ? 'Enabled' : 'Off'} · ${scene.values.capture.replaySeconds}s · ${scene.values.capture.systemAudioMode === 'game' ? 'Game-only audio' : 'Desktop audio'}` : 'Not included' : ''} checked={includeCapture} disabled={disabled || !recapture} onCheckedChange={setIncludeCapture} />
-      <SettingSwitch settingId="setup.includeAudio" title="Audio" description={!snapshot.settings.developerMode ? 'Developer mode' : scene ? scene.values.audio ? `${scene.values.audio.enabled ? 'Enabled' : 'Off'} · ${scene.values.audio.outputDevice || 'Default output'}` : 'Not included' : ''} checked={includeAudio} disabled={disabled || !recapture || !snapshot.settings.developerMode} onCheckedChange={setIncludeAudio} />
+      <SettingSwitch settingId="setup.includeAudio" title="Audio" description={scene ? scene.values.audio ? `${scene.values.audio.enabled ? 'Enabled' : 'Off'} · ${scene.values.audio.outputDevice || 'Default output'}` : 'Not included' : ''} checked={includeAudio} disabled={disabled || !recapture} onCheckedChange={setIncludeAudio} />
       </div>
     </SettingSection>
     <SettingSection title="Application switching">

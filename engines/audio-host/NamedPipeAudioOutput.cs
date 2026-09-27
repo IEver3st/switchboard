@@ -9,12 +9,17 @@ internal sealed class NamedPipeAudioOutput : IDisposable
     private const int FrameMilliseconds = 20;
     private const int FrameSamples = AudioConstants.SampleRate * AudioConstants.Channels * FrameMilliseconds / 1_000;
     private readonly ISampleProvider source;
+    private readonly string pipeName;
     private readonly CancellationTokenSource lifetime = new();
     private Task? pump;
     private int started;
     private int disposed;
 
-    public NamedPipeAudioOutput(ISampleProvider source) => this.source = source;
+    public NamedPipeAudioOutput(ISampleProvider source, string pipeName = PipeName)
+    {
+        this.source = source;
+        this.pipeName = pipeName;
+    }
 
     public void Start()
     {
@@ -71,8 +76,8 @@ internal sealed class NamedPipeAudioOutput : IDisposable
         }
     }
 
-    private static NamedPipeServerStream CreatePipe() => new(
-        PipeName,
+    private NamedPipeServerStream CreatePipe() => new(
+        pipeName,
         PipeDirection.Out,
         1,
         PipeTransmissionMode.Byte,

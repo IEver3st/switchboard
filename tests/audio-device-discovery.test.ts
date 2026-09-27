@@ -62,6 +62,25 @@ describe('audio endpoint discovery', () => {
     }
   });
 
+  test('repairs cable feedback routes even when Windows makes a transport the default', () => {
+    const audio = createDefaultSnapshot().audio;
+    for (const bus of audio.buses) bus.deviceId = bus.id === 'mic' ? 'mic-transport' : 'cable';
+    audio.monitoringDeviceId = 'mic-send';
+    const devices: AudioDevice[] = [
+      { id: 'cable', name: 'CABLE Input (VB-Audio Virtual Cable)', direction: 'output', available: true, isDefault: true, isVirtual: true },
+      { id: 'mic-send', name: 'Hi-Fi Cable Input (VB-Audio Hi-Fi Cable)', direction: 'output', available: true, isDefault: false, isVirtual: true },
+      { id: 'mic-transport', name: 'Hi-Fi Cable Output (VB-Audio Hi-Fi Cable)', direction: 'input', available: true, isDefault: true, isVirtual: true },
+      { id: 'sony', name: 'Headphones', direction: 'output', available: true, isDefault: false, isVirtual: false, formFactor: 'headphones' },
+      { id: 'hyperx', name: 'Microphone', direction: 'input', available: true, isDefault: false, isVirtual: false, formFactor: 'microphone' },
+    ];
+    reconcileAudioDevices(audio, devices);
+    expect(audio.buses.filter(bus => bus.id !== 'mic').every(bus => bus.deviceId === 'sony')).toBeTrue();
+    expect(audio.buses.find(bus => bus.id === 'mic')?.deviceId).toBe('hyperx');
+    expect(audio.monitoringDeviceId).toBe('sony');
+    const parsed = parseAudioEndpoints([{ id: 'hi-fi', name: 'Hi-Fi Cable Input', interfaceName: 'VB-Audio Hi-Fi Cable', flow: 'render', isDefault: false, volume: 1, muted: false }]);
+    expect(parsed[0]?.isVirtual).toBeTrue();
+  });
+
   test('replaces stale routes with discovered physical headphones and microphone', () => {
     const audio = createDefaultSnapshot().audio;
     for (const bus of audio.buses) bus.deviceId = 'output-nova-pro';

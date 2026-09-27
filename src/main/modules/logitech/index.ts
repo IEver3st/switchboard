@@ -9,7 +9,7 @@ import type {
 } from '../../../shared/contracts';
 import { resolveDeviceVariant, type DeviceVariantCandidate } from '../../../shared/device-variant';
 import { resolveProductAsset } from '../../../shared/product-assets';
-import type { DeviceDiscoveryContext, DeviceModule } from '../device-module';
+import type { DeviceControlResult, DeviceDiscoveryContext, DeviceModule } from '../device-module';
 import { readG502Capabilities, writeG502Control } from './devices/g502-x-plus/agent';
 import { withG502BatteryEstimate } from './devices/g502-x-plus/battery-estimate';
 import { g502XPlusDefinition, resolveG502XPlusVariant } from './devices/g502-x-plus/definition';
@@ -78,11 +78,10 @@ export class LogitechDeviceModule implements DeviceModule {
     return transport ? [await this.createG502XPlusFallback(transport, directEndpoint, context)] : [];
   }
 
-  public async setControl(device: Device, change: DeviceControlChange): Promise<void> {
+  public async setControl(device: Device, change: DeviceControlChange): Promise<DeviceControlResult | void> {
     if (!device.connected) throw new Error(`${device.displayName} is disconnected.`);
     if (this.directSession && device.id === this.directDeviceId) {
-      await this.directSession.setControl(change);
-      return;
+      return this.directSession.setControl(change);
     }
     const agentDeviceId = this.agentIds.get(device.id);
     if (!agentDeviceId) throw new Error('Logitech configuration requires the local G HUB device service.');

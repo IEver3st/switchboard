@@ -1,3 +1,5 @@
+import { applyApplicationRoutingPreference } from '../../../shared/audio-routing';
+import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput } from '../../../shared/contracts';
 import type {
   ApplyAudioPresetInput,
   AudioPresetIdInput,
@@ -367,10 +369,17 @@ const demoApi: SwitchboardApi = {
     if (device) device.settings[input.key] = input.value;
     return emit();
   },
+  async setAudioRouting(input: SetAudioRoutingInput) {
+    applyApplicationRoutingPreference(snapshot.audio, input);
+    return emit();
+  },
+  async setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput) {
+    const others = snapshot.audio.excludedDeviceIds.filter((id) => id !== input.deviceId);
+    snapshot.audio.excludedDeviceIds = input.excluded ? [...others, input.deviceId] : others;
+    return emit();
+  },
+  async audioDependencySetup() { throw new Error('Audio driver installation requires the Windows desktop app.'); },
   async setAudioEnabled(enabled: boolean) {
-    if (enabled && snapshot.settings.developerMode !== true) {
-      throw new Error('Audio is available only when Developer mode is enabled in Settings, General.');
-    }
     snapshot.audio.enabled = enabled;
     const module = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');
     if (module) {
@@ -481,6 +490,15 @@ const demoApi: SwitchboardApi = {
   },
   async exportAudioPreset() {
     throw new Error('Preset export requires the Switchboard desktop application.');
+  },
+  async setSpatialAudio() {
+    throw new Error('Spatial playback requires the Switchboard desktop audio host.');
+  },
+  async recenterSpatialAudio() {
+    throw new Error('Head tracking requires the Switchboard desktop audio host.');
+  },
+  async connectHeadsetTracking() {
+    throw new Error('Headset motion-sensor access requires the Switchboard desktop application.');
   },
   async setAudioChannelProcessor(input: SetAudioChannelProcessorInput) {
     const processing = snapshot.audio.channelProcessing.find((candidate) => candidate.busId === input.busId);

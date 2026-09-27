@@ -8,7 +8,7 @@ import type {
   MouseBatteryLightingPolicy,
 } from '../../../../../shared/contracts';
 import { defaultMouseBatteryLightingPolicy } from '../../../../../shared/contracts';
-import { HidppLongTransport } from '../../hidpp-long-transport';
+import { HidppLongTransport, HidppRequestTimeoutError } from '../../hidpp-long-transport';
 import {
   G502OnboardProfileCrcError,
   G502OnboardProfile,
@@ -19,6 +19,7 @@ import {
 import { LogitechRgbEffectsController } from '../../rgb-effects';
 import { withG502BatteryEstimate } from './battery-estimate';
 import { MouseBatteryLighting } from '../../battery-lighting';
+import type { DeviceControlResult } from '../../../device-module';
 
 const deviceNameFeatureId = 0x0005;
 const unifiedBatteryFeatureId = 0x1004;
@@ -147,7 +148,7 @@ export interface G502DirectSession {
   setStatusLighting?(color: string | null): Promise<void>;
   readonly isClosed: boolean;
   getCapabilities(policy?: MouseBatteryLightingPolicy): Promise<DeviceCapabilities>;
-  setControl(change: DeviceControlChange): Promise<void>;
+  setControl(change: DeviceControlChange): Promise<DeviceControlResult | void>;
   close(): Promise<void>;
 }
 
@@ -167,6 +168,10 @@ export class G502NativeSession implements G502DirectSession {
   private stages: number[];
   private onboard: OnboardState | null;
   private onboardRefreshedAt: number;
+  private onboardProfileReadAt: number;
+  private onboardRefreshFailures = 0;
+  private onboardRetryAt = 0;
+  private buttonReportsNeedRestore = false;
   private unsubscribe: (() => void) | null;
   private closed = false;
 
@@ -188,6 +193,7 @@ export class G502NativeSession implements G502DirectSession {
     this.supportedDpi = supportedDpi;
     this.onboard = onboard;
     this.onboardRefreshedAt = onboard ? Date.now() : 0;
+    this.onboardProfileReadAt = this.onboardRefreshedAt;
     const shiftDpi = onboard?.profile.shiftDpi ?? selectShiftDpi(supportedDpi, currentDpi, preferredShiftDpi);
     this.stages = onboard?.profile.stages ?? selectStages(supportedDpi, currentDpi, preferredStages);
     const io: AdjustableDpiIo = {
@@ -218,6 +224,7 @@ export class G502NativeSession implements G502DirectSession {
     if (!endpoint.path) throw new Error('The Logitech HID++ long-report path is unavailable.');
     const transport = await HidppLongTransport.open(endpoint.path);
     let session: G502NativeSession | undefined;
+    let rgbLighting: LogitechRgbEffectsController | null = null;
     try {
       const deviceIndex = await findG502XPlusIndex(transport, endpoint.productId);
       const dpiFeatureIndex = await transport.getFeatureIndex(deviceIndex, adjustableDpiFeatureId);
@@ -237,6 +244,19 @@ export class G502NativeSession implements G502DirectSession {
       const supportedDpi = parseAdjustableDpiListPayload(listResponse.subarray(4));
       const currentResponse = await transport.request(deviceIndex, dpiFeatureIndex, 2, [sensorIndex, 0, 0]);
       const currentDpi = parseCurrentDpiPayload(currentResponse.subarray(4));
+      // A failed probe must retry through the module's existing session-open
+      // recovery, not publish a permanent session with no lighting controller
+      // and overwrite the saved selection with a missing capability.
+      rgbLighting = await LogitechRgbEffectsController.probe(
+        transport,
+        deviceIndex,
+        rgbEffectsFeatureIndex,
+        perKeyLightingFeatureIndex,
+        previous?.lighting,
+      );
+      // A saved selection must reach hardware before the full onboard-sector
+      // scan (including its timeout/retry path). Cached UI Off is not enough.
+      await rgbLighting?.refreshState();
       let onboard: OnboardState | null = null;
       if (onboardProfilesFeatureIndex !== null) {
         try {
@@ -245,16 +265,6 @@ export class G502NativeSession implements G502DirectSession {
           console.warn('Direct G502 X Plus onboard profile is temporarily unavailable.', error);
         }
       }
-      // A failed probe must retry through the module's existing session-open
-      // recovery, not publish a permanent session with no lighting controller
-      // and overwrite the saved selection with a missing capability.
-      const rgbLighting = await LogitechRgbEffectsController.probe(
-        transport,
-        deviceIndex,
-        rgbEffectsFeatureIndex,
-        perKeyLightingFeatureIndex,
-        previous?.lighting,
-      );
       session = new G502NativeSession(
         transport,
         deviceIndex,
@@ -277,7 +287,10 @@ export class G502NativeSession implements G502DirectSession {
       return session;
     } catch (error) {
       if (session) await session.close();
-      else await transport.close();
+      else {
+        await rgbLighting?.release().catch(() => undefined);
+        await transport.close();
+      }
       throw error;
     }
   }
@@ -293,10 +306,13 @@ export class G502NativeSession implements G502DirectSession {
   private async readCapabilities(policy: MouseBatteryLightingPolicy): Promise<DeviceCapabilities> {
     if (this.closed) throw new Error('The G502 X Plus native session is closed.');
     await this.refreshOnboardState();
-    // A receiver can remain enumerated across mouse sleep/reconnect while its
-    // reporting state is lost. Reassert it on the existing discovery cycle;
-    // button edges remain notification-driven, with no new timer or flash write.
-    await this.enableButtonReports();
+    // Starting MouseButtonSpy triggers a purple firmware indicator on G502 X
+    // Plus. Repeating it every discovery makes an Off mouse flash. Arm once,
+    // then only after a failed device read indicates connection recovery.
+    if (this.buttonReportsNeedRestore) {
+      await this.enableButtonReports();
+      await this.restoreLightingSelection();
+    }
     const capabilities: DeviceCapabilities = { dpi: await this.getDpiCapability() };
     try {
       const reportRate = await this.getReportRateCapability();
@@ -347,7 +363,7 @@ export class G502NativeSession implements G502DirectSession {
     return capabilities;
   }
 
-  public setControl(change: DeviceControlChange): Promise<void> {
+  public setControl(change: DeviceControlChange): Promise<DeviceControlResult | void> {
     return this.serialize(async () => {
       if (change.type.startsWith('lighting-') || change.type === 'onboard-memory') {
         if (change.type.startsWith('lighting-') && this.batteryLighting?.status === 'cutoff') {
@@ -357,6 +373,11 @@ export class G502NativeSession implements G502DirectSession {
         await this.rgbLighting?.setStatusOverride(null);
       }
       await this.writeControl(change);
+      if (change.type.startsWith('lighting-') && this.rgbLighting) {
+        // Capture the whole acknowledged selection inside the serialized write.
+        // Color changes also repaint zones; speed/brightness also enable RGB.
+        return { confirmedChanges: [], confirmedLighting: this.rgbLighting.buildCapability(true) };
+      }
     });
   }
 
@@ -531,11 +552,17 @@ export class G502NativeSession implements G502DirectSession {
   private async enableButtonReports(): Promise<void> {
     if (this.closed) throw new Error('The G502 X Plus native session is closed.');
     await this.transport.request(this.deviceIndex, this.buttonSpyFeatureIndex, 1);
+    this.buttonReportsNeedRestore = false;
   }
 
   private readCurrentDpi = async (): Promise<number> => {
-    const response = await this.transport.request(this.deviceIndex, this.dpiFeatureIndex, 2, [sensorIndex, 0, 0]);
-    return parseCurrentDpiPayload(response.subarray(4));
+    try {
+      const response = await this.transport.request(this.deviceIndex, this.dpiFeatureIndex, 2, [sensorIndex, 0, 0]);
+      return parseCurrentDpiPayload(response.subarray(4));
+    } catch (error) {
+      this.buttonReportsNeedRestore = true;
+      throw error;
+    }
   };
 
   private writeCurrentDpi = async (dpi: number): Promise<void> => {
@@ -585,21 +612,29 @@ export class G502NativeSession implements G502DirectSession {
   }
 
   private async refreshOnboardState(now = Date.now()): Promise<void> {
-    if (this.onboardProfilesFeatureIndex === null || now - this.onboardRefreshedAt < 1_000) return;
+    if (this.onboardProfilesFeatureIndex === null || now < this.onboardRetryAt || now - this.onboardRefreshedAt < 1_000) return;
     try {
+      // Routine discovery needs mode/selection, not 32 flash chunks queued in
+      // front of a lighting click. Recheck full contents once a minute for
+      // external same-profile edits, and always before our own profile writes.
       const onboard = await readOnboardState(
         this.transport,
         this.deviceIndex,
         this.onboardProfilesFeatureIndex,
+        this.onboard?.info,
+        now - this.onboardProfileReadAt < 60_000 ? this.onboard ?? undefined : undefined,
       );
       const profileChanged = this.onboard?.mode !== onboard.mode || this.onboard.activeSector !== onboard.activeSector;
       if (profileChanged) {
         await this.batteryLighting?.restore();
         this.rgbLighting?.invalidate();
       }
+      if (onboard !== this.onboard) this.onboardProfileReadAt = now;
       this.onboard = onboard;
       if (profileChanged) await this.restoreLightingSelection();
       this.onboardRefreshedAt = now;
+      this.onboardRefreshFailures = 0;
+      this.onboardRetryAt = 0;
       this.stages = onboard.profile.stages;
       this.runtime.setButtonMask(onboard.profile.shiftButtonMask);
       if (this.runtime.currentShiftDpi !== onboard.profile.shiftDpi) {
@@ -609,12 +644,24 @@ export class G502NativeSession implements G502DirectSession {
       // Keep the last CRC-validated snapshot on a transient read failure. This
       // piggybacks on the existing five-second discovery cycle and stops when
       // the direct session closes; it adds no timer or background handle.
-      console.warn('Direct G502 X Plus onboard profile refresh is temporarily unavailable.', error);
+      this.onboardRefreshFailures += 1;
+      if (error instanceof HidppRequestTimeoutError) this.buttonReportsNeedRestore = true;
+      this.onboardRetryAt = Date.now() + Math.min(30_000, 5_000 * 2 ** Math.min(this.onboardRefreshFailures - 1, 3));
+      if (this.onboardRefreshFailures === 1) {
+        console.warn('Direct G502 X Plus onboard profile refresh is temporarily unavailable; retaining the last verified profile and retrying with backoff.', error);
+      }
     }
   }
 
   private async mutateProfile(mutator: (profile: G502OnboardProfile) => void): Promise<void> {
     if (!this.onboard || this.onboardProfilesFeatureIndex === null) throw new Error('The active onboard profile is unavailable.');
+    const previous = this.onboard;
+    this.onboard = await readOnboardState(this.transport, this.deviceIndex, this.onboardProfilesFeatureIndex, this.onboard.info);
+    this.onboardProfileReadAt = Date.now();
+    if (previous.mode !== this.onboard.mode || previous.activeSector !== this.onboard.activeSector) {
+      this.rgbLighting?.invalidate();
+      throw new Error('The active mouse profile changed. Refresh the mouse before retrying this setting.');
+    }
     const next = new G502OnboardProfile(this.onboard.info, this.onboard.profile.toSector());
     mutator(next);
     const intended = next.toSector();
@@ -678,14 +725,34 @@ export async function readOnboardState(
   transport: Pick<HidppLongTransport, 'request'>,
   deviceIndex: number,
   featureIndex: number,
+  knownInfo?: OnboardProfilesInfo,
+  cached?: OnboardState,
 ): Promise<OnboardState> {
-  const infoResponse = await transport.request(deviceIndex, featureIndex, 0);
-  const info = parseOnboardProfilesInfo(infoResponse.subarray(4));
-  const [modeResponse, currentResponse, directory] = await Promise.all([
-    transport.request(deviceIndex, featureIndex, 2),
-    transport.request(deviceIndex, featureIndex, 4),
-    readOnboardSector(transport, deviceIndex, featureIndex, 0, info.sectorSize),
-  ]);
+  try {
+    return await readOnboardStateOnce(transport, deviceIndex, featureIndex, knownInfo, cached);
+  } catch (error) {
+    // Only this read-only transaction is safe to repeat. The transport drains
+    // the expired request before the retry; hardware writes are never retried.
+    if (!(error instanceof HidppRequestTimeoutError)) throw error;
+    return readOnboardStateOnce(transport, deviceIndex, featureIndex, knownInfo);
+  }
+}
+
+async function readOnboardStateOnce(
+  transport: Pick<HidppLongTransport, 'request'>,
+  deviceIndex: number,
+  featureIndex: number,
+  knownInfo?: OnboardProfilesInfo,
+  cached?: OnboardState,
+): Promise<OnboardState> {
+  // Geometry is fixed for the session; mode and active sector are always live.
+  const info = knownInfo ?? parseOnboardProfilesInfo((await transport.request(deviceIndex, featureIndex, 0)).subarray(4));
+  // Do not leave an orphaned sector read running after another request fails.
+  const modeResponse = await transport.request(deviceIndex, featureIndex, 2);
+  const currentResponse = await transport.request(deviceIndex, featureIndex, 4);
+  if (cached && (modeResponse[4] === 1 ? 'onboard' : 'software') === cached.mode
+    && currentResponse.readUInt16BE(4) === cached.activeSector) return cached;
+  const directory = await readOnboardSector(transport, deviceIndex, featureIndex, 0, info.sectorSize);
   const addresses = parseProfileDirectory(directory);
   const reportedActive = currentResponse[5] ?? 0;
   const activeSector = reportedActive > 0 && addresses.includes(reportedActive)

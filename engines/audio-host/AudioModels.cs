@@ -8,7 +8,8 @@ internal static class AudioConstants
     public const int LatencyMilliseconds = 20;
     public const string InterfaceName = "Switchboard Virtual Audio Device";
     public const int ProcessingSampleRate = 48_000;
-    public const int MaximumProcessorBands = 8;
+    // Keep aligned with MAX_EQ_BANDS in the shared contract; storage is preallocated.
+    public const int MaximumProcessorBands = 64;
 }
 
 internal sealed record AudioEndpoint(
@@ -62,7 +63,10 @@ internal sealed record AudioApplicationState(
     string? CurrentDestination,
     string? PreferredDestination,
     string RoutingState,
-    bool Active);
+    bool Active,
+    string? ExecutablePath = null,
+    bool Automatic = false,
+    string? RoutingError = null);
 
 internal sealed record AudioApplicationPreference(string ExecutablePath, string Destination)
 {
@@ -144,6 +148,8 @@ internal readonly record struct MeterValue(float Level, float Peak, bool Clippin
 
 internal sealed class AudioHostSettings
 {
+    public SpatialSettings Spatial { get; init; } = new();
+    public bool AutomaticApplicationRouting { get; init; } = true;
     public IReadOnlyList<AudioApplicationPreference> ApplicationRoutes { get; set; } = [];
     public bool Enabled { get; init; }
     public int SampleRate { get; init; } = AudioConstants.ProcessingSampleRate;
@@ -160,6 +166,8 @@ internal sealed class AudioHostSettings
 
     public AudioHostSettings Validate()
     {
+        if (Spatial is null) throw new InvalidOperationException("Spatial settings are required.");
+        Spatial.Validate();
         if (ApplicationRoutes.Count > 64 || ApplicationRoutes.Select(route => route.ExecutablePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() != ApplicationRoutes.Count)
             throw new InvalidOperationException("At most 64 unique application routes are supported.");
         foreach (var route in ApplicationRoutes) route.Validate();
@@ -263,6 +271,8 @@ internal sealed record MicrophoneMonitoringRuntime(
     string? RequestedDeviceId,
     string? ActiveDeviceId);
 
+internal sealed record MicrophoneVirtualOutputRuntime(bool Running, string? EndpointId, string? EndpointName, string? Error);
+
 internal sealed record MicrophoneRuntime(
     long ConfigurationVersion,
     string? RequestedInputDeviceId,
@@ -270,7 +280,8 @@ internal sealed record MicrophoneRuntime(
     string? InputFormat,
     IReadOnlyCollection<ConfiguredMicrophoneProcessor> Processors,
     MicrophoneMonitoringRuntime Monitoring,
-    string? Error);
+    string? Error,
+    MicrophoneVirtualOutputRuntime? VirtualOutput = null);
 
 internal sealed record AudioHostCapabilities(
     string VirtualChannels,
@@ -327,4 +338,6 @@ internal sealed record AudioHostSnapshot(
     IReadOnlyCollection<AudioBusState> Buses,
     IReadOnlyCollection<AudioMixState> Mixes,
     MicrophoneRuntime Microphone,
-    IReadOnlyList<AudioApplicationPreference>? ApplicationRoutes = null);
+    IReadOnlyList<AudioApplicationPreference>? ApplicationRoutes = null,
+    bool? AutomaticApplicationRouting = null,
+    SpatialRuntime? Spatial = null);

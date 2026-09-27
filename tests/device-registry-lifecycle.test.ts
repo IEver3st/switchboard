@@ -19,6 +19,54 @@ mock.module('electron', () => ({
 const { DeviceRegistry, selectHidDeviceEnumerator } = await import('../src/main/services/device-registry');
 
 describe('device registry lifecycle', () => {
+  test('persists a complete acknowledged selection without waiting for discovery', async () => {
+    let snapshot = createEnabledDeviceSnapshot();
+    const mouse = snapshot.devices.find(device => device.kind === 'mouse')!;
+    const confirmed = structuredClone(mouse.capabilities.lighting!);
+    Object.assign(confirmed, { color: '#123456', enabled: true, selectionSaved: true, state: 'acknowledged' });
+    confirmed.zones?.forEach(zone => { zone.color = '#123456'; });
+    const discover = mock(async () => []);
+    const registry = new DeviceRegistry(() => snapshot, devices => { snapshot = { ...snapshot, devices }; }, {
+      fixtureMode: false, modules: [{ id: mouse.moduleId, discover,
+        async setControl() { return { confirmedChanges: [], confirmedLighting: confirmed }; } }],
+    });
+    try {
+      await registry.setControl(mouse.id, { type: 'lighting-color', color: '#123456' });
+      const persisted = JSON.parse(JSON.stringify(snapshot.devices.find(device => device.id === mouse.id)?.capabilities.lighting));
+      expect(persisted).toMatchObject({ color: '#123456', enabled: true, selectionSaved: true, batteryLightingEnabled: true });
+      expect(persisted.zones.every((zone: {color: string}) => zone.color === '#123456')).toBe(true);
+      expect(discover).not.toHaveBeenCalled();
+    } finally { await registry.dispose(); }
+  });
+  test('a slow discovery cannot replace a newer acknowledged lighting selection', async () => {
+    let snapshot = createEnabledDeviceSnapshot();
+    const mouse = structuredClone(snapshot.devices.find(device => device.kind === 'mouse')!);
+    mouse.id = 'live-mouse';
+    snapshot.devices = [mouse];
+    let started!: () => void;
+    let finish!: () => void;
+    const ready = new Promise<void>(resolve => { started = resolve; });
+    const gate = new Promise<void>(resolve => { finish = resolve; });
+    const registry = new DeviceRegistry(() => snapshot, devices => { snapshot = { ...snapshot, devices }; }, {
+      fixtureMode: false, listHidDevices: async () => [],
+      modules: [{ id: mouse.moduleId, async discover() {
+        const stale = structuredClone(mouse);
+        stale.capabilities.battery!.percentage = 43;
+        started();
+        await gate;
+        return [stale];
+      }, async setControl() {} }],
+    });
+    try {
+      const refresh = registry.refresh();
+      await ready;
+      await registry.setControl(mouse.id, { type: 'lighting-color', color: '#123456' });
+      await registry.setControl(mouse.id, { type: 'lighting-enabled', enabled: false });
+      finish();
+      await refresh;
+      expect(snapshot.devices[0]?.capabilities.lighting).toMatchObject({ color: '#123456', enabled: false });
+    } finally { finish(); await registry.dispose(); }
+  });
   test('notifications invalidate cached inventory; fallback and disable retain lifecycle guarantees', async () => {
     const snapshot = createEnabledDeviceSnapshot();
     let now = 0;

@@ -198,8 +198,7 @@
 
 .audio-desk__surface {
   display: flex;
-  min-height: 0;
-  max-height: 680px;
+  min-height: auto;
   flex: 1 1 auto;
   flex-direction: column;
   border-radius: 8px;
@@ -207,15 +206,21 @@
   background: var(--surface-1);
 }
 
+.audio-desk__strips[data-free-mixing="true"] {
+  grid-template-columns: minmax(104px, 1.05fr) repeat(3, minmax(96px, 1fr));
+}
+
 .audio-desk__strips {
   display: grid;
-  min-height: 300px;
+  min-height: 340px;
   flex: 1 1 auto;
   grid-template-columns: minmax(104px, 1.05fr) repeat(5, minmax(96px, 1fr));
   grid-template-rows: minmax(0, 1fr);
   gap: 4px;
 }
 .audio-desk > .audio-chatmix { flex: 0 0 auto; }
+/* Faders keep a usable throw; short windows scroll the page instead. */
+.audio-desk__strips[data-apps="true"] { min-height: 420px; }
 
 .audio-strip {
   display: flex;
@@ -304,37 +309,129 @@
 .audio-strip__sub--picker button[role='combobox'] svg { width: 12px; height: 12px; color: var(--text-muted); }
 
 .audio-strip__body {
-  --meter-top-offset: 0px;
-  --meter-bottom-offset: 34px;
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
-  gap: 2px;
   padding-top: 16px;
 }
-.audio-strip__meter { display: flex; min-height: 0; flex-direction: column; align-items: stretch; }
 .audio-strip__fader { display: flex; min-height: 0; flex-direction: column; align-items: stretch; }
 .audio-strip__fader > .mixer-fader { min-width: 0; }
 .audio-strip.is-muted .audio-strip__body { opacity: 0.55; }
-.audio-strip[aria-busy='true'] .mixer-fader { opacity: 0.7; }
 
-.audio-meter { position: relative; display: flex; min-height: 0; flex: 1; flex-direction: column; align-items: center; gap: 4px; }
-.audio-meter > .audio-clip { position: absolute; top: calc(var(--meter-top-offset) - 12px); left: 50%; transform: translateX(-50%); }
-.audio-meter__rail { display: flex; min-height: 0; flex: 1; align-items: stretch; padding-top: var(--meter-top-offset); padding-bottom: calc(var(--meter-bottom-offset) - 20px); }
-.audio-meter__bar { position: relative; width: 6px; height: 100%; overflow: hidden; border-radius: 3px; background: color-mix(in srgb, var(--input) 80%, transparent); }
-.audio-meter__readout { color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.audio-clip { display: block; width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--surface-hover); }
-.audio-clip[data-clipping='true'] { background: var(--status-danger); }
-.audio-strip__meter--empty { visibility: hidden; }
 
 .audio-strip__foot { display: flex; height: 30px; align-items: center; justify-content: space-between; gap: 4px; margin-top: 4px; }
 .audio-strip__button { width: 30px; height: 30px; border-radius: 4px; color: var(--text-secondary); }
 .audio-strip__button:hover { background: var(--surface-hover); color: var(--foreground); }
 .audio-strip__button.is-muted { color: var(--status-danger); background: color-mix(in srgb, var(--status-danger) 12%, transparent); }
-.audio-strip__apps { height: 26px; margin-left: auto; padding: 0 8px; color: var(--text-secondary); font-size: 10.5px; font-variant-numeric: tabular-nums; }
-.audio-strip__apps-popover { width: min(380px, calc(100vw - 32px)); padding: 10px; }
+
+/* App wells: each routed channel shows its apps as chips. Drag a chip to
+   another well, or open it to choose a channel. */
+.app-well {
+  display: flex;
+  height: clamp(92px, 13vh, 132px);
+  min-height: 0;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 7%, transparent);
+  padding-top: 8px;
+}
+.app-well--placeholder { visibility: hidden; }
+.app-well__title { margin: 0; color: var(--text-description); font-size: 10.5px; font-weight: 600; }
+.app-well__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--background) 55%, transparent);
+  padding: 6px;
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
+}
+.app-well.is-dropping .app-well__body {
+  border-color: color-mix(in srgb, var(--channel-color, var(--ring)) 70%, transparent);
+  background: color-mix(in srgb, var(--channel-color, var(--ring)) 10%, var(--background));
+}
+.app-well__empty { display: grid; height: 100%; margin: 0; place-items: center; color: var(--text-muted); font-size: 10.5px; }
+.app-well__list { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.app-well__list > li { min-width: 0; max-width: 100%; }
+
+.app-chip {
+  --chip-color: var(--text-muted);
+  display: inline-flex;
+  max-width: 100%;
+  height: 24px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--chip-color);
+  padding: 0 8px 0 6px;
+  color: #0c0f14;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: grab;
+  transition: filter 120ms ease-out, opacity 120ms ease-out;
+}
+.app-chip:hover { filter: brightness(1.1); }
+.app-chip:active { cursor: grabbing; }
+.app-chip[data-state='open'] { outline: 2px solid var(--ring); outline-offset: 1px; }
+.app-chip:disabled { cursor: default; opacity: 0.55; }
+.app-chip.is-unrouted { background: var(--surface-interactive); color: var(--text-secondary); }
+.app-chip.is-idle:not(.is-unrouted) { background: color-mix(in srgb, var(--chip-color) 30%, var(--surface-2)); color: var(--foreground); }
+.app-chip.is-waiting { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-warning) 80%, transparent); }
+.app-chip.is-failed { background: color-mix(in srgb, var(--status-danger) 28%, var(--surface-2)); color: var(--foreground); }
+.app-chip__icon { width: 13px; height: 13px; flex: 0 0 auto; border-radius: 2px; object-fit: contain; }
+.app-chip__name { overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.app-chip__state { width: 12px; height: 12px; flex: 0 0 auto; }
+.app-chip__menu-label { color: var(--text-description); font-size: 10.5px; font-weight: 600; }
+.app-chip__menu-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; }
+
+/* Device picker footer and device manager. */
+.audio-device-picker__manage {
+  display: flex;
+  width: 100%;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  padding: 0 8px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.audio-device-picker__manage:hover,
+.audio-device-picker__manage:focus-visible { background: var(--surface-hover); color: var(--foreground); outline: none; }
+.audio-device-picker__manage svg { width: 13px; height: 13px; }
+
+.audio-devices { display: flex; flex-direction: column; gap: 14px; padding: 18px; }
+.audio-devices__header { padding-right: 32px; }
+.audio-devices__direction { align-self: flex-start; }
+.audio-devices__lists { display: flex; min-height: 0; max-height: min(460px, 62vh); flex-direction: column; gap: 14px; overflow-y: auto; }
+.audio-devices__group { display: flex; flex-direction: column; gap: 6px; border: 1px dashed transparent; border-radius: 8px; padding: 2px; transition: border-color 120ms ease-out, background-color 120ms ease-out; }
+.audio-devices__group.is-dropping { border-color: color-mix(in srgb, var(--ring) 70%, transparent); background: color-mix(in srgb, var(--ring) 8%, transparent); }
+.audio-devices__title { margin: 0 0 2px 4px; color: var(--text-description); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.audio-devices__empty { margin: 0; border-radius: 6px; background: var(--surface-1); padding: 12px; color: var(--text-muted); font-size: 11px; }
+.audio-devices__list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.audio-devices__row { display: flex; min-width: 0; height: 38px; align-items: center; gap: 8px; border-radius: 6px; padding: 0 4px 0 6px; color: var(--foreground); font-size: 12px; font-weight: 600; cursor: grab; }
+.audio-devices__row:hover { background: var(--surface-hover); }
+.audio-devices__row.is-excluded { color: var(--text-secondary); font-weight: 500; }
+.audio-devices__grip { width: 14px; height: 14px; flex: 0 0 auto; color: var(--text-muted); }
+.audio-devices__name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audio-devices__tag { flex: 0 0 auto; color: var(--text-muted); font-size: 10px; font-weight: 600; }
+.audio-devices__toggle { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.audio-devices__toggle:hover { background: var(--surface-interactive); color: var(--foreground); }
+.audio-devices__toggle:disabled { cursor: default; opacity: 0.5; }
+.audio-devices__toggle svg { width: 14px; height: 14px; }
 
 .audio-strip__disabled {
   display: flex;
@@ -382,6 +479,40 @@
 .mixer-fader__control { position: relative; display: flex; width: 44px; height: 100%; touch-action: none; user-select: none; flex-direction: column; align-items: center; }
 .mixer-fader__track { position: relative; width: 6px; height: 100%; flex: 1; overflow: visible; border-radius: 3px; background: color-mix(in srgb, var(--input) 85%, transparent); }
 .mixer-fader__range { position: absolute; width: 100%; border-radius: 3px; background: var(--channel-accent); }
+
+/* Live signal: the fader's range doubles as the channel's level meter. The
+   range dims to a guide and the live level lights it from the bottom, capped
+   at the fader position. The fill changes only transform and opacity. */
+.mixer-fader--signal { --signal: 0; --signal-peak: 0; }
+.mixer-fader--signal .mixer-fader__range { background: color-mix(in srgb, var(--channel-accent) 30%, var(--input)); }
+.mixer-fader__signal { position: absolute; bottom: 0; left: 0; width: 100%; height: calc(var(--fill) * 100%); pointer-events: none; }
+.mixer-fader__signal-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: linear-gradient(to top, var(--channel-accent) 0%, color-mix(in srgb, var(--channel-accent) 65%, #fff) 100%);
+  box-shadow: 0 0 12px 1px color-mix(in srgb, var(--channel-accent) 70%, transparent), 0 0 3px var(--channel-accent);
+  opacity: calc(0.4 + var(--signal) * 0.6);
+  transform: scaleY(var(--signal));
+  transform-origin: bottom;
+  will-change: transform;
+}
+.mixer-fader__signal-peak {
+  position: absolute;
+  right: -2px;
+  bottom: calc(var(--signal-peak) * 100%);
+  left: -2px;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--channel-accent) 50%, #fff);
+  opacity: min(1, calc(var(--signal-peak) * 4));
+}
+.mixer-fader[data-clipping='true'] .mixer-fader__signal-peak { background: var(--status-danger); }
+.mixer-fader--signal[data-live='true'] .mixer-fader__thumb {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 38%), 0 0 calc(4px + var(--signal) * 14px) color-mix(in srgb, var(--channel-accent) calc(var(--signal) * 80%), transparent), inset 0 1px 0 rgb(255 255 255 / 85%);
+}
+.mixer-fader__footer { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; }
+.mixer-fader__readout { min-width: 38px; color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .mixer-fader__unity { position: absolute; z-index: 1; right: -6px; bottom: 66.6667%; left: -6px; height: 1px; background: color-mix(in srgb, var(--foreground) 32%, transparent); pointer-events: none; }
 .mixer-fader__thumb {
   position: relative;
@@ -546,6 +677,12 @@
 .audio-param > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* EQ */
+.parametric-eq { container-type: inline-size; }
+@container (max-width: 640px) {
+  .parametric-eq__inspector { gap: 6px; }
+  .parametric-eq__inspector .parametric-eq__field { width: 76px; }
+  .parametric-eq__inspector .parametric-eq__filter { width: 96px; }
+}
 .audio-eq__graph { display: block; width: 100%; height: clamp(180px, 22vw, 280px); }
 .audio-eq__graph line { stroke-opacity: 0.6; }
 .audio-eq__graph path { vector-effect: non-scaling-stroke; }
@@ -563,7 +700,12 @@
   gap: 10px 20px;
   margin-top: 10px;
 }
-.parametric-eq__bands { display: flex; flex-wrap: wrap; gap: 4px; }
+.parametric-eq__bands { display: flex; flex: 1 1 240px; min-width: 0; max-height: 68px; overflow-y: auto; flex-wrap: wrap; gap: 4px; }
+.parametric-eq__add { display: flex; align-items: center; gap: 8px; color: var(--text-description); font-size: 10px; font-variant-numeric: tabular-nums; }
+.parametric-eq__empty { color: var(--text-description); font-size: 12px; }
+.parametric-eq__filter { width: 108px; }
+.parametric-eq__node { touch-action: none; }
+.parametric-eq__band:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .parametric-eq__band {
   display: inline-flex;
   height: 30px;
@@ -613,7 +755,8 @@
 .parametric-eq__band-toggle { display: inline-flex; align-items: center; gap: 8px; margin-left: 4px; color: var(--text-description); font-size: 10.5px; font-weight: 600; }
 
 /* Preset picker */
-.preset-picker { display: flex; min-width: 0; align-items: center; gap: 4px; }
+.preset-picker { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 4px; }
+.preset-picker__description { display: block; max-width: 260px; margin-top: 3px; color: var(--text-description); font-size: 11px; font-weight: 400; white-space: normal; }
 .preset-picker__primary > label { display: flex; min-width: 132px; flex-direction: column; gap: 2px; color: var(--text-muted); font-size: 9.5px; }
 .preset-picker__primary { display: contents; }
 .preset-picker [role='combobox'] { min-height: 28px; border: 0; border-radius: 4px; padding: 3px 24px 3px 6px; color: var(--foreground); background: transparent; font-size: 12px; font-weight: 600; }
@@ -626,6 +769,106 @@
 
 .microphone-test { margin: 0; }
 .audio-status { margin: 0 0 12px; color: var(--text-description); font-size: 10.5px; }
+
+/* Microphone: one reading column. A single raised source panel, then
+   processing groups separated by hairlines rather than cards. Stages that are
+   off collapse to their header; timing controls wait behind Advanced. */
+.mic-page { width: 100%; gap: 28px; padding-bottom: 32px; }
+
+.mic-source {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-radius: 10px;
+  background: var(--surface-1);
+  padding: 18px 20px 20px;
+}
+.mic-source__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: end;
+  gap: 16px 48px;
+}
+.mic-source__field { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+.mic-source__label { display: flex; min-height: 24px; align-items: center; margin: 0; color: var(--text-description); font-size: 11px; font-weight: 600; }
+.mic-source__gain-head { display: flex; min-height: 24px; align-items: center; justify-content: space-between; gap: 12px; }
+.mic-source__picker {
+  height: 34px;
+  border-radius: 6px;
+  background: var(--surface-interactive);
+  padding: 0 10px;
+}
+.mic-source__picker:hover { background: var(--surface-hover); }
+.mic-source .audio-param { min-height: 34px; grid-template-columns: 44px minmax(0, 1fr) 72px; }
+
+.mic-meter { display: flex; flex-direction: column; gap: 8px; }
+.mic-meter__heading { display: flex; align-items: baseline; justify-content: space-between; color: var(--text-description); font-size: 11px; font-weight: 600; }
+.mic-meter__heading output { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.mic-meter__track { display: grid; height: 20px; grid-template-columns: repeat(32, minmax(0, 1fr)); gap: 3px; }
+.mic-meter__segment { border-radius: 2px; background: color-mix(in srgb, var(--input) 85%, transparent); }
+.mic-meter__segment[data-lit='true'] { background: var(--channel-microphone); }
+.mic-meter__segment[data-zone='warning'][data-lit='true'] { background: var(--status-warning); }
+.mic-meter__segment[data-zone='danger'][data-lit='true'] { background: var(--status-danger); }
+.mic-meter__segment[data-peak='true'] { background: color-mix(in srgb, var(--foreground) 80%, transparent); }
+.mic-meter__track[data-active='false'] { opacity: 0.55; }
+
+/* Stages flow side by side on wide windows so rows never trail into empty space. */
+.mic-section { display: flex; min-width: 0; flex-direction: column; padding-inline: 20px; }
+/* The title stays outside this grid so empty tracks collapse: a lone stage spans the row. */
+.mic-section__stages {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr));
+  align-items: start;
+  column-gap: 56px;
+}
+.mic-section__title {
+  margin: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+  padding: 0 0 10px;
+  color: var(--text-description);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.mic-stage { min-width: 0; padding: 18px 0 8px; }
+.mic-stage__head { display: flex; min-width: 0; align-items: center; gap: 16px; }
+.mic-stage__copy { min-width: 0; flex: 1; }
+.mic-stage__copy h4 { margin: 0; color: var(--foreground); font-size: 13.5px; font-weight: 650; line-height: 1.3; }
+.mic-stage:not(.is-on) .mic-stage__copy h4 { color: var(--text-secondary); }
+.mic-stage__copy p { margin: 3px 0 0; color: var(--text-description); font-size: 11.5px; line-height: 1.45; }
+.mic-stage__state { color: var(--text-muted); font-size: 10.5px; font-weight: 600; }
+.mic-stage__body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 14px; }
+.mic-stage__controls {
+  display: grid;
+  width: 100%;
+  /* Wide windows place a stage's sliders side by side instead of stretching them. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 4px 56px;
+}
+.mic-stage__controls .audio-param { grid-template-columns: 96px minmax(0, 1fr) 72px; }
+.mic-stage__controls > .parametric-eq { grid-column: 1 / -1; }
+.mic-stage__controls .audio-param > [role='combobox'] { grid-column: span 2; }
+.mic-stage__advanced-toggle {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 0 8px;
+  color: var(--text-description);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mic-stage__advanced-toggle:hover { background: var(--surface-hover); color: var(--foreground); }
+.mic-stage__advanced-toggle svg { width: 13px; height: 13px; transition: transform 140ms ease-out; }
+.mic-stage__advanced-toggle.is-open svg { transform: rotate(180deg); }
 
 @media (max-width: 1180px) {
   .audio-header,
@@ -644,4 +887,135 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .audio-page * { transition: opacity 120ms linear !important; animation: none !important; }
+}
+/* Spatial: the soundstage map is the page. Controls sit beside it; head
+   tracking and the credits follow. Beam and glow strength mirror the engine's
+   per-speaker weighting, so the picture shows what is actually heard. */
+.spatial-page { width: 100%; gap: 16px; padding-bottom: 32px; }
+.spatial-error { margin: 0; color: var(--status-danger); font-size: 12px; }
+
+.spatial-hero,
+.spatial-tracking { display: flex; flex-direction: column; gap: 18px; border-radius: 10px; background: var(--surface-1); padding: 18px 22px 22px; }
+.spatial-hero__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.spatial-hero__head h3 { margin: 0; color: var(--foreground); font-size: 15px; font-weight: 650; }
+.spatial-hero__head p { margin: 3px 0 0; color: var(--text-description); font-size: 12px; }
+.spatial-hero__head > div:first-child { min-width: 0; flex: 1; }
+.spatial-hero__status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.spatial-hero__status .spatial-tracking__status { flex: 0 0 auto; font-size: 12px; }
+/* The map takes the free width and is sized by height too, so short windows keep
+   tracking in view and tall ones get a large stage. Controls keep a reading width. */
+/* The map column gives way first; controls keep at least 300px beside it. */
+.spatial-hero__body { display: grid; grid-template-columns: minmax(260px, max-content) minmax(280px, 520px); align-items: start; gap: 24px 36px; }
+
+.spatial-map { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 10px; margin: 0; }
+.spatial-map__board { position: relative; width: clamp(260px, 50vh, 900px); max-width: 100%; aspect-ratio: 1; }
+.spatial-map__board svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.spatial-map figcaption { color: var(--text-description); font-size: 11.5px; text-align: center; }
+.spatial-map__ring { fill: none; stroke: color-mix(in srgb, var(--foreground) 9%, transparent); stroke-width: 1; stroke-dasharray: 3 5; }
+.spatial-map__ring:last-of-type { stroke-dasharray: none; stroke: color-mix(in srgb, var(--foreground) 12%, transparent); }
+.spatial-map__axis { stroke: color-mix(in srgb, var(--foreground) 6%, transparent); stroke-width: 1; }
+.spatial-map__label { fill: var(--text-muted); font-size: 15px; font-weight: 700; letter-spacing: 0.14em; }
+.spatial-map__skull { fill: color-mix(in srgb, var(--foreground) 22%, var(--surface-2)); stroke: color-mix(in srgb, var(--foreground) 70%, transparent); stroke-width: 1.5; }
+.spatial-map__nose { fill: color-mix(in srgb, var(--foreground) 85%, transparent); }
+.spatial-map__band { fill: none; stroke: var(--accent-brand); stroke-width: 3; stroke-linecap: round; }
+.spatial-map__cup { fill: var(--accent-brand); }
+.spatial-hero.is-off .spatial-map__band,
+.spatial-hero.is-off .spatial-map__cup { fill: var(--text-muted); stroke: var(--text-muted); }
+
+.spatial-speaker {
+  --speaker-color: var(--accent-brand);
+  --energy: 0;
+  position: absolute;
+  display: grid;
+  width: clamp(24px, 9.5%, 46px);
+  aspect-ratio: 1;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--speaker-color);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--speaker-color) calc(18% + var(--energy) * 40%), var(--surface-1));
+  box-shadow: 0 0 calc(var(--energy) * 22px) color-mix(in srgb, var(--speaker-color) calc(var(--energy) * 70%), transparent);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  touch-action: none;
+  cursor: pointer;
+  transition: box-shadow 160ms ease-out, background-color 160ms ease-out;
+}
+.spatial-speaker[data-movable='true'] { cursor: grab; }
+.spatial-speaker[data-movable='true']:active { cursor: grabbing; }
+.spatial-speaker[data-selected='true'] { outline: 2px solid var(--foreground); outline-offset: 3px; }
+.spatial-speaker[data-enabled='false'] { border-style: dashed; background: var(--surface-1); color: var(--text-muted); box-shadow: none; }
+.spatial-speaker:disabled { border-color: var(--text-muted); background: var(--surface-2); color: var(--text-muted); box-shadow: none; cursor: default; }
+.spatial-speaker:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+
+.spatial-controls { display: flex; min-width: 0; flex-direction: column; gap: 18px; }
+.spatial-field { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.spatial-field__label { color: var(--text-description); font-size: 11px; font-weight: 600; }
+.spatial-field [role='group'] { border-radius: 7px; background: var(--surface-2); padding: 3px; }
+.spatial-field [role='radio'] { height: 30px; border-radius: 5px; padding: 0 14px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.spatial-field [role='radio'][data-state='on'] { background: var(--accent-brand); color: var(--primary-foreground, #fff); }
+.spatial-sliders { display: flex; flex-direction: column; gap: 6px; }
+.spatial-sliders .audio-param { grid-template-columns: 104px minmax(0, 1fr) 64px; }
+
+.spatial-speaker-card { display: flex; flex-direction: column; gap: 14px; border-radius: 8px; background: var(--surface-2); padding: 14px 16px; }
+.spatial-speaker-card__head { display: flex; align-items: center; gap: 10px; }
+.spatial-speaker-card__head strong { flex: 1; color: var(--foreground); font-size: 13px; font-weight: 650; }
+.spatial-speaker-card__chip { display: grid; width: 26px; height: 26px; place-items: center; border: 2px solid var(--speaker-color); border-radius: 50%; color: var(--foreground); font-size: 10px; font-weight: 700; }
+.spatial-speaker-card__toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--text-description); font-size: 11px; font-weight: 600; }
+.spatial-speaker-card__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.spatial-speaker-card__reset { align-self: flex-start; margin-left: -8px; color: var(--text-description); }
+.spatial-number { display: flex; min-width: 0; flex-direction: column; gap: 5px; color: var(--text-description); font-size: 10.5px; font-weight: 600; }
+.spatial-number > span:last-child { display: flex; height: 32px; align-items: center; border: 1px solid transparent; border-radius: 5px; background: var(--surface-interactive); padding-right: 8px; }
+.spatial-number > span:last-child:focus-within { border-color: var(--border-strong); }
+.spatial-number input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; padding: 0 4px 0 9px; color: var(--foreground); font: inherit; font-size: 12.5px; font-weight: 620; font-variant-numeric: tabular-nums; }
+.spatial-number input:disabled { color: var(--text-muted); }
+
+/* Off reads as off: no accent color left anywhere in the controls. */
+.spatial-hero.is-off .spatial-controls { opacity: 0.55; filter: grayscale(1); }
+.spatial-hero.is-off .spatial-controls output,
+.spatial-hero.is-off .spatial-number input { color: var(--text-muted); }
+.spatial-hero.is-off .spatial-speaker[data-selected='true'] { outline-color: var(--text-muted); }
+
+.spatial-tracking__body { display: flex; flex-direction: column; gap: 14px; }
+.spatial-tracking__row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.spatial-tracking__row [role='group'] { border-radius: 7px; background: var(--surface-2); padding: 3px; }
+.spatial-tracking__row [role='radio'] { height: 30px; border-radius: 5px; padding: 0 14px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.spatial-tracking__row [role='radio'][data-state='on'] { background: var(--surface-hover); color: var(--foreground); }
+.spatial-tracking__status { display: inline-flex; flex: 1; align-items: center; gap: 8px; margin: 0; color: var(--text-secondary); font-size: 12.5px; }
+.spatial-tracking__status > span { width: 8px; height: 8px; border-radius: 50%; background: var(--status-neutral, var(--text-muted)); }
+.spatial-tracking__status[data-tracking='tracking'] > span { background: var(--status-success); }
+.spatial-tracking__status[data-tracking='waiting'] > span { background: var(--status-warning); }
+.spatial-tracking__status[data-tracking='stale'] > span,
+.spatial-tracking__status[data-tracking='error'] > span { background: var(--status-danger); }
+.spatial-tracking__problem { display: flex; align-items: center; gap: 16px; border-radius: 7px; background: color-mix(in srgb, var(--status-danger) 8%, var(--surface-2)); padding: 10px 12px; }
+.spatial-tracking__problem p { flex: 1; margin: 0; color: var(--text-secondary); font-size: 12px; }
+.spatial-tracking__setup { display: flex; flex-direction: column; gap: 10px; }
+.spatial-tracking__setup p { max-width: 90ch; margin: 0; color: var(--text-description); font-size: 12px; line-height: 1.55; }
+.spatial-port { display: flex; align-items: center; gap: 10px; color: var(--text-description); font-size: 11.5px; }
+.spatial-port input { width: 92px; height: 32px; border: 1px solid transparent; border-radius: 5px; background: var(--surface-interactive); padding: 0 10px; color: var(--foreground); font: inherit; font-size: 12.5px; }
+.spatial-port input:focus-visible { border-color: var(--border-strong); outline: none; }
+.spatial-port input[aria-invalid='true'] { border-color: var(--status-danger); }
+
+.spatial-about { color: var(--text-description); font-size: 12px; }
+.spatial-about summary { width: fit-content; cursor: pointer; color: var(--text-secondary); }
+.spatial-about summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.spatial-about p { max-width: 90ch; margin: 8px 0 0; line-height: 1.55; }
+
+@media (max-height: 960px) and (min-width: 900px) {
+  .spatial-hero,
+  .spatial-tracking { gap: 12px; padding: 14px 18px; }
+  .spatial-hero__body { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 24px; }
+  .spatial-map__board { width: min(40vh, 320px); }
+  .spatial-controls { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; }
+  .spatial-sliders,
+  .spatial-speaker-card { grid-column: 1 / -1; }
+  .spatial-speaker-card { gap: 8px; padding: 10px 12px; }
+  .spatial-speaker-card__fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .spatial-hero__body { grid-template-columns: minmax(0, 1fr); }
 }

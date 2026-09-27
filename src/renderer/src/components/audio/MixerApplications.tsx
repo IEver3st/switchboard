@@ -1,126 +1,163 @@
-import { memo } from 'react';
-import { AppWindow, CircleSlash2 } from 'lucide-react';
-import type { AudioApplication, AudioSupportLevel } from '../../../../shared/contracts';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { memo, useState, type CSSProperties, type DragEvent } from 'react';
+import { AlertTriangle, AppWindow, Check, Clock3 } from 'lucide-react';
+import type { AudioApplication } from '../../../../shared/contracts';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
+import { channelColor } from './channel-identity';
 
-const applicationDestinations: Array<{ id: AudioApplication['destination']; label: string }> = [
+export type AppDestination = AudioApplication['destination'];
+
+const destinations: Array<{ id: AppDestination; label: string }> = [
   { id: 'game', label: 'Game' },
   { id: 'chat', label: 'Chat' },
   { id: 'media', label: 'Media' },
 ];
 
-function supportLabel(support: AudioSupportLevel): string {
-  if (support === 'simulation') return 'Prototype';
-  if (support === 'unavailable') return 'Unavailable';
-  return 'Ready';
+const DRAG_TYPE = 'application/x-switchboard-audio-app';
+
+/** The channel a chip belongs in: where it was sent (while waiting), else where it plays. */
+export function applicationChannel(application: AudioApplication): AppDestination | null {
+  if (application.routingState === 'pending-restart' && application.preferredDestination) return application.preferredDestination;
+  return application.currentDestination ?? application.preferredDestination ?? null;
 }
 
-export const MixerApplications = memo(function MixerApplications({
-  channelLabel,
-  applications,
-  routingSupport,
-  unavailableReason,
-  pending,
-  onApplicationRoute,
-}: {
-  channelLabel: string;
-  applications: AudioApplication[];
-  routingSupport: AudioSupportLevel;
-  unavailableReason?: string | null;
-  pending: boolean;
-  onApplicationRoute: (applicationId: string, destination: AudioApplication['destination']) => void;
-}) {
-  const sortedApplications = [...applications].sort((left, right) => {
+function sortApplications(applications: AudioApplication[]): AudioApplication[] {
+  return [...applications].sort((left, right) => {
     if (left.active !== right.active) return left.active ? -1 : 1;
     return left.name.localeCompare(right.name);
   });
-  const activeCount = applications.filter((application) => application.active && application.currentDestination !== null).length;
-  const canRoute = routingSupport !== 'unavailable' && !pending;
+}
+
+function applicationStatus(application: AudioApplication, channel: AppDestination | null): string {
+  if (application.routingError) return application.routingError;
+  const label = destinations.find((destination) => destination.id === channel)?.label;
+  if (application.routingState === 'pending-restart') {
+    return `Waiting for audio on ${label ?? 'the new channel'}. Restart the app if it keeps the old output.`;
+  }
+  if (!label) return application.active ? 'Playing, not routed yet.' : 'Idle, not routed yet.';
+  return application.active ? `Playing through ${label}.` : `Routed to ${label}, idle.`;
+}
+
+/**
+ * A strip's application well. Apps are chips: drag one to another well, or
+ * open it to pick a channel from the keyboard. Only routed channels accept
+ * drops; the host cannot return an app to "unrouted".
+ */
+export const AppRoutingWell = memo(function AppRoutingWell({
+  title,
+  destination,
+  applications,
+  disabled,
+  onApplicationRoute,
+}: {
+  title: string;
+  destination: AppDestination | null;
+  applications: AudioApplication[];
+  disabled: boolean;
+  onApplicationRoute: (applicationId: string, destination: AppDestination) => void;
+}) {
+  const [dropping, setDropping] = useState(false);
+  const acceptsDrop = destination !== null && !disabled;
+
+  const onDragOver = (event: DragEvent<HTMLElement>) => {
+    if (!acceptsDrop || !event.dataTransfer.types.includes(DRAG_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (!dropping) setDropping(true);
+  };
+
+  const onDrop = (event: DragEvent<HTMLElement>) => {
+    setDropping(false);
+    if (!acceptsDrop) return;
+    const applicationId = event.dataTransfer.getData(DRAG_TYPE);
+    if (!applicationId) return;
+    event.preventDefault();
+    const application = applications.find((candidate) => candidate.id === applicationId);
+    if (application && applicationChannel(application) === destination) return;
+    onApplicationRoute(applicationId, destination);
+  };
 
   return (
-    <section className="mixer-channel__apps" aria-label={`${channelLabel} applications`}>
-      <div className="mixer-channel__apps-heading">
-        <span>Applications</span>
-        {routingSupport === 'available' ? (
-          <Badge variant={activeCount > 0 ? 'success' : 'default'}>
-            {activeCount > 0
-              ? `${activeCount}${activeCount < applications.length ? `/${applications.length}` : ''} live`
-              : `${applications.length} available`}
-          </Badge>
+    <section
+      className={cn('app-well', dropping && 'is-dropping', destination === null && 'app-well--pool')}
+      aria-label={title}
+      onDragOver={onDragOver}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+      }}
+      onDrop={onDrop}
+    >
+      <h4 className="app-well__title">{title}</h4>
+      <div className="app-well__body">
+        {applications.length === 0 ? (
+          <p className="app-well__empty">{destination === null ? 'Every app is routed.' : 'Drop apps here'}</p>
         ) : (
-          <span className="mixer-channel__apps-support" data-state={routingSupport}>
-            {supportLabel(routingSupport)}
-          </span>
+          <ul className="app-well__list">
+            {sortApplications(applications).map((application) => (
+              <li key={application.id}>
+                <AppChip application={application} disabled={disabled} onApplicationRoute={onApplicationRoute} />
+              </li>
+            ))}
+          </ul>
         )}
       </div>
-
-      {routingSupport === 'unavailable' ? (
-        <div className="mixer-channel__apps-empty" title={unavailableReason ?? undefined}>
-          <CircleSlash2 className="size-3.5" aria-hidden="true" />
-          <span>App routing unavailable</span>
-        </div>
-      ) : sortedApplications.length === 0 ? (
-        <div className="mixer-channel__apps-empty">
-          <AppWindow className="size-3.5" aria-hidden="true" />
-          <span>Play audio in an app to assign it</span>
-        </div>
-      ) : (
-        <ScrollArea className="mixer-channel__apps-scroll">
-          <ul className="mixer-channel__app-list">
-            {sortedApplications.map((application) => {
-              const restartRequired = application.routingState === 'pending-restart';
-              const appliedChannel = applicationDestinations.find(channel => channel.id === application.currentDestination)?.label;
-              const status = restartRequired ? 'Restart required'
-                : !appliedChannel ? 'Not assigned'
-                : application.active ? `Playing through ${appliedChannel}.` : `Assigned to ${appliedChannel}; currently idle.`;
-
-              return (
-                <li
-                  key={application.id}
-                  className={cn(!application.active && 'is-inactive')}
-                  title={restartRequired
-                    ? `Restart ${application.name} to move it to ${application.destination}.`
-                    : undefined}
-                >
-                  <span
-                    className={cn('mixer-channel__app-activity', application.active && application.currentDestination !== null && 'is-active')}
-                    aria-hidden="true"
-                  />
-                  {application.iconDataUrl ? (
-                    <img src={application.iconDataUrl} alt="" className="mixer-channel__app-icon" />
-                  ) : (
-                    <AppWindow className="mixer-channel__app-icon" aria-hidden="true" />
-                  )}
-                  <span className="mixer-channel__app-copy">
-                    <span className="mixer-channel__app-name">{application.name}</span>
-                    <span className={cn('mixer-channel__app-state', restartRequired && 'is-pending')}>{status}</span>
-                  </span>
-                  <Select
-                    value={application.currentDestination === null && application.routingState !== 'pending-restart' ? '' : application.destination}
-                    disabled={!canRoute}
-                    onValueChange={(destination) => onApplicationRoute(
-                      application.id,
-                      destination as AudioApplication['destination'],
-                    )}
-                  >
-                    <SelectTrigger className="mixer-channel__route-select" aria-label={`Route ${application.name} to channel`}>
-                      <SelectValue placeholder="Choose channel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {applicationDestinations.map((destination) => (
-                        <SelectItem key={destination.id} value={destination.id}>{destination.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </li>
-              );
-            })}
-          </ul>
-        </ScrollArea>
-      )}
     </section>
   );
 });
+
+function AppChip({
+  application,
+  disabled,
+  onApplicationRoute,
+}: {
+  application: AudioApplication;
+  disabled: boolean;
+  onApplicationRoute: (applicationId: string, destination: AppDestination) => void;
+}) {
+  const channel = applicationChannel(application);
+  const waiting = application.routingState === 'pending-restart';
+  const failed = Boolean(application.routingError);
+  const status = applicationStatus(application, channel);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <button
+          type="button"
+          className={cn('app-chip', !application.active && 'is-idle', waiting && 'is-waiting', failed && 'is-failed', channel === null && 'is-unrouted')}
+          style={channel ? { '--chip-color': channelColor(channel) } as CSSProperties : undefined}
+          draggable={!disabled}
+          onDragStart={(event) => {
+            event.dataTransfer.setData(DRAG_TYPE, application.id);
+            event.dataTransfer.effectAllowed = 'move';
+          }}
+          title={`${application.name}. ${status}`}
+          aria-label={`${application.name}. ${status} Choose a channel.`}
+        >
+          {application.iconDataUrl ? (
+            <img src={application.iconDataUrl} alt="" className="app-chip__icon" draggable={false} />
+          ) : (
+            <AppWindow className="app-chip__icon" aria-hidden="true" />
+          )}
+          <span className="app-chip__name">{application.name}</span>
+          {failed ? <AlertTriangle className="app-chip__state" aria-hidden="true" />
+            : waiting ? <Clock3 className="app-chip__state" aria-hidden="true" /> : null}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-40">
+        <DropdownMenuLabel className="app-chip__menu-label">Route {application.name} to</DropdownMenuLabel>
+        {destinations.map((destination) => (
+          <DropdownMenuItem
+            key={destination.id}
+            disabled={destination.id === channel}
+            onSelect={() => onApplicationRoute(application.id, destination.id)}
+          >
+            <span className="app-chip__menu-dot" style={{ background: channelColor(destination.id) }} aria-hidden="true" />
+            {destination.label}
+            {destination.id === channel ? <Check className="ml-auto size-3.5" aria-hidden="true" /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

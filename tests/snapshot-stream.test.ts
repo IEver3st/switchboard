@@ -2,6 +2,25 @@ import { expect, test } from 'bun:test';
 import { StateStore } from '../src/main/services/state-store';
 import { SnapshotPublisher, SnapshotReceiver } from '../src/shared/snapshot-stream';
 
+test('a subscription baseline shares canonical branches with its first delta without exposing mutable state', () => {
+  const store = new StateStore('unused-state-stream.json');
+  const publisher = new SnapshotPublisher();
+  const baseline = store.getPublishedSnapshot();
+  publisher.next(baseline, true);
+  const frames: ReturnType<SnapshotPublisher['next']>[] = [];
+  store.subscribe(snapshot => frames.push(publisher.next(snapshot)));
+  store.setPerformance({ ...store.read('performance'), totalMemoryMb: 42 });
+  const patch = frames[0]!;
+  expect(patch.type).toBe('patch');
+  if (patch.type !== 'patch') throw new Error('Expected a branch patch');
+  expect(Object.keys(patch.changes)).toEqual(['performance']);
+  expect(store.getPublishedSnapshot().clips).toBe(baseline.clips);
+  expect(() => { baseline.settings.closeToTray = false; }).toThrow();
+  const editable = store.get();
+  editable.settings.closeToTray = false;
+  expect(store.read('settings').closeToTray).toBe(true);
+});
+
 test('transient publications preserve the library and send only validated changed branches', () => {
   const store = new StateStore('unused-state-stream.json');
   const publisher = new SnapshotPublisher();

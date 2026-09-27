@@ -32,7 +32,8 @@ export function parseAudioEndpoints(value: unknown): AudioDevice[] {
     isDefault: endpoint.isDefault,
     available: true,
     formFactor: endpoint.formFactor,
-    isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name),
+    isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name)
+      || /VB-Audio Hi-Fi Cable/i.test(endpoint.interfaceName ?? endpoint.name),
     isSwitchboard: endpoint.isSwitchboard,
   }));
 }
@@ -56,6 +57,11 @@ export class AudioEndpointDiscovery {
     delete environment.ELECTRON_RUN_AS_NODE;
     const stdout = await run(command, commandArguments, cwd, environment, this.options.timeoutMs ?? 15_000);
     return parseAudioEndpoints(JSON.parse(stdout));
+  }
+
+  public setupCommand(): { command: string; arguments: string[]; cwd: string } {
+    const resolved = this.resolveCommand();
+    return { ...resolved, arguments: [...resolved.arguments.slice(0, -1), '--audio-dependency-setup'] };
   }
 
   private resolveCommand(): { command: string; arguments: string[]; cwd: string } {

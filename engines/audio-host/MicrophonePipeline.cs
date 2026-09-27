@@ -77,7 +77,7 @@ internal sealed class MicrophonePipeline : IDisposable
             inputDevice = enumerator.GetDevice(inputId);
             if (inputDevice.State != DeviceState.Active || inputDevice.DataFlow != DataFlow.Capture)
                 throw new InvalidOperationException("The selected microphone is not available.");
-            if (EndpointCatalog.IsSwitchboard(inputDevice.FriendlyName, inputDevice.DeviceFriendlyName))
+            if (IsTransport(inputDevice))
                 throw new InvalidOperationException("Choose a physical microphone instead of a Switchboard transport endpoint.");
             capture = new WasapiRecorderBuilder()
                 .WithDevice(inputDevice)
@@ -111,6 +111,11 @@ internal sealed class MicrophonePipeline : IDisposable
     public string InputDeviceId { get; }
     public string InputFormat { get; }
     public int InputSampleRate { get; }
+    private static bool IsTransport(MMDevice device) =>
+        EndpointCatalog.IsSwitchboard(device.FriendlyName, device.DeviceFriendlyName)
+        || string.Equals(device.DeviceFriendlyName, CableEndpointCatalog.InterfaceName, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(device.DeviceFriendlyName, MicrophoneCableCatalog.InterfaceName, StringComparison.OrdinalIgnoreCase);
+
     public string? MonitoringDeviceId { get; private set; }
     public bool CaptureStopped => captureStopped;
     public string? LastError => Volatile.Read(ref lastError) ?? Volatile.Read(ref monitoringError) ?? suppressor.LastError;
@@ -155,9 +160,9 @@ internal sealed class MicrophonePipeline : IDisposable
 
     public void MarkRecovery() => Interlocked.Increment(ref recoveries);
 
-    public void ResetRoutingBuffers()
+    public void ResetRoutingBuffers(bool includeVirtualMicrophone = true)
     {
-        virtualMicrophoneSamples.DiscardBufferedSamples();
+        if (includeVirtualMicrophone) virtualMicrophoneSamples.DiscardBufferedSamples();
         streamMicrophoneSamples.DiscardBufferedSamples();
         clipMicrophoneSamples.DiscardBufferedSamples();
     }
@@ -181,7 +186,7 @@ internal sealed class MicrophonePipeline : IDisposable
             using var playbackEnumerator = new MMDeviceEnumerator();
             using var outputDevice = playbackEnumerator.GetDevice(outputId);
             if (outputDevice.State != DeviceState.Active) throw new InvalidOperationException("The selected microphone test output is unavailable.");
-            if (EndpointCatalog.IsSwitchboard(outputDevice.FriendlyName, outputDevice.DeviceFriendlyName))
+            if (IsTransport(outputDevice))
                 throw new InvalidOperationException("Choose a physical output for microphone testing.");
 
             var provider = new RecordedWaveProvider(testSamples, TestSampleCount, Volatile.Read(ref testOutputVolume));
@@ -359,7 +364,7 @@ internal sealed class MicrophonePipeline : IDisposable
             outputDevice = enumerator.GetDevice(settings.MonitoringDeviceId);
             if (outputDevice.State != DeviceState.Active || outputDevice.DataFlow != DataFlow.Render)
                 throw new InvalidOperationException("The selected monitoring output is not available.");
-            if (EndpointCatalog.IsSwitchboard(outputDevice.FriendlyName, outputDevice.DeviceFriendlyName))
+            if (IsTransport(outputDevice))
                 throw new InvalidOperationException("Choose a physical output for microphone monitoring.");
             var provider = new ProcessedWaveProvider(processedSamples);
             provider.SetVolume(settings.Monitoring);

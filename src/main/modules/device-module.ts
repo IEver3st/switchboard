@@ -4,6 +4,7 @@ import type {
   DeviceAppearanceOverride,
   DeviceControlChange,
   MouseBatteryLightingPolicy,
+  LightingCapability,
 } from '../../shared/contracts';
 
 export interface DeviceDiscoveryContext {
@@ -15,6 +16,7 @@ export interface DeviceDiscoveryContext {
 
 export interface DeviceControlResult {
   confirmedChanges: DeviceControlChange[];
+  confirmedLighting?: LightingCapability;
 }
 
 export interface DeviceModule {

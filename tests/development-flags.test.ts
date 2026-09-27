@@ -3,6 +3,11 @@ import { getDevLaunchOptions } from '../scripts/dev-options.mjs';
 import { requestsDemoUpdate } from '../src/main/development-flags';
 
 describe('development flags', () => {
+  it('consumes the feedback opt-out without forwarding it to Vite', () => {
+    const launch = getDevLaunchOptions(['--no-feedback', '--host'], {});
+    expect(launch.environment.SWITCHBOARD_DEV_FEEDBACK).toBe('0');
+    expect(launch.forwardedArguments).toEqual(['--host']);
+  });
   it('recognizes the update demo from first- and second-instance launch data', () => {
     expect(requestsDemoUpdate(['electron', '.', '--demo-update'], false)).toBeTrue();
     expect(requestsDemoUpdate(['electron', '.'], false, { demoUpdate: true })).toBeTrue();

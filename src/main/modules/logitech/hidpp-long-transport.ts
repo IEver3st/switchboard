@@ -14,6 +14,13 @@ const replyDrainDurationMs = 20;
 
 type NotificationListener = (report: Buffer) => void;
 
+export class HidppRequestTimeoutError extends Error {
+  constructor(featureIndex: number, functionId: number) {
+    super(`HID++ request timed out for feature 0x${featureIndex.toString(16).padStart(2, '0')}, function ${functionId}.`);
+    this.name = 'HidppRequestTimeoutError';
+  }
+}
+
 interface PendingRequest {
   deviceIndex: number;
   featureIndex: number;
@@ -112,7 +119,7 @@ export class HidppLongTransport {
       const timer = setTimeout(() => {
         if (this.pending?.resolve !== resolve) return;
         this.pending = null;
-        reject(new Error(`HID++ request timed out for feature 0x${featureIndex.toString(16).padStart(2, '0')}, function ${functionId}.`));
+        reject(new HidppRequestTimeoutError(featureIndex, functionId));
       }, timeoutMs);
       this.pending = { deviceIndex, featureIndex, address, resolve, reject, timer };
       void this.handle.write(report).catch((error) => {

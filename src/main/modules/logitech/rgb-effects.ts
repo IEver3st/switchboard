@@ -423,7 +423,7 @@ export class LogitechRgbEffectsController {
     if (!this.batteryOverride) {
       this.restoreSoftwareLighting = this.hasSelection;
       if (!this.claimed) {
-        const power = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
+        const power = await this.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
         if (power[5] !== 1 && power[5] !== 3) {
           throw new Error('The mouse RGB power state is unavailable; battery lighting was not changed.');
         }
@@ -441,17 +441,12 @@ export class LogitechRgbEffectsController {
     for (const cluster of this.clusters) {
       const effect = preferredEffect(cluster, 'static');
       if (!effect) throw new Error('The mouse does not support a static red battery warning.');
-      await this.transport.request(this.deviceIndex, this.featureIndex, 1,
+      await this.request(this.deviceIndex, this.featureIndex, 1,
         [cluster.index, effect.index, ...buildEffectParameters(effect, value === 'red' ? '#ff0000' : value, 25, 50, 'right'), persistUntilRelease]);
     }
     if (this.perKeyFeatureIndex !== null && this.zoneColors.size > 0) {
       await this.preparePerKey();
-      for (const zoneId of this.zoneColors.keys()) {
-        const color = value === 'red' ? '#ff0000' : value;
-        const rgb = [1, 3, 5].map(offset => Math.round(parseInt(color.slice(offset, offset + 2), 16) * 0.25));
-        await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 1, [zoneId, ...rgb]);
-      }
-      await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 7, [0]);
+      await this.paintZoneFrame(value === 'red' ? '#ff0000' : value, 25);
     }
     await this.confirmPower(true);
   }
@@ -469,8 +464,8 @@ export class LogitechRgbEffectsController {
         await this.restoreSelection();
         return;
       }
-      const ownership = await this.transport.request(this.deviceIndex, this.featureIndex, 5, [0, 0, 0]);
-      const power = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
+      const ownership = await this.request(this.deviceIndex, this.featureIndex, 5, [0, 0, 0]);
+      const power = await this.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
       const enabled = this.batteryOverride ? (this.batteryValue ?? this.statusColor) !== 'off' : this.enabled;
       if ((ownership[5]! & 3) !== 3 || power[5] !== (enabled ? 1 : 3)) {
         this.invalidate();
@@ -492,7 +487,7 @@ export class LogitechRgbEffectsController {
 
   public async release(force = false): Promise<void> {
     if (!this.claimed && !force) return;
-    await this.transport.request(this.deviceIndex, this.featureIndex, 5, softwareControlReleased, 350);
+    await this.request(this.deviceIndex, this.featureIndex, 5, softwareControlReleased, 350);
     this.claimed = false;
     this.perKeyPrepared = false;
     this.acknowledged = false;
@@ -505,16 +500,27 @@ export class LogitechRgbEffectsController {
   private async claim(): Promise<void> {
     // Sleep or another client can revoke ownership without closing this HID
     // endpoint. Reclaim on changes instead of trusting cached ownership.
-    await this.transport.request(this.deviceIndex, this.featureIndex, 5, softwareControlActive);
+    await this.request(this.deviceIndex, this.featureIndex, 5, softwareControlActive);
     this.claimed = true;
     this.perKeyPrepared = false;
+  }
+
+  private async request(...args: Parameters<LogitechRgbTransport['request']>): Promise<Buffer> {
+    try {
+      return await this.transport.request(...args);
+    } catch (error) {
+      // A failed packet may follow successful writes. Power and ownership can
+      // still match, so they cannot prove the old effect survived the failure.
+      this.invalidate('The lighting change was not confirmed. Switchboard will restore the last confirmed selection.');
+      throw error;
+    }
   }
 
   private async confirmPower(enabled: boolean): Promise<void> {
     const requestedMode = enabled ? 1 : 3;
     try {
-      await this.transport.request(this.deviceIndex, this.featureIndex, 8, [1, requestedMode, 0]);
-      const response = await this.transport.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
+      await this.request(this.deviceIndex, this.featureIndex, 8, [1, requestedMode, 0]);
+      const response = await this.request(this.deviceIndex, this.featureIndex, 8, [0, 0, 0]);
       if (response[5] !== requestedMode) throw new Error('The mouse did not confirm the requested RGB power state.');
     } catch (error) {
       this.acknowledged = false;
@@ -526,7 +532,7 @@ export class LogitechRgbEffectsController {
   private async applyOff(): Promise<void> {
     for (const cluster of this.clusters) {
       const off = preferredEffect(cluster, 'off');
-      await this.transport.request(
+      await this.request(
         this.deviceIndex,
         this.featureIndex,
         1,
@@ -546,7 +552,7 @@ export class LogitechRgbEffectsController {
         this.speed,
         this.direction,
       );
-      await this.transport.request(
+      await this.request(
         this.deviceIndex,
         this.featureIndex,
         1,
@@ -558,7 +564,7 @@ export class LogitechRgbEffectsController {
   private async preparePerKey(): Promise<void> {
     if (this.perKeyPrepared || this.perKeyFeatureIndex === null || this.zoneColors.size === 0) return;
     const firstCluster = this.clusters[0];
-    await this.transport.request(
+    await this.request(
       this.deviceIndex,
       this.featureIndex,
       1,
@@ -570,11 +576,23 @@ export class LogitechRgbEffectsController {
   private async paintAllZones(): Promise<void> {
     if (this.perKeyFeatureIndex === null || this.zoneColors.size === 0) return;
     await this.preparePerKey();
+    await this.paintZoneFrame();
+  }
+
+  private async paintZoneFrame(overrideColor?: string, brightness = this.brightness): Promise<void> {
+    // 0x8081 function 1 accepts four (zone, R, G, B) entries per long report.
+    // Eight separate requests made every color/brightness change wait on eight
+    // receiver round trips. Commit only after all bounded batches succeed.
+    let batch: number[] = [];
     for (const [zoneId, color] of this.zoneColors) {
-      const [red, green, blue] = scaledRgb(color, this.brightness);
-      await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 1, [zoneId, red, green, blue]);
+      batch.push(zoneId, ...scaledRgb(overrideColor ?? color, brightness));
+      if (batch.length === 16) {
+        await this.request(this.deviceIndex, this.perKeyFeatureIndex!, 1, batch);
+        batch = [];
+      }
     }
-    await this.transport.request(this.deviceIndex, this.perKeyFeatureIndex, 7, [0]);
+    if (batch.length) await this.request(this.deviceIndex, this.perKeyFeatureIndex!, 1, batch);
+    await this.request(this.deviceIndex, this.perKeyFeatureIndex!, 7, [0]);
   }
 }
 

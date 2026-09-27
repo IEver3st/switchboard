@@ -7,6 +7,46 @@ import { deviceCapabilitiesSchema } from '../src/shared/contracts';
 
 const infoBytes = [1, 5, 1, 5, 2, 11, 16, 0, 255, 10, 4];
 
+test('startup forces saved Off before profile reads and again after button monitoring starts', async () => {
+  const mouse = mouseFixture();
+  const open = spyOn(HidppLongTransport, 'open').mockResolvedValue(mouse.transport as unknown as HidppLongTransport);
+  let session: G502NativeSession | undefined;
+  try {
+    session = await G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, undefined);
+    await session.setControl({ type: 'lighting-enabled', enabled: false });
+    const saved = await session.getCapabilities();
+    await session.close();
+    mouse.resetLighting();
+    mouse.operations.length = 0;
+    session = await G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, saved);
+    const off = mouse.operations.indexOf('9/1');
+    expect(off).toBeGreaterThanOrEqual(0);
+    expect(off).toBeLessThan(mouse.operations.indexOf('4/0'));
+    const monitor = mouse.operations.indexOf('3/1');
+    expect(mouse.operations.slice(monitor + 1)).toContain('9/1');
+    expect(mouse.power()).toBe(3);
+    expect(mouse.commits()).toBe(0);
+  } finally { await session?.close(); open.mockRestore(); }
+});
+
+test('ordinary discovery checks profile selection without rereading flash ahead of lighting', async () => {
+  const mouse = mouseFixture();
+  const open = spyOn(HidppLongTransport, 'open').mockResolvedValue(mouse.transport as unknown as HidppLongTransport);
+  let session: G502NativeSession | undefined;
+  let clock: ReturnType<typeof spyOn> | undefined;
+  try {
+    session = await G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, undefined);
+    const now = Date.now();
+    clock = spyOn(Date, 'now').mockReturnValue(now + 5_000);
+    mouse.operations.length = 0;
+    await session.getCapabilities();
+    expect(mouse.operations.filter(operation => operation.startsWith('4/'))).toEqual(['4/2', '4/4']);
+    clock.mockReturnValue(now + 65_000);
+    await session.getCapabilities();
+    expect(mouse.operations).toContain('4/5');
+  } finally { clock?.mockRestore(); await session?.close(); open.mockRestore(); }
+});
+
 function mouseFixture() {
   let mode = 2;
   let power = 1;
@@ -65,7 +105,7 @@ function mouseFixture() {
         }
         if (fn === 8) {
           if (params[0] === 1) power = params[1]!;
-          return reply([0, corruptReadback ? 1 : power]);
+          return reply([0, corruptReadback ? (power === 1 ? 3 : 1) : power]);
         }
         return reply();
       }
@@ -112,7 +152,11 @@ test('Off stays live across both profile modes without writing onboard lighting 
   let session: G502NativeSession | undefined;
   try {
     session = await G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, undefined);
-    await session.setControl({ type: 'lighting-enabled', enabled: true });
+    const color = await session.setControl({ type: 'lighting-color', color: '#123456' });
+    expect(color?.confirmedLighting).toMatchObject({ color: '#123456', enabled: true, selectionSaved: true });
+    await session.setControl({ type: 'lighting-enabled', enabled: false });
+    const brightness = await session.setControl({ type: 'lighting-brightness', brightness: 60 });
+    expect(brightness?.confirmedLighting).toMatchObject({ brightness: 60, enabled: true });
     await Promise.all([
       session.setControl({ type: 'lighting-enabled', enabled: false }),
       session.getCapabilities(),
@@ -131,10 +175,17 @@ test('Off stays live across both profile modes without writing onboard lighting 
       expect(mouse.power()).toBe(3);
     }
     expect(mouse.sector).toEqual(before);
+    // An external same-profile edit after discovery must survive our mutation.
+    mouse.sector[200] = 42;
+    mouse.sector.writeUInt16BE(crcCcitt(mouse.sector.subarray(0, 253)), 253);
     await session.setControl({ type: 'dpi', value: 800 });
     expect(mouse.commits()).toBe(1);
+    expect(mouse.sector[200]).toBe(42);
     expect(mouse.sector.subarray(208, 252)).toEqual(before.subarray(208, 252));
     expect(mouse.power()).toBe(3);
+    await mouse.transport.request(1, 4, 1, [1]);
+    await expect(session.setControl({ type: 'dpi', value: 1600 })).rejects.toThrow('profile changed');
+    expect(mouse.commits()).toBe(1);
   } finally { await session?.close(); open.mockRestore(); }
 });
 

@@ -9,6 +9,33 @@ var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 };
 using var endpoints = new EndpointService();
 
+if (args.Contains("--probe-head-tracking", StringComparer.OrdinalIgnoreCase))
+{
+    var devices = HidHeadTrackingConnection.Discover();
+    Console.WriteLine(JsonSerializer.Serialize(new { compatibleSensors = devices.Select(d => d.Name).ToArray(), error = devices.Count == 0 ? SonyBluetoothTracking.SensorProblem() : null }, jsonOptions));
+    return;
+}
+if (args.Contains("--enable-headset-sensor", StringComparer.OrdinalIgnoreCase))
+{
+    try { Console.WriteLine(SonyBluetoothTracking.EnableConnectedHeadset()); }
+    catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }
+    return;
+}
+
+if (args.Contains("--audio-dependency-setup", StringComparer.OrdinalIgnoreCase))
+{
+    try
+    {
+        var line = await Console.In.ReadLineAsync() ?? "null";
+        if (line.Length > 8192) throw new InvalidOperationException("Audio setup request is too large.");
+        var previous = JsonSerializer.Deserialize<AudioDependencySetup.Configuration>(line, jsonOptions);
+        var result = previous is null ? AudioDependencySetup.Inspect() : AudioDependencySetup.Configure(previous);
+        Console.WriteLine(JsonSerializer.Serialize(result, jsonOptions));
+    }
+    catch (Exception exception) { Console.Error.WriteLine(exception.Message); Environment.ExitCode = 1; }
+    return;
+}
+
 if (args.Contains("--list-endpoints", StringComparer.OrdinalIgnoreCase))
 {
     Console.WriteLine(JsonSerializer.Serialize(endpoints.List(), jsonOptions));
@@ -78,6 +105,8 @@ async Task<bool> HandleLineAsync(string line)
             "configure" => engine.Configure(ParseSettings(payload)),
             "stop" => engine.Stop(),
             "status" => engine.GetSnapshot(),
+            "recenterSpatial" => engine.RecenterSpatial(),
+            "connectHeadsetTracking" => engine.ConnectHeadsetTracking(),
             "listEndpoints" => endpoints.List(),
             "listSessions" => ListSessions(),
             "routeApplication" => engine.RouteApplication(ParseRoute(payload)),

@@ -25,7 +25,13 @@ const runElectron = (script, ...arguments_) =>
     });
   });
 
-if (command === 'setup') {
+if (command === 'dev-feedback') {
+  await runElectron('scripts/verify-development-feedback.mjs', ...commandArguments);
+} else if (command === 'state-churn') {
+  await runElectron('scripts/measure-state-churn.mjs', ...commandArguments);
+} else if (command === 'window-lifecycle') {
+  await runElectron('scripts/measure-window-lifecycle.mjs', ...commandArguments);
+} else if (command === 'setup') {
   await runElectron('scripts/verify-setup-ui.mjs');
 } else if (command === 'capture') {
   await runElectron('scripts/capture-native-ui.mjs');

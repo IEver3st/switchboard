@@ -28,8 +28,6 @@ export class SetupScenes {
     if (input.automatic && !input.executable) throw new Error('Choose an executable for automatic switching.');
     if (input.automatic && snapshot.setup.scenes.some(scene => scene.id !== input.id && scene.automatic
       && scene.executable.toLowerCase() === input.executable.toLowerCase())) throw new Error('That application already has an automatic scene.');
-    if (input.includeAudio && snapshot.settings.developerMode !== true && (input.captureCurrent || !previous))
-      throw new Error('Enable Developer mode before including Audio in a scene.');
     const values = input.captureCurrent || !previous ? snapshotSceneValues(snapshot, input) : previous.values;
     if (!values.audio && !values.capture && !values.devices.length) throw new Error('Include at least one available part of your setup.');
     return this.store.update(draft => {

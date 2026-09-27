@@ -1,5 +1,5 @@
 import { huntsmanKeyboardFeatures } from './huntsman-features';
-import { idleDiagnosticRun, setupStateSchema } from './contracts';
+import { idleDiagnosticRun, setupStateSchema, spatialSettingsSchema } from './contracts';
 import type {
   AppUpdateState,
   AppSettings,
@@ -456,6 +456,10 @@ export const defaultDevices: Device[] = [
 ];
 
 export const defaultAudio: AudioState = {
+  dependencies: { phase: 'idle', cable: false, microphone: false, current: null, progress: null, error: null },
+  spatial: spatialSettingsSchema.parse({}),
+  automaticApplicationRouting: true,
+  excludedDeviceIds: [],
   enabled: false,
   outputDevice: '',
   microphoneDevice: '',
@@ -680,7 +684,7 @@ export const defaultSettings: AppSettings = {
   deviceAppearanceOverrides: {},
   mouseBatteryLighting: {},
   developerMode: false,
-  visibleWorkspaces: ['devices', 'audio', 'capture'],
+  visibleWorkspaces: ['devices', 'capture'],
   onboardingCompleted: false,
   seenNewSettings: [],
 };
@@ -688,7 +692,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.9.22',
+  currentVersion: '0.9.23',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -734,7 +738,7 @@ export const seedClips: Clip[] = [];
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
     setup: setupStateSchema.parse({}),
-    version: '0.9.22',
+    version: '0.9.23',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),

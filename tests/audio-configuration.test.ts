@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { AudioConfiguration, applyAudioPreferenceChanges } from '../src/main/services/audio-configuration';
 import { defaultAudio } from '../src/shared/defaults';
-import { audioHostSnapshotSchema, type AudioState, type AudioHostSnapshot } from '../src/shared/contracts';
+import { audioHostSnapshotSchema, audioStateSchema, type AudioState, type AudioHostSnapshot } from '../src/shared/contracts';
 
 function runtime(audio: AudioState): AudioHostSnapshot {
   return audioHostSnapshotSchema.parse({
@@ -100,5 +100,17 @@ describe('confirmed audio configuration', () => {
     await queue.update(audio => { audio.pathPresets[0]!.name = 'Renamed'; });
     expect(requests).toBe(0);
     expect(state.pathPresets[0]!.name).toBe('Renamed');
+  });
+
+  test('persists device exclusions without reconfiguring the host', async () => {
+    let requests = 0;
+    const { state, queue } = setup(async audio => { requests += 1; return runtime(audio); });
+    // Persisted state is always schema-normalized; the raw defaults are not.
+    Object.assign(state, audioStateSchema.parse(state));
+    await queue.update(audio => { audio.excludedDeviceIds = ['monitor-speakers']; });
+    expect(requests).toBe(0);
+    expect(state.excludedDeviceIds).toEqual(['monitor-speakers']);
+    await expect(queue.update(audio => { audio.excludedDeviceIds = ['a', 'a']; })).rejects.toThrow();
+    expect(state.excludedDeviceIds).toEqual(['monitor-speakers']);
   });
 });

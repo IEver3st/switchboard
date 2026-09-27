@@ -85,7 +85,7 @@ export function AudioModule({
         <span className="audio-module__state" aria-hidden="true">{disabled ? 'Unavailable' : checked ? 'On' : 'Off'}</span>
         <Switch
           checked={checked}
-          disabled={disabled || pending}
+          disabled={disabled}
           aria-label={switchLabel ?? title}
           onCheckedChange={onCheckedChange}
         />

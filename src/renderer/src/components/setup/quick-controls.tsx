@@ -43,7 +43,7 @@ export function QuickControls() {
   const { config, runtime } = capture;
   const guide = setup.preferences.verticalGuide;
   const glassSupported = new URLSearchParams(window.location.search).get('glassSupported') === '1';
-  const audioReady = settings.developerMode && audio.enabled && audio.host?.running === true;
+  const audioReady = audio.enabled && audio.host?.running === true;
   const mic = audio.buses.find(bus => bus.id === 'mic');
   const personal = audio.mixes.find(mix => mix.id === 'personal');
   const outputs = audio.devices.filter(device => device.direction === 'output' && device.available && !device.isSwitchboard);
@@ -95,8 +95,8 @@ export function QuickControls() {
     <main className="quick-body" ref={content} role="tabpanel" id={`quick-panel-${tab}`} aria-labelledby={`quick-tab-${tab}`} tabIndex={0}>
       {tab === 'audio' ? <>
         <QuickSection title="Audio engine">
-          <QuickToggle label="Enable Audio" checked={audio.enabled} disabled={changing || !settings.developerMode} onChange={enabled => void run(() => switchboardApi.setAudioEnabled(enabled))} />
-          {!audioReady ? <p className="quick-note">{!settings.developerMode ? 'Audio is available in Developer mode. Enable it in Settings → General.' : audio.enabled ? 'Audio is unavailable. Check the engine in Settings → Audio.' : 'Turn on Audio to adjust your mix.'}</p> : null}
+          <QuickToggle label="Enable Audio" checked={audio.enabled} disabled={changing} onChange={enabled => void run(() => switchboardApi.setAudioEnabled(enabled))} />
+          {!audioReady ? <p className="quick-note">{audio.enabled ? 'Audio is unavailable. Check the engine in Settings → Audio.' : 'Turn on Audio to adjust your mix.'}</p> : null}
         </QuickSection>
         <QuickSection title="Personal output" action={<Button variant="secondary" size="sm" aria-label={personal?.master.enabled ? 'Mute output' : 'Unmute output'} disabled={!audioReady || !personal || changing} onClick={() => void run(() => switchboardApi.setAudioMasterEnabled({ mixId: 'personal', enabled: !personal?.master.enabled }))}>{personal?.master.enabled ? <Volume2 size={15} /> : <VolumeX size={15} />}{personal?.master.enabled ? 'Mute' : 'Unmute'}</Button>}>
           {actions.includes('output') ? <QuickSelect label="Output device" value={output} disabled={!audioReady || changing || !outputs.length} onChange={deviceId => void run(() => switchboardApi.runQuickAction({ type: 'output', deviceId }))}>

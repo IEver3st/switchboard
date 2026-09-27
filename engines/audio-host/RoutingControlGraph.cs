@@ -214,8 +214,12 @@ internal sealed class StereoParametricEqualizer
 
     public void Configure(IReadOnlyList<EqualizerBandConfiguration> bands)
     {
-        count = Math.Min(filters.Length, bands.Count);
-        for (var index = 0; index < count; index++) filters[index].Configure(bands[index]);
+        count = 0;
+        for (var index = 0; index < Math.Min(filters.Length, bands.Count); index++)
+        {
+            var band = bands[index];
+            if (band.Enabled && MathF.Abs(band.GainDb) >= 0.001f) filters[count++].Configure(band);
+        }
         for (var index = count; index < filters.Length; index++) filters[index].SetIdentity();
     }
 

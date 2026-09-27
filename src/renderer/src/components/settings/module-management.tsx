@@ -272,8 +272,7 @@ function ModuleRow({
 }) {
   const Icon = moduleIcon(module);
   const available = !module.installed;
-  const developerLocked = module.kind === 'audio' && module.source !== 'local' && !developerMode && !module.enabled;
-  const canChangeState = !developerLocked && moduleCanChangeState(module);
+  const canChangeState = moduleCanChangeState(module);
   const meta = moduleMetadata(module);
   const detectedDevice = devices[0]?.displayName;
 
@@ -310,13 +309,12 @@ function ModuleRow({
         ) : (
           <>
             <span className="module-list-row__state" aria-live="polite">
-              {developerLocked ? 'Developer mode required' : moduleStateLabel(module)}
+              {moduleStateLabel(module)}
             </span>
             <Switch
               checked={module.enabled}
               disabled={pending || !canChangeState}
               aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}
-              title={developerLocked ? 'Enable Developer mode in Settings > General > Advanced to use Audio.' : undefined}
               onCheckedChange={onStateChange}
               data-module-toggle={module.id}
               className="no-drag"
@@ -348,8 +346,7 @@ function ModuleDetailsDialog({
   const devices = devicesForModule(module, snapshot.devices);
   const developer = module.author;
   const status = module.development?.status;
-  const developerLocked = module.kind === 'audio' && module.source !== 'local' && snapshot.settings.developerMode !== true && !module.enabled;
-  const canChangeState = !developerLocked && moduleCanChangeState(module);
+  const canChangeState = moduleCanChangeState(module);
 
   const openDeveloperTools = () => {
     onOpenChange(false);
@@ -438,12 +435,11 @@ function ModuleDetailsDialog({
           ) : <span />}
           {module.installed ? (
             <label className="module-details-dialog__toggle">
-              <span>{developerLocked ? 'Developer mode required' : moduleStateLabel(module)}</span>
+              <span>{moduleStateLabel(module)}</span>
               <Switch
                 checked={module.enabled}
                 disabled={pending || !canChangeState}
                 aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}
-                title={developerLocked ? 'Enable Developer mode in Settings > General > Advanced to use Audio.' : undefined}
                 onCheckedChange={onStateChange}
               />
             </label>

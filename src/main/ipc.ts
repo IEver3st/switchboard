@@ -1,5 +1,7 @@
+import { audioSetupActionSchema } from '../shared/contracts';
 import { debugDiagnostics } from './services/debug-diagnostics';
-import { SnapshotPublisher, snapshotStreamChannel } from '../shared/snapshot-stream';
+import { snapshotStreamChannel } from '../shared/snapshot-stream';
+import { WindowSnapshotDelivery } from './services/window-snapshot-delivery';
 import { developerDiagnostics } from './services/developer-diagnostics';
 import { app, ipcMain, nativeImage, globalShortcut, BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { join } from 'node:path';
@@ -31,9 +33,12 @@ import {
   renameClipInputSchema,
   renameAudioPresetInputSchema,
   setAudioChannelProcessorInputSchema,
+  setSpatialAudioInputSchema,
   setAudioMonitoringInputSchema,
   setAudioBusDeviceInputSchema,
   setAudioApplicationRouteInputSchema,
+  setAudioRoutingInputSchema,
+  setAudioDeviceExcludedInputSchema,
   setAudioBusEnabledInputSchema,
   setAudioBusGainInputSchema,
   setAudioChannelEnabledInputSchema,
@@ -131,7 +136,8 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   handle(ipcChannels.exportResourceDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.exportResourceDiagnostics());
   handle(ipcChannels.runDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.runDiagnostics());
   handle(ipcChannels.cancelDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.cancelDiagnostics());
-  const audioMeterDelivery = new AudioMeterDeliveryGate();
+  handle(ipcChannels.audioDependencySetup, getMainWindow, input => audioSetupActionSchema.parse(input), action => controller.audioDependencySetup(action));
+  const audioMeterDelivery = new AudioMeterDeliveryGate(() => controller.setAudioMeteringRequested(false));
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow, ipcChannels.getSnapshot);
     return debugDiagnostics.measureAsync('ipc:snapshot:get', async () => { return getStartupSnapshot(controller); });
@@ -212,6 +218,18 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setDeviceAppearanceOverrideInputSchema.parse(input),
     (input) => controller.setDeviceAppearanceOverride(input),
+  );
+  handle(
+    ipcChannels.setAudioRouting,
+    getMainWindow,
+    (input) => setAudioRoutingInputSchema.parse(input),
+    (input) => controller.setAudioRouting(input),
+  );
+  handle(
+    ipcChannels.setAudioDeviceExcluded,
+    getMainWindow,
+    (input) => setAudioDeviceExcludedInputSchema.parse(input),
+    (input) => controller.setAudioDeviceExcluded(input),
   );
   handle(
     ipcChannels.setAudioEnabled,
@@ -301,6 +319,20 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => audioPresetIdInputSchema.parse(input),
     (input) => controller.exportAudioPreset(input),
   );
+  handle(
+    ipcChannels.setSpatialAudio,
+    getMainWindow,
+    input => setSpatialAudioInputSchema.parse(input),
+    input => controller.setSpatialAudio(input),
+  );
+  ipcMain.handle(ipcChannels.recenterSpatialAudio, event => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.recenterSpatialAudio();
+  });
+  ipcMain.handle(ipcChannels.connectHeadsetTracking, event => {
+    assertTrustedSender(event, getMainWindow);
+    return controller.connectHeadsetTracking();
+  });
   handle(
     ipcChannels.setAudioChannelProcessor,
     getMainWindow,
@@ -505,15 +537,8 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
       const requested = z.boolean().parse(raw);
       const sender = event.sender;
       const senderId = sender.id;
-      const changed = audioMeterDelivery.setRequested(senderId, requested);
+      const changed = audioMeterDelivery.setRequested(senderId, requested, sender);
       if (changed) controller.setAudioMeteringRequested(requested);
-      if (requested && changed) {
-        const clearDemand = () => {
-          if (audioMeterDelivery.clear(senderId)) controller.setAudioMeteringRequested(false);
-        };
-        sender.once('did-start-navigation', clearDemand);
-        sender.once('destroyed', clearDemand);
-      }
     } catch (error) {
       console.error('Switchboard rejected an audio meter subscription request.', error);
     }
@@ -531,24 +556,38 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (exportId) => controller.cancelClipExport(exportId),
   );
 
-  const snapshotPublishers = new WeakMap<Electron.WebContents, SnapshotPublisher>();
+  const snapshotPublishers = new Map<Electron.WebContents, { delivery: WindowSnapshotDelivery; dispose: () => void }>();
+  let disposed = false;
   ipcMain.on(snapshotStreamChannel, (event: IpcMainEvent, raw: unknown) => {
     if (raw !== null) return;
     try { assertTrustedSender(event, getMainWindow, ipcChannels.getSnapshot); }
     catch { return; }
     void controller.initialize().then(() => {
-      if (event.sender.isDestroyed()) return;
-      const publisher = snapshotPublishers.get(event.sender) ?? new SnapshotPublisher();
-      snapshotPublishers.set(event.sender, publisher);
-      event.sender.send(ipcChannels.snapshotUpdated, publisher.next(controller.getSnapshot(), true));
+      if (disposed || event.sender.isDestroyed()) return;
+      const window = [getMainWindow(), getQuickWindow()].find(candidate => candidate?.webContents === event.sender);
+      if (!window || window.isDestroyed()) return;
+      let entry = snapshotPublishers.get(event.sender);
+      if (!entry) {
+        const sender = event.sender;
+        const delivery = new WindowSnapshotDelivery(window, frame => {
+          if (!sender.isDestroyed()) debugDiagnostics.measure('ipc:snapshot:send', () => sender.send(ipcChannels.snapshotUpdated, frame));
+        }, process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN === '1');
+        const dispose = (): void => {
+          delivery.dispose();
+          sender.removeListener('destroyed', dispose);
+          snapshotPublishers.delete(sender);
+        };
+        entry = { delivery, dispose };
+        snapshotPublishers.set(sender, entry);
+        sender.once('destroyed', dispose);
+      }
+      entry.delivery.publish(controller.getPublishedSnapshot(), true);
     }).catch(error => console.warn('Snapshot subscription could not initialize.', error));
   });
   const unsubscribe = controller.subscribe((snapshot) => {
     for (const window of [getMainWindow(), getQuickWindow()]) {
       if (!window || window.isDestroyed()) continue;
-      const publisher = snapshotPublishers.get(window.webContents);
-      if (!publisher) continue;
-      debugDiagnostics.measure('ipc:snapshot:send', () => window.webContents.send(ipcChannels.snapshotUpdated, publisher.next(snapshot)));
+      snapshotPublishers.get(window.webContents)?.delivery.publish(snapshot);
     }
   });
   const unsubscribeAudioMeters = controller.subscribeAudioMeters((frame) => {
@@ -568,7 +607,11 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
 
   return () => {
     releaseRecording();
+
+    disposed = true;
+    for (const entry of snapshotPublishers.values()) entry.dispose();
     getQuickWindow = () => null;
+    audioMeterDelivery.dispose();
     controller.setAudioMeteringRequested(false);
     unsubscribe();
     unsubscribeAudioMeters();

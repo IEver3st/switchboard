@@ -9,9 +9,10 @@ internal static class CableEndpointCatalog
         endpoint.Flow == "render"
         && string.Equals(endpoint.InterfaceName, InterfaceName, StringComparison.OrdinalIgnoreCase)
         && (EndpointCatalog.FriendlyNameMatches(endpoint.Name, "CABLE Input")
+            || EndpointCatalog.FriendlyNameMatches(endpoint.Name, "Switchboard Mixer")
             || EndpointCatalog.FriendlyNameMatches(endpoint.Name, "Speakers")));
 
-    public static bool IsVirtual(AudioEndpoint endpoint) => endpoint.IsSwitchboard
+    public static bool IsVirtual(AudioEndpoint endpoint) => endpoint.IsSwitchboard || MicrophoneCableCatalog.IsCable(endpoint)
         || (endpoint.InterfaceName ?? endpoint.Name).Contains("Virtual", StringComparison.OrdinalIgnoreCase);
 
     public static VirtualDriverState Inspect(IReadOnlyCollection<AudioEndpoint> endpoints)
@@ -22,6 +23,6 @@ internal static class CableEndpointCatalog
         return new VirtualDriverState(input is null ? "not-installed" : "ready", InterfaceName,
             input is null ? ["CABLE Input (render)"] : [], available,
             input is null ? "Install the free standard VB-CABLE and restart Windows to enable application mixing."
-                : "VB-CABLE application mixing: personal and clip mixes. Separate virtual microphone and stream outputs are unavailable with one cable.");
+                : "VB-CABLE application mixing: personal and clip mixes. Processed microphone output uses a separate free Hi-Fi Cable. A separate stream output is unavailable.");
     }
 }

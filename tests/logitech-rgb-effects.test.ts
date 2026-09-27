@@ -35,13 +35,11 @@ describe('Logitech temporary battery lighting', () => {
     const original = controller.buildCapability(true);
     requests.length = 0;
     await controller.setBatteryOverride('red');
-    expect(requests.filter(request => request.featureIndex === perKeyFeatureIndex && request.functionId === 1)
-      .map(request => request.parameters)).toEqual([[1, 64, 0, 0], [2, 64, 0, 0], [8, 64, 0, 0]]);
+    expect(zoneWrites(requests)).toEqual([[1, 64, 0, 0], [2, 64, 0, 0], [8, 64, 0, 0]]);
     expect(controller.buildCapability(true)).toEqual(original);
     requests.length = 0;
     await controller.setBatteryOverride(null);
-    expect(requests.find(request => request.featureIndex === perKeyFeatureIndex && request.functionId === 1 && request.parameters[0] === 2)
-      ?.parameters).toEqual([2, 11, 31, 52]);
+    expect(zoneWrites(requests).find(parameters => parameters[0] === 2)).toEqual([2, 11, 31, 52]);
     expect(controller.buildCapability(true)).toEqual(original);
     expect(requests.every(request => [rgbFeatureIndex, perKeyFeatureIndex].includes(request.featureIndex))).toBe(true);
   });
@@ -76,6 +74,41 @@ describe('Logitech temporary battery lighting', () => {
 });
 
 describe('Logitech device-reported RGB effects', () => {
+  test('packs eight zones into two bounded reports and never commits a partial frame', async () => {
+    const { controller, requests, transport } = await probeController(undefined, [1, 2, 3, 4, 5, 6, 7, 8]);
+    requests.length = 0;
+    await controller.setColor('#123456');
+    const frames = requests.filter(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1);
+    expect(frames.map(item => item.parameters.length)).toEqual([16, 16]);
+    expect(zoneWrites(requests).map(item => item[0])).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    const request = transport.request.bind(transport);
+    transport.request = async (...args) => {
+      if (args[1] === perKeyFeatureIndex && args[2] === 1 && args[3]?.[0] === 5) throw new Error('second batch failed');
+      return request(...args);
+    };
+    requests.length = 0;
+    await expect(controller.setColor('#abcdef')).rejects.toThrow('second batch failed');
+    expect(requests.some(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 7)).toBe(false);
+    expect(controller.buildCapability(true)).toMatchObject({ color: '#123456', state: 'unknown' });
+  });
+  test('a partially rejected effect invalidates acknowledgement and restores the last confirmed selection', async () => {
+    const { controller, transport, requests } = await probeController();
+    await controller.setColor('#123456');
+    const request = transport.request.bind(transport);
+    let fail = true;
+    transport.request = async (...args) => {
+      if (fail && args[1] === perKeyFeatureIndex && args[2] === 1) throw new Error('zone write failed');
+      return request(...args);
+    };
+    await expect(controller.setColor('#abcdef')).rejects.toThrow('zone write failed');
+    expect(controller.buildCapability(true)).toMatchObject({ color: '#123456', state: 'unknown', selectionSaved: true });
+    fail = false;
+    requests.length = 0;
+    await controller.refreshState();
+    expect(controller.buildCapability(true)).toMatchObject({ color: '#123456', state: 'acknowledged' });
+    expect(requests.some(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1)).toBe(true);
+  });
+
   test('revoked live ownership automatically restores the selected Off state', async () => {
     const { controller, transport } = await probeController();
     await controller.setEnabled(false);
@@ -151,7 +184,7 @@ describe('Logitech device-reported RGB effects', () => {
     await controller.restoreSelection();
     expect((await transport.request(1, rgbFeatureIndex, 8, [0, 0, 0]))[5]).toBe(3);
     await controller.setBatteryOverride(null);
-    expect(requests.findLast(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1)?.parameters.slice(1)).toEqual([14, 54, 30]);
+    expect(zoneWrites(requests).at(-1)?.slice(1)).toEqual([14, 54, 30]);
     await controller.setStatusOverride(null);
     expect(controller.buildCapability(true)).toMatchObject({ enabled: true, activeEffectId: 'wave', state: 'acknowledged' });
     expect((await transport.request(1, rgbFeatureIndex, 5, [0, 0, 0]))[5]).toBe(3);
@@ -229,16 +262,16 @@ describe('Logitech device-reported RGB effects', () => {
     requests.length = 0;
 
     await controller.setZoneColor('zone-2', '#123456');
-    await controller.setEnabled(false);
-
-    const zoneWrites = requests.filter((request) => request.featureIndex === perKeyFeatureIndex && request.functionId === 1);
-    expect(zoneWrites.map((request) => request.parameters[0])).toEqual([1, 2, 8]);
-    expect(zoneWrites.find((request) => request.parameters[0] === 2)?.parameters).toEqual([2, 18, 52, 86]);
+    const zones = zoneWrites(requests);
+    expect(zones.map(parameters => parameters[0])).toEqual([1, 2, 8]);
+    expect(zones.find(parameters => parameters[0] === 2)).toEqual([2, 18, 52, 86]);
+    expect(requests.filter(request => request.featureIndex === perKeyFeatureIndex && request.functionId === 1)).toHaveLength(1);
     expect(requests.some((request) => (
       request.featureIndex === perKeyFeatureIndex
       && request.functionId === 7
       && request.parameters[0] === 0
     ))).toBe(true);
+    await controller.setEnabled(false);
     const off = requests.findLast(request => request.functionId === 1 && request.featureIndex === rgbFeatureIndex);
     expect(off).toEqual({ featureIndex: rgbFeatureIndex, functionId: 1, parameters: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] });
   });
@@ -249,20 +282,23 @@ test('status cues yield to battery cutoff and restore the exact selected effect 
   await controller.setEffect('wave');
   const before = controller.buildCapability(true);
   await controller.setStatusOverride('#36d978');
-  const green = requests.findLast(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1);
-  expect(green?.parameters.slice(1)).toEqual([14, 54, 30]);
+  expect(zoneWrites(requests).at(-1)?.slice(1)).toEqual([14, 54, 30]);
   await controller.setBatteryOverride('off');
   await controller.setStatusOverride('#ffb347');
   expect(requests.findLast(item => item.featureIndex === rgbFeatureIndex && item.functionId === 8 && item.parameters[0] === 1)?.parameters).toEqual([1, 3, 0]);
   await controller.setBatteryOverride(null);
-  const amber = requests.findLast(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1);
-  expect(amber?.parameters.slice(1)).toEqual([64, 45, 18]);
+  expect(zoneWrites(requests).at(-1)?.slice(1)).toEqual([64, 45, 18]);
   await controller.setStatusOverride(null);
   expect(controller.buildCapability(true)).toEqual(before);
   expect(requests.every(item => item.featureIndex === rgbFeatureIndex || item.featureIndex === perKeyFeatureIndex)).toBe(true);
 });
 
-async function probeController(previous?: LightingCapability): Promise<{
+function zoneWrites(requests: RequestRecord[]): number[][] {
+  return requests.filter(item => item.featureIndex === perKeyFeatureIndex && item.functionId === 1)
+    .flatMap(item => Array.from({ length: item.parameters.length / 4 }, (_, index) => [...item.parameters.slice(index * 4, index * 4 + 4)]));
+}
+
+async function probeController(previous?: LightingCapability, zoneIds = [1, 2, 8]): Promise<{
   controller: LogitechRgbEffectsController;
   requests: RequestRecord[];
   transport: LogitechRgbTransport;
@@ -299,11 +335,13 @@ async function probeController(previous?: LightingCapability): Promise<{
         }
       }
       if (featureIndex === perKeyFeatureIndex && functionId === 0 && parameters[1] === 0) {
-        response[6] = 0b0000_0110;
-        response[7] = 0b0000_0001;
+        for (const zone of zoneIds) response[6 + Math.floor(zone / 8)]! |= 1 << (zone % 8);
       }
-      if (featureIndex === perKeyFeatureIndex && functionId === 1 && ![1, 2, 8].includes(parameters[0]!)) {
-        throw new Error('HID++ rejected the request: out of range.');
+      if (featureIndex === perKeyFeatureIndex && functionId === 1) {
+        if (parameters.length > 16 || parameters.length % 4 !== 0) throw new Error('Invalid zone report size');
+        for (let offset = 0; offset < parameters.length; offset += 4) {
+          if (!zoneIds.includes(parameters[offset]!)) throw new Error('HID++ rejected the request: out of range.');
+        }
       }
       return response;
     },

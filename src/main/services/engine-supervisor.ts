@@ -1,5 +1,6 @@
 import { debugDiagnostics } from './debug-diagnostics';
 import { developerDiagnostics } from './developer-diagnostics';
+import { EngineCommandWriter } from './engine-command-writer';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -56,6 +57,7 @@ type WorkerMessage = z.infer<typeof workerMessageSchema>;
 
 export class EngineSupervisor {
   private readonly processes = new Map<EngineKind, EngineProcess>();
+  private readonly commandWriters = new Map<EngineProcess, EngineCommandWriter>();
   private readonly statuses = new Map<EngineKind, EngineStatus>();
   private readonly pending = new Map<string, PendingRequest>();
   private readonly starts = new Map<EngineKind, Promise<EngineStatus>>();
@@ -115,7 +117,13 @@ export class EngineSupervisor {
     this.expectedStops.add(kind);
     try {
       const exit = this.waitForExit(worker, kind === 'capture' ? 12_000 : 5_000);
-      this.sendEnvelope(worker, { command: 'shutdown' });
+      try {
+        this.sendEnvelope(worker, { command: 'shutdown' });
+      } catch {
+        // A broken/full pipe cannot deliver graceful shutdown. Still release
+        // the host and wait for its exit instead of abandoning a live process.
+        worker.kill();
+      }
       const exited = await exit;
       if (!exited) {
         worker.kill();
@@ -126,7 +134,9 @@ export class EngineSupervisor {
       this.expectedStops.delete(kind);
       throw error;
     } finally {
-      this.processes.delete(kind);
+      this.commandWriters.get(worker)?.dispose();
+      this.commandWriters.delete(worker);
+      if (worker.exitCode !== null || worker.signalCode !== null) this.processes.delete(kind);
       this.failPending(kind, new Error(`${kind} engine stopped`));
     }
 
@@ -181,7 +191,9 @@ export class EngineSupervisor {
 
     const requestId = randomUUID();
     return new Promise<T>((resolve, reject) => {
+      let cancelSend = () => {};
       const timeout = setTimeout(() => {
+        cancelSend();
         this.pending.delete(requestId);
         reject(new Error(`${kind} engine request timed out: ${command}`));
       }, timeoutMs);
@@ -193,7 +205,7 @@ export class EngineSupervisor {
         timeout,
       });
       try {
-        this.sendEnvelope(worker, { requestId, command, payload });
+        cancelSend = this.sendEnvelope(worker, { requestId, command, payload });
       } catch (error) {
         clearTimeout(timeout);
         this.pending.delete(requestId);
@@ -204,12 +216,14 @@ export class EngineSupervisor {
   }
 
   public async dispose(): Promise<void> {
-    await Promise.allSettled(engineKindSchema.options.map((kind) => this.stop(kind)));
+    const results = await Promise.allSettled(engineKindSchema.options.map((kind) => this.stop(kind)));
     for (const request of this.pending.values()) {
       clearTimeout(request.timeout);
       request.reject(new Error('Engine supervisor disposed'));
     }
     this.pending.clear();
+    const failures = results.flatMap(result => result.status === 'rejected' ? [result.reason] : []);
+    if (failures.length) throw new AggregateError(failures, 'Engine hosts did not finish shutting down.');
   }
 
   private async startProcess(kind: EngineKind): Promise<EngineStatus> {
@@ -243,6 +257,8 @@ export class EngineSupervisor {
       const normalized = error instanceof Error ? error : new Error(String(error));
       this.processes.delete(kind);
       this.failPending(kind, normalized);
+      this.commandWriters.get(worker)?.dispose();
+      this.commandWriters.delete(worker);
       worker.kill();
       this.updateStatus({
         ...this.stoppedStatus(kind),
@@ -281,6 +297,10 @@ export class EngineSupervisor {
   }
 
   private attachWorkerListeners(kind: EngineKind, worker: EngineProcess): void {
+    this.commandWriters.set(worker, new EngineCommandWriter(worker.stdin, (error) => {
+      if (this.expectedStops.has(kind)) this.failPending(kind, error);
+      else this.handleProcessError(kind, error);
+    }));
     const lines = createInterface({ input: worker.stdout });
     lines.on('line', (line) => {
       try { this.handleWorkerMessage(kind, JSON.parse(line)); }
@@ -305,6 +325,8 @@ export class EngineSupervisor {
     worker.on('error', (processError) => this.handleProcessError(kind, processError));
 
     (worker as unknown as EventEmitter).on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
+      this.commandWriters.get(worker)?.dispose();
+      this.commandWriters.delete(worker);
       if (this.processes.get(kind) === worker) this.processes.delete(kind);
       const expected = this.expectedStops.delete(kind);
       developerDiagnostics.record(kind, expected ? 'info' : 'error', 'host.exit', { code, signal, expected, pid: worker.pid ?? null });
@@ -384,16 +406,13 @@ export class EngineSupervisor {
     return stderrTail ? `: ${stderrTail}` : '';
   }
 
-  private sendEnvelope(worker: EngineProcess, message: Record<string, unknown>): void {
+  private sendEnvelope(worker: EngineProcess, message: Record<string, unknown>): () => void {
     if (worker.exitCode !== null || worker.signalCode !== null) {
       throw new Error('engine process already exited');
     }
-    const ok = worker.stdin.write(`${JSON.stringify(message)}\n`, 'utf8');
-    if (!ok) {
-      // Backpressure on a local pipe is unexpected; the write is buffered by Node.
-      // Throwing here would turn a slow host into a failed request, so just note it.
-      console.warn('[engine] stdin buffer full when sending', (message.command as string) ?? 'unknown command');
-    }
+    const writer = this.commandWriters.get(worker);
+    if (!writer) throw new Error('Engine command pipe is unavailable.');
+    return writer.send(message);
   }
 
   private waitForSpawn(worker: EngineProcess, timeoutMs: number): Promise<void> {

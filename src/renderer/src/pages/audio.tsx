@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AudioMixId, SystemSnapshot } from '../../../shared/contracts';
 import { AudioHeader, audioStatusLine, audioWorkspaceTabs, type AudioWorkspaceTab } from '@/components/audio/AudioHeader';
 import { ChannelProcessingPage } from '@/components/audio/ChannelProcessingPage';
 import { clearAudioMeters, publishAudioMeterFrame } from '@/components/audio/meter-bus';
 import { MicrophonePage } from '@/components/audio/MicrophonePage';
 import { MixerPage } from '@/components/audio/MixerPage';
+import { SpatialAudioPage } from '@/components/audio/SpatialAudioPage';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { requestSettingsCategory } from '@/components/settings/settings-catalog';
 import { switchboardApi } from '@/lib/demo-api';
@@ -19,13 +20,13 @@ function tabFromHash(): AudioWorkspaceTab {
 export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const [tab, setTab] = useState<AudioWorkspaceTab>(tabFromHash);
   const [selectedMixId, setSelectedMixId] = useState<AudioMixId>('personal');
-  const cableBackend = snapshot.audio.capabilities.routingBackend === 'vb-cable';
-  useEffect(() => { if (cableBackend && selectedMixId === 'stream') setSelectedMixId('personal'); }, [cableBackend, selectedMixId]);
   const setPage = useSystemStore((state) => state.setPage);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
+  const streamUnavailable = snapshot.audio.capabilities.streamOutput === 'unavailable';
+  const effectiveMixId = selectedMixId === 'stream' && streamUnavailable ? 'personal' : selectedMixId;
   const availableTabs = useMemo(() => audioWorkspaceTabs.filter((candidate) => {
-    if (candidate === 'mixer') return true;
+    if (candidate === 'mixer' || candidate === 'spatial') return true;
     const busId = candidate === 'microphone' ? 'mic' : candidate;
     return snapshot.audio.buses.find((bus) => bus.id === busId)?.enabled ?? false;
   }), [snapshot.audio.buses]);
@@ -54,10 +55,10 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
     if (window.location.hash !== '#audio/mixer') window.location.hash = 'audio/mixer';
   }, [availableTabs, tab]);
 
-  const navigate = (next: AudioWorkspaceTab) => {
+  const navigate = useCallback((next: AudioWorkspaceTab) => {
     setTab(next);
     if (window.location.hash !== `#audio/${next}`) window.location.hash = `audio/${next}`;
-  };
+  }, []);
 
   const statusLine = audioStatusLine({
     tab,
@@ -84,12 +85,15 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
             <span className="mixer-mix-picker__label">Mix for</span>
             <ToggleGroup
               type="single"
-              value={selectedMixId}
+              value={effectiveMixId}
               onValueChange={(value) => value && setSelectedMixId(value as AudioMixId)}
               aria-label="Select mixer destination"
             >
               {snapshot.audio.mixes.map((mix) => (
-                <ToggleGroupItem key={mix.id} value={mix.id} disabled={cableBackend && mix.id === 'stream'} title={cableBackend && mix.id === 'stream' ? 'Stream output needs the Switchboard audio driver.' : undefined} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
+                <ToggleGroupItem key={mix.id} value={mix.id} aria-label={`${mix.label} mix`}
+                  disabled={mix.id === 'stream' && streamUnavailable}
+                  title={mix.id === 'stream' && streamUnavailable ? 'A separate Stream output is unavailable with one virtual cable.' : undefined}
+                >{mix.label}</ToggleGroupItem>
               ))}
             </ToggleGroup>
           </div>
@@ -102,11 +106,12 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
         tabIndex={0}
         className="audio-page__body outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
       >
-        {tab === 'mixer' ? <MixerPage snapshot={snapshot} selectedMixId={selectedMixId} onNavigate={navigate} /> : null}
+        {tab === 'mixer' ? <MixerPage audio={snapshot.audio} engineRunning={engineRunning} selectedMixId={effectiveMixId} onNavigate={navigate} /> : null}
         {tab === 'game' ? <ChannelProcessingPage snapshot={snapshot} busId="game" /> : null}
         {tab === 'chat' ? <ChannelProcessingPage snapshot={snapshot} busId="chat" /> : null}
         {tab === 'media' ? <ChannelProcessingPage snapshot={snapshot} busId="media" /> : null}
-        {tab === 'microphone' ? <MicrophonePage snapshot={snapshot} /> : null}
+        {tab === 'microphone' ? <MicrophonePage audio={snapshot.audio} engineRunning={engineRunning} /> : null}
+        {tab === 'spatial' ? <SpatialAudioPage audio={snapshot.audio} /> : null}
       </div>
     </section>
   );

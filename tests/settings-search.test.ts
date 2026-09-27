@@ -17,7 +17,8 @@ describe('settings search metadata', () => {
       expect(isSettingsCategoryVisible('diagnostics', settings)).toBe(false);
       expect(searchSettings('diagnostics', settings).some((entry) => entry.category === 'diagnostics')).toBe(false);
       expect(searchSettings('renderer memory', settings).some((entry) => entry.category === 'diagnostics')).toBe(false);
-      expect(isSettingsCategoryVisible('audio', settings)).toBe(false);
+      expect(isSettingsCategoryVisible('audio', settings)).toBe(true);
+      expect(searchSettings('audio drivers', settings).some((entry) => entry.category === 'audio')).toBe(true);
       expect(isSettingsCategoryVisible('general', settings)).toBe(true);
     }
     expect(isSettingsCategoryVisible('diagnostics', { developerMode: true })).toBe(true);

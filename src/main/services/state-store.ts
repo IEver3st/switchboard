@@ -19,7 +19,8 @@ const runtimeEngineKinds: EngineKind[] = ['audio', 'capture'];
 export class StateStore {
   private snapshot: SystemSnapshot = createDefaultSnapshot();
   private readonly listeners = new Set<Listener>();
-  private persistChain: Promise<void> = Promise.resolve();
+  private persistenceTask: Promise<void> | null = null;
+  private pendingPersistence: SystemSnapshot | null = null;
   private persistedPayload: string | null = null;
 
   public constructor(private readonly filePath: string) {}
@@ -64,6 +65,11 @@ export class StateStore {
 
   public get(): SystemSnapshot {
     return debugDiagnostics.measure('state.clone', () => structuredClone(this.snapshot));
+  }
+
+  /** Main-only immutable publication; preserves branch identity across baselines and deltas. */
+  public getPublishedSnapshot(): SystemSnapshot {
+    return freezeSnapshot(this.snapshot);
   }
 
   /** Copy only the requested branch; callers cannot mutate canonical state. */
@@ -124,7 +130,7 @@ export class StateStore {
   }
 
   public async flush(): Promise<void> {
-    await this.persistChain;
+    while (this.persistenceTask) await this.persistenceTask;
   }
 
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
@@ -152,6 +158,7 @@ export class StateStore {
       }));
     next.modules = [...bundledModules, ...localModules];
     next.audio.devices = [];
+    next.audio.dependencies = structuredClone(defaults.audio.dependencies);
     next.audio.outputDevice = '';
     next.audio.microphoneDevice = '';
 
@@ -175,11 +182,13 @@ export class StateStore {
       structuredClone(processingByBus.get(fallback.busId) ?? fallback)
     ));
 
-    const knownPresets = new Map(next.audio.pathPresets.map((preset) => [preset.id, preset]));
-    for (const preset of defaults.audio.pathPresets) {
-      if (!knownPresets.has(preset.id)) knownPresets.set(preset.id, structuredClone(preset));
-    }
-    next.audio.pathPresets = [...knownPresets.values()];
+    // Built-in presets are read-only, so the shipped definitions always win.
+    // A saved copy could only be stale (retuned or removed since it was saved).
+    next.audio.pathPresets = [
+      ...structuredClone(defaults.audio.pathPresets),
+      ...next.audio.pathPresets.filter((preset) => !preset.builtIn),
+    ];
+    const knownPresets = new Set(next.audio.pathPresets.map((preset) => preset.id));
     for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
       const activeId = next.audio.activePresetIds[kind];
       if (activeId && !knownPresets.has(activeId)) next.audio.activePresetIds[kind] = null;
@@ -233,33 +242,46 @@ export class StateStore {
   private emit(): void {
     // Validated branches are immutable once published. Freeze only new objects;
     // unchanged library branches are shared across transient publications.
-    const snapshot = freezeSnapshot(this.snapshot);
+    const snapshot = this.getPublishedSnapshot();
     for (const listener of this.listeners) {
       listener(snapshot);
     }
   }
 
   private persist(): Promise<void> {
-    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot,
-      capture: { ...this.snapshot.capture, audioCalibration: undefined },
-      performance: { ...this.snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
-    this.persistChain = this.persistChain
-      .catch(() => undefined)
-      .then(async () => {
-        await mkdir(dirname(this.filePath), { recursive: true });
-        // Commit the previous validated generation before replacing the primary.
-        if (this.persistedPayload !== null) {
-          const previousPayload = this.persistedPayload;
-          await debugDiagnostics.measureAsync('state.backup-write', () => writeDurableState(`${this.filePath}.bak`, previousPayload));
-        }
-        await debugDiagnostics.measureAsync('state.disk-write', () => writeDurableState(this.filePath, payload));
-        this.persistedPayload = payload;
-      })
-      .catch((error) => {
-        console.error('Failed to persist Switchboard state.', error);
-      });
+    // Hold one latest requested generation while a durable write is in flight.
+    // Later transient updates must not leak into an earlier persistence request.
+    this.pendingPersistence = this.getPublishedSnapshot();
+    this.persistenceTask ??= Promise.resolve().then(() => this.drainPersistence());
+    return this.persistenceTask;
+  }
 
-    return this.persistChain;
+  private async drainPersistence(): Promise<void> {
+    try {
+      while (this.pendingPersistence) {
+        const snapshot = this.pendingPersistence;
+        this.pendingPersistence = null;
+        try {
+          const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...snapshot,
+            capture: { ...snapshot.capture, audioCalibration: undefined },
+            audio: { ...snapshot.audio, dependencies: undefined },
+            performance: { ...snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
+          await mkdir(dirname(this.filePath), { recursive: true });
+          // Backup is the previous successful durable generation, not an intermediate request.
+          if (this.persistedPayload !== null) {
+            const previousPayload = this.persistedPayload;
+            await debugDiagnostics.measureAsync('state.backup-write', () => writeDurableState(`${this.filePath}.bak`, previousPayload));
+          }
+          await debugDiagnostics.measureAsync('state.disk-write', () => writeDurableState(this.filePath, payload));
+          this.persistedPayload = payload;
+        } catch (error) {
+          console.error('Failed to persist Switchboard state.', error);
+        }
+      }
+    } finally {
+      // Clear before resolving so a new request cannot join an already-drained task.
+      this.persistenceTask = null;
+    }
   }
 }
 

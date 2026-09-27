@@ -1,9 +1,14 @@
 import type { AudioDevice, AudioDeviceDirection, AudioState } from './contracts';
 
+export function isAudioTransport(device: AudioDevice): boolean {
+  return device.isSwitchboard === true || /(?:VB-Audio.*(?:Cable|Hi-Fi)|Hi-Fi Cable|Switchboard Microphone|Switchboard Mixer)/i.test(device.name);
+}
+
 const personalOutputFormFactors = new Set(['headphones', 'headset']);
 
 function availableDevices(devices: AudioDevice[], direction: AudioDeviceDirection): AudioDevice[] {
-  return devices.filter((device) => device.available && device.direction === direction && !device.isSwitchboard);
+  return devices.filter((device) => device.available && device.direction === direction && !device.isSwitchboard
+    && !isAudioTransport(device));
 }
 
 function preferredFallback(devices: AudioDevice[], direction: AudioDeviceDirection): AudioDevice | undefined {

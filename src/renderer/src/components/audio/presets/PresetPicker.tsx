@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Copy, Download, MoreHorizontal, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import type { AudioPathId, AudioPathPreset } from '../../../../../shared/contracts';
+import { audioPresetDescriptions } from '../../../../../shared/audio-presets';
+import { Group as SelectGroup, Label as SelectLabel } from '@radix-ui/react-select';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -47,7 +49,7 @@ export function PresetPicker({
 
   const save = () => {
     const normalized = name.trim();
-    if (!normalized) return;
+    if (!normalized || pending) return;
     if (mode === 'rename' && active && !active.builtIn) onRename(active.id, normalized);
     else onCreate(normalized);
     closeEditor();
@@ -66,16 +68,27 @@ export function PresetPicker({
             disabled={pending}
           >
             <SelectTrigger aria-label={`${kind} preset`}>
-              <SelectValue placeholder="Custom" />
+              <SelectValue placeholder="Custom">{active?.name ?? 'Custom'}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {!activeId ? <SelectItem value="custom">Custom</SelectItem> : null}
-              {relevant.map((preset) => <SelectItem key={preset.id} value={preset.id}>{preset.name}</SelectItem>)}
+              {[true, false].map((builtIn) => {
+                const group = relevant.filter((preset) => preset.builtIn === builtIn);
+                if (!group.length) return null;
+                return <SelectGroup key={String(builtIn)}>
+                  <SelectLabel className="px-3 py-1 text-[10px] text-muted-foreground">{builtIn ? 'Built-in presets' : 'Your presets'}</SelectLabel>
+                  {group.map((preset) => <SelectItem key={preset.id} value={preset.id} textValue={preset.name}>
+                    <span>{preset.name}</span>
+                    {preset.builtIn && audioPresetDescriptions[preset.id] ? <span className="preset-picker__description">{audioPresetDescriptions[preset.id]}</span> : null}
+                  </SelectItem>)}
+                </SelectGroup>;
+              })}
             </SelectContent>
           </Select>
         </label>
 
         <div className="preset-picker__actions" aria-label="Preset actions">
+          {!active && !mode ? <Button type="button" variant="ghost" size="icon" disabled={pending} aria-label="Save custom settings as preset" title="Save as preset" onClick={() => { setMode('create'); setName(''); }}><Save className="size-3.5" /></Button> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="ghost" size="icon" disabled={pending} aria-label="Open preset actions"><MoreHorizontal className="size-4" /></Button>
@@ -98,6 +111,7 @@ export function PresetPicker({
           <Input
             autoFocus
             value={name}
+            maxLength={64}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') save();

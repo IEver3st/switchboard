@@ -1,5 +1,72 @@
 # Resource diagnostics
 
+## Automatic development feedback
+
+`bun run dev` automatically enables local feedback collection. After changing a
+main-process file, restart the running dev command to load it (or use Vite's
+`--watch` option for main/preload rebuilds). No saved Developer mode setting is
+changed. Read the current session from a second terminal:
+
+```powershell
+bun run diagnose:dev
+bun run diagnose:dev --json
+bun run diagnose:dev --profile --seconds=5
+bun run diagnose:dev --profile --target=main --seconds=3
+```
+
+The default view shows session freshness, open/tray state, process memory/CPU,
+main event-loop delay, cumulative operation timings, recent warnings/errors, and
+the latest profile's hottest functions. `--json` includes the last minute of
+resource samples, recent events, profile paths, and command results. Repeat the
+read command after reproducing a problem or applying a change. Operation timings
+are inclusive wall time (including async waits); CPU profile hotspots are sampled
+self time. They answer different questions.
+
+Main console warnings/errors, renderer console errors (including uncaught script
+errors), preload/load failures, renderer exits and the existing diagnostic event
+stream flow into the local status file. Existing event validation, credential
+redaction and rate limits apply. Vite/build output is also retained in a bounded
+`server.log` by the dev launcher; this raw terminal tail and CPU profiles can
+contain local source paths and application log text. Files stay on this machine.
+
+The first main window requests a three-second main/renderer CPU profile without
+blocking route loading. It covers first-window work after sampling begins, not the
+entire cold start. Two consecutive five-second samples with a main event-loop
+stall of at least 100 ms or CPU at least `max(5%, 2 * budget)` trigger another
+three-second profile. Automatic profiling has a five-minute cooldown and a maximum
+of three recordings per app session. Memory growth alone does not trigger CPU
+profiling. Requested profiles last 1–10 seconds and are consumed on the existing
+five-second sample. A profile captures work during that recording, not stacks
+from the slowdown that preceded it.
+
+Each launch writes a session under `.switchboard/dev-feedback`; `latest.json`
+points to it. Status distinguishes stopped, stale and live sessions. It retains
+60 events, 20 warnings/errors, 12 sample summaries and four profile batches. Each
+raw `.cpuprofile` is capped at 8 MiB and can be opened in Chromium DevTools. Startup
+prunes all but two previous ended sessions while preserving live sessions.
+`SWITCHBOARD_DEV_FEEDBACK_DIRECTORY` or the read command's `--directory=PATH`
+selects an alternate diagnostics directory. No listening port or arbitrary
+evaluation endpoint is exposed. Profile requests are bounded, schema-validated
+files belonging to the current session.
+
+Profiling skips a missing renderer or one whose debugger/DevTools is in use,
+reports the reason, and still profiles main. Reloads preserve session history;
+closing a renderer during a recording yields an unavailable renderer result.
+Shutdown cancels profiling and drains status writes. Renderer warnings remain
+available after subsequent healthy events.
+
+Use `bun run dev --no-feedback` or `SWITCHBOARD_DEV_FEEDBACK=0` for an uninstrumented
+dev launch. Packaged, preview and native budget-review launches do not enable this
+loop. The feedback loop reuses process sampling without starting the native
+resource helper or sending dev timings into renderer state. Instrumented dev
+results are not release budget measurements; use the existing production-build
+`measure:idle` command for those comparisons.
+
+Verification: `bun run build` then `node scripts/run-native-review.mjs dev-feedback`
+starts a hidden, isolated Electron fixture with its own Vite server. It checks
+automatic and requested profiles, console error redaction, timings, reload,
+renderer destruction, debugger cleanup and stopped-session detection.
+
 For capture problems, open **Settings > General > Run diagnostics**. Developer
 mode is not required. Each run automatically collects a minute of detailed
 resource samples and an event timeline. Return to the game and reproduce the

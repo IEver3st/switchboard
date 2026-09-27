@@ -1,15 +1,12 @@
-import { memo, type CSSProperties } from 'react';
-import { AppWindow, Gamepad2, MessageCircle, Mic2, MoreHorizontal, Music2, Power, SlidersHorizontal, SlidersVertical, Volume2, VolumeX } from 'lucide-react';
-import type { AudioApplication, AudioBus, AudioDevice, AudioMixBus, AudioMixId, AudioMaster, AudioSupportLevel } from '../../../../shared/contracts';
+import { memo, type CSSProperties, type ReactNode } from 'react';
+import { AppWindow, Gamepad2, ListFilter, MessageCircle, Mic2, MoreHorizontal, Music2, Power, SlidersHorizontal, SlidersVertical, Volume2, VolumeX } from 'lucide-react';
+import type { AudioBus, AudioBusId, AudioDevice, AudioMixBus, AudioMixId, AudioMaster } from '../../../../shared/contracts';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
 import { AudioDevicePicker } from './AudioDevicePicker';
 import { channelColor } from './channel-identity';
-import { LevelMeter } from './LevelMeter';
-import { MixerApplications } from './MixerApplications';
 import { MixerFader } from './MixerFader';
 
 type CommonProps = {
@@ -17,10 +14,8 @@ type CommonProps = {
   devices: AudioDevice[];
   engineRunning: boolean;
   pending: boolean;
-  applications?: AudioApplication[];
-  routingSupport?: AudioSupportLevel;
-  routingUnavailableReason?: string | null;
-  onApplicationRoute?: (applicationId: string, destination: AudioApplication['destination']) => void;
+  /** Application well rendered at the foot of the strip. */
+  appWell?: ReactNode;
   onGainCommit: (gain: number) => void;
   onEnabledChange: (enabled: boolean) => void;
 };
@@ -29,6 +24,8 @@ type MasterProps = CommonProps & {
   master: true;
   masterState: AudioMaster;
   mixLabel: string;
+  /** Channels feeding this master; its fader lights with the loudest. */
+  meterBusIds: readonly AudioBusId[];
   bus?: never;
   control?: never;
   onChannelEnabledChange?: never;
@@ -42,6 +39,8 @@ type BusProps = CommonProps & {
   bus: AudioBus;
   control: AudioMixBus;
   presetName: string | null;
+  excludedDeviceIds: readonly string[];
+  onManageDevices: () => void;
   onChannelEnabledChange: (enabled: boolean) => void;
   onDeviceChange: (deviceId: string) => void;
   onOpen: () => void;
@@ -55,7 +54,10 @@ export const MixerStrip = memo(function MixerStrip(props: MasterProps | BusProps
 function MasterStrip({
   masterState,
   mixLabel,
+  meterBusIds,
+  engineRunning,
   pending,
+  appWell,
   onGainCommit,
   onEnabledChange,
 }: MasterProps) {
@@ -75,13 +77,14 @@ function MasterStrip({
       <div className="audio-strip__sub"><span>{mixLabel} mix</span></div>
       <div className="audio-strip__sub" aria-hidden="true" />
       <div className="audio-strip__body">
-        <div className="audio-strip__meter audio-strip__meter--empty" aria-hidden="true" />
         <div className="audio-strip__fader">
           <MixerFader
             value={masterState.gain}
-            disabled={!masterState.enabled || pending}
+            disabled={!masterState.enabled}
             label={`${mixLabel} master`}
             accentColor="var(--accent-brand)"
+            meterBusIds={meterBusIds}
+            meterActive={engineRunning && !muted}
             onCommit={onGainCommit}
           />
         </div>
@@ -90,10 +93,10 @@ function MasterStrip({
         <MuteButton
           label={muted ? 'Unmute master output' : 'Mute master output'}
           muted={muted}
-          disabled={pending}
           onClick={() => onEnabledChange(!masterState.enabled)}
         />
       </div>
+      {appWell}
     </article>
   );
 }
@@ -106,14 +109,13 @@ function BusStrip({
   engineRunning,
   pending,
   presetName,
-  applications = [],
-  routingSupport = 'unavailable',
-  routingUnavailableReason,
+  excludedDeviceIds,
+  appWell,
   onGainCommit,
   onEnabledChange,
   onChannelEnabledChange,
   onDeviceChange,
-  onApplicationRoute,
+  onManageDevices,
   onOpen,
 }: BusProps) {
   const direction = bus.id === 'mic' ? 'input' : 'output';
@@ -123,8 +125,6 @@ function BusStrip({
   const settingsLabel = bus.id === 'mic' ? 'Voice settings' : 'Sound settings';
   const hasSettings = bus.id !== 'aux';
   const shortLabel = bus.id === 'mic' ? 'Mic' : bus.label;
-  const assignedCount = applications.filter(application => application.currentDestination === bus.id).length;
-  const canShowApps = bus.id === 'game' || bus.id === 'chat' || bus.id === 'media';
 
   if (!bus.enabled) {
     return (
@@ -141,6 +141,7 @@ function BusStrip({
             <Power className="size-3.5" aria-hidden="true" /> Turn on
           </Button>
         </div>
+        {appWell}
       </article>
     );
   }
@@ -165,7 +166,7 @@ function BusStrip({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="audio-strip__menu" aria-label={`Open ${bus.label} channel menu`} disabled={pending}>
+            <Button type="button" variant="ghost" size="icon" className="audio-strip__menu" aria-label={`Open ${bus.label} channel menu`}>
               <MoreHorizontal className="size-3.5" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
@@ -176,6 +177,7 @@ function BusStrip({
                 <DropdownMenuSeparator />
               </>
             ) : null}
+            <DropdownMenuItem onSelect={onManageDevices}><ListFilter className="size-3.5" />Manage devices</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onChannelEnabledChange(false)}><Power className="size-3.5" />Turn channel off</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -193,45 +195,32 @@ function BusStrip({
           devices={devices}
           direction={direction}
           label={`${bus.label} ${direction} device`}
-          disabled={pending}
+          excludedIds={excludedDeviceIds}
+          onManage={onManageDevices}
           onChange={onDeviceChange}
         />
       </div>
       <div className="audio-strip__body">
-        <div className="audio-strip__meter">
-          <LevelMeter busId={bus.id} active={engineRunning && !muted} label={bus.label} accentColor={color} />
-        </div>
         <div className="audio-strip__fader">
-          <MixerFader value={control.gain} disabled={muted || pending} label={`${bus.label} in ${mixId} mix`} accentColor={color} onCommit={onGainCommit} />
+          <MixerFader
+            value={control.gain}
+            disabled={muted}
+            label={`${bus.label} in ${mixId} mix`}
+            accentColor={color}
+            meterBusIds={[bus.id]}
+            meterActive={engineRunning && !muted}
+            onCommit={onGainCommit}
+          />
         </div>
       </div>
       <div className="audio-strip__foot">
         <MuteButton
           label={`${muted ? 'Unmute' : 'Mute'} ${bus.label}`}
           muted={muted}
-          disabled={pending}
           onClick={() => onEnabledChange(!control.enabled)}
         />
-        {canShowApps && routingSupport !== 'unavailable' ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="audio-strip__apps" aria-label={`Show ${bus.label} applications`}>
-                {assignedCount} {assignedCount === 1 ? 'app' : 'apps'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="audio-strip__apps-popover">
-              <MixerApplications
-                channelLabel={bus.label}
-                applications={applications}
-                routingSupport={routingSupport}
-                unavailableReason={routingUnavailableReason}
-                pending={pending}
-                onApplicationRoute={onApplicationRoute ?? (() => undefined)}
-              />
-            </PopoverContent>
-          </Popover>
-        ) : null}
       </div>
+      {appWell}
     </article>
   );
 }

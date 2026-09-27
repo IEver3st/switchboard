@@ -10,7 +10,7 @@ import type {
 
 export const workspaceOrder: ReadonlyArray<VisibleWorkspace> = ['devices', 'audio', 'capture'];
 
-export const defaultVisibleWorkspaces: ReadonlyArray<VisibleWorkspace> = ['devices', 'audio', 'capture'];
+export const defaultVisibleWorkspaces: ReadonlyArray<VisibleWorkspace> = ['devices', 'capture'];
 
 export function normalizeVisibleWorkspaces(value: unknown): VisibleWorkspace[] | null {
   if (!Array.isArray(value)) return null;
@@ -31,19 +31,12 @@ export function isDeveloperModeEnabled(settings: Pick<AppSettings, 'developerMod
   return settings.developerMode === true;
 }
 
-export function isAudioWorkspaceAvailable(settings: Pick<AppSettings, 'developerMode'>): boolean {
-  return isDeveloperModeEnabled(settings);
+export function isAudioWorkspaceAvailable(_settings: Pick<AppSettings, 'developerMode'>): boolean {
+  return true;
 }
 
-export function fullWorkspacesForDeveloperMode(developerMode: boolean): VisibleWorkspace[] {
-  return developerMode ? [...defaultVisibleWorkspaces] : ['devices', 'capture'];
-}
-
-function filterAudioWhenLocked(workspaces: VisibleWorkspace[], developerMode: boolean): VisibleWorkspace[] {
-  if (developerMode) return workspaces;
-  const filtered: VisibleWorkspace[] = workspaces.filter((workspace) => workspace !== 'audio');
-  if (!filtered.includes('capture')) filtered.push('capture');
-  return workspaceOrder.filter((workspace) => filtered.includes(workspace));
+export function fullWorkspacesForDeveloperMode(_developerMode: boolean): VisibleWorkspace[] {
+  return [...defaultVisibleWorkspaces];
 }
 
 export function isCaptureOnlyWorkspaces(settings: Pick<AppSettings, 'visibleWorkspaces'>): boolean {
@@ -67,7 +60,7 @@ export function visiblePagesForProfile(
   settings: Pick<AppSettings, 'visibleWorkspaces' | 'developerMode'>,
 ): Array<Exclude<PageId, 'settings' | 'modules'>> {
   const workspaces = normalizeVisibleWorkspaces(settings.visibleWorkspaces) ?? [...defaultVisibleWorkspaces];
-  return filterAudioWhenLocked(workspaces, isDeveloperModeEnabled(settings));
+  return workspaces;
 }
 
 export function defaultPageForProfile(
@@ -82,7 +75,6 @@ export function isPageVisibleForProfile(
   settings: Pick<AppSettings, 'visibleWorkspaces' | 'developerMode'>,
 ): boolean {
   if (page === 'settings' || page === 'modules') return true;
-  if (page === 'audio' && !isDeveloperModeEnabled(settings)) return false;
   return visiblePagesForProfile(settings).includes(page);
 }
 
@@ -91,7 +83,7 @@ export function workspacePreset(
   developerMode = true,
 ): 'clipping' | 'full' | 'custom' {
   const normalized = normalizeVisibleWorkspaces(workspaces) ?? [...defaultVisibleWorkspaces];
-  const visible = filterAudioWhenLocked(normalized, developerMode);
+  const visible = normalized;
   if (visible.length === 1 && visible[0] === 'capture') return 'clipping';
   if (visible.length === fullWorkspacesForDeveloperMode(developerMode).length
     && fullWorkspacesForDeveloperMode(developerMode).every((entry) => visible.includes(entry))) return 'full';
@@ -128,11 +120,7 @@ type OnboardingSnapshot = {
 };
 
 export function createOnboardingDraft(snapshot: OnboardingSnapshot): OnboardingDraft {
-  const developerMode = isDeveloperModeEnabled(snapshot.settings);
-  const workspaces = filterAudioWhenLocked(
-    normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces) ?? [...defaultVisibleWorkspaces],
-    developerMode,
-  );
+  const workspaces = normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces) ?? [...defaultVisibleWorkspaces];
   return {
     workspaces,
     source: snapshot.capture.config.source,
@@ -161,11 +149,10 @@ export function toggleDraftWorkspace(
   developerMode = true,
 ): OnboardingDraft {
   if (workspace === 'capture') return draft;
-  if (workspace === 'audio' && !developerMode) return draft;
   const selected = new Set(draft.workspaces);
   if (selected.has(workspace)) selected.delete(workspace);
   else selected.add(workspace);
   selected.add('capture');
   const next = workspaceOrder.filter((entry) => selected.has(entry));
-  return { ...draft, workspaces: filterAudioWhenLocked(next, developerMode) };
+  return { ...draft, workspaces: next };
 }

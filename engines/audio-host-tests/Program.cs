@@ -3,9 +3,16 @@ using Switchboard.AudioHost;
 using Switchboard.AudioHost.NoiseSuppression;
 using Switchboard.AudioHost.Realtime;
 
+if (args.Contains("--microphone-quality")) { MicrophoneQualityTests.Run(); return; }
+if (args.Contains("--live-microphone-quality")) { MicrophoneQualityTests.RunLive(); return; }
+if (args.Contains("--spatial")) { SpatialAudioTests.Run(); return; }
 if (args.Contains("--cable-tone")) { CableRoutingTests.RunTone(args); return; }
+if (args.Contains("--live-route-restoration")) { CableRoutingTests.RunPolicyRestoration(); return; }
 if (args.Contains("--live-cable")) { await CableRoutingTests.RunLiveAsync(); return; }
+if (args.Contains("--live-microphone-cable")) { await MicrophoneCableTests.RunLiveAsync(); return; }
 CableRoutingTests.RunDeterministic();
+EqualizerCapacityTests.Run();
+SpatialAudioTests.Run();
 
 var expected = new[]
 {
@@ -72,6 +79,7 @@ TestFrameAdapter();
 TestMissingAndCorruptDeepFilterModel();
 TestMissingRnnoiseLibrary();
 TestNativeRnnoiseWrapper();
+MicrophoneQualityTests.Run();
 TestAudioGraphTransparencyAndOrder();
 TestEveryMicrophoneControlChangesSignal();
 TestMicrophoneSettingsParser();
@@ -484,6 +492,24 @@ static void TestEveryMicrophoneControlChangesSignal()
         Render(Controls(version: 10, gate: new NoiseGateConfiguration(true, -30f, 0.1f, 10f)), gateReleaseFrames),
         Render(Controls(version: 11, gate: new NoiseGateConfiguration(true, -30f, 0.1f, 1_000f)), gateReleaseFrames),
         "Gate release must change microphone samples.");
+
+    // A steady tone above the threshold must pass untouched once open; a
+    // per-sample gate chatters at every zero crossing and fails this.
+    var steadyTone = SineFrame(0.05f, 220f);
+    var steadyFrames = Enumerable.Repeat(steadyTone, 6).ToArray();
+    var gatedTone = Render(Controls(version: 30, gate: new NoiseGateConfiguration(true, -30f, 0.1f, 5f)), steadyFrames);
+    var ungatedTone = Render(disabled, steadyFrames);
+    var toneStart = steadyTone.Length;
+    var chatter = 0f;
+    for (var index = toneStart; index < gatedTone.Length; index++) chatter = Math.Max(chatter, MathF.Abs(gatedTone[index] - ungatedTone[index]));
+    Assert(chatter < 0.002f, $"An open gate must not chatter on a steady tone above threshold (max deviation {chatter}).");
+    // Room noise below the close threshold must be silenced after release.
+    var roomNoise = SineFrame(0.004f, 3_000f);
+    var noiseFrames = new[] { voice }.Concat(Enumerable.Repeat(roomNoise, 20)).ToArray();
+    var gatedNoise = Render(Controls(version: 31, gate: new NoiseGateConfiguration(true, -30f, 0.1f, 20f)), noiseFrames);
+    var tailPeak = 0f;
+    for (var index = gatedNoise.Length - roomNoise.Length; index < gatedNoise.Length; index++) tailPeak = Math.Max(tailPeak, MathF.Abs(gatedNoise[index]));
+    Assert(tailPeak < 0.0005f, $"A closed gate must silence room noise below the threshold (tail peak {tailPeak}).");
 
     var suppressionFrames = Enumerable.Repeat(voice, 3).ToArray();
     AssertDifferent(

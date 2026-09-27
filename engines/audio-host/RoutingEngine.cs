@@ -30,6 +30,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
     public VirtualDriverState Driver => virtualEndpoints.Snapshot();
     public string Backend => "switchboard-driver";
     public bool HasVirtualOutputs => true;
+    public SpatialSession Spatial { get; } = new();
     public IReadOnlyList<AudioApplicationPreference> ApplicationRoutes => [];
     public void Refresh() { }
 
@@ -77,7 +78,11 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
 
     public IReadOnlyList<AudioApplicationState> ListApplications() => endpoints.ListApplications(virtualEndpoints);
     public void RouteApplication(AudioApplicationRouteRequest request) => endpoints.RouteApplication(request, virtualEndpoints);
-    public void Configure(AudioHostSettings configuration) => graph.Configure(configuration);
+    public void Configure(AudioHostSettings configuration)
+    {
+        Spatial.Configure(configuration.Spatial);
+        graph.Configure(configuration);
+    }
 
     private void Build(
         IReadOnlyCollection<AudioEndpoint> discovered,
@@ -86,6 +91,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
         ISampleProvider streamMicrophoneSource,
         ISampleProvider clipMicrophoneSource)
     {
+        Spatial.Configure(configuration.Spatial);
         var configurations = configuration.Buses.ToDictionary(bus => bus.Id, StringComparer.OrdinalIgnoreCase);
         var physicalOutputs = new Dictionary<string, List<ISampleProvider>>(StringComparer.OrdinalIgnoreCase);
         var streamSources = new List<ISampleProvider>();
@@ -119,7 +125,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
         foreach (var destination in physicalOutputs)
         {
             var device = Open(destination.Key);
-            AddOutput(new AudioOutput(device, new FixedMixer(destination.Value)));
+            AddOutput(new AudioOutput(device, Spatial.Wrap(new FixedMixer(destination.Value))));
         }
 
         var streamOutputDevice = Open(virtualEndpoints.StreamRender.Id);
@@ -182,6 +188,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
     public void Dispose()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+        Spatial.Dispose();
         for (var index = captures.Count - 1; index >= 0; index--)
         {
             captures[index].Failed -= OnRouteFailed;

@@ -1,6 +1,6 @@
 {
   "name": "switchboard-prototype",
-  "version": "0.9.22",
+  "version": "0.9.23",
   "private": true,
   "description": "A modular, low-overhead Electron control plane for devices, capture, and audio routing.",
   "type": "module",
@@ -39,6 +39,7 @@
     "measure:capture-host": "node ./scripts/measure-capture-host.mjs",
     "diagnose:live": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/measure-live-memory.ps1",
     "diagnose:resources": "node ./scripts/analyze-resource-log.mjs",
+    "diagnose:dev": "bun ./scripts/diagnose-dev.ts",
     "build:hosts": "bun run build:capture-host && bun run build:audio-host",
     "dist:win": "bun run build:hosts && bun run build && electron-builder --win nsis",
     "release:win": "bun run build:hosts && bun run build && electron-builder --win nsis --publish always",

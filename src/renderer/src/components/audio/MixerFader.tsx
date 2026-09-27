@@ -1,6 +1,8 @@
-import { memo, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type WheelEvent } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject, type WheelEvent } from 'react';
 import * as SliderPrimitive from '@radix-ui/react-slider';
+import type { AudioBusId, AudioMeterValue } from '../../../../shared/contracts';
 import { cn } from '@/lib/cn';
+import { createMeterBallistics, levelToDb, METER_FLOOR_DB, subscribeToAudioMeter } from './meter-bus';
 
 const MAX_PERCENT = 150;
 const UNITY_PERCENT = 100;
@@ -14,25 +16,94 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(MAX_PERCENT, Math.round(value)));
 }
 
+/**
+ * Drives the fader's lit range from the meter bus without React renders. The
+ * brightest listed bus wins, so the master fader follows the loudest channel.
+ */
+function useFaderSignal(ref: RefObject<HTMLDivElement | null>, busIds: readonly AudioBusId[], active: boolean, label: string) {
+  const busKey = busIds.join(',');
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const readout = element.querySelector<HTMLElement>('[data-fader-readout]');
+    const values = new Map<AudioBusId, AudioMeterValue>();
+    const levelBallistics = createMeterBallistics(24);
+    const peakBallistics = createMeterBallistics(8, 1);
+    let frame: number | null = null;
+    let readoutAt = 0;
+    const toMeter = (db: number) => (db - METER_FLOOR_DB) / -METER_FLOOR_DB;
+
+    const render = () => {
+      frame = null;
+      let level = 0;
+      let peak = 0;
+      let clipping = false;
+      if (active) {
+        for (const value of values.values()) {
+          level = Math.max(level, value.level);
+          peak = Math.max(peak, value.peak);
+          clipping ||= value.clipping;
+        }
+      }
+      const now = performance.now();
+      const smoothed = levelBallistics(levelToDb(level), now);
+      const held = peakBallistics(levelToDb(peak), now);
+      const meter = toMeter(smoothed.db);
+      element.style.setProperty('--signal', meter.toFixed(3));
+      element.style.setProperty('--signal-peak', toMeter(Math.max(held.db, smoothed.db)).toFixed(3));
+      element.dataset.clipping = String(active && clipping);
+      element.dataset.live = String(meter > 0);
+      if (readout && (now - readoutAt > 150 || !active)) {
+        readoutAt = now;
+        const text = smoothed.db <= METER_FLOOR_DB ? '-∞' : `${Math.round(smoothed.db)}`;
+        readout.textContent = `${text} dB`;
+        readout.setAttribute('aria-valuenow', smoothed.db.toFixed(1));
+        readout.setAttribute('aria-valuetext', `${label} level ${text} decibels`);
+      }
+      if (active && (smoothed.settling || held.settling)) frame ??= requestAnimationFrame(render);
+    };
+
+    const unsubscribers = busIds.map((busId) => subscribeToAudioMeter(busId, (value) => {
+      values.set(busId, value);
+      frame ??= requestAnimationFrame(render);
+    }));
+    render();
+    return () => {
+      for (const unsubscribe of unsubscribers) unsubscribe();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+    // busKey stands in for busIds so a new array identity does not resubscribe.
+  }, [ref, busKey, active, label]);
+}
+
 export const MixerFader = memo(function MixerFader({
   value,
   disabled,
   label,
   accentColor,
+  meterBusIds,
+  meterActive = false,
   onCommit,
 }: {
   value: number;
   disabled?: boolean;
   label: string;
   accentColor: string;
+  /** Buses whose live level lights this fader. Omit for a plain fader. */
+  meterBusIds?: readonly AudioBusId[];
+  meterActive?: boolean;
   onCommit: (gain: number) => void;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useFaderSignal(rootRef, meterBusIds ?? [], meterActive && Boolean(meterBusIds?.length), label);
   const [percentage, setPercentage] = useState(() => gainToPercent(value));
   const [draft, setDraft] = useState(() => String(gainToPercent(value)));
   const [adjusting, setAdjusting] = useState(false);
   const cancelDraftRef = useRef(false);
+  const draggingRef = useRef(false);
 
   useEffect(() => {
+    if (draggingRef.current) return;
     const next = gainToPercent(value);
     setPercentage(next);
     setDraft(String(next));
@@ -83,7 +154,11 @@ export const MixerFader = memo(function MixerFader({
   };
 
   return (
-    <div className={cn('mixer-fader', disabled && 'is-disabled')} style={{ '--channel-accent': accentColor } as CSSProperties}>
+    <div
+      ref={rootRef}
+      className={cn('mixer-fader', disabled && 'is-disabled', meterBusIds?.length && 'mixer-fader--signal')}
+      style={{ '--channel-accent': accentColor, '--fill': percentage / MAX_PERCENT } as CSSProperties}
+    >
       <div className="mixer-fader__rail">
         <span className="mixer-fader__scale" aria-hidden="true">
           {SCALE_TICKS.map((tick) => (
@@ -104,11 +179,13 @@ export const MixerFader = memo(function MixerFader({
           onValueChange={([next]) => {
             if (typeof next !== 'number') return;
             const normalized = clampPercent(next);
+            draggingRef.current = true;
             setAdjusting(true);
             setPercentage(normalized);
             setDraft(String(normalized));
           }}
           onValueCommit={([next]) => {
+            draggingRef.current = false;
             setAdjusting(false);
             if (typeof next === 'number') commitPercentage(next);
           }}
@@ -116,12 +193,18 @@ export const MixerFader = memo(function MixerFader({
           onWheel={handleWheel}
           onKeyDownCapture={handleKeyDownCapture}
           onKeyUp={() => setAdjusting(false)}
-          onBlur={() => setAdjusting(false)}
+          onBlur={() => { draggingRef.current = false; setAdjusting(false); }}
           className="mixer-fader__control"
         >
           <SliderPrimitive.Track className="mixer-fader__track">
             <span className="mixer-fader__unity" aria-hidden="true" />
             <SliderPrimitive.Range className="mixer-fader__range" />
+            {meterBusIds?.length ? (
+              <span className="mixer-fader__signal" aria-hidden="true">
+                <span className="mixer-fader__signal-fill" />
+                <span className="mixer-fader__signal-peak" />
+              </span>
+            ) : null}
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
             aria-label={`${label} fader`}
@@ -137,6 +220,18 @@ export const MixerFader = memo(function MixerFader({
         </SliderPrimitive.Root>
       </div>
 
+      <div className="mixer-fader__footer">
+      {meterBusIds?.length ? (
+        <span
+          data-fader-readout
+          role="meter"
+          aria-label={`${label} level`}
+          aria-valuemin={METER_FLOOR_DB}
+          aria-valuemax={0}
+          aria-valuenow={METER_FLOOR_DB}
+          className="mixer-fader__readout"
+        >-∞ dB</span>
+      ) : null}
       <label className="mixer-fader__exact">
         <span className="sr-only">Set {label} volume percentage</span>
         <input
@@ -161,6 +256,7 @@ export const MixerFader = memo(function MixerFader({
         />
         <span aria-hidden="true">%</span>
       </label>
+      </div>
     </div>
   );
 });

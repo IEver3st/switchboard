@@ -1,6 +1,7 @@
 import { debugDiagnostics } from './debug-diagnostics';
 import { devicesAsync, type Device as HidDevice } from 'node-hid';
 import type { Device, DeviceControlChange, SystemSnapshot } from '../../shared/contracts';
+import { lightingCapabilitySchema } from '../../shared/contracts';
 import type { DeviceModule } from '../modules/device-module';
 import { HyperXDeviceModule } from '../modules/hyperx';
 import { LogitechDeviceModule } from '../modules/logitech';
@@ -31,6 +32,7 @@ export class DeviceRegistry {
   private enumerationPromise: Promise<HidDevice[]> | null = null;
   private timer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
+  private discoveryLightingWrites = new Set<string>();
   private disposePromise: Promise<void> | null = null;
   private readonly fixtureConnectionStates = new Map<string, Map<string, boolean>>();
   private disposed = false;
@@ -148,6 +150,20 @@ export class DeviceRegistry {
     const module = this.allModules().find((candidate) => candidate.id === device.moduleId);
     if (!module?.setControl) throw new Error(`${device.displayName} does not expose writable device controls.`);
     const result = await module.setControl(device, change);
+    if (result?.confirmedLighting) {
+      const confirmed = lightingCapabilitySchema.parse(result.confirmedLighting);
+      const devices = structuredClone(this.getSnapshot().devices);
+      const target = devices.find(candidate => candidate.id === deviceId);
+      if (!target) throw new Error('Device not found after the control write completed.');
+      target.capabilities.lighting = { ...target.capabilities.lighting, ...confirmed,
+        batteryLightingEnabled: confirmed.enabled };
+      this.discoveryLightingWrites.add(deviceId);
+      this.applyDevices(devices);
+      return;
+    }
+    if (lightingControlTypes.has(change.type) || result?.confirmedChanges.some(item => lightingControlTypes.has(item.type))) {
+      this.discoveryLightingWrites.add(deviceId);
+    }
     if (result?.confirmedChanges.length) {
       for (const confirmed of result.confirmedChanges) {
         if (applyConfirmedLightingControl(this.getSnapshot(), deviceId, confirmed, this.applyDevices)) continue;
@@ -275,6 +291,8 @@ export class DeviceRegistry {
   }
 
   private async discover(): Promise<void> {
+    const lightingWrites = new Set<string>();
+    this.discoveryLightingWrites = lightingWrites;
     if (this.disposed) return;
     const snapshot = this.getSnapshot();
     const enabledModuleIds = new Set(snapshot.modules.filter((module) => module.enabled).map((module) => module.id));
@@ -293,10 +311,22 @@ export class DeviceRegistry {
       mouseBatteryLighting: snapshot.settings.mouseBatteryLighting,
     }))));
     if (this.disposed) return;
-    const connected = groups.flat().map((device) => mergeDeviceSettings(device, snapshot.devices));
+    const current = this.getSnapshot();
+    const connected = groups.flat().map((device) => {
+      const merged = mergeDeviceSettings(device, current.devices);
+      // Another module can keep Promise.all pending after this mouse was read.
+      // Never persist that older lighting selection over a completed command.
+      const latest = lightingWrites.has(device.id)
+        ? current.devices.find(candidate => candidate.id === device.id)
+        : undefined;
+      if (latest?.capabilities.lighting) {
+        merged.capabilities.lighting = structuredClone(latest.capabilities.lighting);
+      }
+      return merged;
+    });
     const connectedIds = new Set(connected.map((device) => device.id));
     const moduleIds = new Set(snapshot.modules.map((module) => module.id));
-    const disconnected = snapshot.devices
+    const disconnected = current.devices
       .filter((device) => (
         moduleIds.has(device.moduleId)
         && !legacyFixtureIds.has(device.id)
@@ -307,13 +337,13 @@ export class DeviceRegistry {
         ))
       ))
       .map((device) => ({ ...device, connected: false }));
-    const unmanaged = snapshot.devices.filter((device) => !moduleIds.has(device.moduleId));
+    const unmanaged = current.devices.filter((device) => !moduleIds.has(device.moduleId));
     const next = [...connected, ...disconnected, ...unmanaged].sort((left, right) => {
       if (left.connected !== right.connected) return left.connected ? -1 : 1;
       return left.displayName.localeCompare(right.displayName);
     });
 
-    if (JSON.stringify(next) !== JSON.stringify(snapshot.devices)) this.applyDevices(next);
+    if (JSON.stringify(next) !== JSON.stringify(current.devices)) this.applyDevices(next);
   }
 
   private enumerateHidDevices(): Promise<HidDevice[]> {

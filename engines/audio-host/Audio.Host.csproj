@@ -11,6 +11,9 @@
     <NoiseNativeDir Condition="'$(NoiseNativeDir)' == ''">$(MSBuildProjectDirectory)\..\..\native\noise-bridge\target\release</NoiseNativeDir>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Spatial\kemar-48000.bin" LogicalName="Switchboard.Kemar" />
+    <EmbeddedResource Include="Spatial\NOTICE.md" LogicalName="Switchboard.Kemar.Notice" />
+    <EmbeddedResource Include="Spatial\HEAD-TRACKER-NOTICE.txt" LogicalName="Switchboard.HeadTracker.Notice" />
     <PackageReference Include="NAudio" Version="3.0.1" />
   </ItemGroup>
   <ItemGroup Condition="Exists('$(NoiseNativeDir)')">

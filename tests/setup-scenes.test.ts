@@ -60,7 +60,7 @@ describe('setup scenes', () => {
   test('rejects duplicate automatic app mappings and invalid scene updates', () => {
     const h = harness(); h.save('One', { automatic: true, executable: 'game.exe' });
     expect(() => h.save('Two', { automatic: true, executable: 'GAME.exe' })).toThrow('already has');
-    expect(() => h.save('Audio', { includeAudio: true })).toThrow('Developer mode');
+    expect(() => h.save('Audio', { includeAudio: true })).not.toThrow();
     expect(() => h.save('Missing', { id: 'missing' })).toThrow('no longer exists');
   });
   test('scene values exclude hotkeys, clip paths, sessions, devices, and runtime meters', () => {

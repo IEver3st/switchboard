@@ -4,6 +4,7 @@ import { stat } from 'node:fs/promises';
 import { extname, isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
+import { formatWithOptions } from 'node:util';
 import { resolveApplicationIdentity, shouldApplyDevelopmentIdentity } from './application-identity';
 import { AppController } from './controller';
 import { QuickControlsWindow } from './quick-controls-window';
@@ -17,6 +18,11 @@ import { disposeMontageV2Service, getMontageV2Service } from './services/montage
 import { disposePreparedShareService } from './services/prepared-share';
 import { consumeBackgroundUpdate, markBackgroundUpdate, readSoftwareRenderingPreference, shouldStartMinimized, WINDOWS_STARTUP_ARGUMENT } from './startup-settings';
 import { developerDiagnostics } from './services/developer-diagnostics';
+import { debugDiagnostics } from './services/debug-diagnostics';
+import { DevelopmentFeedback } from './services/development-feedback';
+import { developmentFeedbackEnabled } from '../shared/development-feedback';
+import { RuntimeHandoff, runtimeHandoffEndpoint, legacyInstalledSwitchboardRunning, type RuntimeHandoffState } from './services/runtime-handoff';
+import { RuntimeHandoffWindow } from './runtime-handoff-window';
 
 process.on('uncaughtExceptionMonitor', (error, origin) => {
   developerDiagnostics.record('main', 'error', 'process.uncaught-exception', {
@@ -39,6 +45,12 @@ let cleanupMontageV2Ipc: (() => void) | null = null;
 let quitting = false;
 let gameBackgrounded = false;
 let shutdownStarted = false;
+let runtimeHandoff: RuntimeHandoff | null = null;
+let handoffState: RuntimeHandoffState = 'waiting';
+let handoffMessage: string | undefined;
+let wantsVisible = !process.argv.includes(WINDOWS_STARTUP_ARGUMENT);
+let runtimeStartedOnce = false;
+const handoffWindow = new RuntimeHandoffWindow(() => { wantsVisible = false; });
 const applicationIdentity = resolveApplicationIdentity({
   appDataPath: app.getPath('appData'),
   isPackaged: app.isPackaged,
@@ -77,6 +89,30 @@ const hasSingleInstanceLock = verifyPackagedUpdater
   || process.env.SWITCHBOARD_NATIVE_REVIEW === '1'
   || app.requestSingleInstanceLock({ demoUpdate: demoUpdateRequested });
 if (!hasSingleInstanceLock) app.quit();
+
+const developmentFeedback = hasSingleInstanceLock && developmentFeedbackEnabled(app.isPackaged, process.env)
+  ? new DevelopmentFeedback({
+    directory: process.env.SWITCHBOARD_DEV_FEEDBACK_DIRECTORY ?? join(app.getAppPath(), '.switchboard', 'dev-feedback'),
+    resourceDirectory: join(app.getPath('userData'), 'diagnostics', 'resources'),
+    getRenderer: () => mainWindow?.webContents ?? null,
+  }) : undefined;
+const restoreDevelopmentConsole: Array<() => void> = [];
+if (developmentFeedback) {
+  developerDiagnostics.setSink(event => developmentFeedback.recordEvent(event));
+  developerDiagnostics.setEnabled(true);
+  debugDiagnostics.setEnabled(true);
+  for (const method of ['warn', 'error'] as const) {
+    const original = console[method];
+    console[method] = (...args: unknown[]) => {
+      developerDiagnostics.record('main', method === 'warn' ? 'warning' : 'error', `console.${method}`, {
+        message: formatWithOptions({ depth: 1, maxArrayLength: 5, maxStringLength: 1_000 }, ...args.slice(0, 8)).slice(0, 4096),
+      });
+      original(...args);
+    };
+    restoreDevelopmentConsole.push(() => { console[method] = original; });
+  }
+  void developmentFeedback.start().catch(error => console.warn('Development feedback could not start.', error));
+}
 
 function isTrustedNavigation(url: string): boolean {
   try {
@@ -122,6 +158,16 @@ function createWindow(): BrowserWindow {
   });
 
   controller?.setRendererActive(true);
+  if (developmentFeedback) {
+    window.webContents.on('console-message', details => {
+      if (details.level === 'warning' || details.level === 'error') developerDiagnostics.record('renderer', details.level,
+        `console.${details.level}`, { message: details.message.slice(0, 4096), line: details.lineNumber });
+    });
+    window.webContents.on('preload-error', (_event, _path, error) => developerDiagnostics.record('renderer', 'error',
+      'preload.failed', { message: (error.stack ?? error.message).slice(0, 4096) }));
+    // Schedule first-window profiling without holding up route loading.
+    developmentFeedback.automaticProfile('startup');
+  }
   window.once('ready-to-show', () => {
     if (!gameBackgrounded && process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') window.show();
   });
@@ -141,6 +187,10 @@ function createWindow(): BrowserWindow {
     developerDiagnostics.record('renderer', 'error', 'renderer.load-failed', { code, description: description.slice(0, 4096) });
     console.error(`Failed to load renderer (${code}): ${description}`, url);
   });
+  window.on('hide', () => controller?.setRendererActive(false));
+  window.on('minimize', () => controller?.setRendererActive(false));
+  window.on('show', () => controller?.setRendererActive(!window.isMinimized()));
+  window.on('restore', () => controller?.setRendererActive(true));
 
   window.on('unresponsive', () => developerDiagnostics.record('renderer', 'warning', 'renderer.unresponsive'));
   window.on('responsive', () => developerDiagnostics.record('renderer', 'info', 'renderer.responsive'));
@@ -148,6 +198,7 @@ function createWindow(): BrowserWindow {
   window.on('close', (event) => {
     if (quitting || !controller?.getSnapshot().settings.closeToTray) return;
     event.preventDefault();
+    wantsVisible = false;
 
     if (controller.getSnapshot().settings.destroyRendererInTray) {
       controller.setRendererActive(false);
@@ -173,13 +224,18 @@ function createWindow(): BrowserWindow {
 }
 
 function showWindow(): void {
+  wantsVisible = true;
+  if (handoffState !== 'active') {
+    handoffWindow.show(applicationIdentity.displayName, handoffState, handoffMessage);
+    return;
+  }
   gameBackgrounded = false;
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow();
   else {
     controller?.setRendererActive(true);
+    if (mainWindow.isMinimized()) mainWindow.restore();
     if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') mainWindow.show();
   }
-  void controller?.initialize().then(() => controller?.refreshAudioDevices()).catch(() => undefined);
   if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') mainWindow.focus();
 }
 
@@ -227,7 +283,68 @@ function createTray(): Tray {
   return created;
 }
 
+async function startRuntime(): Promise<void> {
+  handoffState = 'active';
+  handoffWindow.dispose();
+  controller = new AppController({
+    developmentFeedback,
+    onGameLaunched: () => {
+      if (quitting || !tray || !mainWindow || mainWindow.isDestroyed()) return;
+      gameBackgrounded = true;
+      controller?.setRendererActive(false);
+      if (controller?.getSnapshot().settings.destroyRendererInTray) mainWindow.destroy();
+      else mainWindow.hide();
+    },
+    onQuickControls: open => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.setOpen(open); },
+    onToggleQuickControls: () => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.toggle(); },
+    onSetupPreferences: async preferences => {
+      await verticalGuide.configure(preferences.verticalGuide);
+      quickControls.setSurface(preferences.quickSurface);
+      const panel = quickControls.getWindow();
+      if (panel?.isVisible()) panel.moveTop();
+    },
+    getVerticalGuideLayout: preferences => verticalGuide.getLayout(preferences),
+    demoUpdate: demoUpdateRequested,
+    getRendererRuntime: getRendererRuntimeProbe,
+    onUpdateInstallRequested: (installing, background) => {
+      markBackgroundUpdate(backgroundUpdateMarker, installing && background);
+      quitting = installing;
+    },
+  });
+  const initialization = controller.initialize();
+  cleanupIpc = registerIpc(controller, () => mainWindow, () => quickControls.getWindow());
+  cleanupMontageV2Ipc = registerMontageV2Ipc(controller, () => mainWindow);
+  // Only sign-in launches wait for persisted window policy; manual startup stays fast.
+  if (process.argv.includes(WINDOWS_STARTUP_ARGUMENT)) await controller.prepareSnapshot();
+  if ((!runtimeStartedOnce && (startInTrayAfterUpdate || shouldStartMinimized(process.argv, controller.getSnapshot().settings.startMinimized))) || !wantsVisible) {
+    wantsVisible = false;
+    controller.setRendererActive(false);
+  } else showWindow();
+  await initialization;
+  runtimeStartedOnce = true;
+}
+
+async function pauseRuntime(): Promise<void> {
+  if (!quitting) controller?.assertRuntimeHandoffReady();
+  cleanupMontageV2Ipc?.(); cleanupMontageV2Ipc = null;
+  cleanupIpc?.(); cleanupIpc = null;
+  controller?.setRendererActive(false);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+  mainWindow = null;
+  quickControls.dispose();
+  verticalGuide.dispose();
+  disposeMontageV2Service();
+  await controller?.dispose();
+  await disposePreparedShareService();
+  controller = null;
+}
+
 async function shutdown(): Promise<void> {
+  await developmentFeedback?.dispose();
+  for (const restore of restoreDevelopmentConsole) restore();
+  if (runtimeHandoff) await runtimeHandoff.dispose();
+  else await pauseRuntime();
+  handoffWindow.dispose();
   verticalGuide.shutdown();
   quickControls.dispose();
   if (protocol.isProtocolHandled('switchboard-media')) await protocol.unhandle('switchboard-media');
@@ -282,32 +399,8 @@ if (verifyPackagedUpdater) {
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
 
-    controller = new AppController({
-      onGameLaunched: () => {
-        if (quitting || !tray || !mainWindow || mainWindow.isDestroyed()) return;
-        gameBackgrounded = true;
-        controller?.setRendererActive(false);
-        if (controller?.getSnapshot().settings.destroyRendererInTray) mainWindow.destroy();
-        else mainWindow.hide();
-      },
-      onQuickControls: open => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.setOpen(open); },
-      onToggleQuickControls: () => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.toggle(); },
-      onSetupPreferences: async preferences => {
-        await verticalGuide.configure(preferences.verticalGuide);
-        quickControls.setSurface(preferences.quickSurface);
-        const panel = quickControls.getWindow();
-        if (panel?.isVisible()) panel.moveTop();
-      },
-      getVerticalGuideLayout: preferences => verticalGuide.getLayout(preferences),
-      demoUpdate: demoUpdateRequested,
-      getRendererRuntime: getRendererRuntimeProbe,
-      onUpdateInstallRequested: (installing, background) => {
-        markBackgroundUpdate(backgroundUpdateMarker, installing && background);
-        quitting = installing;
-      },
-    });
-    const initialization = controller.initialize();
     await protocol.handle('switchboard-media', async (request) => {
+      if (!controller || handoffState !== 'active') return new Response('Switchboard is paused.', { status: 503 });
       const url = new URL(request.url);
       const id = decodeURIComponent(url.pathname.replace(/^\//, ''));
       if (url.hostname === 'capture-source') {
@@ -339,14 +432,27 @@ if (verifyPackagedUpdater) {
       if (url.hostname === 'clip') return streamMedia(path, range, clipContentType(path));
       return net.fetch(pathToFileURL(path).toString(), range ? { headers: { Range: range } } : undefined);
     });
-    cleanupIpc = registerIpc(controller, () => mainWindow, () => quickControls.getWindow());
-    cleanupMontageV2Ipc = registerMontageV2Ipc(controller, () => mainWindow);
     tray = createTray();
-    // Only sign-in launches wait for persisted window policy; manual startup stays fast.
-    if (process.argv.includes(WINDOWS_STARTUP_ARGUMENT)) await controller.prepareSnapshot();
-    if (startInTrayAfterUpdate || shouldStartMinimized(process.argv, controller.getSnapshot().settings.startMinimized)) controller.setRendererActive(false);
-    else showWindow();
-    await initialization;
+    const reviewRole = process.env.SWITCHBOARD_NATIVE_REVIEW === '1'
+      ? process.env.SWITCHBOARD_REVIEW_RUNTIME_ROLE : undefined;
+    const coordinate = process.platform === 'win32'
+      && (process.env.SWITCHBOARD_NATIVE_FIXTURES !== '1' || reviewRole === 'installed' || reviewRole === 'development');
+    if (coordinate) {
+      runtimeHandoff = new RuntimeHandoff({
+        ...await runtimeHandoffEndpoint(app.getPath('appData')),
+        role: reviewRole === 'installed' ? 'installed' : app.isPackaged ? 'installed' : 'development',
+        acquire: startRuntime,
+        release: pauseRuntime,
+        legacyOwnerRunning: reviewRole ? undefined : legacyInstalledSwitchboardRunning,
+        state: (state, message) => {
+          handoffState = state; handoffMessage = message;
+          if (state === 'active') handoffWindow.dispose();
+          else if (!quitting && wantsVisible) handoffWindow.show(applicationIdentity.displayName, state, message);
+          tray?.setToolTip(`${applicationIdentity.displayName}${state === 'active' ? '' : ' · Paused'}`);
+        },
+      });
+      await runtimeHandoff.start();
+    } else await startRuntime();
 
     app.on('activate', showWindow);
   }).catch((error) => {
@@ -414,7 +520,7 @@ async function verifyInstalledUpdate(
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && !gameBackgrounded && !controller?.getSnapshot().settings.closeToTray) requestQuit();
+  if (controller && handoffState === 'active' && process.platform !== 'darwin' && !gameBackgrounded && !controller.getSnapshot().settings.closeToTray) requestQuit();
 });
 
 app.on('before-quit', (event) => {

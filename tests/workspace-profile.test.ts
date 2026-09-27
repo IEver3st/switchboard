@@ -23,38 +23,25 @@ describe('visible workspaces', () => {
     const settings = createDefaultSnapshot().settings;
 
     expect(settings.developerMode).toBeFalse();
-    expect(settings.visibleWorkspaces).toEqual(['devices', 'audio', 'capture']);
+    expect(settings.visibleWorkspaces).toEqual(['devices', 'capture']);
     expect(settings.onboardingCompleted).toBeFalse();
     expect(needsOnboarding(settings)).toBeTrue();
     expect(isDeveloperModeEnabled(settings)).toBeFalse();
-    expect(isAudioWorkspaceAvailable(settings)).toBeFalse();
+    expect(isAudioWorkspaceAvailable(settings)).toBeTrue();
     expect(isCaptureOnlyWorkspaces(settings)).toBeFalse();
     expect(visiblePagesForProfile(settings)).toEqual(['devices', 'capture']);
     expect(defaultPageForProfile(settings)).toBe('devices');
   });
 
-  it('shows audio only when developer mode is enabled', () => {
-    const locked = createDefaultSnapshot().settings;
-    const unlocked = { ...locked, developerMode: true as const };
-
-    expect(visiblePagesForProfile(unlocked)).toEqual(['devices', 'audio', 'capture']);
-    expect(defaultPageForProfile(unlocked)).toBe('devices');
-    expect(isPageVisibleForProfile('audio', unlocked)).toBeTrue();
-    expect(isPageVisibleForProfile('audio', locked)).toBeFalse();
-    expect(fullWorkspacesForDeveloperMode(false)).toEqual(['devices', 'capture']);
-    expect(fullWorkspacesForDeveloperMode(true)).toEqual(['devices', 'audio', 'capture']);
-  });
-
-  it('hides the audio workspace unless developer mode is on', () => {
+  it('lets everyone opt into audio independently of Developer mode', () => {
     const settings = createDefaultSnapshot().settings;
-
-    expect(visiblePagesForProfile(settings)).toEqual(['devices', 'capture']);
-    expect(defaultPageForProfile(settings)).toBe('devices');
     expect(isPageVisibleForProfile('audio', settings)).toBeFalse();
-
-    const devSettings = { ...settings, developerMode: true };
-    expect(visiblePagesForProfile(devSettings)).toEqual(['devices', 'audio', 'capture']);
-    expect(isPageVisibleForProfile('audio', devSettings)).toBeTrue();
+    const selected = { ...settings, visibleWorkspaces: ['audio', 'capture'] as const };
+    expect(visiblePagesForProfile(selected)).toEqual(['audio', 'capture']);
+    expect(isPageVisibleForProfile('audio', selected)).toBeTrue();
+    expect(isPageVisibleForProfile('audio', { ...selected, developerMode: true })).toBeTrue();
+    expect(fullWorkspacesForDeveloperMode(false)).toEqual(['devices', 'capture']);
+    expect(fullWorkspacesForDeveloperMode(true)).toEqual(['devices', 'capture']);
   });
 
   it('hides exactly the unselected workspaces while keeping settings reachable', () => {
@@ -79,16 +66,16 @@ describe('visible workspaces', () => {
 
   it('detects clipping, full, and custom presets', () => {
     expect(workspacePreset(['capture'])).toBe('clipping');
-    expect(workspacePreset(['devices', 'audio', 'capture'])).toBe('full');
+    expect(workspacePreset(['devices', 'audio', 'capture'])).toBe('custom');
     expect(workspacePreset(['audio', 'capture'])).toBe('custom');
-    expect(workspacePreset(['devices', 'capture'])).toBe('custom');
+    expect(workspacePreset(['devices', 'capture'])).toBe('full');
     expect(workspacePreset(['devices', 'capture'], false)).toBe('full');
   });
 
   it('migrates the legacy clipping profile to capture-only', () => {
     expect(migrateVisibleWorkspaces(undefined, 'clipping')).toEqual(['capture']);
-    expect(migrateVisibleWorkspaces(undefined, 'full')).toEqual(['devices', 'audio', 'capture']);
-    expect(migrateVisibleWorkspaces(undefined, null)).toEqual(['devices', 'audio', 'capture']);
+    expect(migrateVisibleWorkspaces(undefined, 'full')).toEqual(['devices', 'capture']);
+    expect(migrateVisibleWorkspaces(undefined, null)).toEqual(['devices', 'capture']);
     expect(migrateVisibleWorkspaces(['audio', 'capture'], 'clipping')).toEqual(['capture']);
     expect(migrateVisibleWorkspaces(['devices', 'capture'], null)).toEqual(['devices', 'capture']);
   });
@@ -118,7 +105,7 @@ describe('onboarding draft', () => {
     expect(applyWorkspacePreset(draft, 'clipping')).toEqual({ ...draft, workspaces: ['capture'], replayEnabled: true });
     expect(applyWorkspacePreset({ ...draft, replayEnabled: true }, 'full')).toEqual({
       ...draft,
-      workspaces: ['devices', 'audio', 'capture'],
+      workspaces: ['devices', 'capture'],
       replayEnabled: true,
     });
     expect(applyWorkspacePreset(draft, 'full', false).workspaces).toEqual(['devices', 'capture']);
@@ -135,7 +122,7 @@ describe('onboarding draft', () => {
     ]);
     expect(toggleDraftWorkspace(draft, 'capture').workspaces).toEqual(['devices', 'capture']);
     expect(toggleDraftWorkspace(draft, 'audio').workspaces).toEqual(['devices', 'audio', 'capture']);
-    expect(toggleDraftWorkspace(draft, 'audio', false).workspaces).toEqual(['devices', 'capture']);
+    expect(toggleDraftWorkspace(draft, 'audio', false).workspaces).toEqual(['devices', 'audio', 'capture']);
     expect(toggleDraftWorkspace({ ...draft, workspaces: ['capture'] }, 'audio', true).workspaces).toEqual([
       'audio',
       'capture',

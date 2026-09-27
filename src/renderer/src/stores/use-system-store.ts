@@ -1,3 +1,4 @@
+import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput } from '../../../shared/contracts';
 import { create } from 'zustand';
 import {
   pageIdSchema,
@@ -59,7 +60,7 @@ function pageFromHash(): PageId {
 }
 
 function canonicalPageHash(page: PageId): string {
-  if (page === 'audio' && /^#audio\/(mixer|game|chat|media|microphone)$/.test(window.location.hash)) {
+  if (page === 'audio' && /^#audio\/(mixer|game|chat|media|microphone|spatial)$/.test(window.location.hash)) {
     return window.location.hash;
   }
   if (page === 'settings' && window.location.hash === '#settings/modules/developer-tools') {
@@ -91,6 +92,9 @@ interface SystemStore {
   setDeviceControl(input: SetDeviceControlInput): Promise<void>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<void>;
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<void>;
+  setAudioRouting(input: SetAudioRoutingInput): Promise<void>;
+  setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<void>;
+  audioDependencySetup(action: import('../../../shared/contracts').AudioSetupAction): Promise<void>;
   setAudioEnabled(enabled: boolean): Promise<void>;
   setAudioMasterGain(input: SetAudioMasterGainInput): Promise<void>;
   setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<void>;
@@ -107,6 +111,9 @@ interface SystemStore {
   importAudioPreset(): Promise<void>;
   exportAudioPreset(input: AudioPresetIdInput): Promise<void>;
   setAudioChannelProcessor(input: SetAudioChannelProcessorInput): Promise<void>;
+  setSpatialAudio(input: import('../../../shared/contracts').SetSpatialAudioInput): Promise<void>;
+  recenterSpatialAudio(): Promise<void>;
+  connectHeadsetTracking(): Promise<void>;
   setAudioMonitoring(input: SetAudioMonitoringInput): Promise<void>;
   testMicrophone(): Promise<void>;
   setChatMix(value: number): Promise<void>;
@@ -257,6 +264,9 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     },
     setDeviceSetting: (input) => run(() => switchboardApi.setDeviceSetting(input)),
     setDeviceAppearanceOverride: (input) => run(() => switchboardApi.setDeviceAppearanceOverride(input)),
+    setAudioRouting: (input) => runAudio(() => switchboardApi.setAudioRouting(input)),
+    setAudioDeviceExcluded: (input) => runAudio(() => switchboardApi.setAudioDeviceExcluded(input)),
+    audioDependencySetup: (action) => run(() => switchboardApi.audioDependencySetup(action)),
     setAudioEnabled: (enabled) => runAudio(() => switchboardApi.setAudioEnabled(enabled)),
     setAudioMasterGain: (input) => runAudio(() => switchboardApi.setAudioMasterGain(input)),
     setAudioMasterEnabled: (input) => runAudio(() => switchboardApi.setAudioMasterEnabled(input)),
@@ -277,6 +287,9 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
       catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
     },
     setAudioChannelProcessor: (input) => runAudio(() => switchboardApi.setAudioChannelProcessor(input)),
+    setSpatialAudio: input => runAudio(() => switchboardApi.setSpatialAudio(input)),
+    recenterSpatialAudio: () => runAudio(() => switchboardApi.recenterSpatialAudio()),
+    connectHeadsetTracking: () => runAudio(() => switchboardApi.connectHeadsetTracking()),
     setAudioMonitoring: (input) => runAudio(() => switchboardApi.setAudioMonitoring(input)),
     testMicrophone: async () => {
       set({ error: null });

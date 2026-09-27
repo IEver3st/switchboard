@@ -1,5 +1,34 @@
 # Architecture
 
+Audio is an optional workspace available without Developer mode. Capture-only
+onboarding never requests driver downloads. Main's `AudioDependencySetup` owns
+the shared onboarding/Settings workflow through a narrow check/install/cancel
+contract. Runtime progress is projected through `audio.dependencies` and omitted
+from preferences. A per-user setup directory retains a reboot receipt and an
+installer lock shared between installed and development profiles.
+
+The Windows backend downloads only two pinned official vendor archives, verifies
+SHA-256 and Authenticode publisher identity, then elevates the unmodified vendor
+installer with a visible window. The user completes UAC and any vendor Install
+prompt. No driver is bundled, signing policy is unchanged, and no Windows restart
+is initiated. A one-shot Audio.Host setup command inspects endpoints and driver
+registration, configures the Hi-Fi pair at 48 kHz, and restores defaults only when
+the just-installed transport took them over. An unelevated installer helper owns
+that cleanup even if Electron closes. Installed-but-inactive drivers are reported
+instead of invoking an installer that could remove them.
+
+Headphone spatial audio is a personal-output stage in Audio.Host. Both routing
+backends wrap their physical mixers in the same measured-HRTF renderer; clip,
+stream, and microphone paths retain their original perspective. Main owns saved
+`audio.spatial` settings and requires host readback before committing live edits.
+Seven virtual sources expand stereo into a configurable headphone stage. Built-in
+Android Head Tracker HID sensors or optional loopback OpenTrack poses are owned by
+the routing session. No audio or pose stream enters Electron IPC. Disabling the
+stage releases sensor/socket resources and fades to direct bypass. Sony input-service
+setup is an explicit narrow host command; driver binding repair is a separate
+administrator maintenance script, never a background operation. See
+`docs/SPATIAL-AUDIO-EXPLORATION.md` for protocol, attribution, and validation scope.
+
 Quick Controls is a bounded floating window with persisted solid/native-acrylic
 material selection. Vertical framing uses a separate, static sandboxed window,
 without a preload, scripts, or trusted IPC. Main validates and serializes setup
@@ -30,6 +59,33 @@ loopback for the selected source PID and children, bypasses the desktop clip mix
 and fails explicitly when process activation is unavailable.
 
 ## Control plane
+
+Unpackaged Vite launches own an automatic local development feedback session.
+`DevelopmentFeedback` consumes the existing diagnostic event stream and five-second
+performance samples, without publishing dev timings into product state or changing
+persisted settings. It writes bounded atomic status files and accepts only validated
+1–10 second CPU-profile requests scoped to its session. In-process Node inspector
+sessions and renderer debugger attachments exist only during short recordings;
+there is no debug server or generic execution endpoint. Shutdown cancels recordings
+and drains status writes. Production, preview and normal review launches do not
+construct this service. See [the feedback commands](docs/resource-diagnostics.md#automatic-development-feedback).
+
+Installed Switchboard and Switchboard Dev keep separate settings and share a
+per-user runtime handoff protocol. Dev owns devices, audio, capture and shortcuts
+for its session. Main-process named pipes authenticate peers with a key stored in
+the user's AppData directory; a separate exclusive pipe fences runtime ownership.
+The installed process removes its renderer IPC, releases its controller and all
+hosts, then acknowledges handoff. Its sandboxed, preload-free standby window
+cannot issue product commands. Dev starts only after release completes. A clean
+Dev exit releases its runtime before notifying the installed process, which
+constructs a fresh controller from its own persisted settings.
+
+An unacknowledged disconnect does not prove native children have exited, so the
+installed instance stays paused. Reopening Dev and quitting it normally restores
+the acknowledged path. A failed cleanup retains the ownership fence. Older
+installed builds cannot cooperate; Dev detects their process at startup and stays
+blocked instead of competing. Fixture-only reviews bypass production handoff;
+the native handoff verifier uses isolated AppData and explicit fixture roles.
 
 The opt-in game launch tray policy shares the media-free desktop-controls helper.
 It reuses WindowsCaptureSources game recognition without starting a recorder.
@@ -93,6 +149,19 @@ deeply frozen and share unchanged branches. Each trusted webContents subscribes
 to a full snapshot baseline followed by revisioned branch frames. Preload
 validates frames, reconstructs the existing snapshot API, and resubscribes on a
 revision gap. Reloads get a fresh baseline. Full command responses remain intact.
+Subscription baselines use the same frozen main-owned snapshot as subsequent
+publications, so the first delta does not resend unchanged branches. Ordinary
+editable reads still return copies; the immutable publication accessor is not
+exposed as a new preload operation.
+
+State persistence permits one durable write and one latest pending generation.
+Each request captures immutable state at that moment; later transient-only
+changes do not enter it. Bursts replace the pending generation before it is
+serialized, without delaying publication to the UI or adding a timer. `flush()`
+drains pending work on shutdown. The backup remains the previous successful
+durable generation; failed writes do not advance it. Atomic file replacement,
+file synchronization, validation and corrupt-state recovery are unchanged.
+
 The Windows device registry owns a hidden renderer-free BaseWindow only while
 device modules are enabled, using native topology notifications to invalidate
 its inventory without adding a helper process.
@@ -175,8 +244,12 @@ G502 lighting uses the live RGB Effects (`0x8071`) and Per-Key Lighting V2
 not evidence of visible LED state and are never written by lighting controls.
 Explicit lighting commands claim RGB ownership, apply the effect, and verify
 RGB power readback. Onboard-mode transitions invalidate prior acknowledgement
-and restore the user's selected live lighting, including Off. Startup restores
-a saved software selection, independently of its last live-readback status.
+and restore the user's selected live lighting, including Off.
+Startup restores a saved software selection before the full onboard-profile
+scan and reapplies it after button monitoring starts, independently of its last
+live-readback status. Device startup precedes audio endpoint discovery.
+MouseButtonSpy is armed once per session and after a failed device read, rather
+than on every healthy discovery; rearming is followed by lighting restoration.
 The persisted `selectionSaved` flag preserves that intent through Unknown,
 disconnect, and restart; legacy acknowledged selections and ownership-loss
 snapshots are migrated when the controller opens. The existing discovery cycle
@@ -186,6 +259,13 @@ Recovery preserves active battery/status overrides and restores the selection
 when those clear; a healthy effect is not continually restarted.
 The effect itself remains acknowledged, not visually verified. Session shutdown
 releases RGB ownership and can return the mouse to its firmware effect.
+Successful native lighting writes return the complete confirmed capability from
+inside the session's serialized operation. The registry validates and persists
+that capability atomically, including indirect zone and power changes, without
+waiting for another discovery. Discovery retains newer confirmed lighting when
+another device delayed publication of an older mouse snapshot. Failed packets
+invalidate acknowledgement so matching ownership/power alone cannot conceal a
+partially changed effect.
 
 Mouse battery-lighting preferences live in main-owned `settings.mouseBatteryLighting`,
 keyed by device identity and validated at the settings IPC boundary. The G502
@@ -222,6 +302,12 @@ When that driver is unavailable, the experimental Audio workspace can use the
 standard VB-CABLE endpoint with per-process loopback for personal and clip mixes.
 This fallback does not provide separate virtual microphone or stream outputs.
 See `docs/FREE-AUDIO-BACKEND.md` for capability, recovery, and lifecycle boundaries.
+
+RNNoise's strength blend delays the raw contribution by one 480-sample frame to
+match the native overlap-add output. Blending the current input with that output
+would duplicate the voice 10 ms apart. The delay buffer is preallocated and cleared
+with native model reset. Failed suppression frames bypass directly to current raw
+audio; the graph never crossfades through stale or partially written model output.
 
 ## Capture
 

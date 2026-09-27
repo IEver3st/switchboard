@@ -1,11 +1,16 @@
-import type { ComponentPropsWithoutRef } from 'react';
+import type { ComponentProps, ComponentPropsWithoutRef } from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-export const DropdownMenu = DropdownMenuPrimitive.Root;
+// Non-modal by default: a modal menu locks page scroll and pointer events,
+// which relayouts the whole page and resets hover states on every open/close.
+export function DropdownMenu({ modal = false, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  return <DropdownMenuPrimitive.Root modal={modal} {...props} />;
+}
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 export const DropdownMenuGroup = DropdownMenuPrimitive.Group;
+export const DropdownMenuLabel = DropdownMenuPrimitive.Label;
 
 export function DropdownMenuContent({ className, sideOffset = 6, ...props }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>) {
   return (
@@ -70,4 +75,3 @@ export function DropdownMenuSubTrigger({ className, inset, children, ...props }:
     </DropdownMenuPrimitive.SubTrigger>
   );
 }
-

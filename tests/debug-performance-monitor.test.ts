@@ -8,6 +8,28 @@ let monitor: PerformanceMonitor | undefined;
 afterEach(() => { monitor?.dispose(); debugDiagnostics.dispose(); });
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
+test('dev feedback reuses sampling without enabling native probes or publishing dev timings', async () => {
+  let nativeProbes = 0, rendererProbes = 0;
+  const samples: any[] = [], published: PerformanceSnapshot[] = [];
+  debugDiagnostics.setEnabled(true);
+  debugDiagnostics.measure('dev.test', () => {});
+  monitor = new PerformanceMonitor({
+    getProcessMetrics: () => [],
+    getContext: () => ({ rendererActive: false, guardEnabled: false, detailedDiagnostics: false, engines: [] }),
+    publish: value => published.push(value), developmentSample: value => samples.push(value),
+    getRendererRuntime: async () => { rendererProbes++; return null; },
+    nativeCollector: { collect: async () => { nativeProbes++; throw new Error('Must not start'); }, stop() {}, restarts: 0 },
+  });
+  monitor.start();
+  await monitor.refresh();
+  expect(samples.length).toBeGreaterThan(0);
+  expect(samples.at(-1).debug.operations[0].name).toBe('dev.test');
+  expect(nativeProbes).toBe(0);
+  expect(rendererProbes).toBe(0);
+  expect(published.every(value => value.debug === undefined)).toBeTrue();
+  expect(monitor.getDebugHistory()).toHaveLength(0);
+});
+
 test('retains at most 120 samples and drops a renderer result after recording is invalidated', async () => {
   let now = Date.now();
   let enabled = true;

@@ -33,6 +33,9 @@ internal sealed class AudioGraph
     private float suppressionMix;
     private bool suppressionBackendBypassed;
     private float gateEnvelope = 1f;
+    private float gateDetector;
+    private int gateHoldSamples;
+    private bool gateOpen = true;
     private float compressorEnvelope;
     private float limiterGain = 1f;
     private float chatMix = 0.15f;
@@ -133,8 +136,17 @@ internal sealed class AudioGraph
         if (attempted)
         {
             succeeded = noiseSuppressor.Process(dryFrame, suppressedFrame, out localSnr);
-            var targetMix = suppressionRequested && succeeded ? 1f : 0f;
-            ApplySuppressionCrossfade(samples, targetMix);
+            if (succeeded)
+            {
+                ApplySuppressionCrossfade(samples, suppressionRequested ? 1f : 0f);
+            }
+            else
+            {
+                // A failed backend may leave its output untouched or partially
+                // written. Never fade through a previous frame or invalid data.
+                dryFrame.CopyTo(samples);
+                suppressionMix = 0f;
+            }
         }
         else
         {
@@ -165,6 +177,9 @@ internal sealed class AudioGraph
     {
         suppressionMix = 0f;
         gateEnvelope = 1f;
+        gateDetector = 0f;
+        gateHoldSamples = 0;
+        gateOpen = true;
         compressorEnvelope = 0f;
         limiterGain = 1f;
         equalizer.Reset();
@@ -201,14 +216,39 @@ internal sealed class AudioGraph
         suppressionMix = nextMix;
     }
 
+    // The gate decides from a level envelope, not raw samples: a raw sample test
+    // closes at every zero crossing and reopens on single noise spikes, which
+    // chatters during speech and lets room noise through. Hysteresis and a short
+    // hold keep the decision stable at the threshold and between syllables.
+    private const float GateCloseRatio = 0.63f; // closes 4 dB below the open threshold
+    private const float GateDetectorReleaseMs = 20f;
+    private const int GateHoldSamples = AudioConstants.ProcessingSampleRate * 30 / 1_000;
+
     private void ApplyNoiseGate(Span<float> samples, NoiseGateConfiguration configuration)
     {
-        var threshold = DbToLinear(configuration.ThresholdDb);
+        var openThreshold = DbToLinear(configuration.ThresholdDb);
+        var closeThreshold = openThreshold * GateCloseRatio;
+        var detectorRelease = TimeCoefficient(GateDetectorReleaseMs);
         var attack = TimeCoefficient(configuration.AttackMs);
         var release = TimeCoefficient(configuration.ReleaseMs);
         for (var index = 0; index < samples.Length; index++)
         {
-            var target = MathF.Abs(samples[index]) >= threshold ? 1f : 0f;
+            var magnitude = MathF.Abs(samples[index]);
+            gateDetector = magnitude > gateDetector ? magnitude : magnitude + detectorRelease * (gateDetector - magnitude);
+            if (gateDetector >= openThreshold)
+            {
+                gateOpen = true;
+                gateHoldSamples = GateHoldSamples;
+            }
+            else if (gateHoldSamples > 0)
+            {
+                gateHoldSamples--;
+            }
+            else if (gateDetector < closeThreshold)
+            {
+                gateOpen = false;
+            }
+            var target = gateOpen ? 1f : 0f;
             var coefficient = target > gateEnvelope ? attack : release;
             gateEnvelope = target + coefficient * (gateEnvelope - target);
             samples[index] *= gateEnvelope;
@@ -287,8 +327,12 @@ internal sealed class AudioGraph
 
         public void Configure(IReadOnlyList<EqualizerBandConfiguration> bands)
         {
-            count = Math.Min(filters.Length, bands.Count);
-            for (var index = 0; index < count; index++) filters[index].Configure(bands[index]);
+            count = 0;
+            for (var index = 0; index < Math.Min(filters.Length, bands.Count); index++)
+            {
+                var band = bands[index];
+                if (band.Enabled && MathF.Abs(band.GainDb) >= 0.001f) filters[count++].Configure(band);
+            }
             for (var index = count; index < filters.Length; index++) filters[index].SetIdentity();
         }
 

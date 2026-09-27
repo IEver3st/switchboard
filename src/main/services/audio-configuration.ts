@@ -2,11 +2,15 @@ import { audioStateSchema, type AudioHostSnapshot, type AudioState } from '../..
 import { microphoneDspConfigurationApplied, microphoneInputApplied, microphoneMonitoringApplied } from '../../shared/microphone-runtime';
 
 const preferenceKeys = [
+  'spatial',
   'outputDevice', 'microphoneDevice', 'mixes', 'chatMix', 'monitoring',
   'monitoringEnabled', 'monitoringDeviceId', 'buses', 'micProcessors',
   'channelProcessing', 'pathPresets', 'activePresetIds',
-  'applicationRoutes',
+  'applicationRoutes', 'automaticApplicationRouting', 'excludedDeviceIds',
 ] as const satisfies readonly (keyof AudioState)[];
+
+// Persisted preferences the audio host never reads.
+const rendererOnlyKeys = new Set<keyof AudioState>(['pathPresets', 'activePresetIds', 'excludedDeviceIds']);
 
 export function applyAudioPreferenceChanges(current: AudioState, before: AudioState, next: AudioState): void {
   for (const key of preferenceKeys) {
@@ -46,7 +50,7 @@ export class AudioConfiguration {
       change(draft);
       const next = audioStateSchema.parse(draft);
       let host: AudioHostSnapshot | undefined;
-      const changesHost = preferenceKeys.some(key => key !== 'pathPresets' && key !== 'activePresetIds'
+      const changesHost = preferenceKeys.some(key => !rendererOnlyKeys.has(key)
         && JSON.stringify(before[key]) !== JSON.stringify(next[key]));
       if (before.enabled && changesHost) {
         try {
@@ -68,7 +72,22 @@ export class AudioConfiguration {
 
 export function assertAudioConfigurationApplied(before: AudioState, next: AudioState, host: AudioHostSnapshot): void {
   if (!host.running) throw new Error('The audio engine stopped before accepting the change.');
+  if (JSON.stringify(before.spatial) !== JSON.stringify(next.spatial)
+    && (JSON.stringify(host.spatial?.settings) !== JSON.stringify(next.spatial)
+      || (next.spatial.enabled && (!host.spatial?.active || host.capabilities.spatialAudio !== 'available')))) {
+    throw new Error(host.spatial?.error ?? host.error ?? 'The headphone spatial settings were not accepted by the audio host.');
+  }
   const applied = { ...next, host };
+  if (before.automaticApplicationRouting !== next.automaticApplicationRouting
+    && host.automaticApplicationRouting !== next.automaticApplicationRouting) {
+    throw new Error('The audio host did not accept automatic routing. Restart Switchboard to load the updated host.');
+  }
+  const routesKey = (routes: AudioState['applicationRoutes']) => JSON.stringify([...(routes ?? [])]
+    .sort((a, b) => a.executablePath.toLowerCase().localeCompare(b.executablePath.toLowerCase())));
+  if (routesKey(before.applicationRoutes) !== routesKey(next.applicationRoutes)
+    && routesKey(host.applicationRoutes) !== routesKey(next.applicationRoutes)) {
+    throw new Error('The audio host did not accept the app categories.');
+  }
   if (JSON.stringify(before.mixes) !== JSON.stringify(next.mixes)
     && JSON.stringify(next.mixes) !== JSON.stringify(host.mixes)) {
     throw new Error('The audio engine did not accept the mix levels.');

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using NAudio.CoreAudioApi;
 
 namespace Switchboard.AudioHost;
 
@@ -101,12 +102,48 @@ internal sealed class ApplicationAudioPolicy : IApplicationEndpointPolicy, IDisp
     {
         lock (gate)
         {
-            var current = ReadPreferences(processId);
+            Probe();
             var managed = PreferencesFor(sinkId);
-            WritePreferences(processId, new(
-                current.Console == managed.Console ? previous.Console : current.Console,
-                current.Multimedia == managed.Multimedia ? previous.Multimedia : current.Multimedia,
-                current.Communications == managed.Communications ? previous.Communications : current.Communications));
+            using var devices = new MMDeviceEnumerator();
+            RestoreRole(checked((uint)processId), PolicyRole.Console, managed.Console, previous.Console, devices);
+            RestoreRole(checked((uint)processId), PolicyRole.Multimedia, managed.Multimedia, previous.Multimedia, devices);
+            RestoreRole(checked((uint)processId), PolicyRole.Communications, managed.Communications, previous.Communications, devices);
+        }
+    }
+
+    private void RestoreRole(uint processId, PolicyRole role, string managed, string previous, MMDeviceEnumerator devices)
+    {
+        var current = GetRole(processId, role);
+        // Do not rewrite untouched roles. Even rewriting their existing value can
+        // fail if the user selected an endpoint which has since disappeared.
+        if (!string.Equals(current, managed, StringComparison.OrdinalIgnoreCase)) return;
+        var target = IsEndpointAvailable(previous, devices) ? previous : string.Empty;
+        if (string.Equals(current, target, StringComparison.OrdinalIgnoreCase)) return;
+        try { SetRole(processId, role, target); }
+        catch (ArgumentException) when (target.Length > 0 && !IsEndpointAvailable(target, devices))
+        {
+            // The endpoint can disappear between inventory and the policy write.
+            target = string.Empty;
+            SetRole(processId, role, target);
+        }
+        if (!string.Equals(GetRole(processId, role), target, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Windows did not restore the application's {role} output.");
+    }
+
+    private static bool IsEndpointAvailable(string persisted, MMDeviceEnumerator devices)
+    {
+        if (persisted.Length == 0) return true; // Inherit the Windows default.
+        if (!persisted.StartsWith(MmDevicePrefix, StringComparison.OrdinalIgnoreCase)
+            || !persisted.EndsWith(RenderInterfaceSuffix, StringComparison.OrdinalIgnoreCase)) return false;
+        var endpointId = persisted[MmDevicePrefix.Length..^RenderInterfaceSuffix.Length];
+        try
+        {
+            using var device = devices.GetDevice(endpointId);
+            return device.State == DeviceState.Active && device.DataFlow == DataFlow.Render;
+        }
+        catch (COMException error) when (error.HResult == unchecked((int)0x80070490))
+        {
+            return false; // The endpoint was removed from Windows.
         }
     }
 

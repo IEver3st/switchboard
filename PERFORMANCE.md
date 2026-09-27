@@ -1,5 +1,36 @@
 # Performance budgets
 
+Vite dev launches now collect an automatic local feedback feed, readable with
+`bun run diagnose:dev`. It shares the existing five-second resource tick; status
+writes coalesce, recent events/history are bounded, and it does not activate the
+native resource helper or add renderer snapshot updates. First-window startup and
+sustained CPU/event-loop anomalies can produce a three-second main/renderer profile
+(five-minute cooldown, three automatic batches per app session). Manual profiles
+are bounded to 1–10 seconds. The current session retains four batches, each profile
+at most 8 MiB, plus two previous ended sessions. Details and the opt-out are in
+[Resource diagnostics](docs/resource-diagnostics.md#automatic-development-feedback).
+These instrumented measurements are for diagnosis, not budget qualification.
+
+Optional audio setup runs only when its onboarding or Settings surface requests
+a check or the user starts installation. There is no startup download, background
+poller, or additional realtime audio process. Each check uses a bounded one-shot
+Audio.Host command. Downloads are limited to 32 MiB and two minutes, with integer
+percentage updates; extraction and signature checks have a 30-second deadline.
+Downloads cancel on shutdown. An already launched vendor installer may remain
+open for user interaction; its helper restores Windows defaults on completion and
+releases the installation lock. Disabling audio retains no setup polling work.
+
+Spatial headphone rendering preallocates fourteen 160-tap FIR paths, seven
+history buffers and two bounded delay rings per physical output. HRTF data loads on the control thread only
+when enabled. SIMD convolution, spherical interpolation and quaternion smoothing
+allocate nothing in callbacks. Filter crossfades use 128-frame blocks; wet/dry
+changes ramp over 960 frames. Disabled playback stops filtering after that ramp.
+The selected HID reader or optional blocking UDP receiver exists only while
+both spatial playback and tracking are enabled. HID discovery/reconnect reuses
+the existing five-second control tick; no additional polling timer is created.
+Pose expiry is checked by audio callbacks; UI connection state uses that same tick. Native
+tests measure zero callback allocations; hardware latency and soak are separate.
+
 Microphone calibration runs only on request in an isolated Capture.Host helper.
 It plays five test sounds over eleven seconds and retains two bounded arrays of
 millisecond energy values. Endpoint callbacks do no allocation, locking, logging,
@@ -28,6 +59,24 @@ unmount. Step changes only translate the layer; there is no idle drawing loop.
 This avoids retaining Chromium GPU path caches after closing the renderer.
 
 These are release gates, not marketing claims.
+
+Runtime handoff retains one presence pipe per instance, one owner pipe for the
+active runtime, and one passive watch connection while installed Switchboard is
+paused. Healthy ownership has no polling timer. Handshakes have bounded messages
+and deadlines; all sockets close at shutdown. The standby window is static,
+sandboxed and has no preload, subscriptions, device discovery or engine processes.
+Development startup performs one bounded process inventory only when no cooperating
+installed peer responds, to avoid overlapping an older installed build.
+
+Parametric EQ accepts up to 64 bands per output channel or microphone path. Native
+filter storage is preallocated to the shared limit, and configuration compacts
+only enabled, non-neutral bands into the processing loop. Empty EQ performs no
+filter passes. Adding neutral editor points therefore adds no sample-processing
+passes. Coefficient changes retain the existing block-boundary configuration path;
+the editor sends complete band lists on commit, not every pointer move. The
+capacity test measures allocations and synthetic 64-band callback time; live
+multi-route CPU, audio quality, and long-running device behavior remain separate
+acceptance checks.
 
 The Electron 44 Browser, sandbox utility, and GPU process floor is part of the
 core budget. On the supported Windows configuration that floor is approximately
@@ -233,6 +282,14 @@ host snapshots still discover application and
 endpoint transitions, while unchanged timing-only diagnostics publish at most
 once every 30 seconds.
 
+Each active meter subscription owns one navigation/destroy listener pair, removed
+on unsubscribe, full navigation, renderer replacement, destruction or IPC disposal.
+Engine command pipes pause further writes until drain. Each host retains at most
+1 MiB of serialized queued/buffered commands, preserves FIFO ordering, and removes
+unsent requests when their existing deadline expires. Pipe failure rejects pending
+requests; shutdown still terminates a host whose command pipe cannot accept work.
+These paths add no polling or persistent timers.
+
 Physical device discovery continues on its five-second lifecycle, but a present
 Logitech HID++ endpoint that fails to open is retried at most once every 30
 seconds. The last confirmed controls remain visible but disabled during the
@@ -249,6 +306,69 @@ The saved Quick Controls shortcut is restored immediately after settings load,
 before diagnostics, device discovery, or engine restoration. Application scene
 watching still begins after service initialization; opening the panel is not a
 prerequisite for the shortcut, including when startup remains in the tray.
+
+Auto Capture runtime/provider publications update only the capture branch.
+Audio route reconciliation and endpoint discovery read only their owning
+branches; cached endpoint refreshes return without copying the full state.
+Subscription baselines retain canonical branch identity, avoiding a second
+library-sized payload for the first ordinary update. Persistence retains at
+most one latest pending generation behind the current durable write, serializes
+only generations actually written, and drains on shutdown without a timer.
+
+`node scripts/run-native-review.mjs state-churn` exercises these paths with
+2,000 synthetic clip records, isolated settings/media, no engines, and hidden
+Electron windows. The September 27 comparison measured 30 Auto Capture status
+updates at 223.7 ms before and 2.2 ms after, with library invalidations reduced
+from 30 to zero. Thirty disabled replay-audio sync checks went from 65.9 ms to
+1.0 ms; cached endpoint refreshes dropped 30 full-state copies. The first
+post-subscription delta fell from 772,827 to 316 JSON bytes. A synchronous burst
+of 40 settings updates went from 40 durable writes/backups in 449.6 ms to one
+write/backup in 17.1 ms, with final preferences verified after loading from disk.
+These are bounded workload timings, not sustained CPU or whole-app RAM savings.
+The persistence tests also cover a delayed or failed in-flight write, latest
+pending state, the last durable backup, and exclusion of later transient updates.
+
+Set `SWITCHBOARD_IDLE_BUILD` to a saved production output directory to compare
+immutable builds with `node scripts/run-native-review.mjs idle`, while preserving
+the same renderer assets and isolated profile/media policy.
+The follow-up 60-second-per-state pair measured 364.9 to 351.1 MiB median private
+memory open and 291.7 to 288.6 MiB in tray. The open GPU-process median changed
+from 197.6 to 185.8 MiB, accounting for most of the total difference; one pair
+does not establish a repeatable RAM reduction. Both builds still failed the
+340/270 MiB memory gates and passed CPU gates (median rounded to 0.0%). Native
+reopen checks, immutable-baseline delivery, delayed/failed persistence, recovery,
+type/build/source checks and the JavaScript suite passed; physical engines,
+populated media playback and long-running soak were not part of these fixtures.
+
+Retained main windows stop snapshot-stream delivery on hide or minimize. Each
+subscription keeps only its latest pending canonical snapshot and sends one
+revision-contiguous catch-up patch on show or restore. Explicit subscriptions
+and reloads still receive a full baseline. Window destruction and IPC disposal
+remove the delivery listeners; this adds no timer. Minimize also pauses library
+background work and audio-meter demand through the existing renderer-active
+signal. Reopening restores a minimized window. Repeated renderer-active signals
+return without cloning the full state, and the open path no longer duplicates
+the focus handler's audio-device refresh.
+
+`node scripts/run-native-review.mjs window-lifecycle` checks these paths in
+isolated hidden Electron with injected visibility events, empty media storage,
+and no hardware writes. A matched September 27 comparison of the previous and
+updated lifecycle paths delivered 100 versus zero snapshot frames for 100 hidden
+updates, then one catch-up frame after resume. The same workload while minimized
+went from 100 frames to zero; 100 redundant activations went from 100 full-state
+copies to zero. Three renderer destroy/reopen cycles checked current state and
+listener cleanup. This proves lifecycle work elimination, not a foreground
+rendering, physical-audio, whole-app memory reduction, or long-running soak claim.
+
+The September 27 post-change production-bundle idle fixture sampled each state
+for 60 seconds after warmup: 351.1 MiB median private memory open and 283.1 MiB
+with the renderer destroyed. Both exceeded the existing 340/270 MiB gates.
+Median whole-machine CPU rounded to 0.0% at one decimal in both states. The
+earlier checkout run measured 345.9/280.3 MiB; other audio/device work changed
+concurrently, so these whole-checkout samples are not an isolated memory A/B.
+The production-bundle startup sample reached the shell in 291.5 ms, and three
+destroy/reopen samples took 154.4, 163.2 and 157.8 ms. These are hidden fixtures
+with no engines or populated library; memory-budget acceptance remains open.
 
 Library reconciliation and thumbnail enrichment wait while the main interface
 is in the tray, including when its renderer is retained. Reopening resumes queued
@@ -376,9 +496,27 @@ lost across sleep or reconnect. Failed session opens retry after five seconds.
 Neither recovery path creates a timer or writes onboard flash; module disable
 and shutdown stop recovery with the existing discovery/session lifecycle.
 
+Onboard refresh reuses the session's fixed profile format and sector geometry.
+Mode and profile selection remain live reads; full profile reads still require
+CRC validation. A timed-out
+read transaction gets one serialized retry; repeated failures retain the last
+verified profile and back off through 5, 10, 20 and 30 seconds on the existing
+discovery cycle. Recovery resets backoff. No new timer or automatic write retry is
+introduced, and repeated failures in one outage produce one warning.
+
 An enabled local device-discovery add-on creates at most one hidden sandboxed Chromium host. The host is lazy, performs work only during the registry's existing five-second discovery cycle, has no Module Host timer of its own, and is destroyed on disable, unlink, runtime failure, or shutdown. A disabled project retains no renderer process or subscription. Each active local host counts as an additional process in the canonical performance snapshot; real private working-set and long-running growth still require native measurement before release acceptance.
 
 The G502 X Plus native-control path holds one non-exclusive HID++ long-report handle only while the Logitech module and matching device are active. Sniper-button edges are notification-driven. Lighting shares the existing five-second discovery cycle for two power/ownership reads while a user selection or temporary override is active; it adds no timer and stops on session disposal. Live RGB effects are sent on explicit changes and restoration after startup, a profile-mode transition, or lost power/ownership. Unknown selections retry restoration on discovery; healthy effects are not rewritten. Battery policy uses the temporary overrides described above. RGB ownership is retained in either onboard mode and released on session close. Lighting controls never write profile flash. Stored DPI, report-rate and button changes retain CRC validation and immediate readback. Release, module disable, disconnect, and shutdown close the handle and restore pre-hold DPI when reachable.
+
+Routine G502 discovery reads onboard mode and active sector without rereading
+32 flash chunks ahead of a lighting command. Full CRC-validated contents refresh
+on selection changes, after a timed-out read, and once per minute on the existing
+discovery cycle to detect external edits to the same profile. Profile mutations
+always read fresh contents before writing. Lighting packs up to four zones into
+each HID++ report and commits only after all batches succeed. A partial failure
+invalidates acknowledgement and restores the last confirmed selection on discovery.
+The complete acknowledged lighting selection is persisted immediately, including
+zone colors and power; an older discovery cannot overwrite a newer lighting write.
 
 The QuadCast 2 path holds one non-exclusive blocking-read handle for absolute tap-mute events and one non-exclusive feature-report handle only while maintained lighting is active. Lighting refreshes every 55 ms because the researched display frame expires on-device; the timer is unreferenced and stops on module disable, disconnect, write failure, or shutdown. A failed mute read closes its handle and retries after one second while the device remains present.
 

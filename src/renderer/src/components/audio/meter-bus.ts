@@ -33,3 +33,28 @@ export function clearAudioMeters(): void {
     for (const listener of listeners.get(busId) ?? []) listener(value);
   }
 }
+
+export const METER_FLOOR_DB = -60;
+
+export function levelToDb(level: number): number {
+  return level <= 0.001 ? METER_FLOOR_DB : Math.max(METER_FLOOR_DB, 20 * Math.log10(level));
+}
+
+/**
+ * Display ballistics for meter readings. The host reports the RMS of its most
+ * recent 10 ms buffer, which jumps between frames; drawn raw it flickers.
+ * Rises follow the signal almost at once, falls decay at a steady rate, like a
+ * hardware PPM. Returns the smoothed level in dB and whether it is still moving.
+ */
+export function createMeterBallistics(releaseDbPerSecond = 24, attack = 0.6) {
+  let displayDb = METER_FLOOR_DB;
+  let lastAt = 0;
+  return (targetDb: number, now: number): { db: number; settling: boolean } => {
+    const seconds = lastAt ? Math.min(0.1, (now - lastAt) / 1_000) : 0;
+    lastAt = now;
+    if (targetDb > displayDb) displayDb += (targetDb - displayDb) * attack;
+    else displayDb = Math.max(targetDb, displayDb - releaseDbPerSecond * seconds);
+    if (Math.abs(targetDb - displayDb) < 0.05) displayDb = targetDb;
+    return { db: displayDb, settling: displayDb !== targetDb || displayDb > METER_FLOOR_DB };
+  };
+}

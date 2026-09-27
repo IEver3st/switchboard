@@ -195,6 +195,9 @@ textarea:focus-visible {
   background: transparent;
 }
 
+/* Radix hides the select viewport scrollbar; show it since the scroll arrows are gone. */
+.select-viewport[data-radix-select-viewport] { overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+
 .app-drag {
   -webkit-app-region: drag;
 }

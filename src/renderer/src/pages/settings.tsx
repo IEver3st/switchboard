@@ -1,3 +1,6 @@
+import { AudioDependencySetupPanel } from '@/components/settings/audio-dependency-setup';
+import { ApplicationRoutingSettings } from '@/components/settings/application-routing-settings';
+import { pickableAudioDevices } from '@/components/audio/AudioDevicePicker';
 import '@/components/settings/capture-settings.css';
 import '@/components/settings/settings-shell.css';
 import { AudioSyncCalibrationSettings } from '@/components/settings/audio-sync-calibration';
@@ -265,10 +268,7 @@ function SettingsCategory({
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'updates') return <UpdatesSettings snapshot={snapshot} />;
   if (category === 'setup') return <SetupWorkspace snapshot={snapshot} />;
-  if (category === 'audio') {
-    if (snapshot.settings.developerMode !== true) return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
-    return <AudioSettings snapshot={snapshot} onReset={onReset} />;
-  }
+  if (category === 'audio') return <AudioSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} targetSetting={targetSetting} />;
   if (category === 'clips') return <ClipsSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'games') return <GameDetectionSettings snapshot={snapshot} onReset={onReset} />;
@@ -295,13 +295,13 @@ function FeaturesSettings({
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const developerMode = snapshot.settings.developerMode === true;
   const stored = normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces) ?? fullWorkspacesForDeveloperMode(developerMode);
-  const workspaces = developerMode ? stored : stored.filter((entry) => entry !== 'audio');
+  const workspaces = stored;
   const preset = workspacePreset(workspaces, developerMode);
   const devicesVisible = workspaces.includes('devices');
   const enabledDeviceModules = snapshot.modules.filter((module) => module.enabled && module.kind === 'device').length;
 
   const applyWorkspaces = (next: VisibleWorkspace[]) => {
-    const filtered = developerMode ? next : next.filter((entry) => entry !== 'audio');
+    const filtered = next;
     void updateSettings({ visibleWorkspaces: filtered }).then(() => {
       const state = useSystemStore.getState();
       const current = state.snapshot;
@@ -312,7 +312,6 @@ function FeaturesSettings({
   };
 
   const setWorkspaceVisible = (workspace: Exclude<VisibleWorkspace, 'capture'>, visible: boolean) => {
-    if (workspace === 'audio' && !developerMode) return;
     const selected = new Set(workspaces);
     if (visible) selected.add(workspace);
     else selected.delete(workspace);
@@ -398,9 +397,9 @@ function FeaturesSettings({
         </div>
       </section>
 
-      {developerMode ? (
+      {(
         <section className="settings-feature" aria-labelledby="settings-feature-audio">
-          <FeatureHeading id="settings-feature-audio" icon={AudioWaveform} title="Audio" description="Unfinished routing, mixes, and processing. Developer mode only.">
+          <FeatureHeading id="settings-feature-audio" icon={AudioWaveform} title="Audio" description="Optional app mixing and microphone processing. Install the drivers in Audio settings.">
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenCategory('audio')}>Audio settings</Button>
             <Switch
               checked={workspaces.includes('audio')}
@@ -410,7 +409,7 @@ function FeaturesSettings({
             />
           </FeatureHeading>
         </section>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -526,7 +525,7 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
         <SettingSwitch
           settingId="general.developerMode"
           title="Developer mode"
-          description="Show Diagnostics and unfinished Audio routing, mixes, and processing. Audio settings do not work yet. Turning this off hides both and stops the Audio engine."
+          description="Show advanced diagnostics and development tools."
           checked={snapshot.settings.developerMode === true}
           onCheckedChange={(developerMode) => {
             void updateSettings({ developerMode }).then(() => {
@@ -549,17 +548,16 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
   const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
   const gameBus = snapshot.audio.buses.find((bus) => bus.id === 'game');
   const micBus = snapshot.audio.buses.find((bus) => bus.id === 'mic');
-  const outputOptions = snapshot.audio.devices
-    .filter((device) => device.direction === 'output' && device.available)
+  const outputOptions = pickableAudioDevices(snapshot.audio.devices, 'output', snapshot.audio.excludedDeviceIds, gameBus?.deviceId)
     .map((device) => ({ value: device.id, label: `${device.name}${device.isDefault ? ' · Windows default' : ''}` }));
-  const inputOptions = snapshot.audio.devices
-    .filter((device) => device.direction === 'input' && device.available)
+  const inputOptions = pickableAudioDevices(snapshot.audio.devices, 'input', snapshot.audio.excludedDeviceIds, micBus?.deviceId)
     .map((device) => ({ value: device.id, label: `${device.name}${device.isDefault ? ' · Windows default' : ''}` }));
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
 
   return (
     <>
-      <SettingsCategoryHeader title="Audio" description="Unfinished Developer mode area. Set the Audio host lifecycle and default Windows endpoints." onReset={onReset} />
+      <SettingsCategoryHeader title="Audio" description="Manage audio routing and default devices." onReset={onReset} />
+      <SettingSection title="Audio drivers"><AudioDependencySetupPanel state={snapshot.audio.dependencies} /></SettingSection>
       <SettingSection title="Engine">
         <SettingSwitch
           settingId="audio.engine"
@@ -577,6 +575,7 @@ function AudioSettings({ snapshot, onReset }: CategoryProps) {
           value={`${snapshot.audio.sampleRate / 1000} kHz · float32`}
         />
       </SettingSection>
+      <ApplicationRoutingSettings audio={snapshot.audio} />
       <SettingSection title="Default devices">
         {gameBus ? (
           <SettingSelect
@@ -1104,7 +1103,7 @@ function DiagnosticsSettings({ snapshot, targetSetting }: CategoryProps & { targ
           {snapshot.performance.sampledAt ? <span>{snapshot.performance.activeProcesses} processes</span> : null}
           <small>{processSample}</small>
         </article>
-        {developerMode ? <EngineSummary title="Audio" engine={audioEngine} /> : null}
+        <EngineSummary title="Audio" engine={audioEngine} />
         <EngineSummary title="Capture" engine={captureEngine} />
       </section>
 
@@ -1473,7 +1472,7 @@ function AboutSettings({ snapshot, onOpenCategory, onRestoreDefaults }: {
         <img src="./switchboard-mark.png" alt="" draggable={false} />
         <div>
           <h3>Switchboard {snapshot.version}</h3>
-          <p>A compact Windows utility for hardware and game capture{developerMode ? ', with unfinished audio routing behind Developer mode' : ''}.</p>
+          <p>A compact Windows utility for hardware and game capture, with optional audio mixing and microphone processing.</p>
         </div>
       </div>
       {developerMode ? (

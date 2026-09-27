@@ -6,6 +6,7 @@ internal interface IAudioRoutingEngine : IDisposable
     VirtualDriverState Driver { get; }
     string Backend { get; }
     bool HasVirtualOutputs { get; }
+    SpatialSession Spatial { get; }
     IReadOnlyList<AudioApplicationPreference> ApplicationRoutes { get; }
     void Start();
     void Configure(AudioHostSettings settings);

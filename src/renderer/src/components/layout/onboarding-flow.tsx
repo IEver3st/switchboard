@@ -1,3 +1,4 @@
+import { AudioDependencySetupPanel } from '@/components/settings/audio-dependency-setup';
 import './onboarding.css';
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -47,7 +48,7 @@ import { Switch } from '@/components/ui/switch';
 import { displayShortcut } from '@/lib/shortcut';
 import { useSystemStore } from '@/stores/use-system-store';
 
-const steps = [
+const baseSteps = [
   { id: 'welcome', label: 'Welcome' },
   { id: 'setup', label: 'Your setup' },
   { id: 'capture', label: 'Capture' },
@@ -112,8 +113,10 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
   const [workspaces, setWorkspaces] = useState<VisibleWorkspace[]>(() => {
     const normalized = normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces)
       ?? fullWorkspacesForDeveloperMode(developerMode);
-    return developerMode ? normalized : normalized.filter((entry) => entry !== 'audio');
+    return normalized;
   });
+  const steps = workspaces.includes('audio') ? [...baseSteps.slice(0, 4), { id: 'audio-setup', label: 'Audio setup' }, baseSteps[4]!] : [...baseSteps];
+  const finishIndex = steps.length - 1;
   const [source, setSource] = useState<CaptureSourceType>(snapshot.capture.config.source);
   const [resolution, setResolution] = useState<CaptureResolution>(snapshot.capture.config.resolution);
   const [replaySeconds, setReplaySeconds] = useState(snapshot.capture.config.replaySeconds);
@@ -229,7 +232,12 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
       fail(captureFailure);
       return;
     }
-    const filtered = developerMode ? workspaces : workspaces.filter((entry) => entry !== 'audio');
+    if (workspaces.includes('audio') && snapshot.audio.dependencies.phase === 'ready') {
+      await useSystemStore.getState().setAudioEnabled(true);
+      const audioFailure = useSystemStore.getState().error;
+      if (audioFailure) { fail(audioFailure); return; }
+    }
+    const filtered = workspaces;
     await useSystemStore.getState().updateSettings({ visibleWorkspaces: filtered, onboardingCompleted: true });
     const failure = useSystemStore.getState().error;
     if (failure) {
@@ -260,7 +268,6 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
   };
 
   const toggleAudioWorkspace = () => {
-    if (!developerMode) return;
     setError(null);
     setWorkspaces(toggleDraftWorkspace(draft(), 'audio', developerMode).workspaces);
   };
@@ -268,7 +275,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
   const preset = workspacePreset(workspaces, developerMode);
   const primaryLabel = active === 0
     ? 'Get started'
-    : active === 4
+    : active === finishIndex
       ? `Open ${workspaceName(workspaces[0] ?? 'capture')}`
       : 'Continue';
   const onPrimary = () => {
@@ -276,6 +283,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
     else if (active === 1) void continueFromSetup();
     else if (active === 2) void continueFromCapture();
     else if (active === 3) void continueFromAudio();
+    else if (active < finishIndex) goTo(finishIndex);
     else void finish();
   };
 
@@ -391,15 +399,15 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
                       onSelect={() => choosePreset('full')}
                     />
                   </m.div>
-                  {developerMode ? (
+                  {(
                     <m.label {...enter(2)} className="ob-inline-toggle">
                       <span>
                         <strong>Show the Audio page</strong>
-                        <small>Unfinished routing and processing. Developer mode only.</small>
+                        <small>Optional app mixing and microphone processing. Setup installs the required audio drivers.</small>
                       </span>
                       <Switch checked={workspaces.includes('audio')} disabled={pending} onCheckedChange={toggleAudioWorkspace} aria-label="Show the Audio page" />
                     </m.label>
-                  ) : null}
+                  )}
                 </div>
               ) : null}
 
@@ -513,7 +521,14 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
                 </div>
               ) : null}
 
-              {active === 4 ? (
+              {steps[active]?.id === 'audio-setup' ? (
+                <div className="ob-step">
+                  <StepHeading headingRef={headingRef} eyebrow="Audio setup" title="Add audio mixing and voice processing" description="Install only what is missing. You can also finish this later in Settings → Audio." motion={enter(0)} />
+                  <AudioDependencySetupPanel state={snapshot.audio.dependencies} />
+                </div>
+              ) : null}
+
+              {active === finishIndex ? (
                 <div className="ob-finish">
                   <SuccessMark reduceMotion={reduceMotion} />
                   <m.h2 {...enter(1)} id="onboarding-current-heading" ref={headingRef} tabIndex={-1}>You’re all set</m.h2>
@@ -573,8 +588,8 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
           ) : null}
         </AnimatePresence>
         <Button type="button" variant="primary" className="ob-primary" data-onboarding-next disabled={pending} onClick={onPrimary}>
-          {pending ? (active === 4 ? 'Finishing…' : 'Saving…') : primaryLabel}
-          {!pending && active < 4 ? <ArrowRight aria-hidden="true" /> : null}
+          {pending ? (active === finishIndex ? 'Finishing…' : 'Saving…') : primaryLabel}
+          {!pending && active < finishIndex ? <ArrowRight aria-hidden="true" /> : null}
         </Button>
       </footer>
     </div>
