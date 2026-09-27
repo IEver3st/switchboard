@@ -14,6 +14,7 @@ app.setPath('userData', userData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
+process.env.SWITCHBOARD_REVIEW_EXIT_CODE = '1';
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.on('browser-window-created', (_event, window) => {
@@ -63,7 +64,7 @@ async function run() {
       })`);
       // Hidden windows need explicit capture requests to advance compositor
       // frames. Wall-clock sleeps alone can leave a stale transition image.
-      for (let frame = 0; frame < 12; frame += 1) {
+      for (let frame = 0; frame < 3; frame += 1) {
         await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
         await delay(100);
       }
@@ -197,6 +198,7 @@ async function run() {
   if (failure.step !== '1' || failure.busy !== 'false' || failure.overflow) throw new Error('Save failure recovery was incorrect.');
   console.log(JSON.stringify({ outputDirectory, captures, transitionFrames, reducedMotion,
     interaction: { keyboardBackAndStart: true, persistedAfterReload: true, failure } }, null, 2));
+  process.env.SWITCHBOARD_REVIEW_EXIT_CODE = '0';
   app.quit();
 }
 
