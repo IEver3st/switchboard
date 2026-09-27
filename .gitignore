@@ -14,3 +14,7 @@ native/**/target/
 *.tsbuildinfo
 # Keep downloaded release installers outside source history.
 design-qa/**/*.exe
+# Electron review profiles are local runtime state, not source artifacts.
+design-qa/runtime-profile-capture/
+.impeccable/review/native/workflow-user-data/
+design-qa/marketing-customization-20260915/profile/
