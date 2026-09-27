@@ -61,7 +61,12 @@ async function run() {
       await window.webContents.executeJavaScript(`document.getAnimations().forEach((animation) => {
         try { animation.finish(); } catch {}
       })`);
-      await delay(80);
+      // Hidden windows need explicit capture requests to advance compositor
+      // frames. Wall-clock sleeps alone can leave a stale transition image.
+      for (let frame = 0; frame < 12; frame += 1) {
+        await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
+        await delay(100);
+      }
       const metrics = await window.webContents.executeJavaScript(`(() => {
         const main = document.querySelector('.onboarding-main');
         const stage = document.querySelector('.onboarding-stage[data-step-index]');
@@ -86,7 +91,7 @@ async function run() {
         throw new Error(`Onboarding overflow: ${JSON.stringify(metrics)}`);
       }
       const filename = `${viewport.width}x${viewport.height}-step-${step + 1}.png`;
-      const image = await window.webContents.capturePage();
+      const image = await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
       await writeFile(join(outputDirectory, filename), image.toPNG());
       captures.push({ viewport, step: step + 1, filename, metrics });
     }
@@ -104,7 +109,7 @@ async function run() {
     await delay(timestamp - elapsed);
     elapsed = timestamp;
     const filename = `motion-step-2-to-3-${String(timestamp).padStart(3, '0')}ms.png`;
-    const image = await window.webContents.capturePage();
+    const image = await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
     await writeFile(join(outputDirectory, filename), image.toPNG());
     transitionFrames.push(filename);
   }
@@ -179,10 +184,10 @@ async function run() {
   await click(window, 'Continue');
   await waitFor(window, `document.querySelector('.onboarding-main')?.getAttribute('aria-busy') === 'true'`, 'pending');
   await delay(150);
-  await writeFile(join(outputDirectory, '1080x720-pending.png'), (await window.webContents.capturePage()).toPNG());
+  await writeFile(join(outputDirectory, '1080x720-pending.png'), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
   await waitFor(window, `Boolean(document.querySelector('.onboarding-error'))`, 'save failure');
   await delay(250);
-  await writeFile(join(outputDirectory, '1080x720-error.png'), (await window.webContents.capturePage()).toPNG());
+  await writeFile(join(outputDirectory, '1080x720-error.png'), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
   const failure = await window.webContents.executeJavaScript(`({
     step: document.querySelector('.onboarding-stage')?.getAttribute('data-step-index'),
     busy: document.querySelector('.onboarding-main')?.getAttribute('aria-busy'),
@@ -253,7 +258,9 @@ async function waitForViewport(window, viewport) {
   window.setMinimumSize(1,1);
   window.webContents.setZoomFactor(1);
   await delay(100);
-  for (let attempt=0;attempt<5;attempt++) {
+  for (let attempt=0;attempt<8;attempt++) {
+    await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
+    await delay(100);
     const actual=await window.webContents.executeJavaScript('({width:innerWidth,height:innerHeight})');
     if(actual.width===viewport.width && Math.abs(actual.height-viewport.height)<=2)return;
     const bounds=window.getBounds();window.setBounds({...bounds,width:bounds.width+viewport.width-actual.width,height:bounds.height+viewport.height-actual.height},false);

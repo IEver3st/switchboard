@@ -602,6 +602,38 @@ const signalPaths = (() => {
 })();
 
 const SignalField = memo(function SignalField({ step, animate }: { step: number; animate: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Software rasterization avoids Chromium retaining a GPU path cache for
+    // these decorative curves after the renderer closes. Paint only on resize.
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) return;
+    const paint = () => {
+      const { width, height } = canvas.getBoundingClientRect();
+      const scale = Math.min(window.devicePixelRatio, 2);
+      canvas.width = Math.ceil(width * scale);
+      canvas.height = Math.ceil(height * scale);
+      const tokens = getComputedStyle(document.documentElement);
+      const matrix = new DOMMatrix().scale(canvas.width / 2600, canvas.height / 1000);
+      for (const path of signalPaths) {
+        const scaled = new Path2D();
+        scaled.addPath(new Path2D(path.d), matrix);
+        context.strokeStyle = tokens.getPropertyValue(path.channel ? `--channel-${path.channel}` : '--text-muted').trim();
+        context.lineWidth = (path.channel ? 1.25 : 0.75) * scale;
+        context.globalAlpha = path.channel ? 0.45 : 0.2;
+        context.stroke(scaled);
+      }
+    };
+    const observer = new ResizeObserver(paint);
+    observer.observe(canvas);
+    return () => {
+      observer.disconnect();
+      canvas.width = 0;
+      canvas.height = 0;
+    };
+  }, []);
   return (
     <div className="onboarding-backdrop ob-bg" aria-hidden="true">
       <div
@@ -609,11 +641,7 @@ const SignalField = memo(function SignalField({ step, animate }: { step: number;
         data-animate={animate || undefined}
         style={{ transform: `translate3d(${step * -64}px, 0, 0)` }}
       >
-        <svg viewBox="0 0 2600 1000" preserveAspectRatio="none" fill="none">
-          {signalPaths.map((path, index) => (
-            <path key={index} d={path.d} data-channel={path.channel} vectorEffect="non-scaling-stroke" />
-          ))}
-        </svg>
+        <canvas ref={canvasRef} />
       </div>
     </div>
   );

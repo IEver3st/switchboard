@@ -1919,7 +1919,7 @@ export class AppController {
       ]).catch(() => null).finally(() => clearTimeout(gpuTimeout));
       this.diagnosticRunGraphics = gpu ? diagnosticGpuInfo(gpu) : { unavailable: 'GPU information is unavailable.' };
       this.recordDiagnosticCheck(runId, { id: 'environment', label: 'Windows and graphics', status: gpu ? 'pass' : 'warning',
-        detail: `${osVersion()} (${osRelease()}) Â· Switchboard ${projectPackage.version}. ${gpu ? 'GPU and driver details collected for export.' : 'GPU details could not be read.'}` });
+        detail: `${osVersion()} (${osRelease()}) · Switchboard ${projectPackage.version}. ${gpu ? 'GPU and driver details collected for export.' : 'GPU details could not be read.'}` });
       if (this.diagnosticRunCancelled) return;
       // Reuse a live host so its lifecycle gate can protect an existing recording.
       // A disabled engine gets a separate, short-lived supervisor with no product
@@ -2181,7 +2181,7 @@ export class AppController {
           await access(path);
           const probed = await this.clipLibrary.createClipFromFile(path);
           // Relinking different footage would silently invalidate existing edits.
-          if (Math.abs(probed.durationMs - clip.durationMs) > 250 || probed.width !== clip.width || probed.height !== clip.height) throw new Error('The selected video does not match this clipâ€™s duration and dimensions.');
+          if (Math.abs(probed.durationMs - clip.durationMs) > 250 || probed.width !== clip.width || probed.height !== clip.height) throw new Error('The selected video does not match this clip’s duration and dimensions.');
           this.store.updateBranches(['clips'], draft => { const target = draft.clips.find(c => c.id === id); if (target) Object.assign(target, { path, availability: 'available', fileSize: probed.fileSize }); });
         }
       } catch (error) {

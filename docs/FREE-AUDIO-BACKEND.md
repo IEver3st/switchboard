@@ -5,9 +5,12 @@ uses the standard free VB-CABLE render endpoint plus Windows process-loopback
 capture (Windows build 20348 or later). It does not require a paid certificate,
 VB-CABLE A/B, SteelSeries GG, or changes to Windows security settings.
 
-## UI integration handoff
+## UI integration
 
-No renderer files were changed for this implementation.
+The experimental Audio workspace remains available in developer mode. Its app
+picker includes unassigned sessions, distinguishes pending routes, and uses the
+backend capability fields. In single-cable mode, Stream is unavailable, Aux is
+hidden, and the Clip mixer omits the separately recorded microphone.
 
 - `audio.capabilities.routingBackend` is `vb-cable`, `switchboard-driver`, or
   `none`. Optional new fields retain compatibility with earlier snapshots.

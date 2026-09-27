@@ -218,6 +218,10 @@ Physical mic → DSP graph → Virtual microphone / monitor / mixes
 ```
 
 The signed driver is transport only. User-mode Audio.Host owns routing and DSP.
+When that driver is unavailable, the experimental Audio workspace can use the
+standard VB-CABLE endpoint with per-process loopback for personal and clip mixes.
+This fallback does not provide separate virtual microphone or stream outputs.
+See `docs/FREE-AUDIO-BACKEND.md` for capability, recovery, and lifecycle boundaries.
 
 ## Capture
 

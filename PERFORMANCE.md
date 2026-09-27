@@ -22,6 +22,11 @@ cancellation. Main retains at most four package reviews, each valid for ten minu
 is pruned on access without a timer. Community modules reuse the lazy discovery
 sandbox and retain no host while disabled. Updates are manual.
 
+The onboarding backdrop draws its existing paths into one software-backed canvas
+on resize. Its ResizeObserver disconnects and the pixel buffer is cleared on
+unmount. Step changes only translate the layer; there is no idle drawing loop.
+This avoids retaining Chromium GPU path caches after closing the renderer.
+
 These are release gates, not marketing claims.
 
 The Electron 44 Browser, sandbox utility, and GPU process floor is part of the
