@@ -15,11 +15,26 @@ internal sealed class ReplaySegmentRing
 {
     private readonly string rootDirectory;
     private readonly int segmentSeconds;
+    private readonly Dictionary<string, ManifestInventory> inventories = new(StringComparer.Ordinal);
+    private string? inventoryDirectory;
+    private readonly Func<DateTimeOffset> now;
+    internal int DirectoryScanCount { get; private set; }
+    private sealed class ManifestInventory
+    {
+        public DateTime LastWrite;
+        public long Length = -1;
+        public DateTimeOffset ReconciledAt;
+        public DateTimeOffset Origin;
+        public bool SweepOrphans;
+        public HashSet<string> Known = new(StringComparer.Ordinal);
+        public Dictionary<string, ReplaySegmentInfo> Completed = new(StringComparer.Ordinal);
+    }
 
-    public ReplaySegmentRing(string cacheDirectory, int segmentSeconds)
+    public ReplaySegmentRing(string cacheDirectory, int segmentSeconds, Func<DateTimeOffset>? now = null)
     {
         rootDirectory = Path.GetFullPath(cacheDirectory);
         this.segmentSeconds = segmentSeconds;
+        this.now = now ?? (() => DateTimeOffset.UtcNow);
         Directory.CreateDirectory(rootDirectory);
     }
 
@@ -33,45 +48,17 @@ internal sealed class ReplaySegmentRing
     public IReadOnlyList<ReplaySegmentInfo> List(
         string sessionDirectory,
         bool captureRunning,
-        string searchPattern = "segment-*.mkv")
+        string searchPattern = "segment-*.mkv", bool reconcile = true)
     {
         if (!Directory.Exists(sessionDirectory)) return [];
+        var originPath = Path.Combine(sessionDirectory, "timeline-origin.txt");
+        if (File.Exists(originPath)) return ListManifest(sessionDirectory, searchPattern, reconcile);
         var files = new DirectoryInfo(sessionDirectory)
             .EnumerateFiles(searchPattern, SearchOption.TopDirectoryOnly)
             .Where(file => file.Length > 0)
             .OrderBy(file => file.Name, StringComparer.Ordinal)
             .ToArray();
         if (files.Length == 0) return [];
-
-        var originPath = Path.Combine(sessionDirectory, "timeline-origin.txt");
-        if (File.Exists(originPath))
-        {
-            var origin = DateTimeOffset.Parse(File.ReadAllText(originPath), CultureInfo.InvariantCulture);
-            var prefix = searchPattern[..searchPattern.IndexOf('-')];
-            var manifest = Path.Combine(sessionDirectory, $"{prefix}-timeline.csv");
-            // The CSV contains only closed segments, with encoder media times.
-            // Never fall back to mtimes while a new encoder is still starting.
-            if (!File.Exists(manifest)) return [];
-            using var stream = new FileStream(manifest, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(stream);
-            var entries = new Dictionary<string, (double Start, double End)>(StringComparer.Ordinal);
-            while (reader.ReadLine() is { } line)
-            {
-                var fields = line.Split(',');
-                if (fields.Length != 3
-                    || !double.TryParse(fields[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var start)
-                    || !double.TryParse(fields[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var end)
-                    || !double.IsFinite(start) || !double.IsFinite(end) || start < 0 || end <= start
-                    || end > TimeSpan.FromDays(365).TotalSeconds) continue;
-                entries[fields[0].Trim('"')] = (start, end);
-            }
-            return files.Where(file => entries.ContainsKey(file.Name)).Select(file =>
-            {
-                var timing = entries[file.Name];
-                return new ReplaySegmentInfo(file.FullName, origin.AddSeconds(timing.Start),
-                    origin.AddSeconds(timing.End), file.Length, Complete: true);
-            }).ToArray();
-        }
 
         var completedCount = captureRunning ? Math.Max(0, files.Length - 1) : files.Length;
         var latestEnd = new DateTimeOffset(files.Max(file => file.LastWriteTimeUtc), TimeSpan.Zero);
@@ -90,6 +77,71 @@ internal sealed class ReplaySegmentRing
                 index < completedCount);
         }
         return output;
+    }
+
+    // Closed-segment sizes and times are immutable. The encoder's bounded manifest
+    // identifies new segments; ordinary ticks stat only those new files. Explicit
+    // saves and a 30s fallback reconcile external deletion and rolled-out entries.
+    private IReadOnlyList<ReplaySegmentInfo> ListManifest(string directory, string pattern, bool force)
+    {
+        if (inventoryDirectory != directory) { inventories.Clear(); inventoryDirectory = directory; }
+        if (!inventories.TryGetValue(pattern, out var cache)) inventories[pattern] = cache = new();
+        var manifest = new FileInfo(Path.Combine(directory, $"{pattern[..pattern.IndexOf('-')]}-timeline.csv"));
+        if (!manifest.Exists) { cache.Completed.Clear(); cache.Known.Clear(); cache.Length = -1; return []; }
+        var reconcile = force || cache.Length < 0 || now() - cache.ReconciledAt >= TimeSpan.FromSeconds(30);
+        if (!reconcile && cache.Length == manifest.Length && cache.LastWrite == manifest.LastWriteTimeUtc)
+            return cache.Completed.Values.OrderBy(segment => segment.StartedAt).ToArray();
+        if (reconcile)
+        {
+            cache.Origin = DateTimeOffset.Parse(File.ReadAllText(Path.Combine(directory, "timeline-origin.txt")), CultureInfo.InvariantCulture);
+            cache.Completed.Clear(); cache.Known.Clear(); cache.ReconciledAt = now();
+        }
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        var pendingFile = false;
+        using (var stream = new FileStream(manifest.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        using (var reader = new StreamReader(stream))
+        {
+            while (reader.ReadLine() is { } line)
+            {
+                var fields = line.Split(',');
+                if (fields.Length != 3
+                    || !double.TryParse(fields[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var start)
+                    || !double.TryParse(fields[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var end)
+                    || !double.IsFinite(start) || !double.IsFinite(end) || start < 0 || end <= start
+                    || end > TimeSpan.FromDays(365).TotalSeconds) continue;
+                var name = fields[0].Trim('"');
+                // Only a basename matching this stream can become a local file path.
+                if (Path.GetFileName(name) != name || !System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(pattern, name)) continue;
+                names.Add(name);
+                if (cache.Known.Contains(name)) continue;
+                var file = new FileInfo(Path.Combine(directory, name));
+                if (!file.Exists) { cache.Known.Add(name); continue; } // Tombstone until explicit/periodic reconciliation.
+                if (file.Length == 0) { pendingFile = true; continue; }
+                cache.Known.Add(name);
+                cache.Completed[name] = new(file.FullName, cache.Origin.AddSeconds(start), cache.Origin.AddSeconds(end), file.Length, true);
+            }
+        }
+        cache.Known.IntersectWith(names);
+        foreach (var name in cache.Completed.Keys.Where(name => !names.Contains(name)).ToArray()) cache.Completed.Remove(name);
+        cache.Length = pendingFile ? -1 : manifest.Length; cache.LastWrite = manifest.LastWriteTimeUtc;
+        cache.SweepOrphans |= reconcile;
+        return cache.Completed.Values.OrderBy(segment => segment.StartedAt).ToArray();
+    }
+
+    private void SweepOrphans(string directory, string pattern)
+    {
+        if (inventories.TryGetValue(pattern, out var cache) && cache.SweepOrphans && cache.Completed.Count > 0)
+        {
+            cache.SweepOrphans = false;
+            DirectoryScanCount++;
+            var oldest = cache.Completed.Keys.Min(StringComparer.Ordinal)!;
+            foreach (var path in Directory.EnumerateFiles(directory, pattern))
+            {
+                if (StringComparer.Ordinal.Compare(Path.GetFileName(path), oldest) >= 0) continue;
+                try { File.Delete(path); } catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
     }
 
     public IReadOnlyList<ReplaySegmentInfo> SelectForReplay(
@@ -151,24 +203,16 @@ internal sealed class ReplaySegmentRing
         bool captureRunning,
         string searchPattern = "segment-*.mkv")
     {
-        var segments = List(sessionDirectory, captureRunning, searchPattern);
-        if (segments.Count > 0 && File.Exists(Path.Combine(sessionDirectory, "timeline-origin.txt")))
-        {
-            // The manifest is bounded. If the host was paused long enough for
-            // entries to roll out of it, their closed files still need eviction.
-            var oldestKnown = Path.GetFileName(segments[0].Path);
-            foreach (var path in Directory.EnumerateFiles(sessionDirectory, searchPattern))
-            {
-                if (StringComparer.Ordinal.Compare(Path.GetFileName(path), oldestKnown) >= 0) continue;
-                try { File.Delete(path); } catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
-            }
-        }
+        var segments = List(sessionDirectory, captureRunning, searchPattern, reconcile: false);
+        SweepOrphans(sessionDirectory, searchPattern);
         var candidates = SelectEvictionCandidates(segments, maximumDuration, maximumBytes);
         var retainedBytes = segments.Where(segment => segment.Complete).Sum(segment => segment.SizeBytes);
         foreach (var segment in candidates)
         {
-            try { File.Delete(segment.Path); retainedBytes -= segment.SizeBytes; } catch (IOException) { }
+            try {
+                File.Delete(segment.Path); retainedBytes -= segment.SizeBytes;
+                if (inventories.TryGetValue(searchPattern, out var cache)) cache.Completed.Remove(Path.GetFileName(segment.Path));
+            } catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
         return retainedBytes;

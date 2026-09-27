@@ -11,6 +11,20 @@ import { stoppedEngines } from '../src/shared/defaults';
 import type { PerformanceSnapshot } from '../src/shared/contracts';
 import { debugDiagnostics } from '../src/main/services/debug-diagnostics';
 
+test('waiting capture cannot hide idle memory behind the encoder allowance', () => {
+  const engines = stoppedEngines.map(engine => engine.kind === 'capture' ? { ...engine, state: 'running' as const } : engine);
+  const context = { rendererActive: true, guardEnabled: true, engines };
+  const waiting = measurePerformance([], { ...context, captureState: 'waiting' }, Date.now());
+  const buffering = measurePerformance([], { ...context, captureState: 'buffering' }, Date.now());
+  const saving = measurePerformance([], { ...context, captureState: 'saving' }, Date.now());
+  expect(waiting.budgetMemoryMb).toBe(440);
+  expect(waiting.budgetCpuPercent).toBe(1);
+  expect(buffering.budgetMemoryMb).toBe(1340);
+  expect(saving.budgetMemoryMb).toBe(1340);
+  const starting = engines.map(engine => engine.kind === 'capture' ? { ...engine, state: 'starting' as const } : engine);
+  expect(measurePerformance([], { ...context, engines: starting, captureState: 'stopped' }, Date.now()).budgetMemoryMb).toBe(1340);
+});
+
 test('collector recovery publishes on the next sample and preserves the failed sample in export history', async () => {
   let now = Date.UTC(2026, 8, 14);
   let failed = true;

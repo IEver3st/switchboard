@@ -26,9 +26,13 @@ app.on('browser-window-created', (_, window) => {
   window.webContents.setBackgroundThrottling(false);
   window.webContents.on('console-message', event => { if (event.level === 'error') evidence.errors.push(event.message); });
   const send = window.webContents.send.bind(window.webContents);
+  let revision = 0;
   window.webContents.send = (channel, ...args) => {
     if (snapshotGate && channel === 'system:snapshot-updated') return;
-    send(channel, ...(fixture && channel === 'system:snapshot-updated' ? [fixture] : args));
+    if (channel === 'system:snapshot-updated') {
+      const frame = args[0];
+      send(channel, fixture ? { type: 'full', revision: ++revision, snapshot: fixture } : { ...frame, revision: ++revision });
+    } else send(channel, ...args);
   };
 });
 const handle = ipcMain.handle.bind(ipcMain);

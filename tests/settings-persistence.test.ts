@@ -16,6 +16,7 @@ describe('settings persistence', () => {
     const settings = createDefaultSnapshot().settings;
 
     expect(settings.uiScalePercent).toBe(125);
+    expect(settings.startMinimized).toBeTrue();
     expect(settings.automaticAppUpdates).toBeTrue();
     expect(settings.automaticAppUpdateDownloads).toBeTrue();
     expect(settings.installAppUpdatesOnNextStartup).toBeTrue();
@@ -35,6 +36,8 @@ describe('settings persistence', () => {
         mouse: { flashEnabled: true, warningPercentage: 25, flashIntervalMinutes: 7, cutoffEnabled: true, cutoffPercentage: 8 },
       };
       draft.settings.closeToTray = false;
+      draft.settings.startMinimized = false;
+      draft.settings.trayOnGameLaunch = true;
       draft.settings.diagnosticsRetentionDays = 14;
       draft.settings.scanGamesAutomatically = false;
       draft.settings.automaticAppUpdates = false;
@@ -84,6 +87,8 @@ describe('settings persistence', () => {
     const snapshot = restarted.get();
 
     expect(snapshot.settings.closeToTray).toBeFalse();
+    expect(snapshot.settings.startMinimized).toBeFalse();
+    expect(snapshot.settings.trayOnGameLaunch).toBeTrue();
     expect(snapshot.settings.uiScalePercent).toBe(150);
     expect(snapshot.settings.mouseBatteryLighting.mouse).toEqual({
       flashEnabled: true, warningPercentage: 25, flashIntervalMinutes: 7, cutoffEnabled: true, cutoffPercentage: 8,

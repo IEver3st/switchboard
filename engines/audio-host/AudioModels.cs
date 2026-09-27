@@ -59,10 +59,21 @@ internal sealed record AudioApplicationState(
     string ExecutableName,
     int ProcessId,
     string Destination,
-    string CurrentDestination,
+    string? CurrentDestination,
     string? PreferredDestination,
     string RoutingState,
     bool Active);
+
+internal sealed record AudioApplicationPreference(string ExecutablePath, string Destination)
+{
+    public void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(ExecutablePath) || ExecutablePath.Length > 1024 || !Path.IsPathFullyQualified(ExecutablePath)
+            || !ExecutablePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Application preferences require an absolute executable path.");
+        _ = new AudioApplicationRouteRequest(1, Destination).Validate();
+    }
+}
 
 internal sealed record AudioApplicationRouteRequest(int ProcessId, string Destination)
 {
@@ -133,6 +144,7 @@ internal readonly record struct MeterValue(float Level, float Peak, bool Clippin
 
 internal sealed class AudioHostSettings
 {
+    public IReadOnlyList<AudioApplicationPreference> ApplicationRoutes { get; set; } = [];
     public bool Enabled { get; init; }
     public int SampleRate { get; init; } = AudioConstants.ProcessingSampleRate;
     public AudioMasterConfiguration Master { get; init; } = new();
@@ -148,6 +160,9 @@ internal sealed class AudioHostSettings
 
     public AudioHostSettings Validate()
     {
+        if (ApplicationRoutes.Count > 64 || ApplicationRoutes.Select(route => route.ExecutablePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() != ApplicationRoutes.Count)
+            throw new InvalidOperationException("At most 64 unique application routes are supported.");
+        foreach (var route in ApplicationRoutes) route.Validate();
         if (SampleRate != AudioConstants.ProcessingSampleRate) throw new InvalidOperationException("Audio.Host requires 48 kHz audio.");
         if (Monitoring is < 0f or > 1f) throw new InvalidOperationException("Monitoring level must be between 0 and 1.");
         if (Buses.GroupBy(bus => bus.Id, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
@@ -267,7 +282,11 @@ internal sealed record AudioHostCapabilities(
     string Monitoring,
     string MicrophoneTest,
     string SpatialAudio,
-    string? Reason);
+    string? Reason,
+    string RoutingBackend = "none",
+    string VirtualMicrophone = "unavailable",
+    string StreamOutput = "unavailable",
+    string ClipMix = "unavailable");
 
 internal sealed record NoiseSuppressionDiagnostics(
     string Backend,
@@ -307,4 +326,5 @@ internal sealed record AudioHostSnapshot(
     IReadOnlyCollection<AudioApplicationState> Applications,
     IReadOnlyCollection<AudioBusState> Buses,
     IReadOnlyCollection<AudioMixState> Mixes,
-    MicrophoneRuntime Microphone);
+    MicrophoneRuntime Microphone,
+    IReadOnlyList<AudioApplicationPreference>? ApplicationRoutes = null);

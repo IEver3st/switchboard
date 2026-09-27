@@ -74,7 +74,7 @@ describe('audio sync calibration ownership', () => {
     await store.flush();
     expect(JSON.parse(await readFile(path, 'utf8')).capture.audioCalibration).toBeUndefined();
     const restored = new StateStore(path); await restored.load();
-    expect(restored.get().capture.config.microphoneSync).toEqual(result.profile);
-    expect(restored.get().capture.audioCalibration).toEqual(idle);
+    expect(restored.read('capture').config.microphoneSync).toEqual(result.profile);
+    expect(restored.read('capture').audioCalibration).toEqual(idle);
   });
 });

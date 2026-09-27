@@ -35,6 +35,44 @@ internal static class CaptureResourceTests
                 throw new Exception("Encoder-owned worker pools must also be bounded.");
         }
         AssertEvictionAccounting();
+        AssertManifestCache();
+    }
+
+    private static void AssertManifestCache()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "switchboard-ring-cache-" + Guid.NewGuid().ToString("N"));
+        try {
+            var now = DateTimeOffset.UtcNow;
+            var ring = new ReplaySegmentRing(root, 1, () => now);
+            File.WriteAllText(Path.Combine(root, "timeline-origin.txt"), now.ToString("O"));
+            var manifest = Path.Combine(root, "segment-timeline.csv");
+            for (var i = 0; i < 600; i++) File.WriteAllBytes(Path.Combine(root, $"segment-{i:D9}.mkv"), new byte[10]);
+            File.WriteAllLines(manifest, Enumerable.Range(0, 600).Select(i => $"segment-{i:D9}.mkv,{i},{i+1}"));
+            for (var i = 0; i < 20; i++) {
+                if (ring.Evict(root, TimeSpan.FromSeconds(600), long.MaxValue, true) != 6000) throw new Exception("Cached ring lost completed bytes.");
+                now = now.AddSeconds(1);
+            }
+            if (ring.DirectoryScanCount != 1) throw new Exception("Steady ring ticks rescanned the directory.");
+            // Append a closed segment and cross the eviction boundary.
+            File.WriteAllBytes(Path.Combine(root, "segment-000000600.mkv"), new byte[10]);
+            File.AppendAllText(manifest, "segment-000000600.mkv,600,601\n");
+            if (ring.Evict(root, TimeSpan.FromSeconds(600), long.MaxValue, true) != 6000
+                || File.Exists(Path.Combine(root, "segment-000000000.mkv"))) throw new Exception("Cached ring did not evict across wrap.");
+            // The retained manifest still references the evicted segment; do not resurrect it.
+            if (ring.Evict(root, TimeSpan.FromSeconds(600), long.MaxValue, true) != 6000) throw new Exception("Eviction cache resurrected deleted data.");
+            File.Delete(Path.Combine(root, "segment-000000001.mkv"));
+            if (ring.List(root, true).Count != 599) throw new Exception("Explicit replay selection did not reconcile external deletion.");
+            now = now.AddSeconds(31);
+            ring.Evict(root, TimeSpan.FromSeconds(600), long.MaxValue, true);
+            if (ring.DirectoryScanCount < 2) throw new Exception("Periodic reconciliation did not run.");
+            // Encoder/session replacement must discard old timing and cache entries.
+            var next = ring.CreateSessionDirectory();
+            File.WriteAllText(Path.Combine(next, "timeline-origin.txt"), now.ToString("O"));
+            File.WriteAllText(Path.Combine(next, "segment-timeline.csv"), "segment-000000000.mkv,0,1\n");
+            File.WriteAllBytes(Path.Combine(next, "segment-000000000.mkv"), new byte[20]);
+            if (ring.Evict(next, TimeSpan.FromSeconds(600), long.MaxValue, true) != 20) throw new Exception("New session retained old inventory.");
+            if (ring.Evict(next, TimeSpan.FromSeconds(600), long.MaxValue, false, "microphone-*.mka") != 0) throw new Exception("Absent stream retained inventory.");
+        } finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }
 
     private static void AssertEvictionAccounting()

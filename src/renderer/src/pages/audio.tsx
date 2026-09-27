@@ -6,7 +6,9 @@ import { clearAudioMeters, publishAudioMeterFrame } from '@/components/audio/met
 import { MicrophonePage } from '@/components/audio/MicrophonePage';
 import { MixerPage } from '@/components/audio/MixerPage';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { requestSettingsCategory } from '@/components/settings/settings-catalog';
 import { switchboardApi } from '@/lib/demo-api';
+import { useSystemStore } from '@/stores/use-system-store';
 import '@/components/audio/audio.css';
 
 function tabFromHash(): AudioWorkspaceTab {
@@ -17,6 +19,9 @@ function tabFromHash(): AudioWorkspaceTab {
 export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const [tab, setTab] = useState<AudioWorkspaceTab>(tabFromHash);
   const [selectedMixId, setSelectedMixId] = useState<AudioMixId>('personal');
+  const cableBackend = snapshot.audio.capabilities.routingBackend === 'vb-cable';
+  useEffect(() => { if (cableBackend && selectedMixId === 'stream') setSelectedMixId('personal'); }, [cableBackend, selectedMixId]);
+  const setPage = useSystemStore((state) => state.setPage);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
   const availableTabs = useMemo(() => audioWorkspaceTabs.filter((candidate) => {
@@ -58,7 +63,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
     tab,
     engineRunning,
     realtimeMetering: snapshot.audio.capabilities.realtimeMetering,
-    routingSupport: snapshot.audio.capabilities.virtualChannels,
+    routingSupport: snapshot.audio.capabilities.applicationRouting,
     processingSupport: tab === 'microphone' ? snapshot.audio.capabilities.microphoneDsp : snapshot.audio.capabilities.channelDsp,
   });
 
@@ -69,9 +74,14 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
         onChange={navigate}
         tabs={availableTabs}
         statusLine={statusLine}
+        engineRunning={engineRunning}
+        onOpenSettings={() => {
+          requestSettingsCategory('audio');
+          setPage('settings');
+        }}
         end={tab === 'mixer' ? (
           <div className="mixer-mix-picker" role="group" aria-label="Mixer destination">
-            <span className="mixer-mix-picker__label">Mix</span>
+            <span className="mixer-mix-picker__label">Mix for</span>
             <ToggleGroup
               type="single"
               value={selectedMixId}
@@ -79,7 +89,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
               aria-label="Select mixer destination"
             >
               {snapshot.audio.mixes.map((mix) => (
-                <ToggleGroupItem key={mix.id} value={mix.id} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
+                <ToggleGroupItem key={mix.id} value={mix.id} disabled={cableBackend && mix.id === 'stream'} title={cableBackend && mix.id === 'stream' ? 'Stream output needs the Switchboard audio driver.' : undefined} aria-label={`${mix.label} mix`}>{mix.label}</ToggleGroupItem>
               ))}
             </ToggleGroup>
           </div>

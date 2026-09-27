@@ -1,4 +1,5 @@
 import { debugDiagnostics } from './services/debug-diagnostics';
+import { SnapshotPublisher, snapshotStreamChannel } from '../shared/snapshot-stream';
 import { developerDiagnostics } from './services/developer-diagnostics';
 import { app, ipcMain, nativeImage, globalShortcut, BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { join } from 'node:path';
@@ -21,6 +22,9 @@ import {
   exportMontageInputSchema,
   feedbackSubmissionInputSchema,
   ipcChannels,
+  inspectCommunityModuleInputSchema,
+  installCommunityModuleInputSchema,
+  manageCommunityModuleInputSchema,
   markClipsReviewedInputSchema,
   moduleProjectIdInputSchema,
   prepareClipShareInputSchema,
@@ -142,6 +146,24 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setModuleStateInputSchema.parse(input),
     (input) => controller.setModuleState(input),
+  );
+  handle(
+    ipcChannels.inspectCommunityModule,
+    getMainWindow,
+    (input) => inspectCommunityModuleInputSchema.parse(input),
+    (input) => controller.inspectCommunityModule(input),
+  );
+  handle(
+    ipcChannels.installCommunityModule,
+    getMainWindow,
+    (input) => installCommunityModuleInputSchema.parse(input),
+    (input) => controller.installCommunityModule(input),
+  );
+  handle(
+    ipcChannels.manageCommunityModule,
+    getMainWindow,
+    (input) => manageCommunityModuleInputSchema.parse(input),
+    (input) => controller.manageCommunityModule(input),
   );
   handle(
     ipcChannels.createModuleProject,
@@ -509,10 +531,24 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (exportId) => controller.cancelClipExport(exportId),
   );
 
+  const snapshotPublishers = new WeakMap<Electron.WebContents, SnapshotPublisher>();
+  ipcMain.on(snapshotStreamChannel, (event: IpcMainEvent, raw: unknown) => {
+    if (raw !== null) return;
+    try { assertTrustedSender(event, getMainWindow, ipcChannels.getSnapshot); }
+    catch { return; }
+    void controller.initialize().then(() => {
+      if (event.sender.isDestroyed()) return;
+      const publisher = snapshotPublishers.get(event.sender) ?? new SnapshotPublisher();
+      snapshotPublishers.set(event.sender, publisher);
+      event.sender.send(ipcChannels.snapshotUpdated, publisher.next(controller.getSnapshot(), true));
+    }).catch(error => console.warn('Snapshot subscription could not initialize.', error));
+  });
   const unsubscribe = controller.subscribe((snapshot) => {
     for (const window of [getMainWindow(), getQuickWindow()]) {
       if (!window || window.isDestroyed()) continue;
-      debugDiagnostics.measure('ipc:snapshot:send', () => window.webContents.send(ipcChannels.snapshotUpdated, snapshot));
+      const publisher = snapshotPublishers.get(window.webContents);
+      if (!publisher) continue;
+      debugDiagnostics.measure('ipc:snapshot:send', () => window.webContents.send(ipcChannels.snapshotUpdated, publisher.next(snapshot)));
     }
   });
   const unsubscribeAudioMeters = controller.subscribeAudioMeters((frame) => {
@@ -537,6 +573,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     unsubscribe();
     unsubscribeAudioMeters();
     unsubscribeClipExportProgress();
+    ipcMain.removeAllListeners(snapshotStreamChannel);
     ipcMain.removeAllListeners(ipcChannels.startPreparedShareDrag);
     ipcMain.removeAllListeners(ipcChannels.setAudioMeterSubscription);
     for (const channel of Object.values(ipcChannels)) {

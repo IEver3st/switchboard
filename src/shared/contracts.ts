@@ -43,7 +43,7 @@ export type EngineStatus = z.infer<typeof engineStatusSchema>;
 export const moduleKindSchema = z.enum(['device', 'capture', 'audio', 'integration']);
 export type ModuleKind = z.infer<typeof moduleKindSchema>;
 
-export const moduleSourceSchema = z.enum(['bundled', 'local']);
+export const moduleSourceSchema = z.enum(['bundled', 'local', 'community']);
 export type ModuleSource = z.infer<typeof moduleSourceSchema>;
 
 export const moduleRuntimeStatusSchema = z.enum([
@@ -74,6 +74,14 @@ export const moduleDevelopmentStateSchema = z.object({
 });
 export type ModuleDevelopmentState = z.infer<typeof moduleDevelopmentStateSchema>;
 
+export const communityModuleVersionSchema = z.object({
+  repository: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+  release: z.string().min(1).max(200),
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+  publisher: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type CommunityModuleVersion = z.infer<typeof communityModuleVersionSchema>;
+
 export const moduleManifestSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -90,6 +98,9 @@ export const moduleManifestSchema = z.object({
   source: moduleSourceSchema.default('bundled'),
   author: z.string().trim().min(1).max(120).optional(),
   development: moduleDevelopmentStateSchema.optional(),
+  distribution: communityModuleVersionSchema.extend({
+    previous: communityModuleVersionSchema.optional(),
+  }).optional(),
 });
 export type ModuleManifest = z.infer<typeof moduleManifestSchema>;
 
@@ -127,6 +138,23 @@ export const addonProjectManifestSchema = z.object({
   }),
 });
 export type AddonProjectManifest = z.infer<typeof addonProjectManifestSchema>;
+
+export const inspectCommunityModuleInputSchema = z.object({ repository: z.string().trim().min(3).max(240) });
+export type InspectCommunityModuleInput = z.infer<typeof inspectCommunityModuleInputSchema>;
+export const installCommunityModuleInputSchema = z.object({ reviewId: z.string().uuid() });
+export type InstallCommunityModuleInput = z.infer<typeof installCommunityModuleInputSchema>;
+export const manageCommunityModuleInputSchema = z.object({
+  moduleId: moduleIdentifierSchema,
+  action: z.enum(['remove', 'rollback', 'block-publisher']),
+});
+export type ManageCommunityModuleInput = z.infer<typeof manageCommunityModuleInputSchema>;
+export const communityModuleReviewSchema = z.object({
+  reviewId: z.string().uuid(),
+  manifest: addonProjectManifestSchema,
+  distribution: communityModuleVersionSchema,
+  installedVersion: z.string().optional(),
+});
+export type CommunityModuleReview = z.infer<typeof communityModuleReviewSchema>;
 
 export const moduleProjectIdInputSchema = z.object({ moduleId: moduleIdentifierSchema });
 export type ModuleProjectIdInput = z.infer<typeof moduleProjectIdInputSchema>;
@@ -563,6 +591,10 @@ export const audioSupportLevelSchema = z.enum(['available', 'simulation', 'unava
 export type AudioSupportLevel = z.infer<typeof audioSupportLevelSchema>;
 
 export const audioCapabilitiesSchema = z.object({
+  routingBackend: z.enum(['none', 'switchboard-driver', 'vb-cable']).optional(),
+  virtualMicrophone: audioSupportLevelSchema.optional(),
+  streamOutput: audioSupportLevelSchema.optional(),
+  clipMix: audioSupportLevelSchema.optional(),
   virtualChannels: audioSupportLevelSchema,
   applicationRouting: audioSupportLevelSchema,
   channelDsp: audioSupportLevelSchema,
@@ -620,12 +652,20 @@ export const audioApplicationSchema = z.object({
   processId: z.number().int().positive(),
   iconDataUrl: z.string().startsWith('data:image/').optional(),
   destination: z.enum(['game', 'chat', 'media']),
-  currentDestination: z.enum(['game', 'chat', 'media']),
-  preferredDestination: z.enum(['game', 'chat', 'media']).nullable(),
+  currentDestination: z.enum(['game', 'chat', 'media']).nullable().default(null),
+  preferredDestination: z.enum(['game', 'chat', 'media']).nullable().default(null),
   routingState: z.enum(['unmanaged', 'applied', 'pending-restart']),
   active: z.boolean(),
 });
 export type AudioApplication = z.infer<typeof audioApplicationSchema>;
+
+export const audioApplicationPreferenceSchema = z.object({
+  executablePath: z.string().min(1).max(1024).regex(/^[a-z]:\\.*\.exe$/i),
+  destination: z.enum(['game', 'chat', 'media']),
+});
+export const audioApplicationPreferencesSchema = z.array(audioApplicationPreferenceSchema).max(64)
+  .refine(routes => new Set(routes.map(route => route.executablePath.toLowerCase())).size === routes.length,
+    'Application executable paths must be unique');
 
 export const micProcessorIdSchema = z.enum([
   'gain',
@@ -665,6 +705,7 @@ export const microphoneRuntimeSchema = z.object({
 export type MicrophoneRuntime = z.infer<typeof microphoneRuntimeSchema>;
 
 export const audioHostSnapshotSchema = z.object({
+  applicationRoutes: audioApplicationPreferencesSchema.optional(),
   capabilities: audioCapabilitiesSchema,
   noiseSuppression: noiseSuppressionDiagnosticsSchema,
   inputDeviceId: z.string().nullable().default(null),
@@ -827,6 +868,7 @@ export const audioPresetFileSchema = z.object({
 export type AudioPresetFile = z.infer<typeof audioPresetFileSchema>;
 
 export const audioStateSchema = z.object({
+  applicationRoutes: audioApplicationPreferencesSchema.optional(),
   enabled: z.boolean(),
   outputDevice: z.string(),
   microphoneDevice: z.string(),
@@ -1404,6 +1446,8 @@ export const appSettingsSchema = z.object({
     z.literal(150),
   ]),
   launchAtStartup: z.boolean(),
+  startMinimized: z.boolean().default(true),
+  trayOnGameLaunch: z.boolean().default(false),
   closeToTray: z.boolean(),
   destroyRendererInTray: z.boolean(),
   softwareRendering: z.boolean().default(false),
@@ -1424,6 +1468,8 @@ export const appSettingsSchema = z.object({
   developerMode: z.boolean().default(false),
   visibleWorkspaces: z.array(visibleWorkspaceSchema).default(['devices', 'audio', 'capture']),
   onboardingCompleted: z.boolean().default(false),
+  /** Settings IDs whose one-time "new" marker the user has already seen. */
+  seenNewSettings: z.array(z.string().min(1).max(120)).max(512).default([]),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
@@ -1785,6 +1831,8 @@ export type SetMicProcessorInput = z.infer<typeof setMicProcessorInputSchema>;
 
 // Persisted-state defaults belong to hydration, never to a partial IPC update.
 export const updateSettingsInputSchema = appSettingsSchema.partial().extend({
+  trayOnGameLaunch: appSettingsSchema.shape.trayOnGameLaunch.removeDefault().optional(),
+  startMinimized: appSettingsSchema.shape.startMinimized.removeDefault().optional(),
   detailedDiagnostics: appSettingsSchema.shape.detailedDiagnostics.removeDefault().optional(),
   softwareRendering: appSettingsSchema.shape.softwareRendering.removeDefault().optional(),
   deviceAppearanceOverrides: appSettingsSchema.shape.deviceAppearanceOverrides.removeDefault().optional(),
@@ -1792,6 +1840,7 @@ export const updateSettingsInputSchema = appSettingsSchema.partial().extend({
   developerMode: appSettingsSchema.shape.developerMode.removeDefault().optional(),
   visibleWorkspaces: appSettingsSchema.shape.visibleWorkspaces.removeDefault().optional(),
   onboardingCompleted: appSettingsSchema.shape.onboardingCompleted.removeDefault().optional(),
+  seenNewSettings: appSettingsSchema.shape.seenNewSettings.removeDefault().optional(),
 });
 export type UpdateSettingsInput = z.infer<typeof updateSettingsInputSchema>;
 
@@ -1839,12 +1888,15 @@ export const ipcChannels = {
   saveScene: 'setup:save-scene', deleteScene: 'setup:delete-scene', applyScene: 'setup:apply-scene',
   restoreScene: 'setup:restore-scene', setSetupPreferences: 'setup:set-preferences',
   setShortcutRecording: 'shortcuts:set-recording',
-  getVerticalGuideLayout: 'setup:get-vertical-guide-layout',
   openQuickControls: 'setup:open-quick-controls', closeQuickControls: 'setup:close-quick-controls',
+  getVerticalGuideLayout: 'setup:get-vertical-guide-layout',
   runQuickAction: 'setup:quick-action',
   getSnapshot: 'system:get-snapshot',
   refreshDevices: 'devices:refresh',
   setModuleState: 'modules:set-state',
+  inspectCommunityModule: 'modules:inspect-community',
+  installCommunityModule: 'modules:install-community',
+  manageCommunityModule: 'modules:manage-community',
   createModuleProject: 'modules:create-project',
   linkModuleProject: 'modules:link-project',
   validateModuleProject: 'modules:validate-project',
@@ -1931,6 +1983,9 @@ export interface SwitchboardApi {
   getSnapshot(): Promise<SystemSnapshot>;
   refreshDevices(): Promise<SystemSnapshot>;
   setModuleState(input: SetModuleStateInput): Promise<SystemSnapshot>;
+  inspectCommunityModule(input: InspectCommunityModuleInput): Promise<CommunityModuleReview>;
+  installCommunityModule(input: InstallCommunityModuleInput): Promise<SystemSnapshot>;
+  manageCommunityModule(input: ManageCommunityModuleInput): Promise<SystemSnapshot>;
   createModuleProject(input: CreateModuleProjectInput): Promise<SystemSnapshot>;
   linkModuleProject(): Promise<SystemSnapshot>;
   validateModuleProject(input: ModuleProjectIdInput): Promise<SystemSnapshot>;

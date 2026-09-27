@@ -3,6 +3,10 @@ using Switchboard.AudioHost;
 using Switchboard.AudioHost.NoiseSuppression;
 using Switchboard.AudioHost.Realtime;
 
+if (args.Contains("--cable-tone")) { CableRoutingTests.RunTone(args); return; }
+if (args.Contains("--live-cable")) { await CableRoutingTests.RunLiveAsync(); return; }
+CableRoutingTests.RunDeterministic();
+
 var expected = new[]
 {
     Endpoint("render-game", EndpointCatalog.Game, "render"),

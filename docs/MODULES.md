@@ -16,17 +16,18 @@
 
 ## What ships now
 
-Switchboard has two module paths with deliberately different trust models:
+Switchboard has three module paths with different trust models:
 
 1. **Bundled capability modules** are reviewed with the application, can own native protocol adapters, and may provide confirmed writable controls through the canonical device contract.
 2. **Local add-on projects** are author-controlled folders linked from Settings > Modules. Module Host API v1 runs their single JavaScript entrypoint in a sandboxed Chromium renderer and supports permission-filtered device discovery and identity only.
+3. **Community packages** are signed device-discovery add-ons installed from public GitHub releases after a permission review. They use the same sandbox, with package hashes, publisher continuity, manual updates, rollback, and local publisher blocking. See [Community device modules](COMMUNITY-MODULES.md) for installation and publishing.
 
 The local path is useful immediately: an author can identify a new USB HID device, give it a correct model and device kind, test the match without recompiling Switchboard, and share the project source. It does not pretend that a community script has performed or confirmed a hardware write.
 
 ## Create a local add-on
 
 1. Connect the target device so Switchboard can offer its real VID/PID, or choose manual entry.
-2. Open **Settings > Modules**.
+2. Open **Settings > Modules > Developer tools**.
 3. Define the module name, namespaced ID, author, manufacturer, model, device kind, and exact four-digit VID/PID.
 4. Review the generated manifest and enforced runtime boundary in the package preview.
 5. Select **Create starter project…** and choose a parent directory.
@@ -155,6 +156,8 @@ Until a brokered control API meets those requirements, authors can prototype the
 
 ## Bundled and distributed packages
 
+Public GitHub packages now use the signed JSON format described in [Community device modules](COMMUNITY-MODULES.md). The installer supports discovery-only API v1 packages, local publisher revocation, and manual rollback. A central feed with reviewed publishers, remote revocation and automatic health-based rollback remains future work.
+
 Bundled modules continue to follow the internal `DeviceModule` boundary. A future public package feed adds another layer above local projects:
 
 1. stage the archive outside the active version;
@@ -179,4 +182,4 @@ Common controls remain owned by the core UI:
 - static lighting;
 - profiles and application association.
 
-Capture, audio, integration hooks, brokered HID transactions, package signing, distribution, revocation, and exceptional custom surfaces are explicit future API work. Their labels in the authoring surface must remain unavailable until the corresponding isolated host and canonical contract exist.
+Capture, audio, integration hooks, brokered HID transactions, and exceptional custom surfaces are future API work. Their labels in the authoring surface must remain unavailable until the corresponding isolated host and canonical contract exist.

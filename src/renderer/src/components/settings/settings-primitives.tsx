@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
+import { NewSettingDot } from './settings-new';
 
 export function SettingsCategoryHeader({
   title,
@@ -64,7 +65,7 @@ export function SettingRow({
       className={cn('settings-row', className)}
     >
       <div className="settings-row__copy">
-        <div className="settings-row__title">{title}</div>
+        <div className="settings-row__title">{title}<NewSettingDot settingId={settingId} /></div>
         {description ? <div className="settings-row__description">{description}</div> : null}
       </div>
       <div className={cn('settings-row__control', controlClassName)}>{children}</div>

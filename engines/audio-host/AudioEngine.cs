@@ -9,13 +9,14 @@ internal sealed class AudioEngine : IDisposable
     private readonly EndpointService endpoints;
     private INoiseSuppressor suppressor = new BypassNoiseSuppressor("The noise backend has not been initialized.");
     private MicrophonePipeline? microphone;
-    private RoutingEngine? routing;
+    private IAudioRoutingEngine? routing;
     private AudioHostSettings? settings;
     private MicrophoneDspConfiguration? dspConfiguration;
     private long configurationVersion;
     private long meterSequence;
     private int endpointChangePending;
     private int routingRecoveryPending;
+    private string? endpointTopology;
     private bool running;
     private bool disposed;
     private string? error;
@@ -143,6 +144,7 @@ internal sealed class AudioEngine : IDisposable
             if (!endpoints.ApplicationRoutingAvailable)
                 throw new InvalidOperationException("Windows application audio routing is unavailable on this OS build.");
             routing.RouteApplication(request.Validate());
+            if (settings is not null && routing.Backend == "vb-cable") settings.ApplicationRoutes = routing.ApplicationRoutes;
             var snapshot = GetSnapshotCore();
             SnapshotChanged?.Invoke(snapshot);
             return snapshot;
@@ -171,12 +173,19 @@ internal sealed class AudioEngine : IDisposable
         {
             if (!running) return;
             if (settings is not null) microphone?.RecoverMonitoring(settings);
-            var endpointsChanged = Interlocked.Exchange(ref endpointChangePending, 0) != 0;
-            var microphoneNeedsRecovery = microphone is null || microphone.CaptureStopped;
+            try { routing?.Refresh(); }
+            catch (Exception refreshError) { OnRoutingFailed(refreshError); }
+            // Windows emits property/default notifications for application policy
+            // writes too. Rebuilding on those notifications reroutes the same app
+            // again and creates a five-second teardown loop.
+            var endpointsChanged = Interlocked.Exchange(ref endpointChangePending, 0) != 0
+                && !string.Equals(endpointTopology, EndpointTopology(), StringComparison.Ordinal);
+            var microphoneNeedsRecovery = !string.IsNullOrWhiteSpace(settings?.MicrophoneBus?.DeviceId)
+                                          && (microphone is null || microphone.CaptureStopped);
             var routingNeedsRecovery = routing is null
                                        || Interlocked.Exchange(ref routingRecoveryPending, 0) != 0
                                        || endpointsChanged
-                                       || microphoneNeedsRecovery;
+                                       || (microphoneNeedsRecovery && routing?.HasVirtualOutputs != false);
             if (!microphoneNeedsRecovery && !routingNeedsRecovery) return;
 
             if (routingNeedsRecovery)
@@ -191,7 +200,7 @@ internal sealed class AudioEngine : IDisposable
                 microphone = null;
                 InitializeSuppressorCore();
                 StartMicrophoneCore(recovery: true);
-                routingNeedsRecovery = true;
+                routingNeedsRecovery |= routing?.HasVirtualOutputs != false;
             }
             if (routingNeedsRecovery)
             {
@@ -306,18 +315,19 @@ internal sealed class AudioEngine : IDisposable
         var virtualMicrophoneSource = microphone?.VirtualMicrophoneSource ?? new SilentSampleProvider();
         var streamMicrophoneSource = microphone?.StreamMicrophoneSource ?? new SilentSampleProvider();
         var clipMicrophoneSource = microphone?.ClipMicrophoneSource ?? new SilentSampleProvider();
-        RoutingEngine? next = null;
+        IAudioRoutingEngine? next = null;
         try
         {
-            next = RoutingEngine.Create(
+            next = EndpointCatalog.Inspect(endpoints.List()).Ready ? RoutingEngine.Create(
                 endpoints,
                 settings,
                 virtualMicrophoneSource,
                 streamMicrophoneSource,
-                clipMicrophoneSource);
+                clipMicrophoneSource) : CableRoutingEngine.Create(endpoints, settings);
             next.Failed += OnRoutingFailed;
             next.Start();
             routing = next;
+            endpointTopology = EndpointTopology();
             next = null;
             routingError = null;
             Volatile.Write(ref routingFailure, null);
@@ -354,11 +364,13 @@ internal sealed class AudioEngine : IDisposable
             ? null
             : pipeline?.LastError ?? suppressor.LastError ?? error ?? "Noise removal is unavailable with the current audio setup.";
         var localSnr = pipeline?.LocalSnr;
-        var driver = routing?.VirtualEndpoints.Snapshot() ?? EndpointCatalog.Inspect(endpoints.List()).Snapshot();
+        var inventory = endpoints.List();
+        var nativeDriver = EndpointCatalog.Inspect(inventory);
+        var driver = routing?.Driver ?? (nativeDriver.Ready ? nativeDriver.Snapshot() : CableEndpointCatalog.Inspect(inventory));
         IReadOnlyCollection<AudioApplicationState> applications;
         try { applications = routing?.ListApplications() ?? []; }
         catch { applications = []; }
-        var counts = applications.GroupBy(application => application.Destination, StringComparer.OrdinalIgnoreCase)
+        var counts = applications.Where(application => application.CurrentDestination is not null).GroupBy(application => application.CurrentDestination!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
         var personalMix = settings?.Mixes.FirstOrDefault(mix => mix.Id.Equals("personal", StringComparison.OrdinalIgnoreCase));
         var buses = (settings?.Buses ?? []).Select(bus =>
@@ -397,16 +409,20 @@ internal sealed class AudioEngine : IDisposable
             pipeline?.LastError ?? error);
         return new AudioHostSnapshot(
             new AudioHostCapabilities(
-                routingAvailable ? "available" : "unavailable",
+                routingAvailable && routing!.HasVirtualOutputs ? "available" : "unavailable",
                 routingAvailable && endpoints.ApplicationRoutingAvailable ? "available" : "unavailable",
                 routingAvailable ? "available" : "unavailable",
                 microphoneAvailable ? "available" : "unavailable",
                 suppressionAvailable ? "available" : "unavailable",
-                microphoneAvailable ? "available" : "unavailable",
+                microphoneAvailable || routingAvailable ? "available" : "unavailable",
                 microphoneAvailable ? "available" : "unavailable",
                 microphoneAvailable && pipeline!.CanRunMicrophoneTest ? "available" : "unavailable",
                 "unavailable",
-                suppressionReason),
+                routingError ?? (routing?.Backend == "vb-cable" ? driver.Message : suppressionReason),
+                routing?.Backend ?? "none",
+                routingAvailable && routing!.HasVirtualOutputs ? "available" : "unavailable",
+                routingAvailable && routing!.HasVirtualOutputs ? "available" : "unavailable",
+                routingAvailable ? "available" : "unavailable"),
             new NoiseSuppressionDiagnostics(
                 suppressor.BackendName,
                 suppressor.IsAvailable,
@@ -441,24 +457,32 @@ internal sealed class AudioEngine : IDisposable
             applications,
             buses,
             mixes,
-            microphoneRuntime);
+            microphoneRuntime,
+            routing?.Backend == "vb-cable" ? routing.ApplicationRoutes : settings?.ApplicationRoutes ?? []);
     }
 
     private void StopCore()
     {
         running = false;
         if (routing is not null) routing.Failed -= OnRoutingFailed;
-        routing?.Dispose();
-        routing = null;
-        microphone?.Dispose();
-        microphone = null;
-        suppressor.Dispose();
-        suppressor = new BypassNoiseSuppressor("The audio engine is stopped.");
+        Exception? restoreFailure = null;
+        try { routing?.Dispose(); }
+        catch (Exception failure) { restoreFailure = failure; }
+        finally
+        {
+            routing = null;
+            microphone?.Dispose();
+            microphone = null;
+            suppressor.Dispose();
+            suppressor = new BypassNoiseSuppressor("The audio engine is stopped.");
+        }
         error = null;
         routingError = null;
         Volatile.Write(ref routingFailure, null);
         Interlocked.Exchange(ref endpointChangePending, 0);
+        endpointTopology = null;
         Interlocked.Exchange(ref routingRecoveryPending, 0);
+        if (restoreFailure is not null) throw new InvalidOperationException("Audio stopped, but a Windows route could not be restored. The recovery journal was retained.", restoreFailure);
     }
 
     private static object Meter(string busId, IReadOnlyDictionary<string, MeterValue>? meters)
@@ -471,6 +495,10 @@ internal sealed class AudioEngine : IDisposable
         .Where(bus => bus.Id is "game" or "chat" or "media" or "aux")
         .OrderBy(bus => bus.Id)
         .Select(bus => $"{bus.Id}:{bus.DeviceId}"));
+
+    private string EndpointTopology() => string.Join('|', endpoints.List()
+        .OrderBy(endpoint => endpoint.Id, StringComparer.Ordinal)
+        .Select(endpoint => $"{endpoint.Id}:{endpoint.Flow}:{endpoint.InterfaceName}"));
 
     private void ThrowIfDisposed()
     {

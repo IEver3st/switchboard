@@ -35,12 +35,16 @@ export function AudioHeader({
   onChange,
   tabs = audioWorkspaceTabs,
   statusLine,
+  engineRunning,
+  onOpenSettings,
   end,
 }: {
   value: AudioWorkspaceTab;
   onChange: (tab: AudioWorkspaceTab) => void;
   tabs?: readonly AudioWorkspaceTab[];
   statusLine: string;
+  engineRunning: boolean;
+  onOpenSettings: () => void;
   end?: ReactNode;
 }) {
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -60,40 +64,54 @@ export function AudioHeader({
 
   return (
     <header className="audio-header">
-      <div className="audio-header__identity">
-        <h2>Audio</h2>
-        <p aria-live="polite">{statusLine}</p>
-      </div>
-      <nav
-        role="tablist"
-        aria-label="Audio workspace"
-        className="audio-header__tabs"
-        onKeyDown={onKeyDown}
-      >
-        {tabs.map((tab) => {
-          const Icon = tabIcons[tab];
-          const selected = value === tab;
-          return (
-            <button
-              key={tab}
-              id={`audio-tab-${tab}`}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              aria-controls={`audio-panel-${tab}`}
-              data-audio-tab={tab}
-              tabIndex={selected ? 0 : -1}
-              onClick={() => onChange(tab)}
-              className={cn('audio-header__tab', selected && 'is-active')}
-              style={{ '--tab-color': tabColors[tab] } as CSSProperties}
-            >
-              <Icon aria-hidden="true" />
-              {tabLabels[tab]}
+      <div className="audio-header__top">
+        <div className="audio-header__identity">
+          <h2>Audio</h2>
+          <p aria-live="polite">{statusLine}</p>
+        </div>
+        <div className="audio-header__engine" data-running={engineRunning}>
+          <span className="audio-header__engine-dot" aria-hidden="true" />
+          <span>{engineRunning ? 'Audio engine on' : 'Audio engine off'}</span>
+          {!engineRunning ? (
+            <button type="button" className="audio-header__engine-action" onClick={onOpenSettings}>
+              <Cable aria-hidden="true" />
+              Audio settings
             </button>
-          );
-        })}
-      </nav>
-      <div className="audio-header__end">{end}</div>
+          ) : null}
+        </div>
+      </div>
+      <div className="audio-header__bar">
+        <nav
+          role="tablist"
+          aria-label="Audio workspace"
+          className="audio-header__tabs"
+          onKeyDown={onKeyDown}
+        >
+          {tabs.map((tab) => {
+            const Icon = tabIcons[tab];
+            const selected = value === tab;
+            return (
+              <button
+                key={tab}
+                id={`audio-tab-${tab}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`audio-panel-${tab}`}
+                data-audio-tab={tab}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => onChange(tab)}
+                className={cn('audio-header__tab', selected && 'is-active')}
+                style={{ '--tab-color': tabColors[tab] } as CSSProperties}
+              >
+                <Icon aria-hidden="true" />
+                {tabLabels[tab]}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="audio-header__end">{end}</div>
+      </div>
     </header>
   );
 }
@@ -111,9 +129,9 @@ export function audioStatusLine({
   routingSupport: AudioSupportLevel;
   processingSupport: AudioSupportLevel;
 }) {
-  if (!engineRunning) return 'Audio engine off · Turn on in Settings';
-  if (tab === 'mixer' && routingSupport === 'unavailable') return 'Routing unavailable · Mix settings are saved';
-  if (tab === 'mixer' && realtimeMetering !== 'available') return 'Live levels unavailable';
-  if (tab !== 'mixer' && processingSupport !== 'available') return 'Processing unavailable for this channel';
-  return tab === 'mixer' ? 'Live mix levels' : 'Live processing controls';
+  if (!engineRunning) return 'Turn on the audio engine in Settings to hear and adjust live audio. Your mix is saved.';
+  if (tab === 'mixer' && routingSupport === 'unavailable') return 'Routing is unavailable on this setup. Mix settings are still saved.';
+  if (tab === 'mixer' && realtimeMetering !== 'available') return 'Live levels are unavailable. Faders still change the mix.';
+  if (tab !== 'mixer' && processingSupport !== 'available') return 'Processing is unavailable for this channel. Changes are saved.';
+  return tab === 'mixer' ? "Set each channel's level in the selected mix." : 'Shape this channel with EQ and processing.';
 }

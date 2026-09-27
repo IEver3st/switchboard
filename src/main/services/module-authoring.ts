@@ -14,6 +14,7 @@ export const moduleApiVersion = 1 as const;
 export const maximumModuleSourceBytes = 512 * 1024;
 
 export interface ModuleProjectValidation {
+  sourceHash?: string;
   manifest?: AddonProjectManifest;
   entrypointPath?: string;
   issues: ModuleValidationIssue[];
@@ -328,7 +329,7 @@ This is a Switchboard local device-discovery add-on for Module Host API v${modul
 
 1. Edit \`src/index.js\`.
 2. Run \`npm test\` or \`bun test\` in this directory.
-3. In Switchboard, open **Settings > Modules**, select **Validate** on this linked project, then enable it.
+3. In Switchboard, open **Settings > Features**, select **Validate** on this linked project, then enable it.
 4. Use **Refresh devices** from the Devices workspace after connecting matching hardware.
 
 The starter matches USB HID \`${input.vendorId.toLocaleUpperCase()}:${input.productId.toLocaleUpperCase()}\` and reports identity only. The host validates every result and builds the canonical Switchboard device object itself.

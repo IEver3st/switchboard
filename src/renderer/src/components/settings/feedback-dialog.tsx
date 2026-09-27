@@ -90,9 +90,9 @@ export function FeedbackDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <button ref={triggerRef} type="button" className="settings-feedback-trigger no-drag">
+        <button ref={triggerRef} type="button" className="settings-feedback-trigger no-drag" aria-label="Send feedback" title="Send feedback">
           <MessageSquarePlus aria-hidden />
-          <span>Send feedback</span>
+          <span>Feedback</span>
         </button>
       </DialogTrigger>
 

@@ -5,7 +5,7 @@ namespace Switchboard.AudioHost;
 // Windows does not expose application endpoint preferences through the public
 // Core Audio APIs. This boundary contains the undocumented WinRT policy call
 // used by the Windows volume mixer and keeps it out of the realtime graph.
-internal sealed class ApplicationAudioPolicy : IDisposable
+internal sealed class ApplicationAudioPolicy : IApplicationEndpointPolicy, IDisposable
 {
     private const string RuntimeClassName = "Windows.Media.Internal.AudioPolicyConfig";
     private const string MmDevicePrefix = @"\\?\SWD#MMDEVAPI#";
@@ -65,6 +65,51 @@ internal sealed class ApplicationAudioPolicy : IDisposable
         }
     }
 
+    public ApplicationEndpointPreferences ReadPreferences(int processId)
+    {
+        lock (gate)
+        {
+            Probe();
+            return new(GetRole(checked((uint)processId), PolicyRole.Console),
+                GetRole(checked((uint)processId), PolicyRole.Multimedia),
+                GetRole(checked((uint)processId), PolicyRole.Communications));
+        }
+    }
+
+    public static ApplicationEndpointPreferences PreferencesFor(string endpointId)
+    {
+        var persisted = $"{MmDevicePrefix}{endpointId}{RenderInterfaceSuffix}";
+        return new(persisted, persisted, persisted);
+    }
+
+    public void WritePreferences(int processId, ApplicationEndpointPreferences preferences)
+    {
+        lock (gate)
+        {
+            Probe();
+            SetRole(checked((uint)processId), PolicyRole.Console, preferences.Console);
+            SetRole(checked((uint)processId), PolicyRole.Multimedia, preferences.Multimedia);
+            SetRole(checked((uint)processId), PolicyRole.Communications, preferences.Communications);
+            if (ReadPreferences(processId) != preferences)
+                throw new InvalidOperationException("Windows did not retain the requested audio endpoint preferences.");
+        }
+    }
+
+    // Restore only roles which still point to our sink. A user changing a route in
+    // Windows while mixing is active always wins over our saved preference.
+    public void RestorePreferences(int processId, string sinkId, ApplicationEndpointPreferences previous)
+    {
+        lock (gate)
+        {
+            var current = ReadPreferences(processId);
+            var managed = PreferencesFor(sinkId);
+            WritePreferences(processId, new(
+                current.Console == managed.Console ? previous.Console : current.Console,
+                current.Multimedia == managed.Multimedia ? previous.Multimedia : current.Multimedia,
+                current.Communications == managed.Communications ? previous.Communications : current.Communications));
+        }
+    }
+
     private void SetRole(uint processId, PolicyRole role, string persistedId)
     {
         var handle = HString.Create(persistedId);
@@ -90,7 +135,8 @@ internal sealed class ApplicationAudioPolicy : IDisposable
                 : win10 is not null
                     ? win10.GetPersistedDefaultAudioEndpoint(processId, PolicyDataFlow.Render, role, out handle)
                     : throw new InvalidOperationException("Windows application audio routing is unavailable on this OS build.");
-            return result < 0 ? string.Empty : HString.Read(handle);
+            if (result < 0) Marshal.ThrowExceptionForHR(result);
+            return HString.Read(handle);
         }
         finally { HString.Delete(handle); }
     }
@@ -131,8 +177,10 @@ internal sealed class ApplicationAudioPolicy : IDisposable
         {
             if (disposed) return;
             disposed = true;
-            try { if (win11 is not null) Marshal.FinalReleaseComObject(win11); } catch { }
-            try { if (win10 is not null) Marshal.FinalReleaseComObject(win10); } catch { }
+            // The WinRT factory can share an RCW with another EndpointService or
+            // routing instance. Release only this owner's reference.
+            try { if (win11 is not null) Marshal.ReleaseComObject(win11); } catch { }
+            try { if (win10 is not null) Marshal.ReleaseComObject(win10); } catch { }
             win11 = null;
             win10 = null;
         }
@@ -203,4 +251,13 @@ internal sealed class ApplicationAudioPolicy : IDisposable
         [PreserveSig] int GetPersistedDefaultAudioEndpoint(uint processId, PolicyDataFlow flow, PolicyRole role, out IntPtr deviceId);
         [PreserveSig] int ClearAllPersistedApplicationDefaultEndpoints();
     }
+}
+
+internal sealed record ApplicationEndpointPreferences(string Console, string Multimedia, string Communications);
+
+internal interface IApplicationEndpointPolicy
+{
+    ApplicationEndpointPreferences ReadPreferences(int processId);
+    void WritePreferences(int processId, ApplicationEndpointPreferences preferences);
+    void RestorePreferences(int processId, string sinkId, ApplicationEndpointPreferences previous);
 }

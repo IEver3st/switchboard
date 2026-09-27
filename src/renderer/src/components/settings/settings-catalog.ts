@@ -1,5 +1,6 @@
 export const settingsCategoryIds = [
   'general',
+  'updates',
   'setup',
   'audio',
   'capture',
@@ -12,45 +13,66 @@ export const settingsCategoryIds = [
 
 export type SettingsCategoryId = (typeof settingsCategoryIds)[number];
 
+export const settingsCategoryStorageKey = 'switchboard.settings.category';
+
+/** Opens Settings on a category the next time the Settings page mounts. */
+export function requestSettingsCategory(category: SettingsCategoryId): void {
+  window.sessionStorage.setItem(settingsCategoryStorageKey, category);
+}
+
 export type SettingsSearchEntry = {
   id: string;
   category: SettingsCategoryId;
   title: string;
   description: string;
   keywords: readonly string[];
+  /** Release that introduced the setting. Marked settings show a one-time "new" dot. */
+  addedIn?: string;
 };
+
+export type SettingsCategoryGroupId = 'app' | 'recording' | 'hardware' | 'support';
+
+export const settingsCategoryGroups: ReadonlyArray<{ id: SettingsCategoryGroupId; label: string }> = [
+  { id: 'app', label: 'Switchboard' },
+  { id: 'recording', label: 'Recording' },
+  { id: 'hardware', label: 'Hardware' },
+  { id: 'support', label: 'Support' },
+];
 
 export const settingsCategories: ReadonlyArray<{
   id: SettingsCategoryId;
   label: string;
+  group: SettingsCategoryGroupId;
   resettable: boolean;
 }> = [
-  { id: 'general', label: 'General', resettable: true },
-  { id: 'setup', label: 'Setup', resettable: false },
-  { id: 'audio', label: 'Audio', resettable: true },
-  { id: 'capture', label: 'Capture', resettable: true },
-  { id: 'clips', label: 'Clips', resettable: true },
-  { id: 'games', label: 'Games', resettable: true },
-  { id: 'modules', label: 'Modules', resettable: true },
-  { id: 'diagnostics', label: 'Diagnostics', resettable: true },
-  { id: 'about', label: 'About', resettable: false },
+  { id: 'general', label: 'General', group: 'app', resettable: true },
+  { id: 'updates', label: 'Updates', group: 'app', resettable: false },
+  { id: 'modules', label: 'Features', group: 'app', resettable: true },
+  { id: 'capture', label: 'Capture', group: 'recording', resettable: true },
+  { id: 'clips', label: 'Clips', group: 'recording', resettable: true },
+  { id: 'games', label: 'Games', group: 'recording', resettable: true },
+  { id: 'setup', label: 'Scenes & controls', group: 'hardware', resettable: false },
+  { id: 'audio', label: 'Audio', group: 'hardware', resettable: true },
+  { id: 'diagnostics', label: 'Diagnostics', group: 'support', resettable: true },
+  { id: 'about', label: 'Help & about', group: 'support', resettable: false },
 ];
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
-  { id: 'capture.audioSync', category: 'capture', title: 'Microphone timing', description: 'Calibrate headphone and microphone delay for clips.', keywords: ['sync', 'latency', 'offset', 'delay', 'bluetooth', 'sonar', 'calibrate'] },
-  { id: 'setup.scenes', category: 'setup', title: 'Scenes, quick controls, and status lighting', description: 'Save your whole setup, switch scenes, and configure desktop shortcuts and device cues.', keywords: ['scenes', 'profiles', 'automatic', 'shortcut', 'quick', 'lighting', 'status'] },
+  { id: 'capture.audioSync', category: 'capture', title: 'Microphone timing', description: 'Calibrate headphone and microphone delay for clips.', keywords: ['sync', 'latency', 'offset', 'delay', 'bluetooth', 'sonar', 'calibrate'], addedIn: '0.9.15' },
+  { id: 'general.trayOnGameLaunch', category: 'general', title: 'Move to tray when a game starts', description: 'Automatically release the interface while a recognized game runs.', keywords: ['game', 'launch', 'minimize', 'close', 'tray', 'automatic', 'memory', 'resources'], addedIn: '0.9.15' },
+  { id: 'setup.scenes', category: 'setup', title: 'Scenes, quick controls, and status lighting', description: 'Save your whole setup, switch scenes, and configure desktop shortcuts and device cues.', keywords: ['scenes', 'profiles', 'automatic', 'shortcut', 'quick', 'lighting', 'status', 'setup'] },
   { id: 'capture.systemAudioMode', category: 'capture', title: 'Game-only audio', description: 'Capture sound from the selected game or window without other desktop apps.', keywords: ['game only', 'process', 'music', 'exclude', 'desktop audio'] },
   {
-    id: 'general.runDiagnostics', category: 'general', title: 'Run diagnostics',
+    id: 'general.runDiagnostics', category: 'about', title: 'Run diagnostics',
     description: 'Test capture setup and save the results without enabling Developer mode.',
-    keywords: ['diagnostics', 'troubleshoot', 'debug', 'capture', 'waiting', 'encoder', 'gpu', 'export', 'logs'],
+    keywords: ['diagnostics', 'troubleshoot', 'debug', 'capture', 'waiting', 'encoder', 'gpu', 'export', 'logs', 'help', 'support'],
   },
   {
     id: 'general.workspace',
-    category: 'general',
-    title: 'Workspaces',
-    description: 'Choose which parts of Switchboard stay visible: Devices and Capture. Audio appears only with Developer mode.',
-    keywords: ['workspace', 'clipping', 'full setup', 'onboarding', 'hide', 'show', 'devices', 'capture', 'preset'],
+    category: 'modules',
+    title: 'Pages and presets',
+    description: 'Choose which pages appear: Devices and Capture. Audio appears only with Developer mode.',
+    keywords: ['workspace', 'workspaces', 'pages', 'clipping', 'full setup', 'onboarding', 'hide', 'show', 'devices', 'capture', 'preset', 'features'],
   },
   {
     id: 'general.developerMode',
@@ -81,6 +103,14 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['startup', 'start up', 'login', 'boot', 'launch'],
   },
   {
+    id: 'general.startMinimized',
+    category: 'general',
+    title: 'Start minimized',
+    description: 'Start in the system tray when you sign in to Windows.',
+    keywords: ['startup', 'minimized', 'minimise', 'login', 'boot', 'tray', 'background'],
+    addedIn: '0.9.15',
+  },
+  {
     id: 'general.closeToTray',
     category: 'general',
     title: 'Close to tray',
@@ -96,28 +126,28 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   },
   {
     id: 'about.automaticAppUpdates',
-    category: 'about',
+    category: 'updates',
     title: 'Always keep Switchboard up to date',
     description: 'Check for application releases shortly after launch and every 30 minutes.',
     keywords: ['app', 'application', 'automatic', 'update', 'upgrade', 'release', 'github'],
   },
   {
     id: 'about.automaticAppUpdateDownloads',
-    category: 'about',
+    category: 'updates',
     title: 'Download updates automatically',
     description: 'Choose whether available application releases download in the background.',
     keywords: ['app', 'application', 'automatic', 'download', 'update', 'release'],
   },
   {
     id: 'about.installAppUpdatesWhenIdle',
-    category: 'about',
+    category: 'updates',
     title: 'Install while away',
     description: 'Silently install after 10 minutes away when Switchboard is in the tray and engines and exports are inactive.',
     keywords: ['app', 'automatic', 'install', 'update', 'idle', 'afk', 'away', 'background'],
   },
   {
     id: 'about.installAppUpdatesOnNextStartup',
-    category: 'about',
+    category: 'updates',
     title: 'Install for the next startup',
     description: 'Apply a downloaded release when Switchboard closes.',
     keywords: ['app', 'application', 'install', 'update', 'startup', 'restart', 'quit'],
@@ -405,23 +435,31 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   {
     id: 'modules.automaticUpdates',
     category: 'modules',
-    title: 'Automatic bundled-module updates',
+    title: 'Update modules automatically',
     description: 'Verify and install signed bundled module packages with rollback retained.',
-    keywords: ['extensions', 'plugins', 'updates', 'signed', 'rollback'],
+    keywords: ['modules', 'extensions', 'plugins', 'updates', 'signed', 'rollback', 'bundled'],
+  },
+  {
+    id: 'modules.community',
+    category: 'modules',
+    title: 'Install modules from GitHub',
+    description: 'Review and install a community device discovery module from a public GitHub release.',
+    keywords: ['community', 'github', 'install', 'plugin', 'addon', 'add-on', 'extensions', 'third party'],
+    addedIn: '0.9.15',
   },
   {
     id: 'modules.installed',
     category: 'modules',
     title: 'Installed modules',
-    description: 'Review installed modules and change their enabled state.',
-    keywords: ['extensions', 'plugins', 'drivers', 'hardware', 'disable', 'enable'],
+    description: 'Review installed device modules and change their enabled state.',
+    keywords: ['modules', 'extensions', 'plugins', 'drivers', 'hardware', 'disable', 'enable', 'devices'],
   },
   {
     id: 'modules.available',
     category: 'modules',
     title: 'Available modules',
     description: 'Install modules detected for this setup.',
-    keywords: ['extensions', 'plugins', 'drivers', 'hardware', 'install', 'discovery'],
+    keywords: ['modules', 'extensions', 'plugins', 'drivers', 'hardware', 'install', 'discovery', 'devices'],
   },
   {
     id: 'diagnostics.detailed',
@@ -495,10 +533,17 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
   },
   {
     id: 'about.updates',
-    category: 'about',
+    category: 'updates',
     title: 'Switchboard updates',
     description: 'Check update status or restart to install a downloaded release.',
     keywords: ['app', 'application', 'update', 'upgrade', 'release', 'download', 'restart', 'github'],
+  },
+  {
+    id: 'about.restoreDefaults',
+    category: 'about',
+    title: 'Restore all defaults',
+    description: 'Reset every preference plus Audio and Capture configuration.',
+    keywords: ['reset', 'restore', 'defaults', 'factory', 'start over', 'clear settings'],
   },
   {
     id: 'about.runtime',
@@ -515,6 +560,15 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     keywords: ['sandbox', 'preload', 'security', 'context isolation', 'node access'],
   },
 ];
+
+/** Settings that still carry a one-time "new" marker for users who have not seen them. */
+export const newSettingIds: readonly string[] = settingsSearchEntries
+  .filter((entry) => entry.addedIn !== undefined)
+  .map((entry) => entry.id);
+
+export function settingsEntry(id: string): SettingsSearchEntry | undefined {
+  return settingsSearchEntries.find((entry) => entry.id === id);
+}
 
 export function categoryLabel(category: SettingsCategoryId): string {
   return settingsCategories.find((candidate) => candidate.id === category)?.label ?? category;

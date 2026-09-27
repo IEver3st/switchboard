@@ -38,6 +38,7 @@ export const ChatMixSlider = memo(function ChatMixSlider({
     <section aria-labelledby="chatmix-heading" className={cn('audio-chatmix chatmix-control', inactive && 'is-disabled')}>
       <div className="audio-chatmix__label">
         <h3 id="chatmix-heading">ChatMix</h3>
+        <p>{disabled ? 'Turn on Game and Chat to balance them.' : 'Balance game against chat.'}</p>
       </div>
 
       <div className="audio-chatmix__slider chatmix-control__slider">
@@ -51,22 +52,24 @@ export const ChatMixSlider = memo(function ChatMixSlider({
           onValueChange={([next]) => typeof next === 'number' && setCurrent(snapCenter(next))}
           onValueCommit={([next]) => typeof next === 'number' && commit(next)}
           onDoubleClick={() => commit(0)}
-          className="relative flex h-8 w-full min-w-0 touch-none select-none items-center"
+          className="audio-chatmix__root"
         >
-          <SliderPrimitive.Track className="relative h-1 w-full grow rounded-[2px] bg-input">
-            <span className="absolute left-1/2 top-[-5px] h-[14px] w-px -translate-x-1/2 bg-foreground/70" aria-hidden="true" />
+          <SliderPrimitive.Track className="audio-chatmix__track">
+            <span className="audio-chatmix__side audio-chatmix__side--game" aria-hidden="true" />
+            <span className="audio-chatmix__side audio-chatmix__side--chat" aria-hidden="true" />
+            <span className="audio-chatmix__center" aria-hidden="true" />
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
             aria-label="ChatMix game and chat balance"
             aria-valuetext={`${game} percent game, ${chat} percent chat`}
-            className="block size-[18px] rounded-full border border-accent-hover bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+            className="audio-chatmix__thumb"
           />
         </SliderPrimitive.Root>
         <MessageCircle className="size-4 shrink-0 text-[var(--channel-chat)]" aria-hidden="true" />
       </div>
 
       <div className="audio-chatmix__value">
-        <output>Game {game} · Chat {chat}</output>
+        <output><span data-side="game">Game {game}</span><span aria-hidden="true">·</span><span data-side="chat">Chat {chat}</span></output>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

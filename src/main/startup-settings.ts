@@ -1,6 +1,12 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 
+export const WINDOWS_STARTUP_ARGUMENT = '--windows-startup';
+
+export function shouldStartMinimized(arguments_: readonly string[], startMinimized: boolean): boolean {
+  return process.platform === 'win32' && arguments_.includes(WINDOWS_STARTUP_ARGUMENT) && startMinimized;
+}
+
 export function markBackgroundUpdate(filePath: string, requested: boolean): void {
   if (requested) writeFileSync(filePath, JSON.stringify({ requestedAt: Date.now() }), 'utf8');
   else rmSync(filePath, { force: true });

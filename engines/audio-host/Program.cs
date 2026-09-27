@@ -113,8 +113,7 @@ AudioApplicationRouteRequest ParseRoute(JsonElement payload)
 
 object ListSessions()
 {
-    var virtualEndpoints = EndpointCatalog.Inspect(endpoints.List());
-    return virtualEndpoints.Ready ? endpoints.ListApplications(virtualEndpoints) : Array.Empty<AudioApplicationState>();
+    return engine.GetSnapshot().Applications;
 }
 
 AudioHostSettings ParseSettings(JsonElement payload)

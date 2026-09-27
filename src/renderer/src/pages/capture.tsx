@@ -207,14 +207,18 @@ export function CapturePage({ snapshot, requestedClipId, onRequestedClipHandled 
               setEditorClipId(null);
               setMontageProject(reconcileMontageProject(draft, snapshot.clips));
             }}
-            onDelete={(draft) => {
-              void montageV2Api.deleteMontageDraft(draft.id)
-                .then(() => {
-                  refreshMontageDrafts();
-                  showTransientToast('Edit draft discarded', setToast);
-                })
-                .catch((error) => showTransientToast(errorMessage(error), setToast));
-            }}
+            onDelete={(draft) => montageV2Api.deleteMontageDraft(draft.id)
+              .then(() => {
+                refreshMontageDrafts();
+                showTransientToast(draft.kept ? 'Project discarded' : 'Draft discarded', setToast);
+              })
+              .catch((error) => showTransientToast(errorMessage(error), setToast))}
+            onKeepChange={(draft, kept) => montageV2Api.saveMontageDraft({ ...draft, kept })
+              .then(() => {
+                refreshMontageDrafts();
+                showTransientToast(kept ? 'Project kept until you discard it' : 'Project will clear 3 hours from now', setToast);
+              })
+              .catch((error) => showTransientToast(`Could not update the project: ${errorMessage(error)}`, setToast))}
           />
         ) : null}
         <ClipLibrary

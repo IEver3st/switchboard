@@ -5,7 +5,7 @@ import { freemem, totalmem, availableParallelism } from 'node:os';
 import { ResourceHistory, type ResourceIdentity } from './resource-history';
 import type { NativeResourceSample, ResourceMonitorSnapshot } from '../../shared/resource-monitor';
 import { z } from 'zod';
-import type { DebugDiagnostics, EngineStatus, PerformanceSnapshot } from '../../shared/contracts';
+import type { CaptureRuntime, DebugDiagnostics, EngineStatus, PerformanceSnapshot } from '../../shared/contracts';
 import type { ResourceTelemetrySample } from './resource-journal';
 
 const sampleIntervalMs = 5_000;
@@ -20,6 +20,8 @@ export const performanceMemoryBudgetsMb = {
   rendererOpen: 340,
   audioEngine: 65,
   captureEngine: 1_000,
+  captureWaiting: 100,
+  captureSaving: 1_000,
 } as const;
 
 export type ExternalProcessResource = { pid: number; name: string; privateMemoryMb: number; workingSetMb: number; cpuPercent: number };
@@ -29,6 +31,7 @@ export type PerformanceRuntimeContext = {
   guardEnabled: boolean;
   detailedDiagnostics?: boolean;
   engines: EngineStatus[];
+  captureState?: CaptureRuntime['state'];
 };
 
 type PerformanceMonitorOptions = {
@@ -413,7 +416,14 @@ export function measurePerformance(
   const coreMemoryMb = kilobytesToMb(sum(coreMetrics.map((metric) => metric.memory.privateBytes ?? 0)));
   const residentMemoryMb = kilobytesToMb(sum(metrics.map((metric) => metric.memory.workingSetSize))) + engineWorkingSetMb;
   const audioActive = activeEngines.some((engine) => engine.kind === 'audio');
-  const captureActive = activeEngines.some((engine) => engine.kind === 'capture');
+  const captureHost = activeEngines.find((engine) => engine.kind === 'capture');
+  const captureActive = captureHost !== undefined;
+  // A live control host is not proof of an active encoder. Unknown/starting
+  // retains the conservative allowance until the first runtime snapshot.
+  const captureWaiting = captureHost?.state === 'running'
+    && !captureHost.processes?.some(process => process.role !== 'host')
+    && ['waiting', 'stopped', 'error'].includes(context.captureState ?? '');
+  const captureSaving = captureActive && context.captureState === 'saving';
   const activeEngineProcesses = sum(activeEngines.map((engine) => engine.processes?.length || 1));
 
   return {
@@ -425,8 +435,11 @@ export function measurePerformance(
     activeProcesses: metrics.length + activeEngineProcesses + external.length,
     budgetMemoryMb: (context.rendererActive ? performanceMemoryBudgetsMb.rendererOpen : performanceMemoryBudgetsMb.coreTray)
       + (audioActive ? performanceMemoryBudgetsMb.audioEngine : 0)
-      + (captureActive ? performanceMemoryBudgetsMb.captureEngine : 0),
-    budgetCpuPercent: (context.rendererActive ? 0.7 : 0.3) + (audioActive ? 1 : 0) + (captureActive ? 2 : 0),
+      + (captureWaiting ? performanceMemoryBudgetsMb.captureWaiting
+        : captureSaving ? performanceMemoryBudgetsMb.captureSaving
+        : captureActive ? performanceMemoryBudgetsMb.captureEngine : 0),
+    budgetCpuPercent: (context.rendererActive ? 0.7 : 0.3) + (audioActive ? 1 : 0)
+      + (captureWaiting ? 0.3 : captureActive ? 2 : 0),
     sampledAt: new Date(measuredAt).toISOString(),
   };
 }

@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, session, contentTracing } from 'electron';
 import { copyFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -10,6 +10,7 @@ if (!source) throw new Error('Set SWITCHBOARD_LIBRARY_STATE to a state file with
 const output = resolve(process.env.SWITCHBOARD_LIBRARY_OUTPUT ?? 'design-qa/library-performance');
 const profile = await mkdtemp(join(tmpdir(), 'switchboard-library-performance-'));
 const state = JSON.parse(await readFile(source, 'utf8'));
+if (process.env.SWITCHBOARD_LIBRARY_CLIP_LIMIT) state.clips = state.clips.slice(0, Number(process.env.SWITCHBOARD_LIBRARY_CLIP_LIMIT));
 // Reconciliation may prune stale thumbnails. Give it owned copies, never the
 // user's original cache files, even when the source media is missing.
 await mkdir(join(profile, 'cache', 'thumbnails'), { recursive: true });
@@ -41,6 +42,14 @@ process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 delete process.env.ELECTRON_RENDERER_URL;
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+if (process.env.SWITCHBOARD_LIBRARY_CPU_RASTER === '1') app.commandLine.appendSwitch('disable-gpu-rasterization');
+if (process.env.SWITCHBOARD_LIBRARY_NO_GRAPHITE === '1') app.commandLine.appendSwitch('disable-skia-graphite');
+if (process.env.SWITCHBOARD_LIBRARY_ANGLE) app.commandLine.appendSwitch('use-angle', process.env.SWITCHBOARD_LIBRARY_ANGLE);
+if (process.env.SWITCHBOARD_LIBRARY_NO_IMAGES === '1') {
+  void app.whenReady().then(() => session.defaultSession.webRequest.onBeforeRequest(
+    { urls: ['switchboard-media://thumbnail/*'] }, (_details, callback) => callback({ cancel: true }),
+  ));
+}
 await import(pathToFileURL(resolve(process.env.SWITCHBOARD_LIBRARY_BUILD ?? 'out', 'main/index.js')).href);
 
 void app.whenReady().then(async () => {
@@ -70,6 +79,13 @@ void app.whenReady().then(async () => {
   await until(window, `Boolean(document.querySelector('.capture-clip-card'))`);
   await delay(5000);
   const initial = await sample(window);
+  await writeFile(join(output, 'gpu.json'), JSON.stringify({ features: app.getGPUFeatureStatus(), info: await app.getGPUInfo('complete') }, null, 2));
+  if (process.env.SWITCHBOARD_LIBRARY_MEMORY_TRACE === '1') {
+    await contentTracing.startRecording({ included_categories: ['disabled-by-default-memory-infra'],
+      memory_dump_config: { triggers: [{ mode: 'detailed', periodic_interval_ms: 1000 }] } });
+    await delay(2500);
+    await contentTracing.stopRecording(join(output, 'memory-trace.json'));
+  }
   const before = await taskDuration(window);
   await window.webContents.executeJavaScript(`(async () => {
     const settings = (await window.switchboard.getSnapshot()).settings;
@@ -145,6 +161,18 @@ function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 async function verify(window) {
   const checks = [];
+  await window.webContents.executeJavaScript(`(async () => {
+    const initial = await window.switchboard.getSnapshot();
+    await window.switchboard.setSetupPreferences({ ...initial.setup.preferences, quickControlsEnabled: true });
+    let observed = null;
+    const unsubscribe = window.switchboard.subscribe(snapshot => { observed = snapshot; });
+    try {
+      await window.switchboard.updateSettings({ performanceGuard: true });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (!observed?.setup.preferences.quickControlsEnabled) throw new Error('Snapshot patch reset a defaulted branch.');
+    } finally { unsubscribe(); }
+  })()`);
+  checks.push('snapshot branch updates preserve setup across multiple subscribers');
   await window.webContents.executeJavaScript(`(async () => {
     await window.switchboard.updateSettings({ softwareRendering: true, onboardingCompleted: true });
     await window.switchboard.updateSettings({ performanceGuard: false });

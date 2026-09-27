@@ -28,7 +28,7 @@ The capture-to-DSP SPSC adapter holds at most four model frames (40 ms for the p
 
 ## Not faked
 
-A complete Sonar replacement requires signed virtual Windows audio endpoints. This host does **not** pretend that application routing is complete without that driver. The intended boundary is:
+A complete set of separate Windows channels requires the signed Switchboard driver. Its transport boundary is:
 
 ```text
 Virtual Game / Chat / Media / Aux endpoints
@@ -40,13 +40,15 @@ Personal output / Stream mix / Clip mix / Virtual microphone
 
 The virtual driver should remain deliberately stupid. DSP, profiles, routing, and recovery belong here in user mode.
 
+Without that driver, the host supports free application mixing through the standard VB-CABLE endpoint and Windows process-loopback capture. Selected applications feed software Game/Chat/Media buses, physical playback, and the application-only Clip pipe. This mode does not expose separate virtual channels, a virtual microphone, or a Stream output. Capability flags describe these boundaries. See [the free backend integration handoff](../../docs/FREE-AUDIO-BACKEND.md) for routing persistence, recovery, and validation.
+
 ## Run
 
 ```powershell
 dotnet run --project .\engines\audio-host\Audio.Host.csproj
 ```
 
-`start` and `configure` require the canonical `audio` object from `src/shared/contracts.ts`. Physical-microphone DSP and monitoring start without the signed virtual driver. Virtual channels and application routing remain truthfully unavailable until all required endpoints exist. A missing or invalid microphone is reported without fabricating an active processing path.
+`start` and `configure` require the canonical `audio` object from `src/shared/contracts.ts`. Physical-microphone DSP and monitoring start independently of virtual routing. Application mixing selects either the complete Switchboard driver or standard VB-CABLE with physical bus outputs; otherwise routing remains unavailable. A missing or invalid microphone is reported without fabricating an active processing path.
 
 Useful diagnostic commands:
 

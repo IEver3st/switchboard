@@ -70,6 +70,34 @@ internal sealed class EndpointService : IDisposable
 
     public MMDevice Open(string endpointId) => enumerator.GetDevice(endpointId);
 
+    public IReadOnlyList<AudioProcessSession> ListProcessSessions()
+    {
+        var result = new List<AudioProcessSession>();
+        var identities = new Dictionary<int, AudioProcessIdentity?>();
+        foreach (var endpoint in List().Where(endpoint => endpoint.Flow == "render"))
+        {
+            try
+            {
+                using var output = Open(endpoint.Id);
+                using var sessions = output.AudioSessionManager.Sessions;
+                for (var index = 0; index < sessions.Count; index++)
+                {
+                    using var session = sessions[index];
+                    if (session.State == AudioSessionState.AudioSessionStateExpired) continue;
+                    var id = checked((int)session.GetProcessID);
+                    if (id <= 0 || id == Environment.ProcessId) continue;
+                    if (!identities.TryGetValue(id, out var identity)) identities[id] = identity = AudioProcessIdentity.TryRead(id);
+                    if (identity is null || Path.GetFileNameWithoutExtension(identity.ExecutablePath) is "Audio.Host" or "Capture.Host") continue;
+                    var name = string.IsNullOrWhiteSpace(session.DisplayName) ? Path.GetFileNameWithoutExtension(identity.ExecutablePath) : session.DisplayName;
+                    result.Add(new(identity, session.GetSessionInstanceIdentifier, name, endpoint.Id,
+                        session.State == AudioSessionState.AudioSessionStateActive));
+                }
+            }
+            catch (System.Runtime.InteropServices.COMException) { /* Device disappeared during inventory. */ }
+        }
+        return result;
+    }
+
     public IReadOnlyList<AudioApplicationState> ListApplications(VirtualEndpointSet virtualEndpoints)
     {
         var result = new List<AudioApplicationState>();
@@ -179,3 +207,5 @@ internal sealed class EndpointService : IDisposable
         enumerator.Dispose();
     }
 }
+
+internal sealed record AudioProcessSession(AudioProcessIdentity Process, string SessionId, string Name, string EndpointId, bool Active);

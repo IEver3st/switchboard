@@ -2,6 +2,7 @@ import type { AudioBus, AudioMixId, AudioPathId, SystemSnapshot } from '../../..
 import type { AudioWorkspaceTab } from './AudioHeader';
 import { ChatMixSlider } from './ChatMixSlider';
 import { mixerChannelOrder, type MixerChannelId } from './channel-identity';
+import { AudioNotice } from './AudioModule';
 import { MixerStrip } from './MixerStrip';
 import { useSystemStore } from '@/stores/use-system-store';
 
@@ -17,9 +18,12 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
   const pending = useSystemStore((state) => state.pendingAudioOperations > 0);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
+  const cableBackend = snapshot.audio.capabilities.routingBackend === 'vb-cable';
+  const outputDevices = cableBackend ? snapshot.audio.devices.filter(device => device.direction === 'input' || !device.isVirtual) : snapshot.audio.devices;
   const buses = mixerChannelOrder
     .map((id) => snapshot.audio.buses.find((bus) => bus.id === id))
-    .filter((bus): bus is AudioBus => Boolean(bus));
+    .filter((bus): bus is AudioBus => Boolean(bus))
+    .filter(bus => !cableBackend || (bus.id !== 'aux' && !(selectedMixId === 'clip' && bus.id === 'mic')));
   const selectedMix = snapshot.audio.mixes.find((mix) => mix.id === selectedMixId) ?? snapshot.audio.mixes[0]!;
   const personalMix = snapshot.audio.mixes.find((mix) => mix.id === 'personal');
   const gameEnabled = (snapshot.audio.buses.find((bus) => bus.id === 'game')?.enabled ?? false)
@@ -44,7 +48,7 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
           masterState={selectedMix.master}
           mixId={selectedMix.id}
           mixLabel={selectedMix.label}
-          devices={snapshot.audio.devices}
+          devices={outputDevices}
           engineRunning={engineRunning}
           pending={pending}
           onGainCommit={(gain) => void setAudioMasterGain({ mixId: selectedMix.id, gain })}
@@ -60,11 +64,11 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
               bus={bus}
               control={control}
               mixId={selectedMix.id}
-              devices={snapshot.audio.devices}
+              devices={outputDevices}
               engineRunning={engineRunning}
               pending={pending}
               presetName={presetNameFor(channel)}
-              applications={snapshot.audio.applications.filter((application) => application.currentDestination === bus.id)}
+              applications={snapshot.audio.applications}
               routingSupport={routingSupport}
               routingUnavailableReason={snapshot.audio.capabilities.reason}
               onGainCommit={(gain) => void setAudioBusGain({ mixId: selectedMix.id, busId: bus.id, gain })}
@@ -79,6 +83,7 @@ export function MixerPage({ snapshot, selectedMixId, onNavigate }: { snapshot: S
         </div>
       </div>
 
+      {cableBackend ? <AudioNotice>VB-CABLE mixes Game, Chat, and Media apps. Stream output and a virtual microphone need the Switchboard audio driver. Clips record the microphone through Capture settings.</AudioNotice> : null}
       <ChatMixSlider
         value={snapshot.audio.chatMix}
         disabled={!gameEnabled || !chatEnabled}

@@ -1,4 +1,5 @@
 import '@/components/settings/capture-settings.css';
+import '@/components/settings/settings-shell.css';
 import { AudioSyncCalibrationSettings } from '@/components/settings/audio-sync-calibration';
 import { SetupWorkspace } from '@/components/setup/setup-workspace';
 import '@/components/settings/general-settings.css';
@@ -30,6 +31,8 @@ import { AutoCaptureSettings } from '@/components/settings/autocapture-settings'
 import { ModuleDeveloperTools } from '@/components/settings/module-developer-tools';
 import { ModuleManagement } from '@/components/settings/module-management';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
+import { SettingsSearchField, SettingsSearchResults } from '@/components/settings/settings-search';
+import { NewSettingsProvider, useNewSettings, useNewSettingsTracker } from '@/components/settings/settings-new';
 import {
   CaptureAudioDeviceSelect,
   captureInputDevices,
@@ -41,6 +44,8 @@ import {
 import {
   isSettingsCategory,
   isSettingsCategoryVisible,
+  settingsCategoryStorageKey,
+  settingsEntry,
   visibleSettingsCategories,
   type SettingsCategoryId,
   type SettingsSearchEntry,
@@ -64,7 +69,6 @@ import { cn } from '@/lib/cn';
 import { formatBytes, formatRelativeTime, percent } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
-const categoryStorageKey = 'switchboard.settings.category';
 type SettingsSubview = 'category' | 'module-developer-tools';
 
 export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; onClose: () => void }) {
@@ -74,32 +78,38 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
   const [confirmation, setConfirmation] = useState<SettingsResetScope | null>(null);
   const [targetSetting, setTargetSetting] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const resetSettings = useSystemStore((state) => state.resetSettings);
   const developerMode = snapshot.settings.developerMode === true;
+  const searching = query.trim().length > 0;
+  const newSettings = useNewSettingsTracker(snapshot, scrollRef);
   const visibleCategories = visibleSettingsCategories(snapshot.settings);
   const categoryDefinition = visibleCategories.find((candidate) => candidate.id === category);
   const resetScope = categoryResetScope(category);
 
   const changeCategory = useCallback((nextCategory: SettingsCategoryId) => {
     if (!isSettingsCategoryVisible(nextCategory, snapshot.settings)) return;
+    setQuery('');
     setCategory(nextCategory);
     setSubview('category');
     if (window.location.hash !== '#settings') window.history.replaceState(null, '', '#settings');
-    window.sessionStorage.setItem(categoryStorageKey, nextCategory);
+    window.sessionStorage.setItem(settingsCategoryStorageKey, nextCategory);
+    scrollRef.current?.scrollTo({ top: 0 });
   }, [snapshot.settings.developerMode]);
 
   useEffect(() => {
     if (!isSettingsCategoryVisible(category, snapshot.settings)) {
       setCategory('general');
       setSubview('category');
-      window.sessionStorage.setItem(categoryStorageKey, 'general');
+      window.sessionStorage.setItem(settingsCategoryStorageKey, 'general');
     }
   }, [category, snapshot.settings.developerMode]);
 
   const openModuleDeveloperTools = useCallback(() => {
+    setQuery('');
     setCategory('modules');
     setSubview('module-developer-tools');
-    window.sessionStorage.setItem(categoryStorageKey, 'modules');
+    window.sessionStorage.setItem(settingsCategoryStorageKey, 'modules');
     if (window.location.hash !== '#settings/modules/developer-tools') {
       window.history.replaceState(null, '', '#settings/modules/developer-tools');
     }
@@ -137,16 +147,17 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
       }
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
         if (document.querySelector('[data-feedback-dialog]')) return;
         if (confirmation) setConfirmation(null);
+        else if (searching) setQuery('');
         else if (subview === 'module-developer-tools') closeModuleDeveloperTools();
         else onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeModuleDeveloperTools, confirmation, onClose, subview]);
+  }, [closeModuleDeveloperTools, confirmation, onClose, searching, subview]);
 
   const confirmReset = () => {
     if (!confirmation) return;
@@ -156,64 +167,79 @@ export function SettingsPage({ snapshot, onClose }: { snapshot: SystemSnapshot; 
   };
 
   return (
-    <div className="settings-page">
-      <header className="settings-header app-drag">
-        <div className="settings-breadcrumb" aria-label="Breadcrumb">
-          <img src="./switchboard-mark.png" alt="" draggable={false} />
-          <span>Settings</span>
-          <span aria-hidden>/</span>
-          {subview === 'module-developer-tools' ? (
-            <>
-              <span>Modules</span>
-              <span aria-hidden>/</span>
-              <strong>Developer tools</strong>
-            </>
-          ) : <strong>{categoryDefinition?.label ?? 'General'}</strong>}
-        </div>
-        <div className="settings-header__actions no-drag">
-          <button type="button" className="settings-restore" onClick={() => setConfirmation('all')}>
-            <RotateCcw className="size-4" aria-hidden />
-            Restore defaults
-          </button>
-        </div>
-        {confirmation ? (
-          <ResetConfirmation
-            scope={confirmation}
-            onCancel={() => setConfirmation(null)}
-            onConfirm={confirmReset}
+    <NewSettingsProvider value={newSettings}>
+      <div className="settings-page">
+        <header className="settings-header app-drag">
+          <div className="settings-breadcrumb" aria-label="Breadcrumb">
+            <img src="./switchboard-mark.png" alt="" draggable={false} />
+            <span>Settings</span>
+            <span aria-hidden>/</span>
+            {searching ? <strong>Search</strong> : subview === 'module-developer-tools' ? (
+              <>
+                <span>Features</span>
+                <span aria-hidden>/</span>
+                <strong>Developer tools</strong>
+              </>
+            ) : <strong>{categoryDefinition?.label ?? 'General'}</strong>}
+          </div>
+          <SettingsSearchField
+            query={query}
+            developerMode={developerMode}
+            inputRef={searchInputRef}
+            onQueryChange={setQuery}
+            onResultSelect={selectSearchResult}
           />
-        ) : null}
-      </header>
+          {/* Balances the breadcrumb so search stays centered; also reserves the native window controls. */}
+          <div className="settings-header__actions" aria-hidden />
 
-      <div className="settings-shell">
-        <SettingsSidebar
-          category={categoryDefinition?.id ?? 'general'}
-          appUpdate={snapshot.appUpdate}
-          developerMode={developerMode}
-          query={query}
-          searchInputRef={searchInputRef}
-          onCategoryChange={changeCategory}
-          onQueryChange={setQuery}
-          onResultSelect={selectSearchResult}
-          onBack={onClose}
-        />
-        <div className="settings-content-scroll" data-settings-content-scroll>
-          <div key={categoryDefinition?.id ?? category} className="settings-content">
-            <SettingsCategory
-              category={categoryDefinition?.id ?? 'general'}
-              subview={subview}
-              targetSetting={targetSetting}
-              snapshot={snapshot}
-              onOpenModuleDeveloperTools={openModuleDeveloperTools}
-              onCloseModuleDeveloperTools={closeModuleDeveloperTools}
-              onReset={categoryDefinition?.resettable && resetScope ? () => setConfirmation(resetScope) : undefined}
+          {confirmation ? (
+            <ResetConfirmation
+              scope={confirmation}
+              onCancel={() => setConfirmation(null)}
+              onConfirm={confirmReset}
             />
+          ) : null}
+        </header>
+
+        <div className="settings-shell">
+          <SettingsSidebar
+            category={searching ? null : categoryDefinition?.id ?? 'general'}
+            snapshot={snapshot}
+            onCategoryChange={changeCategory}
+            onBack={onClose}
+          />
+          <div ref={scrollRef} className="settings-content-scroll" data-settings-content-scroll>
+            {searching ? (
+              <div key="search" className="settings-content settings-content--search">
+                <SettingsSearchResults
+                  query={query}
+                  developerMode={developerMode}
+                  inputRef={searchInputRef}
+                  onResultSelect={selectSearchResult}
+                />
+              </div>
+            ) : (
+              <div key={categoryDefinition?.id ?? category} className="settings-content">
+                <SettingsCategory
+                  category={categoryDefinition?.id ?? 'general'}
+                  subview={subview}
+                  targetSetting={targetSetting}
+                  snapshot={snapshot}
+                  onOpenModuleDeveloperTools={openModuleDeveloperTools}
+                  onCloseModuleDeveloperTools={closeModuleDeveloperTools}
+                  onOpenCategory={changeCategory}
+                  onRestoreDefaults={() => setConfirmation('all')}
+                  onReset={categoryDefinition?.resettable && resetScope ? () => setConfirmation(resetScope) : undefined}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </div>
+    </NewSettingsProvider>
   );
 }
+
 
 function SettingsCategory({
   targetSetting,
@@ -222,6 +248,8 @@ function SettingsCategory({
   snapshot,
   onOpenModuleDeveloperTools,
   onCloseModuleDeveloperTools,
+  onOpenCategory,
+  onRestoreDefaults,
   onReset,
 }: {
   targetSetting?: string | null;
@@ -230,9 +258,12 @@ function SettingsCategory({
   snapshot: SystemSnapshot;
   onOpenModuleDeveloperTools: () => void;
   onCloseModuleDeveloperTools: () => void;
+  onOpenCategory: (category: SettingsCategoryId) => void;
+  onRestoreDefaults: () => void;
   onReset?: () => void;
 }) {
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
+  if (category === 'updates') return <UpdatesSettings snapshot={snapshot} />;
   if (category === 'setup') return <SetupWorkspace snapshot={snapshot} />;
   if (category === 'audio') {
     if (snapshot.settings.developerMode !== true) return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
@@ -244,18 +275,30 @@ function SettingsCategory({
   if (category === 'modules') {
     return subview === 'module-developer-tools'
       ? <ModuleDeveloperTools snapshot={snapshot} onBack={onCloseModuleDeveloperTools} />
-      : <ModulesSettings snapshot={snapshot} onReset={onReset} onOpenDeveloperTools={onOpenModuleDeveloperTools} />;
+      : <FeaturesSettings snapshot={snapshot} onReset={onReset} onOpenDeveloperTools={onOpenModuleDeveloperTools} onOpenCategory={onOpenCategory} />;
   }
   if (category === 'diagnostics') return <DiagnosticsSettings snapshot={snapshot} onReset={onReset} targetSetting={targetSetting} />;
-  return <AboutSettings snapshot={snapshot} />;
+  return <AboutSettings snapshot={snapshot} onOpenCategory={onOpenCategory} onRestoreDefaults={onRestoreDefaults} />;
 }
 
-function WorkspaceSettings({ snapshot }: { snapshot: SystemSnapshot }) {
+/**
+ * Pages and the modules behind them live on one surface so a feature is never
+ * switched in two unrelated places. Capture and Audio engines keep their single
+ * switch in their own categories; this page only decides what appears.
+ */
+function FeaturesSettings({
+  snapshot,
+  onReset,
+  onOpenDeveloperTools,
+  onOpenCategory,
+}: CategoryProps & { onOpenDeveloperTools: () => void; onOpenCategory: (category: SettingsCategoryId) => void }) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const developerMode = snapshot.settings.developerMode === true;
   const stored = normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces) ?? fullWorkspacesForDeveloperMode(developerMode);
   const workspaces = developerMode ? stored : stored.filter((entry) => entry !== 'audio');
   const preset = workspacePreset(workspaces, developerMode);
+  const devicesVisible = workspaces.includes('devices');
+  const enabledDeviceModules = snapshot.modules.filter((module) => module.enabled && module.kind === 'device').length;
 
   const applyWorkspaces = (next: VisibleWorkspace[]) => {
     const filtered = developerMode ? next : next.filter((entry) => entry !== 'audio');
@@ -268,120 +311,180 @@ function WorkspaceSettings({ snapshot }: { snapshot: SystemSnapshot }) {
     });
   };
 
-  const toggle = (workspace: VisibleWorkspace) => {
-    if (workspace === 'capture') return;
+  const setWorkspaceVisible = (workspace: Exclude<VisibleWorkspace, 'capture'>, visible: boolean) => {
     if (workspace === 'audio' && !developerMode) return;
     const selected = new Set(workspaces);
-    if (selected.has(workspace)) selected.delete(workspace);
-    else selected.add(workspace);
+    if (visible) selected.add(workspace);
+    else selected.delete(workspace);
     applyWorkspaces(workspaceOrder.filter((entry) => selected.has(entry)));
   };
 
   return (
-    <div
-      id="setting-general.workspace"
-      data-setting-id="general.workspace"
-      tabIndex={-1}
-      className="settings-row settings-row--stacked settings-workspaces-block"
-    >
-      <div className="settings-row__copy">
-        <h3 className="settings-row__title">Workspace</h3>
-        <div className="settings-row__description">{developerMode
-          ? 'Choose which parts of Switchboard stay visible. Capture stays on.'
-          : 'Choose which parts of Switchboard stay visible. Capture stays on. Audio appears only with Developer mode.'}
+    <div className="settings-category--modules settings-features">
+      <SettingsCategoryHeader
+        title="Features"
+        description="Choose which pages Switchboard shows and turn on the modules that power them."
+        onReset={onReset}
+      />
+
+      <div
+        id="setting-general.workspace"
+        data-setting-id="general.workspace"
+        tabIndex={-1}
+        className="settings-features__preset"
+      >
+        <div className="settings-features__preset-copy">
+          <strong>Start from a preset</strong>
+          <span>{preset === 'custom' ? 'Your current mix of pages is custom.' : 'Presets set which pages appear. You can adjust each one below.'}</span>
+        </div>
+        <div className="settings-segmented" role="group" aria-label="Page presets">
+          <button
+            type="button"
+            className="settings-segmented__option"
+            data-active={preset === 'clipping' || undefined}
+            aria-pressed={preset === 'clipping'}
+            onClick={() => applyWorkspaces(['capture'])}
+          >
+            Just clipping
+          </button>
+          <button
+            type="button"
+            className="settings-segmented__option"
+            data-active={preset === 'full' || undefined}
+            aria-pressed={preset === 'full'}
+            onClick={() => applyWorkspaces(fullWorkspacesForDeveloperMode(developerMode))}
+          >
+            Full setup
+          </button>
         </div>
       </div>
-      <div className="settings-row__control settings-workspaces">
-        <div className="settings-workspaces__presets">
-          <div className="settings-segmented" role="group" aria-label="Workspace presets">
-            <button
-              type="button"
-              className="settings-segmented__option"
-              data-active={preset === 'clipping' || undefined}
-              aria-pressed={preset === 'clipping'}
-              onClick={() => applyWorkspaces(['capture'])}
-            >
-              Just clipping
-            </button>
-            <button
-              type="button"
-              className="settings-segmented__option"
-              data-active={preset === 'full' || undefined}
-              aria-pressed={preset === 'full'}
-              onClick={() => applyWorkspaces(fullWorkspacesForDeveloperMode(developerMode))}
-            >
-              Full setup
-            </button>
-          </div>
-          {preset === 'custom' ? <span className="settings-workspaces__custom">Custom</span> : null}
+
+      <section className="settings-feature" aria-labelledby="settings-feature-capture">
+        <FeatureHeading id="settings-feature-capture" icon={CircleDot} title="Capture" description="Replay, clips, and recording.">
+          <span className="settings-feature__locked">Always shown</span>
+          <Button type="button" variant="ghost" size="sm" onClick={() => onOpenCategory('capture')}>Capture settings</Button>
+        </FeatureHeading>
+      </section>
+
+      <section className="settings-feature" aria-labelledby="settings-feature-devices">
+        <FeatureHeading
+          id="settings-feature-devices"
+          icon={Cable}
+          title="Devices"
+          description={!devicesVisible && enabledDeviceModules > 0
+            ? `Page hidden. ${enabledDeviceModules === 1 ? 'The enabled module keeps' : 'Enabled modules keep'} applying device settings in the background.`
+            : 'Connected hardware and its controls, powered by the modules below.'}
+        >
+          <Switch
+            checked={devicesVisible}
+            onCheckedChange={(visible) => setWorkspaceVisible('devices', visible)}
+            aria-label="Show the Devices page"
+            data-workspace-toggle="devices"
+          />
+        </FeatureHeading>
+        <div className="settings-feature__body">
+          <ModuleManagement
+            snapshot={snapshot}
+            onOpenDeveloperTools={onOpenDeveloperTools}
+            onDeviceModuleEnabled={() => { if (!devicesVisible) setWorkspaceVisible('devices', true); }}
+          />
+          <SettingSwitch
+            settingId="modules.automaticUpdates"
+            title="Update modules automatically"
+            description="Verify signed packages, install safely, and keep one rollback copy. Local and community modules are never changed automatically."
+            checked={snapshot.settings.automaticModuleUpdates}
+            onCheckedChange={(automaticModuleUpdates) => void updateSettings({ automaticModuleUpdates })}
+          />
         </div>
-        <div className="settings-workspaces__list">
-          {workspaceOptions
-            .filter(({ id }) => developerMode || id !== 'audio')
-            .map(({ id, title, description, icon: Icon }) => {
-              if (id === 'capture') {
-                return (
-                  <div key={id} className="settings-workspaces__item" data-locked>
-                    <Icon aria-hidden="true" />
-                    <span className="settings-workspaces__copy">
-                      <strong>{title}</strong>
-                      <small>{description}</small>
-                    </span>
-                    <span className="settings-workspaces__locked">Always on</span>
-                  </div>
-                );
-              }
-              const checked = workspaces.includes(id);
-              return (
-                <div key={id} className="settings-workspaces__item">
-                  <Icon aria-hidden="true" />
-                  <span className="settings-workspaces__copy">
-                    <strong>{title}</strong>
-                    <small>{description}</small>
-                  </span>
-                  <Switch
-                    checked={checked}
-                    onCheckedChange={() => toggle(id)}
-                    aria-label={title}
-                  />
-                </div>
-              );
-            })}
-        </div>
-      </div>
+      </section>
+
+      {developerMode ? (
+        <section className="settings-feature" aria-labelledby="settings-feature-audio">
+          <FeatureHeading id="settings-feature-audio" icon={AudioWaveform} title="Audio" description="Unfinished routing, mixes, and processing. Developer mode only.">
+            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenCategory('audio')}>Audio settings</Button>
+            <Switch
+              checked={workspaces.includes('audio')}
+              onCheckedChange={(visible) => setWorkspaceVisible('audio', visible)}
+              aria-label="Show the Audio page"
+              data-workspace-toggle="audio"
+            />
+          </FeatureHeading>
+        </section>
+      ) : null}
     </div>
   );
 }
 
-const workspaceOptions: ReadonlyArray<{ id: VisibleWorkspace; title: string; description: string; icon: LucideIcon }> = [
-  { id: 'devices', title: 'Devices', description: 'Connected hardware and its controls.', icon: Cable },
-  { id: 'audio', title: 'Audio', description: 'Unfinished routing, mixes, and processing. Developer mode only.', icon: AudioWaveform },
-  { id: 'capture', title: 'Capture', description: 'Replay, clips, and recording.', icon: CircleDot },
-];
+function FeatureHeading({
+  id,
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="settings-feature__heading">
+      <Icon className="settings-feature__icon" aria-hidden />
+      <div className="settings-feature__copy">
+        <h3 id={id}>{title}</h3>
+        <p>{description}</p>
+      </div>
+      <div className="settings-feature__actions">{children}</div>
+    </div>
+  );
+}
 
 function GeneralSettings({ snapshot, onReset }: CategoryProps) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
 
   return (
     <>
-      <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and releases the interface." onReset={onReset} />
-      <DiagnosticRunner snapshot={snapshot} />
-      <WorkspaceSettings snapshot={snapshot} />
-      <SettingSection title="Developer">
+      <SettingsCategoryHeader title="General" description="Choose how Switchboard starts, closes, and looks." onReset={onReset} />
+      <SettingSection title="Startup">
         <SettingSwitch
-          settingId="general.developerMode"
-          title="Developer mode"
-          description="Show Diagnostics and unfinished Audio routing, mixes, and processing. Audio settings do not work yet. Turning this off hides both and stops the Audio engine."
-          checked={snapshot.settings.developerMode === true}
-          onCheckedChange={(developerMode) => {
-            void updateSettings({ developerMode }).then(() => {
-              const state = useSystemStore.getState();
-              const current = state.snapshot;
-              if (current && !isPageVisibleForProfile(state.page, current.settings)) {
-                state.setPage(defaultPageForProfile(current.settings));
-              }
-            });
-          }}
+          settingId="general.startup"
+          title="Start Switchboard with Windows"
+          description="Launch Switchboard automatically when you sign in. Capture and other engines keep their own saved state."
+          checked={snapshot.settings.launchAtStartup}
+          onCheckedChange={(checked) => void updateSettings({ launchAtStartup: checked })}
+        />
+        <SettingSwitch
+          settingId="general.startMinimized"
+          title="Start minimized"
+          description={snapshot.settings.launchAtStartup
+            ? 'Start in the system tray when you sign in to Windows. Open Switchboard from its tray icon.'
+            : 'Turn on Start Switchboard with Windows to use this.'}
+          checked={snapshot.settings.startMinimized}
+          disabled={!snapshot.settings.launchAtStartup}
+          onCheckedChange={(checked) => void updateSettings({ startMinimized: checked })}
+        />
+      </SettingSection>
+      <SettingSection title="Tray">
+        <SettingSwitch
+          settingId="general.closeToTray"
+          title="Close to tray"
+          description="Keep global shortcuts, connected-device profiles, and active engines available after closing the window."
+          checked={snapshot.settings.closeToTray}
+          onCheckedChange={(checked) => void updateSettings({ closeToTray: checked })}
+        />
+        <SettingSwitch
+          settingId="general.trayOnGameLaunch"
+          title="Move to tray when a game starts"
+          description={snapshot.settings.trayOnGameLaunch && snapshot.setup.runtime.desktopError
+            ? snapshot.setup.runtime.desktopError
+            : snapshot.settings.trayOnGameLaunch && snapshot.setup.runtime.desktopState === 'starting'
+              ? 'Starting game detection…'
+              : snapshot.gameDetection.capability === 'simulation'
+                ? 'Preview only. Game detection runs in the Windows app.'
+                : 'Detect recognized game windows and move Switchboard to the tray. Capture and audio keep running. Reopen from the tray at any time.'}
+          checked={snapshot.settings.trayOnGameLaunch}
+          onCheckedChange={(checked) => void updateSettings({ trayOnGameLaunch: checked })}
         />
       </SettingSection>
       <SettingSection title="Appearance">
@@ -399,6 +502,18 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           ]}
           onValueChange={(value) => void updateSettings({ uiScalePercent: Number(value) as 90 | 100 | 110 | 125 | 150 })}
         />
+      </SettingSection>
+      <SettingSection title="Performance">
+        <SettingSwitch
+          settingId="general.destroyRenderer"
+          title="Release interface memory in tray"
+          description={snapshot.settings.closeToTray || snapshot.settings.trayOnGameLaunch
+            ? 'Close the interface process while Switchboard is in the tray. Capture, shortcuts, and devices keep running.'
+            : 'Turn on Close to tray or Move to tray when a game starts to use this.'}
+          checked={snapshot.settings.destroyRendererInTray}
+          disabled={!snapshot.settings.closeToTray && !snapshot.settings.trayOnGameLaunch}
+          onCheckedChange={(checked) => void updateSettings({ destroyRendererInTray: checked })}
+        />
         <SettingSwitch
           settingId="general.softwareRendering"
           title="Low resource rendering"
@@ -407,28 +522,21 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
           onCheckedChange={(checked) => void updateSettings({ softwareRendering: checked })}
         />
       </SettingSection>
-      <SettingSection title="Startup and window">
+      <SettingSection title="Advanced">
         <SettingSwitch
-          settingId="general.startup"
-          title="Start Switchboard with Windows"
-          description="Launch the control plane automatically when you sign in. Optional engines keep their own saved state."
-          checked={snapshot.settings.launchAtStartup}
-          onCheckedChange={(checked) => void updateSettings({ launchAtStartup: checked })}
-        />
-        <SettingSwitch
-          settingId="general.closeToTray"
-          title="Close to tray"
-          description="Keep global shortcuts, connected-device profiles, and active engines available after closing the window."
-          checked={snapshot.settings.closeToTray}
-          onCheckedChange={(checked) => void updateSettings({ closeToTray: checked })}
-        />
-        <SettingSwitch
-          settingId="general.destroyRenderer"
-          title="Release interface memory in tray"
-          description="Destroy the Chromium renderer in tray mode. The control plane and enabled hosts remain independent."
-          checked={snapshot.settings.destroyRendererInTray}
-          disabled={!snapshot.settings.closeToTray}
-          onCheckedChange={(checked) => void updateSettings({ destroyRendererInTray: checked })}
+          settingId="general.developerMode"
+          title="Developer mode"
+          description="Show Diagnostics and unfinished Audio routing, mixes, and processing. Audio settings do not work yet. Turning this off hides both and stops the Audio engine."
+          checked={snapshot.settings.developerMode === true}
+          onCheckedChange={(developerMode) => {
+            void updateSettings({ developerMode }).then(() => {
+              const state = useSystemStore.getState();
+              const current = state.snapshot;
+              if (current && !isPageVisibleForProfile(state.page, current.settings)) {
+                state.setPage(defaultPageForProfile(current.settings));
+              }
+            });
+          }}
         />
       </SettingSection>
     </>
@@ -522,6 +630,7 @@ function captureViewForSetting(id: string): CaptureView {
 
 function CaptureSettings({ snapshot, onReset, targetSetting }: CategoryProps & { targetSetting?: string | null }) {
   const [selectedView, setSelectedView] = useState<CaptureView>('recording');
+  const { unseenIds } = useNewSettings();
   const view = targetSetting ? captureViewForSetting(targetSetting) : selectedView;
   useEffect(() => {
     if (targetSetting) setSelectedView(captureViewForSetting(targetSetting));
@@ -578,7 +687,12 @@ function CaptureSettings({ snapshot, onReset, targetSetting }: CategoryProps & {
               setSelectedView(nextView.id);
               document.getElementById(`capture-tab-${nextView.id}`)?.focus();
             }}
-          >{item.label}</button>
+          >
+            {item.label}
+            {unseenIds.some((id) => settingsEntry(id)?.category === 'capture' && captureViewForSetting(id) === item.id) ? (
+              <span className="settings-new-dot" data-new-setting-dot><span className="sr-only">New settings</span></span>
+            ) : null}
+          </button>
         ))}
       </div>
       <div role="tabpanel" id={`capture-panel-${view}`} aria-labelledby={`capture-tab-${view}`} tabIndex={0}>
@@ -956,30 +1070,6 @@ function ClipSelectField({
   );
 }
 
-function ModulesSettings({
-  snapshot,
-  onReset,
-  onOpenDeveloperTools,
-}: CategoryProps & { onOpenDeveloperTools: () => void }) {
-  const updateSettings = useSystemStore((state) => state.updateSettings);
-
-  return (
-    <div className="settings-category--modules">
-      <SettingsCategoryHeader title="Modules" description="Extend Switchboard with device integrations and capabilities." onReset={onReset} />
-      <ModuleManagement snapshot={snapshot} onOpenDeveloperTools={onOpenDeveloperTools} />
-      <SettingSection title="Module updates">
-        <SettingSwitch
-          settingId="modules.automaticUpdates"
-          title="Update installed modules automatically"
-          description="Verify signed packages, install safely, and retain one rollback copy. Local projects are never changed automatically."
-          checked={snapshot.settings.automaticModuleUpdates}
-          onCheckedChange={(automaticModuleUpdates) => void updateSettings({ automaticModuleUpdates })}
-        />
-      </SettingSection>
-    </div>
-  );
-}
-
 function DiagnosticsSettings({ snapshot, targetSetting }: CategoryProps & { targetSetting?: string | null }) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const [pendingSetting, setPendingSetting] = useState<'retention' | 'guard' | null>(null);
@@ -1270,9 +1360,7 @@ function formatProductIds(device: Device): string | undefined {
     .join(' · ') || undefined;
 }
 
-function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
-  const electronVersion = navigator.userAgent.match(/Electron\/([\d.]+)/)?.[1];
-  const platform = navigator.userAgent.includes('Windows') || navigator.platform.startsWith('Win') ? 'Windows' : navigator.platform;
+function UpdatesSettings({ snapshot }: { snapshot: SystemSnapshot }) {
   const checkAppUpdates = useSystemStore((state) => state.checkAppUpdates);
   const downloadAppUpdate = useSystemStore((state) => state.downloadAppUpdate);
   const installAppUpdate = useSystemStore((state) => state.installAppUpdate);
@@ -1288,20 +1376,16 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
 
   return (
     <>
-      <SettingsCategoryHeader title="About" description="Version, updates, runtime, and process-isolation information." />
-      <div className="settings-about-intro">
-        <img src="./switchboard-mark.png" alt="" draggable={false} />
-        <div>
-          <h3>Switchboard</h3>
-          <p>A compact Windows utility for hardware and game capture{snapshot.settings.developerMode === true ? ', with unfinished audio routing behind Developer mode' : ''}.</p>
-        </div>
-      </div>
-      <SettingSection title="Updates">
+      <SettingsCategoryHeader title="Updates" description="See whether a new version is ready and choose how Switchboard updates itself." />
+      <SettingSection title="Status">
         <SettingRow
           settingId="about.updates"
           title="Switchboard updates"
+          className="settings-update-status"
+          controlClassName="settings-update-status__control"
           description={(
             <span role="status" aria-live="polite">
+              <span className="settings-update-status__version">Version {snapshot.version}</span>
               {appUpdateDescription(
                 update,
                 automaticDownloads,
@@ -1314,7 +1398,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           {update.capability === 'available' ? (
             <Button
               type="button"
-              variant="secondary"
+              variant={update.status === 'downloaded' ? 'primary' : 'secondary'}
               size="sm"
               className={cn('settings-update-action', update.status === 'downloaded' && 'settings-update-action--ready')}
               data-app-update-action={update.status}
@@ -1339,7 +1423,7 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           )}
         </SettingRow>
       </SettingSection>
-      <SettingSection title="Update preferences">
+      <SettingSection title="Preferences">
         <SettingSwitch
           settingId="about.automaticAppUpdates"
           title="Always keep Switchboard up to date"
@@ -1369,10 +1453,58 @@ function AboutSettings({ snapshot }: { snapshot: SystemSnapshot }) {
           onCheckedChange={(installAppUpdatesOnNextStartup) => void updateSettings({ installAppUpdatesOnNextStartup })}
         />
       </SettingSection>
+    </>
+  );
+}
+
+function AboutSettings({ snapshot, onOpenCategory, onRestoreDefaults }: {
+  snapshot: SystemSnapshot;
+  onOpenCategory: (category: SettingsCategoryId) => void;
+  onRestoreDefaults: () => void;
+}) {
+  const electronVersion = navigator.userAgent.match(/Electron\/([\d.]+)/)?.[1];
+  const platform = navigator.userAgent.includes('Windows') || navigator.platform.startsWith('Win') ? 'Windows' : navigator.platform;
+  const developerMode = snapshot.settings.developerMode === true;
+
+  return (
+    <>
+      <SettingsCategoryHeader title="Help & about" description="Troubleshoot capture problems and see version and runtime details." />
+      <div className="settings-about-intro">
+        <img src="./switchboard-mark.png" alt="" draggable={false} />
+        <div>
+          <h3>Switchboard {snapshot.version}</h3>
+          <p>A compact Windows utility for hardware and game capture{developerMode ? ', with unfinished audio routing behind Developer mode' : ''}.</p>
+        </div>
+      </div>
+      {developerMode ? (
+        <SettingSection title="Troubleshooting">
+          <SettingAction
+            settingId="general.runDiagnostics"
+            title="Run diagnostics"
+            description="Capture checks, pipelines, device identity, and resource history are together in Diagnostics."
+            label="Open Diagnostics"
+            onClick={() => onOpenCategory('diagnostics')}
+          />
+        </SettingSection>
+      ) : (
+        <DiagnosticRunner snapshot={snapshot} />
+      )}
       <SettingSection title="Build">
         <SettingValue settingId="about.version" title="Version" description={snapshot.prototypeMode ? 'Development features are enabled.' : undefined} value={snapshot.version} />
         <SettingValue settingId="about.runtime" title="Runtime" description={platform} value={electronVersion ? `Electron ${electronVersion}` : 'Browser preview'} />
         <SettingValue settingId="about.isolation" title="Renderer isolation" description="Sandboxed renderer with a narrow, validated preload bridge." value="Enabled" tone="success" />
+      </SettingSection>
+      <SettingSection title="Reset">
+        <SettingRow
+          settingId="about.restoreDefaults"
+          title="Restore all defaults"
+          description="Reset every preference plus Audio and Capture configuration. Installed modules, device profiles, and saved clips stay."
+        >
+          <Button type="button" variant="danger" size="sm" className="settings-restore-all" onClick={onRestoreDefaults}>
+            <RotateCcw aria-hidden />
+            Restore defaults
+          </Button>
+        </SettingRow>
       </SettingSection>
     </>
   );
@@ -1423,7 +1555,7 @@ function ResetConfirmation({
   const dialogRef = useRef<HTMLDivElement>(null);
   const label = scope === 'all'
     ? 'all Settings preferences plus Audio and Capture configuration'
-    : `${scope[0]?.toLocaleUpperCase()}${scope.slice(1)} settings`;
+    : resetScopeLabels[scope];
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1458,6 +1590,16 @@ function ResetConfirmation({
   );
 }
 
+const resetScopeLabels: Record<Exclude<SettingsResetScope, 'all'>, string> = {
+  general: 'General settings, update preferences, and Developer mode',
+  devices: 'Devices settings',
+  audio: 'Audio settings',
+  capture: 'Capture and Clips settings',
+  games: 'Games settings',
+  modules: 'Features settings',
+  diagnostics: 'Diagnostics settings',
+};
+
 type CategoryProps = {
   snapshot: SystemSnapshot;
   onReset?: () => void;
@@ -1465,7 +1607,7 @@ type CategoryProps = {
 
 function readInitialCategory(): SettingsCategoryId {
   if (readInitialSubview() === 'module-developer-tools') return 'modules';
-  const stored = window.sessionStorage.getItem(categoryStorageKey);
+  const stored = window.sessionStorage.getItem(settingsCategoryStorageKey);
   return isSettingsCategory(stored) ? stored : 'general';
 }
 
@@ -1480,7 +1622,7 @@ function reducedMotionEnabled(): boolean {
 }
 
 function categoryResetScope(category: SettingsCategoryId): SettingsResetScope | null {
-  if (category === 'about' || category === 'setup') return null;
+  if (category === 'about' || category === 'setup' || category === 'updates') return null;
   if (category === 'clips') return 'capture';
   return category;
 }

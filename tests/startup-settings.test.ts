@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { consumeBackgroundUpdate, markBackgroundUpdate, readSoftwareRenderingPreference } from '../src/main/startup-settings';
+import { consumeBackgroundUpdate, markBackgroundUpdate, readSoftwareRenderingPreference, shouldStartMinimized, WINDOWS_STARTUP_ARGUMENT } from '../src/main/startup-settings';
 
 const temporaryDirectories: string[] = [];
 
@@ -11,6 +11,12 @@ afterEach(async () => {
 });
 
 describe('startup settings', () => {
+  test('only Windows sign-in launches honor minimized startup', () => {
+    expect(shouldStartMinimized([WINDOWS_STARTUP_ARGUMENT], true)).toBe(process.platform === 'win32');
+    expect(shouldStartMinimized([WINDOWS_STARTUP_ARGUMENT], false)).toBe(false);
+    expect(shouldStartMinimized([], true)).toBe(false);
+    expect(shouldStartMinimized(['--updated'], true)).toBe(false);
+  });
   test('returns only the next background update launch to tray and rejects stale or malformed markers', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'switchboard-background-update-'));
     temporaryDirectories.push(directory);

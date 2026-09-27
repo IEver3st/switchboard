@@ -5,6 +5,7 @@ const preferenceKeys = [
   'outputDevice', 'microphoneDevice', 'mixes', 'chatMix', 'monitoring',
   'monitoringEnabled', 'monitoringDeviceId', 'buses', 'micProcessors',
   'channelProcessing', 'pathPresets', 'activePresetIds',
+  'applicationRoutes',
 ] as const satisfies readonly (keyof AudioState)[];
 
 export function applyAudioPreferenceChanges(current: AudioState, before: AudioState, next: AudioState): void {
@@ -87,5 +88,8 @@ export function assertAudioConfigurationApplied(before: AudioState, next: AudioS
   }
   if (before.capabilities.virtualChannels === 'available' && host.capabilities.virtualChannels !== 'available') {
     throw new Error(host.error ?? 'The audio route could not accept the change.');
+  }
+  if (before.capabilities.channelDsp === 'available' && host.capabilities.channelDsp !== 'available') {
+    throw new Error(host.error ?? 'The application mixer could not accept the change.');
   }
 }

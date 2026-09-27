@@ -21,7 +21,7 @@ const discoveredEndpointSchema = z.object({
 });
 
 const discoveredEndpointsSchema = z.array(discoveredEndpointSchema);
-const virtualDevicePattern = /\bvirtual(?: audio)? device\b/i;
+const virtualDevicePattern = /\bvirtual(?: audio)? (?:device|cable)\b/i;
 const maximumOutputBytes = 2 * 1024 * 1024;
 
 export function parseAudioEndpoints(value: unknown): AudioDevice[] {

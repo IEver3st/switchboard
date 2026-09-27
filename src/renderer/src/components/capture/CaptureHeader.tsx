@@ -57,7 +57,7 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
 
   return (
     <section aria-label="Clips commands" className="capture-command-header capture-toolbar sticky top-0 z-20">
-      <div className="capture-command-header__row" data-selecting={controls.montageSelectionMode || undefined}>
+      <div className="capture-command-header__row capture-command-header__row--primary">
         <div className="capture-command-header__identity">
           <h2 id="clips-heading">Clips</h2>
           <span className="capture-clip-count" aria-live="polite" aria-label={clipCount} title={clipCount}>
@@ -76,13 +76,19 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
           notice={notice}
           onSourceChange={changeSource}
         />
+        {config.enabled && status.tone === 'ready' && !notice ? (
+          <span className="capture-save-hint">
+            <Kbd title="Save replay shortcut">{config.hotkey}</Kbd>
+            <span>saves the replay</span>
+          </span>
+        ) : null}
         <div className="capture-page-utilities" role="group" aria-label="Scene and quick controls">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="ghost" size="sm" className="capture-page-utilities__button" aria-label="Scenes" onClick={() => {
                 window.sessionStorage.setItem('switchboard.settings.category', 'setup');
                 setPage('settings');
-              }}><Layers className="size-3.5" aria-hidden="true" /><span>Scenes</span></Button>
+              }}><Layers className="size-3.5" aria-hidden="true" /><span>{sceneName ?? 'Scenes'}</span></Button>
             </TooltipTrigger>
             <TooltipContent>Scenes{sceneName ? ` · ${sceneName}` : ''}</TooltipContent>
           </Tooltip>
@@ -95,6 +101,8 @@ export function CaptureHeader({ snapshot, controls }: { snapshot: SystemSnapshot
             <TooltipContent>Quick controls</TooltipContent>
           </Tooltip>
         </div>
+      </div>
+      <div className="capture-command-header__row capture-command-header__row--library" data-selecting={controls.montageSelectionMode || undefined}>
         <ClipLibraryToolbar controls={controls} />
       </div>
     </section>

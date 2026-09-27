@@ -1,0 +1,148 @@
+/* Quiet but always-visible notice that a Switchboard update is on its way or ready. */
+.app-update-indicator {
+  --update-accent: #5f9dff;
+  display: inline-flex;
+  height: 26px;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--update-accent) 12%, transparent);
+  padding: 0 9px 0 7px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 120ms ease-out;
+}
+
+.app-update-indicator__icon {
+  display: grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  color: var(--update-accent);
+}
+
+.app-update-indicator__icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.app-update-indicator[data-app-update-indicator="downloading"],
+.app-update-indicator[data-app-update-indicator="installing"] {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-update-indicator:hover {
+    background: color-mix(in srgb, var(--update-accent) 20%, transparent);
+  }
+
+  .app-update-indicator[data-app-update-indicator="downloading"]:hover,
+  .app-update-indicator[data-app-update-indicator="installing"]:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+}
+
+.app-update-indicator:focus-visible {
+  outline: 2px solid var(--accent-brand);
+  outline-offset: 1px;
+}
+
+.app-update-indicator[data-state="open"] {
+  background: color-mix(in srgb, var(--update-accent) 20%, transparent);
+}
+
+.app-update-popover {
+  display: grid;
+  width: 300px;
+  gap: 12px;
+  padding: 14px;
+}
+
+.app-update-popover__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.app-update-popover__copy strong {
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.app-update-popover__copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.app-update-popover__copy .app-update-popover__note {
+  color: var(--text-description);
+  font-size: 10.5px;
+}
+
+.app-update-popover__progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--surface-interactive);
+}
+
+.app-update-popover__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #5f9dff;
+  transition: width 240ms ease-out;
+}
+
+.app-update-popover__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.app-update-popover__actions > :first-child {
+  margin-right: auto;
+  padding-inline: 6px;
+}
+
+.title-strip__actions {
+  padding-right: calc(4px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+
+.capture-title-strip .title-strip__actions {
+  padding-right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-update-indicator,
+  .app-update-popover__progress > span {
+    transition: none;
+  }
+}
+
+.app-update-popover__actions button {
+  height: 28px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-update-popover__actions button svg {
+  width: 14px;
+  height: 14px;
+}

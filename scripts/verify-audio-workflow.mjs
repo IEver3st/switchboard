@@ -105,7 +105,7 @@ async function run() {
   window.webContents.on('console-message', event => { if (event.level === 'error') evidence.consoleErrors.push(event.message); });
   await until(() => evaluate('!!window.switchboard && document.body.innerText.length > 0'), 'Renderer did not load');
   await evaluate(`(()=>{const skip=[...document.querySelectorAll('button')].find(button=>button.textContent.trim()==='Skip setup');skip?.click();})()`);
-  await until(() => evaluate('!!window.switchboard && !!document.querySelector("nav[aria-label=Primary]") && !document.querySelector(".startup-screen")'), 'App did not initialize');
+  await until(() => evaluate('!!window.switchboard && !document.querySelector(".startup-screen")'), 'App did not initialize');
   evidence.displays = screen.getAllDisplays().map(display => ({ bounds: display.bounds, primary: display.id === screen.getPrimaryDisplay().id }));
   assert(!window.isVisible() && !window.isFocused(), 'Review window must remain hidden and unfocused.');
   if (restorePhase) {
@@ -213,6 +213,8 @@ async function run() {
   assert(!(await snapshot()).audio.enabled, 'Restoring the scene did not stop its host');
   evidence.checks.push('audio scene starts a stopped host and restores off');
 
+  // Keep the full fixture workspace visible when audio stops.
+  await api('setModuleState', { moduleId: 'device.logitech-hidpp', enabled: true });
   await route('microphone');
   evidence.stopped = (await snapshot()).audio;
   assert(evidence.stopped.capabilities.microphoneDsp === 'unavailable' && evidence.stopped.host === null, 'Stopped audio retained live host capabilities');

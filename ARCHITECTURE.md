@@ -31,6 +31,13 @@ and fails explicitly when process activation is unavailable.
 
 ## Control plane
 
+The opt-in game launch tray policy shares the media-free desktop-controls helper.
+It reuses WindowsCaptureSources game recognition without starting a recorder.
+Main validates game process events and sends the window to tray once per detected
+session, honoring renderer destruction independently of the manual close policy.
+Reopening the interface during that session leaves it open. Helper failures appear
+beside the setting; turning the option off and on retries watching.
+
 Detailed resource recording reuses the performance sampler and starts the bundled
 Capture.Host in `--resource-diagnostics` mode. This mode initializes no capture or
 audio engine. Main sends only known app/engine process IDs over stdin; the helper
@@ -79,6 +86,16 @@ The shared command vocabulary is intentionally small so transport replacement do
 ## State ownership
 
 The Electron main process owns canonical persisted state. Zustand is a renderer projection, not a second source of truth.
+
+Main's narrow state reads return copies. Branch updates validate against the
+canonical top-level schemas before an atomic commit; published snapshots are
+deeply frozen and share unchanged branches. Each trusted webContents subscribes
+to a full snapshot baseline followed by revisioned branch frames. Preload
+validates frames, reconstructs the existing snapshot API, and resubscribes on a
+revision gap. Reloads get a fresh baseline. Full command responses remain intact.
+The Windows device registry owns a hidden renderer-free BaseWindow only while
+device modules are enabled, using native topology notifications to invalidate
+its inventory without adding a helper process.
 
 Every mutation follows:
 
@@ -204,6 +221,12 @@ The signed driver is transport only. User-mode Audio.Host owns routing and DSP.
 
 ## Capture
 
+Microphone timing calibration uses an on-demand native helper and main-owned
+measurement state. Saved device-bound advances apply to microphone PCM positions
+before replay encoding; video and system timestamps retain the session clock.
+See [Microphone timing calibration](docs/audio-sync-calibration.md) for measurement,
+cancellation, device identity, and completed-audio save boundaries.
+
 Automatic codec selection is resolved in the capture host from encoders that pass
 FFmpeg probes. It prefers hardware H.264 for compatibility, then tested hardware
 HEVC/AV1, then software H.264. Explicit codec and encoder preferences remain
@@ -302,9 +325,17 @@ than a renderer-provided path.
 - IPC sender origin checked;
 - Zod validates all mutable IPC payloads;
 - local add-ons run in a constrained Chromium host with permission-filtered inputs and schema-validated outputs;
-- distributed modules will additionally require signed manifests, hashes, revocation, and atomic rollback.
+- GitHub community device modules use signed payloads, release and source hashes, local publisher revocation, staged version directories, and explicit rollback through canonical module state. See `docs/COMMUNITY-MODULES.md` for the first-install trust boundary and limits.
 
 ## Application updates
+
+`build/installer.nsh` owns silent update scheduling and the installer shutdown
+barrier. It checks executable paths using Windows APIs in the installer process,
+waits up to 30 seconds for this installation's processes to finish, and fails
+before file replacement if they remain busy. Silent update work runs at idle CPU
+and background I/O priority; priority is restored before app relaunch. Interactive
+installation retains electron-builder's existing close/retry behavior. No helper
+process or polling survives installation.
 
 Downloaded updates do not stop feed checks. Main owns download initiation and
 rechecks after a download and before manual or idle installation. A newer offer

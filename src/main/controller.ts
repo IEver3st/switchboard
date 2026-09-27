@@ -1,4 +1,6 @@
+import { watchWindowsDeviceChanges } from './services/windows-device-notifications';
 import { normalizeMusicTrack } from '../shared/montage-audio';
+import { WINDOWS_STARTUP_ARGUMENT } from './startup-settings';
 import { SetupScenes } from './services/setup-scenes';
 import { quickActionInputSchema, type QuickActionInput } from '../shared/contracts';
 import { DesktopControlsService } from './services/desktop-controls';
@@ -156,6 +158,8 @@ import {
   type ModuleProjectValidation,
 } from './services/module-authoring';
 import { SandboxedDeviceAddon } from './modules/sandboxed-device-addon';
+import { CommunityModules, versionOnly } from './services/community-modules';
+import type { InspectCommunityModuleInput, InstallCommunityModuleInput, ManageCommunityModuleInput, ModuleManifest } from '../shared/contracts';
 
 const workerSavedClipSchema = z.object({
   path: z.string().min(1),
@@ -188,6 +192,7 @@ function sameAudioChannels(left: readonly ClipAudioChannel[] | undefined, right:
 }
 
 type AppControllerOptions = {
+  onGameLaunched?: () => void;
   onQuickControls?: (open: boolean) => void;
   onToggleQuickControls?: () => void;
   onSetupPreferences?: (preferences: SetupPreferences) => Promise<void>;
@@ -198,16 +203,15 @@ type AppControllerOptions = {
 };
 
 export class AppController {
-  private setupPreferencesQueue: Promise<unknown> = Promise.resolve();
   private readonly audioSyncCalibration = new AudioSyncCalibration({
     measure: (route, signal) => measureAudioSync(app.isPackaged
       ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
       : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe'), route, signal),
-    publish: (state) => this.store.update( draft => { draft.capture.audioCalibration = state; }, { persist: false }),
+    publish: (state) => this.store.updateBranches(['capture'], draft => { draft.capture.audioCalibration = state; }, { persist: false }),
   });
 
   private audioCalibrationRoute() {
-    const config = this.store.get().capture.config;
+    const config = this.store.read('capture').config;
     const host = this.toHostSettings(config);
     if (config.microphoneDeviceId && !host.microphoneDeviceId && !host.processedMicrophoneDeviceId
       || config.systemAudioDeviceId && !host.systemAudioDeviceId)
@@ -219,7 +223,7 @@ export class AppController {
   }
 
   private audioCalibrationSignature(): string {
-    const config = this.store.get().capture.config;
+    const config = this.store.read('capture').config;
     return JSON.stringify([this.audioCalibrationRoute(), config.microphoneDeviceId, config.systemAudioDeviceId]);
   }
 
@@ -230,21 +234,22 @@ export class AppController {
     } else {
       const signature = this.audioCalibrationSignature();
       const measurement = this.audioSyncCalibration.take(signature);
-      this.store.update( draft => { draft.capture.audioCalibration = { status: 'saving', measurement, error: null }; }, { persist: false });
+      this.store.updateBranches(['capture'], draft => { draft.capture.audioCalibration = { status: 'saving', measurement, error: null }; }, { persist: false });
       try {
         await this.queueCaptureConfiguration(async () => {
           if (signature !== this.audioCalibrationSignature()) throw new Error('The audio route changed. Calibrate again.');
           return this.applyCaptureConfig({ microphoneSync: measurement.profile });
         });
-        this.store.update( draft => { draft.capture.audioCalibration = { status: 'saved', measurement, error: null }; }, { persist: false });
+        this.store.updateBranches(['capture'], draft => { draft.capture.audioCalibration = { status: 'saved', measurement, error: null }; }, { persist: false });
       } catch (error) {
-        this.store.update( draft => { draft.capture.audioCalibration = { status: 'error', measurement: null, error: String(error instanceof Error ? error.message : error).slice(0, 1000) }; }, { persist: false });
+        this.store.updateBranches(['capture'], draft => { draft.capture.audioCalibration = { status: 'error', measurement: null, error: String(error instanceof Error ? error.message : error).slice(0, 1000) }; }, { persist: false });
         throw error;
       }
     }
     return this.store.get();
   }
-
+  private setupPreferencesQueue: Promise<unknown> = Promise.resolve();
+  private lastGameProcessId: number | null = null;
   private readonly scenes: SetupScenes;
   private readonly desktopControls: DesktopControlsService;
   private readonly statusLighting: StatusLighting;
@@ -277,7 +282,7 @@ export class AppController {
   private readonly appliedEngineStatuses = new Map<EngineStatus['kind'], EngineStatus>();
   private readonly audioSnapshotUpdateGate = new AudioSnapshotUpdateGate();
   private readonly audioConfiguration = new AudioConfiguration({
-    read: () => this.store.get().audio,
+    read: () => this.store.read('audio'),
     configure: async audio => audioHostSnapshotSchema.parse(await this.engines.request('audio', 'configure', audio, 30_000)),
     commit: (before, next) => { this.store.update(draft => applyAudioPreferenceChanges(draft.audio, before, next)); },
     publish: host => this.applyAudioHostSnapshot(host),
@@ -289,6 +294,8 @@ export class AppController {
   private readonly autoCaptureCoordinator: AutoCaptureCoordinator;
   private readonly testEventProvider: TestEventProvider;
   private readonly localDeviceModules = new Map<string, SandboxedDeviceAddon>();
+  private readonly communityModules = new CommunityModules(join(app.getPath('userData'), 'community-modules'), currentCoreVersion());
+  private moduleOperation: Promise<unknown> = Promise.resolve();
   private capturePaths: CapturePaths;
   private registeredShortcut: string | null = null;
   private captureRestartTimer: NodeJS.Timeout | null = null;
@@ -339,6 +346,12 @@ export class AppController {
       toggleQuick: () => this.options.onToggleQuickControls?.(),
       closeQuick: () => this.options.onQuickControls?.(false),
       applications: executables => this.scenes.runningApplications(executables),
+      game: processId => {
+        if (this.disposed || !this.store.read('settings').trayOnGameLaunch) return;
+        const launched = processId !== null && processId !== this.lastGameProcessId;
+        this.lastGameProcessId = processId;
+        if (launched) this.options.onGameLaunched?.();
+      },
       status: (state, error) => { if (!this.disposed) this.store.update(draft => {
         draft.setup.runtime.desktopState = state; draft.setup.runtime.desktopError = error;
       }, { persist: false }); },
@@ -351,7 +364,7 @@ export class AppController {
     });
     this.resourceJournal = new ResourceJournal({
       directory: join(app.getPath('userData'), 'diagnostics', 'resources'),
-      getRetentionDays: () => this.store.get().settings.diagnosticsRetentionDays,
+      getRetentionDays: () => this.store.read('settings').diagnosticsRetentionDays,
     });
     developerDiagnostics.setSink(event => this.resourceJournal.record(event));
     this.appUpdates = new AppUpdateService({
@@ -390,13 +403,14 @@ export class AppController {
       (kind, event, payload) => this.applyEngineEvent(kind, event, payload),
     );
     this.devices = new DeviceRegistry(
-      () => this.store.get(),
+      () => ({ devices: this.store.read('devices'), modules: this.store.read('modules'), settings: this.store.read('settings') }),
       (devices, options) => {
-        this.store.update((draft) => {
+        this.store.updateBranches(['devices'], (draft) => {
           draft.devices = devices;
         }, { persist: options?.persist ?? true });
       },
-      { additionalModules: () => [...this.localDeviceModules.values()] },
+      { additionalModules: () => [...this.localDeviceModules.values()],
+        watchDeviceChanges: process.platform === 'win32' ? watchWindowsDeviceChanges : undefined },
     );
     this.performance = new PerformanceMonitor({
       nativeCollector: new NativeResourceCollector(app.isPackaged ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
@@ -410,6 +424,7 @@ export class AppController {
         rendererActive: this.rendererActive,
         guardEnabled: this.store.getPerformanceGuardEnabled(),
         detailedDiagnostics: this.detailedDiagnosticsEnabled(),
+        captureState: this.diagnosticRunHost ? undefined : this.store.read('capture').runtime.state,
         engines: (['audio', 'capture'] as const).map((kind) =>
           kind === 'capture' && this.diagnosticRunHost ? this.diagnosticRunHost.getStatus(kind) : this.engines.getStatus(kind)),
       }),
@@ -435,9 +450,9 @@ export class AppController {
     this.autoCaptureRegistry.register(new WardogsProvider());
     this.autoCaptureRegistry.register(this.testEventProvider);
     this.autoCaptureEngine = new AutoCaptureEngine({
-      getSettings: () => this.store.get().capture.autoCapture.settings,
-      getMaximumWindowMs: () => this.store.get().capture.config.replaySeconds * 1_000,
-      getLastReactionSavedAt: () => this.store.get().clips.reduce((latest, clip) =>
+      getSettings: () => this.store.read('capture').autoCapture.settings,
+      getMaximumWindowMs: () => this.store.read('capture').config.replaySeconds * 1_000,
+      getLastReactionSavedAt: () => this.store.read('clips').reduce((latest, clip) =>
         clip.autoCapture?.providerId === reactionClippingProviderId ? Math.max(latest, clip.createdAt) : latest, 0),
       preserve: (request) => this.preserveAutoCaptureWindow(request),
       onRuntime: (runtime) => {
@@ -449,7 +464,7 @@ export class AppController {
       registry: this.autoCaptureRegistry,
       engine: this.autoCaptureEngine,
       testProvider: this.testEventProvider,
-      getSettings: () => this.store.get().capture.autoCapture.settings,
+      getSettings: () => this.store.read('capture').autoCapture.settings,
       includeDevelopmentProviders: () => this.store.get().prototypeMode,
       onProvidersChanged: (providers) => {
         this.store.update((draft) => { draft.capture.autoCapture.providers = providers; }, { persist: false });
@@ -488,6 +503,7 @@ export class AppController {
       quickControlsEnabled: preferences.quickControlsEnabled,
       quickShortcut: preferences.quickShortcut,
       executables: [],
+      watchGames: false,
     });
     await this.syncDeveloperDiagnostics();
   }
@@ -497,7 +513,7 @@ export class AppController {
     if (this.disposed) return;
     debugDiagnostics.setEnabled(this.detailedDiagnosticsEnabled());
     this.performance.start();
-    await this.appUpdates.initialize(appUpdatePreferences(this.store.get().settings));
+    await this.appUpdates.initialize(appUpdatePreferences(this.store.read('settings')));
     if (this.disposed) return;
     await this.loadPersistedLocalModules();
     if (this.disposed) return;
@@ -511,7 +527,7 @@ export class AppController {
     this.applyLoginItemSetting(snapshot.settings.launchAtStartup);
     await this.initializeCaptureStorage();
     if (this.disposed) return;
-    await this.autoCaptureCoordinator.initialize(this.store.get().gameDetection.games);
+    await this.autoCaptureCoordinator.initialize(this.store.read('gameDetection').games);
     if (this.disposed) return;
     this.registerCaptureShortcut(snapshot.capture.config.hotkey, false);
     this.clipLibrary.watchDirectory(this.capturePaths.clipsDirectory, this.onClipDirectoryChanged);
@@ -527,7 +543,7 @@ export class AppController {
         if (module) module.enabled = false;
       });
     }
-    const currentCapture = this.store.get().capture;
+    const currentCapture = this.store.read('capture');
     if (currentCapture.config.enabled && !currentCapture.storage.warning) {
       starts.push(this.queueCaptureConfiguration(() => this.startCaptureEngine(currentCapture.config)));
     }
@@ -568,9 +584,9 @@ export class AppController {
   public verticalGuideClosed(): void {
     if (!this.disposed) this.store.update(draft => { draft.setup.preferences.verticalGuide.enabled = false; });
   }
-  public getQuickSurface(): SetupPreferences['quickSurface'] { return this.store.get().setup.preferences.quickSurface; }
+  public getQuickSurface(): SetupPreferences['quickSurface'] { return this.store.read('setup').preferences.quickSurface; }
   public getVerticalGuideLayout(): VerticalGuideLayout {
-    const layout = this.options.getVerticalGuideLayout?.(this.store.get().setup.preferences.verticalGuide);
+    const layout = this.options.getVerticalGuideLayout?.(this.store.read('setup').preferences.verticalGuide);
     if (!layout) throw new Error('Desktop framing is unavailable.');
     return layout;
   }
@@ -601,7 +617,9 @@ export class AppController {
 
   private syncSetup(snapshot: SystemSnapshot): void {
     if (this.disposed) return;
+    if (!snapshot.settings.trayOnGameLaunch) this.lastGameProcessId = null;
     this.desktopControls.configure({
+      watchGames: snapshot.settings.trayOnGameLaunch,
       quickControlsEnabled: snapshot.setup.preferences.quickControlsEnabled,
       quickShortcut: snapshot.setup.preferences.quickShortcut,
       executables: [...new Set(snapshot.setup.scenes.filter(scene => scene.automatic && scene.executable).map(scene => scene.executable.toLowerCase()))].sort(),
@@ -708,14 +726,96 @@ export class AppController {
     return refresh;
   }
 
-  public async setModuleState(input: SetModuleStateInput): Promise<SystemSnapshot> {
-    const module = this.store.get().modules.find((candidate) => candidate.id === input.moduleId);
+  private queueModuleOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.moduleOperation.then(() => {
+      if (this.disposed) throw new Error('Switchboard is shutting down.');
+      return operation();
+    });
+    this.moduleOperation = next.catch(() => undefined);
+    return next;
+  }
+
+  public inspectCommunityModule(input: InspectCommunityModuleInput) {
+    return this.communityModules.inspect(input.repository, this.store.read('modules'));
+  }
+
+  public installCommunityModule(input: InstallCommunityModuleInput): Promise<SystemSnapshot> {
+    return this.queueModuleOperation(async () => {
+      const installed = await this.communityModules.install(input.reviewId, this.store.read('modules'));
+      await this.activateCommunityVersion(installed);
+      return this.store.get();
+    });
+  }
+
+  public manageCommunityModule(input: ManageCommunityModuleInput): Promise<SystemSnapshot> {
+    return this.queueModuleOperation(async () => {
+      const current = this.store.read('modules').find(module => module.id === input.moduleId && module.source === 'community');
+      if (!current?.distribution) throw new Error('This community module is no longer installed.');
+      if (input.action === 'rollback') {
+        const previous = current.distribution.previous;
+        if (!previous) throw new Error('No previous module version is available.');
+        const loaded = await this.communityModules.load(previous);
+        if (loaded.validation.status !== 'ready' || loaded.validation.manifest?.id !== current.id) throw new Error('The previous module version is no longer valid.');
+        const restored = moduleManifestFromProject(loaded.path, loaded.validation, false);
+        restored.source = 'community';
+        restored.distribution = { ...previous, previous: versionOnly(current.distribution) };
+        await this.activateCommunityVersion(restored);
+      } else {
+        const targets = input.action === 'block-publisher'
+          ? this.store.read('modules').filter(module => module.source === 'community' && module.distribution?.publisher === current.distribution!.publisher)
+          : [current];
+        if (input.action === 'block-publisher') await this.communityModules.blockPublisher(current.distribution.publisher);
+        for (const target of targets) {
+          await this.stopCommunityModule(target.id);
+          this.store.update(draft => { draft.modules = draft.modules.filter(module => module.id !== target.id); });
+        }
+      }
+      await this.store.flush();
+      return this.store.get();
+    });
+  }
+
+  private async stopCommunityModule(moduleId: string): Promise<void> {
+    this.store.update(draft => { const module = draft.modules.find(item => item.id === moduleId); if (module) module.enabled = false; });
+    await this.devices.reconcileModuleState(moduleId, false);
+    await this.localDeviceModules.get(moduleId)?.dispose();
+    this.localDeviceModules.delete(moduleId);
+    this.devices.removeModuleDevices(moduleId);
+  }
+
+  private async activateCommunityVersion(module: ModuleManifest): Promise<void> {
+    if (!module.distribution) throw new Error('Community package metadata is missing.');
+    const loaded = await this.communityModules.load(module.distribution);
+    if (this.disposed) throw new Error('Switchboard is shutting down.');
+    if (loaded.validation.status !== 'ready' || loaded.validation.manifest?.id !== module.id) throw new Error('The package cannot be activated.');
+    const current = this.store.read('modules').find(item => item.id === module.id);
+    if (current && current.source !== 'community') throw new Error('This module ID is already installed.');
+    if (current) await this.stopCommunityModule(module.id);
+    this.store.update(draft => {
+      draft.modules = [...draft.modules.filter(item => item.id !== module.id), module].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    await this.installLocalRuntime(module, loaded.validation);
+    await this.store.flush();
+  }
+
+  public setModuleState(input: SetModuleStateInput): Promise<SystemSnapshot> {
+    return this.queueModuleOperation(() => this.applyModuleState(input));
+  }
+
+  private async applyModuleState(input: SetModuleStateInput): Promise<SystemSnapshot> {
+    const module = this.store.read('modules').find((candidate) => candidate.id === input.moduleId);
     if (!module) throw new Error(`Unknown module: ${input.moduleId}`);
 
-    if (module.source === 'local') {
+    if (module.source !== 'bundled') {
+      if (module.source === 'community' && module.enabled && input.enabled) return this.store.get();
+      if (module.source === 'community' && input.enabled) {
+        const validation = await this.validateInstalledAddon(module);
+        await this.replaceLinkedModule(module, validation);
+        if (validation.status !== 'ready') throw new Error(validation.issues[0]?.message ?? 'The installed package is invalid.');
+      }
       if (input.enabled && !['ready', 'active'].includes(module.development?.status ?? 'invalid')) {
-        await this.validateModuleProject({ moduleId: input.moduleId });
-        const validated = this.store.get().modules.find((candidate) => candidate.id === input.moduleId);
+        await this.replaceLinkedModule(module, await this.validateInstalledAddon(module));
+        const validated = this.store.read('modules').find((candidate) => candidate.id === input.moduleId);
         if (!validated || validated.development?.status !== 'ready') {
           throw new Error(`${module.name} must pass validation before it can be enabled.`);
         }
@@ -745,7 +845,7 @@ export class AppController {
   }
 
   public async createModuleProject(input: CreateModuleProjectInput): Promise<SystemSnapshot> {
-    if (this.store.get().modules.some((module) => module.id === input.id)) {
+    if (this.store.read('modules').some((module) => module.id === input.id)) {
       throw new Error(`A module with the ID ${input.id} is already installed or linked.`);
     }
     const reviewParent = nativeReviewPath('SWITCHBOARD_MODULE_PROJECT_REVIEW_PARENT');
@@ -779,7 +879,7 @@ export class AppController {
   }
 
   public async validateModuleProject(input: ModuleProjectIdInput): Promise<SystemSnapshot> {
-    const current = this.store.get().modules.find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
+    const current = this.store.read('modules').find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
     if (!current?.development) throw new Error(`Unknown local module: ${input.moduleId}`);
     this.store.update((draft) => {
       const target = draft.modules.find((candidate) => candidate.id === input.moduleId);
@@ -797,14 +897,14 @@ export class AppController {
       validation.status = 'invalid';
     }
     await this.replaceLinkedModule(current, validation);
-    if (this.store.get().modules.find((candidate) => candidate.id === input.moduleId)?.enabled) {
+    if (this.store.read('modules').find((candidate) => candidate.id === input.moduleId)?.enabled) {
       await this.devices.refresh();
     }
     return this.store.get();
   }
 
   public async revealModuleProject(input: ModuleProjectIdInput): Promise<void> {
-    const module = this.store.get().modules.find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
+    const module = this.store.read('modules').find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
     const projectPath = module?.development?.projectPath;
     if (!projectPath) throw new Error(`Unknown local module: ${input.moduleId}`);
     const error = await shell.openPath(projectPath);
@@ -812,7 +912,7 @@ export class AppController {
   }
 
   public async unlinkModuleProject(input: ModuleProjectIdInput): Promise<SystemSnapshot> {
-    const module = this.store.get().modules.find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
+    const module = this.store.read('modules').find((candidate) => candidate.id === input.moduleId && candidate.source === 'local');
     if (!module) throw new Error(`Unknown local module: ${input.moduleId}`);
     const runtime = this.localDeviceModules.get(input.moduleId);
     this.localDeviceModules.delete(input.moduleId);
@@ -827,10 +927,10 @@ export class AppController {
   }
 
   private async loadPersistedLocalModules(): Promise<void> {
-    const localModules = this.store.get().modules.filter((module) => module.source === 'local' && module.development);
+    const localModules = this.store.read('modules').filter((module) => module.source !== 'bundled' && module.development);
     for (const module of localModules) {
       if (this.disposed || !module.development) return;
-      const validation = await validateModuleProject(module.development.projectPath, currentCoreVersion());
+      const validation = await this.validateInstalledAddon(module);
       if (validation.manifest && validation.manifest.id !== module.id) {
         validation.issues.push({
           severity: 'error',
@@ -848,7 +948,7 @@ export class AppController {
     if (!validation.manifest) {
       throw new Error(validation.issues[0]?.message ?? 'The selected folder is not a valid Switchboard module project.');
     }
-    const existing = this.store.get().modules.find((candidate) => candidate.id === validation.manifest?.id);
+    const existing = this.store.read('modules').find((candidate) => candidate.id === validation.manifest?.id);
     if (existing && (existing.source !== 'local' || existing.development?.projectPath !== resolve(projectPath))) {
       throw new Error(`A module with the ID ${validation.manifest.id} is already installed or linked.`);
     }
@@ -889,6 +989,8 @@ export class AppController {
       validation,
       current.enabled && validation.status === 'ready',
     );
+    linked.source = current.source;
+    linked.distribution = current.distribution;
     this.store.update((draft) => {
       const index = draft.modules.findIndex((candidate) => candidate.id === current.id);
       if (index >= 0) draft.modules[index] = linked;
@@ -906,8 +1008,21 @@ export class AppController {
       validation.manifest,
       validation.entrypointPath,
       (moduleId, status, message) => this.applyLocalModuleRuntimeState(moduleId, status, message),
+      validation.sourceHash,
     );
     this.localDeviceModules.set(module.id, runtime);
+  }
+
+  private async validateInstalledAddon(module: ModuleManifest): Promise<ModuleProjectValidation> {
+    if (module.source !== 'community') return validateModuleProject(module.development?.projectPath ?? '', currentCoreVersion());
+    try {
+      if (!module.distribution) throw new Error('Community package metadata is missing.');
+      const loaded = await this.communityModules.load(module.distribution);
+      if (loaded.path !== module.development?.projectPath || loaded.validation.manifest?.id !== module.id) throw new Error('Installed package identity changed.');
+      return loaded.validation;
+    } catch (error) {
+      return { status: 'invalid', sizeMb: module.sizeMb, issues: [{ severity: 'error', code: 'package-integrity', message: error instanceof Error ? error.message : String(error) }] };
+    }
   }
 
   private applyLocalModuleRuntimeState(
@@ -915,7 +1030,7 @@ export class AppController {
     status: 'ready' | 'active' | 'runtime-error',
     message?: string,
   ): void {
-    const current = this.store.get().modules.find((candidate) => candidate.id === moduleId);
+    const current = this.store.read('modules').find((candidate) => candidate.id === moduleId);
     if (!current?.development || (status === 'active' && !current.enabled)) return;
     const runtimeIssue = current.development.issues.find((issue) => issue.code === 'runtime-error');
     if (current.development.status === status && (status !== 'runtime-error' || runtimeIssue?.message === message)) return;
@@ -979,11 +1094,11 @@ export class AppController {
   }
 
   private async setAudioEnabledCore(enabled: boolean): Promise<SystemSnapshot> {
-    const current = this.store.get().audio.enabled;
+    const current = this.store.read('audio').enabled;
     if (current === enabled) return this.store.get();
 
     if (enabled) {
-      if (this.store.get().settings.developerMode !== true) {
+      if (this.store.read('settings').developerMode !== true) {
         throw new Error('Audio is available only when Developer mode is enabled in Settings, General.');
       }
       this.store.update((draft) => {
@@ -1086,18 +1201,26 @@ export class AppController {
   }
 
   public async setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<SystemSnapshot> {
-    const before = this.store.get();
-    if (before.audio.capabilities.applicationRouting !== 'available') {
-      throw new Error(before.audio.capabilities.reason ?? 'Application audio routing is unavailable.');
-    }
-    const application = before.audio.applications.find((candidate) => candidate.id === input.applicationId);
-    if (!application) throw new Error('That audio session is no longer available.');
-    const hostSnapshot = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'routeApplication', {
-      processId: application.processId,
-      destination: input.destination,
-    }, 15_000));
-    this.applyAudioHostSnapshot(hostSnapshot);
-    return this.store.get();
+    return this.audioConfiguration.run(async () => {
+      const before = this.store.get();
+      if (before.audio.capabilities.applicationRouting !== 'available') {
+        throw new Error(before.audio.capabilities.reason ?? 'Application audio routing is unavailable.');
+      }
+      const application = before.audio.applications.find((candidate) => candidate.id === input.applicationId);
+      if (!application) throw new Error('That audio session is no longer available.');
+      const hostSnapshot = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'routeApplication', {
+        processId: application.processId,
+        destination: input.destination,
+      }, 15_000));
+      if (hostSnapshot.applicationRoutes) {
+        this.store.updateBranches(['audio'], draft => {
+          draft.audio.applicationRoutes = hostSnapshot.applicationRoutes;
+        });
+        await this.store.flush();
+      }
+      this.applyAudioHostSnapshot(hostSnapshot);
+      return this.store.get();
+    });
   }
 
   public async applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot> {
@@ -1168,7 +1291,7 @@ export class AppController {
   }
 
   public async exportAudioPreset(input: AudioPresetIdInput): Promise<void> {
-    const preset = this.store.get().audio.pathPresets.find((candidate) => candidate.id === input.presetId);
+    const preset = this.store.read('audio').pathPresets.find((candidate) => candidate.id === input.presetId);
     if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
     const safeName = preset.name.replace(/[^a-z0-9 _-]/gi, '').trim() || 'audio-preset';
     const selection = await dialog.showSaveDialog({
@@ -1286,7 +1409,7 @@ export class AppController {
     this.captureConfigurationQueue = result.catch(() => undefined);
     return result.finally(() => {
       this.captureConfigurationPending -= 1;
-      const runtime = this.store.get().capture.runtime;
+      const runtime = this.store.read('capture').runtime;
       if (runtime.error || runtime.state === 'error' || runtime.state === 'stopped') {
         this.scheduleCaptureHostRecovery(runtime.error);
       }
@@ -1407,7 +1530,7 @@ export class AppController {
 
   public async updateAutoCaptureSettings(input: AutoCaptureSettingsPatch): Promise<SystemSnapshot> {
     const patch = autoCaptureSettingsPatchSchema.parse(input);
-    const current = this.store.get().capture.autoCapture.settings;
+    const current = this.store.read('capture').autoCapture.settings;
     const games = { ...current.games };
     for (const [gameId, gamePatch] of Object.entries(patch.games ?? {})) {
       games[gameId] = {
@@ -1569,7 +1692,7 @@ export class AppController {
   }
 
   public async openClipsDirectory(): Promise<void> {
-    const config = this.store.get().capture.config;
+    const config = this.store.read('capture').config;
     const paths = this.captureStorage.resolvePaths(config.clipsDirectory, config.replayCacheDirectory);
     const result = await shell.openPath(paths.clipsDirectory);
     if (result) throw new Error(result);
@@ -1637,7 +1760,7 @@ export class AppController {
 
   public async updateSettings(input: UpdateSettingsInput): Promise<SystemSnapshot> {
     const diagnosticsWereEnabled = this.detailedDiagnosticsEnabled();
-    const automaticScanWasEnabled = this.store.get().settings.scanGamesAutomatically;
+    const automaticScanWasEnabled = this.store.read('settings').scanGamesAutomatically;
     const disablingDeveloperMode = input.developerMode === false;
     if (disablingDeveloperMode) {
       if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
@@ -1645,7 +1768,7 @@ export class AppController {
       this.audioRestartAttempts = 0;
       await this.engines.stop('audio');
     }
-    const snapshot = this.store.update((draft) => {
+    this.store.updateBranches(disablingDeveloperMode ? ['settings', 'audio', 'modules'] : ['settings'], (draft) => {
       draft.settings = { ...draft.settings, ...input };
       if (disablingDeveloperMode) {
         draft.settings.detailedDiagnostics = false;
@@ -1655,6 +1778,7 @@ export class AppController {
       }
     });
 
+    const snapshot = this.store.get();
     const diagnosticsEnabled = this.detailedDiagnosticsEnabled();
     if (diagnosticsEnabled !== diagnosticsWereEnabled) {
       debugDiagnostics.setEnabled(diagnosticsEnabled);
@@ -1795,7 +1919,7 @@ export class AppController {
       ]).catch(() => null).finally(() => clearTimeout(gpuTimeout));
       this.diagnosticRunGraphics = gpu ? diagnosticGpuInfo(gpu) : { unavailable: 'GPU information is unavailable.' };
       this.recordDiagnosticCheck(runId, { id: 'environment', label: 'Windows and graphics', status: gpu ? 'pass' : 'warning',
-        detail: `${osVersion()} (${osRelease()}) · Switchboard ${projectPackage.version}. ${gpu ? 'GPU and driver details collected for export.' : 'GPU details could not be read.'}` });
+        detail: `${osVersion()} (${osRelease()}) Â· Switchboard ${projectPackage.version}. ${gpu ? 'GPU and driver details collected for export.' : 'GPU details could not be read.'}` });
       if (this.diagnosticRunCancelled) return;
       // Reuse a live host so its lifecycle gate can protect an existing recording.
       // A disabled engine gets a separate, short-lived supervisor with no product
@@ -1809,7 +1933,7 @@ export class AppController {
       if (ownedHost) await host.start('capture');
       if (this.diagnosticRunCancelled) return;
       z.object({ completed: z.literal(true) }).parse(await host.request('capture', 'runDiagnostics',
-        { runId, settings: this.toHostSettings(this.store.get().capture.config) }, 95_000));
+        { runId, settings: this.toHostSettings(this.store.read('capture').config) }, 95_000));
       // Release the host's lifecycle gate before observing the actual workload.
       // Automatic game capture can now resume while resource collection continues.
       if (ownedHost) { await ownedHost.stop('capture'); ownedHost = null; this.diagnosticRunHost = null; }
@@ -1857,7 +1981,7 @@ export class AppController {
   }
 
   private async syncDeveloperDiagnostics(): Promise<void> {
-    const enabled = this.store.get().settings.developerMode === true || this.diagnosticCollectionAbort !== null;
+    const enabled = this.store.read('settings').developerMode === true || this.diagnosticCollectionAbort !== null;
     if (enabled === developerDiagnostics.enabled) return;
     const generation = ++this.diagnosticsGeneration;
     developerDiagnostics.setEnabled(enabled);
@@ -1870,9 +1994,9 @@ export class AppController {
     developerDiagnostics.record('main', 'info', 'environment', {
       version: currentCoreVersion(), platform: process.platform, arch: process.arch,
       osRelease: osRelease(), osVersion: osVersion(), electron: process.versions.electron ?? '',
-      packaged: app.isPackaged, softwareRendering: this.store.get().settings.softwareRendering,
+      packaged: app.isPackaged, softwareRendering: this.store.read('settings').softwareRendering,
     });
-    developerDiagnostics.record('main', 'info', 'capture.settings', captureDiagnosticSettings(this.store.get().capture.config));
+    developerDiagnostics.record('main', 'info', 'capture.settings', captureDiagnosticSettings(this.store.read('capture').config));
     void app.getGPUInfo('complete').then(info => {
       if (generation !== this.diagnosticsGeneration || !developerDiagnostics.enabled) return;
       this.diagnosticsGpu = diagnosticGpuInfo(info);
@@ -1921,13 +2045,14 @@ export class AppController {
     if (scope === 'all' || scope === 'capture' || scope === 'diagnostics' || scope === 'general') await this.cancelDiagnostics();
     if (scope === 'all' || scope === 'audio') await this.engines.stop('audio');
     if (scope === 'all' || scope === 'capture') await this.engines.stop('capture');
-    if (scope === 'general' && this.store.get().settings.developerMode === true && defaultSettings.developerMode !== true) {
+    if (scope === 'general' && this.store.read('settings').developerMode === true && defaultSettings.developerMode !== true) {
       await this.engines.stop('audio');
     }
 
     let snapshot = this.store.update((draft) => {
       if (scope === 'all') {
-        draft.settings = structuredClone(defaultSettings);
+        // "New" markers record what the user has already seen, not a preference.
+        draft.settings = { ...structuredClone(defaultSettings), seenNewSettings: draft.settings.seenNewSettings };
         draft.audio = createResetAudioState(draft.audio);
         draft.capture.config = structuredClone(defaultCaptureConfig);
         draft.capture.autoCapture.settings = structuredClone(defaultAutoCapture.settings);
@@ -1941,6 +2066,8 @@ export class AppController {
       if (scope === 'general') {
         draft.settings.uiScalePercent = defaultSettings.uiScalePercent;
         draft.settings.launchAtStartup = defaultSettings.launchAtStartup;
+        draft.settings.startMinimized = defaultSettings.startMinimized;
+        draft.settings.trayOnGameLaunch = defaultSettings.trayOnGameLaunch;
         draft.settings.closeToTray = defaultSettings.closeToTray;
         draft.settings.destroyRendererInTray = defaultSettings.destroyRendererInTray;
         draft.settings.softwareRendering = defaultSettings.softwareRendering;
@@ -2012,7 +2139,7 @@ export class AppController {
   }
 
   public async revealClip(id: string): Promise<void> {
-    const knownClip = this.store.get().clips.find((clip) => clip.id === id);
+    const knownClip = this.store.read('clips').find((clip) => clip.id === id);
     if (!knownClip) throw new Error('Rejected an unknown clip path.');
     if (!existsSync(knownClip.path)) throw new Error('The clip file no longer exists.');
     shell.showItemInFolder(knownClip.path);
@@ -2026,7 +2153,7 @@ export class AppController {
   }
   private async performClipOperation(input: ClipOperationInput): Promise<ClipOperationResult> {
     const failures: ClipOperationResult['failures'] = [];
-    const indexed = new Map(this.store.get().clips.map(clip => [clip.id, clip]));
+    const indexed = new Map(this.store.read('clips').map(clip => [clip.id, clip]));
     const removed = new Set<string>();
     const favorites = new Set<string>();
     for (const id of new Set(input.ids)) {
@@ -2049,20 +2176,20 @@ export class AppController {
             const selection = await dialog.showOpenDialog({ title: `Locate ${clip.name}`, properties: ['openFile'], filters: [{ name: 'Video', extensions: ['mp4', 'mkv', 'mov', 'webm'] }] });
             if (selection.canceled || !selection.filePaths[0]) continue;
             path = selection.filePaths[0];
-            if (this.store.get().clips.some(c => c.id !== id && resolve(c.path).toLowerCase() === resolve(path).toLowerCase())) throw new Error('That file is already in the library.');
+            if (this.store.read('clips').some(c => c.id !== id && resolve(c.path).toLowerCase() === resolve(path).toLowerCase())) throw new Error('That file is already in the library.');
           }
           await access(path);
           const probed = await this.clipLibrary.createClipFromFile(path);
           // Relinking different footage would silently invalidate existing edits.
-          if (Math.abs(probed.durationMs - clip.durationMs) > 250 || probed.width !== clip.width || probed.height !== clip.height) throw new Error('The selected video does not match this clip’s duration and dimensions.');
-          this.store.update(draft => { const target = draft.clips.find(c => c.id === id); if (target) Object.assign(target, { path, availability: 'available', fileSize: probed.fileSize }); });
+          if (Math.abs(probed.durationMs - clip.durationMs) > 250 || probed.width !== clip.width || probed.height !== clip.height) throw new Error('The selected video does not match this clipâ€™s duration and dimensions.');
+          this.store.updateBranches(['clips'], draft => { const target = draft.clips.find(c => c.id === id); if (target) Object.assign(target, { path, availability: 'available', fileSize: probed.fileSize }); });
         }
       } catch (error) {
-        if (input.action === 'retry') this.store.update(draft => { const target = draft.clips.find(c => c.id === id); if (target) target.availability = 'unavailable'; });
+        if (input.action === 'retry') this.store.updateBranches(['clips'], draft => { const target = draft.clips.find(c => c.id === id); if (target) target.availability = 'unavailable'; });
         failures.push({ id, name: clip?.name ?? id, message: error instanceof Error ? error.message : String(error) });
       }
     }
-    if (removed.size || favorites.size) this.store.update(draft => {
+    if (removed.size || favorites.size) this.store.updateBranches(['clips', 'capture'], draft => {
       draft.clips = draft.clips.filter(clip => !removed.has(clip.id));
       for (const clip of draft.clips) if (favorites.has(clip.id)) clip.favorite = input.action === 'favorite';
       draft.capture.storage.clipsBytes = draft.clips.reduce((sum, clip) => sum + clip.fileSize, 0);
@@ -2071,7 +2198,7 @@ export class AppController {
   }
 
   public async deleteClip(id: string): Promise<SystemSnapshot> {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
     await shell.trashItem(clip.path);
@@ -2089,7 +2216,7 @@ export class AppController {
   }
 
   public async renameClip(input: RenameClipInput): Promise<SystemSnapshot> {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     return this.store.update((draft) => {
       const index = draft.clips.findIndex((candidate) => candidate.id === input.id);
@@ -2106,7 +2233,7 @@ export class AppController {
   }
 
   public setClipFavorite(input: SetClipFavoriteInput): SystemSnapshot {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     return this.store.update((draft) => {
       const current = draft.clips.find((candidate) => candidate.id === input.id);
@@ -2115,7 +2242,7 @@ export class AppController {
   }
 
   public setClipTrim(input: SetClipTrimInput): SystemSnapshot {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (input.endMs > clip.durationMs) throw new Error('The trim range exceeds the clip duration.');
     if (input.endMs - input.startMs < 100) throw new Error('Keep at least 0.1 seconds in the trim range.');
@@ -2138,7 +2265,7 @@ export class AppController {
   }
 
   public setClipCanvasSize(input: SetClipCanvasSizeInput): SystemSnapshot {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     return this.store.update((draft) => {
       const current = draft.clips.find((candidate) => candidate.id === input.id);
@@ -2147,9 +2274,9 @@ export class AppController {
   }
 
   public setClipAudioTrackLevel(input: SetClipAudioTrackLevelInput): SystemSnapshot {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
-    const defaults = this.store.get().capture.config.defaultTrackLevels;
+    const defaults = this.store.read('capture').config.defaultTrackLevels;
     return this.store.update((draft) => {
       const current = draft.clips.find((candidate) => candidate.id === input.id);
       if (!current) return;
@@ -2165,7 +2292,7 @@ export class AppController {
   }
 
   public async loadClipAudioWaveform(id: string) {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
     const waveform = await this.clipLibrary.loadAudioWaveform(clip);
@@ -2183,7 +2310,7 @@ export class AppController {
 
   public async getClipAudioPreviewPath(id: string, trackIndex: number): Promise<string | null> {
     if (!Number.isInteger(trackIndex) || trackIndex < 0 || trackIndex > 7) return null;
-    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === id);
     if (!clip || !existsSync(clip.path)) return null;
     return this.clipLibrary.prepareAudioPreview(clip, trackIndex);
   }
@@ -2195,7 +2322,7 @@ export class AppController {
     fileName: string;
     expectedBytes: number;
   } {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === input.id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === input.id);
     if (!clip) throw new Error('The clip no longer exists in the library.');
     if (!existsSync(clip.path)) throw new Error('The clip file no longer exists.');
     if (input.endMs > clip.durationMs) throw new Error('The export range exceeds the clip duration.');
@@ -2206,7 +2333,7 @@ export class AppController {
       if (trim.endMs - trim.startMs < 100) throw new Error('Keep at least 0.1 seconds in each audio track trim range.');
     }
     const fullRange = input.startMs === 0 && input.endMs === clip.durationMs;
-    const defaults = this.store.get().capture.config.defaultTrackLevels;
+    const defaults = this.store.read('capture').config.defaultTrackLevels;
     const audioMixChanged = hasEffectiveClipMixChanged(clip.audioTrackLevels, clip.audioChannels, defaults);
     const audioTrimChanged = (input.audioTrackTrims ?? clip.audioTrackTrims)?.some(Boolean) ?? false;
     const canCopyOriginal = input.preset === 'original' && fullRange && clip.canvasSize === 'original' && !audioMixChanged && !audioTrimChanged && !hasVideoEdits(input.videoEdits ?? clip.videoEdits) && !(input.music === undefined ? clip.music : input.music);
@@ -2253,16 +2380,16 @@ export class AppController {
           music: resolvedMusic ? normalizeMusicTrack(resolvedMusic.track, outputDurationMs) : undefined, canvasSize: clip.canvasSize,
           segments: [{ id: randomUUID(), clipId: clip.id, sourceDurationMs: clip.durationMs, trimStartMs: input.startMs, trimEndMs: input.endMs,
             videoEdits, volume: 1, muted: false,
-            audioTrackLevels: Array.from({ length: Math.max(clip.audioChannels?.length ?? 0, clip.audioTrackLevels?.length ?? 0) }, (_, index) => resolveClipTrackLevel(clip.audioTrackLevels, index, clip.audioChannels?.[index], this.store.get().capture.config.defaultTrackLevels)),
+            audioTrackLevels: Array.from({ length: Math.max(clip.audioChannels?.length ?? 0, clip.audioTrackLevels?.length ?? 0) }, (_, index) => resolveClipTrackLevel(clip.audioTrackLevels, index, clip.audioChannels?.[index], this.store.read('capture').config.defaultTrackLevels)),
             audioTrackTrims: input.audioTrackTrims ?? clip.audioTrackTrims }],
         });
         await renderMontageV2({ project, musicPath: resolvedMusic?.path, entries: [{ clip, segment: project.segments[0]! }], destination, preset: input.preset,
-          signal: controller?.signal, encoder: selectShareVideoEncoder(this.store.get().capture.capabilities.encoders),
+          signal: controller?.signal, encoder: selectShareVideoEncoder(this.store.read('capture').capabilities.encoders),
           onProgress: input.exportId ? (progress) => this.emitClipExportProgress({ exportId: input.exportId!, percent: Math.round(progress * 98), stage: 'compressing' }) : undefined });
       } else await this.clipLibrary.renderExport(plan.clip, destination, input, {
         signal: controller?.signal,
-        encoder: selectShareVideoEncoder(this.store.get().capture.capabilities.encoders),
-        defaultTrackLevels: this.store.get().capture.config.defaultTrackLevels,
+        encoder: selectShareVideoEncoder(this.store.read('capture').capabilities.encoders),
+        defaultTrackLevels: this.store.read('capture').config.defaultTrackLevels,
         onProgress: input.exportId
           ? (progress) => this.emitClipExportProgress({
               exportId: input.exportId!,
@@ -2383,7 +2510,7 @@ export class AppController {
         selection.filePath,
         input,
         controller.signal,
-        { defaultTrackLevels: this.store.get().capture.config.defaultTrackLevels },
+        { defaultTrackLevels: this.store.read('capture').config.defaultTrackLevels },
       );
     } catch (error) {
       await rm(selection.filePath, { force: true });
@@ -2400,14 +2527,14 @@ export class AppController {
   }
 
   public getClipPath(id: string, thumbnail: boolean): string | null {
-    const clip = this.store.get().clips.find((candidate) => candidate.id === id);
+    const clip = this.store.read('clips').find((candidate) => candidate.id === id);
     if (!clip) return null;
     const path = thumbnail ? clip.thumbnailPath ?? null : clip.path;
     return path && existsSync(path) ? path : null;
   }
 
   public async getCaptureSourceThumbnail(id: string): Promise<Buffer | null> {
-    const knownSource = this.store.get().capture.sources.find((source) => source.id === id);
+    const knownSource = this.store.read('capture').sources.find((source) => source.id === id);
     if (!knownSource || knownSource.type === 'automatic-game') return null;
     await this.refreshCaptureSourceThumbnails(false);
     return this.captureSourceThumbnails.get(id) ?? null;
@@ -2416,6 +2543,9 @@ export class AppController {
   public async dispose(): Promise<void> {
     await this.audioSyncCalibration.dispose();
     this.disposed = true;
+    await this.audioSyncCalibration.dispose();
+    this.communityModules.dispose();
+    await this.moduleOperation;
     await this.clipLibrary.dispose();
     await this.captureSourceRefresh.dispose();
     this.clearCaptureRecovery();
@@ -2457,7 +2587,7 @@ export class AppController {
 
     try {
       const result = await this.gameDiscovery.scan();
-      const previousGames = this.store.get().gameDetection.games;
+      const previousGames = this.store.read('gameDetection').games;
       const preservedGames = result.warnings.length > 0
         ? previousGames
         : previousGames.filter((game) => game.source === 'manual');
@@ -2501,7 +2631,7 @@ export class AppController {
     await this.engines.start('audio');
     try {
       const snapshot = audioHostSnapshotSchema.parse(
-        await this.engines.request('audio', 'start', this.store.get().audio, 30_000),
+        await this.engines.request('audio', 'start', this.store.read('audio'), 30_000),
       );
       this.applyAudioHostSnapshot(snapshot);
       this.syncAudioMeterDemand();
@@ -2524,7 +2654,7 @@ export class AppController {
     this.capturePaths = await this.captureStorage.validate(config.clipsDirectory, config.replayCacheDirectory);
     const storage = await this.captureStorage.getStorageStatus(
       this.capturePaths,
-      this.store.get().clips.reduce((sum, clip) => sum + clip.fileSize, 0),
+      this.store.read('clips').reduce((sum, clip) => sum + clip.fileSize, 0),
       0,
     );
     if (storage.criticalSpace) throw new Error(storage.warning ?? 'Not enough disk space to start Instant Replay.');
@@ -2556,7 +2686,7 @@ export class AppController {
     if (!force && now - this.captureSourceThumbnailsRefreshedAt < captureSourceThumbnailRefreshMinimumIntervalMs) return;
 
     this.captureSourceThumbnailRefresh = (async () => {
-      const sources = this.store.get().capture.sources.filter((source) => source.type !== 'automatic-game');
+      const sources = this.store.read('capture').sources.filter((source) => source.type !== 'automatic-game');
       if (sources.length === 0) {
         this.captureSourceThumbnails.clear();
         this.captureSourceThumbnailsRefreshedAt = Date.now();
@@ -2602,7 +2732,11 @@ export class AppController {
   private applyLoginItemSetting(enabled: boolean): void {
     if (!['win32', 'darwin'].includes(process.platform)) return;
     try {
-      app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath });
+      app.setLoginItemSettings({
+        openAtLogin: enabled,
+        path: process.execPath,
+        ...(process.platform === 'win32' ? { args: [WINDOWS_STARTUP_ARGUMENT] } : {}),
+      });
     } catch (error) {
       console.warn('Failed to update launch-at-startup state.', error);
     }
@@ -2612,7 +2746,7 @@ export class AppController {
     const previous = this.appliedEngineStatuses.get(status.kind);
     if (!isMaterialEngineStatusChange(previous, status)) return;
     this.appliedEngineStatuses.set(status.kind, structuredClone(status));
-    this.store.update(
+    this.store.updateBranches(['engines', 'capture', 'audio'],
       (draft) => {
         const index = draft.engines.findIndex((engine) => engine.kind === status.kind);
         if (index >= 0) draft.engines[index] = status;
@@ -2653,11 +2787,11 @@ export class AppController {
       { persist: false },
     );
     if (status.kind === 'capture' && status.state === 'error') {
-      void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
+      void this.autoCaptureCoordinator.reconcile(null, false, this.store.read('gameDetection').games);
       this.scheduleCaptureHostRecovery(status.message);
     } else if (status.kind === 'capture' && status.state === 'stopped'
-      && this.store.get().capture.config.enabled) {
-      void this.autoCaptureCoordinator.reconcile(null, false, this.store.get().gameDetection.games);
+      && this.store.read('capture').config.enabled) {
+      void this.autoCaptureCoordinator.reconcile(null, false, this.store.read('gameDetection').games);
       this.scheduleCaptureHostRecovery(status.message ?? 'Capture.Host stopped unexpectedly while Instant Replay stayed enabled.');
     } else if (status.kind === 'audio' && status.state === 'error') {
       this.scheduleAudioHostRecovery(status.message);
@@ -2750,7 +2884,9 @@ export class AppController {
     const reaction = current.capture.autoCapture.settings.reactionClipping;
     const switchboardAudioReady = audio.enabled
       && audio.host?.running === true
-      && audio.capabilities.virtualChannels === 'available';
+      && (audio.capabilities.clipMix === 'available' || audio.capabilities.virtualChannels === 'available')
+      && (audio.capabilities.routingBackend !== 'vb-cable'
+        || audio.applications.some(application => application.routingState === 'applied'));
     const processedMicrophone = audio.host?.driver.endpoints.find((endpoint) => (
       endpoint.flow === 'capture' && endpoint.name === 'Switchboard Audio - Microphone'
     ));
@@ -2838,7 +2974,7 @@ export class AppController {
       }, { persist: false });
     }).finally(() => {
       this.captureAudioIntegrationUpdate = null;
-      if (this.getCaptureAudioIntegrationSignature(this.store.get().capture.config) !== this.captureAudioIntegrationSignature) {
+      if (this.getCaptureAudioIntegrationSignature(this.store.read('capture').config) !== this.captureAudioIntegrationSignature) {
         this.scheduleCaptureAudioIntegrationSync();
       }
     });
@@ -2921,7 +3057,7 @@ export class AppController {
   private applyAudioHostSnapshot(snapshot: AudioHostSnapshot): void {
     if (!this.audioSnapshotUpdateGate.shouldApply(snapshot)) return;
     if (snapshot.running && this.engines.getStatus('audio').uptimeSeconds >= 30) this.audioRestartAttempts = 0;
-    this.store.update((draft) => {
+    this.store.updateBranches(['audio'], (draft) => {
       draft.audio.host = snapshot;
       draft.audio.capabilities = { ...snapshot.capabilities };
       draft.audio.applications = snapshot.applications;
@@ -2936,7 +3072,7 @@ export class AppController {
   }
 
   private scheduleAudioHostRecovery(reason?: string): void {
-    if (this.disposed || this.audioRestartTimer || !this.store.get().audio.enabled) return;
+    if (this.disposed || this.audioRestartTimer || !this.store.read('audio').enabled) return;
     if (this.audioRestartAttempts >= 3) {
       this.store.update((draft) => {
         draft.audio.capabilities.reason = 'Audio.Host failed repeatedly. Automatic recovery stopped; disable and re-enable Audio to retry.';
@@ -2952,7 +3088,7 @@ export class AppController {
     }, { persist: false });
     this.audioRestartTimer = setTimeout(() => {
       this.audioRestartTimer = null;
-      if (this.disposed || !this.store.get().audio.enabled) return;
+      if (this.disposed || !this.store.read('audio').enabled) return;
       void this.audioConfiguration.run(() => this.startAudioEngine()).catch((restartError) => {
         this.store.update((draft) => {
           draft.audio.capabilities.reason = restartError instanceof Error ? restartError.message : String(restartError);
@@ -2973,7 +3109,7 @@ export class AppController {
     if (!snapshot.runtime.error && (snapshot.runtime.state === 'buffering' || snapshot.runtime.state === 'saving' || snapshot.runtime.state === 'waiting')) {
       this.clearCaptureRecovery();
     }
-    this.store.update((draft) => {
+    this.store.updateBranches(['capture'], (draft) => {
       const shortcutRegistered = draft.capture.runtime.shortcutRegistered;
       draft.capture.runtime = { ...snapshot.runtime, shortcutRegistered };
       draft.capture.storage = snapshot.storage;
@@ -2988,18 +3124,17 @@ export class AppController {
     if (snapshot.runtime.error || snapshot.runtime.state === 'error' || snapshot.runtime.state === 'stopped') {
       this.scheduleCaptureHostRecovery(snapshot.runtime.error);
     }
-    const current = this.store.get();
     void this.autoCaptureCoordinator.reconcile(
       snapshot.runtime.activeSource,
-      current.capture.config.enabled,
-      current.gameDetection.games,
+      this.store.read('capture').config.enabled,
+      this.store.read('gameDetection').games,
     ).catch((error) => {
       console.warn('[autocapture] lifecycle_reconcile_failed', error);
     });
   }
 
   private scheduleCaptureHostRecovery(reason?: string): void {
-    if (this.disposed || this.captureRestartTimer || this.captureConfigurationPending > 0 || !this.store.get().capture.config.enabled) return;
+    if (this.disposed || this.captureRestartTimer || this.captureConfigurationPending > 0 || !this.store.read('capture').config.enabled) return;
     // Error-driven backoff, never an idle poll. Keep trying while Capture is
     // enabled; healthy source-waiting, manual changes, disable and disposal cancel it.
     const delayMs = Math.min(30_000, 1_000 * 2 ** Math.min(this.captureRestartAttempts, 5));
@@ -3009,7 +3144,7 @@ export class AppController {
     }, { persist: false });
     this.captureRestartTimer = setTimeout(() => {
       this.captureRestartTimer = null;
-      if (this.disposed || !this.store.get().capture.config.enabled) return;
+      if (this.disposed || !this.store.read('capture').config.enabled) return;
       void this.queueCaptureConfiguration(async () => {
         this.store.update((draft) => {
           draft.capture.runtime.state = 'recovering';

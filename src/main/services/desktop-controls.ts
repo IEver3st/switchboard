@@ -9,11 +9,12 @@ import type { ExternalProcessResource } from './performance-monitor';
 
 const desktopEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ready') }),
+  z.object({ type: z.literal('game'), processId: z.number().int().positive().nullable() }),
   z.object({ type: z.literal('applications'), executables: z.array(z.string().max(120)).max(32) }),
   z.object({ type: z.literal('error'), message: z.string().max(2048) }),
   z.object({ type: z.literal('metrics'), pid: z.number().int().positive(), privateMemoryMb: z.number().finite().nonnegative(), workingSetMb: z.number().finite().nonnegative(), cpuPercent: z.number().min(0).max(100) }),
 ]);
-type DesktopConfig = Pick<SetupPreferences, 'quickControlsEnabled' | 'quickShortcut'> & { executables: string[] };
+type DesktopConfig = Pick<SetupPreferences, 'quickControlsEnabled' | 'quickShortcut'> & { executables: string[]; watchGames: boolean };
 
 /** Main owns the global shortcut; the optional media-free host only watches applications. */
 export class DesktopControlsService {
@@ -29,6 +30,7 @@ export class DesktopControlsService {
     toggleQuick(): void;
     closeQuick(): void;
     applications(executables: string[]): Promise<void>;
+    game(processId: number | null): void;
     status(state: 'disabled' | 'starting' | 'ready' | 'error', error: string | null): void;
   }) {}
 
@@ -40,14 +42,14 @@ export class DesktopControlsService {
     this.chain = this.chain.catch(() => undefined).then(async () => {
       await this.stopWatcher();
       if (generation !== this.generation || this.closed) return;
-      if (!config.quickControlsEnabled && !config.executables.length) { this.applyShortcut(config); this.io.status('disabled', null); return; }
+      if (!config.quickControlsEnabled && !config.executables.length && !config.watchGames) { this.applyShortcut(config); this.io.status('disabled', null); return; }
       // Fixture reviews must not register a global shortcut or watch real applications.
       if (process.env.SWITCHBOARD_NATIVE_FIXTURES === '1') { this.io.status('disabled', null); return; }
       this.io.status('starting', null);
       let shortcutError: string | null = null;
       try { this.applyShortcut(config); }
       catch (error) { shortcutError = error instanceof Error ? error.message : String(error); }
-      if (!config.executables.length) {
+      if (!config.executables.length && !config.watchGames) {
         this.io.status(shortcutError ? 'error' : 'ready', shortcutError);
         return;
       }
@@ -79,6 +81,7 @@ export class DesktopControlsService {
             if (event.type === 'ready') { ready = true; clearTimeout(timeout); this.io.status(shortcutError ? 'error' : 'ready', shortcutError); resolve(); }
             else if (event.type === 'metrics') { if (event.pid === worker.pid) this.resources = { ...event, name: 'Desktop controls' }; }
             else if (event.type === 'applications') void this.io.applications(event.executables).catch(error => this.io.status('error', String(error).slice(0, 2048)));
+            else if (event.type === 'game' && config.watchGames) this.io.game(event.processId);
             else if (event.type === 'error') { failure = event.message; this.io.status('error', event.message); }
           } catch { failure = 'Desktop controls sent an invalid response.'; worker.kill(); }
         }
@@ -90,11 +93,11 @@ export class DesktopControlsService {
         clearTimeout(timeout);
         if (this.worker === worker) { this.worker = null; this.resources = null; }
         if (generation !== this.generation || this.closed) return;
-        const message = failure ?? 'Application watching stopped. Toggle an automatic scene to retry.';
+        const message = failure ?? 'Application watching stopped. Turn the game launch setting or an automatic scene off and on to retry.';
         this.io.status('error', message);
         if (!ready) reject(new Error(message));
       });
-      worker.stdin.write(`${JSON.stringify({ executables: config.executables })}\n`);
+      worker.stdin.write(`${JSON.stringify({ executables: config.executables, watchGames: config.watchGames })}\n`);
     });
   }
 

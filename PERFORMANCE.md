@@ -1,5 +1,13 @@
 # Performance budgets
 
+Microphone calibration runs only on request in an isolated Capture.Host helper.
+It plays five test sounds over eleven seconds and retains two bounded arrays of
+millisecond energy values. Endpoint callbacks do no allocation, locking, logging,
+or asynchronous work. Main enforces a twenty-second process deadline and bounded
+output; cancel, tray closure, settings navigation, and shutdown release the helper.
+The saved correction is constant frame arithmetic with no extra process, polling,
+or DSP. See `docs/audio-sync-calibration.md`.
+
 The optional vertical framing guide owns one static transparent renderer only
 while enabled. It has no scripts, preload, animation, polling, media process, or
 snapshot subscription. Display-change listeners exist only for its lifetime and
@@ -8,13 +16,11 @@ color, and dimming replace one serialized CSS rule on a display-sized surface.
 Quick Controls remains destroyed when
 dismissed; its glass material uses Windows composition with an opaque fallback.
 
-Microphone calibration runs only on request in an isolated Capture.Host helper.
-It plays five test sounds over eleven seconds and retains two bounded arrays of
-millisecond energy values. Endpoint callbacks do no allocation, locking, logging,
-or asynchronous work. Main enforces a twenty-second process deadline and bounded
-output; cancel, tray closure, settings navigation, and shutdown release the helper.
-The saved correction is constant frame arithmetic with no extra process, polling,
-or DSP. See `docs/audio-sync-calibration.md`.
+Community module downloads are user-initiated, with one review request at a time,
+bounded responses, a 20-second deadline per request chain, and shutdown
+cancellation. Main retains at most four package reviews, each valid for ten minutes; expiry
+is pruned on access without a timer. Community modules reuse the lazy discovery
+sandbox and retain no host while disabled. Updates are manual.
 
 These are release gates, not marketing claims.
 
@@ -35,11 +41,57 @@ visible without turning a single Chromium spike into a release failure.
 |---|---:|---:|
 | Core in tray, renderer destroyed | < 270 MB private | < 0.3% sustained |
 | UI open, no engines | < 340 MB private | < 0.7% sustained |
+| Capture host waiting, no encoder children | +100 MB private | +0.3% sustained |
 | Audio engine active | +65 MB private | < 1.0% typical |
 | Replay engine active | +1,000 MB private / +600 MB working set | < 2.0% CPU with hardware encode |
 | 24-hour growth | < 10 MB | no monotonic handle growth |
 
+Waiting/error/stopped capture runtime uses the host-only allowance once the host
+is running and reports no encoder children. Starting, unknown, buffering and
+saving retain the existing 1,000 MB / 2% allowance; saving has an explicit policy
+entry with the same memory cap. These states reset the guard's rolling window
+when their budget changes. Diagnostic hosts retain the conservative allowance.
+
+September 14 investigation reproduced roughly 700 MB GPU-process private memory
+with a composited real-library fixture on this AMD system. Reducing the library
+to 22 clips and blocking thumbnails did not remove the allocation. A Chromium
+memory dump attributed most of the excess to native heaps, not image surfaces.
+CPU rasterization offered only a modest improvement, Graphite was already off,
+and OpenGL increased memory. No backend override is shipped. Hidden idle gates
+do not establish composited-window or playback resource usage; keep these
+measurements separate. See `design-qa/performance-execution-20260914/RESULTS.md`.
+
+Main uses narrow, copied reads and schema-validated branch updates for telemetry,
+settings and device publication. Published snapshots are deeply frozen, with
+unchanged branches shared. IPC sends one full subscription baseline followed by
+revisioned changed branches; preload validates and reconstructs snapshots and
+requests a fresh baseline after a revision gap. Full mutation responses and
+preload-to-renderer snapshot copies remain; this is not zero-copy transport.
+
+Windows device topology is cached behind a hidden native BaseWindow with no
+webContents. DBT_DEVNODES_CHANGED invalidates the inventory through one 250 ms
+coalescing timeout. The five-second device-status cycle remains for battery and
+protocol recovery; it re-enumerates topology after 60 seconds as a missed-event
+fallback, or immediately on explicit refresh. Without notifications it retains
+the five-second enumeration fallback. Disabling all device modules or disposing
+the registry destroys the watcher, clears its cache and removes both timers.
+
+Replay maintenance reads the bounded segment manifest when its metadata changes,
+caches immutable closed-file metadata, and performs an orphan-directory sweep at
+most every 30 seconds during ordinary ticks. Explicit replay selection always
+reconciles file existence. Eviction updates cached inventory and retains locked
+files for retry; changing session drops the cache. Absent manifest streams do
+not enumerate their directory. The cache owns no thread, timer or file handle.
+
 ## Required measurements
+
+Move to tray when a game starts is off by default. When enabled, the existing
+media-free desktop helper checks game windows every two seconds (background
+inventory remains capped at five seconds by the shared detector). After detection
+it checks only the tracked process lifetime until exit, preserving manual reopen
+through Alt-Tab. It retains one process handle, disposed on exit or shutdown.
+Disabling this policy removes game watching; the helper and its timer stop unless
+automatic scenes still need application watching. Capture and audio are unchanged.
 
 Main schedules capture recovery only after an enabled recorder stops or fails.
 Retries back off through 1, 2, 4, 8, 16 and 30 seconds, then remain at 30 seconds
@@ -332,6 +384,24 @@ after one inventory, with a 15-second deadline and 1 MiB output limit. Failed
 scans retry after one and two seconds, then stop until another refresh request.
 Shutdown aborts discovery and its retry delay. No discovery polling timer or
 helper remains idle, and discovery never restarts the recording host.
+
+## Windows update handoff
+
+Silent Windows updates use the NSIS process itself for executable-path checks,
+without launching PowerShell or querying WMI. A bounded 64 KiB PID snapshot is
+checked against the exact installation directory, including its separator.
+Checks repeat every 500 ms only during update shutdown, for at most 30 seconds;
+a busy app or incomplete scan stops installation before replacing files. Active
+recordings and state get the normal shutdown path rather than a forced kill.
+The installer and updater uninstaller use Windows background processing mode
+and idle CPU priority during their work. The installer restores its previous
+CPU and I/O priorities before launching the updated application. This trades
+installation speed under contention for foreground responsiveness. The previous
+version's uninstaller still uses that version's scan implementation on the first
+upgrade, but inherits idle CPU priority. `node scripts/verify-update-installer.mjs`
+checks native priorities, directory isolation, graceful shutdown, a busy app,
+the uninstaller, and both production NSIS template passes without installing the
+application. It is not an end-user machine update benchmark.
 
 ## Opt-in resource debugging
 

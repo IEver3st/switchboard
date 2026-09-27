@@ -26,6 +26,7 @@ win:
     - nsis
   executableName: switchboard
 nsis:
+  include: build/installer.nsh
   # oneClick is required for silent background updates. Assisted installers
   # always show the setup wizard during quitAndInstall, even when silent.
   oneClick: true

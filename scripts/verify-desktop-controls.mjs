@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 const executable = resolve('engines/capture-host/bin/Debug/net10.0-windows/Capture.Host.exe');
 const children = new Set();
-function start(executables = ['node.exe']) {
+function start(executables = ['node.exe'], watchGames = false) {
   const child = spawn(executable, ['--desktop-controls'], { windowsHide: true, stdio: 'pipe' });
   children.add(child);
   const events = []; let buffer = '';
@@ -15,7 +15,7 @@ function start(executables = ['node.exe']) {
     while ((end = buffer.indexOf('\n')) >= 0) { events.push(JSON.parse(buffer.slice(0, end))); buffer = buffer.slice(end + 1); }
   });
   child.once('exit', () => children.delete(child));
-  child.stdin.write(JSON.stringify({ executables }) + '\n');
+  child.stdin.write(JSON.stringify({ executables, watchGames }) + '\n');
   return { child, events };
 }
 async function until(predicate) {
@@ -41,7 +41,16 @@ try {
   const applicationsOnly = start([]);
   await until(() => applicationsOnly.events.some(event => event.type === 'ready'));
   await close(applicationsOnly);
-  console.log(JSON.stringify({ passed: true, cycles: 3, checked: ['application matching', 'metrics', 'EOF cleanup', 'killed-host recovery', 'empty application list'], excluded: ['global key injection', 'visible panel focus', 'physical devices'] }));
+  const gamesOnly = start([], true);
+  await until(() => gamesOnly.events.some(event => event.type === 'ready'));
+  await new Promise(resolve => setTimeout(resolve, 2300));
+  assert.equal(gamesOnly.child.exitCode, null, 'Game-only watcher exited during its first timer tick.');
+  assert(!gamesOnly.events.some(event => event.type === 'error'), JSON.stringify(gamesOnly.events));
+  assert(!gamesOnly.events.some(event => event.type === 'applications'), 'Game-only watching added process-list scans.');
+  gamesOnly.child.stdin.write('metrics\n');
+  await until(() => gamesOnly.events.filter(event => event.type === 'metrics').length >= 2);
+  await close(gamesOnly);
+  console.log(JSON.stringify({ passed: true, cycles: 3, checked: ['application matching', 'metrics', 'EOF cleanup', 'killed-host recovery', 'empty application list', 'game-only watcher lifecycle'], excluded: ['live game recognition', 'global key injection', 'visible panel focus', 'physical devices'] }));
 } finally {
   clearTimeout(watchdog);
   for (const child of children) child.kill();

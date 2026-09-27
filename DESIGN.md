@@ -103,7 +103,9 @@ The existing media library and recorder remain the focal area at all three suppo
 
 ### Device gallery
 
-The gallery is a calm inventory of connected hardware. Real product renders do most of the work. Connection, transport, battery, and one useful status line sit close to each device. Internal IDs and protocol labels do not appear here.
+The gallery is a calm inventory of connected hardware, presented as a carousel. One device stands in front at full size with its manufacturer, name, connection, transport, battery, and a single Configure action beneath it; neighbors wait at either side at reduced scale and opacity. Arrow buttons, the keyboard (Left, Right, Home, End), and a named device index below the stage move between devices. Clicking any visible device opens it. The carousel remembers the front device across route changes. Real product renders do most of the work. Internal IDs and protocol labels do not appear here.
+
+The Devices stage is the one sanctioned exception to flat surfaces: a soft overhead light, a fine dot field, a receding floor grid, and a contact light under the front device. The light takes its tone from the front device's confirmed lighting color and falls back to neutral cool graphite when the device is unlit, disconnected, or mute-linked dark. It never implies unsupported lighting. Tone changes crossfade with opacity only; animating the tone itself restyles the whole page on every frame. The workbench keeps the same stage behind the selected device.
 
 Unknown devices use honest identity and capability information. Do not guess a cosmetic variant. A missing colorway must not block discovery.
 
@@ -116,6 +118,10 @@ Organize controls by the user's goal, not by packet or feature ID. Keep supporte
 ### Audio desk
 
 Audio is one continuous desk. Mixer channels sit side by side on a single soft surface and align vertically, separated by spacing rather than column rules. The master stage, Game, Chat, Media, Aux, and Microphone remain visually related instead of becoming separate cards or fenced columns.
+
+The Audio header gives the route title, a plain status sentence, and the engine state with a direct path to Audio settings when the engine is off. Channel tabs keep their channel-colored icons at all times; the selected tab gains a soft fill and a short channel-colored mark. Master sits on its own tonal step as the destination every channel feeds. Faders keep the custom white cap with channel-colored grip marks and a fixed tick scale with a longer unity tick. ChatMix tints each side of its rail with the Game and Chat colors.
+
+Channel pages open with the channel identity (icon, name, and the routed device), the preset, and channel actions such as the microphone test. Processing stages are modules with their title and one-line purpose on the left and an explicit On, Off, or Unavailable state beside the bypass switch. The EQ keeps a band rail and an exact-value inspector (frequency, gain, width, band on) aligned under the graph.
 
 Each channel keeps a stable identity:
 
@@ -321,5 +327,7 @@ Before accepting renderer work, verify:
 Capture keeps its recorder and source visible while selecting clips. Selection actions occupy a second compact toolbar row: favorite, unfavorite, Recycle Bin deletion, select filtered results, cancel, and montage. Shift-click extends a range in the current order. Delete confirmation names affected saved projects, reports individual failures, and retries only failed items.
 
 Unavailable media retains its library identity and metadata with Retry, Locate file, and Remove from library actions. This state must remain explicit in grid and list views. View and sort are main-owned preferences; search, filters, and scroll position survive route navigation without retaining a playing editor. Kept projects persist until explicitly discarded; temporary autosaves retain the three-hour lifetime. The editor shows whether its changes have been saved.
+
+Projects & drafts is a horizontal shelf between the command header and the library that scrolls away with the clips. Each item shows a filmstrip of its first segments, its name, its type (clip edit or montage with a clip count), its length, and one state: Kept, the time until a temporary draft clears, or missing clips. Keep is a one-click bookmark toggle written through main; Discard lives in the item menu and asks inline before deleting, because a kept project cannot be recovered. The editor header uses the same bookmark Keep toggle and the same confirmation before discarding.
 
 Saved clips and replay cache have separate locations and capacity readouts. Recovery text identifies the affected location. Choosing replay cache storage owns a dedicated subfolder and restarts the buffer; it never moves saved media.

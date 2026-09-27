@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import type { EqBand } from '../../../../shared/contracts';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
 import { equalizerResponseDb } from '@/lib/eq-response';
 
@@ -24,6 +25,11 @@ const FREQUENCY_REGIONS = [
   { label: 'Upper mids', from: 2_000, to: 6_000 },
   { label: 'Highs', from: 6_000, to: 20_000 },
 ];
+const FILTER_LABELS: Record<EqBand['type'], string> = {
+  'low-shelf': 'Low shelf',
+  bell: 'Bell',
+  'high-shelf': 'High shelf',
+};
 const NODE_COLORS = [
   'var(--eq-band-1)',
   'var(--eq-band-2)',
@@ -106,6 +112,7 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
   }, []);
 
   const selected = draft.find((band) => band.id === selectedId) ?? draft[0];
+  const selectedIndex = Math.max(0, draft.findIndex((band) => band.id === selected?.id));
   const path = useMemo(() => curvePath(draft, geometry), [draft, geometry]);
 
   const updateBand = (id: string, update: Partial<EqBand>, commit = false) => {
@@ -256,6 +263,122 @@ export function ParametricEq({ bands, disabled, onCommit }: { bands: EqBand[]; d
         </svg>
       </div>
 
+      <div className="parametric-eq__controls">
+        <div className="parametric-eq__bands" role="group" aria-label="EQ bands">
+          {draft.map((band, index) => (
+            <button
+              key={band.id}
+              type="button"
+              className={cn('parametric-eq__band', band.id === selected.id && 'is-selected', !band.enabled && 'is-off')}
+              style={{ '--band-color': NODE_COLORS[index % NODE_COLORS.length] } as CSSProperties}
+              aria-pressed={band.id === selected.id}
+              aria-label={`Select EQ band ${index + 1}, ${frequencyReadout(band.frequency)}, ${formatGain(band.gainDb)}${band.enabled ? '' : ', off'}`}
+              onClick={() => setSelectedId(band.id)}
+            >
+              <span className="parametric-eq__band-dot" aria-hidden="true" />
+              {index + 1}
+            </button>
+          ))}
+        </div>
+        <div className="parametric-eq__inspector" aria-label={`Band ${selectedIndex + 1} values`} role="group">
+          <span className="parametric-eq__inspector-title">
+            <strong>Band {selectedIndex + 1}</strong>
+            <span>{FILTER_LABELS[selected.type]}</span>
+          </span>
+          <EqNumberField key={`${selected.id}-frequency`} label="EQ band frequency" unit="Hz" value={selected.frequency} min={20} max={20_000} step={selected.frequency >= 1_000 ? 50 : 5} precision={0} disabled={disabled} onCommit={(frequency) => updateBand(selected.id, { frequency }, true)} />
+          <EqNumberField key={`${selected.id}-gain`} label="EQ band gain" unit="dB" value={selected.gainDb} min={-12} max={12} step={0.5} precision={1} signed disabled={disabled} onCommit={(gainDb) => updateBand(selected.id, { gainDb }, true)} />
+          <EqNumberField key={`${selected.id}-width`} label="EQ band width" unit="Q" value={selected.q} min={0.2} max={10} step={0.1} precision={2} disabled={disabled} onCommit={(q) => updateBand(selected.id, { q }, true)} />
+          <label className="parametric-eq__band-toggle">
+            <Switch
+              checked={selected.enabled}
+              disabled={disabled}
+              aria-label={`Band ${selectedIndex + 1} enabled`}
+              onCheckedChange={(enabled) => updateBand(selected.id, { enabled }, true)}
+            />
+            <span aria-hidden="true">{selected.enabled ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function formatGain(gainDb: number): string {
+  return `${gainDb > 0 ? '+' : ''}${gainDb.toFixed(1)} dB`;
+}
+
+// Exact entry for one band value. Commits on Enter or blur, restores the
+// confirmed value on Escape or invalid input, and steps with the arrow keys.
+function EqNumberField({
+  label,
+  unit,
+  value,
+  min,
+  max,
+  step,
+  precision,
+  signed = false,
+  disabled,
+  onCommit,
+}: {
+  label: string;
+  unit: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  precision: number;
+  signed?: boolean;
+  disabled?: boolean;
+  onCommit: (value: number) => void;
+}) {
+  const format = (next: number) => `${signed && next > 0 ? '+' : ''}${next.toFixed(precision)}`;
+  const [draft, setDraft] = useState(() => format(value));
+  const cancelRef = useRef(false);
+  useEffect(() => setDraft(format(value)), [value]);
+
+  const commit = (raw: string) => {
+    const parsed = Number(raw.replace(/[^0-9.+-]/g, ''));
+    if (raw.trim() === '' || !Number.isFinite(parsed)) {
+      setDraft(format(value));
+      return;
+    }
+    const next = Number(clamp(parsed, min, max).toFixed(precision));
+    setDraft(format(next));
+    if (next !== value) onCommit(next);
+  };
+
+  return (
+    <label className="parametric-eq__field">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        disabled={disabled}
+        aria-label={label}
+        onFocus={(event) => event.currentTarget.select()}
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        onBlur={() => {
+          if (cancelRef.current) {
+            cancelRef.current = false;
+            setDraft(format(value));
+            return;
+          }
+          commit(draft);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+          else if (event.key === 'Escape') {
+            cancelRef.current = true;
+            event.currentTarget.blur();
+          } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            const direction = event.key === 'ArrowUp' ? 1 : -1;
+            commit(String(value + direction * step * (event.shiftKey ? 10 : 1)));
+          }
+        }}
+      />
+      <span aria-hidden="true">{unit}</span>
+    </label>
   );
 }

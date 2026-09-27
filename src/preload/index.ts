@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
+import { SnapshotReceiver, snapshotStreamChannel } from '../shared/snapshot-stream';
 import {
   audioMeterFrameSchema,
   verticalGuideLayoutSchema,
@@ -55,6 +56,9 @@ const api: SwitchboardApi & MontageV2Api = {
   getSnapshot: () => ipcRenderer.invoke(ipcChannels.getSnapshot),
   refreshDevices: () => ipcRenderer.invoke(ipcChannels.refreshDevices),
   setModuleState: (input) => ipcRenderer.invoke(ipcChannels.setModuleState, input),
+  inspectCommunityModule: (input) => ipcRenderer.invoke(ipcChannels.inspectCommunityModule, input),
+  installCommunityModule: (input) => ipcRenderer.invoke(ipcChannels.installCommunityModule, input),
+  manageCommunityModule: (input) => ipcRenderer.invoke(ipcChannels.manageCommunityModule, input),
   createModuleProject: (input) => ipcRenderer.invoke(ipcChannels.createModuleProject, input),
   linkModuleProject: () => ipcRenderer.invoke(ipcChannels.linkModuleProject),
   validateModuleProject: (input) => ipcRenderer.invoke(ipcChannels.validateModuleProject, input),
@@ -139,8 +143,16 @@ const api: SwitchboardApi & MontageV2Api = {
   exportMontageV2: (input) => ipcRenderer.invoke(montageV2IpcChannels.export, input),
   cancelMontageV2Export: (exportId) => ipcRenderer.invoke(montageV2IpcChannels.cancelExport, exportId),
   subscribe: (listener) => {
-    const handler = (_event: Electron.IpcRendererEvent, snapshot: SystemSnapshot) => listener(snapshot);
+    const receiver = new SnapshotReceiver();
+    let resyncPending = false;
+    const handler = (_event: Electron.IpcRendererEvent, raw: unknown) => {
+      let snapshot: SystemSnapshot | null;
+      try { snapshot = receiver.accept(raw); } catch { snapshot = null; }
+      if (snapshot) { resyncPending = false; listener(snapshot); }
+      else if (!resyncPending) { resyncPending = true; ipcRenderer.postMessage(snapshotStreamChannel, null); }
+    };
     ipcRenderer.on(ipcChannels.snapshotUpdated, handler);
+    ipcRenderer.postMessage(snapshotStreamChannel, null);
     return () => ipcRenderer.removeListener(ipcChannels.snapshotUpdated, handler);
   },
 };

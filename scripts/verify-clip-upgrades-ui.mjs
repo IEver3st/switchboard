@@ -257,7 +257,7 @@ void app.whenReady().then(async () => {
   await capture('keyboard-focus');
   assert(!window.isVisible(), 'Native verification stayed hidden');
   // Discard immediately after an edit: the debounce must not recreate the draft.
-  await setInput('Zoom %',105); await ariaButton('Discard montage draft'); await delay(800);
+  await setInput('Zoom %',105); await ariaButton('Discard montage draft'); await ariaButton('Confirm discard'); await delay(800);
   assert(await evaluate(`window.switchboard.listMontageDrafts().then(drafts=>drafts.length===0)`),'Discard cancels pending autosave and does not resurrect the draft');
   await capture('empty-drafts');
   const missing={...draft,id:crypto.randomUUID(),name:'Missing source recovery',sourceClipId:clip.id,segments:draft.segments.map(segment=>({...segment,clipId:'missing-source'}))};

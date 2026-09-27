@@ -12,6 +12,7 @@ import { TitleStrip } from '@/components/layout/title-strip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { manageAsyncCleanup } from '@/lib/async-cleanup';
 import { SettingsPage } from '@/pages/settings';
+import { requestSettingsCategory } from '@/components/settings/settings-catalog';
 import { useSystemStore } from '@/stores/use-system-store';
 
 let audioPagePromise: ReturnType<typeof importAudioPage> | null = null;
@@ -173,7 +174,15 @@ export function App() {
             <>
               {!captureOnly ? <Sidebar snapshot={snapshot} page={page} onNavigate={setPage} onNavigateIntent={preloadWorkspace} /> : null}
               <div className="app-shell__workspace flex min-w-0 flex-1 flex-col">
-                <TitleStrip captureOnly={captureOnly} onOpenSettings={() => setPage('settings')} />
+                <TitleStrip
+                  snapshot={snapshot}
+                  captureOnly={captureOnly}
+                  onOpenSettings={() => setPage('settings')}
+                  onOpenUpdateSettings={() => {
+                    requestSettingsCategory('updates');
+                    setPage('settings');
+                  }}
+                />
                 <section className="app-shell__content flex min-h-0 flex-1 flex-col">
                   <main className="min-h-0 flex-1 bg-background">
                     <h1 className="sr-only">{pageTitles[page]}</h1>

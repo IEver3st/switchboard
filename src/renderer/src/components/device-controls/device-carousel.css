@@ -1,0 +1,528 @@
+/* Devices: one lit stage, with the selected device in front and its
+   neighbors waiting at either side. The stage tone comes from the selected
+   device's saved lighting color, or a neutral cool tone when it is unlit. */
+.device-carousel-page {
+  --stage-floor: 13%;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  height: calc(100vh - 38px);
+  min-height: 560px;
+  flex-direction: column;
+  overflow: hidden;
+  padding: clamp(20px, 3.4vh, 32px) clamp(28px, 4.5vw, 64px) clamp(16px, 2.6vh, 28px);
+}
+
+/* Lighting layers crossfade with opacity only, so a slide change never
+   restyles or repaints the page while the devices move. */
+.device-stage-backdrop__light[data-layer="in"],
+.device-carousel__lighting[data-layer="in"] {
+  animation: device-stage-light-in 520ms ease-out both;
+  will-change: opacity;
+}
+
+.device-stage-backdrop__light[data-layer="out"],
+.device-carousel__lighting[data-layer="out"] {
+  animation: device-stage-light-out 520ms ease-in both;
+  will-change: opacity;
+}
+
+.device-carousel__lighting {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+@keyframes device-stage-light-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes device-stage-light-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* Backdrop: a soft overhead light, a fine dot field, and a floor plane.
+   Static layers only; nothing here animates while the page is idle. */
+.device-stage-backdrop {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.device-stage-backdrop > span {
+  position: absolute;
+  display: block;
+}
+
+.device-stage-backdrop__light {
+  top: -18%;
+  left: 50%;
+  width: min(1200px, 96%);
+  height: 92%;
+  translate: -50% 0;
+  background:
+    radial-gradient(ellipse 42% 58% at 50% 0%, color-mix(in srgb, var(--stage-tone) 15%, transparent) 0%, transparent 74%),
+    radial-gradient(ellipse 70% 50% at 50% 0%, color-mix(in srgb, var(--stage-tone) 5%, transparent) 0%, transparent 80%);
+}
+
+.device-stage-backdrop__grid {
+  inset: 0;
+  background-image: radial-gradient(circle, rgb(183 191 205 / 0.15) 1px, transparent 1.4px);
+  background-position: 50% 0;
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 58% 52% at 50% 42%, #000 0%, rgb(0 0 0 / 0.45) 48%, transparent 82%);
+  mask-image: radial-gradient(ellipse 58% 52% at 50% 42%, #000 0%, rgb(0 0 0 / 0.45) 48%, transparent 82%);
+}
+
+.device-carousel-page[data-state="empty"] .device-stage-backdrop__light {
+  opacity: 0.6;
+}
+
+@media (forced-colors: active) {
+  .device-stage-backdrop {
+    display: none;
+  }
+}
+
+.device-carousel-header {
+  display: flex;
+  width: min(100%, 1480px);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 auto;
+}
+
+.device-carousel-header h2 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.device-carousel-header p {
+  margin: 4px 0 0;
+  color: var(--text-description);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.device-carousel-header__status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.device-carousel {
+  display: grid;
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  min-height: 0;
+  flex: 1;
+  grid-template-rows: minmax(0, 680px) auto auto;
+  align-content: center;
+}
+
+.device-carousel__stage {
+  position: relative;
+  height: 100%;
+  min-height: 220px;
+}
+
+.device-gallery {
+  position: absolute;
+  inset: 0 -4%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device-gallery__entry {
+  position: absolute;
+  bottom: var(--stage-floor);
+  left: 50%;
+  width: var(--slide-width, 300px);
+  height: calc(100% - var(--stage-floor) - 12px);
+  max-height: 580px;
+  transform: translateX(calc(-50% + var(--slide-x, 0px))) scale(var(--slide-scale, 1));
+  transform-origin: 50% 100%;
+  transition:
+    transform 320ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    opacity 200ms ease-out,
+    visibility 0s linear 0s;
+  /* Each slide keeps its own compositor layer so moves never re-raster the renders. */
+  will-change: transform, opacity;
+}
+
+.device-gallery__entry[data-distance="1"] { opacity: 0.46; }
+.device-gallery__entry[data-distance="2"] { opacity: 0.18; }
+.device-gallery__entry[data-distance="3"] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform 320ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    opacity 200ms ease-out,
+    visibility 0s linear 320ms;
+}
+
+.device-gallery__entry[data-connected="false"] .device-render {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+
+.device-gallery__item {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 8px;
+  outline: 2px solid transparent;
+  outline-offset: 6px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: outline-color 140ms ease-out;
+}
+
+.device-gallery__item:focus-visible {
+  outline-color: var(--ring);
+}
+
+.device-carousel .device-render--hero {
+  width: 100%;
+  height: 100%;
+}
+
+.device-carousel .device-render__media {
+  transition: transform 220ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+/* The floor starts at the stage horizon: a lit patch of receding grid under
+   the device in front, fading out before it reaches the copy below. */
+.device-carousel__floor {
+  position: absolute;
+  top: calc(100% - var(--stage-floor));
+  left: 50%;
+  width: min(150%, 2200px);
+  height: 300px;
+  translate: -50% 0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--stage-tone) 26%, rgb(183 191 205 / 0.5)) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--stage-tone) 26%, rgb(183 191 205 / 0.5)) 1px, transparent 1px);
+  background-position: 50% 0;
+  background-size: 56px 56px;
+  opacity: 0.16;
+  transform: perspective(360px) rotateX(58deg);
+  transform-origin: 50% 0;
+  -webkit-mask-image: radial-gradient(ellipse 34% 62% at 50% 0%, #000 0%, rgb(0 0 0 / 0.5) 45%, transparent 100%);
+  mask-image: radial-gradient(ellipse 34% 62% at 50% 0%, #000 0%, rgb(0 0 0 / 0.5) 45%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Contact light under the device in front. */
+.device-carousel__pedestal {
+  position: absolute;
+  bottom: var(--stage-floor);
+  left: 50%;
+  width: min(50%, 520px);
+  aspect-ratio: 5.6;
+  translate: -50% 50%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--stage-tone) 22%, transparent) 0%, color-mix(in srgb, var(--stage-tone) 7%, transparent) 44%, transparent 70%);
+  pointer-events: none;
+}
+
+.device-carousel__pedestal::after {
+  position: absolute;
+  inset: 24% 20%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgb(0 0 0 / 0.5) 0%, transparent 72%);
+  content: "";
+}
+
+.device-carousel__arrow {
+  position: absolute;
+  z-index: 2;
+  top: calc(50% - var(--stage-floor) / 2);
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  translate: 0 -50%;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-interactive) 82%, transparent);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out, opacity 140ms ease-out;
+}
+
+.device-carousel__arrow svg {
+  width: 18px;
+  height: 18px;
+}
+
+.device-carousel__arrow--previous { left: 0; }
+.device-carousel__arrow--next { right: 0; }
+
+.device-carousel__arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.device-carousel__arrow:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.device-carousel__details {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  padding-top: 4px;
+  text-align: center;
+  animation: device-carousel-details-in 240ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+
+.device-carousel__manufacturer {
+  color: var(--text-description);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.device-carousel__name {
+  max-width: min(100%, 640px);
+  margin: 4px 0 0;
+  color: var(--foreground);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.device-carousel__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 8px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.device-carousel__status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-carousel__status-separator,
+.device-carousel__status-item > span[aria-hidden] {
+  color: var(--text-muted);
+}
+
+.device-carousel__status .battery-status--compact,
+.device-carousel__status .battery-status--compact .battery-status__runtime {
+  color: var(--text-secondary);
+}
+
+.device-carousel__note {
+  margin: 8px 0 0;
+  color: var(--text-description);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.device-carousel__note[data-tone="warning"] {
+  color: var(--status-warning);
+}
+
+.device-carousel__configure {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--primary);
+  padding: 0 16px 0 18px;
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+.device-carousel__configure svg {
+  width: 14px;
+  height: 14px;
+  transition: translate 160ms ease-out;
+}
+
+.device-carousel__configure:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.device-carousel__index {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: clamp(14px, 2.4vh, 24px);
+}
+
+.device-carousel__index-item {
+  display: inline-flex;
+  min-height: 32px;
+  max-width: 220px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 12px;
+  color: var(--text-description);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.device-carousel__index-item > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-carousel__index-item svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.device-carousel__index-item[data-connected="false"] {
+  color: var(--text-muted);
+}
+
+.device-carousel__index-item.is-active {
+  background: color-mix(in srgb, var(--surface-interactive) 86%, transparent);
+  color: var(--foreground);
+}
+
+.device-carousel__index-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.device-carousel-empty {
+  display: grid;
+  flex: 1;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding-bottom: 8vh;
+  text-align: center;
+}
+
+.device-carousel-empty svg {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 8px;
+  color: var(--text-description);
+}
+
+.device-carousel-empty h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.device-carousel-empty p {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--text-description);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@keyframes device-carousel-details-in {
+  from { opacity: 0; translate: 0 6px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .device-gallery__entry[data-distance="1"]:hover { opacity: 0.72; }
+  .device-gallery__entry[data-distance="2"]:hover { opacity: 0.4; }
+  .device-gallery__entry[data-active="true"] .device-gallery__item:hover .device-render__media {
+    transform: translateY(-4px);
+  }
+  .device-carousel__arrow:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--foreground);
+  }
+  .device-carousel__configure:hover { background: var(--accent-hover); }
+  .device-carousel__configure:hover svg { translate: 2px 0; }
+  .device-carousel__index-item:hover:not(.is-active) {
+    background: color-mix(in srgb, var(--surface-1) 80%, transparent);
+    color: var(--text-secondary);
+  }
+}
+
+@media (max-height: 760px) {
+  .device-carousel__name { font-size: 21px; }
+  .device-carousel__configure { margin-top: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .device-stage-backdrop__light[data-layer],
+  .device-carousel__lighting[data-layer] { animation: none; }
+  .device-stage-backdrop__light[data-layer="out"],
+  .device-carousel__lighting[data-layer="out"] { display: none; }
+  .device-gallery__entry,
+  .device-gallery__entry[data-distance="3"],
+  .device-gallery__item,
+  .device-carousel .device-render__media,
+  .device-carousel__arrow,
+  .device-carousel__index-item,
+  .device-carousel__configure,
+  .device-carousel__configure svg {
+    transition: none;
+  }
+  .device-carousel__details { animation: none; }
+}
+
+/* The workbench keeps the same stage so opening a device feels continuous. */
+.device-workbench {
+  isolation: isolate;
+}
+
+.device-workbench .device-stage-backdrop__light {
+  top: -10%;
+  opacity: 0.8;
+}
+
+.device-workbench .device-stage-backdrop__grid {
+  -webkit-mask-image: radial-gradient(ellipse 42% 50% at 50% 48%, #000 0%, rgb(0 0 0 / 0.35) 55%, transparent 85%);
+  mask-image: radial-gradient(ellipse 42% 50% at 50% 48%, #000 0%, rgb(0 0 0 / 0.35) 55%, transparent 85%);
+}

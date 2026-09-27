@@ -19,6 +19,36 @@ mock.module('electron', () => ({
 const { DeviceRegistry, selectHidDeviceEnumerator } = await import('../src/main/services/device-registry');
 
 describe('device registry lifecycle', () => {
+  test('notifications invalidate cached inventory; fallback and disable retain lifecycle guarantees', async () => {
+    const snapshot = createEnabledDeviceSnapshot();
+    let now = 0;
+    let changed = () => {};
+    const stop = mock(() => {});
+    const enumerate = mock(async () => []);
+    const registry = new DeviceRegistry(() => snapshot, () => {}, {
+      fixtureMode: false, modules: [{ id: 'device.logitech-hidpp', discover: async () => [] }],
+      listHidDevices: enumerate, now: () => now,
+      watchDeviceChanges: callback => { changed = callback; return stop; },
+    });
+    try {
+      await registry.start();
+      for (let i = 0; i < 11; i++) { now += 5000; await registry.refresh(false); }
+      expect(enumerate).toHaveBeenCalledTimes(1);
+      now += 5000; await registry.refresh(false);
+      expect(enumerate).toHaveBeenCalledTimes(2);
+      changed(); changed();
+      await Bun.sleep(300);
+      expect(enumerate).toHaveBeenCalledTimes(3);
+      await registry.refresh(); // Explicit user refresh always checks topology.
+      expect(enumerate).toHaveBeenCalledTimes(4);
+      snapshot.modules.forEach(module => { module.enabled = false; });
+      await registry.reconcileModuleState('device.logitech-hidpp', false);
+      expect(stop).toHaveBeenCalledTimes(1);
+      changed();
+      await registry.dispose();
+      expect(stop).toHaveBeenCalledTimes(1);
+    } finally { await registry.dispose(); }
+  });
   test('battery preference refresh cannot enumerate or open hardware in fixture mode', async () => {
     const snapshot = createEnabledDeviceSnapshot();
     const discover = mock(async () => []);

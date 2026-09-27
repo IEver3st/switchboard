@@ -37,7 +37,7 @@ export const MixerApplications = memo(function MixerApplications({
     if (left.active !== right.active) return left.active ? -1 : 1;
     return left.name.localeCompare(right.name);
   });
-  const activeCount = applications.filter((application) => application.active).length;
+  const activeCount = applications.filter((application) => application.active && application.currentDestination !== null).length;
   const canRoute = routingSupport !== 'unavailable' && !pending;
 
   return (
@@ -48,7 +48,7 @@ export const MixerApplications = memo(function MixerApplications({
           <Badge variant={activeCount > 0 ? 'success' : 'default'}>
             {activeCount > 0
               ? `${activeCount}${activeCount < applications.length ? `/${applications.length}` : ''} live`
-              : `${applications.length} assigned`}
+              : `${applications.length} available`}
           </Badge>
         ) : (
           <span className="mixer-channel__apps-support" data-state={routingSupport}>
@@ -65,27 +65,28 @@ export const MixerApplications = memo(function MixerApplications({
       ) : sortedApplications.length === 0 ? (
         <div className="mixer-channel__apps-empty">
           <AppWindow className="size-3.5" aria-hidden="true" />
-          <span>No apps on this channel</span>
+          <span>Play audio in an app to assign it</span>
         </div>
       ) : (
         <ScrollArea className="mixer-channel__apps-scroll">
           <ul className="mixer-channel__app-list">
             {sortedApplications.map((application) => {
               const restartRequired = application.routingState === 'pending-restart';
-              const status = restartRequired
-                ? 'Restart required'
-                : application.active ? `Playing through ${channelLabel}.` : `Assigned to ${channelLabel}; currently idle.`;
+              const appliedChannel = applicationDestinations.find(channel => channel.id === application.currentDestination)?.label;
+              const status = restartRequired ? 'Restart required'
+                : !appliedChannel ? 'Not assigned'
+                : application.active ? `Playing through ${appliedChannel}.` : `Assigned to ${appliedChannel}; currently idle.`;
 
               return (
                 <li
                   key={application.id}
                   className={cn(!application.active && 'is-inactive')}
                   title={restartRequired
-                    ? `Using ${channelLabel}. Restart ${application.name} to move it to ${application.destination}.`
+                    ? `Restart ${application.name} to move it to ${application.destination}.`
                     : undefined}
                 >
                   <span
-                    className={cn('mixer-channel__app-activity', application.active && 'is-active')}
+                    className={cn('mixer-channel__app-activity', application.active && application.currentDestination !== null && 'is-active')}
                     aria-hidden="true"
                   />
                   {application.iconDataUrl ? (
@@ -98,7 +99,7 @@ export const MixerApplications = memo(function MixerApplications({
                     <span className={cn('mixer-channel__app-state', restartRequired && 'is-pending')}>{status}</span>
                   </span>
                   <Select
-                    value={application.destination}
+                    value={application.currentDestination === null && application.routingState !== 'pending-restart' ? '' : application.destination}
                     disabled={!canRoute}
                     onValueChange={(destination) => onApplicationRoute(
                       application.id,
@@ -106,7 +107,7 @@ export const MixerApplications = memo(function MixerApplications({
                     )}
                   >
                     <SelectTrigger className="mixer-channel__route-select" aria-label={`Route ${application.name} to channel`}>
-                      <SelectValue />
+                      <SelectValue placeholder="Choose channel" />
                     </SelectTrigger>
                     <SelectContent>
                       {applicationDestinations.map((destination) => (

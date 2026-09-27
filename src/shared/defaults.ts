@@ -661,7 +661,9 @@ export const defaultGameDetection: GameDetectionState = {
 export const defaultSettings: AppSettings = {
   uiScalePercent: 125,
   launchAtStartup: false,
+  startMinimized: true,
   closeToTray: true,
+  trayOnGameLaunch: false,
   destroyRendererInTray: true,
   softwareRendering: false,
   automaticAppUpdates: true,
@@ -680,12 +682,13 @@ export const defaultSettings: AppSettings = {
   developerMode: false,
   visibleWorkspaces: ['devices', 'audio', 'capture'],
   onboardingCompleted: false,
+  seenNewSettings: [],
 };
 
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.9.21',
+  currentVersion: '0.9.22',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -731,7 +734,7 @@ export const seedClips: Clip[] = [];
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
     setup: setupStateSchema.parse({}),
-    version: '0.9.21',
+    version: '0.9.22',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),

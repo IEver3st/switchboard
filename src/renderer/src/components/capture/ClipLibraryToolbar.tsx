@@ -97,7 +97,8 @@ export function ClipLibraryToolbar({ controls }: { controls: ClipLibraryControls
             <ToggleGroupItem value="list" aria-label="List view" title="List view" className="h-8 min-w-8 px-0"><List className="size-3.5" /></ToggleGroupItem>
           </ToggleGroup>
 
-          <Button type="button" variant="ghost" size="icon" aria-label="Select clips" title="Select clips" disabled={totalClipCount === 0} onClick={controls.onStartMontage}><CheckSquare className="size-4" /></Button>
+          <span className="capture-toolbar-divider" aria-hidden="true" />
+          <Button type="button" variant="ghost" size="sm" className="capture-select-trigger" aria-label="Select clips" title="Select clips" disabled={totalClipCount === 0} onClick={controls.onStartMontage}><CheckSquare className="size-3.5" aria-hidden="true" /><span className="capture-tool-label">Select</span></Button>
           <Button type="button" variant="secondary" size="sm" className="capture-montage-trigger h-8 shrink-0 gap-1.5 px-3 text-[11px]" aria-label="Create Montage" disabled={totalClipCount < 2} onClick={controls.onStartMontage}>
             <Clapperboard className="size-3.5" aria-hidden="true" /> <span><span className="capture-montage-create">Create </span>Montage</span>
           </Button>

@@ -1,6 +1,7 @@
 import { ClipAudioInspector } from './ClipAudioInspector';
 import { EditedAudioPreview } from './EditedAudioPreview';
-import { Star, Pencil } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Star, Pencil } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { speedAt, sourceToEditedMs, type VideoEdits } from '../../../../shared/video-edits';
 import { AdvancedVideoControls, AudioAutomationControls, NumberControl, type EditTool } from './AdvancedVideoControls';
 import { EditedVideoCanvas } from './EditedVideoCanvas';
@@ -569,6 +570,7 @@ export function MontageComposer({
     if (fallback) setSelectedSegmentId(fallback.id);
   };
 
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const discardDraft = async () => {
     if (exportPending || discardingRef.current) return;
     discardingRef.current = true;
@@ -700,7 +702,18 @@ export function MontageComposer({
           </span>
         </div>
         <div className="montage-v2-header__actions">
-          <Button variant="ghost" size="sm" aria-pressed={project.kept === true} onClick={() => changeProject({ ...project, kept: !project.kept })}>{project.kept ? 'Project kept' : 'Keep project'}</Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="montage-v2-keep"
+            aria-pressed={project.kept === true}
+            title={project.kept ? 'Kept until you discard it' : 'Keep this project until you discard it. Otherwise it clears 3 hours after its last save.'}
+            onClick={() => changeProject({ ...project, kept: !project.kept })}
+          >
+            {project.kept ? <BookmarkCheck className="size-4" aria-hidden="true" /> : <Bookmark className="size-4" aria-hidden="true" />}
+            {project.kept ? 'Project kept' : 'Keep project'}
+          </Button>
+          <span className="montage-v2-header__divider" aria-hidden="true" />
           {sourceClipActions ? <>
             <Button variant="ghost" size="icon" className="montage-v2-favorite" aria-label={sourceClipActions.clip.favorite ? 'Unfavorite clip' : 'Favorite clip'} aria-pressed={sourceClipActions.clip.favorite} onClick={() => sourceClipActions.onFavorite(!sourceClipActions.clip.favorite)}><Star className="size-4" /></Button>
             <Button variant="ghost" size="icon" aria-label="Rename source clip" onClick={sourceClipActions.onRename}><Pencil className="size-4" /></Button>
@@ -735,14 +748,28 @@ export function MontageComposer({
               onCancelExport={cancelExport}
             />
           ) : null}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label="Discard montage draft" onClick={() => void discardDraft()}>
-                <Trash2 className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Discard draft</TooltipContent>
-          </Tooltip>
+          <Popover open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" aria-label="Discard montage draft" disabled={exportPending}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>{project.kept ? 'Discard project' : 'Discard draft'}</TooltipContent>
+            </Tooltip>
+            <PopoverContent align="end" sideOffset={6} className="montage-v2-discard" role="alertdialog" aria-label="Discard this edit?">
+              <strong>{project.kept ? 'Discard this kept project?' : 'Discard this draft?'}</strong>
+              <p>Your edits are removed. The clips stay in your library.</p>
+              <div>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setDiscardConfirmOpen(false)}>Cancel</Button>
+                <Button type="button" size="sm" variant="danger" aria-label="Confirm discard" onClick={() => { setDiscardConfirmOpen(false); void discardDraft(); }}>
+                  <Trash2 className="size-3.5" aria-hidden="true" />Discard
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </header>
 

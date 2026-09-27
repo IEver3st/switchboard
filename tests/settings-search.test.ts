@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'bun:test';
-import { isSettingsCategoryVisible, searchSettings, settingsCategories, settingsSearchEntries, visibleSettingsCategories } from '../src/renderer/src/components/settings/settings-catalog';
+import {
+  categoryLabel,
+  isSettingsCategoryVisible,
+  newSettingIds,
+  searchSettings,
+  settingsCategories,
+  settingsCategoryGroups,
+  settingsSearchEntries,
+  visibleSettingsCategories,
+} from '../src/renderer/src/components/settings/settings-catalog';
 
 describe('settings search metadata', () => {
   it('gates diagnostics navigation, selection, and search on confirmed developer mode', () => {
@@ -57,5 +66,31 @@ describe('settings search metadata', () => {
   it('does not expose the Devices workspace as a duplicate settings category', () => {
     expect(settingsCategories.some((category) => category.id === ('devices' as never))).toBe(false);
     expect(settingsSearchEntries.some((entry) => entry.category === ('devices' as never))).toBe(false);
+  });
+});
+
+describe('settings organization', () => {
+  it('places every category in a navigation group and gives updates their own page', () => {
+    const groups = new Set(settingsCategoryGroups.map((group) => group.id));
+    expect(settingsCategories.every((category) => groups.has(category.group))).toBe(true);
+    for (const id of ['about.updates', 'about.automaticAppUpdates', 'about.automaticAppUpdateDownloads', 'about.installAppUpdatesWhenIdle', 'about.installAppUpdatesOnNextStartup']) {
+      expect(settingsSearchEntries.find((entry) => entry.id === id)?.category).toBe('updates');
+    }
+    expect(searchSettings('update')[0]?.category).toBe('updates');
+  });
+
+  it('keeps page visibility and modules on the same Features page', () => {
+    expect(settingsSearchEntries.find((entry) => entry.id === 'general.workspace')?.category).toBe('modules');
+    expect(categoryLabel('modules')).toBe('Features');
+    expect(searchSettings('workspace').map((entry) => entry.id)).toContain('general.workspace');
+    expect(searchSettings('modules').some((entry) => entry.id === 'modules.installed')).toBe(true);
+  });
+
+  it('marks only settings with a release as new', () => {
+    expect(newSettingIds.length).toBeGreaterThan(0);
+    for (const id of newSettingIds) {
+      expect(settingsSearchEntries.find((entry) => entry.id === id)?.addedIn).toMatch(/^\d+\.\d+\.\d+$/);
+    }
+    expect(new Set(newSettingIds).size).toBe(newSettingIds.length);
   });
 });

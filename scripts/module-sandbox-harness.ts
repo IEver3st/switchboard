@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
@@ -8,6 +9,7 @@ import { SandboxedDeviceAddon } from '../src/main/modules/sandboxed-device-addon
 
 const projectPath = await mkdtemp(join(tmpdir(), 'switchboard-module-sandbox-'));
 app.setName('switchboard-module-sandbox-review');
+app.on('window-all-closed', () => {});
 app.setAppPath(process.cwd());
 app.setPath('userData', join(projectPath, 'user-data'));
 const watchdog = setTimeout(() => {
@@ -55,7 +57,7 @@ async function runReview(): Promise<void> {
   const states: Array<{ status: string; message?: string }> = [];
   const addon = new SandboxedDeviceAddon(manifest, entrypointPath, (_moduleId, status, message) => {
     states.push({ status, message });
-  });
+  }, createHash('sha256').update(await readFile(entrypointPath)).digest('hex'));
   const discoveryContext = {
     hidDevices: [{
       path: '\\\\?\\hid#sandbox-review',
@@ -90,6 +92,17 @@ async function runReview(): Promise<void> {
   assert.equal(states.at(-1)?.status, 'ready');
   assert.equal(BrowserWindow.getAllWindows().length, 0);
 
+  for (let cycle = 0; cycle < 3; cycle++) {
+    assert.equal((await addon.discover(discoveryContext)).length, 1, JSON.stringify(states));
+    assert(BrowserWindow.getAllWindows().every(window => !window.isVisible()));
+    await addon.deactivate();
+    assert.equal(BrowserWindow.getAllWindows().length, 0);
+  }
+  await writeFile(entrypointPath, 'export default { detect() { return []; } };');
+  assert.deepEqual(await addon.discover(discoveryContext), []);
+  assert.equal(states.at(-1)?.status, 'runtime-error');
+  assert.match(states.at(-1)?.message ?? '', /verified package/);
+  assert.equal(BrowserWindow.getAllWindows().length, 0);
   await addon.dispose();
   console.log(JSON.stringify({
     sandbox: 'passed',
@@ -103,5 +116,7 @@ async function runReview(): Promise<void> {
 
 async function cleanup(): Promise<void> {
   clearTimeout(watchdog);
-  await rm(projectPath, { recursive: true, force: true });
+  // Chromium still owns files in userData until process exit. Leave the isolated
+  // profile for the parent process/OS; remove only the authoring fixture here.
+  await rm(entrypointPath, { force: true });
 }

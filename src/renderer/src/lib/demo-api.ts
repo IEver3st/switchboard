@@ -266,6 +266,9 @@ const demoApi: SwitchboardApi = {
   async createModuleProject() {
     throw new Error('Creating a module project requires the Switchboard desktop application.');
   },
+  async inspectCommunityModule() { throw new Error('GitHub modules require the Switchboard desktop application.'); },
+  async installCommunityModule() { throw new Error('GitHub modules require the Switchboard desktop application.'); },
+  async manageCommunityModule() { throw new Error('GitHub modules require the Switchboard desktop application.'); },
   async linkModuleProject() {
     throw new Error('Linking a module project requires the Switchboard desktop application.');
   },
@@ -635,6 +638,8 @@ const demoApi: SwitchboardApi = {
     if (scope === 'general') {
       snapshot.settings.uiScalePercent = defaults.settings.uiScalePercent;
       snapshot.settings.launchAtStartup = defaults.settings.launchAtStartup;
+      snapshot.settings.startMinimized = defaults.settings.startMinimized;
+      snapshot.settings.trayOnGameLaunch = defaults.settings.trayOnGameLaunch;
       snapshot.settings.closeToTray = defaults.settings.closeToTray;
       snapshot.settings.destroyRendererInTray = defaults.settings.destroyRendererInTray;
       snapshot.settings.softwareRendering = defaults.settings.softwareRendering;

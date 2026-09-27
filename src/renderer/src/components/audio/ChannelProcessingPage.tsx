@@ -1,5 +1,5 @@
 import type { ChannelAudioBusId, SystemSnapshot } from '../../../../shared/contracts';
-import { Switch } from '@/components/ui/switch';
+import { AudioChannelHeader, AudioModule, AudioNotice } from './AudioModule';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
@@ -30,84 +30,77 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
 
   if (!processing || !bus) return <div className="px-6 py-8 text-sm text-destructive">{labels[busId]} sound settings are unavailable.</div>;
 
+  const device = snapshot.audio.devices.find((candidate) => candidate.id === bus.deviceId);
+  const detail = `${labels[busId]} output · ${device?.name ?? 'Default output device'}`;
+  const processingProps = (processorId: 'normalization' | 'compressor' | 'limiter') => ({
+    disabled: unavailable,
+    pending,
+    onCheckedChange: (enabled: boolean) => void setAudioChannelProcessor({ busId, processorId, enabled }),
+  });
+
   return (
     <div className="audio-channel" data-channel={busId}>
+      <AudioChannelHeader channel={busId} title={labels[busId]} detail={detail}>
+        <div className="audio-channel-head__preset">
+          <span className="audio-eyebrow">Preset</span>
+          <PresetPicker
+            kind={busId}
+            label="Sound preset"
+            presets={snapshot.audio.pathPresets}
+            activeId={snapshot.audio.activePresetIds[busId]}
+            pending={pending}
+            desktopFeatures={Boolean(window.switchboard)}
+            onApply={(presetId) => void applyAudioPreset({ presetId })}
+            onCreate={(name) => void createAudioPreset({ kind: busId, name })}
+            onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
+            onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
+            onDelete={(presetId) => void deleteAudioPreset({ presetId })}
+            onImport={() => void importAudioPreset()}
+            onExport={(presetId) => void exportAudioPreset({ presetId })}
+          />
+        </div>
+      </AudioChannelHeader>
       {support !== 'available' ? (
-        <p className="audio-status" role="status">
+        <AudioNotice>
           {support === 'simulation'
             ? 'Sound processing is not available on this setup yet. Your settings will still be saved.'
-            : unavailableMessage ?? 'Sound processing is unavailable for this output.'}
-        </p>
+            : unavailableMessage ?? 'Sound processing is unavailable for this output. Your settings will still be saved.'}
+        </AudioNotice>
       ) : null}
-      <div className="audio-toolbar">
-        <section className="audio-toolbar__group" aria-label="Preset">
-          <span className="audio-eyebrow">Preset</span>
-          <div className="audio-toolbar__card">
-            <PresetPicker
-              kind={busId}
-              label="Sound preset"
-              presets={snapshot.audio.pathPresets}
-              activeId={snapshot.audio.activePresetIds[busId]}
-              pending={pending}
-              desktopFeatures={Boolean(window.switchboard)}
-              onApply={(presetId) => void applyAudioPreset({ presetId })}
-              onCreate={(name) => void createAudioPreset({ kind: busId, name })}
-              onRename={(presetId, name) => void renameAudioPreset({ presetId, name })}
-              onDuplicate={(presetId) => void duplicateAudioPreset({ presetId })}
-              onDelete={(presetId) => void deleteAudioPreset({ presetId })}
-              onImport={() => void importAudioPreset()}
-              onExport={(presetId) => void exportAudioPreset({ presetId })}
-            />
-          </div>
-        </section>
-        <span className="grow" />
-      </div>
-      <section className="audio-panel audio-panel--eq" aria-labelledby={`${busId}-equalizer-heading`}>
-        <header className="audio-panel__head">
-          <Switch
-            checked={processing.equalizer.enabled}
-            disabled={unavailable || pending}
-            aria-label={`${processing.equalizer.enabled ? 'Bypass' : 'Enable'} Equalizer`}
-            onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', enabled })}
-          />
-          <h3 id={`${busId}-equalizer-heading`}>Equalizer</h3>
-        </header>
+      <AudioModule
+        className="audio-panel--eq"
+        headingId={`${busId}-equalizer-heading`}
+        title="Equalizer"
+        description="Drag a band, or pick one below to type exact values."
+        checked={processing.equalizer.enabled}
+        disabled={unavailable}
+        pending={pending}
+        switchLabel={`${processing.equalizer.enabled ? 'Bypass' : 'Enable'} Equalizer`}
+        onCheckedChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', enabled })}
+      >
         <ParametricEq
           bands={processing.equalizer.bands}
           disabled={unavailable || !processing.equalizer.enabled || pending}
           onCommit={(bands) => void setAudioChannelProcessor({ busId, processorId: 'equalizer', parameters: { bands } })}
         />
-      </section>
+      </AudioModule>
       <div className="audio-panel-grid" aria-label={`${labels[busId]} processing controls`}>
-        <ProcessorGroup title={normalizationCopy[busId].title} description={normalizationCopy[busId].description} enabled={processing.normalization.enabled} disabled={unavailable} pending={pending} onEnabledChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'normalization', enabled })}>
+        <AudioModule headingId={`${busId}-normalization-heading`} title={normalizationCopy[busId].title} description={normalizationCopy[busId].description} checked={processing.normalization.enabled} switchLabel={`${processing.normalization.enabled ? 'Bypass' : 'Enable'} ${normalizationCopy[busId].title}`} {...processingProps('normalization')}>
           <ParameterControl label="Target loudness" value={processing.normalization.targetLufs} min={-30} max={-10} step={0.5} unit=" LUFS" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(targetLufs) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { targetLufs } })} />
           <ParameterControl label="Maximum lift" value={processing.normalization.maxGainDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.normalization.enabled || pending} onCommit={(maxGainDb) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { maxGainDb } })} />
-        </ProcessorGroup>
-        <ProcessorGroup title="Dynamic control" description="Keeps loud peaks closer to the rest of the mix." enabled={processing.compressor.enabled} disabled={unavailable} pending={pending} onEnabledChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'compressor', enabled })}>
+        </AudioModule>
+        <AudioModule headingId={`${busId}-compressor-heading`} title="Dynamic control" description="Keeps loud peaks closer to the rest of the mix." checked={processing.compressor.enabled} switchLabel={`${processing.compressor.enabled ? 'Bypass' : 'Enable'} Dynamic control`} {...processingProps('compressor')}>
           <ParameterControl label="Threshold" value={processing.compressor.thresholdDb} min={-60} max={0} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { thresholdDb } })} />
           <ParameterControl label="Ratio" value={processing.compressor.ratio} min={1} max={20} step={0.1} unit=":1" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(ratio) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { ratio } })} />
           <ParameterControl label="Attack" value={processing.compressor.attackMs} min={0.1} max={200} step={0.5} unit=" ms" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(attackMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { attackMs } })} />
           <ParameterControl label="Release" value={processing.compressor.releaseMs} min={10} max={2_000} step={5} unit=" ms" disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { releaseMs } })} />
           <ParameterControl label="Makeup gain" value={processing.compressor.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled || pending} onCommit={(makeupDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { makeupDb } })} />
-        </ProcessorGroup>
-        <ProcessorGroup title="Output safety" description="Prevents sudden clipping and excessive peaks." enabled={processing.limiter.enabled} disabled={unavailable} pending={pending} onEnabledChange={(enabled) => void setAudioChannelProcessor({ busId, processorId: 'limiter', enabled })}>
+        </AudioModule>
+        <AudioModule headingId={`${busId}-limiter-heading`} title="Output safety" description="Prevents sudden clipping and excessive peaks." checked={processing.limiter.enabled} switchLabel={`${processing.limiter.enabled ? 'Bypass' : 'Enable'} Output safety`} {...processingProps('limiter')}>
           <ParameterControl label="Ceiling" value={processing.limiter.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { thresholdDb } })} />
           <ParameterControl label="Release" value={processing.limiter.releaseMs} min={10} max={1_000} step={5} unit=" ms" disabled={unavailable || !processing.limiter.enabled || pending} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { releaseMs } })} />
-        </ProcessorGroup>
+        </AudioModule>
       </div>
     </div>
-  );
-}
-
-function ProcessorGroup({ title, description, enabled, disabled, pending, onEnabledChange, children }: { title: string; description: string; enabled: boolean; disabled: boolean; pending: boolean; onEnabledChange: (enabled: boolean) => void; children: React.ReactNode }) {
-  return (
-    <section className={`audio-panel${(!enabled || disabled) ? ' is-disabled' : ''}`} aria-label={title} aria-busy={pending}>
-      <header className="audio-panel__head">
-        <Switch checked={enabled} disabled={disabled || pending} aria-label={`${enabled ? 'Bypass' : 'Enable'} ${title}`} onCheckedChange={onEnabledChange} />
-        <h3>{title}</h3>
-        <p className="audio-panel__note">{description}</p>
-      </header>
-      <div className="audio-panel__body">{children}</div>
-    </section>
   );
 }

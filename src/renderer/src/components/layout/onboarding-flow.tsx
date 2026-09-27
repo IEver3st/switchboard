@@ -1,5 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, AudioWaveform, Cable, Check, CircleDot, Flag, LayoutGrid, Pause, Play, TriangleAlert, type LucideIcon } from 'lucide-react';
+import './onboarding.css';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  AppWindow,
+  ArrowLeft,
+  ArrowRight,
+  AudioLines,
+  Check,
+  Gamepad2,
+  Headphones,
+  Keyboard,
+  Mic,
+  Monitor,
+  MessagesSquare,
+  Mouse,
+  Play,
+  TriangleAlert,
+  type LucideIcon,
+} from 'lucide-react';
 import { AnimatePresence, m } from 'motion/react';
 import type {
   CaptureResolution,
@@ -17,7 +34,6 @@ import {
 } from '../../../../shared/workspace-profile';
 import {
   CaptureAudioDeviceSelect,
-  captureAudioDeviceName,
   captureInputDevices,
   captureOutputDevices,
   chatAutomaticLabel,
@@ -26,34 +42,23 @@ import {
 } from '@/components/capture/capture-audio-device-select';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Kbd } from '@/components/ui/kbd';
-import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { displayShortcut } from '@/lib/shortcut';
 import { useSystemStore } from '@/stores/use-system-store';
 
-const stepMeta: ReadonlyArray<{ id: string; title: string; description: string; icon: LucideIcon }> = [
-  { id: 'welcome', title: 'Welcome', description: 'What Switchboard is and what setup covers.', icon: Flag },
-  { id: 'workspaces', title: 'Choose your setup', description: 'Pick the parts of Switchboard you want to see.', icon: LayoutGrid },
-  { id: 'capture', title: 'Set up capture', description: 'Replay, source, quality, and the save shortcut.', icon: CircleDot },
-  { id: 'audio', title: 'Set up audio tracks', description: 'Choose which sound gets its own clip track.', icon: AudioWaveform },
-  { id: 'finish', title: 'Review and finish', description: 'Confirm the choices and start working.', icon: Check },
-];
+const steps = [
+  { id: 'welcome', label: 'Welcome' },
+  { id: 'setup', label: 'Your setup' },
+  { id: 'capture', label: 'Capture' },
+  { id: 'audio', label: 'Audio tracks' },
+  { id: 'finish', label: 'Ready' },
+] as const;
 
-const workspaceCards: ReadonlyArray<{ id: VisibleWorkspace; title: string; description: string; icon: LucideIcon }> = [
-  { id: 'devices', title: 'Devices', description: 'Connected hardware and its controls.', icon: Cable },
-  { id: 'audio', title: 'Audio', description: 'Unfinished routing and processing. Developer mode only.', icon: AudioWaveform },
-  { id: 'capture', title: 'Capture', description: 'Replay, clips, and recording.', icon: CircleDot },
-];
-
-const sourceOptions: ReadonlyArray<{ value: CaptureSourceType; title: string; description: string }> = [
-  { value: 'automatic-game', title: 'Automatic game', description: 'Follow the game in focus. Nothing to pick.' },
-  { value: 'window', title: 'Window', description: 'Capture one window. Choose it in Capture later.' },
-  { value: 'display', title: 'Display', description: 'Capture a whole monitor.' },
+const sourceOptions: ReadonlyArray<{ value: CaptureSourceType; title: string; description: string; icon: LucideIcon }> = [
+  { value: 'automatic-game', title: 'Automatic game', description: 'Follows the game in focus', icon: Gamepad2 },
+  { value: 'window', title: 'One window', description: 'Pick the window in Capture', icon: AppWindow },
+  { value: 'display', title: 'Whole display', description: 'Records a full monitor', icon: Monitor },
 ];
 
 const resolutionOptions: ReadonlyArray<{ value: CaptureResolution; label: string }> = [
@@ -64,72 +69,51 @@ const resolutionOptions: ReadonlyArray<{ value: CaptureResolution; label: string
   { value: 'native', label: 'Native source' },
 ];
 
-const replayLengthOptions: ReadonlyArray<{ value: number; label: string }> = [
-  { value: 15, label: '15 seconds' },
-  { value: 30, label: '30 seconds' },
-  { value: 45, label: '45 seconds' },
-  { value: 60, label: '1 minute' },
-  { value: 120, label: '2 minutes' },
-  { value: 180, label: '3 minutes' },
-  { value: 300, label: '5 minutes' },
-];
+const commonReplayLengths = [30, 60, 120, 300] as const;
 
-const stageContentVariants = {
-  hidden: {},
-  visible: {
-    transition: {
-      delayChildren: 0.02,
-      staggerChildren: 0.035,
-      staggerDirection: 1,
-    },
-  },
+const ease = [0.22, 1, 0.36, 1] as const;
+
+// The exiting step reads the latest direction through AnimatePresence custom.
+const stepVariants = {
+  enter: (direction: number) => ({ opacity: 0, x: direction * 28 }),
+  center: { opacity: 1, x: 0 },
+  exit: (direction: number) => ({ opacity: 0, x: direction * -20, transition: { duration: 0.14, ease: 'easeIn' as const } }),
 };
 
-const stageItemVariants = {
-  hidden: (direction: number) => ({ opacity: 0, y: direction > 0 ? 5 : -5 }),
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const },
-  },
+const reducedStepVariants = {
+  enter: { opacity: 1 },
+  center: { opacity: 1 },
+  exit: { opacity: 0, transition: { duration: 0 } },
 };
+
+function replayLengthLabel(seconds: number, short = false): string {
+  if (seconds < 60) return short ? `${seconds}s` : `${seconds} seconds`;
+  const minutes = seconds / 60;
+  if (short) return `${Number.isInteger(minutes) ? minutes : minutes.toFixed(1)} min`;
+  return `${Number.isInteger(minutes) ? minutes : minutes.toFixed(1)} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
+function resolutionLabel(resolution: CaptureResolution): string {
+  return resolutionOptions.find((option) => option.value === resolution)?.label.replace(' (Default)', '') ?? resolution;
+}
 
 function sourceLabel(source: CaptureSourceType): string {
   return sourceOptions.find((option) => option.value === source)?.title ?? source;
 }
 
-function resolutionLabel(resolution: CaptureResolution): string {
-  return resolutionOptions.find((option) => option.value === resolution)?.label ?? resolution;
-}
-
-function replayLengthLabel(seconds: number): string {
-  return replayLengthOptions.find((option) => option.value === seconds)?.label ?? `${seconds} seconds`;
-}
-
 function workspaceName(workspace: VisibleWorkspace): string {
-  return workspaceCards.find((card) => card.id === workspace)?.title ?? workspace;
-}
-
-function setupLabel(workspaces: ReadonlyArray<VisibleWorkspace>, developerMode: boolean): string {
-  const preset = workspacePreset(workspaces, developerMode);
-  if (preset === 'clipping') return 'Just clipping';
-  if (preset === 'full') return 'Full setup';
-  return workspaces.map(workspaceName).join(' · ');
+  return workspace === 'devices' ? 'Devices' : workspace === 'audio' ? 'Audio' : 'Capture';
 }
 
 export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
   const developerMode = snapshot.settings.developerMode === true;
   const [active, setActive] = useState(0);
   const [direction, setDirection] = useState(1);
-  const [workspaces, setWorkspaces] = useState<VisibleWorkspace[]>(
-    () => {
-      const normalized = normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces)
-        ?? fullWorkspacesForDeveloperMode(snapshot.settings.developerMode === true);
-      return snapshot.settings.developerMode === true
-        ? normalized
-        : normalized.filter((entry) => entry !== 'audio');
-    },
-  );
+  const [workspaces, setWorkspaces] = useState<VisibleWorkspace[]>(() => {
+    const normalized = normalizeVisibleWorkspaces(snapshot.settings.visibleWorkspaces)
+      ?? fullWorkspacesForDeveloperMode(developerMode);
+    return developerMode ? normalized : normalized.filter((entry) => entry !== 'audio');
+  });
   const [source, setSource] = useState<CaptureSourceType>(snapshot.capture.config.source);
   const [resolution, setResolution] = useState<CaptureResolution>(snapshot.capture.config.resolution);
   const [replaySeconds, setReplaySeconds] = useState(snapshot.capture.config.replaySeconds);
@@ -143,8 +127,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
   const [chatAudioDeviceId, setChatAudioDeviceId] = useState<string | null>(snapshot.capture.config.chatAudioDeviceId);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [backgroundPaused, setBackgroundPaused] = useState(false);
-  const currentHeadingRef = useRef<HTMLHeadingElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [reduceMotion, setReduceMotion] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
@@ -158,24 +141,36 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
   }, []);
 
   useEffect(() => {
-    currentHeadingRef.current?.focus({ preventScroll: true });
-  }, [active]);
+    // Move focus to the new step heading after the enter animation starts.
+    const timer = window.setTimeout(() => headingRef.current?.focus({ preventScroll: true }), reduceMotion ? 0 : 60);
+    return () => window.clearTimeout(timer);
+  }, [active, reduceMotion]);
 
   const fail = (message: string) => {
     setError(message);
     setPending(false);
   };
 
-  const revisit = (index: number) => {
+  const goTo = (index: number) => {
     if (pending) return;
     setError(null);
     setDirection(index >= active ? 1 : -1);
     setActive(index);
   };
 
-  const advanceTo = (index: number) => {
-    setDirection(index >= active ? 1 : -1);
-    setActive(index);
+  const run = async (work: () => Promise<void>, next: number) => {
+    setPending(true);
+    setError(null);
+    useSystemStore.getState().clearError();
+    await work();
+    const failure = useSystemStore.getState().error;
+    if (failure) {
+      fail(failure);
+      return;
+    }
+    setPending(false);
+    setDirection(1);
+    setActive(next);
   };
 
   const skipSetup = async () => {
@@ -194,25 +189,13 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
     useSystemStore.getState().setPage('devices');
   };
 
-  const continueFromWorkspaces = async () => {
-    setPending(true);
-    setError(null);
-    useSystemStore.getState().clearError();
-    await useSystemStore.getState().updateSettings({ visibleWorkspaces: workspaces });
-    const failure = useSystemStore.getState().error;
-    if (failure) {
-      fail(failure);
-      return;
-    }
-    setPending(false);
-    advanceTo(2);
-  };
+  const continueFromSetup = () => run(
+    () => useSystemStore.getState().updateSettings({ visibleWorkspaces: workspaces }),
+    2,
+  );
 
-  const continueFromCapture = async () => {
-    setPending(true);
-    setError(null);
-    useSystemStore.getState().clearError();
-    await useSystemStore.getState().setCaptureConfig({
+  const continueFromCapture = () => run(
+    () => useSystemStore.getState().setCaptureConfig({
       source,
       ...(source === 'automatic-game' ? { sourceId: null } : {}),
       resolution,
@@ -220,36 +203,21 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
       hotkey,
       // Persist setup choices without starting/probing an encoder between steps.
       enabled: false,
-    });
-    const failure = useSystemStore.getState().error;
-    if (failure) {
-      fail(failure);
-      return;
-    }
-    setPending(false);
-    advanceTo(3);
-  };
+    }),
+    3,
+  );
 
-  const continueFromAudio = async () => {
-    setPending(true);
-    setError(null);
-    useSystemStore.getState().clearError();
-    await useSystemStore.getState().setCaptureConfig({
+  const continueFromAudio = () => run(
+    () => useSystemStore.getState().setCaptureConfig({
       includeMic,
       includeSystemAudio,
       includeChatAudio,
       microphoneDeviceId,
       systemAudioDeviceId,
       chatAudioDeviceId,
-    });
-    const failure = useSystemStore.getState().error;
-    if (failure) {
-      fail(failure);
-      return;
-    }
-    setPending(false);
-    advanceTo(4);
-  };
+    }),
+    4,
+  );
 
   const finish = async () => {
     setPending(true);
@@ -272,558 +240,534 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
     useSystemStore.getState().setPage(defaultPageForProfile({ visibleWorkspaces: filtered, developerMode }));
   };
 
+  const draft = () => ({
+    workspaces,
+    source,
+    resolution,
+    replaySeconds,
+    hotkey,
+    replayEnabled: replay,
+    includeMic,
+    includeSystemAudio,
+    includeChatAudio,
+  });
+
   const choosePreset = (preset: 'clipping' | 'full') => {
     setError(null);
-    const draft = applyWorkspacePreset(
-      {
-        workspaces,
-        source,
-        resolution,
-        replaySeconds,
-        hotkey,
-        replayEnabled: replay,
-        includeMic,
-        includeSystemAudio,
-        includeChatAudio,
-      },
-      preset,
-      developerMode,
-    );
-    setWorkspaces(draft.workspaces);
-    setReplay(draft.replayEnabled);
+    const next = applyWorkspacePreset(draft(), preset, developerMode);
+    setWorkspaces(next.workspaces);
+    setReplay(next.replayEnabled);
   };
 
-  const toggleWorkspace = (workspace: VisibleWorkspace) => {
-    if (workspace === 'audio' && !developerMode) return;
+  const toggleAudioWorkspace = () => {
+    if (!developerMode) return;
     setError(null);
-    const draft = toggleDraftWorkspace(
-      {
-        workspaces,
-        source,
-        resolution,
-        replaySeconds,
-        hotkey,
-        replayEnabled: replay,
-        includeMic,
-        includeSystemAudio,
-        includeChatAudio,
-      },
-      workspace,
-      developerMode,
-    );
-    setWorkspaces(draft.workspaces);
+    setWorkspaces(toggleDraftWorkspace(draft(), 'audio', developerMode).workspaces);
   };
 
-  const setAudioTrackState = (id: 'mic' | 'system' | 'chat', next: boolean) => {
-    setError(null);
-    if (id === 'mic') setIncludeMic(next);
-    else if (id === 'system') setIncludeSystemAudio(next);
-    else setIncludeChatAudio(next);
+  const preset = workspacePreset(workspaces, developerMode);
+  const primaryLabel = active === 0
+    ? 'Get started'
+    : active === 4
+      ? `Open ${workspaceName(workspaces[0] ?? 'capture')}`
+      : 'Continue';
+  const onPrimary = () => {
+    if (active === 0) goTo(1);
+    else if (active === 1) void continueFromSetup();
+    else if (active === 2) void continueFromCapture();
+    else if (active === 3) void continueFromAudio();
+    else void finish();
   };
 
-  const audioSummary = `${includeMic ? 'Mic on' : 'Mic off'} · ${includeSystemAudio ? 'System on' : 'System off'} · ${includeChatAudio ? 'Chat on' : 'Chat off'}`;
-
-  const statusOf = (index: number): 'done' | 'current' | 'todo' => (
-    index < active ? 'done' : index === active ? 'current' : 'todo'
-  );
-
-  const doneSummary = (index: number): string => {
-    if (index === 1) return setupLabel(workspaces, developerMode);
-    if (index === 2) return `${replay ? 'Capture on' : 'Capture off'} · ${resolutionLabel(resolution)} · ${replayLengthLabel(replaySeconds)}`;
-    if (index === 3) return audioSummary;
-    return stepMeta[index]?.description ?? '';
-  };
-
-  const visibleWorkspaceCards = workspaceCards.filter((card) => developerMode || card.id !== 'audio');
-  const activeStep = stepMeta[active] ?? stepMeta[0]!;
-  const ActiveStepIcon = activeStep.icon;
-
-  const stageTransition = reduceMotion
-    ? { duration: 0 }
-    : { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const };
+  const stepTransition = reduceMotion ? { duration: 0 } : { duration: 0.26, ease };
+  const enter = (index: number) => (reduceMotion
+    ? {}
+    : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.28, ease, delay: 0.06 + index * 0.045 } });
 
   return (
-    <div className="onboarding-screen">
-      <div className="app-drag onboarding-topbar" aria-hidden="true">
-        <img src="./switchboard-mark.png" alt="" draggable={false} />
-        <span>Switchboard</span>
-      </div>
-
-      <main className="onboarding-main" aria-labelledby="onboarding-heading">
-        <div className="onboarding-backdrop" data-paused={backgroundPaused || reduceMotion} aria-hidden="true">
-          <div className="onboarding-contour-layer onboarding-contours__sweep">
-            <svg className="onboarding-contours" viewBox="0 0 1600 1000" fill="none" preserveAspectRatio="xMidYMid slice">
-              {Array.from({ length: 44 }, (_, index) => (
-                <path
-                  key={index}
-                  d={`M ${-350 + index * 13} 1180 C ${-120 + index * 18} ${460 + index * 8}, ${620 + index * 8} ${1320 - index * 5}, ${1120 + index * 11} ${720 - index * 9} S ${1260 + index * 9} ${-60 - index * 6}, ${1810 + index * 8} -180`}
-                  className={index % 7 === 0 ? 'onboarding-contours__accent' : undefined}
-                />
-              ))}
-            </svg>
-          </div>
-          <div className="onboarding-contour-layer onboarding-contours__fold">
-            <svg className="onboarding-contours" viewBox="0 0 1600 1000" fill="none" preserveAspectRatio="xMidYMid slice">
-              {Array.from({ length: 24 }, (_, index) => (
-                <path
-                  key={index}
-                  d={`M ${620 + index * 22} 1190 C ${400 + index * 20} ${760 - index * 8}, ${1510 - index * 12} ${980 - index * 13}, ${1770 - index * 5} ${140 - index * 11}`}
-                />
-              ))}
-            </svg>
-          </div>
+    <div className="onboarding-screen ob" data-step={steps[active]?.id}>
+      <header className="app-drag ob-header">
+        <div className="ob-brand" aria-hidden="true">
+          <img src="./switchboard-mark.png" alt="" draggable={false} />
+          <span>Switchboard</span>
         </div>
-        <div className="onboarding-wrap">
-          <h1 id="onboarding-heading">Set up Switchboard</h1>
-          <p className="onboarding-sub">Complete these steps to get capture and hardware ready.</p>
+        {active > 0 && active < steps.length ? (
+          <ol className="ob-progress" aria-label={`Step ${active} of ${steps.length - 1}`}>
+            {steps.slice(1).map((step, index) => {
+              const position = index + 1;
+              const state = position < active ? 'done' : position === active ? 'current' : 'todo';
+              return (
+                <li key={step.id} data-state={state} aria-current={state === 'current' ? 'step' : undefined}>
+                  <span className="ob-progress__track">
+                    <m.span
+                      className="ob-progress__fill"
+                      initial={false}
+                      animate={{ scaleX: state === 'todo' ? 0 : 1 }}
+                      transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease }}
+                    />
+                  </span>
+                  <span className="ob-progress__label">{step.label}</span>
+                </li>
+              );
+            })}
+          </ol>
+        ) : <span />}
+        <div className="ob-header__actions no-drag">
+          <Button type="button" variant="ghost" size="sm" className="ob-skip" disabled={pending} onClick={() => void skipSetup()}>
+            Skip setup
+          </Button>
+        </div>
+      </header>
 
-          <p className="onboarding-count" aria-live="polite">
-            <span>{active} of {stepMeta.length} completed</span>
-          </p>
-          <Progress
-            value={(active / stepMeta.length) * 100}
-            aria-label="Setup progress"
-            className="onboarding-progress"
-          />
+      <div className="ob-body">
+        <SignalField step={active} animate={!reduceMotion} />
+        <main className="onboarding-main ob-main" aria-labelledby="onboarding-heading" aria-busy={pending}>
 
-          <div className="onboarding-workspace">
-            <ol className="onboarding-list" aria-label="Setup steps">
-              {stepMeta.map((step, index) => {
-                const status = statusOf(index);
-                const contents = (
-                  <>
-                    {status === 'current' ? (
-                      <m.span
-                        className="onboarding-live-marker"
-                        layoutId="onboarding-live-marker"
-                        transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <span
-                      className={`onboarding-status${status === 'done' ? ' onboarding-status--done' : status === 'current' ? ' onboarding-status--current' : ''}`}
-                      aria-hidden="true"
-                    >
-                      {status === 'done' ? <Check /> : index + 1}
-                    </span>
-                    <span className="onboarding-card__copy">
-                      <strong>{step.title}</strong>
-                      <small>{status === 'done' ? doneSummary(index) : step.description}</small>
-                    </span>
-                  </>
-                );
+          <h1 id="onboarding-heading" className="sr-only">Set up Switchboard</h1>
 
-                return (
-                  <li key={step.id} data-status={status}>
-                    {status === 'done' ? (
-                      <button
-                        type="button"
-                        className="onboarding-card"
-                        data-status="done"
-                        disabled={pending}
-                        onClick={() => revisit(index)}
-                        aria-label={`${step.title}, completed. Activate to revise.`}
-                      >
-                        {contents}
-                      </button>
-                    ) : (
-                      <div
-                        className="onboarding-card"
-                        data-status={status}
-                        aria-label={step.title}
-                        aria-current={status === 'current' ? 'step' : undefined}
-                        aria-disabled={status === 'todo' ? true : undefined}
-                      >
-                        {contents}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-
-            <section
-              className="onboarding-stage"
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+            <m.section
+              key={steps[active]?.id}
+              className="onboarding-stage ob-stage"
               data-step-index={active}
               aria-labelledby="onboarding-current-heading"
-              aria-busy={pending}
+              custom={direction}
+              variants={reduceMotion ? reducedStepVariants : stepVariants}
+              initial={reduceMotion ? false : 'enter'}
+              animate="center"
+              exit="exit"
+              transition={stepTransition}
             >
               {active === 0 ? (
-                <m.img
-                  className="onboarding-welcome-mark"
-                  src="./switchboard-mark.png"
-                  alt=""
-                  draggable={false}
-                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
-                />
+                <div className="ob-welcome">
+                  <m.img
+                    className="ob-welcome__mark"
+                    src="./switchboard-mark.png"
+                    alt=""
+                    draggable={false}
+                    initial={reduceMotion ? false : { opacity: 0, scale: 0.86, y: 6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.6, ease }}
+                  />
+                  <m.h2 {...enter(1)} id="onboarding-current-heading" ref={headingRef} tabIndex={-1}>Welcome to Switchboard</m.h2>
+                  <m.p {...enter(2)} className="ob-lede">
+                    Save great moments the second they happen, and keep your hardware in one quiet place.
+                  </m.p>
+                  <m.ul {...enter(3)} className="ob-points">
+                    <WelcomePoint icon={Play} title="Instant Replay" text="Switchboard keeps the last moments ready. One shortcut saves them as a clip." />
+                    <WelcomePoint icon={Mouse} title="Your devices" text="Supported mice, keyboards, and microphones, without the vendor suite." />
+                    <WelcomePoint icon={AudioLines} title="Separate tracks" text="Game, chat, and your voice stay apart so you can fix the mix later." />
+                  </m.ul>
+                  <m.p {...enter(4)} className="ob-footnote">Setup takes about a minute. You can change everything later in Settings.</m.p>
+                </div>
               ) : null}
-              <div className="onboarding-card__head">
-                <m.span
-                  key={`status-${active}`}
-                  className="onboarding-status onboarding-status--current"
-                  aria-hidden="true"
-                  initial={reduceMotion ? false : { opacity: 0.5, scale: 0.92 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={stageTransition}
-                >
-                  {active + 1}
-                </m.span>
-                <span className="onboarding-card__copy">
-                  <h2 id="onboarding-current-heading" ref={currentHeadingRef} tabIndex={-1}>{activeStep.title}</h2>
-                  <small>{activeStep.description}</small>
-                </span>
-                <m.span
-                  key={`icon-${activeStep.id}`}
-                  initial={reduceMotion ? false : { opacity: 0, x: direction * 4 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={stageTransition}
-                  aria-hidden="true"
-                >
-                  <ActiveStepIcon className="onboarding-card__icon" />
-                </m.span>
-              </div>
 
-              <div className="onboarding-stage__viewport">
-                <m.div
-                  key={activeStep.id}
-                  className="onboarding-stage__content"
-                  custom={direction}
-                  variants={reduceMotion ? undefined : stageContentVariants}
-                  initial={reduceMotion ? false : 'hidden'}
-                  animate={reduceMotion ? undefined : 'visible'}
-                >
+              {active === 1 ? (
+                <div className="ob-step">
+                  <StepHeading
+                    headingRef={headingRef}
+                    eyebrow="Your setup"
+                    title="What do you want Switchboard for?"
+                    description="This decides which pages you see. You can switch any time in Settings, Features."
+                    motion={enter(0)}
+                  />
+                  <m.div {...enter(1)} className="ob-choices" role="radiogroup" aria-label="Setup">
+                    <ChoiceTile
+                      selected={preset === 'clipping'}
+                      disabled={pending}
+                      title="Just clipping"
+                      description="Instant Replay and your clip library. Nothing else in the way."
+                      art={<ClipArt />}
+                      reduceMotion={reduceMotion}
+                      onSelect={() => choosePreset('clipping')}
+                    />
+                    <ChoiceTile
+                      selected={preset === 'full'}
+                      disabled={pending}
+                      title="Clips and hardware"
+                      description="Everything in Just clipping, plus Devices for your mouse, keyboard, and microphone."
+                      art={<ClipArt withDevices />}
+                      reduceMotion={reduceMotion}
+                      onSelect={() => choosePreset('full')}
+                    />
+                  </m.div>
+                  {developerMode ? (
+                    <m.label {...enter(2)} className="ob-inline-toggle">
+                      <span>
+                        <strong>Show the Audio page</strong>
+                        <small>Unfinished routing and processing. Developer mode only.</small>
+                      </span>
+                      <Switch checked={workspaces.includes('audio')} disabled={pending} onCheckedChange={toggleAudioWorkspace} aria-label="Show the Audio page" />
+                    </m.label>
+                  ) : null}
+                </div>
+              ) : null}
 
-                      {active === 0 ? (
-                        <>
-                        <m.p className="onboarding-body" variants={stageItemVariants}>
-                          Switchboard handles game capture and hardware controls from one quiet place.
-                          Setup takes a couple of minutes, and everything stays changeable in Settings.
-                        </m.p>
-                        <m.div className="onboarding-welcome-features" variants={stageItemVariants}>
-                          {workspaceCards.filter((card) => card.id !== 'audio').map((card) => (
-                            <div key={card.id}>
-                              <card.icon aria-hidden="true" />
-                              <span><strong>{card.title}</strong><small>{card.description}</small></span>
-                            </div>
-                          ))}
-                        </m.div>
-                        </>
-                      ) : null}
-
-                      {active === 1 ? (
-                        <>
-                          <m.div className="onboarding-presets" role="group" aria-label="Setup presets" variants={stageItemVariants}>
-                            <Button
-                              type="button"
-                              variant={workspacePreset(workspaces, developerMode) === 'clipping' ? 'primary' : 'secondary'}
-                              size="sm"
-                              disabled={pending}
-                              onClick={() => choosePreset('clipping')}
-                            >
-                              Just clipping
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={workspacePreset(workspaces, developerMode) === 'full' ? 'primary' : 'secondary'}
-                              size="sm"
-                              disabled={pending}
-                              onClick={() => choosePreset('full')}
-                            >
-                              Full setup
-                            </Button>
-                          </m.div>
-                          <m.div className="onboarding-checks" role="group" aria-label="Workspaces" variants={stageItemVariants}>
-                            {visibleWorkspaceCards.map((card) => {
-                              const locked = card.id === 'capture';
-                              const checked = workspaces.includes(card.id);
-                              const CardIcon = card.icon;
-                              return (
-                                <label
-                                  key={card.id}
-                                  htmlFor={`onboarding-workspace-${card.id}`}
-                                  className="onboarding-check"
-                                  data-state={checked ? 'checked' : 'unchecked'}
-                                >
-                                  <Checkbox
-                                    id={`onboarding-workspace-${card.id}`}
-                                    checked={checked}
-                                    disabled={pending || locked}
-                                    onCheckedChange={() => toggleWorkspace(card.id)}
-                                    aria-label={card.title}
-                                  />
-                                  <CardIcon aria-hidden="true" />
-                                  <span className="onboarding-check__copy">
-                                    <strong>{card.title}</strong>
-                                    <small>{card.description}</small>
-                                  </span>
-                                  {locked ? <span className="onboarding-check__locked">Always on</span> : null}
-                                </label>
-                              );
-                            })}
-                          </m.div>
-                        </>
-                      ) : null}
-
-                      {active === 2 ? (
-                        <>
-                          <m.div variants={stageItemVariants}>
-                            <div className="onboarding-row">
-                              <span className="onboarding-row__copy">
-                                <strong>Capture engine</strong>
-                                <small>Replay starts when you finish setup.</small>
-                              </span>
-                              <Switch
-                                checked={replay}
-                                disabled={pending}
-                                onCheckedChange={setReplay}
-                                aria-label="Capture engine"
-                              />
-                            </div>
-                            <Separator className="onboarding-sep" />
-                          </m.div>
-                          <m.div variants={stageItemVariants}>
-                            <RadioGroup
-                              value={source}
-                              onValueChange={(value) => { setError(null); setSource(value as CaptureSourceType); }}
-                              disabled={pending}
-                              aria-label="Capture source"
-                              className="onboarding-picks"
-                            >
-                              {sourceOptions.map((option) => (
-                                <label
-                                  key={option.value}
-                                  htmlFor={`onboarding-source-${option.value}`}
-                                  className="onboarding-pick"
-                                  data-state={source === option.value ? 'checked' : 'unchecked'}
-                                >
-                                  <RadioGroupItem id={`onboarding-source-${option.value}`} value={option.value} aria-label={option.title} />
-                                  <span className="onboarding-pick__copy">
-                                    <strong>{option.title}</strong>
-                                    <small>{option.description}</small>
-                                  </span>
-                                </label>
-                              ))}
-                            </RadioGroup>
-                            <Separator className="onboarding-sep" />
-                          </m.div>
-                          <m.div variants={stageItemVariants}>
-                            <div className="onboarding-row">
-                              <span className="onboarding-row__copy">
-                                <strong id="onboarding-resolution-label">Resolution</strong>
-                                <small>Output size for newly encoded clips.</small>
-                              </span>
-                              <Select
-                                value={resolution}
-                                onValueChange={(value) => { setError(null); setResolution(value as CaptureResolution); }}
-                                disabled={pending}
-                              >
-                                <SelectTrigger aria-labelledby="onboarding-resolution-label" className="onboarding-select">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {resolutionOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <Separator className="onboarding-sep" />
-                          </m.div>
-                          <m.div variants={stageItemVariants}>
-                            <div className="onboarding-row">
-                              <span className="onboarding-row__copy">
-                                <strong id="onboarding-replay-length-label">Replay length</strong>
-                                <small>How much recent footage each saved clip keeps.</small>
-                              </span>
-                              <Select
-                                value={String(replaySeconds)}
-                                onValueChange={(value) => { setError(null); setReplaySeconds(Number(value)); }}
-                                disabled={pending}
-                              >
-                                <SelectTrigger aria-labelledby="onboarding-replay-length-label" className="onboarding-select">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {replayLengthOptions.map((option) => (
-                                    <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <Separator className="onboarding-sep" />
-                          </m.div>
-                          <m.div variants={stageItemVariants}>
-                            <div className="onboarding-row">
-                              <span className="onboarding-row__copy">
-                                <strong>Save replay shortcut</strong>
-                                <small>Select, then press a new combination. Escape cancels.</small>
-                              </span>
-                              <ShortcutRecorderButton
-                                value={hotkey}
-                                disabled={pending}
-                                label="Save replay shortcut"
-                                className="onboarding-shortcut"
-                                onValueChange={(next) => { setError(null); setHotkey(next); }}
-                              />
-                            </div>
-                          </m.div>
-                        </>
-                      ) : null}
-
-                      {active === 3 ? (
-                        <m.div variants={stageItemVariants}>
-                          <OnboardingAudioTracks
-                            snapshot={snapshot}
-                            includeMic={includeMic}
-                            includeSystemAudio={includeSystemAudio}
-                            includeChatAudio={includeChatAudio}
-                            microphoneDeviceId={microphoneDeviceId}
-                            systemAudioDeviceId={systemAudioDeviceId}
-                            chatAudioDeviceId={chatAudioDeviceId}
-                            pending={pending}
-                            onToggleTrack={setAudioTrackState}
-                            onMicrophoneDeviceChange={(next) => { setError(null); setMicrophoneDeviceId(next); }}
-                            onSystemDeviceChange={(next) => { setError(null); setSystemAudioDeviceId(next); }}
-                            onChatDeviceChange={(next) => { setError(null); setChatAudioDeviceId(next); }}
-                          />
-                        </m.div>
-                      ) : null}
-
-                      {active === 4 ? (
-                        <m.dl className="onboarding-summary" variants={stageItemVariants}>
-                          <div>
-                            <dt>Setup</dt>
-                            <dd>{setupLabel(workspaces, developerMode)}</dd>
-                          </div>
-                          <div>
-                            <dt>Capture engine</dt>
-                            <dd>{replay ? 'On' : 'Off'}</dd>
-                          </div>
-                          <div>
-                            <dt>Capture source</dt>
-                            <dd>{sourceLabel(source)}</dd>
-                          </div>
-                          <div>
-                            <dt>Resolution</dt>
-                            <dd>{resolutionLabel(resolution)}</dd>
-                          </div>
-                          <div>
-                            <dt>Replay length</dt>
-                            <dd>{replayLengthLabel(replaySeconds)}</dd>
-                          </div>
-                          <div>
-                            <dt>Audio tracks</dt>
-                            <dd>{audioSummary}</dd>
-                          </div>
-                          <div>
-                            <dt>Microphone device</dt>
-                            <dd>{includeMic ? captureAudioDeviceName(snapshot, microphoneDeviceId, micAutomaticLabel(snapshot)) : 'Off'}</dd>
-                          </div>
-                          <div>
-                            <dt>Game device</dt>
-                            <dd>{includeSystemAudio ? captureAudioDeviceName(snapshot, systemAudioDeviceId, gameAutomaticLabel(snapshot)) : 'Off'}</dd>
-                          </div>
-                          <div>
-                            <dt>Chat device</dt>
-                            <dd>{includeChatAudio ? captureAudioDeviceName(snapshot, chatAudioDeviceId, chatAutomaticLabel()) : 'Off'}</dd>
-                          </div>
-                          <div>
-                            <dt>Save replay shortcut</dt>
-                            <dd className="onboarding-keys">
-                              {displayShortcut(hotkey).split('+').map((key, keyIndex) => (
-                                <span key={`${key}-${keyIndex}`} className="onboarding-keys__group">
-                                  {keyIndex > 0 ? <span aria-hidden="true">+</span> : null}
-                                  <Kbd>{key}</Kbd>
-                                </span>
-                              ))}
-                            </dd>
-                          </div>
-                        </m.dl>
-                      ) : null}
-
-                      <AnimatePresence initial={false}>
-                        {error ? (
-                          <m.p
-                            className="onboarding-error"
-                            role="alert"
-                            initial={reduceMotion ? false : { opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-                            transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
+              {active === 2 ? (
+                <div className="ob-step">
+                  <StepHeading
+                    headingRef={headingRef}
+                    eyebrow="Capture"
+                    title="How should Switchboard record?"
+                    description="Replay records in the background to disk and only keeps what you save."
+                    motion={enter(0)}
+                  />
+                  <m.div {...enter(1)} className="ob-sources" role="radiogroup" aria-label="Capture source">
+                    {sourceOptions.map((option) => (
+                      <SourceTile
+                        key={option.value}
+                        option={option}
+                        selected={source === option.value}
+                        disabled={pending}
+                        reduceMotion={reduceMotion}
+                        onSelect={() => { setError(null); setSource(option.value); }}
+                      />
+                    ))}
+                  </m.div>
+                  <m.div {...enter(2)} className="ob-fields">
+                    <div className="ob-field">
+                      <span id="onboarding-replay-length-label">Keep the last</span>
+                      <div className="ob-segmented" role="radiogroup" aria-labelledby="onboarding-replay-length-label">
+                        {[...new Set<number>([...commonReplayLengths, replaySeconds])].sort((a, b) => a - b).map((seconds) => (
+                          <button
+                            key={seconds}
+                            type="button"
+                            role="radio"
+                            aria-checked={replaySeconds === seconds}
+                            disabled={pending}
+                            onClick={() => { setError(null); setReplaySeconds(seconds); }}
                           >
-                            <TriangleAlert aria-hidden="true" />
-                            <span>{error}</span>
-                          </m.p>
-                        ) : null}
-                      </AnimatePresence>
+                            {replaySeconds === seconds ? (
+                              <m.span className="ob-segmented__thumb" layoutId="ob-replay-thumb" transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease }} />
+                            ) : null}
+                            <span>{replayLengthLabel(seconds, true)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="ob-field">
+                      <span id="onboarding-resolution-label">Resolution</span>
+                      <Select value={resolution} onValueChange={(value) => { setError(null); setResolution(value as CaptureResolution); }} disabled={pending}>
+                        <SelectTrigger aria-labelledby="onboarding-resolution-label" className="ob-select">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {resolutionOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </m.div>
+                  <m.div {...enter(3)} className="ob-shortcut">
+                    <span>
+                      <strong>Save a clip with</strong>
+                      <small>Select the shortcut, then press a new combination. Escape cancels.</small>
+                    </span>
+                    <ShortcutRecorderButton
+                      value={hotkey}
+                      disabled={pending}
+                      label="Save replay shortcut"
+                      className="ob-shortcut__recorder"
+                      onValueChange={(next) => { setError(null); setHotkey(next); }}
+                    />
+                  </m.div>
+                  <m.label {...enter(4)} className="ob-inline-toggle">
+                    <span>
+                      <strong>Start Instant Replay when setup finishes</strong>
+                      <small>{replay ? 'Recording begins in the background as soon as you finish.' : 'You can start it later from Capture.'}</small>
+                    </span>
+                    <Switch checked={replay} disabled={pending} onCheckedChange={setReplay} aria-label="Capture engine" />
+                  </m.label>
+                </div>
+              ) : null}
 
-                      <m.div className="onboarding-actions" variants={stageItemVariants}>
-                        {active > 0 ? (
-                          <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => revisit(active - 1)}>
-                            <ArrowLeft size={14} aria-hidden="true" /> Back
-                          </Button>
-                        ) : null}
-                        {active === 0 ? (
-                          <Button type="button" variant="primary" size="sm" disabled={pending} onClick={() => advanceTo(1)}>
-                            Get started <ArrowRight size={14} aria-hidden="true" />
-                          </Button>
-                        ) : null}
-                        {active === 1 ? (
-                          <Button type="button" variant="primary" size="sm" disabled={pending} onClick={() => void continueFromWorkspaces()}>
-                            {pending ? 'Saving…' : 'Continue'}
-                          </Button>
-                        ) : null}
-                        {active === 2 ? (
-                          <Button type="button" variant="primary" size="sm" disabled={pending} onClick={() => void continueFromCapture()}>
-                            {pending ? 'Saving…' : 'Continue'}
-                          </Button>
-                        ) : null}
-                        {active === 3 ? (
-                          <Button type="button" variant="primary" size="sm" disabled={pending} onClick={() => void continueFromAudio()}>
-                            {pending ? 'Saving…' : 'Continue'}
-                          </Button>
-                        ) : null}
-                        {active === 4 ? (
-                          <Button type="button" variant="primary" size="sm" disabled={pending} onClick={() => void finish()}>
-                            {pending ? 'Finishing…' : `Open ${workspaceName(workspaces[0] ?? 'capture')}`}
-                          </Button>
-                        ) : null}
-                      </m.div>
-                </m.div>
-              </div>
-            </section>
-          </div>
+              {active === 3 ? (
+                <div className="ob-step">
+                  <StepHeading
+                    headingRef={headingRef}
+                    eyebrow="Audio tracks"
+                    title="Which sounds get their own track?"
+                    description="Separate tracks let you turn down chat or your voice later without losing the game."
+                    motion={enter(0)}
+                  />
+                  <m.div {...enter(1)}>
+                    <AudioTracks
+                      snapshot={snapshot}
+                      includeMic={includeMic}
+                      includeSystemAudio={includeSystemAudio}
+                      includeChatAudio={includeChatAudio}
+                      microphoneDeviceId={microphoneDeviceId}
+                      systemAudioDeviceId={systemAudioDeviceId}
+                      chatAudioDeviceId={chatAudioDeviceId}
+                      pending={pending}
+                      onToggle={(id, next) => {
+                        setError(null);
+                        if (id === 'mic') setIncludeMic(next);
+                        else if (id === 'system') setIncludeSystemAudio(next);
+                        else setIncludeChatAudio(next);
+                      }}
+                      onMicrophoneDeviceChange={(next) => { setError(null); setMicrophoneDeviceId(next); }}
+                      onSystemDeviceChange={(next) => { setError(null); setSystemAudioDeviceId(next); }}
+                      onChatDeviceChange={(next) => { setError(null); setChatAudioDeviceId(next); }}
+                    />
+                  </m.div>
+                </div>
+              ) : null}
 
-          <div className="onboarding-foot">
-            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => void skipSetup()}>
-              Skip setup
+              {active === 4 ? (
+                <div className="ob-finish">
+                  <SuccessMark reduceMotion={reduceMotion} />
+                  <m.h2 {...enter(1)} id="onboarding-current-heading" ref={headingRef} tabIndex={-1}>You’re all set</m.h2>
+                  {replay ? (
+                    <m.div {...enter(2)} className="ob-finish__hint">
+                      <span>Press</span>
+                      <span className="ob-keys" aria-label={displayShortcut(hotkey)}>
+                        {displayShortcut(hotkey).split('+').map((key, index) => (
+                          <m.kbd
+                            key={`${key}-${index}`}
+                            initial={reduceMotion ? false : { opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.3, ease, delay: reduceMotion ? 0 : 0.28 + index * 0.07 }}
+                          >
+                            {key}
+                          </m.kbd>
+                        ))}
+                      </span>
+                      <span>to save the last {replayLengthLabel(replaySeconds)}.</span>
+                    </m.div>
+                  ) : (
+                    <m.p {...enter(2)} className="ob-lede">Instant Replay stays off for now. Start it from Capture whenever you’re ready.</m.p>
+                  )}
+                  <m.dl {...enter(3)} className="ob-summary">
+                    <SummaryRow label="Setup" value={preset === 'clipping' ? 'Just clipping' : preset === 'full' ? 'Clips and hardware' : workspaces.map(workspaceName).join(' · ')} disabled={pending} onEdit={() => goTo(1)} />
+                    <SummaryRow label="Recording" value={`${sourceLabel(source)} · ${resolutionLabel(resolution)} · ${replay ? 'Starts now' : 'Off'}`} disabled={pending} onEdit={() => goTo(2)} />
+                    <SummaryRow label="Tracks" value={[includeSystemAudio && 'Game', includeChatAudio && 'Chat', includeMic && 'Microphone'].filter(Boolean).join(' · ') || 'Video only'} disabled={pending} onEdit={() => goTo(3)} />
+                  </m.dl>
+                </div>
+              ) : null}
+            </m.section>
+          </AnimatePresence>
+        </main>
+      </div>
+
+      <footer className="ob-footer">
+        <div className="ob-footer__side">
+          {active > 0 ? (
+            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => goTo(active - 1)}>
+              <ArrowLeft aria-hidden="true" /> Back
             </Button>
-            {!reduceMotion ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="onboarding-motion-toggle"
-                aria-label={backgroundPaused ? 'Play background animation' : 'Pause background animation'}
-                aria-pressed={backgroundPaused}
-                onClick={() => setBackgroundPaused((paused) => !paused)}
-              >
-                {backgroundPaused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}
-                <span>{backgroundPaused ? 'Animation paused' : 'Pause animation'}</span>
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
         </div>
-      </main>
+        <AnimatePresence initial={false}>
+          {error ? (
+            <m.p
+              className="onboarding-error ob-error"
+              role="alert"
+              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, transition: { duration: reduceMotion ? 0 : 0.12 } }}
+              transition={{ duration: reduceMotion ? 0 : 0.18, ease }}
+            >
+              <TriangleAlert aria-hidden="true" />
+              <span>{error}</span>
+            </m.p>
+          ) : null}
+        </AnimatePresence>
+        <Button type="button" variant="primary" className="ob-primary" data-onboarding-next disabled={pending} onClick={onPrimary}>
+          {pending ? (active === 4 ? 'Finishing…' : 'Saving…') : primaryLabel}
+          {!pending && active < 4 ? <ArrowRight aria-hidden="true" /> : null}
+        </Button>
+      </footer>
     </div>
   );
 }
 
-type OnboardingTrackId = 'mic' | 'system' | 'chat';
+/**
+ * Signal-path backdrop: fanned inputs converge into one bundle and flow on, echoing
+ * the product. Paths are computed once at module load and the component is memoized,
+ * so step changes only update one compositor transform. Nothing animates at rest.
+ */
+const signalPaths = (() => {
+  const count = 30;
+  const accents: Record<number, string> = { 6: 'game', 11: 'chat', 18: 'media', 23: 'microphone' };
+  return Array.from({ length: count }, (_, index) => {
+    const t = index / (count - 1);
+    const startY = 40 + t * 920;
+    const bundleY = 650 + (t - 0.5) * 70;
+    const endY = 360 + (t - 0.5) * 420;
+    return {
+      d: `M 0 ${startY.toFixed(1)} C 620 ${startY.toFixed(1)}, 760 ${bundleY.toFixed(1)}, 1320 ${bundleY.toFixed(1)} C 1860 ${bundleY.toFixed(1)}, 2020 ${endY.toFixed(1)}, 2600 ${endY.toFixed(1)}`,
+      channel: accents[index],
+    };
+  });
+})();
 
-function OnboardingAudioTracks({
+const SignalField = memo(function SignalField({ step, animate }: { step: number; animate: boolean }) {
+  return (
+    <div className="onboarding-backdrop ob-bg" aria-hidden="true">
+      <div
+        className="ob-bg__field"
+        data-animate={animate || undefined}
+        style={{ transform: `translate3d(${step * -64}px, 0, 0)` }}
+      >
+        <svg viewBox="0 0 2600 1000" preserveAspectRatio="none" fill="none">
+          {signalPaths.map((path, index) => (
+            <path key={index} d={path.d} data-channel={path.channel} vectorEffect="non-scaling-stroke" />
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+});
+
+function StepHeading({
+  headingRef,
+  eyebrow,
+  title,
+  description,
+  motion,
+}: {
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
+  eyebrow: string;
+  title: string;
+  description: string;
+  motion: object;
+}) {
+  return (
+    <m.div className="ob-heading" {...motion}>
+      <span className="ob-eyebrow">{eyebrow}</span>
+      <h2 id="onboarding-current-heading" ref={headingRef} tabIndex={-1}>{title}</h2>
+      <p>{description}</p>
+    </m.div>
+  );
+}
+
+function WelcomePoint({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return (
+    <li>
+      <Icon aria-hidden="true" />
+      <span><strong>{title}</strong><small>{text}</small></span>
+    </li>
+  );
+}
+
+function SelectedBadge({ selected, reduceMotion }: { selected: boolean; reduceMotion: boolean }) {
+  return (
+    <span className="ob-badge" aria-hidden="true">
+      <AnimatePresence initial={false}>
+        {selected ? (
+          <m.span
+            className="ob-badge__on"
+            initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : { scale: 0.4, opacity: 0, transition: { duration: 0.12 } }}
+            transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 30 }}
+          >
+            <Check />
+          </m.span>
+        ) : null}
+      </AnimatePresence>
+    </span>
+  );
+}
+
+function ChoiceTile({
+  selected,
+  disabled,
+  title,
+  description,
+  art,
+  reduceMotion,
+  onSelect,
+}: {
+  selected: boolean;
+  disabled: boolean;
+  title: string;
+  description: string;
+  art: ReactNode;
+  reduceMotion: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button type="button" role="radio" aria-checked={selected} className="ob-choice" data-selected={selected || undefined} disabled={disabled} onClick={onSelect}>
+      <span className="ob-choice__art" aria-hidden="true">{art}</span>
+      <span className="ob-choice__copy">
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </span>
+      <SelectedBadge selected={selected} reduceMotion={reduceMotion} />
+    </button>
+  );
+}
+
+/** Abstract composition of the pages each setup shows. Not product data. */
+function ClipArt({ withDevices = false }: { withDevices?: boolean }) {
+  return (
+    <span className="ob-art" data-devices={withDevices || undefined}>
+      <span className="ob-art__clips">
+        <span className="ob-art__clip"><Play /></span>
+        <span className="ob-art__clip" />
+        <span className="ob-art__clip" />
+      </span>
+      {withDevices ? (
+        <span className="ob-art__devices">
+          <Mouse />
+          <Keyboard />
+          <Mic />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function SourceTile({
+  option,
+  selected,
+  disabled,
+  reduceMotion,
+  onSelect,
+}: {
+  option: (typeof sourceOptions)[number];
+  selected: boolean;
+  disabled: boolean;
+  reduceMotion: boolean;
+  onSelect: () => void;
+}) {
+  const Icon = option.icon;
+  return (
+    <button type="button" role="radio" aria-checked={selected} className="ob-source" data-selected={selected || undefined} disabled={disabled} onClick={onSelect}>
+      <Icon className="ob-source__icon" aria-hidden="true" />
+      <strong>{option.title}</strong>
+      <small>{option.description}</small>
+      <SelectedBadge selected={selected} reduceMotion={reduceMotion} />
+    </button>
+  );
+}
+
+function SummaryRow({ label, value, disabled, onEdit }: { label: string; value: string; disabled: boolean; onEdit: () => void }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+      <button type="button" disabled={disabled} onClick={onEdit} aria-label={`Change ${label.toLocaleLowerCase()}`}>Change</button>
+    </div>
+  );
+}
+
+function SuccessMark({ reduceMotion }: { reduceMotion: boolean }) {
+  const draw = (delay: number) => (reduceMotion
+    ? { initial: false as const, animate: { pathLength: 1 } }
+    : { initial: { pathLength: 0 }, animate: { pathLength: 1 }, transition: { duration: 0.5, ease, delay } });
+  return (
+    <svg className="ob-success" viewBox="0 0 56 56" aria-hidden="true">
+      <m.circle cx="28" cy="28" r="25" {...draw(0.05)} />
+      <m.path d="M17 29 L25 37 L40 20" {...draw(0.4)} />
+    </svg>
+  );
+}
+
+type TrackId = 'mic' | 'system' | 'chat';
+
+function AudioTracks({
   snapshot,
   includeMic,
   includeSystemAudio,
@@ -832,7 +776,7 @@ function OnboardingAudioTracks({
   systemAudioDeviceId,
   chatAudioDeviceId,
   pending,
-  onToggleTrack,
+  onToggle,
   onMicrophoneDeviceChange,
   onSystemDeviceChange,
   onChatDeviceChange,
@@ -845,7 +789,7 @@ function OnboardingAudioTracks({
   systemAudioDeviceId: string | null;
   chatAudioDeviceId: string | null;
   pending: boolean;
-  onToggleTrack: (id: OnboardingTrackId, next: boolean) => void;
+  onToggle: (id: TrackId, next: boolean) => void;
   onMicrophoneDeviceChange: (deviceId: string | null) => void;
   onSystemDeviceChange: (deviceId: string | null) => void;
   onChatDeviceChange: (deviceId: string | null) => void;
@@ -859,7 +803,9 @@ function OnboardingAudioTracks({
     && (systemAudioDeviceId ?? 'auto') === (chatAudioDeviceId ?? 'auto');
 
   const tracks: ReadonlyArray<{
-    id: OnboardingTrackId;
+    id: TrackId;
+    channel: 'game' | 'chat' | 'microphone';
+    icon: LucideIcon;
     title: string;
     description: string;
     enabled: boolean;
@@ -870,58 +816,34 @@ function OnboardingAudioTracks({
     onDeviceChange: (deviceId: string | null) => void;
   }> = [
     {
-      id: 'mic',
-      title: 'Microphone',
-      description: 'Your voice on its own track, mutable without losing game audio.',
-      enabled: includeMic,
-      deviceLabel: 'Microphone device',
-      deviceValue: microphoneDeviceId,
-      devices: inputDevices,
-      automaticLabel: micAutomaticLabel(snapshot),
-      onDeviceChange: onMicrophoneDeviceChange,
+      id: 'system', channel: 'game', icon: Headphones, title: 'Game', description: 'Game and desktop sound.',
+      enabled: includeSystemAudio, deviceLabel: 'Game audio device', deviceValue: systemAudioDeviceId, devices: outputDevices,
+      automaticLabel: gameAutomaticLabel(snapshot), onDeviceChange: onSystemDeviceChange,
     },
     {
-      id: 'system',
-      title: 'System audio',
-      description: 'Game and desktop sound on the main track.',
-      enabled: includeSystemAudio,
-      deviceLabel: 'Game audio device',
-      deviceValue: systemAudioDeviceId,
-      devices: outputDevices,
-      automaticLabel: gameAutomaticLabel(snapshot),
-      onDeviceChange: onSystemDeviceChange,
+      id: 'chat', channel: 'chat', icon: MessagesSquare, title: 'Chat', description: 'Discord or voice chat, apart from the game.',
+      enabled: includeChatAudio, deviceLabel: 'Chat audio device', deviceValue: chatAudioDeviceId, devices: outputDevices,
+      automaticLabel: chatAutomaticLabel(), onDeviceChange: onChatDeviceChange,
     },
     {
-      id: 'chat',
-      title: 'Chat audio',
-      description: 'Discord or voice chat separated from the game mix.',
-      enabled: includeChatAudio,
-      deviceLabel: 'Chat audio device',
-      deviceValue: chatAudioDeviceId,
-      devices: outputDevices,
-      automaticLabel: chatAutomaticLabel(),
-      onDeviceChange: onChatDeviceChange,
+      id: 'mic', channel: 'microphone', icon: Mic, title: 'Microphone', description: 'Your voice, mutable without losing the game.',
+      enabled: includeMic, deviceLabel: 'Microphone device', deviceValue: microphoneDeviceId, devices: inputDevices,
+      automaticLabel: micAutomaticLabel(snapshot), onDeviceChange: onMicrophoneDeviceChange,
     },
   ];
 
   return (
-    <>
-      {tracks.map((track, trackIndex) => (
-        <div key={track.id}>
-          {trackIndex > 0 ? <Separator className="onboarding-sep" /> : null}
-          <div className="onboarding-row">
-            <span className="onboarding-row__copy">
+    <div className="ob-tracks">
+      {tracks.map((track) => {
+        const Icon = track.icon;
+        return (
+          <div key={track.id} className="ob-track" data-channel={track.channel} data-enabled={track.enabled || undefined}>
+            <span className="ob-track__lane" aria-hidden="true" />
+            <Icon className="ob-track__icon" aria-hidden="true" />
+            <span className="ob-track__copy">
               <strong>{track.title}</strong>
               <small>{track.description}</small>
             </span>
-            <Switch
-              checked={track.enabled}
-              disabled={pending}
-              onCheckedChange={(next) => onToggleTrack(track.id, next)}
-              aria-label={track.title}
-            />
-          </div>
-          <div className="onboarding-device">
             <CaptureAudioDeviceSelect
               label={track.deviceLabel}
               value={track.deviceValue}
@@ -929,30 +851,23 @@ function OnboardingAudioTracks({
               automaticLabel={track.automaticLabel}
               disabled={pending || !track.enabled}
               onChange={track.onDeviceChange}
-              className="onboarding-device__select"
+              className="ob-track__select"
             />
+            <Switch checked={track.enabled} disabled={pending} onCheckedChange={(next) => onToggle(track.id, next)} aria-label={`Record ${track.title} track`} />
           </div>
-        </div>
-      ))}
-      {!hasAnyDevice ? (
-        <p className="onboarding-note" role="status">
-          No audio devices are available yet. Continue with Automatic and choose exact devices later in Settings, Capture.
-        </p>
-      ) : (
-        <p className="onboarding-note">
-          Each input stays on its own track. Sonar users can assign Sonar Game, Sonar Chat, and the microphone separately. Devices stay changeable in Settings, Capture.
-        </p>
-      )}
+        );
+      })}
+      <p className="ob-note" role={!hasAnyDevice ? 'status' : undefined}>
+        {!hasAnyDevice
+          ? 'No audio devices are available yet. Continue with Automatic and choose exact devices later in Settings, Capture.'
+          : 'Sonar users can assign Sonar Game, Sonar Chat, and the microphone separately. Devices stay changeable in Settings, Capture.'}
+      </p>
       {explicitMicUnavailable && includeMic ? (
-        <p className="onboarding-note onboarding-note--warning" role="status">
-          The selected microphone is not currently available. Reconnect it or choose another input.
-        </p>
+        <p className="ob-note ob-note--warning" role="status">The selected microphone is not currently available. Reconnect it or choose another input.</p>
       ) : null}
       {gameAndChatSame ? (
-        <p className="onboarding-note onboarding-note--warning" role="status">
-          Game and chat are using the same output, so their tracks will contain the same sound. Choose different devices to keep them separate.
-        </p>
+        <p className="ob-note ob-note--warning" role="status">Game and chat use the same output, so both tracks will contain the same sound. Choose different devices to keep them apart.</p>
       ) : null}
-    </>
+    </div>
   );
 }

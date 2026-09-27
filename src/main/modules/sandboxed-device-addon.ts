@@ -50,6 +50,7 @@ export class SandboxedDeviceAddon implements DeviceModule {
     private readonly manifest: AddonProjectManifest,
     private readonly entrypointPath: string,
     private readonly onRuntimeState: RuntimeStateListener,
+    private readonly expectedSourceHash?: string,
   ) {
     this.id = manifest.id;
   }
@@ -171,6 +172,9 @@ export class SandboxedDeviceAddon implements DeviceModule {
     await host.loadURL(moduleHostDocument());
     host.webContents.on('will-navigate', (event) => event.preventDefault());
     const source = await readFile(this.entrypointPath, 'utf8');
+    if (this.expectedSourceHash && createHash('sha256').update(source).digest('hex') !== this.expectedSourceHash) {
+      throw new Error('Module source no longer matches its verified package.');
+    }
     await host.webContents.executeJavaScript(
       `globalThis.__switchboardModuleHost.load(${JSON.stringify(source)})`,
       true,

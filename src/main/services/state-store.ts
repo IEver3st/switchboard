@@ -66,6 +66,27 @@ export class StateStore {
     return debugDiagnostics.measure('state.clone', () => structuredClone(this.snapshot));
   }
 
+  /** Copy only the requested branch; callers cannot mutate canonical state. */
+  public read<K extends keyof SystemSnapshot>(key: K): SystemSnapshot[K] {
+    return structuredClone(this.snapshot[key]);
+  }
+
+  /** Trusted main callers declare the branches they own. Each is still schema validated. */
+  public updateBranches<K extends keyof SystemSnapshot>(
+    keys: readonly K[], mutator: (draft: Pick<SystemSnapshot, K>) => void, options: UpdateOptions = {},
+  ): void {
+    const draft = {} as Pick<SystemSnapshot, K>;
+    for (const key of keys) draft[key] = this.read(key);
+    mutator(draft);
+    const next = { ...this.snapshot };
+    for (const key of keys) {
+      next[key] = systemSnapshotSchema.shape[key].parse(draft[key]) as SystemSnapshot[K];
+    }
+    this.snapshot = next;
+    if (options.emit !== false) this.emit();
+    if (options.persist !== false) void this.persist();
+  }
+
   public getDetailedDiagnosticsEnabled(): boolean {
     return this.snapshot.settings.developerMode === true && this.snapshot.settings.detailedDiagnostics;
   }
@@ -93,8 +114,8 @@ export class StateStore {
     return this.get();
   }
 
-  public setPerformance(performance: PerformanceSnapshot): SystemSnapshot {
-    return this.update((draft) => { draft.performance = performance; }, { persist: false });
+  public setPerformance(performance: PerformanceSnapshot): void {
+    this.updateBranches(['performance'], draft => { draft.performance = performance; }, { persist: false });
   }
 
   public subscribe(listener: Listener): () => void {
@@ -108,7 +129,7 @@ export class StateStore {
 
   private resetRuntimeState(snapshot: SystemSnapshot): SystemSnapshot {
     const next = structuredClone(snapshot);
-    // A new app session retains geometry but does not restore a desktop overlay.
+    // Geometry and material persist; a new app session never restores a desktop overlay.
     next.setup.preferences.verticalGuide.enabled = false;
     const defaults = createDefaultSnapshot();
     next.diagnostics = structuredClone(defaults.diagnostics);
@@ -121,7 +142,7 @@ export class StateStore {
         : structuredClone(fallback);
     });
     const localModules = next.modules
-      .filter((module) => module.source === 'local' && module.development)
+      .filter((module) => module.source !== 'bundled' && module.development)
       .map((module) => ({
         ...module,
         enabled: module.enabled,
@@ -210,14 +231,18 @@ export class StateStore {
   }
 
   private emit(): void {
-    const snapshot = this.get();
+    // Validated branches are immutable once published. Freeze only new objects;
+    // unchanged library branches are shared across transient publications.
+    const snapshot = freezeSnapshot(this.snapshot);
     for (const listener of this.listeners) {
       listener(snapshot);
     }
   }
 
   private persist(): Promise<void> {
-    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot, capture: { ...this.snapshot.capture, audioCalibration: undefined }, performance: { ...this.snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
+    const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...this.snapshot,
+      capture: { ...this.snapshot.capture, audioCalibration: undefined },
+      performance: { ...this.snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
     this.persistChain = this.persistChain
       .catch(() => undefined)
       .then(async () => {
@@ -236,6 +261,14 @@ export class StateStore {
 
     return this.persistChain;
   }
+}
+
+function freezeSnapshot<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) freezeSnapshot(child);
+  }
+  return value;
 }
 
 function parsePersistedState(raw: string): SystemSnapshot {

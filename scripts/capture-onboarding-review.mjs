@@ -13,6 +13,14 @@ app.setAppPath(projectRoot);
 app.setPath('userData', userData);
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
+process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
+app.commandLine.appendSwitch('force-device-scale-factor', '1');
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+app.on('browser-window-created', (_event, window) => {
+  window.setPosition(-10000, -10000, false);
+  window.setMinimumSize(1, 1);
+  window.webContents.setBackgroundThrottling(false);
+});
 
 await import('../out/main/index.js');
 
@@ -25,10 +33,7 @@ async function run() {
   const window = await waitForWindow();
   await waitForLoad(window);
   await waitFor(window, `!document.querySelector('.startup-screen')`, 'startup');
-  await window.webContents.executeJavaScript(`window.switchboard.updateSettings({ uiScalePercent: 100, developerMode: true })`);
-  window.show();
-  window.focus();
-  window.webContents.focus();
+  await window.webContents.executeJavaScript(`window.switchboard.updateSettings({ uiScalePercent: 100, developerMode: true, onboardingCompleted: false })`);
   await mkdir(outputDirectory, { recursive: true });
 
   const captures = [];
@@ -44,7 +49,7 @@ async function run() {
       await waitFor(window, `Boolean(document.querySelector('.onboarding-screen'))`, 'onboarding');
       await navigateToStep(window, step);
       if (step === 1) {
-        await click(window, 'Full setup');
+        await click(window, 'Clips and hardware');
       }
       await delay(700);
       // Native window restoration can race a settings snapshot. Reassert after navigation.
@@ -154,9 +159,6 @@ async function run() {
   const reloaded = new Promise((resolveReload) => window.webContents.once('did-finish-load', resolveReload));
   window.reload();
   await reloaded;
-  window.show();
-  window.focus();
-  window.webContents.focus();
   await waitFor(window, `!document.querySelector('.startup-screen') && Boolean(document.querySelector('main'))`, 'reload');
   const persisted = await window.webContents.executeJavaScript('window.switchboard.getSnapshot()');
   if (!persisted.settings.onboardingCompleted || persisted.settings.visibleWorkspaces.join(',') !== 'capture') {
@@ -175,7 +177,7 @@ async function run() {
     throw new Error('Review fixture: settings could not be saved. Please try again.');
   });
   await click(window, 'Continue');
-  await waitFor(window, `document.querySelector('.onboarding-stage')?.getAttribute('aria-busy') === 'true'`, 'pending');
+  await waitFor(window, `document.querySelector('.onboarding-main')?.getAttribute('aria-busy') === 'true'`, 'pending');
   await delay(150);
   await writeFile(join(outputDirectory, '1080x720-pending.png'), (await window.webContents.capturePage()).toPNG());
   await waitFor(window, `Boolean(document.querySelector('.onboarding-error'))`, 'save failure');
@@ -183,7 +185,7 @@ async function run() {
   await writeFile(join(outputDirectory, '1080x720-error.png'), (await window.webContents.capturePage()).toPNG());
   const failure = await window.webContents.executeJavaScript(`({
     step: document.querySelector('.onboarding-stage')?.getAttribute('data-step-index'),
-    busy: document.querySelector('.onboarding-stage')?.getAttribute('aria-busy'),
+    busy: document.querySelector('.onboarding-main')?.getAttribute('aria-busy'),
     error: document.querySelector('.onboarding-error')?.textContent,
     overflow: document.documentElement.scrollWidth > innerWidth,
   })`);
@@ -194,8 +196,6 @@ async function run() {
 }
 
 async function keyboardClick(window, label) {
-  window.focus();
-  window.webContents.focus();
   await delay(80);
   await window.webContents.executeJavaScript(`
     [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === ${JSON.stringify(label)})?.focus();
@@ -208,11 +208,11 @@ async function keyboardClick(window, label) {
 async function click(window, label) {
   await waitFor(
     window,
-    `[...document.querySelectorAll('button')].some((candidate) => candidate.textContent?.trim() === ${JSON.stringify(label)})`,
+    `[...document.querySelectorAll('button')].some((candidate) => (candidate.textContent?.trim() === ${JSON.stringify(label)} || candidate.querySelector('.ob-choice__copy strong')?.textContent?.trim() === ${JSON.stringify(label)}))`,
     `${label} button`,
   );
   const clicked = await window.webContents.executeJavaScript(`(() => {
-    const button = [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(label)});
+    const button = [...document.querySelectorAll('button')].find((candidate) => (candidate.textContent?.trim() === ${JSON.stringify(label)} || candidate.querySelector('.ob-choice__copy strong')?.textContent?.trim() === ${JSON.stringify(label)}));
     button?.click();
     return Boolean(button);
   })()`);
@@ -221,12 +221,7 @@ async function click(window, label) {
 
 async function navigateToStep(window, target) {
   let current = Number(await window.webContents.executeJavaScript(`document.querySelector('section[data-step-index]')?.getAttribute('data-step-index')`));
-  if (current > target) {
-    const title = ['Welcome', 'Choose your setup', 'Set up capture', 'Set up audio tracks', 'Review and finish'][target];
-    await window.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(`button[aria-label="${title}, completed. Activate to revise."]`)})?.click()`);
-    await waitForCurrentStep(window, target);
-    current = target;
-  }
+  while (current > target) { await click(window, 'Back'); current -= 1; await waitForCurrentStep(window, current); }
   while (current < target) {
     await click(window, current === 0 ? 'Get started' : 'Continue');
     current += 1;
@@ -235,8 +230,8 @@ async function navigateToStep(window, target) {
 }
 
 async function waitForCurrentStep(window, index) {
-  const title = ['Welcome', 'Choose your setup', 'Set up capture', 'Set up audio tracks', 'Review and finish'][index];
-  await waitFor(window, `document.querySelector('.onboarding-stage h2')?.textContent?.trim() === ${JSON.stringify(title)}`, title);
+  await waitFor(window, `document.querySelector('.onboarding-stage')?.getAttribute('data-step-index') === '${index}'`, `step ${index}`);
+
 }
 
 async function waitForWindow() {
@@ -255,7 +250,16 @@ async function waitForLoad(window) {
 }
 
 async function waitForViewport(window, viewport) {
-  await waitFor(window, `innerWidth === ${viewport.width} && Math.abs(innerHeight - ${viewport.height}) <= 2`, `${viewport.width}x${viewport.height}`);
+  window.setMinimumSize(1,1);
+  window.webContents.setZoomFactor(1);
+  await delay(100);
+  for (let attempt=0;attempt<5;attempt++) {
+    const actual=await window.webContents.executeJavaScript('({width:innerWidth,height:innerHeight})');
+    if(actual.width===viewport.width && Math.abs(actual.height-viewport.height)<=2)return;
+    const bounds=window.getBounds();window.setBounds({...bounds,width:bounds.width+viewport.width-actual.width,height:bounds.height+viewport.height-actual.height},false);
+    await delay(150);
+  }
+  throw new Error('Viewport correction failed '+JSON.stringify({bounds:window.getBounds(),content:window.getContentBounds(),zoom:window.webContents.getZoomFactor(),actual:await window.webContents.executeJavaScript('({width:innerWidth,height:innerHeight})')}));
 }
 
 async function waitFor(window, expression, label) {

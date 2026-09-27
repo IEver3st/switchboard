@@ -123,6 +123,7 @@ function BusStrip({
   const settingsLabel = bus.id === 'mic' ? 'Voice settings' : 'Sound settings';
   const hasSettings = bus.id !== 'aux';
   const shortLabel = bus.id === 'mic' ? 'Mic' : bus.label;
+  const assignedCount = applications.filter(application => application.currentDestination === bus.id).length;
   const canShowApps = bus.id === 'game' || bus.id === 'chat' || bus.id === 'media';
 
   if (!bus.enabled) {
@@ -215,7 +216,7 @@ function BusStrip({
           <Popover>
             <PopoverTrigger asChild>
               <Button type="button" variant="ghost" size="sm" className="audio-strip__apps" aria-label={`Show ${bus.label} applications`}>
-                {applications.length} {applications.length === 1 ? 'app' : 'apps'}
+                {assignedCount} {assignedCount === 1 ? 'app' : 'apps'}
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="audio-strip__apps-popover">

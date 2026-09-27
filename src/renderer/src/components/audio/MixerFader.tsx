@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn';
 
 const MAX_PERCENT = 150;
 const UNITY_PERCENT = 100;
+const SCALE_TICKS = [0, 25, 50, 75, 100, 125, 150];
 
 function gainToPercent(gain: number): number {
   return Math.round(Math.max(0, Math.min(1.5, gain)) * 100);
@@ -84,6 +85,15 @@ export const MixerFader = memo(function MixerFader({
   return (
     <div className={cn('mixer-fader', disabled && 'is-disabled')} style={{ '--channel-accent': accentColor } as CSSProperties}>
       <div className="mixer-fader__rail">
+        <span className="mixer-fader__scale" aria-hidden="true">
+          {SCALE_TICKS.map((tick) => (
+            <span
+              key={tick}
+              className={cn('mixer-fader__tick', tick === UNITY_PERCENT && 'is-unity')}
+              style={{ bottom: `${(tick / MAX_PERCENT) * 100}%` }}
+            />
+          ))}
+        </span>
         <SliderPrimitive.Root
           orientation="vertical"
           min={0}
@@ -121,6 +131,7 @@ export const MixerFader = memo(function MixerFader({
             <output className={cn('mixer-fader__floating-value', adjusting && 'is-visible')} aria-live="polite">
               {percentage}%
             </output>
+            <span className="mixer-fader__thumb-mark" aria-hidden="true" />
             <span className="mixer-fader__thumb-mark" aria-hidden="true" />
           </SliderPrimitive.Thumb>
         </SliderPrimitive.Root>

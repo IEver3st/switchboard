@@ -1,11 +1,11 @@
-import { ArrowLeft, ArrowRight, Blocks, Usb } from 'lucide-react';
+import { ArrowLeft, Blocks, Usb } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import type { Device, SystemSnapshot } from '../../../shared/contracts';
 import { devicesFromEnabledModules } from '../../../shared/device-module-state';
 import { BatteryStatus } from '@/components/device-controls/BatteryStatus';
+import { connectionLabel, DeviceCarousel, DeviceStageBackdrop, stageToneFor, useStageLighting } from '@/components/device-controls/DeviceCarousel';
 import { DeviceRender } from '@/components/shared/device-render';
 import { StatusDot } from '@/components/shared/surface';
-import { Badge } from '@/components/ui/badge';
 import { useSystemStore } from '@/stores/use-system-store';
 
 const MicrophoneDeviceEditor = lazy(() => import('@/components/device-controls/MicrophoneDeviceEditor').then((module) => ({ default: module.MicrophoneDeviceEditor })));
@@ -24,6 +24,7 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const deviceButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const returnFocusDeviceId = useRef<string | null>(null);
+  const workbenchLighting = useStageLighting(selected ? stageToneFor(selected) : '#7f8aa0');
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -42,92 +43,48 @@ export function DevicesPage({ snapshot }: { snapshot: SystemSnapshot }) {
   if (devices.length === 0) {
     const devicesHiddenByModules = snapshot.devices.length > 0;
     return (
-      <div className="device-gallery-page" data-state="empty">
-        <DeviceGalleryHeader connectedCount={0} />
-        <div className="device-gallery-empty">
-          <div className="text-center">
-            <Usb className="mx-auto size-6 text-muted-foreground" />
-            <p className="mt-3 text-sm font-medium text-foreground">
-              {devicesHiddenByModules ? 'No devices from enabled modules' : 'No supported devices detected'}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {devicesHiddenByModules
-                ? 'Enable the device module in Settings to show its devices here.'
-                : 'Install a device module and connect hardware to see it here.'}
-            </p>
+      <div className="device-carousel-page" data-state="empty">
+        <DeviceStageBackdrop lighting={[{ key: 0, tone: '#7f8aa0', state: 'static' }]} />
+        <header className="device-carousel-header">
+          <div>
+            <h2>Devices</h2>
+            <p>No devices yet</p>
           </div>
+        </header>
+        <div className="device-carousel-empty">
+          <Usb aria-hidden />
+          <h3>{devicesHiddenByModules ? 'No devices from enabled modules' : 'No supported devices detected'}</h3>
+          <p>
+            {devicesHiddenByModules
+              ? 'Enable the device module in Settings > Features to show its devices here.'
+              : 'Install a device module and connect hardware to see it here.'}
+          </p>
         </div>
       </div>
     );
   }
 
   if (!selected) {
-    const connectedCount = devices.filter((device) => device.connected).length;
     return (
-      <div className="device-gallery-page">
-        <DeviceGalleryHeader connectedCount={connectedCount} />
-        <div className="device-gallery-stage">
-          <ul className="device-gallery" aria-label="Switchboard devices" data-device-count={devices.length}>
-            {devices.map((device) => {
-              const localAddon = localModuleIds.has(device.moduleId);
-              return <li key={device.id} className="device-gallery__entry" data-connected={device.connected} data-kind={device.kind}>
-                <button
-                  ref={(node) => {
-                    if (node) deviceButtonRefs.current.set(device.id, node);
-                    else deviceButtonRefs.current.delete(device.id);
-                  }}
-                  type="button"
-                  onClick={() => {
-                    returnFocusDeviceId.current = device.id;
-                    selectDevice(device.id);
-                  }}
-                  className="device-gallery__item"
-                  aria-label={`Open controls for ${device.identity.manufacturer ?? ''} ${device.displayName}`.trim()}
-                >
-                  <DeviceRender device={device} density="gallery" />
-                  <span className="device-gallery__copy">
-                    <span className="device-gallery__manufacturer">{device.identity.manufacturer}</span>
-                    <span className="device-gallery__title-row">
-                      <span className="device-gallery__name">{device.displayName}</span>
-                      {device.connected && (device.capabilities.battery?.percentage ?? 100) <= 15 ? (
-                        <Badge variant="warning">Low battery</Badge>
-                      ) : null}
-                    </span>
-                    <span className="device-gallery__status">
-                      <StatusDot active={device.connected} />
-                      <span>{device.connected ? 'Connected' : 'Disconnected'}</span>
-                      {device.connected ? (
-                        <>
-                          <span aria-hidden>·</span>
-                          <span>{connectionLabel(device)}</span>
-                        </>
-                      ) : null}
-                    </span>
-                    {localAddon ? <span className="device-gallery__addon-state">Local add-on · identity only</span> : null}
-                    <span className="device-gallery__telemetry">
-                      {device.capabilities.battery ? (
-                        <BatteryStatus
-                          battery={device.capabilities.battery}
-                          connectionLabel={device.identity.connection === 'wireless' ? 'Wireless' : connectionLabel(device)}
-                          connected={device.connected}
-                        />
-                      ) : null}
-                    </span>
-                    <span className="device-gallery__configure" aria-hidden>
-                      Configure <ArrowRight />
-                    </span>
-                  </span>
-                </button>
-              </li>;
-            })}
-          </ul>
-        </div>
-      </div>
+      <DeviceCarousel
+        devices={devices}
+        localModuleIds={localModuleIds}
+        returnDeviceId={returnFocusDeviceId.current}
+        registerButton={(deviceId, node) => {
+          if (node) deviceButtonRefs.current.set(deviceId, node);
+          else deviceButtonRefs.current.delete(deviceId);
+        }}
+        onOpen={(device) => {
+          returnFocusDeviceId.current = device.id;
+          selectDevice(device.id);
+        }}
+      />
     );
   }
 
   return (
     <div className="device-workbench" data-device-kind={selected.kind}>
+      <DeviceStageBackdrop lighting={workbenchLighting} />
       <div className="device-workbench__toolbar">
         <button
           ref={backButtonRef}
@@ -214,26 +171,6 @@ function LocalAddonDeviceSurface({ device, moduleName }: { device: Device; modul
   );
 }
 
-function DeviceGalleryHeader({ connectedCount }: { connectedCount: number }) {
-  return (
-    <header className="device-gallery-header">
-      <div>
-        <h2>Devices</h2>
-        <p>Your connected hardware</p>
-      </div>
-      <span className="device-gallery-header__status" aria-live="polite">
-        <StatusDot active={connectedCount > 0} />
-        {connectedCount} connected
-      </span>
-    </header>
-  );
-}
-
-function connectionLabel(device: Device): string {
-  return device.identity.connectionLabel
-    ?? (device.identity.connection === 'wireless' ? 'Wireless' : device.identity.connection?.toUpperCase())
-    ?? 'Unknown connection';
-}
 
 function formatUsbId(value: number | undefined): string {
   return typeof value === 'number' ? value.toString(16).padStart(4, '0').toLocaleUpperCase() : '----';

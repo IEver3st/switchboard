@@ -8,6 +8,8 @@ import { RazerHuntsmanV2AnalogModule } from '../modules/razer';
 import { enumerateWindowsHidDevices } from './windows-hid-enumerator';
 
 const discoveryIntervalMs = 5_000;
+const inventoryFallbackMs = 60_000;
+type DeviceRegistrySnapshot = Pick<SystemSnapshot, 'devices' | 'modules' | 'settings'>;
 const legacyFixtureIds = new Set(['logitech-g502x-plus-1', 'hyperx-quadcast2-1', 'razer-huntsman-v2-analog-1']);
 
 type DeviceRegistryOptions = {
@@ -16,6 +18,8 @@ type DeviceRegistryOptions = {
   listHidDevices?: () => Promise<HidDevice[]>;
   fixtureMode?: boolean;
   enumerationTimeoutMs?: number;
+  watchDeviceChanges?: (onChange: () => void) => () => void;
+  now?: () => number;
 };
 
 export class DeviceRegistry {
@@ -31,9 +35,16 @@ export class DeviceRegistry {
   private readonly fixtureConnectionStates = new Map<string, Map<string, boolean>>();
   private disposed = false;
   private started = false;
+  private stopWatching: (() => void) | null = null;
+  private inventory: HidDevice[] | null = null;
+  private inventoryReadAt = 0;
+  private inventoryGeneration = 0;
+  private deviceChangeTimer: NodeJS.Timeout | null = null;
+  private readonly watchDeviceChanges?: DeviceRegistryOptions['watchDeviceChanges'];
+  private readonly now: () => number;
 
   public constructor(
-    private readonly getSnapshot: () => SystemSnapshot,
+    private readonly getSnapshot: () => DeviceRegistrySnapshot,
     private readonly applyDevices: (devices: Device[], options?: { persist?: boolean }) => void,
     options: DeviceRegistryOptions = {},
   ) {
@@ -43,10 +54,12 @@ export class DeviceRegistry {
       new HyperXDeviceModule((devices, persist) => this.applyModuleDevices('device.hyperx-quadcast', devices, persist)),
     ];
     this.additionalModules = options.additionalModules ?? (() => []);
-    this.listHidDevices = options.listHidDevices
-      ?? selectHidDeviceEnumerator(process.platform, enumerateWindowsHidDevices, devicesAsync);
     this.fixtureMode = options.fixtureMode ?? process.env.SWITCHBOARD_NATIVE_FIXTURES === '1';
+    this.listHidDevices = options.listHidDevices
+      ?? (this.fixtureMode ? async () => [] : selectHidDeviceEnumerator(process.platform, enumerateWindowsHidDevices, devicesAsync));
     this.enumerationTimeoutMs = options.enumerationTimeoutMs ?? 3_000;
+    this.watchDeviceChanges = options.watchDeviceChanges;
+    this.now = options.now ?? Date.now;
   }
 
   public async start(): Promise<void> {
@@ -64,14 +77,20 @@ export class DeviceRegistry {
     if (!hasActiveModules) {
       if (this.timer) clearInterval(this.timer);
       this.timer = null;
+      this.stopWatching?.(); this.stopWatching = null;
+      this.inventory = null; this.inventoryGeneration++;
+      if (this.deviceChangeTimer) clearTimeout(this.deviceChangeTimer);
+      this.deviceChangeTimer = null;
       return;
     }
+    if (!this.fixtureMode && this.watchDeviceChanges && !this.stopWatching) {
+      try { this.stopWatching = this.watchDeviceChanges(() => this.invalidateInventory()); }
+      catch (error) { console.warn('Device notifications unavailable; retaining discovery fallback.', error); }
+    }
     if (this.timer) return;
-    // The Windows PnP inventory and the portable HIDAPI fallback expose no
-    // hot-plug subscription here. Poll every five seconds only while the
-    // controller has an enabled device module. Re-enable restores discovery;
-    // disabling the last module or shutting down removes the timer entirely.
-    this.timer = setInterval(() => void this.refresh(), discoveryIntervalMs);
+    // Existing device sessions refresh status/battery every five seconds. With
+    // notifications available, topology is cached for 60s or until invalidated.
+    this.timer = setInterval(() => void this.refresh(false), discoveryIntervalMs);
     this.timer.unref();
   }
 
@@ -82,7 +101,8 @@ export class DeviceRegistry {
     if (devices.length !== snapshot.devices.length) this.applyDevices(devices, { persist: false });
   }
 
-  public refresh(): Promise<void> {
+  public refresh(forceInventory = true): Promise<void> {
+    if (forceInventory) { this.inventory = null; this.inventoryGeneration++; }
     if (this.refreshPromise) return this.refreshPromise;
     this.refreshPromise = this.discover()
       .catch((error) => console.warn('Device discovery failed.', error))
@@ -90,6 +110,21 @@ export class DeviceRegistry {
         this.refreshPromise = null;
       });
     return this.refreshPromise;
+  }
+
+  private invalidateInventory(): void {
+    if (this.disposed || !this.started || !this.stopWatching) return;
+    this.inventory = null; this.inventoryGeneration++;
+    if (this.deviceChangeTimer) return;
+    // Coalesce a PnP burst. A change during discovery schedules a fresh pass.
+    this.deviceChangeTimer = setTimeout(() => {
+      this.deviceChangeTimer = null;
+      void (async () => {
+        if (this.refreshPromise) await this.refreshPromise;
+        if (!this.disposed && this.stopWatching) await this.refresh();
+      })();
+    }, 250);
+    this.deviceChangeTimer.unref();
   }
 
   public async refreshBatteryLighting(): Promise<void> {
@@ -147,6 +182,9 @@ export class DeviceRegistry {
     this.started = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    this.stopWatching?.(); this.stopWatching = null;
+    if (this.deviceChangeTimer) clearTimeout(this.deviceChangeTimer);
+    this.deviceChangeTimer = null; this.inventory = null; this.inventoryGeneration++;
     const activeRefresh = this.refreshPromise;
     this.disposePromise = (async () => {
       if (activeRefresh) await activeRefresh;
@@ -279,9 +317,18 @@ export class DeviceRegistry {
   }
 
   private enumerateHidDevices(): Promise<HidDevice[]> {
+    if (this.stopWatching && this.inventory && this.now() - this.inventoryReadAt < inventoryFallbackMs) {
+      return Promise.resolve(this.inventory);
+    }
     if (!this.enumerationPromise) {
+      const generation = this.inventoryGeneration;
       const enumeration = this.listHidDevices();
-      const trackedEnumeration = enumeration.finally(() => {
+      const trackedEnumeration = enumeration.then(devices => {
+        if (!this.disposed && generation === this.inventoryGeneration) {
+          this.inventory = devices; this.inventoryReadAt = this.now();
+        }
+        return devices;
+      }).finally(() => {
         if (this.enumerationPromise === trackedEnumeration) this.enumerationPromise = null;
       });
       this.enumerationPromise = trackedEnumeration;
@@ -375,7 +422,7 @@ const lightingControlTypes = new Set<DeviceControlChange['type']>([
 ]);
 
 function applyConfirmedLightingControl(
-  snapshot: SystemSnapshot,
+  snapshot: DeviceRegistrySnapshot,
   deviceId: string,
   change: DeviceControlChange,
   applyDevices: (devices: Device[], options?: { persist?: boolean }) => void,
@@ -455,7 +502,7 @@ function applyConfirmedLightingControl(
 }
 
 function applyConfirmedKeyboardControl(
-  snapshot: SystemSnapshot,
+  snapshot: DeviceRegistrySnapshot,
   deviceId: string,
   change: DeviceControlChange,
   applyDevices: (devices: Device[], options?: { persist?: boolean }) => void,

@@ -36,6 +36,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useSystemStore } from '@/stores/use-system-store';
+import { CommunityModuleActions, CommunityModuleInstall } from './community-module-install';
+import { NewSettingDot } from './settings-new';
 
 const kindLabels: Record<ModuleKind, string> = {
   device: 'Device',
@@ -57,16 +59,21 @@ const statusLabels: Record<ModuleRuntimeStatus, string> = {
 export function ModuleManagement({
   snapshot,
   onOpenDeveloperTools,
+  onDeviceModuleEnabled,
 }: {
   snapshot: SystemSnapshot;
   onOpenDeveloperTools: () => void;
+  /** Called after a device module is confirmed enabled, so its page can be shown. */
+  onDeviceModuleEnabled?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [pendingModuleId, setPendingModuleId] = useState<string | null>(null);
   const setModuleState = useSystemStore((state) => state.setModuleState);
-  const installed = snapshot.modules.filter((module) => module.installed);
-  const available = snapshot.modules.filter((module) => !module.installed && module.source === 'bundled');
+  // The bundled Capture and Audio engines are switched in their own Settings categories.
+  const listed = snapshot.modules.filter((module) => !isCoreEngineModule(module));
+  const installed = listed.filter((module) => module.installed);
+  const available = listed.filter((module) => !module.installed && module.source === 'bundled');
   const selectedModule = snapshot.modules.find((module) => module.id === selectedModuleId) ?? null;
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleInstalled = useMemo(
@@ -84,6 +91,8 @@ export function ModuleManagement({
     setPendingModuleId(module.id);
     try {
       await setModuleState({ moduleId: module.id, enabled });
+      const confirmed = useSystemStore.getState().snapshot?.modules.find((candidate) => candidate.id === module.id);
+      if (enabled && module.kind === 'device' && confirmed?.enabled) onDeviceModuleEnabled?.();
     } finally {
       setPendingModuleId(null);
     }
@@ -108,6 +117,10 @@ export function ModuleManagement({
             </button>
           ) : null}
         </div>
+        <span id="setting-modules.community" data-setting-id="modules.community" tabIndex={-1} className="module-manager__community">
+          <CommunityModuleInstall />
+          <NewSettingDot settingId="modules.community" />
+        </span>
         <Button type="button" variant="secondary" size="sm" onClick={onOpenDeveloperTools} data-module-developer-tools>
           <Code2 aria-hidden />
           Developer tools
@@ -297,13 +310,13 @@ function ModuleRow({
         ) : (
           <>
             <span className="module-list-row__state" aria-live="polite">
-              {pending ? 'Updating…' : developerLocked ? 'Developer mode required' : moduleStateLabel(module)}
+              {developerLocked ? 'Developer mode required' : moduleStateLabel(module)}
             </span>
             <Switch
               checked={module.enabled}
               disabled={pending || !canChangeState}
               aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}
-              title={developerLocked ? 'Enable Developer mode in Settings > General to use Audio.' : undefined}
+              title={developerLocked ? 'Enable Developer mode in Settings > General > Advanced to use Audio.' : undefined}
               onCheckedChange={onStateChange}
               data-module-toggle={module.id}
               className="no-drag"
@@ -387,7 +400,8 @@ function ModuleDetailsDialog({
               <ModuleDetail label="Runtime boundary" value={moduleRuntimeBoundary(module)} />
               <ModuleDetail
                 label="Updates"
-                value={module.source === 'local'
+                value={module.source === 'community' ? 'Review updates manually from the same GitHub repository'
+                  : module.source === 'local'
                   ? 'Local projects are never changed automatically'
                   : snapshot.settings.automaticModuleUpdates
                     ? 'Automatic signed-package updates enabled'
@@ -400,6 +414,11 @@ function ModuleDetailsDialog({
             <h3 id="module-detail-diagnostics">Diagnostics</h3>
             <dl className="module-detail-list module-detail-list--wide">
               <ModuleDetail label="Module ID" value={module.id} mono />
+              {module.distribution && <>
+                <ModuleDetail label="Repository" value={module.distribution.repository} />
+                <ModuleDetail label="Release" value={module.distribution.release} />
+                <ModuleDetail label="Signing key" value={module.distribution.publisher} mono />
+              </>}
               {module.vendors.length > 0 ? <ModuleDetail label="Vendor IDs" value={module.vendors.join(', ')} mono /> : null}
               {module.development?.projectPath ? <ModuleDetail label="Project path" value={module.development.projectPath} mono /> : null}
               {module.development?.lastValidatedAt ? (
@@ -407,6 +426,7 @@ function ModuleDetailsDialog({
               ) : null}
             </dl>
           </section>
+          {module.source === 'community' && <CommunityModuleActions key={module.id} module={module} />}
         </div>
 
         <div className="module-details-dialog__footer">
@@ -418,12 +438,12 @@ function ModuleDetailsDialog({
           ) : <span />}
           {module.installed ? (
             <label className="module-details-dialog__toggle">
-              <span>{pending ? 'Updating…' : developerLocked ? 'Developer mode required' : moduleStateLabel(module)}</span>
+              <span>{developerLocked ? 'Developer mode required' : moduleStateLabel(module)}</span>
               <Switch
                 checked={module.enabled}
                 disabled={pending || !canChangeState}
                 aria-label={`${module.enabled ? 'Disable' : 'Enable'} ${module.name}`}
-                title={developerLocked ? 'Enable Developer mode in Settings > General to use Audio.' : undefined}
+                title={developerLocked ? 'Enable Developer mode in Settings > General > Advanced to use Audio.' : undefined}
                 onCheckedChange={onStateChange}
               />
             </label>
@@ -548,6 +568,10 @@ function ModuleListEmpty({ children }: { children: ReactNode }) {
   return <p className="module-list__empty">{children}</p>;
 }
 
+function isCoreEngineModule(module: ModuleManifest): boolean {
+  return module.source === 'bundled' && (module.kind === 'capture' || module.kind === 'audio');
+}
+
 function devicesForModule(module: ModuleManifest, devices: readonly Device[]): Device[] {
   return devices.filter((device) => device.moduleId === module.id);
 }
@@ -584,12 +608,13 @@ function moduleMetadata(module: ModuleManifest): string {
 }
 
 function moduleSourceLabel(module: ModuleManifest): string {
+  if (module.source === 'community') return 'GitHub community package';
   if (module.source === 'local') return 'Linked local project';
   return module.official ? 'Official bundled module' : 'Community bundled module';
 }
 
 function moduleRuntimeBoundary(module: ModuleManifest): string {
-  if (module.source === 'local') return 'Sandboxed Chromium with declared HID metadata only';
+  if (module.source !== 'bundled') return 'Sandboxed Chromium with declared HID metadata only';
   if (module.kind === 'device') return 'Core-managed device protocol boundary';
   if (module.kind === 'capture') return 'Isolated Capture host';
   if (module.kind === 'audio') return 'Isolated Audio host';
@@ -597,13 +622,13 @@ function moduleRuntimeBoundary(module: ModuleManifest): string {
 }
 
 function moduleCanChangeState(module: ModuleManifest): boolean {
-  if (module.source !== 'local' || module.enabled) return true;
+  if (module.source === 'bundled' || module.enabled) return true;
   return ['ready', 'active'].includes(module.development?.status ?? 'invalid');
 }
 
 function moduleStateLabel(module: ModuleManifest): string {
   if (module.enabled) return 'Enabled';
-  if (module.source === 'local' && !moduleCanChangeState(module)) {
+  if (module.source !== 'bundled' && !moduleCanChangeState(module)) {
     return statusLabels[module.development?.status ?? 'invalid'];
   }
   return 'Off';

@@ -15,7 +15,12 @@ if (currentStatePath) {
   try {
     await copyFile(currentStatePath, reviewStatePath);
     const reviewState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
-    if (reviewState.settings) reviewState.settings.uiScalePercent = 100;
+    if (reviewState.settings) {
+      reviewState.settings.uiScalePercent = 100;
+      reviewState.settings.visibleWorkspaces = ['devices', 'audio', 'capture'];
+      reviewState.settings.onboardingCompleted = true;
+      reviewState.settings.developerMode = true;
+    }
     if (
       (process.env.SWITCHBOARD_VERIFY_REACTION_SETTINGS === '1'
         || process.env.SWITCHBOARD_VERIFY_WARTHUNDER_SETTINGS === '1'
@@ -83,6 +88,9 @@ process.env.SWITCHBOARD_NATIVE_FIXTURES ??= '1';
 if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN === '1') {
   app.commandLine.appendSwitch('force-device-scale-factor', '1');
   app.commandLine.appendSwitch('force-prefers-reduced-motion');
+  // An offscreen window counts as occluded on Windows, so Chromium stops
+  // producing frames and capturePage can return a stale image.
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
   // Place review windows before loadFile/first paint. Never touch the user's
   // primary display or activate a window while running background UI checks.
   app.on('browser-window-created', (_event, created) => {
@@ -103,6 +111,7 @@ const viewports = [
 
 const screens = [
   { name: 'devices', prepare: () => openDeviceGallery() },
+  { name: 'devices-next', prepare: () => openDeviceGallery({ advance: 1 }) },
   { name: 'g502-x-plus', prepare: () => openDevice('G502 X Plus') },
   { name: 'quadcast-2', prepare: () => openDevice('QuadCast 2') },
   { name: 'huntsman-v2-analog', prepare: () => openDevice('Huntsman V2 Analog') },
@@ -112,7 +121,12 @@ const screens = [
   { name: 'audio-media', prepare: () => openAudioTab('media') },
   { name: 'audio-microphone', prepare: () => openAudioTab('microphone') },
   { name: 'capture', prepare: () => openPage('Capture', '.capture-command-header') },
+  { name: 'capture-projects', prepare: () => openCaptureWithProjects() },
+  { name: 'capture-projects-actions', prepare: () => exerciseProjectActions() },
+  { name: 'capture-selecting', prepare: () => openCaptureSelecting() },
   { name: 'clip-editor', prepare: () => openClipEditor() },
+  { name: 'montage-editor', prepare: () => openMontageEditor() },
+  { name: 'montage-editor-inspector', prepare: () => openMontageEditor({ inspector: true }) },
   { name: 'modules', prepare: () => openSettingsCategory('Modules') },
   { name: 'settings', prepare: () => openSettingsCategory('General') },
   { name: 'settings-capture', prepare: () => openSettingsCategory('Capture') },
@@ -221,6 +235,7 @@ async function runReview() {
       await waitForViewport(viewport);
       console.log(`Native review: ${viewport.name} ${screen.name}.`);
       await screen.prepare();
+      await finishPendingAnimations();
       const currentViewport = await getViewportSize();
       if (window.isMaximized() || currentViewport.width !== viewport.width || Math.abs(currentViewport.height - viewport.height) > 2) {
         if (window.isMaximized()) window.unmaximize();
@@ -308,7 +323,7 @@ async function installReviewStyles(target) {
   `);
 }
 
-async function openDeviceGallery() {
+async function openDeviceGallery({ advance = 0 } = {}) {
   await window.webContents.executeJavaScript(`window.location.hash = 'devices'`);
   await window.webContents.executeJavaScript(`
     (() => {
@@ -322,6 +337,10 @@ async function openDeviceGallery() {
   } catch (error) {
     const diagnostic = await window.webContents.executeJavaScript(`({ hash: window.location.hash, title: document.title, body: document.body?.innerText?.slice(0, 500), workbench: Boolean(document.querySelector('.device-workbench')), settings: Boolean(document.querySelector('.settings-page')) })`);
     throw new Error(`Device gallery did not open: ${JSON.stringify(diagnostic)}`, { cause: error });
+  }
+  for (let step = 0; step < advance; step += 1) {
+    await window.webContents.executeJavaScript(`document.querySelector('.device-carousel__arrow--next')?.click()`);
+    await delay(120);
   }
   await scrollMainToTop();
 }
@@ -378,8 +397,77 @@ async function openPage(label, selector) {
   await scrollMainToTop();
 }
 
+async function openCaptureWithProjects() {
+  // Seeds representative kept, temporary, clip-edit, and missing-media drafts
+  // in the isolated review profile, then remounts Capture so it lists them.
+  await window.webContents.executeJavaScript(`(async () => {
+    const existing = await window.switchboard.listMontageDrafts();
+    if (existing.some((draft) => draft.name === 'Weekend highlights')) return;
+    const snapshot = await window.switchboard.getSnapshot();
+    const clips = snapshot.clips.filter((clip) => clip.durationMs >= 2_000);
+    if (clips.length < 3) return;
+    const segment = (clip, lengthMs) => {
+      const trimEndMs = Math.min(clip.durationMs, lengthMs);
+      return { id: crypto.randomUUID(), clipId: clip.id, sourceDurationMs: clip.durationMs, trimStartMs: 0, trimEndMs, volume: 1, muted: false };
+    };
+    const project = (name, segments, extra = {}) => ({
+      schemaVersion: 2, type: 'montage', id: crypto.randomUUID(), name, createdAt: Date.now(), updatedAt: Date.now(),
+      canvasSize: 'original', segments, durationMs: segments.reduce((total, item) => total + item.trimEndMs - item.trimStartMs, 0), ...extra,
+    });
+    await window.switchboard.saveMontageDraft(project('Clip edit', [segment(clips[0], 12_000)], { sourceClipId: clips[0].id, name: clips[0].name.slice(0, 120) }));
+    await window.switchboard.saveMontageDraft(project('Untitled montage', [segment(clips[1], 9_000), segment(clips[2], 7_000)]));
+    await window.switchboard.saveMontageDraft(project('Missing media test', [segment(clips[0], 6_000), { id: crypto.randomUUID(), clipId: 'review-missing-clip', sourceDurationMs: 10_000, trimStartMs: 0, trimEndMs: 5_000, volume: 1, muted: false }]));
+    await window.switchboard.saveMontageDraft(project('Weekend highlights', clips.slice(0, 5).map((clip) => segment(clip, 8_000)), { kept: true }));
+  })()`);
+  await clickButton('Devices');
+  await delay(150);
+  await openPage('Capture', '.capture-command-header');
+  await delay(300);
+}
+
+async function exerciseProjectActions() {
+  await openCaptureWithProjects();
+  // Keep writes through main and the shelf re-reads the canonical draft list.
+  const target = 'Untitled montage';
+  const alreadyKept = await window.webContents.executeJavaScript(`window.switchboard.listMontageDrafts().then((drafts) => drafts.some((draft) => draft.name === ${JSON.stringify(target)} && draft.kept === true))`);
+  if (alreadyKept) {
+    await window.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(`button[aria-label="Stop keeping ${target}"]`)})?.click()`);
+    await waitForCondition(`window.switchboard.listMontageDrafts().then((drafts) => drafts.some((draft) => draft.name === ${JSON.stringify(target)} && !draft.kept))`, 'released draft in main');
+    await waitForSelector(`button[aria-label="Keep ${target}"][aria-pressed="false"]`);
+  }
+  await window.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(`button[aria-label="Keep ${target}"]`)})?.click()`);
+  await waitForCondition(`window.switchboard.listMontageDrafts().then((drafts) => drafts.some((draft) => draft.name === ${JSON.stringify(target)} && draft.kept === true))`, 'kept draft in main');
+  await waitForSelector(`button[aria-label="Stop keeping ${target}"][aria-pressed="true"]`);
+  // Discard must ask first; cancelling leaves the draft in main.
+  await window.webContents.executeJavaScript(`(() => {
+    const trigger = document.querySelector(${JSON.stringify(`button[aria-label="More actions for ${target}"]`)});
+    trigger?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
+    return Boolean(trigger);
+  })()`);
+  await waitForSelector('[role="menuitem"]');
+  await window.webContents.executeJavaScript(`[...document.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent.trim().startsWith('Discard'))?.click()`);
+  await waitForSelector('.montage-v2-draft__confirm');
+  await delay(400);
+  const confirmState = await window.webContents.executeJavaScript(`({ open: Boolean(document.querySelector('.montage-v2-draft__confirm')), active: document.activeElement?.textContent?.trim() ?? null, scroll: document.querySelector('.montage-v2-drafts__list')?.scrollLeft })`);
+  if (!confirmState.open) throw new Error(`Discard confirmation closed on its own: ${JSON.stringify(confirmState)}`);
+  await window.webContents.executeJavaScript(`document.querySelector('.montage-v2-draft__confirm')?.closest('li')?.scrollIntoView({ inline: 'nearest', block: 'nearest' })`);
+  const stillListed = await window.webContents.executeJavaScript(`window.switchboard.listMontageDrafts().then((drafts) => drafts.some((draft) => draft.name === ${JSON.stringify(target)}))`);
+  if (!stillListed) throw new Error('Discard removed the draft before confirmation.');
+  await delay(600);
+}
+
+async function openCaptureSelecting() {
+  await openPage('Capture', '.capture-command-header');
+  await window.webContents.executeJavaScript(`document.querySelector('button[aria-label="Select clips"]')?.click()`);
+  await waitForSelector('[data-testid="montage-selection-toolbar"]');
+  await window.webContents.executeJavaScript(`[...document.querySelectorAll('.capture-clip-card button[aria-pressed]')].slice(0, 2).forEach((button) => button.click())`);
+  await delay(120);
+}
+
 async function openClipEditor() {
   await openPage('Capture', '.capture-command-header');
+  await window.webContents.executeJavaScript(`[...document.querySelectorAll('[data-testid="montage-selection-toolbar"] button')].find((button) => button.textContent?.trim() === 'Cancel')?.click()`);
+  await waitForCondition(`!document.querySelector('[data-testid="montage-selection-toolbar"]')`, 'selection mode to close');
   const opened = await window.webContents.executeJavaScript(`
     (() => {
       const button = document.querySelector('.capture-clip-card button, table tbody button');
@@ -389,7 +477,41 @@ async function openClipEditor() {
     })()
   `);
   if (!opened) throw new Error('Could not open a clip for editor review.');
-  await waitForSelector('#clip-editor-title');
+  try {
+    await waitForSelector('.montage-v2-shell .montage-v2-header');
+  } catch (error) {
+    const state = await window.webContents.executeJavaScript(`({ shell: document.querySelector('.montage-v2-shell')?.innerText?.slice(0, 300) ?? null, first: document.querySelector('.capture-clip-card button')?.getAttribute('aria-label') ?? null, loading: document.body.innerText.includes('Loading clip editor') })`);
+    throw new Error(`Clip editor did not open: ${JSON.stringify(state)}`, { cause: error });
+  }
+  await delay(1_200);
+  await finishPendingAnimations();
+}
+
+// Hidden review windows do not advance the document timeline, so reduced-motion
+// micro-transitions (0.01ms) would otherwise freeze at their start value.
+async function finishPendingAnimations() {
+  await window.webContents.executeJavaScript('document.getAnimations().forEach((animation) => { try { animation.finish(); } catch {} })');
+}
+
+async function openMontageEditor({ inspector = false } = {}) {
+  await window.webContents.executeJavaScript(`[...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Back to clips')?.click()`);
+  await waitForCondition(`!document.querySelector('.montage-v2-shell')`, 'editor to close');
+  await openCaptureWithProjects();
+  const opened = await window.webContents.executeJavaScript(`
+    (() => {
+      const button = [...document.querySelectorAll('.montage-v2-draft__open')].find((candidate) => candidate.textContent?.startsWith('Weekend highlights'));
+      button?.click();
+      return Boolean(button);
+    })()
+  `);
+  if (!opened) throw new Error('Could not open the kept montage project.');
+  await waitForSelector('.montage-v2-shell .montage-v2-header');
+  const inspectorOpen = await window.webContents.executeJavaScript(`Boolean(document.querySelector('button[aria-label="Collapse inspector"]'))`);
+  if (inspectorOpen !== inspector) {
+    await window.webContents.executeJavaScript(`document.querySelector('button[aria-label="${inspector ? 'Open inspector' : 'Collapse inspector'}"]')?.click()`);
+  }
+  await delay(1_200);
+  await finishPendingAnimations();
 }
 
 async function verifyShareProgressWorkflow() {
@@ -477,14 +599,14 @@ async function openSettingsCategory(label) {
     (() => {
       const label = ${JSON.stringify(label)};
       const button = [...document.querySelectorAll('[data-settings-category]')]
-        .find((candidate) => candidate.textContent?.trim() === label);
+        .find((candidate) => candidate.dataset.settingsCategory === label.toLowerCase());
       if (!button) return false;
       button.click();
       return true;
     })()
   `);
   if (!clicked) throw new Error(`Could not find the ${label} Settings category.`);
-  await waitForCondition(`document.querySelector('[data-settings-category][aria-current="page"]')?.textContent?.trim() === ${JSON.stringify(label)}`, `${label} Settings category`);
+  await waitForCondition(`document.querySelector('[data-settings-category][aria-current="page"]')?.getAttribute("data-settings-category") === ${JSON.stringify(label.toLowerCase())}`, `${label} Settings category`);
   await scrollMainToTop();
 }
 
@@ -1065,7 +1187,10 @@ async function clickButton(label) {
       return true;
     })()
   `);
-  if (!clicked) throw new Error(`Could not find the ${label} button.`);
+  if (!clicked) {
+    const context = await window.webContents.executeJavaScript(`({ hash: location.hash, nav: [...document.querySelectorAll('nav button, aside button')].map((button) => button.textContent?.trim()).slice(0, 12), dialog: Boolean(document.querySelector('[role="dialog"]')) })`);
+    throw new Error(`Could not find the ${label} button: ${JSON.stringify(context)}`);
+  }
 }
 
 async function waitForSelector(selector) {

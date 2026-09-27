@@ -11,7 +11,7 @@ internal static class DesktopControls
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static TimeSpan previousCpu;
     private static long previousSample = Stopwatch.GetTimestamp();
-    private sealed record Configuration(string[] Executables);
+    private sealed record Configuration(string[] Executables, bool WatchGames = false);
 
     public static int Run()
     {
@@ -34,18 +34,47 @@ internal static class DesktopControls
             if (request == "metrics") PostThreadMessage(thread, 0x8001, 0, 0);
         } PostThreadMessage(thread, WmQuit, 0, 0); });
         nuint applicationsTimer = 0;
+        var gameSources = config.WatchGames ? new WindowsCaptureSources() : null;
+        Process? activeGame = null;
+        void CheckGame()
+        {
+            if (gameSources is null) return;
+            // Keep the process identity through Alt-Tab/minimize. Reopening Switchboard
+            // during the same game session must not immediately send it back to tray.
+            if (activeGame is not null)
+            {
+                if (!activeGame.HasExited) return;
+                activeGame.Dispose(); activeGame = null;
+                Emit(new { type = "game", processId = (int?)null });
+                gameSources = new WindowsCaptureSources();
+            }
+            var source = gameSources.DetectAutomaticGame(DateTimeOffset.UtcNow);
+            if (source?.ProcessId is not { } pid) return;
+            try
+            {
+                activeGame = Process.GetProcessById(pid);
+                if (activeGame.HasExited) { activeGame.Dispose(); activeGame = null; return; }
+                Emit(new { type = "game", processId = pid });
+            }
+            catch (ArgumentException) { activeGame?.Dispose(); activeGame = null; }
+            catch (System.ComponentModel.Win32Exception) { activeGame?.Dispose(); activeGame = null; }
+        }
         try
         {
-            if (config.Executables.Length > 0) applicationsTimer = SetTimer(0, 0, 2_000, 0);
-            if (config.Executables.Length > 0 && applicationsTimer == 0) throw new InvalidOperationException("Application watching could not start.");
+            if (config.Executables.Length > 0 || config.WatchGames) applicationsTimer = SetTimer(0, 0, 2_000, 0);
+            if ((config.Executables.Length > 0 || config.WatchGames) && applicationsTimer == 0) throw new InvalidOperationException("Application watching could not start.");
             Emit(new { type = "ready" });
             EmitMetrics();
             if (config.Executables.Length > 0) EmitApplications(config.Executables);
+            CheckGame();
             while (GetMessage(out var message, 0, 0, 0) > 0)
             {
                 if (message.Message == 0x8001) EmitMetrics();
                 else if (message.Message == WmTimer && message.WParam == applicationsTimer)
-                    EmitApplications(config.Executables);
+                {
+                    if (config.Executables.Length > 0) EmitApplications(config.Executables);
+                    CheckGame();
+                }
             }
             return 0;
         }
@@ -53,6 +82,7 @@ internal static class DesktopControls
         finally
         {
             if (applicationsTimer != 0) KillTimer(0, applicationsTimer);
+            activeGame?.Dispose();
         }
     }
 

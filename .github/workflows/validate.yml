@@ -21,6 +21,7 @@ jobs:
       - run: bun run check
       - run: bun run check:types
       - run: bun run build
+      - run: node scripts/verify-update-installer.mjs
 
   native-hosts:
     runs-on: windows-latest

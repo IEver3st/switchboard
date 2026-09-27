@@ -15,7 +15,7 @@ import { loadDefaultAppUpdaterClient, type AppUpdaterClient } from './services/a
 import { registerMontageV2Ipc } from './montage-v2-ipc';
 import { disposeMontageV2Service, getMontageV2Service } from './services/montage-v2';
 import { disposePreparedShareService } from './services/prepared-share';
-import { consumeBackgroundUpdate, markBackgroundUpdate, readSoftwareRenderingPreference } from './startup-settings';
+import { consumeBackgroundUpdate, markBackgroundUpdate, readSoftwareRenderingPreference, shouldStartMinimized, WINDOWS_STARTUP_ARGUMENT } from './startup-settings';
 import { developerDiagnostics } from './services/developer-diagnostics';
 
 process.on('uncaughtExceptionMonitor', (error, origin) => {
@@ -37,6 +37,7 @@ let controller: AppController | null = null;
 let cleanupIpc: (() => void) | null = null;
 let cleanupMontageV2Ipc: (() => void) | null = null;
 let quitting = false;
+let gameBackgrounded = false;
 let shutdownStarted = false;
 const applicationIdentity = resolveApplicationIdentity({
   appDataPath: app.getPath('appData'),
@@ -122,7 +123,7 @@ function createWindow(): BrowserWindow {
 
   controller?.setRendererActive(true);
   window.once('ready-to-show', () => {
-    if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') window.show();
+    if (!gameBackgrounded && process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') window.show();
   });
   window.on('focus', () => {
     void controller?.initialize().then(() => controller?.refreshAudioDevices()).catch(() => undefined);
@@ -172,6 +173,7 @@ function createWindow(): BrowserWindow {
 }
 
 function showWindow(): void {
+  gameBackgrounded = false;
   if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow();
   else {
     controller?.setRendererActive(true);
@@ -272,7 +274,7 @@ if (verifyPackagedUpdater) {
       demoUpdateRequested = true;
       controller?.enableDemoUpdate();
     }
-    showWindow();
+    if (!shouldStartMinimized(arguments_, controller?.getSnapshot().settings.startMinimized ?? true)) showWindow();
   });
 
   void app.whenReady().then(async () => {
@@ -281,6 +283,13 @@ if (verifyPackagedUpdater) {
     session.defaultSession.setPermissionCheckHandler(() => false);
 
     controller = new AppController({
+      onGameLaunched: () => {
+        if (quitting || !tray || !mainWindow || mainWindow.isDestroyed()) return;
+        gameBackgrounded = true;
+        controller?.setRendererActive(false);
+        if (controller?.getSnapshot().settings.destroyRendererInTray) mainWindow.destroy();
+        else mainWindow.hide();
+      },
       onQuickControls: open => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.setOpen(open); },
       onToggleQuickControls: () => { quickControls.setSurface(controller!.getQuickSurface()); quickControls.toggle(); },
       onSetupPreferences: async preferences => {
@@ -333,7 +342,9 @@ if (verifyPackagedUpdater) {
     cleanupIpc = registerIpc(controller, () => mainWindow, () => quickControls.getWindow());
     cleanupMontageV2Ipc = registerMontageV2Ipc(controller, () => mainWindow);
     tray = createTray();
-    if (startInTrayAfterUpdate) controller.setRendererActive(false);
+    // Only sign-in launches wait for persisted window policy; manual startup stays fast.
+    if (process.argv.includes(WINDOWS_STARTUP_ARGUMENT)) await controller.prepareSnapshot();
+    if (startInTrayAfterUpdate || shouldStartMinimized(process.argv, controller.getSnapshot().settings.startMinimized)) controller.setRendererActive(false);
     else showWindow();
     await initialization;
 
@@ -403,7 +414,7 @@ async function verifyInstalledUpdate(
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && !controller?.getSnapshot().settings.closeToTray) requestQuit();
+  if (process.platform !== 'darwin' && !gameBackgrounded && !controller?.getSnapshot().settings.closeToTray) requestQuit();
 });
 
 app.on('before-quit', (event) => {

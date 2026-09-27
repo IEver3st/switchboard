@@ -3,7 +3,7 @@ using NAudio.Wave;
 
 namespace Switchboard.AudioHost;
 
-internal sealed class RoutingEngine : IDisposable
+internal sealed class RoutingEngine : IAudioRoutingEngine
 {
     private const int RingCapacitySamples = AudioConstants.SampleRate * AudioConstants.Channels;
     private static readonly string[] RenderBusIds = ["game", "chat", "media", "aux"];
@@ -27,6 +27,11 @@ internal sealed class RoutingEngine : IDisposable
 
     public event Action<Exception>? Failed;
     public VirtualEndpointSet VirtualEndpoints => virtualEndpoints;
+    public VirtualDriverState Driver => virtualEndpoints.Snapshot();
+    public string Backend => "switchboard-driver";
+    public bool HasVirtualOutputs => true;
+    public IReadOnlyList<AudioApplicationPreference> ApplicationRoutes => [];
+    public void Refresh() { }
 
     public static RoutingEngine Create(
         EndpointService endpoints,
