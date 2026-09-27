@@ -1,0 +1,609 @@
+diff --git a/engines/capture-host-tests/Program.cs b/engines/capture-host-tests/Program.cs
+index 6c5d790..31b247b 100644
+--- a/engines/capture-host-tests/Program.cs
++++ b/engines/capture-host-tests/Program.cs
+@@ -2,6 +2,10 @@ using System.Diagnostics;
+ using System.Runtime.InteropServices;
+ using Switchboard.CaptureHost;
+ 
++if (args.Contains("--resource-benchmark")) { await CaptureResourceTests.BenchmarkAsync(); return; }
++if (args.Contains("--software-resource-probes")) { await CaptureResourceTests.ProbeSoftwareAsync(); return; }
++if (args.Contains("--resource-policy-only")) { CaptureResourceTests.AssertArguments(); Console.WriteLine("Capture resource policy passed."); return; }
++
+ if (await StartupProbeTests.RunFixtureAsync(args)) return;
+ if (args.Contains("--startup-probe-only"))
+ {
+@@ -104,6 +108,7 @@ if (args.Contains("--sync-media-probe", StringComparer.Ordinal))
+     return;
+ }
+ NvencReplayTests.AssertArguments();
++CaptureResourceTests.AssertArguments();
+ if (args.Contains("--encoder-policy-only", StringComparer.Ordinal))
+ {
+     Console.WriteLine("Replay encoder policy tests passed.");
+diff --git a/engines/capture-host-tests/StartupProbeTests.cs b/engines/capture-host-tests/StartupProbeTests.cs
+index b418d5f..69aade6 100644
+--- a/engines/capture-host-tests/StartupProbeTests.cs
++++ b/engines/capture-host-tests/StartupProbeTests.cs
+@@ -5,6 +5,10 @@ internal static class StartupProbeTests
+ {
+     internal static async Task<bool> RunFixtureAsync(string[] args)
+     {
++        if (args.Contains("switchboard_probe_timeout_fixture")) {
++            await Task.Delay(Timeout.Infinite);
++            return true;
++        }
+         if (args.Contains("switchboard_stdin_fixture"))
+         {
+             // An inherited, still-open host command pipe would block here or feed
+@@ -20,6 +24,16 @@ internal static class StartupProbeTests
+ 
+     internal static async Task AssertStdinIsolationAsync()
+     {
++        string? timeoutDetail = null;
++        if (await FfmpegLocator.ProbeEncoderAsync(Environment.ProcessPath!, "switchboard_probe_timeout_fixture",
++                CancellationToken.None, detail => timeoutDetail = detail, timeoutMs: 300) || timeoutDetail is null)
++            throw new Exception("An optional encoder timeout must be diagnosed and excluded without aborting startup.");
++        using (var cancellation = new CancellationTokenSource(300)) {
++            try {
++                await FfmpegLocator.ProbeEncoderAsync(Environment.ProcessPath!, "switchboard_probe_timeout_fixture", cancellation.Token);
++                throw new Exception("User cancellation must not become an unsupported encoder result.");
++            } catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
++        }
+         using var job = new WindowsChildProcessJob();
+         var start = new ProcessStartInfo(Environment.ProcessPath!)
+         {
+diff --git a/engines/capture-host/CaptureDiagnosticRunner.cs b/engines/capture-host/CaptureDiagnosticRunner.cs
+index 51fbc4f..e1d91a4 100644
+--- a/engines/capture-host/CaptureDiagnosticRunner.cs
++++ b/engines/capture-host/CaptureDiagnosticRunner.cs
+@@ -75,8 +75,7 @@ internal static class CaptureDiagnosticRunner
+             emit(new(id, encoder, "running", "Testing a synthetic frame; no screen content is used."));
+             try
+             {
+-                var probe = await RunProcessAsync(ffmpeg, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+-                    "color=size=640x360:rate=1", "-frames:v", "1", "-c:v", encoder, "-f", "null", "-"], cancellationToken);
++                var probe = await RunProcessAsync(ffmpeg, FfmpegLocator.BuildEncoderProbeArguments(encoder), cancellationToken);
+                 if (probe.ExitCode == 0) working.Add(encoder);
+                 emit(new(id, encoder, probe.ExitCode == 0 ? "pass" : "skipped",
+                     probe.ExitCode == 0 ? "Synthetic encoding passed. Live capture is tested separately." : $"Unavailable on this system; excluded from automatic selection.\n{probe.Output}", probe.DurationMs));
+diff --git a/engines/capture-host/FfmpegLocator.cs b/engines/capture-host/FfmpegLocator.cs
+index 947f403..a05c8df 100644
+--- a/engines/capture-host/FfmpegLocator.cs
++++ b/engines/capture-host/FfmpegLocator.cs
+@@ -41,26 +41,38 @@ internal static class FfmpegLocator
+         string ffmpegPath,
+         string encoder,
+         CancellationToken cancellationToken,
+-        Action<string>? onDiagnostic = null)
++        Action<string>? onDiagnostic = null,
++        int timeoutMs = 15_000)
+     {
+-        var arguments = new[]
+-        {
+-            "-nostdin", "-hide_banner", "-loglevel", "error",
+-            // Current NVIDIA encoders reject dimensions below their hardware minimum.
+-            // Probe at a small, universally useful encode size instead of producing a
+-            // false negative that silently selects the software fallback.
+-            "-f", "lavfi", "-i", "color=size=640x360:rate=1",
+-            "-frames:v", "1", "-c:v", encoder, "-f", "null", "-",
+-        };
++        var arguments = BuildEncoderProbeArguments(encoder);
+         // Startup probes must never inherit the host's JSON command input. Reuse
+         // the isolated, bounded runner so cancellation also reaps the child.
+         // Cold driver initialization can take several seconds; keep a 15-second
+         // startup allowance rather than mistaking it for unsupported hardware.
+-        var result = await CaptureDiagnosticRunner.RunProcessAsync(ffmpegPath, arguments, cancellationToken, timeoutMs: 15_000);
+-        if (!string.IsNullOrWhiteSpace(result.Output)) onDiagnostic?.Invoke(result.Output[..Math.Min(4096, result.Output.Length)]);
+-        return result.ExitCode == 0;
++        try {
++            var result = await CaptureDiagnosticRunner.RunProcessAsync(ffmpegPath, arguments, cancellationToken, timeoutMs);
++            if (!string.IsNullOrWhiteSpace(result.Output)) onDiagnostic?.Invoke(result.Output[..Math.Min(4096, result.Output.Length)]);
++            return result.ExitCode == 0;
++        } catch (TimeoutException error) {
++            // A stalled optional codec must not discard a working NVENC/QSV/AMF
++            // result and send the entire capture startup into a reprobe loop.
++            onDiagnostic?.Invoke(error.Message);
++            return false;
++        }
+     }
+ 
++    internal static IReadOnlyList<string> BuildEncoderProbeArguments(string encoder) => [
++            "-nostdin", "-hide_banner", "-loglevel", "error",
++            "-filter_threads", "1",
++            // Current NVIDIA encoders reject dimensions below their hardware minimum.
++            // Probe at a small, universally useful encode size instead of producing a
++            // false negative that silently selects the software fallback.
++            "-f", "lavfi", "-i", "color=size=640x360:rate=1",
++            "-frames:v", "1", "-c:v", encoder,
++            .. CaptureCpuBudget.SoftwareEncoderArguments(encoder),
++            "-f", "null", "-",
++        ];
++
+     public static async Task<string> ReadVersionAsync(string ffmpegPath, CancellationToken cancellationToken)
+     {
+         var text = await RunForTextAsync(ffmpegPath, ["-version"], cancellationToken);
+diff --git a/engines/capture-host/ReplayEngine.cs b/engines/capture-host/ReplayEngine.cs
+index e6f9459..d9ca2f7 100644
+--- a/engines/capture-host/ReplayEngine.cs
++++ b/engines/capture-host/ReplayEngine.cs
+@@ -977,6 +977,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
+         var arguments = new List<string>
+         {
+             "-hide_banner", "-loglevel", "warning", "-nostats",
++            "-filter_threads", "1",
+             "-thread_queue_size", "512",
+             "-f", input.FfmpegSampleFormat,
+             "-ar", input.SampleRate.ToString(CultureInfo.InvariantCulture),
+@@ -1020,6 +1021,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
+         yield return "-loglevel";
+         yield return "warning";
+         yield return "-nostats";
++        yield return "-filter_threads";
++        yield return CaptureCpuBudget.FilterThreads(Environment.ProcessorCount).ToString(CultureInfo.InvariantCulture);
+         yield return "-progress";
+         yield return "pipe:2";
+         yield return "-f";
+@@ -1038,8 +1041,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
+         }
+         if (encoderName.StartsWith("lib", StringComparison.OrdinalIgnoreCase))
+             filters.Add("hwdownload,format=bgra,format=yuv420p");
+-        else if (encoderName.EndsWith("_amf", StringComparison.OrdinalIgnoreCase))
+-            // AMF owns the upload; capture-owned D3D11 textures fail on some GPUs.
++        else if (encoderName.EndsWith("_amf", StringComparison.OrdinalIgnoreCase)
++                 || encoderName.EndsWith("_qsv", StringComparison.OrdinalIgnoreCase))
++            // AMF owns its upload; QSV requires NV12/QSV frames, not the capture
++            // backend's BGRA D3D11 textures. Keep NVIDIA's direct path separate.
+             filters.Add("hwdownload,format=bgra,format=nv12");
+         if (filters.Count > 0)
+         {
+@@ -1117,6 +1122,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
+ 
+     internal static IEnumerable<string> EncoderArguments(CaptureSettings capture, string encoder)
+     {
++        foreach (var argument in CaptureCpuBudget.SoftwareEncoderArguments(encoder)) yield return argument;
+         var target = capture.TargetVideoBitrateBps.ToString(CultureInfo.InvariantCulture);
+         var maximum = capture.MaximumVideoBitrateBps.ToString(CultureInfo.InvariantCulture);
+         if (encoder.Contains("nvenc", StringComparison.OrdinalIgnoreCase))
+@@ -1259,48 +1265,35 @@ internal sealed class ReplayEngine : IAsyncDisposable
+                         await ReconcileReactionInputAsync(capture, capture, forceRestart: true);
+                     }
+ 
++                    long retainedCacheBytes = 0;
+                     if (sessionDirectory is not null && ring is not null)
+                     {
+-                        ring.Evict(
++                        var audioBytes = ring.Evict(
+                             sessionDirectory,
+                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
+                             capture.MaximumCacheBytes,
+                             captureRunning: systemAudioFfmpeg is { HasExited: false },
+                             searchPattern: "system-*.mka");
+-                        ring.Evict(
++                        audioBytes += ring.Evict(
+                             sessionDirectory,
+                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
+                             capture.MaximumCacheBytes,
+                             captureRunning: chatAudioFfmpeg is { HasExited: false },
+                             searchPattern: "chat-*.mka");
+-                        ring.Evict(
++                        audioBytes += ring.Evict(
+                             sessionDirectory,
+                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
+                             capture.MaximumCacheBytes,
+                             captureRunning: microphoneFfmpeg is { HasExited: false },
+                             searchPattern: "microphone-*.mka");
+-                        var audioBytes = ring.List(
+-                                sessionDirectory,
+-                                captureRunning: systemAudioFfmpeg is { HasExited: false },
+-                                searchPattern: "system-*.mka")
+-                            .Concat(ring.List(
+-                                sessionDirectory,
+-                                captureRunning: chatAudioFfmpeg is { HasExited: false },
+-                                searchPattern: "chat-*.mka"))
+-                            .Concat(ring.List(
+-                                sessionDirectory,
+-                                captureRunning: microphoneFfmpeg is { HasExited: false },
+-                                searchPattern: "microphone-*.mka"))
+-                            .Where(segment => segment.Complete)
+-                            .Sum(segment => segment.SizeBytes);
+-                        ring.Evict(
++                        retainedCacheBytes = audioBytes + ring.Evict(
+                             sessionDirectory,
+                             TimeSpan.FromSeconds(capture.SegmentRetentionSeconds),
+                             Math.Max(1, capture.MaximumCacheBytes - audioBytes),
+                             captureRunning: ffmpeg is { HasExited: false });
+                     }
+ 
+-                    var storage = GetStorageStatus(capture, GetReplayCacheBytes());
++                    var storage = GetStorageStatus(capture, retainedCacheBytes);
+                     var systemAudioProcessWarning = capture.IncludeSystemAudio && systemAudioFfmpeg is { HasExited: true }
+                         ? "The game-audio encoder stopped. Video is still buffering."
+                         : null;
+diff --git a/engines/capture-host/ReplaySegmentRing.cs b/engines/capture-host/ReplaySegmentRing.cs
+index eb1cff2..4fad4f8 100644
+--- a/engines/capture-host/ReplaySegmentRing.cs
++++ b/engines/capture-host/ReplaySegmentRing.cs
+@@ -142,7 +142,9 @@ internal sealed class ReplaySegmentRing
+         return selected;
+     }
+ 
+-    public IReadOnlyList<ReplaySegmentInfo> Evict(
++    // Return retained completed bytes from this inventory, including locked
++    // files whose deletion failed. Callers need not rescan the same ring.
++    public long Evict(
+         string sessionDirectory,
+         TimeSpan maximumDuration,
+         long maximumBytes,
+@@ -163,12 +165,13 @@ internal sealed class ReplaySegmentRing
+             }
+         }
+         var candidates = SelectEvictionCandidates(segments, maximumDuration, maximumBytes);
++        var retainedBytes = segments.Where(segment => segment.Complete).Sum(segment => segment.SizeBytes);
+         foreach (var segment in candidates)
+         {
+-            try { File.Delete(segment.Path); } catch (IOException) { }
++            try { File.Delete(segment.Path); retainedBytes -= segment.SizeBytes; } catch (IOException) { }
+             catch (UnauthorizedAccessException) { }
+         }
+-        return candidates;
++        return retainedBytes;
+     }
+ 
+     internal static IReadOnlyList<ReplaySegmentInfo> SelectEvictionCandidates(
+diff --git a/scripts/measure-idle.mjs b/scripts/measure-idle.mjs
+index 852cbed..6d909bb 100644
+--- a/scripts/measure-idle.mjs
++++ b/scripts/measure-idle.mjs
+@@ -5,6 +5,9 @@ import { resolve } from 'node:path';
+ import { performance } from 'node:perf_hooks';
+ import { promisify } from 'node:util';
+ import { estimateWindowedGrowth } from './performance-statistics.mjs';
++import { Session } from 'node:inspector/promises';
++import { mkdir, writeFile } from 'node:fs/promises';
++import { dirname } from 'node:path';
+ 
+ const execFileAsync = promisify(execFile);
+ 
+@@ -22,6 +25,9 @@ const trayCpuBudgetPercent = positiveNumber(process.env.SWITCHBOARD_IDLE_TRAY_CP
+ app.setName('switchboard-idle-measure');
+ app.setAppPath(projectRoot);
+ app.setPath('userData', isolatedUserData);
++// An isolated settings profile must not silently scan the real video library.
++await mkdir(resolve(isolatedUserData, 'videos'), { recursive: true });
++app.setPath('videos', resolve(isolatedUserData, 'videos'));
+ if (process.env.SWITCHBOARD_IDLE_DISABLE_GPU === '1') {
+   process.env.SWITCHBOARD_DISABLE_HARDWARE_ACCELERATION = '1';
+ }
+@@ -38,7 +44,16 @@ void app.whenReady().then(async () => {
+   const open = await measureState('open-idle', warmupDurationMs, sampleDurationMs, sampleIntervalMs);
+   window.close();
+   await waitForRendererDestroyed();
++  const profilePath = process.env.SWITCHBOARD_IDLE_CPU_PROFILE;
++  const profiler = profilePath ? new Session() : null;
++  if (profiler) { profiler.connect(); await profiler.post('Profiler.enable'); await profiler.post('Profiler.start'); }
+   const tray = await measureState('tray-idle', warmupDurationMs, sampleDurationMs, sampleIntervalMs);
++  if (profiler) {
++    const { profile } = await profiler.post('Profiler.stop');
++    profiler.disconnect();
++    await mkdir(dirname(resolve(profilePath)), { recursive: true });
++    await writeFile(resolve(profilePath), JSON.stringify(profile));
++  }
+ 
+   const result = {
+     mode: process.env.SWITCHBOARD_IDLE_REAL_DEVICES === '1' ? 'isolated-live-devices' : 'isolated-native-fixtures',
+diff --git a/src/main/services/clip-library.ts b/src/main/services/clip-library.ts
+index 8ff68e6..5159a98 100644
+--- a/src/main/services/clip-library.ts
++++ b/src/main/services/clip-library.ts
+@@ -73,19 +73,76 @@ const waveformCacheLimit = 16;
+ const audioPreviewCacheLimit = 16;
+ const persistedAudioPreviewLimit = 32;
+ 
++// A scan can span time in the tray. Preserve saves, edits and deletions made
++// after it began instead of replacing canonical state with its old snapshot.
++export function mergeReconciledClips(indexed: readonly Clip[], current: readonly Clip[], scanned: readonly Clip[]): Clip[] {
++  const before = new Map(indexed.map(clip => [clip.id, clip]));
++  const found = new Map(scanned.map(clip => [clip.id, clip]));
++  const merged = current.flatMap(clip => {
++    const original = before.get(clip.id);
++    if (!original) return [clip];
++    const reconciled = found.get(clip.id);
++    if (!reconciled) return [];
++    return [{ ...reconciled, ...clip,
++      thumbnailPath: clip.thumbnailPath === original.thumbnailPath ? reconciled.thumbnailPath : clip.thumbnailPath }];
++  });
++  const paths = new Set(merged.map(clip => resolve(clip.path).toLocaleLowerCase()));
++  for (const clip of scanned) {
++    const path = resolve(clip.path).toLocaleLowerCase();
++    if (!before.has(clip.id) && !paths.has(path)) { merged.push(clip); paths.add(path); }
++  }
++  return merged.sort((left, right) => right.createdAt - left.createdAt);
++}
++
+ export class ClipLibraryService {
+   private thumbnailQueue: Promise<void> = Promise.resolve();
++  private backgroundActive = true;
++  private readonly backgroundAbort = new AbortController();
++  private readonly backgroundWaiters = new Set<() => void>();
++  private readonly reconciliations = new Set<Promise<Clip[]>>();
+   private readonly waveformCache = new Map<string, Promise<ClipAudioWaveform>>();
+   private readonly audioPreviewCache = new Map<string, Promise<string>>();
+ 
+   public constructor(private readonly thumbnailDirectory: string) {}
+ 
+-  public async reconcile(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
++  public setBackgroundWorkActive(active: boolean): void {
++    this.backgroundActive = active;
++    if (active) this.wakeBackgroundWork();
++  }
++
++  public async dispose(): Promise<void> {
++    this.backgroundAbort.abort();
++    this.wakeBackgroundWork();
++    await Promise.allSettled([...this.reconciliations, this.thumbnailQueue]);
++  }
++
++  private wakeBackgroundWork(): void {
++    for (const wake of this.backgroundWaiters) wake();
++    this.backgroundWaiters.clear();
++  }
++
++  private async waitForBackgroundWork(): Promise<void> {
++    while (!this.backgroundActive && !this.backgroundAbort.signal.aborted) {
++      await new Promise<void>(resolve => this.backgroundWaiters.add(resolve));
++    }
++    this.backgroundAbort.signal.throwIfAborted();
++  }
++
++  public reconcile(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
++    const task = this.reconcileCore(indexed, directory);
++    this.reconciliations.add(task);
++    void task.then(() => this.reconciliations.delete(task), () => this.reconciliations.delete(task));
++    return task;
++  }
++
++  private async reconcileCore(indexed: readonly Clip[], directory: string): Promise<Clip[]> {
++    await this.waitForBackgroundWork();
+     await mkdir(directory, { recursive: true });
+     await mkdir(this.thumbnailDirectory, { recursive: true });
+     await this.pruneAudioPreviews().catch((error) => console.warn('Clip audio preview cleanup failed.', error));
+     const existing: Clip[] = [];
+     for (const indexedClip of indexed) {
++      await this.waitForBackgroundWork();
+       const clip = normalizeClipRecord(indexedClip);
+       try {
+         await access(clip.path);
+@@ -107,6 +164,7 @@ export class ClipLibraryService {
+ 
+     const byPath = new Map(existing.map((clip) => [resolve(clip.path).toLocaleLowerCase(), clip]));
+     const handle = await opendir(directory);
++    const unindexed: string[] = [];
+     let inspected = 0;
+     for await (const entry of handle) {
+       if (!entry.isFile() || !supportedExtensions.has(extname(entry.name).toLocaleLowerCase())) continue;
+@@ -114,11 +172,17 @@ export class ClipLibraryService {
+       inspected += 1;
+       const path = resolve(directory, entry.name);
+       if (byPath.has(path.toLocaleLowerCase())) continue;
++      unindexed.push(path);
++    }
++    // Close the directory handle before waiting for the interface to reopen.
++    for (const path of unindexed) {
++      await this.waitForBackgroundWork();
+       try {
+-        const clip = await this.createClipFromFile(path);
++        const clip = await this.createClipFromFile(path, this.backgroundAbort.signal);
+         existing.push(clip);
+         byPath.set(path.toLocaleLowerCase(), clip);
+       } catch (error) {
++        this.backgroundAbort.signal.throwIfAborted();
+         console.warn('Skipped an unreadable clip during library reconciliation.', basename(path), error);
+       }
+     }
+@@ -135,25 +199,29 @@ export class ClipLibraryService {
+     this.thumbnailQueue = this.thumbnailQueue
+       .catch(() => undefined)
+       .then(async () => {
++        await this.waitForBackgroundWork();
+         let audioChannels = clip.audioChannels;
+         if (audioChannels === undefined) {
+-          audioChannels = (await this.probe(clip.path)).audioChannels;
++          audioChannels = (await this.probe(clip.path, this.backgroundAbort.signal)).audioChannels;
+         }
++        await this.waitForBackgroundWork();
+         if (clip.thumbnailPath && basename(clip.thumbnailPath) === `${clip.id}.v2.jpg`) {
+           try {
+             await access(clip.thumbnailPath);
++            this.backgroundAbort.signal.throwIfAborted();
+             onReady({ thumbnailPath: clip.thumbnailPath, audioChannels });
+             return;
+-          } catch { }
++          } catch { this.backgroundAbort.signal.throwIfAborted(); }
+         }
+         const thumbnailPath = join(this.thumbnailDirectory, `${clip.id}.v2.jpg`);
+-        await this.generateThumbnail(clip.path, thumbnailPath, clip.durationMs);
++        await this.generateThumbnail(clip.path, thumbnailPath, clip.durationMs, this.backgroundAbort.signal);
++        this.backgroundAbort.signal.throwIfAborted();
+         onReady({ thumbnailPath, audioChannels });
+         if (clip.thumbnailPath && resolve(clip.thumbnailPath) !== resolve(thumbnailPath)) {
+           await rm(clip.thumbnailPath, { force: true });
+         }
+       })
+-      .catch((error) => console.warn('Clip thumbnail generation failed.', error));
++      .catch((error) => { if (!this.backgroundAbort.signal.aborted) console.warn('Clip thumbnail generation failed.', error); });
+   }
+ 
+   public async removeThumbnail(clip: Clip): Promise<void> {
+@@ -219,8 +287,8 @@ export class ClipLibraryService {
+     return pending;
+   }
+ 
+-  public async createClipFromFile(path: string): Promise<Clip> {
+-    const [file, media] = await Promise.all([stat(path), this.probe(path)]);
++  public async createClipFromFile(path: string, signal?: AbortSignal): Promise<Clip> {
++    const [file, media] = await Promise.all([stat(path), this.probe(path, signal)]);
+     const game = inferClipGame(parse(path).name);
+     const createdAt = file.birthtimeMs > 0 ? Math.round(file.birthtimeMs) : Math.round(file.mtimeMs);
+     return {
+@@ -418,12 +486,12 @@ export class ClipLibraryService {
+     ], signal);
+   }
+ 
+-  private async probe(path: string): Promise<ProbeResult> {
++  private async probe(path: string, signal?: AbortSignal): Promise<ProbeResult> {
+     const executable = findExecutable('SWITCHBOARD_FFPROBE', 'ffprobe');
+     const output = await run(executable, [
+       '-v', 'error', '-print_format', 'json', '-show_entries',
+       'format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate:stream_tags=title,name,handler_name', path,
+-    ]);
++    ], signal);
+     const parsed = JSON.parse(output) as {
+       format?: { duration?: string };
+       streams?: Array<{
+@@ -528,8 +596,9 @@ export class ClipLibraryService {
+     await Promise.all(previews.slice(persistedAudioPreviewLimit).map(({ path }) => rm(path, { force: true })));
+   }
+ 
+-  private async generateThumbnail(path: string, thumbnailPath: string, durationMs: number): Promise<void> {
++  private async generateThumbnail(path: string, thumbnailPath: string, durationMs: number, signal?: AbortSignal): Promise<void> {
+     await mkdir(dirname(thumbnailPath), { recursive: true });
++    signal?.throwIfAborted();
+     const executable = findExecutable('SWITCHBOARD_FFMPEG', 'ffmpeg');
+     const durationSeconds = durationMs / 1_000;
+     const seekSeconds = durationSeconds <= 1
+@@ -540,7 +609,7 @@ export class ClipLibraryService {
+       await run(executable, [
+         '-hide_banner', '-loglevel', 'error', '-ss', seekSeconds.toFixed(3), '-i', path,
+         '-frames:v', '1', '-vf', "scale='min(960,iw)':-2:flags=lanczos", '-q:v', '2', '-y', temporary,
+-      ]);
++      ], signal);
+       await rename(temporary, thumbnailPath);
+     } finally {
+       await rm(temporary, { force: true });
+diff --git a/src/main/controller.ts b/src/main/controller.ts
+index 1e6c71f..292b173 100644
+--- a/src/main/controller.ts
++++ b/src/main/controller.ts
+@@ -110,7 +111,7 @@ import { applyClipTrackLevel, hasEffectiveClipMixChanged, resolveClipTrackLevel
+ import type { FeedbackEnvironment } from '../shared/feedback-report';
+ import { reconcileAudioDevices } from '../shared/audio-devices';
+ import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
+-import { ClipLibraryService, selectShareVideoEncoder } from './services/clip-library';
++import { ClipLibraryService, mergeReconciledClips, selectShareVideoEncoder } from './services/clip-library';
+ import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
+ import { AudioConfiguration, applyAudioPreferenceChanges, assertAudioConfigurationApplied } from './services/audio-configuration';
+ import { AppUpdateService, type AppUpdatePreferences } from './services/app-update-service';
+@@ -577,6 +588,7 @@ export class AppController {
+   public setRendererActive(active: boolean): SystemSnapshot {
+     if (this.rendererActive === active) return this.store.get();
+     this.rendererActive = active;
++    this.clipLibrary.setBackgroundWorkActive(active);
+     if (this.audioMeterDemandGate.setRendererActive(active)) this.syncAudioMeterDemand();
+     if (active) void this.refreshAudioDevices();
+     this.performance.refresh();
+@@ -2271,6 +2285,7 @@ export class AppController {
+ 
+   public async dispose(): Promise<void> {
+     this.disposed = true;
++    await this.clipLibrary.dispose();
+     await this.captureSourceRefresh.dispose();
+     this.clearCaptureRecovery();
+     await this.scenes.dispose();
+@@ -2558,9 +2577,10 @@ export class AppController {
+     const before = this.store.get();
+     try {
+       const clips = await this.clipLibrary.reconcile(before.clips, this.capturePaths.clipsDirectory);
++      if (this.disposed) return;
+       this.store.update((draft) => {
+-        draft.clips = clips;
+-        draft.capture.storage.clipsBytes = clips.reduce((sum, clip) => sum + clip.fileSize, 0);
++        draft.clips = mergeReconciledClips(before.clips, draft.clips, clips);
++        draft.capture.storage.clipsBytes = draft.clips.reduce((sum, clip) => sum + clip.fileSize, 0);
+       });
+       for (const clip of clips.filter((candidate) => this.clipLibrary.needsEnrichment(candidate))) {
+         this.clipLibrary.enqueueThumbnail(clip, (enrichment) => {
+@@ -2571,6 +2591,7 @@ export class AppController {
+         });
+       }
+     } catch (reconcileError) {
++      if (this.disposed) return;
+       this.store.update((draft) => {
+         draft.capture.storage.warning = `Clip library reconciliation failed: ${reconcileError instanceof Error ? reconcileError.message : String(reconcileError)}`;
+       }, { persist: false });
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index 669ecc3..c4a431c 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -202,6 +209,10 @@ before submitting them to the selected AMD hardware encoder. This avoids
+ capture-texture Direct3D interop failures that synthetic encoder probes do not
+ exercise. Recording and on-demand diagnostics share this conversion path;
+ NVENC retains direct hardware frames. AMF adds CPU conversion and upload costs.
++QSV also receives an explicit BGRA download and NV12 conversion: the bundled
++Intel H.264 encoder accepts NV12/QSV inputs, not the capture backend's BGRA
++D3D11 textures. This compatibility path adds CPU conversion and upload costs;
++Intel device capture and gameplay cadence require physical validation.
+ 
+ Production target:
+ 
+diff --git a/PERFORMANCE.md b/PERFORMANCE.md
+index aa0275a..7afd094 100644
+--- a/PERFORMANCE.md
++++ b/PERFORMANCE.md
+@@ -172,6 +180,56 @@ rearms one timer. Repeated start/disposal cannot accumulate timers.
+ 
+ ## Startup responsiveness
+ 
++Library reconciliation and thumbnail enrichment wait while the main interface
++is in the tray, including when its renderer is retained. Reopening resumes queued
++work through the existing renderer-active signal, with no waiting poll or timer.
++The current media operation may finish on close; shutdown aborts its child,
++releases paused work, and waits for cleanup. Explicit imports, exports and replay
++saves remain available independently. Reconciliation merges against current
++canonical clips so saves, edits and deletions made while paused survive resume.
++
++The idle harness now isolates its Videos folder as well as its settings profile.
++Previously an apparently empty fixture could scan real unindexed clips in the
++user's Videos folder; profiling found repeated FFprobe launches in tray mode.
++Those old samples are library-indexing measurements, not core idle baselines.
++Set `SWITCHBOARD_IDLE_CPU_PROFILE` to an output path to record a main-process
++CPU profile during the tray phase; profile runs are diagnostic, not budget gates.
++The corrected September 14, 2026 hidden native fixture run, with empty media
++storage and no engines, passed both 60-second median gates: 315.5 MiB with the
++renderer and 257.7 MiB in tray mode. Both reported 0.0% median whole-machine CPU
++at the sampler's one-decimal precision. This isolates idle overhead; it does not
++measure gameplay, physical devices, populated libraries, or active replay.
++
++Replay video conversion uses at most two filter workers; each independent audio
++encoder uses one filter worker. Software video encoding uses half the logical
++processors, clamped to one through eight workers. x265 and SVT-AV1 receive their
++own pool limits because their internal pools do not obey FFmpeg's thread count
++alone. Startup and on-demand synthetic encoder probes share these limits, with
++one filter worker. This bounds worker pools, not total process CPU utilization;
++high-resolution software capture can still miss its frame budget.
++
++An optional encoder probe timeout is diagnosed and excluded from the current
++capability inventory. It cannot discard already-working hardware encoders and
++restart the entire probe sequence. User cancellation still aborts the operation,
++and the timed-out child is reaped before another probe starts.
++
++The one-second replay maintenance pass obtains each stream inventory once and
++uses post-eviction byte totals for its storage guard. This reduces ring inventory
++reads from eleven to four per tick without extending retention or polling
++intervals. Failed deletions remain included in those byte totals. Snapshots and
++save requests still read fresh inventories, and the timer stops with the host.
++
++`dotnet run -c Release --project engines/capture-host-tests -- --resource-benchmark`
++compares previous automatic threading with production limits using 600 synthetic
++1080p60 BGRA frames, with no desktop/audio access. On September 14, 2026, setting
++`DOTNET_PROCESSOR_COUNT=4` and limiting the FFmpeg child to four logical processors
++on a Ryzen 9 9950X3D reduced peak private memory from 455.1 to 357.8 MiB and peak
++threads from 31 to 19. CPU time was 11.19 vs 10.61 seconds; elapsed encode time
++increased from 3.30 to 4.40 seconds, still faster than the ten-second source.
++This is a synthetic scheduling constraint, not an Intel or low-end hardware
++emulation, NVIDIA gameplay test, sustained resource gate, or quality comparison.
++The encoder preset, bitrate, frame rate and resolution remain unchanged.
++
+ `bun run measure:startup` builds the production Electron bundles and measures the isolated native review path from main-process JavaScript entry to a committed control-plane shell. The budget is 1,500 ms; the harness uses canonical fixture devices so physical HID latency cannot make the result nondeterministic. Overlay dismissal is reported separately because Chromium throttles animation frames for a hidden review window.
+ 
+ `bun run measure:settings` builds the same production bundles and measures the

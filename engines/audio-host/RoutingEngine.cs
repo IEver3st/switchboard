@@ -15,6 +15,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
     private readonly List<AudioOutput> outputs = [];
     private readonly Dictionary<string, RealtimeMeter> meters = new(StringComparer.OrdinalIgnoreCase);
     private NamedPipeAudioOutput? clipOutput;
+    private NamedPipeAudioOutput? chatOutput;
     private int disposed;
     private int failureRaised;
 
@@ -38,8 +39,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
         EndpointService endpoints,
         AudioHostSettings configuration,
         ISampleProvider virtualMicrophoneSource,
-        ISampleProvider streamMicrophoneSource,
-        ISampleProvider clipMicrophoneSource)
+        ISampleProvider streamMicrophoneSource)
     {
         var graph = new RoutingControlGraph();
         graph.Configure(configuration);
@@ -54,7 +54,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
         var engine = new RoutingEngine(endpoints, graph, virtualEndpoints);
         try
         {
-            engine.Build(discovered, configuration, virtualMicrophoneSource, streamMicrophoneSource, clipMicrophoneSource);
+            engine.Build(discovered, configuration, virtualMicrophoneSource, streamMicrophoneSource);
             return engine;
         }
         catch
@@ -68,6 +68,7 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
     {
         foreach (var output in outputs) output.Start();
         clipOutput?.Start();
+        chatOutput?.Start();
         foreach (var capture in captures) capture.Start();
     }
 
@@ -88,21 +89,21 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
         IReadOnlyCollection<AudioEndpoint> discovered,
         AudioHostSettings configuration,
         ISampleProvider virtualMicrophoneSource,
-        ISampleProvider streamMicrophoneSource,
-        ISampleProvider clipMicrophoneSource)
+        ISampleProvider streamMicrophoneSource)
     {
         Spatial.Configure(configuration.Spatial);
         var configurations = configuration.Buses.ToDictionary(bus => bus.Id, StringComparer.OrdinalIgnoreCase);
         var physicalOutputs = new Dictionary<string, List<ISampleProvider>>(StringComparer.OrdinalIgnoreCase);
         var streamSources = new List<ISampleProvider>();
-        var clipSources = new List<ISampleProvider>();
+        var replaySources = new ReplayTrackSources();
 
         foreach (var busId in RenderBusIds)
         {
             if (!configurations.TryGetValue(busId, out var bus))
                 throw new InvalidOperationException($"The {busId} bus has no routing configuration.");
             var physical = RequirePhysicalEndpoint(discovered, bus.DeviceId, "render", $"{busId} output");
-            var personalRing = new SpscFloatRing(RingCapacitySamples);
+            var personalRing = new SpscFloatRing(RingCapacitySamples,
+                AudioConstants.SampleRate * AudioConstants.Channels * AudioConstants.LiveQueueMilliseconds / 1_000);
             var streamRing = new SpscFloatRing(RingCapacitySamples);
             var clipRing = new SpscFloatRing(RingCapacitySamples);
             var captureDevice = Open(virtualEndpoints.ForBus(busId).Id);
@@ -111,26 +112,28 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
             var meter = new RealtimeMeter();
             meters[busId] = meter;
             AddSource(physicalOutputs, physical.Id,
-                new ProcessedSampleProvider(personalRing, graph.CreateProcessor("personal", busId), meter));
+                Spatial.Wrap(new ProcessedSampleProvider(personalRing, graph.CreateProcessor("personal", busId), meter), busId));
             streamSources.Add(new ProcessedSampleProvider(streamRing, graph.CreateProcessor("stream", busId)));
-            clipSources.Add(new ProcessedSampleProvider(clipRing, graph.CreateProcessor("clip", busId)));
+            replaySources.Add(busId, new ProcessedSampleProvider(clipRing, graph.CreateProcessor("clip", busId)));
         }
 
         var microphoneOutputDevice = Open(virtualEndpoints.MicrophoneRender.Id);
         AddOutput(new AudioOutput(microphoneOutputDevice,
             new ProcessedSampleProvider(virtualMicrophoneSource, graph.CreateProcessor("personal", "mic"))));
         streamSources.Add(new ProcessedSampleProvider(streamMicrophoneSource, graph.CreateProcessor("stream", "mic")));
-        clipSources.Add(new ProcessedSampleProvider(clipMicrophoneSource, graph.CreateProcessor("clip", "mic")));
 
         foreach (var destination in physicalOutputs)
         {
             var device = Open(destination.Key);
-            AddOutput(new AudioOutput(device, Spatial.Wrap(new FixedMixer(destination.Value))));
+            AddOutput(new AudioOutput(device, new FixedMixer(destination.Value)));
         }
 
         var streamOutputDevice = Open(virtualEndpoints.StreamRender.Id);
         AddOutput(new AudioOutput(streamOutputDevice, new FixedMixer(streamSources)));
-        clipOutput = new NamedPipeAudioOutput(new FixedMixer(clipSources));
+        clipOutput = new NamedPipeAudioOutput(replaySources.System, NamedPipeAudioOutput.SystemPipeName);
+        chatOutput = new NamedPipeAudioOutput(replaySources.Chat, NamedPipeAudioOutput.ChatPipeName);
+        clipOutput.Failed += OnRouteFailed;
+        chatOutput.Failed += OnRouteFailed;
     }
 
     private MMDevice Open(string endpointId)
@@ -200,7 +203,9 @@ internal sealed class RoutingEngine : IAudioRoutingEngine
             outputs[index].Dispose();
         }
         clipOutput?.Dispose();
+        chatOutput?.Dispose();
         clipOutput = null;
+        chatOutput = null;
         for (var index = openedDevices.Count - 1; index >= 0; index--) openedDevices[index].Dispose();
         captures.Clear();
         outputs.Clear();

@@ -314,7 +314,41 @@ would duplicate the voice 10 ms apart. The delay buffer is preallocated and clea
 with native model reset. Failed suppression frames bypass directly to current raw
 audio; the graph never crossfades through stale or partially written model output.
 
+Shared physical capture and playback request the minimum supported IAudioClient3
+period, with a 10 ms ordinary shared-mode fallback. Loopback capture retains the
+supported event-driven path. The microphone DSP thread registers with MMCSS once
+and blocks on capture notifications until shutdown. Without active suppression or
+its fade-out, DSP consumes available packets instead of assembling model frames.
+Only personal playback, monitoring, and virtual microphone consumers discard old
+queued samples beyond 20 ms (or one larger output callback) after a stall. Stream
+and recording queues retain their continuity policy. These are queue limits, not
+an end-to-end latency guarantee. See [Audio latency](docs/audio-latency.md).
+
+RNNoise's strength blend delays the raw contribution by one 480-sample frame to
+match the native overlap-add output. Blending the current input with that output
+would duplicate the voice 10 ms apart. The delay buffer is preallocated and cleared
+with native model reset. Failed suppression frames bypass directly to current raw
+audio; the graph never crossfades through stale or partially written model output.
+
 ## Capture
+
+Replay automatic inputs use versioned, current-user-only native PCM pipes when
+Audio.Host advertises `clipTracks` and `processedMicrophoneCapture`. Both audio
+backends partition the recording mix identically: Game/Media/Aux feed the system
+track, Chat feeds a separate track, and the processed microphone has its own
+AudioEngine-owned feed independent of transport-driver availability. Recording
+bus gain, mute, channel processing, and recording master apply before the pipes;
+personal ChatMix and headphone spatial processing do not. No PCM crosses Electron.
+
+Capture.Host relays each selected pipe to its existing FFmpeg track encoder and
+observes processed microphone frames for reaction detection, including analysis
+without microphone recording. Pipe loss is visible and triggers existing replay
+recovery. Main follows confirmed host capabilities rather than application
+activity, so quiet mixers do not switch sources. Explicit endpoint IDs survive
+disconnects and override automatic feeds. Game-only remains process loopback;
+fallback chat uses the Windows communications endpoint. Device-bound acoustic
+calibration applies only to endpoint capture, not these recording feeds. Existing
+clip editing/export consumes the same system, chat, and microphone track identities.
 
 Microphone timing calibration uses an on-demand native helper and main-owned
 measurement state. Saved device-bound advances apply to microphone PCM positions

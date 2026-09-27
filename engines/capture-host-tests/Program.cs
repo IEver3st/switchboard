@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
+if (args.Contains("--replay-audio")) { await ReplayAudioPipeTests.RunAsync(); return; }
+if (args.Length == 0) await ReplayAudioPipeTests.RunAsync();
 if (args.Contains("--chat-loopback-probe")) { await ChatAudioTests.RunLiveAsync(); return; }
 
 if (args.Contains("--calibrate-audio"))

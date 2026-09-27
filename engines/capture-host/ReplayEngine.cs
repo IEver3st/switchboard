@@ -18,7 +18,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
     private int microphoneAdvanceMs;
     private IAudioPipeInput? systemAudio;
     private IAudioPipeInput? chatAudio;
-    private AudioPipeCapture? microphoneAudio;
+    private IAudioPipeInput? microphoneAudio;
     private readonly ReactionDetector reactionDetector = new();
     private ReplaySegmentRing? ring;
     private CaptureSettings? settings;
@@ -690,6 +690,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     : capture.SystemAudioMode == "game"
                         ? await AudioPipeCapture.CreateProcessLoopbackAsync(source.ProcessId
                             ?? throw new InvalidOperationException("The selected source has no process for game-only audio."), cancellationToken)
+                    : capture.SystemAudioPipeName is { Length: > 0 } systemPipe
+                        ? new AudioHostPipeInput(systemPipe, "Switchboard game and media")
                     : capture.ClipMixPipeName is { Length: > 0 } pipeName
                         ? new AudioHostPipeInput(pipeName, "Switchboard clip mix")
                         : capture.SystemAudioDeviceId is { Length: > 0 } systemEndpointId
@@ -705,7 +707,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
             try
             {
-                chatAudio = CreateChatAudio(capture);
+                chatAudio = capture.IncludeChatAudio && capture.ChatAudioPipeName is { Length: > 0 } chatPipe
+                    ? new AudioHostPipeInput(chatPipe, "Switchboard chat")
+                    : CreateChatAudio(capture);
             }
             catch (Exception chatAudioError)
             {
@@ -811,6 +815,8 @@ internal sealed class ReplayEngine : IAsyncDisposable
             }
 
             microphoneAdvanceMs = 0;
+            if (capture.MicrophoneSync is { AdvanceMs: > 0 } && microphoneAudio is AudioHostPipeInput)
+                audioWarnings.Add("Saved device timing correction is inactive for the Switchboard microphone recording feed.");
             foreach (var input in new IAudioPipeInput?[] { systemAudio, chatAudio, microphoneAudio })
                 if (input is AudioPipeCapture deviceInput)
                 {
@@ -911,8 +917,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
                 ? selectedEndpointId
                 : null;
 
-    private AudioPipeCapture CreateMicrophoneInput(CaptureSettings capture)
+    private IAudioPipeInput CreateMicrophoneInput(CaptureSettings capture)
     {
+        if (capture.MicrophonePipeName is { Length: > 0 } pipe)
+            return new AudioHostPipeInput(pipe, "Switchboard processed microphone", reactionDetector);
         var endpointId = ResolveMicrophoneEndpointId(capture);
         if (endpointId is null) return AudioPipeCapture.CreateDefaultMicrophone(reactionDetector);
         var label = capture.ProcessedMicrophoneDeviceId is { Length: > 0 }
@@ -928,7 +936,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
     {
         if (activeSource is null || next.IncludeMic) return;
         if (forceRestart && DateTimeOffset.UtcNow < reactionRetryAt) return;
-        var endpointChanged = previous?.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId;
+        var endpointChanged = previous?.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId
+            || previous?.MicrophonePipeName != next.MicrophonePipeName
+            || previous?.MicrophoneDeviceId != next.MicrophoneDeviceId;
         var mustDispose = microphoneAudio is not null
                           && (!next.ReactionClippingEnabled
                               || forceRestart
@@ -1326,7 +1336,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
                     warning = storage.LowSpace
                         ? storage.Warning
                         : systemAudioProcessWarning ?? chatAudioProcessWarning ?? microphoneProcessWarning
-                          ?? microphoneAudio?.Error ?? chatAudio?.Error ?? systemAudio?.Error ?? GetAudioBackpressureWarning();
+                          ?? microphoneAudio?.Error ?? chatAudio?.Error ?? systemAudio?.Error ?? GetAudioBackpressureWarning() ?? capture.AudioFallbackReason;
                     if (storage.CriticalSpace && ffmpeg is { HasExited: false })
                     {
                         await StopFfmpegInternalAsync(CancellationToken.None, preserveRing: true);
@@ -1335,7 +1345,10 @@ internal sealed class ReplayEngine : IAsyncDisposable
                         monitorCancellation?.Cancel();
                     }
 
-                    if (ffmpeg is { HasExited: true } && operationalState == "buffering")
+                    if (operationalState == "buffering" && (ffmpeg is { HasExited: true }
+                        || systemAudio is AudioHostPipeInput && (systemAudio.Error is not null || systemAudioFfmpeg is { HasExited: true })
+                        || chatAudio is AudioHostPipeInput && (chatAudio.Error is not null || chatAudioFfmpeg is { HasExited: true })
+                        || capture.IncludeMic && microphoneAudio is AudioHostPipeInput && (microphoneAudio.Error is not null || microphoneFfmpeg is { HasExited: true })))
                     {
                         await RecoverCaptureAsync(capture, cancellationToken);
                     }
@@ -1563,9 +1576,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
             microphoneConcatPath,
             temporaryOutputPath,
             replayDuration,
-            settings?.ClipMixPipeName is not null ? "Switchboard Clip Mix" : "Game",
-            "Chat",
-            settings?.ProcessedMicrophoneDeviceId is not null ? "Processed Microphone" : "Microphone",
+            settings?.SystemAudioPipeName is not null ? "Switchboard System" : settings?.ClipMixPipeName is not null ? "Switchboard Clip Mix" : "Game",
+            settings?.ChatAudioPipeName is not null ? "Switchboard Chat" : "Chat",
+            settings?.MicrophonePipeName is not null || settings?.ProcessedMicrophoneDeviceId is not null ? "Processed Microphone" : "Microphone",
             systemAudioOffset, chatAudioOffset, microphoneOffset);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = childProcesses.Start(start, "FFmpeg remux");
@@ -1673,7 +1686,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
         ["hasSystemEndpoint"] = !string.IsNullOrWhiteSpace(capture.SystemAudioDeviceId),
         ["hasChatEndpoint"] = !string.IsNullOrWhiteSpace(capture.ChatAudioDeviceId),
         ["hasMicrophoneEndpoint"] = !string.IsNullOrWhiteSpace(capture.MicrophoneDeviceId),
-        ["usesAudioHostPipe"] = !string.IsNullOrWhiteSpace(capture.ClipMixPipeName),
+        ["usesAudioHostPipe"] = capture.ClipMixPipeName is not null || capture.SystemAudioPipeName is not null,
+        ["usesChatHostPipe"] = capture.ChatAudioPipeName is not null,
+        ["usesMicrophoneHostPipe"] = capture.MicrophonePipeName is not null,
     };
 
     private static string DiagnosticText(string text) => text[..Math.Min(4096, text.Length)];
@@ -1716,6 +1731,9 @@ internal sealed class ReplayEngine : IAsyncDisposable
         || previous.MicrophoneBitrateBps != next.MicrophoneBitrateBps
         || previous.ChatAudioBitrateBps != next.ChatAudioBitrateBps
         || previous.ClipMixPipeName != next.ClipMixPipeName
+        || previous.SystemAudioPipeName != next.SystemAudioPipeName
+        || previous.ChatAudioPipeName != next.ChatAudioPipeName
+        || previous.MicrophonePipeName != next.MicrophonePipeName
         || previous.MicrophoneSync != next.MicrophoneSync
         || previous.ProcessedMicrophoneDeviceId != next.ProcessedMicrophoneDeviceId
            && (previous.IncludeMic || next.IncludeMic)

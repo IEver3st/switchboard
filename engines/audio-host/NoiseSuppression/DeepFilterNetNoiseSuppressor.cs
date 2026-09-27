@@ -21,7 +21,9 @@ internal sealed partial class DeepFilterNetNoiseSuppressor : INoiseSuppressor
     public string? NativeLibraryHash { get; private set; }
     public int SampleRate => AudioConstants.ProcessingSampleRate;
     public int FrameLength { get; private set; }
-    public double AlgorithmicLatencyMs => FrameLength <= 0 ? 0 : FrameLength * 2_000d / SampleRate;
+    // Frame buffering plus the measured 3-hop output delay: one STFT hop and the
+    // pinned model's two-hop lookahead (40 ms at 48 kHz, versus 20 ms for RNNoise).
+    public double AlgorithmicLatencyMs => FrameLength <= 0 ? 0 : FrameLength * 4_000d / SampleRate;
     public double AttenuationLimitDb { get; private set; }
     public string? LastError { get; private set; }
 

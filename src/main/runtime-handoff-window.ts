@@ -24,6 +24,7 @@ export function runtimeHandoffHtml(name: string, state: RuntimeHandoffState, mes
 
 export class RuntimeHandoffWindow {
   private window: BrowserWindow | null = null;
+  private loadGeneration = 0;
   constructor(private readonly onHide: () => void) {}
   show(name: string, state: RuntimeHandoffState, message?: string): void {
     if (!this.window || this.window.isDestroyed()) {
@@ -38,8 +39,12 @@ export class RuntimeHandoffWindow {
         if (this.window === window && !window.isDestroyed() && process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') window.show();
       });
     }
-    void this.window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(runtimeHandoffHtml(name, state, message))}`).catch(error => {
-      if ((error as { code?: string }).code !== 'ERR_ABORTED') console.warn('Handoff status could not load.', error);
+    const window = this.window;
+    const load = ++this.loadGeneration;
+    void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(runtimeHandoffHtml(name, state, message))}`).catch(error => {
+      // A fast handoff disposes the window or replaces the status mid-load; only a current load failure matters.
+      const superseded = window.isDestroyed() || this.window !== window || load !== this.loadGeneration;
+      if (!superseded && (error as { code?: string }).code !== 'ERR_ABORTED') console.warn('Handoff status could not load.', error);
     });
     if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN !== '1') this.window.show();
   }

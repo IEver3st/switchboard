@@ -1,9 +1,10 @@
+import { resolveReplayAudioRouting } from '../../../../shared/capture-audio-routing';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, m, useReducedMotion } from 'motion/react';
 import { AppWindow, ChevronDown, FolderOpen, Gamepad2, ImageOff, Layers, Monitor, RefreshCw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { estimateClipSize } from '../../../../shared/capture-presets';
 import type { CaptureConfig, CaptureSource, SystemSnapshot } from '../../../../shared/contracts';
-import { CaptureAudioDeviceSelect, chatAutomaticLabel } from './capture-audio-device-select';
+import { CaptureAudioDeviceSelect, gameAutomaticLabel, chatAutomaticLabel, micAutomaticLabel } from './capture-audio-device-select';
 import { ShortcutRecorderButton } from '@/components/shared/ShortcutRecorderButton';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -491,7 +492,8 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
   const outputDevices = devices.filter((device) => device.direction === 'output' && device.available && !device.isSwitchboard);
   const inputDevices = devices.filter((device) => device.direction === 'input' && device.available && !device.isSwitchboard);
   const explicitMicUnavailable = Boolean(config.microphoneDeviceId) && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
-  const chatWithoutDevice = config.includeChatAudio && !config.chatAudioDeviceId;
+  const routing = resolveReplayAudioRouting(snapshot.audio, config);
+  const chatWithoutDevice = config.includeChatAudio && !config.chatAudioDeviceId && !routing.chatAudioPipeName;
   const gameAndChatSame = config.includeSystemAudio && config.includeChatAudio
     && config.systemAudioMode !== 'game' && Boolean(config.systemAudioDeviceId)
     && config.systemAudioDeviceId === config.chatAudioDeviceId;
@@ -501,7 +503,7 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
       <div className="text-[11px] font-medium text-foreground">Audio inputs</div>
       <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
         Each input is saved as its own track. Mute the microphone in the clip editor without losing game or chat audio.
-        Sonar users can assign Sonar Game, Sonar Chat, and the microphone to separate inputs.
+        Automatic follows Switchboard's recording mix when available: game and media together, chat and processed microphone separately.
       </p>
       <div className="mt-2 grid gap-2">
         <div className="capture-replay-audio__row">
@@ -517,8 +519,8 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
             label="Game audio device"
             value={config.systemAudioDeviceId}
             devices={outputDevices}
-            automaticLabel={snapshot.audio.host?.running ? 'Automatic (Switchboard clip mix)' : 'Automatic (default system audio)'}
-            disabled={!systemAvailable || !config.includeSystemAudio}
+            automaticLabel={gameAutomaticLabel(snapshot)}
+            disabled={!systemAvailable || !config.includeSystemAudio || config.systemAudioMode === 'game'}
             onChange={(systemAudioDeviceId) => void setCaptureConfig({ systemAudioDeviceId })}
           />
         </div>
@@ -535,7 +537,7 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
             label="Chat audio device"
             value={config.chatAudioDeviceId}
             devices={outputDevices}
-            automaticLabel={chatAutomaticLabel()}
+            automaticLabel={chatAutomaticLabel(snapshot)}
             disabled={!systemAvailable || !config.includeChatAudio}
             onChange={(chatAudioDeviceId) => void setCaptureConfig({ chatAudioDeviceId })}
           />
@@ -553,12 +555,15 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
             label="Microphone device"
             value={config.microphoneDeviceId}
             devices={inputDevices}
-            automaticLabel={snapshot.audio.microphoneDevice ? `Automatic (${snapshot.audio.microphoneDevice})` : 'Automatic (follow Audio settings)'}
+            automaticLabel={micAutomaticLabel(snapshot)}
             disabled={!micAvailable || !config.includeMic}
             onChange={(microphoneDeviceId) => void setCaptureConfig({ microphoneDeviceId })}
           />
         </div>
       </div>
+      {routing.audioFallbackReason ? (
+        <p className="mt-2 text-[10px] leading-4 text-warning" role="status">{routing.audioFallbackReason}</p>
+      ) : null}
       {explicitMicUnavailable && config.includeMic ? (
         <p className="mt-2 text-[10px] leading-4 text-warning" role="status">
           The selected microphone is not currently available. Reconnect it or choose another input before saving clips.
@@ -566,7 +571,7 @@ function CaptureAudioInputs({ snapshot }: { snapshot: SystemSnapshot }) {
       ) : null}
       {chatWithoutDevice ? (
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground" role="status">
-          Chat uses the Windows communications output. If Discord uses another output, select that same device here.
+          Chat follows the Windows communications output. If Discord uses a specific output, select that same device here.
         </p>
       ) : null}
       {gameAndChatSame ? (

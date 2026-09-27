@@ -12,16 +12,22 @@ internal sealed class SpscFloatRing : ISampleProvider
     private long readSequence;
     private long writeSequence;
     private long droppedSamples;
+    private readonly int maximumBufferedSamples;
+    private long discardedSamples;
 
-    public SpscFloatRing(int capacitySamples)
+    public SpscFloatRing(int capacitySamples, int maximumBufferedSamples = 0)
     {
         if (capacitySamples <= 0) throw new ArgumentOutOfRangeException(nameof(capacitySamples));
+        if (maximumBufferedSamples < 0 || maximumBufferedSamples > capacitySamples || maximumBufferedSamples % AudioConstants.Channels != 0)
+            throw new ArgumentOutOfRangeException(nameof(maximumBufferedSamples));
         samples = new float[capacitySamples];
+        this.maximumBufferedSamples = maximumBufferedSamples;
         WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.SampleRate, AudioConstants.Channels);
     }
 
     public WaveFormat WaveFormat { get; }
     public long DroppedSamples => Volatile.Read(ref droppedSamples);
+    public long DiscardedSamples => Volatile.Read(ref discardedSamples);
 
     public void DiscardBufferedSamples() => Volatile.Write(ref readSequence, Volatile.Read(ref writeSequence));
 
@@ -77,6 +83,16 @@ internal sealed class SpscFloatRing : ISampleProvider
         var count = buffer.Length;
         var read = Volatile.Read(ref readSequence);
         var write = Volatile.Read(ref writeSequence);
+        // Only this ring's consumer moves its read cursor. Keep enough for the
+        // device's entire callback, even when it asks for more than our target.
+        if (maximumBufferedSamples > 0 && count > 0)
+        {
+            var retained = Math.Max(count + count % AudioConstants.Channels, maximumBufferedSamples);
+            var skip = Math.Max(0, write - read - retained);
+            skip -= skip % AudioConstants.Channels;
+            read += skip;
+            if (skip > 0) Interlocked.Add(ref discardedSamples, skip);
+        }
         var available = Math.Min(count, checked((int)Math.Min(samples.Length, write - read)));
         var source = checked((int)(read % samples.Length));
         var first = Math.Min(available, samples.Length - source);
@@ -120,6 +136,7 @@ internal sealed class CaptureFanOut : IDisposable
             .WithBufferLength(AudioConstants.LatencyMilliseconds)
             .WithFormat(WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.SampleRate, AudioConstants.Channels));
         if (loopback) builder.WithLoopbackCapture();
+        else builder.WithLowLatency();
         capture = builder.Build();
         capture.DataAvailable += OnDataAvailable;
         capture.RecordingStopped += OnRecordingStopped;
@@ -218,7 +235,6 @@ internal sealed class FloatWaveProvider : IWaveProvider
 {
     private const int MaximumCallbackSamples = AudioConstants.SampleRate * AudioConstants.Channels / 2;
     private readonly ISampleProvider source;
-    private readonly float[] scratch = new float[MaximumCallbackSamples];
 
     public FloatWaveProvider(ISampleProvider source) => this.source = source;
     public WaveFormat WaveFormat => source.WaveFormat;
@@ -227,9 +243,8 @@ internal sealed class FloatWaveProvider : IWaveProvider
     {
         var count = buffer.Length;
         var requested = count / sizeof(float);
-        if (requested > scratch.Length) throw new InvalidOperationException("WASAPI requested an unexpectedly large audio buffer.");
-        var read = source.Read(scratch.AsSpan(0, requested));
-        MemoryMarshal.AsBytes(scratch.AsSpan(0, read)).CopyTo(buffer);
+        if (requested > MaximumCallbackSamples) throw new InvalidOperationException("WASAPI requested an unexpectedly large audio buffer.");
+        var read = source.Read(MemoryMarshal.Cast<byte, float>(buffer[..(requested * sizeof(float))]));
         return read * sizeof(float);
     }
 }
@@ -280,6 +295,8 @@ internal sealed class AudioOutput : IDisposable
             .WithSharedMode()
             .WithEventSync()
             .WithLatency(AudioConstants.LatencyMilliseconds)
+            .WithLowLatency()
+            .WithMmcssThreadPriority("Pro Audio")
             .Build();
         try { output.Init(new FloatWaveProvider(source)); }
         catch { output.Dispose(); throw; }
@@ -287,6 +304,8 @@ internal sealed class AudioOutput : IDisposable
     }
 
     public event Action<Exception>? Failed;
+    public bool LowLatencyActive => output.LowLatencyActive;
+    public int LatencyMilliseconds => output.LatencyMilliseconds;
     public void Start() => output.Play();
 
     private void OnPlaybackStopped(object? sender, StoppedEventArgs eventArgs)

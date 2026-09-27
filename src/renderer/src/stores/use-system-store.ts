@@ -95,6 +95,7 @@ interface SystemStore {
   setAudioRouting(input: SetAudioRoutingInput): Promise<void>;
   setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<void>;
   audioDependencySetup(action: import('../../../shared/contracts').AudioSetupAction): Promise<void>;
+  openTrackSetup(action: import('../../../shared/contracts').OpenTrackAction): Promise<void>;
   setAudioEnabled(enabled: boolean): Promise<void>;
   setAudioMasterGain(input: SetAudioMasterGainInput): Promise<void>;
   setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<void>;
@@ -267,6 +268,7 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     setAudioRouting: (input) => runAudio(() => switchboardApi.setAudioRouting(input)),
     setAudioDeviceExcluded: (input) => runAudio(() => switchboardApi.setAudioDeviceExcluded(input)),
     audioDependencySetup: (action) => run(() => switchboardApi.audioDependencySetup(action)),
+    openTrackSetup: (action) => run(() => switchboardApi.openTrackSetup(action)),
     setAudioEnabled: (enabled) => runAudio(() => switchboardApi.setAudioEnabled(enabled)),
     setAudioMasterGain: (input) => runAudio(() => switchboardApi.setAudioMasterGain(input)),
     setAudioMasterEnabled: (input) => runAudio(() => switchboardApi.setAudioMasterEnabled(input)),

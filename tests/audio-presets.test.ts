@@ -39,7 +39,7 @@ describe('audio path presets', () => {
     expect(audioPresetFileSchema.safeParse({ schemaVersion: 1, preset }).success).toBe(true);
   });
 
-  test('does not claim an imported monitoring output that is unavailable', () => {
+  test('keeps the current monitoring preference when a voice preset is applied', () => {
     const audio = structuredClone(defaultAudio);
     audio.devices = [{
       id: 'headphones',
@@ -54,12 +54,15 @@ describe('audio path presets', () => {
     audio.monitoringDeviceId = 'headphones';
     const preset = snapshotAudioPathPreset(audio, 'microphone', 'imported-mic', 'Imported microphone');
     if (preset.kind !== 'microphone') throw new Error('Expected a microphone preset.');
-    preset.monitoring = { enabled: true, level: 0.4, deviceId: 'missing-output' };
+    audio.monitoringEnabled = true;
+    audio.monitoring = 0.18;
+    preset.monitoring = { enabled: false, level: 0.9, deviceId: 'missing-output' };
 
     applyAudioPathPreset(audio, preset);
 
     expect(audio.monitoringDeviceId).toBe('headphones');
     expect(audio.monitoringEnabled).toBeTrue();
-    expect(audio.activePresetIds.microphone).toBeNull();
+    expect(audio.monitoring).toBe(0.18);
+    expect(audio.activePresetIds.microphone).toBe('imported-mic');
   });
 });

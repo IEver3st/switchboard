@@ -1,0 +1,12 @@
+{
+  "version": "0.9.12",
+  "publicFeedVerified": true,
+  "sha256VerifiedAssets": [
+    "Switchboard-0.9.12-x64.exe",
+    "Switchboard-0.9.12-x64.exe.blockmap",
+    "latest.yml"
+  ],
+  "installerSha512Matches": true,
+  "installerBytes": 313846621,
+  "signatureStatus": "NotSigned"
+}

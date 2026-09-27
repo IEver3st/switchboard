@@ -18,20 +18,11 @@ function matchesSelectedMicrophone(device: AudioDevice, selectedName: string): b
   return device.direction === 'input' && device.available && device.name === selectedName;
 }
 
-function findAvailableDevice(devices: AudioDevice[], deviceId: string | null | undefined, direction: 'input' | 'output'): string | null {
-  if (!deviceId) return null;
-  const match = devices.find((device) => device.id === deviceId && device.direction === direction && device.available);
-  return match?.id ?? null;
-}
-
 export function resolveCaptureMicrophoneDeviceId(audio: CaptureMicrophoneRoutingState | CaptureAudioRoutingState): string | null {
   const explicit = (audio as CaptureAudioRoutingState).capture?.microphoneDeviceId;
-  const explicitMatch = explicit ? findAvailableDevice(audio.devices, explicit, 'input') : null;
-  if (explicitMatch) return explicitMatch;
-  // An explicit but currently unavailable selection must not silently fall back
-  // to a different microphone. Returning null lets the host report the missing
-  // device instead of recording the wrong input.
-  if (explicit) return null;
+  // null means Windows default to the host. Keep disconnected IDs so a missing
+  // endpoint reports unavailable instead of recording another microphone.
+  if (explicit) return explicit;
   const confirmedInput = audio.host?.microphone?.activeInputDeviceId;
   if (confirmedInput) return confirmedInput;
   if (!audio.microphoneDevice) return null;
@@ -39,12 +30,10 @@ export function resolveCaptureMicrophoneDeviceId(audio: CaptureMicrophoneRouting
 }
 
 export function resolveCaptureSystemAudioDeviceId(audio: CaptureAudioRoutingState): string | null {
-  return findAvailableDevice(audio.devices, audio.capture?.systemAudioDeviceId, 'output');
+  return audio.capture?.systemAudioDeviceId ?? null;
 }
 
 export function resolveCaptureChatAudioDeviceId(audio: CaptureAudioRoutingState): string | null {
-  // Preserve an explicit selection through disconnects. Null means automatic to
-  // Capture.Host, so clearing a missing ID would record a different output.
   return audio.capture?.chatAudioDeviceId ?? null;
 }
 

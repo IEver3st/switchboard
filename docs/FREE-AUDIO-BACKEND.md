@@ -5,7 +5,7 @@ uses the standard free VB-CABLE render endpoint plus Windows process-loopback
 capture (Windows build 20348 or later). It does not require a paid certificate,
 VB-CABLE A/B, SteelSeries GG, or changes to Windows security settings.
 
-## UI integration
+## UI integration handoff
 
 Audio is now opt-in for every user. New installs default to Devices/Capture;
 onboarding's **Show the Audio page** adds a dedicated audio setup step. Settings

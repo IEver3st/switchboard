@@ -1,0 +1,30 @@
+{
+  "acknowledgedMs": 234,
+  "samples": [
+    {
+      "ms": 234,
+      "power": 1
+    },
+    {
+      "ms": 1286,
+      "power": 1
+    },
+    {
+      "ms": 2310,
+      "power": 1
+    },
+    {
+      "ms": 3331,
+      "power": 1
+    },
+    {
+      "ms": 4354,
+      "power": 1
+    },
+    {
+      "ms": 5368,
+      "power": 1
+    }
+  ],
+  "physicalEffectVerified": false
+}

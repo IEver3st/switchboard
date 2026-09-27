@@ -1,0 +1,55 @@
+{
+  "initial": {
+    "heapMb": 25,
+    "domNodes": 1008,
+    "images": 23,
+    "decodedImages": 23,
+    "cards": 22,
+    "privateMb": 1038,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 193
+      },
+      {
+        "type": "GPU",
+        "privateMb": 721
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 112
+      }
+    ]
+  },
+  "snapshotTaskMs": 326,
+  "afterUpdates": {
+    "heapMb": 25,
+    "domNodes": 1008,
+    "images": 23,
+    "decodedImages": 23,
+    "cards": 22,
+    "privateMb": 1186,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 207
+      },
+      {
+        "type": "GPU",
+        "privateMb": 815
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 153
+      }
+    ]
+  }
+}

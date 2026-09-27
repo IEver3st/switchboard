@@ -1,0 +1,105 @@
+{
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-eq-ui-oFgX71",
+  "scope": "Hidden native UI; simulated availability; real offline IPC and persistence; no audio playback",
+  "layouts": [
+    {
+      "busId": "game",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "controlsBottom": 522.296875,
+      "bands": 10,
+      "reducedMotion": true
+    },
+    {
+      "busId": "game",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "controlsBottom": 480.296875,
+      "bands": 10,
+      "reducedMotion": true
+    },
+    {
+      "busId": "game",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "controlsBottom": 570.296875,
+      "bands": 10,
+      "reducedMotion": true
+    },
+    {
+      "busId": "chat",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "controlsBottom": 522.296875,
+      "bands": 9,
+      "reducedMotion": true
+    },
+    {
+      "busId": "chat",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "controlsBottom": 480.296875,
+      "bands": 9,
+      "reducedMotion": true
+    },
+    {
+      "busId": "chat",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "controlsBottom": 570.296875,
+      "bands": 9,
+      "reducedMotion": true
+    },
+    {
+      "busId": "media",
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "controlsBottom": 522.296875,
+      "bands": 10,
+      "reducedMotion": true
+    },
+    {
+      "busId": "media",
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "controlsBottom": 480.296875,
+      "bands": 10,
+      "reducedMotion": true
+    },
+    {
+      "busId": "media",
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "controlsBottom": 570.296875,
+      "bands": 10,
+      "reducedMotion": true
+    }
+  ],
+  "checks": [
+    "game-flat: 10 bands, complete isolated processing chain",
+    "game-competitive-fps: 10 bands, complete isolated processing chain",
+    "game-immersive: 10 bands, complete isolated processing chain",
+    "game-night: 9 bands, complete isolated processing chain",
+    "game: band 8 keyboard edit, save, canonical reload, pending state, rejected preset rollback",
+    "chat-natural: 10 bands, complete isolated processing chain",
+    "chat-clear-voice: 9 bands, complete isolated processing chain",
+    "chat-reduced-bass: 8 bands, complete isolated processing chain",
+    "chat: band 8 keyboard edit, save, canonical reload, pending state, rejected preset rollback",
+    "media-flat: 10 bands, complete isolated processing chain",
+    "media-music: 10 bands, complete isolated processing chain",
+    "media-movies: 10 bands, complete isolated processing chain",
+    "media-warm: 8 bands, complete isolated processing chain",
+    "media-dialogue: 9 bands, complete isolated processing chain",
+    "media: band 8 keyboard edit, save, canonical reload, pending state, rejected preset rollback",
+    "Unavailable processing state; audio engine remained off throughout"
+  ]
+}

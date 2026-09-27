@@ -3,14 +3,40 @@ using Switchboard.AudioHost;
 using Switchboard.AudioHost.NoiseSuppression;
 using Switchboard.AudioHost.Realtime;
 
+if (args.Contains("--live-audio-latency")) { AudioLatencyProbe.Run(); return; }
+if (args.Contains("--audio-latency")) { AudioLatencyTests.Run(); return; }
+if (args.Contains("--replay-audio")) { await ReplayAudioTests.RunAsync(); return; }
+if (args.Length == 0) await ReplayAudioTests.RunAsync();
+
 if (args.Contains("--microphone-quality")) { MicrophoneQualityTests.Run(); return; }
+if (args.Contains("--microphone-timbre")) { MicrophoneTimbreProbe.Run(); return; }
 if (args.Contains("--live-microphone-quality")) { MicrophoneQualityTests.RunLive(); return; }
+if (args.Contains("--spatial-response")) { SpatialResponse.Print(); return; }
+if (args.Contains("--spatial-motion")) { SpatialMotion.Run(); return; }
+if (args.Contains("--live-headset-trace")) { SpatialHeadsetTrace.Run(); return; }
+if (args.Contains("--live-opentrack"))
+{
+    // Live: needs Switchboard's managed OpenTrack install. Verifies launch, containment and release only.
+    static int Managed() => System.Diagnostics.Process.GetProcessesByName("opentrack").Count(p => { try { return string.Equals(p.MainModule?.FileName, ManagedOpenTrack.Executable, StringComparison.OrdinalIgnoreCase); } catch { return false; } });
+    if (!ManagedOpenTrack.Installed) throw new Exception("Managed OpenTrack is not installed.");
+    for (var cycle = 0; cycle < 2; cycle++)
+    {
+        var tracker = new HeadTracker(4299, "webcam");
+        if (!SpinWait.SpinUntil(() => Managed() == 1, 5000)) throw new Exception("Managed OpenTrack did not start.");
+        Console.WriteLine($"cycle {cycle}: {tracker.Name}, running; profile {File.ReadAllText(Path.Combine(ManagedOpenTrack.Root, "install", "ini", "switchboard.ini")).Split('\n').First(l => l.StartsWith("tracker-dll"))}");
+        tracker.Dispose();
+        if (!SpinWait.SpinUntil(() => Managed() == 0, 3000)) throw new Exception("Managed OpenTrack survived disposal.");
+    }
+    Console.WriteLine("Managed OpenTrack launch and release passed.");
+    return;
+}
 if (args.Contains("--spatial")) { SpatialAudioTests.Run(); return; }
 if (args.Contains("--cable-tone")) { CableRoutingTests.RunTone(args); return; }
 if (args.Contains("--live-route-restoration")) { CableRoutingTests.RunPolicyRestoration(); return; }
 if (args.Contains("--live-cable")) { await CableRoutingTests.RunLiveAsync(); return; }
 if (args.Contains("--live-microphone-cable")) { await MicrophoneCableTests.RunLiveAsync(); return; }
 CableRoutingTests.RunDeterministic();
+AudioLatencyTests.Run();
 EqualizerCapacityTests.Run();
 SpatialAudioTests.Run();
 

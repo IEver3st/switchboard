@@ -1,0 +1,190 @@
+{
+  "hardwareAcceleration": true,
+  "sampleDurationMs": 5000,
+  "initial": {
+    "heapMb": 20,
+    "domNodes": 953,
+    "images": 23,
+    "decodedImages": 23,
+    "cards": 22,
+    "privateMb": 955,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 135
+      },
+      {
+        "type": "GPU",
+        "privateMb": 721
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 87
+      }
+    ]
+  },
+  "snapshotTaskMs": 82,
+  "afterUpdates": {
+    "heapMb": 20,
+    "domNodes": 953,
+    "images": 23,
+    "decodedImages": 23,
+    "cards": 22,
+    "privateMb": 936,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 135
+      },
+      {
+        "type": "GPU",
+        "privateMb": 694
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 94
+      }
+    ]
+  },
+  "settingsSamples": [
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 938,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 135
+        },
+        {
+          "type": "GPU",
+          "privateMb": 694
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 97
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 938,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 135
+        },
+        {
+          "type": "GPU",
+          "privateMb": 694
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 97
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 938,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 135
+        },
+        {
+          "type": "GPU",
+          "privateMb": 694
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 97
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 938,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 135
+        },
+        {
+          "type": "GPU",
+          "privateMb": 694
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 97
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 938,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 135
+        },
+        {
+          "type": "GPU",
+          "privateMb": 694
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 97
+        }
+      ]
+    }
+  ],
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-library-performance-CxIDhe"
+}

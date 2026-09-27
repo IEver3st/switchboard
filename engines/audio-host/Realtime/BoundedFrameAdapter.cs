@@ -57,6 +57,17 @@ internal sealed class BoundedFrameAdapter
         return readable;
     }
 
+    // Consumer-thread only, before reading. No producer cursor mutation and no
+    // buffer clearing while either realtime thread could be copying samples.
+    public int DiscardOldestExcept(int retainedSamples)
+    {
+        var read = readSequence;
+        var write = Volatile.Read(ref writeSequence);
+        var skipped = checked((int)Math.Max(0, write - read - Math.Max(0, retainedSamples)));
+        if (skipped > 0) Volatile.Write(ref readSequence, read + skipped);
+        return skipped;
+    }
+
     public void Clear()
     {
         Array.Clear(buffer);

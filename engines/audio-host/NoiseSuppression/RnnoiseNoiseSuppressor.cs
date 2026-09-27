@@ -20,6 +20,7 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
     public double AlgorithmicLatencyMs => FrameLength * 2_000d / SampleRate;
     public double AttenuationLimitDb { get; private set; }
     public string? LastError { get; private set; }
+    internal float VoiceProbability { get; private set; }
 
     public bool Initialize(NoiseSuppressorInitialization initialization)
     {
@@ -65,6 +66,7 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
             {
                 if (!NativeMethods.ProcessFrame(handle, inputPointer, outputPointer, &voiceProbability)) return false;
             }
+            VoiceProbability = voiceProbability;
             for (var index = 0; index < FrameLength; index++)
             {
                 // RNNoise overlap-add returns the preceding 10 ms frame. Mixing

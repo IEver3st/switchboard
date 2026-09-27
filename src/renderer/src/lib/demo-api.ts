@@ -379,6 +379,7 @@ const demoApi: SwitchboardApi = {
     return emit();
   },
   async audioDependencySetup() { throw new Error('Audio driver installation requires the Windows desktop app.'); },
+  async openTrackSetup() { throw new Error('OpenTrack setup requires the Windows desktop app.'); },
   async setAudioEnabled(enabled: boolean) {
     snapshot.audio.enabled = enabled;
     const module = snapshot.modules.find((candidate) => candidate.id === 'capability.audio-router');

@@ -10,6 +10,8 @@ internal sealed class AudioEngine : IDisposable
     private INoiseSuppressor suppressor = new BypassNoiseSuppressor("The noise backend has not been initialized.");
     private MicrophonePipeline? microphone;
     private MicrophoneCableOutput? microphoneOutput;
+    private NamedPipeAudioOutput? microphoneCapture;
+    private readonly RoutingControlGraph recordingGraph = new();
     private IAudioRoutingEngine? routing;
     private AudioHostSettings? settings;
     private MicrophoneDspConfiguration? dspConfiguration;
@@ -43,6 +45,7 @@ internal sealed class AudioEngine : IDisposable
             var nextDsp = MicrophoneDspConfiguration.From(validated, configurationVersion + 1);
             StopCore();
             settings = validated;
+            recordingGraph.Configure(validated);
             InitializeSuppressorCore();
             configurationVersion++;
             dspConfiguration = nextDsp;
@@ -71,6 +74,7 @@ internal sealed class AudioEngine : IDisposable
             var validated = nextSettings.Validate();
             var nextDsp = MicrophoneDspConfiguration.From(validated, configurationVersion + 1);
             settings = validated;
+            recordingGraph.Configure(validated);
             configurationVersion++;
             dspConfiguration = nextDsp;
             if (!running) return GetSnapshotCore();
@@ -177,11 +181,22 @@ internal sealed class AudioEngine : IDisposable
     {
         lock (controlGate)
         {
-            if (!running || routing is null || settings?.Spatial is not { Enabled: true, TrackingEnabled: true, TrackingSource: "headset" })
+            if (!running || routing is null || settings?.Spatial is not { AnyEnabled: true, TrackingEnabled: true, TrackingSource: "headset" })
                 throw new InvalidOperationException("Enable headset tracking first.");
             if (routing.Spatial.Current.Tracker?.Name is not null) return GetSnapshotCore();
-            SonyBluetoothTracking.EnableConnectedHeadset();
-            routing.Spatial.Refresh();
+            if (!SonyBluetoothTracking.NeedsDriverRepair())
+            {
+                SonyBluetoothTracking.EnableConnectedHeadset();
+                routing.Spatial.Refresh();
+                return GetSnapshotCore();
+            }
+        }
+        // The Windows approval prompt can take a while; never hold the control lock across it.
+        SonyBluetoothTracking.RepairSensorDriver();
+        lock (controlGate)
+        {
+            ThrowIfDisposed();
+            routing?.Spatial.Refresh();
             return GetSnapshotCore();
         }
     }
@@ -213,7 +228,7 @@ internal sealed class AudioEngine : IDisposable
             var endpointsChanged = Interlocked.Exchange(ref endpointChangePending, 0) != 0
                 && !string.Equals(endpointTopology, EndpointTopology(), StringComparison.Ordinal);
             var microphoneNeedsRecovery = !string.IsNullOrWhiteSpace(settings?.MicrophoneBus?.DeviceId)
-                                          && (microphone is null || microphone.CaptureStopped);
+                                          && (microphone is null || microphone.CaptureStopped || microphoneCapture?.IsHealthy != true);
             var routingNeedsRecovery = routing is null
                                        || Interlocked.Exchange(ref routingRecoveryPending, 0) != 0
                                        || endpointsChanged
@@ -311,6 +326,10 @@ internal sealed class AudioEngine : IDisposable
                 next.Start();
                 microphone = next;
                 next = null;
+                microphoneCapture = new NamedPipeAudioOutput(
+                    new ProcessedSampleProvider(microphone.ClipMicrophoneSource, recordingGraph.CreateProcessor("clip", "mic")),
+                    NamedPipeAudioOutput.MicrophonePipeName);
+                microphoneCapture.Start();
                 if (!EndpointCatalog.Inspect(endpoints.List()).Ready)
                     microphoneOutput = new MicrophoneCableOutput(endpoints, microphone.VirtualMicrophoneSource, settings.MicrophoneBus?.Enabled == true);
             }
@@ -331,6 +350,8 @@ internal sealed class AudioEngine : IDisposable
 
     private void StopMicrophoneOutput()
     {
+        microphoneCapture?.Dispose();
+        microphoneCapture = null;
         microphoneOutput?.Dispose();
         microphoneOutput = null;
     }
@@ -353,10 +374,9 @@ internal sealed class AudioEngine : IDisposable
     private void StartRoutingCore()
     {
         if (settings is null) throw new InvalidOperationException("Audio settings are unavailable.");
-        microphone?.ResetRoutingBuffers(includeVirtualMicrophone: microphoneOutput is null);
+        microphone?.ResetRoutingBuffers(includeVirtualMicrophone: microphoneOutput is null, includeClipMicrophone: false);
         var virtualMicrophoneSource = microphone?.VirtualMicrophoneSource ?? new SilentSampleProvider();
         var streamMicrophoneSource = microphone?.StreamMicrophoneSource ?? new SilentSampleProvider();
-        var clipMicrophoneSource = microphone?.ClipMicrophoneSource ?? new SilentSampleProvider();
         IAudioRoutingEngine? next = null;
         try
         {
@@ -364,8 +384,7 @@ internal sealed class AudioEngine : IDisposable
                 endpoints,
                 settings,
                 virtualMicrophoneSource,
-                streamMicrophoneSource,
-                clipMicrophoneSource) : CableRoutingEngine.Create(endpoints, settings);
+                streamMicrophoneSource) : CableRoutingEngine.Create(endpoints, settings);
             next.Failed += OnRoutingFailed;
             next.Start();
             routing = next;
@@ -465,7 +484,9 @@ internal sealed class AudioEngine : IDisposable
                 routing?.Backend ?? "none",
                 microphoneAvailable && (microphoneOutput?.Running == true || routingAvailable && routing!.HasVirtualOutputs) ? "available" : "unavailable",
                 routingAvailable && routing!.HasVirtualOutputs ? "available" : "unavailable",
-                routingAvailable ? "available" : "unavailable"),
+                "unavailable",
+                routingAvailable ? "available" : "unavailable",
+                microphoneAvailable && microphoneCapture?.IsHealthy == true ? "available" : "unavailable"),
             new NoiseSuppressionDiagnostics(
                 suppressor.BackendName,
                 suppressor.IsAvailable,

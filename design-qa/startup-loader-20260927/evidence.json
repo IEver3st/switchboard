@@ -1,0 +1,222 @@
+[
+  {
+    "name": "1080x720-starting",
+    "mode": "pending",
+    "waitMs": 700,
+    "state": {
+      "present": true,
+      "state": "initializing",
+      "role": "status",
+      "ariaBusy": "true",
+      "ariaLive": "polite",
+      "visibleText": [
+        "Starting SwitchboardLoading saved settings"
+      ],
+      "sequenceOpacity": "1",
+      "spinnerAnimation": "startup-spin",
+      "spinnerDisplay": "block",
+      "dragRegion": "drag",
+      "reloadVisible": false,
+      "mark": true,
+      "overflow": false,
+      "viewport": [
+        864,
+        577
+      ],
+      "animations": [
+        [
+          "startup-reveal",
+          "finished",
+          675
+        ],
+        [
+          "startup-stall-out",
+          "running",
+          675
+        ],
+        [
+          "startup-spin",
+          "running",
+          675
+        ],
+        [
+          "startup-stall-in",
+          "running",
+          675
+        ]
+      ]
+    },
+    "errors": []
+  },
+  {
+    "name": "1080x720-starting-reduced-motion",
+    "mode": "pending",
+    "waitMs": 700,
+    "reduced": true,
+    "state": {
+      "present": true,
+      "state": "initializing",
+      "role": "status",
+      "ariaBusy": "true",
+      "ariaLive": "polite",
+      "visibleText": [
+        "Starting SwitchboardLoading saved settings"
+      ],
+      "sequenceOpacity": "1",
+      "spinnerAnimation": "none",
+      "spinnerDisplay": "block",
+      "dragRegion": "drag",
+      "reloadVisible": false,
+      "mark": true,
+      "overflow": false,
+      "viewport": [
+        864,
+        577
+      ],
+      "animations": [
+        [
+          "startup-reveal",
+          "finished",
+          106
+        ],
+        [
+          "startup-stall-out",
+          "running",
+          692
+        ],
+        [
+          "startup-stall-in",
+          "running",
+          692
+        ]
+      ]
+    },
+    "errors": []
+  },
+  {
+    "name": "1080x720-before-show-delay",
+    "mode": "pending",
+    "waitMs": 0,
+    "state": {
+      "present": true,
+      "state": "initializing",
+      "role": "status",
+      "ariaBusy": "true",
+      "ariaLive": "polite",
+      "visibleText": [
+        "Starting SwitchboardLoading saved settings"
+      ],
+      "sequenceOpacity": "0",
+      "spinnerAnimation": "startup-spin",
+      "spinnerDisplay": "block",
+      "dragRegion": "drag",
+      "reloadVisible": false,
+      "mark": true,
+      "overflow": false,
+      "viewport": [
+        864,
+        577
+      ],
+      "animations": [
+        [
+          "startup-reveal",
+          "running",
+          0
+        ],
+        [
+          "startup-stall-out",
+          "running",
+          0
+        ],
+        [
+          "startup-spin",
+          "running",
+          0
+        ],
+        [
+          "startup-stall-in",
+          "running",
+          0
+        ]
+      ]
+    },
+    "errors": []
+  },
+  {
+    "name": "1080x720-failed",
+    "mode": "fail",
+    "waitMs": 700,
+    "state": {
+      "present": true,
+      "state": "unavailable",
+      "role": "alert",
+      "ariaBusy": "false",
+      "ariaLive": "assertive",
+      "visibleText": [
+        "Switchboard couldn’t startSaved settings could not be read: EACCES preferences.jsonReload"
+      ],
+      "sequenceOpacity": "1",
+      "spinnerAnimation": null,
+      "spinnerDisplay": null,
+      "dragRegion": "drag",
+      "reloadVisible": true,
+      "mark": true,
+      "overflow": false,
+      "viewport": [
+        864,
+        577
+      ],
+      "animations": []
+    },
+    "errors": []
+  },
+  {
+    "name": "1080x720-stalled",
+    "mode": "pending",
+    "waitMs": 12600,
+    "state": {
+      "present": true,
+      "state": "initializing",
+      "role": "status",
+      "ariaBusy": "true",
+      "ariaLive": "polite",
+      "visibleText": [
+        "Switchboard is taking longer than usualSaved settings haven’t loaded yet.Reload"
+      ],
+      "sequenceOpacity": "1",
+      "spinnerAnimation": "startup-spin",
+      "spinnerDisplay": "block",
+      "dragRegion": "drag",
+      "reloadVisible": true,
+      "mark": true,
+      "overflow": false,
+      "viewport": [
+        864,
+        577
+      ],
+      "animations": [
+        [
+          "startup-reveal",
+          "finished",
+          221
+        ],
+        [
+          "startup-stall-out",
+          "finished",
+          11922
+        ],
+        [
+          "startup-spin",
+          "running",
+          12579
+        ],
+        [
+          "startup-stall-in",
+          "finished",
+          12071
+        ]
+      ]
+    },
+    "errors": []
+  }
+]

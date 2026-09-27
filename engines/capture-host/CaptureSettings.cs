@@ -38,7 +38,10 @@ internal sealed record CaptureSettings(
     int ReactionCooldownSeconds = 60,
     string? AudioFallbackReason = null,
     string SystemAudioMode = "system",
-    AudioSyncProfile? MicrophoneSync = null)
+    AudioSyncProfile? MicrophoneSync = null,
+    string? SystemAudioPipeName = null,
+    string? ChatAudioPipeName = null,
+    string? MicrophonePipeName = null)
 {
     public const int MaximumReplaySeconds = 300;
     public int SegmentSeconds => 1;
@@ -79,6 +82,10 @@ internal sealed record CaptureSettings(
             throw new InvalidOperationException("Capture storage paths are required.");
         if (ClipMixPipeName is not null && ClipMixPipeName != "switchboard-audio-clip-v1")
             throw new InvalidOperationException("The clip-mix pipe identity is invalid.");
+        if (SystemAudioPipeName is not null && SystemAudioPipeName != "switchboard-audio-system-v2"
+            || ChatAudioPipeName is not null && ChatAudioPipeName != "switchboard-audio-chat-v2"
+            || MicrophonePipeName is not null && MicrophonePipeName != "switchboard-audio-microphone-v2")
+            throw new InvalidOperationException("The replay audio pipe identity is invalid.");
         if (MicrophoneDeviceId is { Length: > 512 } || ProcessedMicrophoneDeviceId is { Length: > 512 })
             throw new InvalidOperationException("The microphone endpoint identity is invalid.");
         if (SystemAudioDeviceId is { Length: > 512 } || ChatAudioDeviceId is { Length: > 512 })

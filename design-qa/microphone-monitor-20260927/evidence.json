@@ -1,0 +1,83 @@
+{
+  "scope": "Hidden native Electron; fixture capabilities; real persistence",
+  "layouts": [
+    {
+      "width": 1080,
+      "overflow": false,
+      "monitorHeight": 36,
+      "scroll": {
+        "scrollHeight": 1064,
+        "clientHeight": 682
+      },
+      "parts": {
+        "head": 40,
+        "source": 141,
+        "eqGraph": 214,
+        "tone": 283,
+        "processing": 340,
+        "page": 918
+      },
+      "pageTop": 160,
+      "headerHeight": 40,
+      "headerOverflow": false,
+      "monitorBottom": 199,
+      "testButton": [
+        54,
+        26
+      ],
+      "banner": false
+    },
+    {
+      "width": 1420,
+      "overflow": false,
+      "monitorHeight": 36,
+      "scroll": {
+        "scrollHeight": 891,
+        "clientHeight": 862
+      },
+      "parts": {
+        "head": 40,
+        "source": 141,
+        "eqGraph": 172,
+        "tone": 241,
+        "processing": 210,
+        "page": 745
+      },
+      "pageTop": 160,
+      "headerHeight": 40,
+      "headerOverflow": false,
+      "monitorBottom": 199,
+      "testButton": [
+        54,
+        26
+      ],
+      "banner": false
+    },
+    {
+      "width": 1920,
+      "overflow": false,
+      "monitorHeight": 36,
+      "scroll": {
+        "scrollHeight": 1042,
+        "clientHeight": 1042
+      },
+      "parts": {
+        "head": 40,
+        "source": 141,
+        "eqGraph": 262,
+        "tone": 331,
+        "processing": 193,
+        "page": 818
+      },
+      "pageTop": 160,
+      "headerHeight": 40,
+      "headerOverflow": false,
+      "monitorBottom": 199,
+      "testButton": [
+        54,
+        26
+      ],
+      "banner": false
+    }
+  ]
+}

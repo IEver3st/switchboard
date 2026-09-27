@@ -137,7 +137,19 @@ async function run() {
   await route('game');
   await resize(1420, 900);
   const before = await gameBands();
-  const point = await evaluate(`(()=>{const svg=document.querySelector('.parametric-eq__graph');const r=svg.getBoundingClientRect();const g=svg.viewBox.baseVal;return {x:Math.round(r.left+48+(g.width-66)*0.55),y:Math.round(r.top+46+(g.height-80)/2)}})()`);
+  const point = await evaluate(`(()=>{
+    const svg=document.querySelector('.parametric-eq__graph');
+    const curve=svg.querySelector('path[stroke-width="2.5"]');
+    const nodes=[...svg.querySelectorAll('[role="slider"]')];
+    const matrix=svg.getScreenCTM();
+    for(let fraction=0.2;fraction<0.9;fraction+=0.035){
+      const point=curve.getPointAtLength(curve.getTotalLength()*fraction);
+      if(nodes.some(node=>Math.hypot(Number(node.getAttribute('cx'))-point.x,Number(node.getAttribute('cy'))-point.y)<25)) continue;
+      const screen=new DOMPoint(point.x,point.y).matrixTransform(matrix);
+      return {x:Math.round(screen.x),y:Math.round(screen.y)};
+    }
+    throw new Error('No open curve point for hover-add review');
+  })()`);
   window.webContents.sendInputEvent({ type: 'mouseMove', ...point });
   await until(() => evaluate(`!!document.querySelector('.parametric-eq__add-marker')`), 'Hover plus missing');
   await capture('hover-add');
@@ -147,15 +159,16 @@ async function run() {
   await ready();
   const added = (await gameBands()).at(-1);
   assert(added.gainDb === 0 && added.type === 'bell', 'New band must be neutral');
-  assert(await evaluate(`document.querySelector('.parametric-eq__band.is-selected')?.textContent.trim()==='7'`), 'New band selection lost during pending write');
-  await evaluate(`document.querySelector('[aria-label="EQ band 7"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}))`);
+  const addedNumber = before.length + 1;
+  assert(await evaluate(`document.querySelector('.parametric-eq__band.is-selected')?.textContent.trim()==='${addedNumber}'`), 'New band selection lost during pending write');
+  await evaluate(`document.querySelector('[aria-label="EQ band ${addedNumber}"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}))`);
   await until(async () => (await gameBands()).at(-1).gainDb === 0.5, 'Keyboard band edit failed');
   await ready();
   await openSelect('[aria-label="EQ band filter type"]');
   await chooseOption('High shelf');
   await until(async () => (await gameBands()).at(-1).type === 'high-shelf', 'Filter type did not reach canonical state');
   await ready();
-  await click('[aria-label="Remove EQ band 7"]');
+  await click(`[aria-label="Remove EQ band ${addedNumber}"]`);
   await until(async () => (await gameBands()).length === before.length, 'Band removal failed');
   await ready();
   rejectNext = true;
@@ -196,9 +209,10 @@ async function run() {
   await openSelect('[aria-label="game preset"]');
   await capture('1080x720-presets');
   await chooseOption('Night play');
-  await until(() => evaluate(`document.querySelector('[aria-label="game preset"]').textContent==='Night play' && document.querySelectorAll('.parametric-eq__band').length===3`), 'Preset UI did not update');
+  const nightBands = (await snapshot()).audio.pathPresets.find(p => p.id === 'game-night').processors.equalizer.bands.length;
+  await until(() => evaluate(`document.querySelector('[aria-label="game preset"]').textContent==='Night play' && document.querySelectorAll('.parametric-eq__band').length===${nightBands}`), 'Preset UI did not update');
   await ready();
-  assert((await gameBands()).length === 3, 'New preset did not apply');
+  assert((await gameBands()).length === nightBands, 'New preset did not apply');
   await capture('1080x720-night-play');
   available = false;
   await evaluate('location.reload()');

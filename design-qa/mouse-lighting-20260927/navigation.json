@@ -1,0 +1,35 @@
+[
+  {
+    "width": 1080,
+    "height": 720,
+    "routes": [
+      "Audio",
+      "Capture",
+      "Devices"
+    ],
+    "unsolicitedDeviceWrites": 0,
+    "lightingEnabled": false
+  },
+  {
+    "width": 1420,
+    "height": 900,
+    "routes": [
+      "Audio",
+      "Capture",
+      "Devices"
+    ],
+    "unsolicitedDeviceWrites": 0,
+    "lightingEnabled": false
+  },
+  {
+    "width": 1920,
+    "height": 1080,
+    "routes": [
+      "Audio",
+      "Capture",
+      "Devices"
+    ],
+    "unsolicitedDeviceWrites": 0,
+    "lightingEnabled": false
+  }
+]

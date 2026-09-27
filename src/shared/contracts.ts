@@ -595,6 +595,8 @@ export const audioCapabilitiesSchema = z.object({
   virtualMicrophone: audioSupportLevelSchema.optional(),
   streamOutput: audioSupportLevelSchema.optional(),
   clipMix: audioSupportLevelSchema.optional(),
+  clipTracks: audioSupportLevelSchema.optional(),
+  processedMicrophoneCapture: audioSupportLevelSchema.optional(),
   virtualChannels: audioSupportLevelSchema,
   applicationRouting: audioSupportLevelSchema,
   channelDsp: audioSupportLevelSchema,
@@ -738,32 +740,61 @@ export const defaultSpatialSpeakers = (): SpatialSpeaker[] => spatialSpeakerIdSc
   id, azimuth: [-30, 30, 0, -90, 90, -150, 150][index]!, elevation: 0, distance: 1, gainDb: 0, enabled: true,
 }));
 const spatialSpeakersSchema = z.array(spatialSpeakerSchema).length(7).refine(speakers => new Set(speakers.map(s => s.id)).size === 7, 'Every speaker must appear once');
-export const spatialSettingsSchema = z.object({
+export const spatialChannelIdSchema = z.enum(['game', 'chat', 'media']);
+export type SpatialChannelId = z.infer<typeof spatialChannelIdSchema>;
+// One virtual stage per personal-listening channel, rendered before the channels are mixed.
+export const spatialStageSchema = z.object({
+  enabled: z.boolean().default(false),
   mode: z.enum(['stereo', 'surround']).default('surround'),
-  trackingSource: z.enum(['headset', 'opentrack']).default('headset'),
   immersion: z.number().min(0).max(1).default(0.4),
   distance: z.number().min(0.5).max(3).default(1.4),
   speakers: spatialSpeakersSchema.default(defaultSpatialSpeakers),
-  enabled: z.boolean().default(false),
   widthDegrees: z.number().min(20).max(180).default(60),
   amount: z.number().min(0).max(1).default(1),
+});
+export type SpatialStage = z.infer<typeof spatialStageSchema>;
+const legacyStageKeys = ['enabled', 'mode', 'immersion', 'distance', 'speakers', 'widthDegrees', 'amount'] as const;
+// Head tracking is shared: there is one head. Saved settings from the single global stage migrate by
+// copying that stage to every channel.
+export const spatialSettingsSchema = z.preprocess((value) => {
+  if (!value || typeof value !== 'object' || 'channels' in value) return value;
+  const legacy = value as Record<string, unknown>;
+  if (!legacyStageKeys.some((key) => key in legacy)) return value;
+  const stage = Object.fromEntries(legacyStageKeys.filter((key) => key in legacy).map((key) => [key, legacy[key]]));
+  const rest = Object.fromEntries(Object.entries(legacy).filter(([key]) => !(legacyStageKeys as readonly string[]).includes(key)));
+  return { ...rest, channels: { game: stage, chat: structuredClone(stage), media: structuredClone(stage) } };
+}, z.object({
+  channels: z.object({
+    game: spatialStageSchema.prefault({}),
+    chat: spatialStageSchema.prefault({}),
+    media: spatialStageSchema.prefault({}),
+  }).prefault({}),
+  trackingSource: z.enum(['headset', 'opentrack']).default('headset'),
   trackingEnabled: z.boolean().default(false),
   trackerPort: z.number().int().min(1024).max(65535).default(4242),
-});
+  // Motion input for Switchboard's managed OpenTrack copy.
+  openTrackInput: z.enum(['webcam', 'phone']).default('webcam'),
+}));
 export type SpatialSettings = z.infer<typeof spatialSettingsSchema>;
+export const spatialAnyEnabled = (settings: SpatialSettings) => spatialChannelIdSchema.options.some((id) => settings.channels[id].enabled);
 // Do not derive this from defaulted persisted fields: omitted patch keys must stay omitted.
-export const setSpatialAudioInputSchema = z.object({
+const spatialStagePatchSchema = z.object({
+  enabled: z.boolean().optional(),
   mode: z.enum(['stereo', 'surround']).optional(),
-  trackingSource: z.enum(['headset', 'opentrack']).optional(),
   immersion: z.number().min(0).max(1).optional(),
   distance: z.number().min(0.5).max(3).optional(),
   speakers: spatialSpeakersSchema.optional(),
-  enabled: z.boolean().optional(),
   widthDegrees: z.number().min(20).max(180).optional(),
   amount: z.number().min(0).max(1).optional(),
+}).strict();
+export const setSpatialAudioInputSchema = z.object({
+  channel: spatialChannelIdSchema.optional(),
+  stage: spatialStagePatchSchema.optional(),
+  trackingSource: z.enum(['headset', 'opentrack']).optional(),
   trackingEnabled: z.boolean().optional(),
   trackerPort: z.number().int().min(1024).max(65535).optional(),
-}).strict();
+  openTrackInput: z.enum(['webcam', 'phone']).optional(),
+}).strict().refine((input) => !input.stage || Boolean(input.channel), 'A stage change needs its channel.');
 export type SetSpatialAudioInput = z.infer<typeof setSpatialAudioInputSchema>;
 export const spatialRuntimeSchema = z.object({
   trackerName: z.string().nullable().default(null),
@@ -771,6 +802,8 @@ export const spatialRuntimeSchema = z.object({
   active: z.boolean(),
   trackingState: z.enum(['off', 'waiting', 'tracking', 'stale', 'error']),
   error: z.string().nullable().default(null),
+  /** A step only the user can approve; the host retries everything else automatically. */
+  trackerAction: z.enum(['repair-driver']).nullable().default(null),
 });
 
 export const audioHostSnapshotSchema = z.object({
@@ -959,9 +992,22 @@ export const audioDependencyStateSchema = z.object({
 });
 export type AudioDependencyState = z.infer<typeof audioDependencyStateSchema>;
 export type AudioSetupAction = z.infer<typeof audioSetupActionSchema>;
+export const openTrackActionSchema = z.enum(['check', 'install', 'cancel']);
+export type OpenTrackAction = z.infer<typeof openTrackActionSchema>;
+export const openTrackStateSchema = z.object({
+  phase: z.enum(['idle', 'checking', 'downloading', 'extracting', 'ready', 'error']).default('idle'),
+  installed: z.boolean().default(false),
+  progress: z.number().int().min(0).max(100).nullable().default(null),
+  error: z.string().max(1000).nullable().default(null),
+  // This PC's private IPv4 address, shown so a phone tracking app can send to it.
+  lanAddress: z.string().max(64).nullable().default(null),
+});
+export type OpenTrackState = z.infer<typeof openTrackStateSchema>;
 
 export const audioStateSchema = z.object({
   dependencies: audioDependencyStateSchema.prefault({}),
+  // Runtime-only install status of Switchboard's managed OpenTrack copy; never persisted.
+  openTrack: openTrackStateSchema.prefault({}),
   spatial: spatialSettingsSchema.prefault({}),
   automaticApplicationRouting: z.boolean().default(true),
   // Endpoints hidden from Switchboard device pickers. Renderer policy only; never sent to the host.
@@ -2013,6 +2059,7 @@ export const ipcChannels = {
   setAudioDeviceExcluded: 'audio:set-device-excluded',
   setAudioEnabled: 'audio:set-enabled',
   audioDependencySetup: 'audio:dependency-setup',
+  openTrackSetup: 'audio:opentrack-setup',
   setAudioMasterGain: 'audio:set-master-gain',
   setAudioMasterEnabled: 'audio:set-master-enabled',
   setAudioBusGain: 'audio:set-bus-gain',
@@ -2080,6 +2127,7 @@ export const ipcChannels = {
 
 export interface SwitchboardApi {
   audioDependencySetup(action: AudioSetupAction): Promise<SystemSnapshot>;
+  openTrackSetup(action: OpenTrackAction): Promise<SystemSnapshot>;
   saveScene(input: SaveSceneInput): Promise<SystemSnapshot>;
   deleteScene(id: string): Promise<SystemSnapshot>;
   applyScene(id: string): Promise<SystemSnapshot>;

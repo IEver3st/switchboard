@@ -11,12 +11,23 @@ namespace Switchboard.AudioHost;
 internal sealed class HeadsetHeadTracker : IHeadPoseSource
 {
     private HidHeadTrackingConnection? connection;
+    private const long FirstEnableRetryMs = 30_000;
+    private const long MaximumEnableRetryMs = 600_000;
     private string? error;
+    private string? enableError;
+    private bool driverRepairRequired;
     private bool disposed;
+    private int enabling;
+    private long nextEnableAt;
+    private long enableRetryMs = FirstEnableRetryMs;
     public HeadsetHeadTracker() => Refresh();
     public HeadPose? Latest => Volatile.Read(ref connection)?.Latest;
     public string? Error => Volatile.Read(ref connection)?.Error ?? error;
     public string? Name => Volatile.Read(ref connection)?.Name;
+    // Only the Code 10 driver rebind needs the user: it raises a Windows administrator prompt.
+    public string? RequiredAction => Volatile.Read(ref driverRepairRequired) ? "repair-driver" : null;
+
+    // Called on start and by the host's 5-second recovery tick; reconnects as soon as Windows exposes the sensor.
     public void Refresh()
     {
         if (disposed || connection is { Error: null }) return;
@@ -26,16 +37,43 @@ internal sealed class HeadsetHeadTracker : IHeadPoseSource
             var devices = HidHeadTrackingConnection.Discover();
             if (devices.Count != 1)
             {
-                error = devices.Count == 0
-                    ? SonyBluetoothTracking.SensorProblem() ?? "Windows has not exposed a compatible headset motion sensor. Connect your headset over Bluetooth, then choose Connect headset sensor."
-                    : "More than one headset motion sensor is connected. Disconnect the headset you are not wearing.";
+                var problem = devices.Count == 0 ? SonyBluetoothTracking.SensorProblem() : null;
+                Volatile.Write(ref driverRepairRequired, problem?.Contains("(Code 10)", StringComparison.Ordinal) == true);
+                if (devices.Count == 0 && problem is null) RequestInputService();
+                error = devices.Count > 1 ? "More than one headset motion sensor is connected. Disconnect the headset you are not wearing."
+                    : problem ?? Volatile.Read(ref enableError) ?? "Connecting to your headset motion sensor.";
                 return;
             }
             var next = new HidHeadTrackingConnection(devices[0]);
-            error = null; Volatile.Write(ref connection, next);
+            error = null; Volatile.Write(ref driverRepairRequired, false); Volatile.Write(ref enableError, null);
+            enableRetryMs = FirstEnableRetryMs; Volatile.Write(ref nextEnableAt, 0);
+            Volatile.Write(ref connection, next);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
         { error = $"Cannot read the headset motion sensor: {ex.Message}"; }
+    }
+
+    // Windows often drops the headset's Bluetooth input service after sleep or reconnection. Re-enabling it
+    // is unelevated and leaves audio and pairing untouched, so it runs automatically off the control thread.
+    // Attempts back off from 30 s to 10 min so a headset without an exposed sensor is not cycled repeatedly.
+    private void RequestInputService()
+    {
+        var now = Environment.TickCount64;
+        if (now < Volatile.Read(ref nextEnableAt) || Interlocked.CompareExchange(ref enabling, 1, 0) != 0) return;
+        Volatile.Write(ref nextEnableAt, now + enableRetryMs);
+        enableRetryMs = Math.Min(enableRetryMs * 2, MaximumEnableRetryMs);
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (disposed) return;
+                SonyBluetoothTracking.EnableConnectedHeadset();
+                Volatile.Write(ref enableError, null);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            { Volatile.Write(ref enableError, ex.Message); }
+            finally { Volatile.Write(ref enabling, 0); }
+        });
     }
     public void Dispose() { if (disposed) return; disposed = true; Interlocked.Exchange(ref connection, null)?.Dispose(); }
 }

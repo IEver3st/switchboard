@@ -23,6 +23,7 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
     private readonly List<AudioOutput> outputs = [];
     private IReadOnlyList<AudioProcessSession> sessions = [];
     private NamedPipeAudioOutput? clipOutput;
+    private NamedPipeAudioOutput? chatOutput;
     private int disposed;
     private bool automatic = true;
     private readonly Dictionary<AudioProcessIdentity, string> failures = [];
@@ -44,7 +45,7 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
     public IReadOnlyList<AudioApplicationPreference> ApplicationRoutes => preferences
         .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase).Select(pair => new AudioApplicationPreference(pair.Key, pair.Value)).ToArray();
 
-    public static CableRoutingEngine Create(EndpointService endpoints, AudioHostSettings settings, Func<IReadOnlyList<AudioProcessSession>>? readSessions = null, string clipPipeName = NamedPipeAudioOutput.PipeName)
+    public static CableRoutingEngine Create(EndpointService endpoints, AudioHostSettings settings, Func<IReadOnlyList<AudioProcessSession>>? readSessions = null, string clipPipeName = NamedPipeAudioOutput.SystemPipeName)
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 20348))
             throw new PlatformNotSupportedException("Application mixing requires Windows build 20348 or later.");
@@ -67,7 +68,7 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
         sessions = readSessions();
         journal.Recover(sessions.Select(session => session.Process));
         Dictionary<string, List<ISampleProvider>> byOutput = [];
-        List<ISampleProvider> clipSources = [];
+        var replaySources = new ReplayTrackSources();
         foreach (var busId in BusIds)
         {
             var configured = settings.Buses.SingleOrDefault(bus => bus.Id == busId)
@@ -80,8 +81,8 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
             var recording = clip[busId] = new DynamicAudioMixer();
             var meter = meters[busId] = new RealtimeMeter();
             if (!byOutput.TryGetValue(destination.Id, out var sources)) byOutput[destination.Id] = sources = [];
-            sources.Add(new ProcessedSampleProvider(monitor, graph.CreateProcessor("personal", busId), meter));
-            clipSources.Add(new ProcessedSampleProvider(recording, graph.CreateProcessor("clip", busId)));
+            sources.Add(Spatial.Wrap(new ProcessedSampleProvider(monitor, graph.CreateProcessor("personal", busId), meter), busId));
+            replaySources.Add(busId, new ProcessedSampleProvider(recording, graph.CreateProcessor("clip", busId)));
         }
         // Capture.Host records its microphone track separately. This pipe must
         // contain applications only, including when Capture's microphone is off.
@@ -89,11 +90,15 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
         {
             var device = endpoints.Open(id);
             devices.Add(device);
-            var output = new AudioOutput(device, Spatial.Wrap(new FixedMixer(sources)));
+            var output = new AudioOutput(device, new FixedMixer(sources));
             output.Failed += OnFailed;
             outputs.Add(output);
         }
-        clipOutput = new NamedPipeAudioOutput(new FixedMixer(clipSources), clipPipeName);
+        clipOutput = new NamedPipeAudioOutput(replaySources.System, clipPipeName);
+        chatOutput = new NamedPipeAudioOutput(replaySources.Chat,
+            clipPipeName == NamedPipeAudioOutput.SystemPipeName ? NamedPipeAudioOutput.ChatPipeName : clipPipeName + "-chat");
+        clipOutput.Failed += OnFailed;
+        chatOutput.Failed += OnFailed;
     }
 
     public void Configure(AudioHostSettings settings)
@@ -117,6 +122,7 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
     {
         foreach (var output in outputs) output.Start();
         clipOutput!.Start();
+        chatOutput!.Start();
         Refresh();
     }
 
@@ -288,6 +294,7 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
         routes.Clear();
         PublishSources();
         clipOutput?.Dispose();
+        chatOutput?.Dispose();
         foreach (var output in outputs) { output.Failed -= OnFailed; output.Dispose(); }
         foreach (var device in devices) device.Dispose();
         try { journal.RestoreAll(); }

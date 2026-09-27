@@ -845,7 +845,8 @@ function AudioTracks({
   const explicitMicUnavailable = Boolean(microphoneDeviceId)
     && !inputDevices.some((device) => device.id === microphoneDeviceId);
   const gameAndChatSame = includeSystemAudio && includeChatAudio
-    && (systemAudioDeviceId ?? 'auto') === (chatAudioDeviceId ?? 'auto');
+    && snapshot.capture.config.systemAudioMode !== 'game'
+    && Boolean(systemAudioDeviceId) && systemAudioDeviceId === chatAudioDeviceId;
 
   const tracks: ReadonlyArray<{
     id: TrackId;
@@ -868,7 +869,7 @@ function AudioTracks({
     {
       id: 'chat', channel: 'chat', icon: MessagesSquare, title: 'Chat', description: 'Discord or voice chat, apart from the game.',
       enabled: includeChatAudio, deviceLabel: 'Chat audio device', deviceValue: chatAudioDeviceId, devices: outputDevices,
-      automaticLabel: chatAutomaticLabel(), onDeviceChange: onChatDeviceChange,
+      automaticLabel: chatAutomaticLabel(snapshot), onDeviceChange: onChatDeviceChange,
     },
     {
       id: 'mic', channel: 'microphone', icon: Mic, title: 'Microphone', description: 'Your voice, mutable without losing the game.',
@@ -905,7 +906,7 @@ function AudioTracks({
       <p className="ob-note" role={!hasAnyDevice ? 'status' : undefined}>
         {!hasAnyDevice
           ? 'No audio devices are available yet. Continue with Automatic and choose exact devices later in Settings, Capture.'
-          : 'Sonar users can assign Sonar Game, Sonar Chat, and the microphone separately. Devices stay changeable in Settings, Capture.'}
+          : 'Automatic follows Switchboard when available: game and media together, chat and processed microphone separately. Devices stay changeable in Settings, Capture.'}
       </p>
       {explicitMicUnavailable && includeMic ? (
         <p className="ob-note ob-note--warning" role="status">The selected microphone is not currently available. Reconnect it or choose another input.</p>

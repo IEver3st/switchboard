@@ -1,8 +1,12 @@
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { ChannelAudioBusId, SystemSnapshot } from '../../../../shared/contracts';
+import { cn } from '@/lib/cn';
 import { AudioChannelHeader, AudioModule, AudioNotice } from './AudioModule';
 import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
+import { SpatialChannelModule } from './SpatialChannelModule';
 import { useSystemStore } from '@/stores/use-system-store';
 
 const labels: Record<ChannelAudioBusId, string> = { game: 'Game', chat: 'Chat', media: 'Media' };
@@ -21,6 +25,7 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
   const deleteAudioPreset = useSystemStore((state) => state.deleteAudioPreset);
   const importAudioPreset = useSystemStore((state) => state.importAudioPreset);
   const exportAudioPreset = useSystemStore((state) => state.exportAudioPreset);
+  const [dynamicsAdvanced, setDynamicsAdvanced] = useState(false);
   const processing = snapshot.audio.channelProcessing.find((candidate) => candidate.busId === busId);
   const bus = snapshot.audio.buses.find((candidate) => candidate.id === busId);
   const support = snapshot.audio.capabilities.channelDsp;
@@ -84,6 +89,7 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
           onCommit={(bands) => setAudioChannelProcessor({ busId, processorId: 'equalizer', parameters: { bands } })}
         />
       </AudioModule>
+      <SpatialChannelModule audio={snapshot.audio} channel={busId} />
       <div className="audio-panel-grid" aria-label={`${labels[busId]} processing controls`}>
         <AudioModule headingId={`${busId}-normalization-heading`} title={normalizationCopy[busId].title} description={normalizationCopy[busId].description} checked={processing.normalization.enabled} switchLabel={`${processing.normalization.enabled ? 'Bypass' : 'Enable'} ${normalizationCopy[busId].title}`} {...processingProps('normalization')}>
           <ParameterControl label="Target loudness" value={processing.normalization.targetLufs} min={-30} max={-10} step={0.5} unit=" LUFS" precision={1} disabled={unavailable || !processing.normalization.enabled} onCommit={(targetLufs) => void setAudioChannelProcessor({ busId, processorId: 'normalization', parameters: { targetLufs } })} />
@@ -92,9 +98,15 @@ export function ChannelProcessingPage({ snapshot, busId }: { snapshot: SystemSna
         <AudioModule headingId={`${busId}-compressor-heading`} title="Dynamic control" description="Keeps loud peaks closer to the rest of the mix." checked={processing.compressor.enabled} switchLabel={`${processing.compressor.enabled ? 'Bypass' : 'Enable'} Dynamic control`} {...processingProps('compressor')}>
           <ParameterControl label="Threshold" value={processing.compressor.thresholdDb} min={-60} max={0} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { thresholdDb } })} />
           <ParameterControl label="Ratio" value={processing.compressor.ratio} min={1} max={20} step={0.1} unit=":1" precision={1} disabled={unavailable || !processing.compressor.enabled} onCommit={(ratio) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { ratio } })} />
+          {dynamicsAdvanced ? <>
           <ParameterControl label="Attack" value={processing.compressor.attackMs} min={0.1} max={200} step={0.5} unit=" ms" precision={1} disabled={unavailable || !processing.compressor.enabled} onCommit={(attackMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { attackMs } })} />
           <ParameterControl label="Release" value={processing.compressor.releaseMs} min={10} max={2_000} step={5} unit=" ms" disabled={unavailable || !processing.compressor.enabled} onCommit={(releaseMs) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { releaseMs } })} />
           <ParameterControl label="Makeup gain" value={processing.compressor.makeupDb} min={0} max={18} step={0.5} unit=" dB" precision={1} disabled={unavailable || !processing.compressor.enabled} onCommit={(makeupDb) => void setAudioChannelProcessor({ busId, processorId: 'compressor', parameters: { makeupDb } })} />
+          </> : null}
+          <button type="button" className={cn('mic-stage__advanced-toggle', dynamicsAdvanced && 'is-open')} aria-expanded={dynamicsAdvanced}
+            onClick={() => setDynamicsAdvanced((value) => !value)}>
+            <ChevronDown aria-hidden="true" />Advanced
+          </button>
         </AudioModule>
         <AudioModule headingId={`${busId}-limiter-heading`} title="Output safety" description="Prevents sudden clipping and excessive peaks." checked={processing.limiter.enabled} switchLabel={`${processing.limiter.enabled ? 'Bypass' : 'Enable'} Output safety`} {...processingProps('limiter')}>
           <ParameterControl label="Ceiling" value={processing.limiter.thresholdDb} min={-18} max={0} step={0.1} unit=" dB" precision={1} disabled={unavailable || !processing.limiter.enabled} onCommit={(thresholdDb) => void setAudioChannelProcessor({ busId, processorId: 'limiter', parameters: { thresholdDb } })} />

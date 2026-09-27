@@ -7,9 +7,11 @@ internal sealed class ProcessedWaveProvider(BoundedFrameAdapter source) : IWaveP
 {
     private float volume = 1f;
     private long underruns;
+    private long discardedSamples;
 
     public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.ProcessingSampleRate, 1);
     public long Underruns => Interlocked.Read(ref underruns);
+    public long DiscardedSamples => Interlocked.Read(ref discardedSamples);
 
     public void SetVolume(float value) => Volatile.Write(ref volume, Math.Clamp(value, 0f, 1f));
 
@@ -18,6 +20,12 @@ internal sealed class ProcessedWaveProvider(BoundedFrameAdapter source) : IWaveP
         var count = buffer.Length;
         var alignedCount = count - count % sizeof(float);
         var destination = MemoryMarshal.Cast<byte, float>(buffer[..alignedCount]);
+        if (!destination.IsEmpty)
+        {
+            var retained = Math.Max(destination.Length, AudioConstants.ProcessingSampleRate * AudioConstants.LiveQueueMilliseconds / 1_000);
+            var skipped = source.DiscardOldestExcept(retained);
+            if (skipped > 0) Interlocked.Add(ref discardedSamples, skipped);
+        }
         var read = source.Read(destination);
         var gain = Volatile.Read(ref volume);
         for (var index = 0; index < read; index++) destination[index] *= gain;

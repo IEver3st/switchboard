@@ -61,6 +61,7 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
   const monitoringApplied = microphoneMonitoringApplied(audio);
   const metering = audio.capabilities.realtimeMetering;
   const excludedIds = audio.excludedDeviceIds;
+  const monitoringProblem = audio.enabled && (monitoringUnavailable || (audio.monitoringEnabled && !monitoringApplied && !monitoringPending));
   const monitoringStatus = monitoringUnavailable
     ? audio.host?.microphone?.error ?? 'Monitoring is not available with the current audio setup.'
     : monitoringPending
@@ -68,8 +69,8 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
       : audio.monitoringEnabled && !monitoringApplied
         ? audio.host?.microphone?.error ?? 'The selected output has not accepted the monitor stream.'
         : audio.monitoringEnabled
-          ? 'Your processed voice is playing on the selected output.'
-          : 'Hear your processed voice through headphones.';
+          ? 'Hearing your processed voice'
+          : 'Off';
 
   const runPending = (key: string, operation: () => Promise<void>) => {
     setPendingOperations((current) => ({ ...current, [key]: (current[key] ?? 0) + 1 }));
@@ -95,6 +96,35 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
   return (
     <div className="audio-channel audio-channel--microphone mic-page" data-channel="microphone">
       <AudioChannelHeader channel="mic" title="Microphone" detail="Cleanup, tone, and dynamics for your voice">
+        {/* Listen-back sits with the other channel-wide controls; it survives preset changes. */}
+        <div
+          id="microphone-monitoring-section"
+          className={cn('mic-monitor', audio.monitoringEnabled && !monitoringUnavailable && 'is-on')}
+          role="group"
+          aria-label="Monitoring"
+          aria-busy={monitoringPending || undefined}
+          title={monitoringStatus}
+        >
+          <Switch
+            checked={audio.monitoringEnabled}
+            disabled={monitoringUnavailable}
+            aria-label={`${audio.monitoringEnabled ? 'Turn off' : 'Turn on'} monitoring`}
+            onCheckedChange={(enabled) => void runPending('monitoring', () => setAudioMonitoring({ enabled }))}
+          />
+          <span className="audio-eyebrow">Monitor</span>
+          <AudioDevicePicker
+            value={audio.monitoringDeviceId}
+            devices={audio.devices}
+            direction="output"
+            label="Microphone monitoring device"
+            className="mic-monitor__picker"
+            disabled={monitoringPending || monitoringUnavailable}
+            excludedIds={excludedIds}
+            onManage={() => setDeviceManager('output')}
+            onChange={(deviceId) => void runPending('monitoring', () => setAudioMonitoring({ deviceId }))}
+          />
+          <ParameterControl label="Monitor volume" value={audio.monitoring * 100} min={0} max={100} step={1} unit="%" disabled={monitoringUnavailable} onCommit={(level) => void runPending('monitoring', () => setAudioMonitoring({ level: level / 100 }))} />
+        </div>
         <div className="audio-channel-head__preset">
           <span className="audio-eyebrow">Preset</span>
           <PresetPicker
@@ -132,13 +162,12 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
         </AudioNotice>
       ) : null}
 
-      {audio.enabled && audio.host?.microphone?.virtualOutput ? (
-        <AudioNotice>
-          {audio.host.microphone.virtualOutput.running
-            ? `Processed microphone output connected. Select "${audio.host.microphone.virtualOutput.endpointName}" in your voice app. Selecting your physical microphone directly bypasses these effects.`
-            : audio.host.microphone.virtualOutput.error ?? 'Processed microphone output is unavailable.'}
-        </AudioNotice>
+      {/* Only a failed processed-microphone output needs attention; a working one stays quiet. */}
+      {audio.enabled && audio.host?.microphone?.virtualOutput && !audio.host.microphone.virtualOutput.running ? (
+        <AudioNotice>{audio.host.microphone.virtualOutput.error ?? 'Processed microphone output is unavailable.'}</AudioNotice>
       ) : null}
+
+      {monitoringProblem ? <AudioNotice>{monitoringStatus}</AudioNotice> : null}
 
       <section className="mic-source" aria-labelledby="microphone-source-heading">
         <div className="mic-source__row">
@@ -172,7 +201,20 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
         <MicInputMeter busId="mic" active={meterActive} inactiveLabel={meterInactiveLabel} label="Input level" />
       </section>
 
-      <MicSection title="Clean up">
+      <div className="mic-tone">
+        <MicStage
+          id="microphone-equalizer-section"
+          title="Equalizer"
+          description="Hover the curve and click + to add a band. Drag to adjust, or enter exact values below."
+          checked={equalizer.enabled}
+          unavailable={unavailable}
+          onCheckedChange={toggle('equalizer')}
+        >
+          <ParametricEq bands={equalizer.parameters.bands} disabled={unavailable || !equalizer.enabled} onCommit={(bands) => commitProcessor({ processorId: 'equalizer', parameters: { bands } })} />
+        </MicStage>
+      </div>
+
+      <MicSection title="Processing" variant="processing">
         <MicStage
           id="microphone-removal-section"
           title="Noise removal"
@@ -199,22 +241,6 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
         >
           <ParameterControl label="Threshold" value={gate.parameters.thresholdDb} min={-80} max={-10} step={0.5} unit=" dB" precision={1} onCommit={(thresholdDb) => void commitProcessor({ processorId: 'noise-gate', parameters: { thresholdDb } })} />
         </MicStage>
-      </MicSection>
-
-      <MicSection title="Tone">
-        <MicStage
-          id="microphone-equalizer-section"
-          title="Equalizer"
-          description="Hover the curve and click + to add a band. Drag to adjust, or enter exact values below."
-          checked={equalizer.enabled}
-          unavailable={unavailable}
-          onCheckedChange={toggle('equalizer')}
-        >
-          <ParametricEq bands={equalizer.parameters.bands} disabled={unavailable || !equalizer.enabled} onCommit={(bands) => commitProcessor({ processorId: 'equalizer', parameters: { bands } })} />
-        </MicStage>
-      </MicSection>
-
-      <MicSection title="Dynamics">
         <MicStage
           id="microphone-consistency-section"
           title="Voice consistency"
@@ -246,33 +272,6 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
         </MicStage>
       </MicSection>
 
-      <MicSection title="Listen back">
-        <MicStage
-          id="microphone-monitoring-section"
-          title="Monitoring"
-          description={monitoringStatus}
-          checked={audio.monitoringEnabled}
-          unavailable={monitoringUnavailable}
-          onCheckedChange={(enabled) => void runPending('monitoring', () => setAudioMonitoring({ enabled }))}
-        >
-          <label className="audio-param">
-            <span>Output</span>
-            <AudioDevicePicker
-              value={audio.monitoringDeviceId}
-              devices={audio.devices}
-              direction="output"
-              label="Microphone monitoring device"
-              className="mic-source__picker"
-              disabled={monitoringPending}
-              excludedIds={excludedIds}
-              onManage={() => setDeviceManager('output')}
-              onChange={(deviceId) => void runPending('monitoring', () => setAudioMonitoring({ deviceId }))}
-            />
-          </label>
-          <ParameterControl label="Volume" value={audio.monitoring * 100} min={0} max={100} step={1} unit="%" onCommit={(level) => void runPending('monitoring', () => setAudioMonitoring({ level: level / 100 }))} />
-        </MicStage>
-      </MicSection>
-
       <AudioDeviceManager
         open={deviceManager !== null}
         onOpenChange={(open) => { if (!open) setDeviceManager(null); }}
@@ -287,10 +286,10 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
   );
 });
 
-function MicSection({ title, children }: { title: string; children: ReactNode }) {
+function MicSection({ title, variant, children }: { title: string; variant?: 'processing'; children: ReactNode }) {
   const id = `microphone-group-${title.toLowerCase().replace(/\s+/g, '-')}`;
   return (
-    <section className="mic-section" aria-labelledby={id}>
+    <section className={cn('mic-section', variant && `mic-section--${variant}`)} aria-labelledby={id}>
       <h3 id={id} className="mic-section__title">{title}</h3>
       <div className="mic-section__stages">{children}</div>
     </section>

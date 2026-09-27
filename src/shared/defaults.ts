@@ -457,6 +457,7 @@ export const defaultDevices: Device[] = [
 
 export const defaultAudio: AudioState = {
   dependencies: { phase: 'idle', cable: false, microphone: false, current: null, progress: null, error: null },
+  openTrack: { phase: 'idle', installed: false, progress: null, error: null, lanAddress: null },
   spatial: spatialSettingsSchema.parse({}),
   automaticApplicationRouting: true,
   excludedDeviceIds: [],
@@ -692,7 +693,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.9.24',
+  currentVersion: '0.9.25',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -738,7 +739,7 @@ export const seedClips: Clip[] = [];
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
     setup: setupStateSchema.parse({}),
-    version: '0.9.24',
+    version: '0.9.25',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),

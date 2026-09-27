@@ -6,6 +6,7 @@ import { systemSnapshotSchema, type EngineKind, type PerformanceSnapshot, type S
 import { migrateVisibleWorkspaces } from '../../shared/workspace-profile';
 import { latestClipCreatedAt } from '../../shared/clip-review';
 import { createDefaultSnapshot } from '../../shared/defaults';
+import { findMatchingAudioPresetId } from '../../shared/audio-presets';
 
 type Listener = (snapshot: SystemSnapshot) => void;
 
@@ -159,6 +160,7 @@ export class StateStore {
     next.modules = [...bundledModules, ...localModules];
     next.audio.devices = [];
     next.audio.dependencies = structuredClone(defaults.audio.dependencies);
+    next.audio.openTrack = structuredClone(defaults.audio.openTrack);
     next.audio.outputDevice = '';
     next.audio.microphoneDevice = '';
 
@@ -188,10 +190,16 @@ export class StateStore {
       ...structuredClone(defaults.audio.pathPresets),
       ...next.audio.pathPresets.filter((preset) => !preset.builtIn),
     ];
-    const knownPresets = new Set(next.audio.pathPresets.map((preset) => preset.id));
+    // Retuning a shipped preset must not silently change the saved sound, or
+    // label older settings as the new preset. Preserve them as Custom until the
+    // user chooses a current preset. User-authored presets stay intact.
     for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
       const activeId = next.audio.activePresetIds[kind];
-      if (activeId && !knownPresets.has(activeId)) next.audio.activePresetIds[kind] = null;
+      if (!activeId) continue;
+      const active = next.audio.pathPresets.find((preset) => preset.id === activeId && preset.kind === kind);
+      if (!active || (active.builtIn && findMatchingAudioPresetId(next.audio, kind) !== activeId)) {
+        next.audio.activePresetIds[kind] = null;
+      }
     }
     next.audio.capabilities = structuredClone(defaults.audio.capabilities);
     next.audio.host = null;
@@ -264,7 +272,7 @@ export class StateStore {
         try {
           const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...snapshot,
             capture: { ...snapshot.capture, audioCalibration: undefined },
-            audio: { ...snapshot.audio, dependencies: undefined },
+            audio: { ...snapshot.audio, dependencies: undefined, openTrack: undefined },
             performance: { ...snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
           await mkdir(dirname(this.filePath), { recursive: true });
           // Backup is the previous successful durable generation, not an intermediate request.

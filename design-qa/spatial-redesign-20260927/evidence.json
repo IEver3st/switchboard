@@ -1,0 +1,31 @@
+{
+  "scope": "Hidden native Electron; real offline persistence; fixture availability/tracker; no physical audio changes",
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-spatial-ui-VFeaGH",
+  "layouts": [
+    {
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "trackingBottom": 412.390625,
+      "reducedMotion": true
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "trackingBottom": 452.390625,
+      "reducedMotion": true
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "trackingBottom": 452.390625,
+      "reducedMotion": true
+    }
+  ],
+  "checks": [
+    "Off state readable, seven speakers, pointer drag and keyboard position, height/distance/level/mute, room presets, stereo layout, built-in sensor default/setup IPC, managed OpenTrack not-installed/downloading/webcam/phone input persistence, reload, tracking/stale/error, recenter, pending/rejected writes, bypass/unavailable, reduced motion"
+  ],
+  "canonicalEngineEnabled": false
+}

@@ -1,0 +1,51 @@
+{
+  "scope": "Hidden native Electron; real persistence; fixture capability",
+  "layouts": [
+    {
+      "width": 1080,
+      "overflow": false,
+      "moduleHeight": 346,
+      "page": [
+        1154,
+        682
+      ],
+      "parts": {
+        "eq": 280,
+        "spatial": 346,
+        "grid": 313
+      },
+      "moduleOverflow": false
+    },
+    {
+      "width": 1420,
+      "overflow": false,
+      "moduleHeight": 248,
+      "page": [
+        868,
+        862
+      ],
+      "parts": {
+        "eq": 238,
+        "spatial": 248,
+        "grid": 166
+      },
+      "moduleOverflow": false
+    },
+    {
+      "width": 1920,
+      "overflow": false,
+      "moduleHeight": 248,
+      "page": [
+        1042,
+        1042
+      ],
+      "parts": {
+        "eq": 328,
+        "spatial": 248,
+        "grid": 166
+      },
+      "moduleOverflow": false
+    }
+  ],
+  "canonicalEngineEnabled": false
+}

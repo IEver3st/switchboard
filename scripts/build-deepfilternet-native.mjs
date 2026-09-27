@@ -33,6 +33,9 @@ if (cargoText.includes('capi = ["tract", "default-model", "dep:ndarray"]')) {
   throw new Error('Pinned libDF feature layout did not match the reviewed source.');
 }
 
+// The pinned lockfile resolves time 0.3.28, which fails type inference on Rust 1.80+.
+run('cargo', ['update', '--manifest-path', join(checkout, 'Cargo.toml'), '-p', 'time', '--precise', '0.3.36'], checkout);
+
 run('cargo', [
   'cbuild', '--manifest-path', join(checkout, 'libDF', 'Cargo.toml'), '--release',
   '--target', 'x86_64-pc-windows-msvc', '--no-default-features', '--features', 'capi',

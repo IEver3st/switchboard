@@ -1,0 +1,1414 @@
+[
+  {
+    "ms": 393,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 434,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 467,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 500,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 615,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 649,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 3034,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 3107,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 4090,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 4154,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 4707,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 4762,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 5364,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 5393,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 5426,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5459,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5489,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5516,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5548,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5580,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5611,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5647,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5680,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5713,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5738,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5771,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5804,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5837,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5870,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5911,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5944,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 5969,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6001,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6032,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6064,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6095,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6122,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6158,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6190,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6220,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6252,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6284,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6315,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6350,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6376,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6417,
+    "feature": "profile",
+    "fn": 5,
+    "software": 8,
+    "payload": []
+  },
+  {
+    "ms": 6441,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 6474,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 6598,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 6623,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 7422,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 7443,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 8295,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 8345,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 10372,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 10406,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 10432,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 10465,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 10501,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 10583,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 10593,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 10626,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 11528,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 11597,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 12548,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 12623,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 12998,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 13020,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 13749,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 13811,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 14161,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 14185,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15382,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15407,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15429,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15438,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15439,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15472,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 15496,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15597,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 15630,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15662,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      1,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 15690,
+    "feature": "rgb",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15720,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 15751,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 17165,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 17227,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 20411,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 20436,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 20469,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 20494,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 20626,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 20651,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 25410,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 25442,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 25475,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 25508,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 25633,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 25666,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 29461,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 29529,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 30003,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 30026,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 30394,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 30423,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 30455,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 30490,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 30612,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 30644,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 31221,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 31280,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 31533,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 31555,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 32761,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 32854,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 33592,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 33678,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 34965,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 35068,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 35405,
+    "feature": "profile",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 35429,
+    "feature": "profile",
+    "fn": 4,
+    "software": 8,
+    "payload": [
+      0,
+      2,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 35463,
+    "feature": "buttons",
+    "fn": 1,
+    "software": 8,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 35495,
+    "feature": "dpi",
+    "fn": 2,
+    "software": 8,
+    "payload": [
+      0,
+      12,
+      128,
+      6
+    ]
+  },
+  {
+    "ms": 35620,
+    "feature": "rgb",
+    "fn": 5,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      4,
+      0
+    ]
+  },
+  {
+    "ms": 35653,
+    "feature": "rgb",
+    "fn": 8,
+    "software": 8,
+    "payload": [
+      0,
+      3,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 35771,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 35854,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 36999,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 37063,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 37563,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "ms": 37585,
+    "feature": "buttons",
+    "fn": 0,
+    "software": 0,
+    "payload": [
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+]

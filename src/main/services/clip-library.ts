@@ -73,6 +73,21 @@ const waveformCacheLimit = 16;
 const audioPreviewCacheLimit = 16;
 const persistedAudioPreviewLimit = 32;
 
+export function registerSavedClip(clips: Clip[], saved: Clip): Clip {
+  // The MP4 becomes visible before Capture.Host finishes probing/responding.
+  // A library scan may already own its identity, edits and thumbnail by then.
+  const path = resolve(saved.path).toLocaleLowerCase();
+  const existing = clips.find(clip => resolve(clip.path).toLocaleLowerCase() === path);
+  if (existing) {
+    if (!existing.titleEdited) existing.name = saved.name;
+    if (saved.game) existing.game = saved.game;
+    if (saved.autoCapture) existing.autoCapture = saved.autoCapture;
+    return existing;
+  }
+  clips.unshift(saved);
+  return saved;
+}
+
 // A scan can span time in the tray. Preserve saves, edits and deletions made
 // after it began instead of replacing canonical state with its old snapshot.
 export function mergeReconciledClips(indexed: readonly Clip[], current: readonly Clip[], scanned: readonly Clip[]): Clip[] {

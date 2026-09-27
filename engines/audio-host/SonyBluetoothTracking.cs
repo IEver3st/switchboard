@@ -48,6 +48,35 @@ internal static class SonyBluetoothTracking
         return $"Windows accepted the input service for {target.Name}. Waiting for its motion sensor.";
     }
 
+    public static bool NeedsDriverRepair() => SensorProblem()?.Contains("(Code 10)", StringComparison.Ordinal) == true;
+
+    // Runs the reviewed repair (Switchboard.HeadTracker.Repair, scripts/repair-xm6-head-tracker.ps1) elevated.
+    // It rebinds only the failed XM6 Android Head Tracker from the sensor class driver to Microsoft's inbox HID
+    // driver after exact-device checks; audio services and pairing are untouched. Windows asks for approval.
+    public static void RepairSensorDriver()
+    {
+        using var resource = typeof(SonyBluetoothTracking).Assembly.GetManifestResourceStream("Switchboard.HeadTracker.Repair")
+            ?? throw new InvalidOperationException("The headset sensor repair is missing from this build.");
+        var script = Path.Combine(Path.GetTempPath(), $"switchboard-head-tracker-repair-{Environment.ProcessId}.ps1");
+        using (var file = File.Create(script)) resource.CopyTo(file);
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe",
+                $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{script}\" -Apply")
+                { UseShellExecute = true, Verb = "runas", WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden })
+                ?? throw new InvalidOperationException("Windows did not start the headset sensor repair.");
+            if (!process.WaitForExit(60_000)) throw new InvalidOperationException("The headset sensor repair is still running. Check again in a moment.");
+            if (process.ExitCode != 0) throw new InvalidOperationException("Windows could not repair the headset sensor driver. Nothing else was changed.");
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            throw new InvalidOperationException("Administrator approval was cancelled. The sensor driver was not changed.");
+        }
+        finally { try { File.Delete(script); } catch (IOException) { } }
+        // Windows restarts the sensor with its new driver; give it a moment to publish the interface.
+        for (var i = 0; i < 20 && HidHeadTrackingConnection.Discover().Count == 0; i++) Thread.Sleep(250);
+    }
+
     public static string? SensorProblem()
     {
         foreach (var device in PresentDevices("HID"))
@@ -61,9 +90,11 @@ internal static class SonyBluetoothTracking
         }
         return null;
     }
-    private static bool HasInputDevice(ulong address) => PresentDevices("BTHENUM").Any(d =>
-        d.Id.Contains("{00001124-0000-1000-8000-00805F9B34FB}", StringComparison.OrdinalIgnoreCase)
-        && d.Id.Contains(address.ToString("X12"), StringComparison.OrdinalIgnoreCase));
+    // An input device exists only when the headset's HID service has a present HID collection. A service
+    // node with no children means the HID link is closed; cycling that empty service is the recovery.
+    private static bool HasInputDevice(ulong address) => PresentDevices("HID").Any(d =>
+        d.Parent.Contains("{00001124-0000-1000-8000-00805F9B34FB}", StringComparison.OrdinalIgnoreCase)
+        && d.Parent.Contains(address.ToString("X12"), StringComparison.OrdinalIgnoreCase));
     private sealed record PnpDevice(string Id, string Parent, string HardwareIds, uint Problem);
     private static List<PnpDevice> PresentDevices(string enumerator)
     {

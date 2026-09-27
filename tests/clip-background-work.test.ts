@@ -2,8 +2,8 @@ import { afterEach, expect, spyOn, test } from 'bun:test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Clip } from '../src/shared/contracts';
-import { ClipLibraryService, mergeReconciledClips } from '../src/main/services/clip-library';
+import { clipSchema, type Clip } from '../src/shared/contracts';
+import { ClipLibraryService, mergeReconciledClips, registerSavedClip } from '../src/main/services/clip-library';
 
 const directories: string[] = [];
 const services: ClipLibraryService[] = [];
@@ -24,6 +24,41 @@ async function fixture() {
   return { directory, service };
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 20));
+
+test('a scan that discovers the MP4 before the save response leaves one canonical clip', () => {
+  const saved = clip('save-response', join(tmpdir(), 'replay.mp4'));
+  const discovered = { ...saved, id: 'scan-result', path: saved.path.toUpperCase(), createdAt: 83,
+    favorite: true, titleEdited: true, name: 'My moment', trimStartMs: 100,
+    thumbnailPath: 'scan-result.v2.jpg' };
+  const clips = mergeReconciledClips([], [], [discovered]);
+  const canonical = registerSavedClip(clips, saved);
+  expect(clips).toHaveLength(1);
+  expect(canonical).toBe(clips[0]!);
+  expect(canonical).toMatchObject(discovered);
+  expect(clips.reduce((sum, item) => sum + item.fileSize, 0)).toBe(saved.fileSize);
+});
+
+test('a save response before the scan keeps its identity and allows later distinct saves', () => {
+  const saved = clip('save-response');
+  const clips: Clip[] = [];
+  expect(registerSavedClip(clips, saved)).toBe(saved);
+  const merged = mergeReconciledClips([], clips, [{ ...saved, id: 'scan-result' }]);
+  expect(merged).toEqual([saved]);
+  registerSavedClip(merged, clip('next-save'));
+  expect(merged.map(item => item.id)).toEqual(['next-save', 'save-response']);
+});
+
+test('a discovered Auto Capture clip receives event metadata without replacing its identity', () => {
+  const saved = clipSchema.parse({ ...clip('save-response'), name: 'Round won', game: 'Counter-Strike 2',
+    autoCapture: { autoCaptured: true, providerId: 'cs2', gameId: 'cs2',
+      events: [{ id: 'round-won', type: 'round_win', timestampMs: 500 }] } });
+  const discovered = { ...clip('scan-result', saved.path), name: 'Imported clip' };
+  const clips = [discovered];
+  const canonical = registerSavedClip(clips, saved);
+  expect(clips).toHaveLength(1);
+  expect(canonical).toMatchObject({ id: discovered.id, name: saved.name,
+    game: saved.game, autoCapture: saved.autoCapture });
+});
 
 test('tray pauses between media probes and resumes without losing discovered clips', async () => {
   const { directory, service } = await fixture();

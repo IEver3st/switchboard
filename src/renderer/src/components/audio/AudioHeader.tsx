@@ -1,13 +1,12 @@
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
-import { Cable, Gamepad2, Headphones, MessageCircle, Mic2, Music2, SlidersHorizontal, type LucideIcon } from 'lucide-react';
+import { Cable, Gamepad2, MessageCircle, Mic2, Music2, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import type { AudioCapabilities, AudioDependencyState, AudioSupportLevel } from '../../../../shared/contracts';
 import { cn } from '@/lib/cn';
 
-export const audioWorkspaceTabs = ['mixer', 'game', 'chat', 'media', 'microphone', 'spatial'] as const;
+export const audioWorkspaceTabs = ['mixer', 'game', 'chat', 'media', 'microphone'] as const;
 export type AudioWorkspaceTab = (typeof audioWorkspaceTabs)[number];
 
 const tabLabels: Record<AudioWorkspaceTab, string> = {
-  spatial: 'Spatial',
   mixer: 'Mixer',
   game: 'Game',
   chat: 'Chat',
@@ -16,7 +15,6 @@ const tabLabels: Record<AudioWorkspaceTab, string> = {
 };
 
 const tabIcons: Record<AudioWorkspaceTab, LucideIcon> = {
-  spatial: Headphones,
   mixer: SlidersHorizontal,
   game: Gamepad2,
   chat: MessageCircle,
@@ -25,7 +23,6 @@ const tabIcons: Record<AudioWorkspaceTab, LucideIcon> = {
 };
 
 const tabColors: Record<AudioWorkspaceTab, string> = {
-  spatial: 'var(--accent-brand)',
   mixer: 'var(--accent-brand)',
   game: 'var(--channel-game)',
   chat: 'var(--channel-chat)',
@@ -139,7 +136,6 @@ export function audioStatusLine({
   if (setupPhase === 'restart-required') return 'Restart Windows to finish audio driver setup. Your mix is saved.';
   if (!engineRunning) return 'Turn on the audio engine in Settings to hear and adjust live audio. Your mix is saved.';
   if (tab === 'mixer' && routingBackend === 'none') return 'App mixing needs the VB-CABLE driver. Install it in Settings → Audio.';
-  if (tab === 'spatial') return 'Place your personal mix on a virtual stage around your headphones.';
   if (tab === 'mixer' && routingSupport === 'unavailable') return 'Routing is unavailable on this setup. Mix settings are still saved.';
   if (tab === 'mixer' && realtimeMetering !== 'available') return 'Live levels are unavailable. Faders still change the mix.';
   if (tab !== 'mixer' && processingSupport !== 'available') return 'Processing is unavailable for this channel. Changes are saved.';

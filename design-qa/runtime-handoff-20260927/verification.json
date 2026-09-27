@@ -1,0 +1,30 @@
+{
+  "handoff": "passed",
+  "settingsIsolationAndRestore": "passed",
+  "repeatedHandoff": "passed",
+  "unexpectedExitBlocks": "passed",
+  "recoveryAfterCleanDevExit": "passed",
+  "sizes": [
+    {
+      "width": 1080,
+      "height": 720,
+      "overflow": false,
+      "preload": "undefined",
+      "title": "Switchboard Dev is in control"
+    },
+    {
+      "width": 1420,
+      "height": 900,
+      "overflow": false,
+      "preload": "undefined",
+      "title": "Switchboard Dev is in control"
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "overflow": false,
+      "preload": "undefined",
+      "title": "Switchboard Dev is in control"
+    }
+  ]
+}

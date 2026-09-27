@@ -12,3 +12,5 @@ native/**/target/
 .tmp/resource-build/
 .switchboard/
 *.tsbuildinfo
+# Keep downloaded release installers outside source history.
+design-qa/**/*.exe

@@ -10,4 +10,6 @@ Switchboard packages a CPU RNNoise implementation as the legally clear productio
 
 `bun run acquire:deepfilternet-model -- --acknowledge-model-license-unresolved` is a deliberate, user-initiated official-source acquisition path. It writes the verified artifact and a receipt under `%LOCALAPPDATA%\Switchboard\models\deepfilternet`. This acknowledgement is not a license grant; redistributors must resolve the weights license independently.
 
-The optional source build requires the release machine to provide Rust's MSVC target and `cargo-c`. Packaged applications require none of Rust, Cargo, Python, Visual Studio, or an internet connection.
+The optional source build requires the release machine to provide Rust's MSVC target and `cargo-c`. Packaged applications require none of Rust, Cargo, Python, Visual Studio, or an internet connection. The build bumps only the pinned lockfile's `time` crate to 0.3.36 because 0.3.28 does not compile on Rust 1.80 or later. `Audio.Host.csproj` copies the staged `df.dll` into development and test builds.
+
+DeepFilterNet3 adds 20 ms of microphone latency over RNNoise: the measured output delay is 30 ms (one STFT hop plus the model's two-hop lookahead), versus 10 ms for RNNoise. `dotnet run --project engines/audio-host-tests -- --microphone-timbre [speech.wav]` compares both backends' delay, frame cost, tonal balance and click leakage. The synthetic default voice is not recognized as speech by DeepFilterNet3; pass a 48 kHz mono 16-bit speech recording for that backend.

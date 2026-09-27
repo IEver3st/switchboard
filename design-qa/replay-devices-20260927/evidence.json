@@ -1,0 +1,32 @@
+{
+  "scope": "Hidden native Electron, default offline profile",
+  "layouts": [
+    {
+      "width": 1080,
+      "overflow": false,
+      "rowWidth": 818,
+      "triggerWidths": [
+        220
+      ],
+      "truncated": false
+    },
+    {
+      "width": 1420,
+      "overflow": false,
+      "rowWidth": 768,
+      "triggerWidths": [
+        220
+      ],
+      "truncated": false
+    },
+    {
+      "width": 1920,
+      "overflow": false,
+      "rowWidth": 768,
+      "triggerWidths": [
+        220
+      ],
+      "truncated": false
+    }
+  ]
+}

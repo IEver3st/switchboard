@@ -21,6 +21,9 @@ const reviewViewports = requestedViewport
   : viewports;
 if (reviewViewports.length === 0) throw new Error(`Unknown startup viewport: ${requestedViewport}`);
 
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('force-device-scale-factor', '1');
+app.on('browser-window-created', (_event, win) => { win.setPosition(-10000, -10000, false); win.setFocusable(false); win.webContents.setBackgroundThrottling(false); });
 app.setName('switchboard-startup-review');
 app.setAppPath(projectRoot);
 app.setPath('userData', isolatedUserData);
@@ -38,6 +41,9 @@ void app.whenReady().then(runReview).catch((error) => {
 async function runReview() {
   const window = await waitForWindow();
   const report = [];
+  await waitForSelector(window, 'main', 40000);
+  await window.webContents.executeJavaScript('window.switchboard.updateSettings({ uiScalePercent: 100 })');
+  await delay(150);
 
   if (reducedMotionReview) {
     window.webContents.debugger.attach('1.3');
@@ -48,7 +54,13 @@ async function runReview() {
 
   for (const viewport of reviewViewports) {
     if (window.isMaximized()) window.unmaximize();
+    window.setMinimumSize(1, 1);
     window.setContentSize(viewport.width, viewport.height, false);
+    await window.webContents.capturePage();
+    const actual = await window.webContents.executeJavaScript('({width:innerWidth,height:innerHeight})');
+    const bounds = window.getBounds();
+    window.setSize(bounds.width + viewport.width - actual.width, bounds.height + viewport.height - actual.height, false);
+    await window.webContents.capturePage();
     await waitForViewport(window, viewport);
     const reloadStartedAt = Date.now();
     await reload(window);
@@ -56,9 +68,10 @@ async function runReview() {
       await waitForSelector(window, '.startup-screen');
       const motionState = await window.webContents.executeJavaScript(`
         (() => ({
-          markLayerCount: document.querySelectorAll('.startup-mark__layer').length,
-          markAnimations: [...document.querySelectorAll('.startup-mark__layer')]
-            .map((layer) => getComputedStyle(layer).animationName),
+          spinnerAnimation: (() => {
+            const spinner = document.querySelector('.startup-spinner');
+            return spinner ? getComputedStyle(spinner).animationName : null;
+          })(),
         }))()
       `);
       const image = await window.webContents.capturePage();
@@ -80,14 +93,13 @@ async function runReview() {
       (() => {
         const startup = document.querySelector('.startup-screen');
         const sequence = document.querySelector('.startup-sequence');
-        const mark = document.querySelector('.startup-mark');
+        const spinner = document.querySelector('.startup-spinner');
         const bounds = (element) => element ? element.getBoundingClientRect().toJSON() : null;
         return {
           viewport: { width: innerWidth, height: innerHeight },
           startup: bounds(startup),
           sequence: bounds(sequence),
-          mark: bounds(mark),
-          markLayerCount: document.querySelectorAll('.startup-mark__layer').length,
+          spinner: bounds(spinner),
           status: startup?.textContent?.replace(/\\s+/g, ' ').trim(),
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
           verticalOverflow: document.documentElement.scrollHeight > innerHeight,
@@ -126,7 +138,7 @@ async function waitForWindow() {
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     const candidate = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
-    if (candidate) return candidate;
+    if (candidate && !candidate.webContents.isLoading() && await candidate.webContents.executeJavaScript('Boolean(document.body)')) return candidate;
     await delay(40);
   }
   throw new Error('Switchboard did not create its main window.');

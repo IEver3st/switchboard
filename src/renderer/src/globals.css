@@ -238,6 +238,8 @@ textarea:focus-visible {
 }
 
 .startup-screen {
+  --startup-reveal-delay: calc(150ms - var(--startup-elapsed, 0ms));
+  --startup-stall-delay: calc(12s - var(--startup-elapsed, 0ms));
   position: fixed;
   z-index: 100;
   inset: 0;
@@ -248,84 +250,146 @@ textarea:focus-visible {
   contain: strict;
 }
 
+/* The window is frameless; keep it movable while startup covers the shell. */
+.startup-screen__drag {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 38px;
+}
+
 .startup-sequence {
   display: flex;
-  width: min(480px, calc(100vw - 64px));
+  width: min(360px, calc(100vw - 64px));
   flex-direction: column;
   align-items: center;
+  text-align: center;
+  /* Fast boots finish inside the delay and never flash the indicator. */
+  animation: startup-reveal 150ms ease-out var(--startup-reveal-delay) both;
 }
 
 .startup-mark {
-  position: relative;
-  width: min(276px, calc(100vw - 96px));
-  aspect-ratio: 3 / 2;
-  isolation: isolate;
-}
-
-.startup-mark__layer {
-  position: absolute;
-  inset: 0;
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 60px;
+  aspect-ratio: 3 / 2;
+  margin-bottom: 20px;
   object-fit: contain;
-  opacity: 0.28;
-  transform: translate3d(var(--startup-entry-x), 2px, 0);
-  animation: startup-mark-resolve 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite both;
-  will-change: transform, opacity;
+  user-select: none;
 }
 
-.startup-mark__layer--cyan {
-  --startup-entry-x: -8px;
-  clip-path: inset(0 0 70.5% 0);
+.startup-sequence__stack {
+  display: grid;
 }
 
-.startup-mark__layer--violet {
-  --startup-entry-x: 8px;
-  clip-path: inset(29.5% 0 49.4% 0);
-  animation-delay: 110ms;
+.startup-sequence__stack > * {
+  grid-area: 1 / 1;
 }
 
-.startup-mark__layer--magenta {
-  --startup-entry-x: -8px;
-  clip-path: inset(50.6% 0 29.3% 0);
-  animation-delay: 220ms;
+.startup-sequence__message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
-.startup-mark__layer--red {
-  --startup-entry-x: 8px;
-  clip-path: inset(70.7% 0 0 0);
-  animation-delay: 330ms;
-}
-
-.startup-screen[data-state="unavailable"] .startup-mark__layer {
-  animation: none;
-  opacity: 0.58;
-  transform: none;
-  will-change: auto;
-}
-
-.startup-sequence__error {
-  max-width: 280px;
-  margin: 12px 0 0;
-  color: var(--destructive);
-  font-size: 10px;
+.startup-sequence__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.4;
-  text-align: center;
 }
 
-@keyframes startup-mark-resolve {
-  0%, 10%, 100% { opacity: 0.28; transform: translate3d(var(--startup-entry-x), 2px, 0); }
-  28%, 74% { opacity: 1; transform: translate3d(0, 0, 0); }
-  90% { opacity: 0.72; transform: translate3d(0, 0, 0); }
+.startup-sequence__detail {
+  margin: 0;
+  max-width: 320px;
+  color: var(--text-description);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.startup-sequence__action {
+  margin-top: 10px;
+  /* The unlayered `button { font: inherit }` reset outranks Tailwind's text-xs. */
+  font-size: 12px;
+}
+
+.startup-spinner {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent-brand);
+  border-radius: 50%;
+  animation: startup-spin 800ms linear calc(0ms - var(--startup-elapsed, 0ms)) infinite;
+}
+
+/* Readiness that never arrives turns into an actionable notice, not an endless spinner. */
+.startup-sequence__message--progress {
+  animation: startup-stall-out 1ms linear var(--startup-stall-delay) forwards;
+}
+
+.startup-sequence__message--stalled {
+  animation: startup-stall-in 150ms ease-out var(--startup-stall-delay) both;
+}
+
+.startup-screen[data-state="unavailable"] .startup-sequence {
+  animation: none;
+}
+
+.startup-screen[data-state="unavailable"] .startup-sequence__detail {
+  color: var(--destructive);
+}
+
+/* Lazy workspace fallback shares the startup indicator and show-delay. */
+.page-loading {
+  display: grid;
+  height: 100%;
+  place-items: center;
+}
+
+.page-loading__content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-description);
+  font-size: 12px;
+  animation: startup-reveal 150ms ease-out 150ms both;
+}
+
+@keyframes startup-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes startup-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Both endpoints are hidden so the forwards fill cannot interpolate back to visible. */
+@keyframes startup-stall-out {
+  from, to { visibility: hidden; opacity: 0; }
+}
+
+@keyframes startup-stall-in {
+  from { visibility: hidden; opacity: 0; }
+  1% { visibility: visible; }
+  to { visibility: visible; opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .startup-mark__layer {
+  .startup-sequence,
+  .page-loading__content,
+  .startup-sequence__message--stalled {
+    animation-duration: 1ms;
+  }
+
+  .startup-spinner {
     animation: none;
-    opacity: 1;
-    transform: none;
-    will-change: auto;
+    border-top-color: var(--border-strong);
   }
 }
 
@@ -7692,8 +7756,7 @@ textarea:focus-visible {
 }
 
 /* Composite settings use the full available width for related controls. */
-.settings-workspaces-block,
-.settings-capture-devices-block {
+.settings-workspaces-block {
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 12px;
@@ -7707,13 +7770,11 @@ textarea:focus-visible {
   column-gap: 14px;
 }
 
-.settings-workspaces-block .settings-row__description,
-.settings-capture-devices-block .settings-row__description {
+.settings-workspaces-block .settings-row__description {
   margin-top: 0;
 }
 
-.settings-workspaces-block .settings-row__control,
-.settings-capture-devices-block .settings-row__control {
+.settings-workspaces-block .settings-row__control {
   width: 100%;
   justify-content: stretch;
 }
@@ -7747,41 +7808,14 @@ textarea:focus-visible {
   }
 }
 
-.settings-capture-devices-block .settings-row__title {
-  display: none;
+.settings-capture-devices__status {
+  display: block;
+  margin-top: 4px;
+  color: var(--status-warning);
 }
 
-.settings-capture-devices-control,
-.settings-capture-devices {
-  width: 100%;
-}
-
-.settings-capture-devices {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.settings-capture-devices__field {
-  display: grid;
-  align-content: start;
-  gap: 7px;
-  min-width: 0;
-  padding: 2px 0;
-}
-
-.settings-capture-devices__field > span {
-  font-size: 10.5px;
-}
-
-.settings-capture-devices__field .select-trigger {
-  min-height: 32px;
-}
-
-.settings-capture-devices__note {
-  grid-column: 1 / -1;
-  padding-inline: 2px;
-  font-size: 10.5px;
+.settings-capture-devices__status[data-tone='neutral'] {
+  color: var(--text-secondary);
 }
 
 @media (max-width: 760px) {
@@ -7794,8 +7828,7 @@ textarea:focus-visible {
     justify-content: flex-start;
   }
 
-  .settings-workspaces__list,
-  .settings-capture-devices {
+  .settings-workspaces__list {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -7814,8 +7847,7 @@ textarea:focus-visible {
     gap: 20px;
   }
 
-  .settings-workspaces-block,
-  .settings-capture-devices-block {
+  .settings-workspaces-block {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }

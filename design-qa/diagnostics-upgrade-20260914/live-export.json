@@ -1,0 +1,3164 @@
+{
+  "schemaVersion": 4,
+  "version": "0.9.9",
+  "exportedAt": "2026-09-14T15:35:51.773Z",
+  "droppedJournalWrites": 0,
+  "limits": "Last 120 detailed resource samples, up to 720 five-second trend points and 256 process lifetimes. CPU percentages are normalized to logical processors. Process CPU and I/O totals cover observed deltas only; short-lived processes between samples are not counted. I/O includes file, network and device operations, not disk traffic alone. Resident sums can double-count shared pages; process peaks are lifetime peaks and are not simultaneous. Null means unavailable or awaiting a second sample. Operation timings are inclusive wall time, not CPU attribution. GPU load, thermal state and CPU speed limit are unavailable. Renderer heap is approximate. Paths, URLs, and credentials in diagnostic events are redacted; window titles, command lines and media are omitted.",
+  "resources": {
+    "startedAt": "2026-09-14T15:35:19.196Z",
+    "sampledAt": "2026-09-14T15:35:51.654Z",
+    "status": "available",
+    "error": null,
+    "sampleCount": 8,
+    "observedStarts": 5,
+    "observedExits": 0,
+    "droppedProcesses": 0,
+    "collectionMs": 39.7075,
+    "requested": 5,
+    "inaccessible": 0,
+    "restarts": 0,
+    "monitorPid": 37728,
+    "logicalProcessors": 32,
+    "host": {
+      "power": "ac",
+      "idleSeconds": 0,
+      "idleState": "active",
+      "thermal": "unavailable",
+      "cpuSpeedLimit": null,
+      "totalMemoryMb": 31859.8,
+      "freeMemoryMb": 2874.4
+    },
+    "history": [
+      {
+        "at": "2026-09-14T15:35:19.196Z",
+        "cpuPercent": null,
+        "privateMb": 699.92578125,
+        "residentMb": 725.703125,
+        "readBps": null,
+        "writeBps": null,
+        "processes": 5
+      },
+      {
+        "at": "2026-09-14T15:35:21.636Z",
+        "cpuPercent": 1.6209336577868854,
+        "privateMb": 909.82421875,
+        "residentMb": 841.41015625,
+        "readBps": 82282.37704918033,
+        "writeBps": 53317.62295081967,
+        "processes": 5
+      },
+      {
+        "at": "2026-09-14T15:35:26.640Z",
+        "cpuPercent": 0.5366800309752199,
+        "privateMb": 864.78515625,
+        "residentMb": 819.3515625,
+        "readBps": 22031.175059952042,
+        "writeBps": 3988.009592326139,
+        "processes": 5
+      },
+      {
+        "at": "2026-09-14T15:35:31.641Z",
+        "cpuPercent": 0.39054689062187564,
+        "privateMb": 867.43359375,
+        "residentMb": 822.71484375,
+        "readBps": 24005.99880023995,
+        "writeBps": 5654.269146170765,
+        "processes": 5
+      },
+      {
+        "at": "2026-09-14T15:35:36.641Z",
+        "cpuPercent": 0.595703125,
+        "privateMb": 867.2734375,
+        "residentMb": 822.83984375,
+        "readBps": 21067.600000000002,
+        "writeBps": 5567.6,
+        "processes": 5
+      },
+      {
+        "at": "2026-09-14T15:35:41.654Z",
+        "cpuPercent": 0.31168960702174353,
+        "privateMb": 868.42578125,
+        "residentMb": 824.45703125,
+        "readBps": 15454.219030520646,
+        "writeBps": 5567.125473768203,
+        "processes": 5
+      },
+      {
+        "at": "2026-09-14T15:35:46.653Z",
+        "cpuPercent": 0.39070314062812567,
+        "privateMb": 877.8515625,
+        "residentMb": 833.41015625,
+        "readBps": 17476.09521904381,
+        "writeBps": 5607.52150430086,
+        "processes": 5
+      },
+      {
+        "at": "2026-09-14T15:35:51.654Z",
+        "cpuPercent": 0.6541660417916415,
+        "privateMb": 818.37890625,
+        "residentMb": 778.78515625,
+        "readBps": 15995.200959808039,
+        "writeBps": 3962.607478504299,
+        "processes": 5
+      }
+    ],
+    "processes": [
+      {
+        "pid": 39292,
+        "startedAt": "2026-09-14T15:35:16.3440741Z",
+        "name": "electron",
+        "cpuSeconds": 5.125,
+        "privateMb": 98.015625,
+        "residentMb": 134.06640625,
+        "peakResidentMb": 173.40234375,
+        "readBytes": 9155980,
+        "writeBytes": 3464166,
+        "handles": 967,
+        "role": "Browser",
+        "group": "desktop",
+        "cpuPercent": 0.48818361327734444,
+        "peakCpuPercent": 0.517578125,
+        "observedCpuSeconds": 4.125,
+        "readBps": 13942.41151769646,
+        "writeBps": 2052.7894421115775,
+        "observedReadBytes": 561618,
+        "observedWriteBytes": 189963,
+        "samples": 8,
+        "active": true,
+        "sampledAt": "2026-09-14T15:35:51.654Z"
+      },
+      {
+        "pid": 34972,
+        "startedAt": "2026-09-14T15:35:16.5394516Z",
+        "name": "electron",
+        "cpuSeconds": 3.25,
+        "privateMb": 613.55859375,
+        "residentMb": 415.6953125,
+        "peakResidentMb": 450.484375,
+        "readBytes": 521376,
+        "writeBytes": 499480,
+        "handles": 10652,
+        "role": "GPU",
+        "group": "desktop",
+        "cpuPercent": 0,
+        "peakCpuPercent": 1.140657018442623,
+        "observedCpuSeconds": 0.890625,
+        "readBps": 0,
+        "writeBps": 0,
+        "observedReadBytes": 151272,
+        "observedWriteBytes": 6208,
+        "samples": 8,
+        "active": true,
+        "sampledAt": "2026-09-14T15:35:51.654Z"
+      },
+      {
+        "pid": 39528,
+        "startedAt": "2026-09-14T15:35:16.5441637Z",
+        "name": "electron",
+        "cpuSeconds": 0.046875,
+        "privateMb": 11.98046875,
+        "residentMb": 52.75390625,
+        "peakResidentMb": 53.015625,
+        "readBytes": 66871,
+        "writeBytes": 122531,
+        "handles": 337,
+        "role": "Utility",
+        "group": "desktop",
+        "cpuPercent": 0,
+        "peakCpuPercent": 0,
+        "observedCpuSeconds": 0,
+        "readBps": 0,
+        "writeBps": 0,
+        "observedReadBytes": 0,
+        "observedWriteBytes": 59,
+        "samples": 8,
+        "active": true,
+        "sampledAt": "2026-09-14T15:35:51.654Z"
+      },
+      {
+        "pid": 35864,
+        "startedAt": "2026-09-14T15:35:16.5560927Z",
+        "name": "electron",
+        "cpuSeconds": 1,
+        "privateMb": 84.00390625,
+        "residentMb": 141.62109375,
+        "peakResidentMb": 175.32421875,
+        "readBytes": 1104797,
+        "writeBytes": 649722,
+        "handles": 444,
+        "role": "Tab",
+        "group": "desktop",
+        "cpuPercent": 0.1074003949210158,
+        "peakCpuPercent": 0.1074003949210158,
+        "observedCpuSeconds": 0.4375,
+        "readBps": 2047.590481903619,
+        "writeBps": 1663.8672265546888,
+        "observedReadBytes": 68160,
+        "observedWriteBytes": 77153,
+        "samples": 8,
+        "active": true,
+        "sampledAt": "2026-09-14T15:35:51.654Z"
+      },
+      {
+        "pid": 37728,
+        "startedAt": "2026-09-14T15:35:19.1979933Z",
+        "name": "Capture.Host",
+        "cpuSeconds": 0.515625,
+        "privateMb": 10.8203125,
+        "residentMb": 34.6484375,
+        "peakResidentMb": 34.6484375,
+        "readBytes": 13000,
+        "writeBytes": 8540,
+        "handles": 247,
+        "role": "Resource collector",
+        "group": "monitor",
+        "cpuPercent": 0.05858203359328134,
+        "peakCpuPercent": 0.08004610655737705,
+        "observedCpuSeconds": 0.421875,
+        "readBps": 5.198960207958408,
+        "writeBps": 245.95080983803237,
+        "observedReadBytes": 182,
+        "observedWriteBytes": 8540,
+        "samples": 8,
+        "active": true,
+        "sampledAt": "2026-09-14T15:35:51.654Z"
+      }
+    ],
+    "runtime": {
+      "mainHeapMb": 24.1,
+      "mainExternalMb": 4,
+      "mainArrayBuffersMb": 0,
+      "activeResources": {
+        "PipeWrap": 6,
+        "ProcessWrap": 2,
+        "Timeout": 1
+      },
+      "rendererHeapMb": 16.3,
+      "domNodes": 859,
+      "canvases": 0,
+      "images": 1,
+      "videos": 0,
+      "longTasks": 0
+    },
+    "events": [
+      {
+        "at": "2026-09-14T15:35:16.839Z",
+        "source": "main",
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "detail": "{}"
+      },
+      {
+        "at": "2026-09-14T15:35:16.841Z",
+        "source": "main",
+        "level": "info",
+        "event": "environment",
+        "detail": "{\"version\":\"0.9.9\",\"platform\":\"win32\",\"arch\":\"x64\",\"osRelease\":\"10.0.26200\",\"osVersion\":\"Windows 11 Pro\",\"electron\":\"44.0.0\",\"packaged\":false,\"softwareRendering\":false}"
+      },
+      {
+        "at": "2026-09-14T15:35:16.841Z",
+        "source": "main",
+        "level": "info",
+        "event": "capture.settings",
+        "detail": "{\"enabled\":false,\"source\":\"automatic-game\",\"sourceSelected\":false,\"displayIndex\":0,\"encoder\":\"auto\",\"codec\":\"auto\",\"resolution\":\"1440p\",\"fps\":60,\"quality\":4,\"replaySeconds\":60,\"includeSystemAudio\":true,\"includeMic\":true,\"includeChatAudio\":false,\"includeCursor\":false}"
+      },
+      {
+        "at": "2026-09-14T15:35:17.163Z",
+        "source": "main",
+        "level": "info",
+        "event": "graphics.info",
+        "detail": "{\"details\":\"{\\\"gpuDevice\\\":[{\\\"active\\\":true,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVendor\\\":\\\"AMD\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":5056,\\\"deviceString\\\":\\\"AMD Radeon(TM) Graphics\\\",\\\"driverVersion\\\":\\\"32.0.21045.9003\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":5140,\\\"deviceId\\\":140,\\\"deviceString\\\":\\\"Microsoft Basic Render Driver\\\",\\\"driverVersion\\\":\\\"10.0.26100.5074\\\"}],\\\"auxAttributes\\\":{\\\"glRenderer\\\":\\\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\\\",\\\"glVersion\\\":\\\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\\\",\\\"glVendor\\\":\\\"Google Inc. (AMD)\\\",\\\"displayType\\\":\\\"ANGLE_D3D11\\\",\\\"optimus\\\":false,\\\"amdSwitchable\\\":false,\\\"sandboxed\\\":true}}\"}"
+      },
+      {
+        "at": "2026-09-14T15:35:19.192Z",
+        "source": "main",
+        "level": "debug",
+        "event": "operation.started",
+        "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\"}"
+      },
+      {
+        "at": "2026-09-14T15:35:19.203Z",
+        "source": "main",
+        "level": "debug",
+        "event": "operation.completed",
+        "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\",\"elapsedMs\":10.652599999999893}"
+      }
+    ]
+  },
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "windowsRelease": "10.0.26200",
+    "windowsVersion": "Windows 11 Pro",
+    "electron": "44.0.0",
+    "chrome": "152.0.7977.54",
+    "node": "24.18.1",
+    "packaged": false,
+    "softwareRendering": false,
+    "graphics": {
+      "gpuDevice": [
+        {
+          "active": true,
+          "vendorId": 4098,
+          "deviceId": 30032,
+          "deviceString": "AMD Radeon RX 9070 XT",
+          "driverVendor": "AMD",
+          "driverVersion": "32.0.31041.3013"
+        },
+        {
+          "active": false,
+          "vendorId": 4098,
+          "deviceId": 5056,
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVersion": "32.0.21045.9003"
+        },
+        {
+          "active": false,
+          "vendorId": 4098,
+          "deviceId": 30032,
+          "deviceString": "AMD Radeon RX 9070 XT",
+          "driverVersion": "32.0.31041.3013"
+        },
+        {
+          "active": false,
+          "vendorId": 5140,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.26100.5074"
+        }
+      ],
+      "auxAttributes": {
+        "glRenderer": "ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)",
+        "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)",
+        "glVendor": "Google Inc. (AMD)",
+        "displayType": "ANGLE_D3D11",
+        "optimus": false,
+        "amdSwitchable": false,
+        "sandboxed": true
+      }
+    },
+    "graphicsFeatures": {
+      "2d_canvas": "enabled",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "enabled",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "enabled_on",
+      "rasterization": "enabled",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "enabled",
+      "video_encode": "enabled",
+      "webgl": "enabled",
+      "webgpu": "enabled",
+      "webnn": "disabled_off"
+    },
+    "displays": [
+      {
+        "width": 2560,
+        "height": 1440,
+        "scaleFactor": 1,
+        "displayFrequency": 120,
+        "colorDepth": 24,
+        "rotation": 0
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "scaleFactor": 1,
+        "displayFrequency": 240,
+        "colorDepth": 24,
+        "rotation": 0
+      }
+    ]
+  },
+  "captureSampledAt": "2026-09-14T15:35:51.772Z",
+  "capture": {
+    "settings": {
+      "enabled": false,
+      "source": "automatic-game",
+      "sourceSelected": false,
+      "displayIndex": 0,
+      "encoder": "auto",
+      "codec": "auto",
+      "resolution": "1440p",
+      "fps": 60,
+      "quality": 4,
+      "replaySeconds": 60,
+      "includeSystemAudio": true,
+      "includeMic": true,
+      "includeChatAudio": false,
+      "includeCursor": false
+    },
+    "runtime": {
+      "state": "stopped",
+      "backend": "Windows Graphics Capture",
+      "encoder": "Not selected",
+      "encodedFrames": 0,
+      "droppedFrames": 0,
+      "bufferedSeconds": 0,
+      "segmentCount": 0,
+      "saveQueueDepth": 0,
+      "observedBitrateBps": 0,
+      "error": null,
+      "warning": null,
+      "activeSourceType": null,
+      "activeSourceAvailable": null
+    },
+    "capabilities": {
+      "backend": "unavailable",
+      "encoders": [],
+      "codecs": [
+        "h264"
+      ],
+      "maximumFps": 60,
+      "systemAudio": false,
+      "microphoneAudio": false,
+      "exclusiveFullscreen": false
+    },
+    "sources": {
+      "displays": 0,
+      "windows": 0,
+      "available": 0
+    },
+    "storage": {
+      "availableBytes": 2269329928192,
+      "replayCacheBytes": 0,
+      "lowSpace": false,
+      "criticalSpace": false
+    },
+    "engines": [
+      {
+        "kind": "audio",
+        "state": "stopped",
+        "message": null
+      },
+      {
+        "kind": "capture",
+        "state": "stopped",
+        "message": null
+      }
+    ]
+  },
+  "developer": {
+    "enabled": true,
+    "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+    "startedAt": "2026-09-14T15:35:16.839Z",
+    "discardedEvents": 0,
+    "limits": "Latest 2,000 events / 2 MiB; 8 KiB per event; 120 events per second. Discarded events include evictions, rate limits, and invalid records.",
+    "events": [
+      {
+        "level": "info",
+        "event": "diagnostics.enabled",
+        "data": {},
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 1,
+        "sampledAt": "2026-09-14T15:35:16.839Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "environment",
+        "data": {
+          "version": "0.9.9",
+          "platform": "win32",
+          "arch": "x64",
+          "osRelease": "10.0.26200",
+          "osVersion": "Windows 11 Pro",
+          "electron": "44.0.0",
+          "packaged": false,
+          "softwareRendering": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 2,
+        "sampledAt": "2026-09-14T15:35:16.841Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "capture.settings",
+        "data": {
+          "enabled": false,
+          "source": "automatic-game",
+          "sourceSelected": false,
+          "displayIndex": 0,
+          "encoder": "auto",
+          "codec": "auto",
+          "resolution": "1440p",
+          "fps": 60,
+          "quality": 4,
+          "replaySeconds": 60,
+          "includeSystemAudio": true,
+          "includeMic": true,
+          "includeChatAudio": false,
+          "includeCursor": false
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 3,
+        "sampledAt": "2026-09-14T15:35:16.841Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "graphics.info",
+        "data": {
+          "details": "{\"gpuDevice\":[{\"active\":true,\"vendorId\":4098,\"deviceId\":30032,\"deviceString\":\"AMD Radeon RX 9070 XT\",\"driverVendor\":\"AMD\",\"driverVersion\":\"32.0.31041.3013\"},{\"active\":false,\"vendorId\":4098,\"deviceId\":5056,\"deviceString\":\"AMD Radeon(TM) Graphics\",\"driverVersion\":\"32.0.21045.9003\"},{\"active\":false,\"vendorId\":4098,\"deviceId\":30032,\"deviceString\":\"AMD Radeon RX 9070 XT\",\"driverVersion\":\"32.0.31041.3013\"},{\"active\":false,\"vendorId\":5140,\"deviceId\":140,\"deviceString\":\"Microsoft Basic Render Driver\",\"driverVersion\":\"10.0.26100.5074\"}],\"auxAttributes\":{\"glRenderer\":\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\",\"glVersion\":\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\",\"glVendor\":\"Google Inc. (AMD)\",\"displayType\":\"ANGLE_D3D11\",\"optimus\":false,\"amdSwitchable\":false,\"sandboxed\":true}}"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 4,
+        "sampledAt": "2026-09-14T15:35:17.163Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:settings:update",
+          "request": "66a760e9-360c-450e-9d6f-5faae93e5adc"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 5,
+        "sampledAt": "2026-09-14T15:35:19.192Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.completed",
+        "data": {
+          "operation": "ipc:settings:update",
+          "request": "66a760e9-360c-450e-9d6f-5faae93e5adc",
+          "elapsedMs": 10.652599999999893
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 6,
+        "sampledAt": "2026-09-14T15:35:19.203Z",
+        "source": "main"
+      },
+      {
+        "level": "debug",
+        "event": "operation.started",
+        "data": {
+          "operation": "ipc:diagnostics:export-resources",
+          "request": "2f68f598-4a58-42cd-a53b-7d801f615b86"
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 7,
+        "sampledAt": "2026-09-14T15:35:51.771Z",
+        "source": "main"
+      },
+      {
+        "level": "info",
+        "event": "diagnostics.export-requested",
+        "data": {
+          "resourceSamples": 6
+        },
+        "schemaVersion": 1,
+        "kind": "developer-event",
+        "sessionId": "856b489d-0c30-494a-82c6-6c1f150d1000",
+        "sequence": 8,
+        "sampledAt": "2026-09-14T15:35:51.773Z",
+        "source": "main"
+      }
+    ]
+  },
+  "samples": [
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-14T15:35:19.196Z",
+      "sequence": 2,
+      "uptimeSeconds": 2.9,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget",
+        "rapid-growth"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 686.6,
+        "electronWorkingSetMb": 694.2,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 686.6,
+        "cpuPercent": 1.4,
+        "processCount": 4
+      },
+      "externalProcesses": [],
+      "electronProcesses": [
+        {
+          "pid": 34972,
+          "type": "GPU",
+          "privateMb": 454.4,
+          "workingSetMb": 326.4,
+          "peakWorkingSetMb": 343.9,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39292,
+          "type": "Browser",
+          "privateMb": 127.4,
+          "workingSetMb": 164.3,
+          "peakWorkingSetMb": 164.3,
+          "cpuPercent": 0.8
+        },
+        {
+          "pid": 35864,
+          "type": "Tab",
+          "privateMb": 92.7,
+          "workingSetMb": 150.8,
+          "peakWorkingSetMb": 151.6,
+          "cpuPercent": 0.6
+        },
+        {
+          "pid": 39528,
+          "type": "Utility",
+          "privateMb": 12,
+          "workingSetMb": 52.7,
+          "peakWorkingSetMb": 52.7,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 165.3,
+        "heapUsedMb": 33.6,
+        "heapTotalMb": 51.4,
+        "externalMb": 4.6,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 4,
+          "ProcessWrap": 2,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 48.1,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 458,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 3051
+      },
+      "debug": {
+        "startedAt": "2026-09-14T15:35:19.195Z",
+        "sampledAt": "2026-09-14T15:35:19.196Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": null,
+        "eventLoopDelayMaxMs": null,
+        "operations": [],
+        "processes": [
+          {
+            "pid": 34972,
+            "type": "GPU",
+            "privateMb": 454.4,
+            "workingSetMb": 326.4,
+            "peakWorkingSetMb": 343.9,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 39292,
+            "type": "Browser",
+            "privateMb": 127.4,
+            "workingSetMb": 164.3,
+            "peakWorkingSetMb": 164.3,
+            "cpuPercent": 0.8,
+            "role": "Browser"
+          },
+          {
+            "pid": 35864,
+            "type": "Tab",
+            "privateMb": 92.7,
+            "workingSetMb": 150.8,
+            "peakWorkingSetMb": 151.6,
+            "cpuPercent": 0.6,
+            "role": "Tab"
+          },
+          {
+            "pid": 39528,
+            "type": "Utility",
+            "privateMb": 12,
+            "workingSetMb": 52.7,
+            "peakWorkingSetMb": 52.7,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      },
+      "nativeResources": {
+        "startedAt": "2026-09-14T15:35:19.196Z",
+        "sampledAt": "2026-09-14T15:35:19.196Z",
+        "status": "available",
+        "error": null,
+        "sampleCount": 1,
+        "observedStarts": 5,
+        "observedExits": 0,
+        "droppedProcesses": 0,
+        "collectionMs": 24.8594,
+        "requested": 5,
+        "inaccessible": 0,
+        "restarts": 0,
+        "monitorPid": 37728,
+        "logicalProcessors": 32,
+        "host": {
+          "power": "ac",
+          "idleSeconds": 0,
+          "idleState": "active",
+          "thermal": "unavailable",
+          "cpuSpeedLimit": null,
+          "totalMemoryMb": 31859.8,
+          "freeMemoryMb": 3045.6
+        },
+        "history": [
+          {
+            "at": "2026-09-14T15:35:19.196Z",
+            "cpuPercent": null,
+            "privateMb": 699.92578125,
+            "residentMb": 725.703125,
+            "readBps": null,
+            "writeBps": null,
+            "processes": 5
+          }
+        ],
+        "processes": [
+          {
+            "pid": 39292,
+            "startedAt": "2026-09-14T15:35:16.3440741Z",
+            "name": "electron",
+            "cpuSeconds": 1,
+            "privateMb": 127.27734375,
+            "residentMb": 164.71484375,
+            "peakResidentMb": 164.94140625,
+            "readBytes": 8594362,
+            "writeBytes": 3274203,
+            "handles": 967,
+            "role": "Browser",
+            "group": "desktop",
+            "cpuPercent": null,
+            "peakCpuPercent": null,
+            "observedCpuSeconds": 0,
+            "readBps": null,
+            "writeBps": null,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 0,
+            "samples": 1,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:19.196Z"
+          },
+          {
+            "pid": 34972,
+            "startedAt": "2026-09-14T15:35:16.5394516Z",
+            "name": "electron",
+            "cpuSeconds": 2.359375,
+            "privateMb": 460.00390625,
+            "residentMb": 328.578125,
+            "peakResidentMb": 343.91015625,
+            "readBytes": 370104,
+            "writeBytes": 493272,
+            "handles": 7231,
+            "role": "GPU",
+            "group": "desktop",
+            "cpuPercent": null,
+            "peakCpuPercent": null,
+            "observedCpuSeconds": 0,
+            "readBps": null,
+            "writeBps": null,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 0,
+            "samples": 1,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:19.196Z"
+          },
+          {
+            "pid": 39528,
+            "startedAt": "2026-09-14T15:35:16.5441637Z",
+            "name": "electron",
+            "cpuSeconds": 0.046875,
+            "privateMb": 12.0390625,
+            "residentMb": 52.71875,
+            "peakResidentMb": 52.71875,
+            "readBytes": 66871,
+            "writeBytes": 122472,
+            "handles": 337,
+            "role": "Utility",
+            "group": "desktop",
+            "cpuPercent": null,
+            "peakCpuPercent": null,
+            "observedCpuSeconds": 0,
+            "readBps": null,
+            "writeBps": null,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 0,
+            "samples": 1,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:19.196Z"
+          },
+          {
+            "pid": 35864,
+            "startedAt": "2026-09-14T15:35:16.5560927Z",
+            "name": "electron",
+            "cpuSeconds": 0.5625,
+            "privateMb": 92.703125,
+            "residentMb": 151.16796875,
+            "peakResidentMb": 152.28125,
+            "readBytes": 1036637,
+            "writeBytes": 572569,
+            "handles": 419,
+            "role": "Tab",
+            "group": "desktop",
+            "cpuPercent": null,
+            "peakCpuPercent": null,
+            "observedCpuSeconds": 0,
+            "readBps": null,
+            "writeBps": null,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 0,
+            "samples": 1,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:19.196Z"
+          },
+          {
+            "pid": 37728,
+            "startedAt": "2026-09-14T15:35:19.1979933Z",
+            "name": "Capture.Host",
+            "cpuSeconds": 0.09375,
+            "privateMb": 7.90234375,
+            "residentMb": 28.5234375,
+            "peakResidentMb": 28.6328125,
+            "readBytes": 12818,
+            "writeBytes": 0,
+            "handles": 243,
+            "role": "Resource collector",
+            "group": "monitor",
+            "cpuPercent": null,
+            "peakCpuPercent": null,
+            "observedCpuSeconds": 0,
+            "readBps": null,
+            "writeBps": null,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 0,
+            "samples": 1,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:19.196Z"
+          }
+        ],
+        "runtime": {
+          "mainHeapMb": 33.6,
+          "mainExternalMb": 4.6,
+          "mainArrayBuffersMb": 0,
+          "activeResources": {
+            "PipeWrap": 4,
+            "ProcessWrap": 2,
+            "Timeout": 1
+          },
+          "rendererHeapMb": 16.3,
+          "domNodes": 458,
+          "canvases": 0,
+          "images": 1,
+          "videos": 0,
+          "longTasks": 0
+        },
+        "events": [
+          {
+            "at": "2026-09-14T15:35:16.839Z",
+            "source": "main",
+            "level": "info",
+            "event": "diagnostics.enabled",
+            "detail": "{}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "environment",
+            "detail": "{\"version\":\"0.9.9\",\"platform\":\"win32\",\"arch\":\"x64\",\"osRelease\":\"10.0.26200\",\"osVersion\":\"Windows 11 Pro\",\"electron\":\"44.0.0\",\"packaged\":false,\"softwareRendering\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "capture.settings",
+            "detail": "{\"enabled\":false,\"source\":\"automatic-game\",\"sourceSelected\":false,\"displayIndex\":0,\"encoder\":\"auto\",\"codec\":\"auto\",\"resolution\":\"1440p\",\"fps\":60,\"quality\":4,\"replaySeconds\":60,\"includeSystemAudio\":true,\"includeMic\":true,\"includeChatAudio\":false,\"includeCursor\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:17.163Z",
+            "source": "main",
+            "level": "info",
+            "event": "graphics.info",
+            "detail": "{\"details\":\"{\\\"gpuDevice\\\":[{\\\"active\\\":true,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVendor\\\":\\\"AMD\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":5056,\\\"deviceString\\\":\\\"AMD Radeon(TM) Graphics\\\",\\\"driverVersion\\\":\\\"32.0.21045.9003\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":5140,\\\"deviceId\\\":140,\\\"deviceString\\\":\\\"Microsoft Basic Render Driver\\\",\\\"driverVersion\\\":\\\"10.0.26100.5074\\\"}],\\\"auxAttributes\\\":{\\\"glRenderer\\\":\\\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\\\",\\\"glVersion\\\":\\\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\\\",\\\"glVendor\\\":\\\"Google Inc. (AMD)\\\",\\\"displayType\\\":\\\"ANGLE_D3D11\\\",\\\"optimus\\\":false,\\\"amdSwitchable\\\":false,\\\"sandboxed\\\":true}}\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.192Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.started",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.203Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.completed",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\",\"elapsedMs\":10.652599999999893}"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-14T15:35:26.640Z",
+      "sequence": 3,
+      "uptimeSeconds": 10.3,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 855.6,
+        "electronWorkingSetMb": 787.7,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 855.6,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "externalProcesses": [],
+      "electronProcesses": [
+        {
+          "pid": 34972,
+          "type": "GPU",
+          "privateMb": 622.2,
+          "workingSetMb": 418.7,
+          "peakWorkingSetMb": 450.5,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39292,
+          "type": "Browser",
+          "privateMb": 126.8,
+          "workingSetMb": 162.2,
+          "peakWorkingSetMb": 173.4,
+          "cpuPercent": 0.5
+        },
+        {
+          "pid": 35864,
+          "type": "Tab",
+          "privateMb": 94.3,
+          "workingSetMb": 153.8,
+          "peakWorkingSetMb": 154.3,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39528,
+          "type": "Utility",
+          "privateMb": 12.3,
+          "workingSetMb": 53,
+          "peakWorkingSetMb": 53,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 162.3,
+        "heapUsedMb": 34.7,
+        "heapTotalMb": 55.2,
+        "externalMb": 4.1,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 6,
+          "ProcessWrap": 2
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 48.1,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 859,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 2959.2
+      },
+      "debug": {
+        "startedAt": "2026-09-14T15:35:19.195Z",
+        "sampledAt": "2026-09-14T15:35:26.641Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 35,
+        "eventLoopDelayMaxMs": 35.72,
+        "operations": [
+          {
+            "name": "state.clone",
+            "calls": 44,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 22.14,
+            "maxMs": 0.85
+          },
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 42,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 22.11,
+            "maxMs": 0.87
+          },
+          {
+            "name": "state.backup-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 4.36,
+            "maxMs": 4.36
+          },
+          {
+            "name": "state.disk-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 3.03,
+            "maxMs": 3.03
+          },
+          {
+            "name": "state.validate",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 2.58,
+            "maxMs": 2.58
+          },
+          {
+            "name": "state.emit",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.53,
+            "maxMs": 0.53
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.39,
+            "maxMs": 0.39
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.19,
+            "maxMs": 0.19
+          }
+        ],
+        "processes": [
+          {
+            "pid": 34972,
+            "type": "GPU",
+            "privateMb": 622.2,
+            "workingSetMb": 418.7,
+            "peakWorkingSetMb": 450.5,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 39292,
+            "type": "Browser",
+            "privateMb": 126.8,
+            "workingSetMb": 162.2,
+            "peakWorkingSetMb": 173.4,
+            "cpuPercent": 0.5,
+            "role": "Browser"
+          },
+          {
+            "pid": 35864,
+            "type": "Tab",
+            "privateMb": 94.3,
+            "workingSetMb": 153.8,
+            "peakWorkingSetMb": 154.3,
+            "cpuPercent": 0,
+            "role": "Tab"
+          },
+          {
+            "pid": 39528,
+            "type": "Utility",
+            "privateMb": 12.3,
+            "workingSetMb": 53,
+            "peakWorkingSetMb": 53,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      },
+      "nativeResources": {
+        "startedAt": "2026-09-14T15:35:19.196Z",
+        "sampledAt": "2026-09-14T15:35:26.640Z",
+        "status": "available",
+        "error": null,
+        "sampleCount": 3,
+        "observedStarts": 5,
+        "observedExits": 0,
+        "droppedProcesses": 0,
+        "collectionMs": 20.2659,
+        "requested": 5,
+        "inaccessible": 0,
+        "restarts": 0,
+        "monitorPid": 37728,
+        "logicalProcessors": 32,
+        "host": {
+          "power": "ac",
+          "idleSeconds": 0,
+          "idleState": "active",
+          "thermal": "unavailable",
+          "cpuSpeedLimit": null,
+          "totalMemoryMb": 31859.8,
+          "freeMemoryMb": 2959.3
+        },
+        "history": [
+          {
+            "at": "2026-09-14T15:35:26.640Z",
+            "cpuPercent": 0.5366800309752199,
+            "privateMb": 864.78515625,
+            "residentMb": 819.3515625,
+            "readBps": 22031.175059952042,
+            "writeBps": 3988.009592326139,
+            "processes": 5
+          }
+        ],
+        "processes": [
+          {
+            "pid": 39292,
+            "startedAt": "2026-09-14T15:35:16.3440741Z",
+            "name": "electron",
+            "cpuSeconds": 2.015625,
+            "privateMb": 126.828125,
+            "residentMb": 162.23828125,
+            "peakResidentMb": 173.40234375,
+            "readBytes": 8737539,
+            "writeBytes": 3376743,
+            "handles": 967,
+            "role": "Browser",
+            "group": "desktop",
+            "cpuPercent": 0.4488596622701839,
+            "peakCpuPercent": 0.4488596622701839,
+            "observedCpuSeconds": 1.015625,
+            "readBps": 19886.890487609915,
+            "writeBps": 2188.449240607514,
+            "observedReadBytes": 143177,
+            "observedWriteBytes": 102540,
+            "samples": 3,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:26.640Z"
+          },
+          {
+            "pid": 34972,
+            "startedAt": "2026-09-14T15:35:16.5394516Z",
+            "name": "electron",
+            "cpuSeconds": 3.25,
+            "privateMb": 622.2265625,
+            "residentMb": 418.7109375,
+            "peakResidentMb": 450.484375,
+            "readBytes": 521376,
+            "writeBytes": 499480,
+            "handles": 10656,
+            "role": "GPU",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 1.140657018442623,
+            "observedCpuSeconds": 0.890625,
+            "readBps": 156.67466027178259,
+            "writeBps": 0,
+            "observedReadBytes": 151272,
+            "observedWriteBytes": 6208,
+            "samples": 3,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:26.640Z"
+          },
+          {
+            "pid": 39528,
+            "startedAt": "2026-09-14T15:35:16.5441637Z",
+            "name": "electron",
+            "cpuSeconds": 0.046875,
+            "privateMb": 12.28515625,
+            "residentMb": 52.96875,
+            "peakResidentMb": 53.015625,
+            "readBytes": 66871,
+            "writeBytes": 122531,
+            "handles": 339,
+            "role": "Utility",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 0,
+            "observedCpuSeconds": 0,
+            "readBps": 0,
+            "writeBps": 11.790567545963231,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 59,
+            "samples": 3,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:26.640Z"
+          },
+          {
+            "pid": 35864,
+            "startedAt": "2026-09-14T15:35:16.5560927Z",
+            "name": "electron",
+            "cpuSeconds": 0.65625,
+            "privateMb": 94.328125,
+            "residentMb": 153.79296875,
+            "peakResidentMb": 154.32421875,
+            "readBytes": 1053149,
+            "writeBytes": 611385,
+            "handles": 420,
+            "role": "Tab",
+            "group": "desktop",
+            "cpuPercent": 0.04878909372501999,
+            "peakCpuPercent": 0.04878909372501999,
+            "observedCpuSeconds": 0.09375,
+            "readBps": 1982.4140687450042,
+            "writeBps": 1544.3645083932854,
+            "observedReadBytes": 16512,
+            "observedWriteBytes": 38816,
+            "samples": 3,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:26.640Z"
+          },
+          {
+            "pid": 37728,
+            "startedAt": "2026-09-14T15:35:19.1979933Z",
+            "name": "Capture.Host",
+            "cpuSeconds": 0.21875,
+            "privateMb": 9.1171875,
+            "residentMb": 31.640625,
+            "peakResidentMb": 31.640625,
+            "readBytes": 12870,
+            "writeBytes": 2428,
+            "handles": 244,
+            "role": "Resource collector",
+            "group": "monitor",
+            "cpuPercent": 0.03903127498001599,
+            "peakCpuPercent": 0.08004610655737705,
+            "observedCpuSeconds": 0.125,
+            "readBps": 5.1958433253397285,
+            "writeBps": 243.40527577937652,
+            "observedReadBytes": 52,
+            "observedWriteBytes": 2428,
+            "samples": 3,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:26.640Z"
+          }
+        ],
+        "runtime": {
+          "mainHeapMb": 34.7,
+          "mainExternalMb": 4.1,
+          "mainArrayBuffersMb": 0,
+          "activeResources": {
+            "PipeWrap": 6,
+            "ProcessWrap": 2
+          },
+          "rendererHeapMb": 16.3,
+          "domNodes": 859,
+          "canvases": 0,
+          "images": 1,
+          "videos": 0,
+          "longTasks": 0
+        },
+        "events": [
+          {
+            "at": "2026-09-14T15:35:16.839Z",
+            "source": "main",
+            "level": "info",
+            "event": "diagnostics.enabled",
+            "detail": "{}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "environment",
+            "detail": "{\"version\":\"0.9.9\",\"platform\":\"win32\",\"arch\":\"x64\",\"osRelease\":\"10.0.26200\",\"osVersion\":\"Windows 11 Pro\",\"electron\":\"44.0.0\",\"packaged\":false,\"softwareRendering\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "capture.settings",
+            "detail": "{\"enabled\":false,\"source\":\"automatic-game\",\"sourceSelected\":false,\"displayIndex\":0,\"encoder\":\"auto\",\"codec\":\"auto\",\"resolution\":\"1440p\",\"fps\":60,\"quality\":4,\"replaySeconds\":60,\"includeSystemAudio\":true,\"includeMic\":true,\"includeChatAudio\":false,\"includeCursor\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:17.163Z",
+            "source": "main",
+            "level": "info",
+            "event": "graphics.info",
+            "detail": "{\"details\":\"{\\\"gpuDevice\\\":[{\\\"active\\\":true,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVendor\\\":\\\"AMD\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":5056,\\\"deviceString\\\":\\\"AMD Radeon(TM) Graphics\\\",\\\"driverVersion\\\":\\\"32.0.21045.9003\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":5140,\\\"deviceId\\\":140,\\\"deviceString\\\":\\\"Microsoft Basic Render Driver\\\",\\\"driverVersion\\\":\\\"10.0.26100.5074\\\"}],\\\"auxAttributes\\\":{\\\"glRenderer\\\":\\\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\\\",\\\"glVersion\\\":\\\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\\\",\\\"glVendor\\\":\\\"Google Inc. (AMD)\\\",\\\"displayType\\\":\\\"ANGLE_D3D11\\\",\\\"optimus\\\":false,\\\"amdSwitchable\\\":false,\\\"sandboxed\\\":true}}\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.192Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.started",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.203Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.completed",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\",\"elapsedMs\":10.652599999999893}"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-14T15:35:31.641Z",
+      "sequence": 4,
+      "uptimeSeconds": 15.3,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 857.6,
+        "electronWorkingSetMb": 790.2,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 857.6,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "externalProcesses": [],
+      "electronProcesses": [
+        {
+          "pid": 34972,
+          "type": "GPU",
+          "privateMb": 619.2,
+          "workingSetMb": 415.7,
+          "peakWorkingSetMb": 450.5,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39292,
+          "type": "Browser",
+          "privateMb": 126.6,
+          "workingSetMb": 162.1,
+          "peakWorkingSetMb": 173.4,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 35864,
+          "type": "Tab",
+          "privateMb": 99.4,
+          "workingSetMb": 159.4,
+          "peakWorkingSetMb": 159.5,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 39528,
+          "type": "Utility",
+          "privateMb": 12.3,
+          "workingSetMb": 53,
+          "peakWorkingSetMb": 53,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 162.1,
+        "heapUsedMb": 31.6,
+        "heapTotalMb": 55.7,
+        "externalMb": 4.1,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 6,
+          "ProcessWrap": 2,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 48.1,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 859,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 2962.7
+      },
+      "debug": {
+        "startedAt": "2026-09-14T15:35:19.195Z",
+        "sampledAt": "2026-09-14T15:35:31.642Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 33.85,
+        "eventLoopDelayMaxMs": 35.03,
+        "operations": [
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 74,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 37.66,
+            "maxMs": 0.87
+          },
+          {
+            "name": "state.clone",
+            "calls": 76,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 37.3,
+            "maxMs": 0.85
+          },
+          {
+            "name": "state.backup-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 4.36,
+            "maxMs": 4.36
+          },
+          {
+            "name": "state.disk-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 3.03,
+            "maxMs": 3.03
+          },
+          {
+            "name": "state.validate",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 2.58,
+            "maxMs": 2.58
+          },
+          {
+            "name": "state.emit",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.53,
+            "maxMs": 0.53
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.39,
+            "maxMs": 0.39
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.19,
+            "maxMs": 0.19
+          }
+        ],
+        "processes": [
+          {
+            "pid": 34972,
+            "type": "GPU",
+            "privateMb": 619.2,
+            "workingSetMb": 415.7,
+            "peakWorkingSetMb": 450.5,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 39292,
+            "type": "Browser",
+            "privateMb": 126.6,
+            "workingSetMb": 162.1,
+            "peakWorkingSetMb": 173.4,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 35864,
+            "type": "Tab",
+            "privateMb": 99.4,
+            "workingSetMb": 159.4,
+            "peakWorkingSetMb": 159.5,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 39528,
+            "type": "Utility",
+            "privateMb": 12.3,
+            "workingSetMb": 53,
+            "peakWorkingSetMb": 53,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      },
+      "nativeResources": {
+        "startedAt": "2026-09-14T15:35:19.196Z",
+        "sampledAt": "2026-09-14T15:35:31.641Z",
+        "status": "available",
+        "error": null,
+        "sampleCount": 4,
+        "observedStarts": 5,
+        "observedExits": 0,
+        "droppedProcesses": 0,
+        "collectionMs": 26.2191,
+        "requested": 5,
+        "inaccessible": 0,
+        "restarts": 0,
+        "monitorPid": 37728,
+        "logicalProcessors": 32,
+        "host": {
+          "power": "ac",
+          "idleSeconds": 4,
+          "idleState": "active",
+          "thermal": "unavailable",
+          "cpuSpeedLimit": null,
+          "totalMemoryMb": 31859.8,
+          "freeMemoryMb": 2962.7
+        },
+        "history": [
+          {
+            "at": "2026-09-14T15:35:31.641Z",
+            "cpuPercent": 0.39054689062187564,
+            "privateMb": 867.43359375,
+            "residentMb": 822.71484375,
+            "readBps": 24005.99880023995,
+            "writeBps": 5654.269146170765,
+            "processes": 5
+          }
+        ],
+        "processes": [
+          {
+            "pid": 39292,
+            "startedAt": "2026-09-14T15:35:16.3440741Z",
+            "name": "electron",
+            "cpuSeconds": 2.546875,
+            "privateMb": 126.6328125,
+            "residentMb": 162.078125,
+            "peakResidentMb": 173.40234375,
+            "readBytes": 8846895,
+            "writeBytes": 3396076,
+            "handles": 967,
+            "role": "Browser",
+            "group": "desktop",
+            "cpuPercent": 0.3319648570285943,
+            "peakCpuPercent": 0.4488596622701839,
+            "observedCpuSeconds": 1.546875,
+            "readBps": 21866.826634673063,
+            "writeBps": 3865.8268346330733,
+            "observedReadBytes": 252533,
+            "observedWriteBytes": 121873,
+            "samples": 4,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:31.641Z"
+          },
+          {
+            "pid": 34972,
+            "startedAt": "2026-09-14T15:35:16.5394516Z",
+            "name": "electron",
+            "cpuSeconds": 3.25,
+            "privateMb": 619.19140625,
+            "residentMb": 415.71484375,
+            "peakResidentMb": 450.484375,
+            "readBytes": 521376,
+            "writeBytes": 499480,
+            "handles": 10653,
+            "role": "GPU",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 1.140657018442623,
+            "observedCpuSeconds": 0.890625,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 151272,
+            "observedWriteBytes": 6208,
+            "samples": 4,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:31.641Z"
+          },
+          {
+            "pid": 39528,
+            "startedAt": "2026-09-14T15:35:16.5441637Z",
+            "name": "electron",
+            "cpuSeconds": 0.046875,
+            "privateMb": 12.29296875,
+            "residentMb": 52.98046875,
+            "peakResidentMb": 53.015625,
+            "readBytes": 66871,
+            "writeBytes": 122531,
+            "handles": 339,
+            "role": "Utility",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 0,
+            "observedCpuSeconds": 0,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 59,
+            "samples": 4,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:31.641Z"
+          },
+          {
+            "pid": 35864,
+            "startedAt": "2026-09-14T15:35:16.5560927Z",
+            "name": "electron",
+            "cpuSeconds": 0.6875,
+            "privateMb": 99.43359375,
+            "residentMb": 159.3984375,
+            "peakResidentMb": 159.4765625,
+            "readBytes": 1063821,
+            "writeBytes": 619113,
+            "handles": 436,
+            "role": "Tab",
+            "group": "desktop",
+            "cpuPercent": 0.01952734453109378,
+            "peakCpuPercent": 0.04878909372501999,
+            "observedCpuSeconds": 0.125,
+            "readBps": 2133.973205358928,
+            "writeBps": 1545.2909418116376,
+            "observedReadBytes": 27184,
+            "observedWriteBytes": 46544,
+            "samples": 4,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:31.641Z"
+          },
+          {
+            "pid": 37728,
+            "startedAt": "2026-09-14T15:35:19.1979933Z",
+            "name": "Capture.Host",
+            "cpuSeconds": 0.28125,
+            "privateMb": 9.8828125,
+            "residentMb": 32.54296875,
+            "peakResidentMb": 32.54296875,
+            "readBytes": 12896,
+            "writeBytes": 3644,
+            "handles": 244,
+            "role": "Resource collector",
+            "group": "monitor",
+            "cpuPercent": 0.03905468906218756,
+            "peakCpuPercent": 0.08004610655737705,
+            "observedCpuSeconds": 0.1875,
+            "readBps": 5.198960207958408,
+            "writeBps": 243.15136972605478,
+            "observedReadBytes": 78,
+            "observedWriteBytes": 3644,
+            "samples": 4,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:31.641Z"
+          }
+        ],
+        "runtime": {
+          "mainHeapMb": 31.6,
+          "mainExternalMb": 4.1,
+          "mainArrayBuffersMb": 0,
+          "activeResources": {
+            "PipeWrap": 6,
+            "ProcessWrap": 2,
+            "Timeout": 1
+          },
+          "rendererHeapMb": 16.3,
+          "domNodes": 859,
+          "canvases": 0,
+          "images": 1,
+          "videos": 0,
+          "longTasks": 0
+        },
+        "events": [
+          {
+            "at": "2026-09-14T15:35:16.839Z",
+            "source": "main",
+            "level": "info",
+            "event": "diagnostics.enabled",
+            "detail": "{}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "environment",
+            "detail": "{\"version\":\"0.9.9\",\"platform\":\"win32\",\"arch\":\"x64\",\"osRelease\":\"10.0.26200\",\"osVersion\":\"Windows 11 Pro\",\"electron\":\"44.0.0\",\"packaged\":false,\"softwareRendering\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "capture.settings",
+            "detail": "{\"enabled\":false,\"source\":\"automatic-game\",\"sourceSelected\":false,\"displayIndex\":0,\"encoder\":\"auto\",\"codec\":\"auto\",\"resolution\":\"1440p\",\"fps\":60,\"quality\":4,\"replaySeconds\":60,\"includeSystemAudio\":true,\"includeMic\":true,\"includeChatAudio\":false,\"includeCursor\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:17.163Z",
+            "source": "main",
+            "level": "info",
+            "event": "graphics.info",
+            "detail": "{\"details\":\"{\\\"gpuDevice\\\":[{\\\"active\\\":true,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVendor\\\":\\\"AMD\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":5056,\\\"deviceString\\\":\\\"AMD Radeon(TM) Graphics\\\",\\\"driverVersion\\\":\\\"32.0.21045.9003\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":5140,\\\"deviceId\\\":140,\\\"deviceString\\\":\\\"Microsoft Basic Render Driver\\\",\\\"driverVersion\\\":\\\"10.0.26100.5074\\\"}],\\\"auxAttributes\\\":{\\\"glRenderer\\\":\\\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\\\",\\\"glVersion\\\":\\\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\\\",\\\"glVendor\\\":\\\"Google Inc. (AMD)\\\",\\\"displayType\\\":\\\"ANGLE_D3D11\\\",\\\"optimus\\\":false,\\\"amdSwitchable\\\":false,\\\"sandboxed\\\":true}}\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.192Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.started",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.203Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.completed",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\",\"elapsedMs\":10.652599999999893}"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-14T15:35:36.641Z",
+      "sequence": 5,
+      "uptimeSeconds": 20.3,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 857.1,
+        "electronWorkingSetMb": 789.6,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 857.1,
+        "cpuPercent": 0.4,
+        "processCount": 4
+      },
+      "externalProcesses": [],
+      "electronProcesses": [
+        {
+          "pid": 34972,
+          "type": "GPU",
+          "privateMb": 619.2,
+          "workingSetMb": 415.7,
+          "peakWorkingSetMb": 450.5,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39292,
+          "type": "Browser",
+          "privateMb": 126.2,
+          "workingSetMb": 161.5,
+          "peakWorkingSetMb": 173.4,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 35864,
+          "type": "Tab",
+          "privateMb": 99.4,
+          "workingSetMb": 159.4,
+          "peakWorkingSetMb": 159.5,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39528,
+          "type": "Utility",
+          "privateMb": 12.3,
+          "workingSetMb": 53,
+          "peakWorkingSetMb": 53,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 161.5,
+        "heapUsedMb": 25.7,
+        "heapTotalMb": 56,
+        "externalMb": 4,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 6,
+          "ProcessWrap": 2,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 48.1,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 859,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 2866.2
+      },
+      "debug": {
+        "startedAt": "2026-09-14T15:35:19.195Z",
+        "sampledAt": "2026-09-14T15:35:36.642Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 35.29,
+        "eventLoopDelayMaxMs": 35.85,
+        "operations": [
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 106,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 52.13,
+            "maxMs": 0.87
+          },
+          {
+            "name": "state.clone",
+            "calls": 108,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 51.34,
+            "maxMs": 0.85
+          },
+          {
+            "name": "state.backup-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 4.36,
+            "maxMs": 4.36
+          },
+          {
+            "name": "state.disk-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 3.03,
+            "maxMs": 3.03
+          },
+          {
+            "name": "state.validate",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 2.58,
+            "maxMs": 2.58
+          },
+          {
+            "name": "state.emit",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.53,
+            "maxMs": 0.53
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.39,
+            "maxMs": 0.39
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.19,
+            "maxMs": 0.19
+          }
+        ],
+        "processes": [
+          {
+            "pid": 34972,
+            "type": "GPU",
+            "privateMb": 619.2,
+            "workingSetMb": 415.7,
+            "peakWorkingSetMb": 450.5,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 39292,
+            "type": "Browser",
+            "privateMb": 126.2,
+            "workingSetMb": 161.5,
+            "peakWorkingSetMb": 173.4,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 35864,
+            "type": "Tab",
+            "privateMb": 99.4,
+            "workingSetMb": 159.4,
+            "peakWorkingSetMb": 159.5,
+            "cpuPercent": 0,
+            "role": "Tab"
+          },
+          {
+            "pid": 39528,
+            "type": "Utility",
+            "privateMb": 12.3,
+            "workingSetMb": 53,
+            "peakWorkingSetMb": 53,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      },
+      "nativeResources": {
+        "startedAt": "2026-09-14T15:35:19.196Z",
+        "sampledAt": "2026-09-14T15:35:36.641Z",
+        "status": "available",
+        "error": null,
+        "sampleCount": 5,
+        "observedStarts": 5,
+        "observedExits": 0,
+        "droppedProcesses": 0,
+        "collectionMs": 38.1548,
+        "requested": 5,
+        "inaccessible": 0,
+        "restarts": 0,
+        "monitorPid": 37728,
+        "logicalProcessors": 32,
+        "host": {
+          "power": "ac",
+          "idleSeconds": 9,
+          "idleState": "active",
+          "thermal": "unavailable",
+          "cpuSpeedLimit": null,
+          "totalMemoryMb": 31859.8,
+          "freeMemoryMb": 2866
+        },
+        "history": [
+          {
+            "at": "2026-09-14T15:35:36.641Z",
+            "cpuPercent": 0.595703125,
+            "privateMb": 867.2734375,
+            "residentMb": 822.83984375,
+            "readBps": 21067.600000000002,
+            "writeBps": 5567.6,
+            "processes": 5
+          }
+        ],
+        "processes": [
+          {
+            "pid": 39292,
+            "startedAt": "2026-09-14T15:35:16.3440741Z",
+            "name": "electron",
+            "cpuSeconds": 3.375,
+            "privateMb": 126.18359375,
+            "residentMb": 161.5,
+            "peakResidentMb": 173.40234375,
+            "readBytes": 8942175,
+            "writeBytes": 3415411,
+            "handles": 967,
+            "role": "Browser",
+            "group": "desktop",
+            "cpuPercent": 0.517578125,
+            "peakCpuPercent": 0.517578125,
+            "observedCpuSeconds": 2.375,
+            "readBps": 19056,
+            "writeBps": 3867,
+            "observedReadBytes": 347813,
+            "observedWriteBytes": 141208,
+            "samples": 5,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:36.641Z"
+          },
+          {
+            "pid": 34972,
+            "startedAt": "2026-09-14T15:35:16.5394516Z",
+            "name": "electron",
+            "cpuSeconds": 3.25,
+            "privateMb": 619.19140625,
+            "residentMb": 415.71484375,
+            "peakResidentMb": 450.484375,
+            "readBytes": 521376,
+            "writeBytes": 499480,
+            "handles": 10653,
+            "role": "GPU",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 1.140657018442623,
+            "observedCpuSeconds": 0.890625,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 151272,
+            "observedWriteBytes": 6208,
+            "samples": 5,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:36.641Z"
+          },
+          {
+            "pid": 39528,
+            "startedAt": "2026-09-14T15:35:16.5441637Z",
+            "name": "electron",
+            "cpuSeconds": 0.046875,
+            "privateMb": 12.29296875,
+            "residentMb": 52.98046875,
+            "peakResidentMb": 53.015625,
+            "readBytes": 66871,
+            "writeBytes": 122531,
+            "handles": 339,
+            "role": "Utility",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 0,
+            "observedCpuSeconds": 0,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 59,
+            "samples": 5,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:36.641Z"
+          },
+          {
+            "pid": 35864,
+            "startedAt": "2026-09-14T15:35:16.5560927Z",
+            "name": "electron",
+            "cpuSeconds": 0.765625,
+            "privateMb": 99.4375,
+            "residentMb": 159.40234375,
+            "peakResidentMb": 159.48046875,
+            "readBytes": 1073853,
+            "writeBytes": 626393,
+            "handles": 436,
+            "role": "Tab",
+            "group": "desktop",
+            "cpuPercent": 0.048828125,
+            "peakCpuPercent": 0.048828125,
+            "observedCpuSeconds": 0.203125,
+            "readBps": 2006.4,
+            "writeBps": 1456,
+            "observedReadBytes": 37216,
+            "observedWriteBytes": 53824,
+            "samples": 5,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:36.641Z"
+          },
+          {
+            "pid": 37728,
+            "startedAt": "2026-09-14T15:35:19.1979933Z",
+            "name": "Capture.Host",
+            "cpuSeconds": 0.328125,
+            "privateMb": 10.16796875,
+            "residentMb": 33.2421875,
+            "peakResidentMb": 33.2421875,
+            "readBytes": 12922,
+            "writeBytes": 4867,
+            "handles": 244,
+            "role": "Resource collector",
+            "group": "monitor",
+            "cpuPercent": 0.029296875,
+            "peakCpuPercent": 0.08004610655737705,
+            "observedCpuSeconds": 0.234375,
+            "readBps": 5.2,
+            "writeBps": 244.6,
+            "observedReadBytes": 104,
+            "observedWriteBytes": 4867,
+            "samples": 5,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:36.641Z"
+          }
+        ],
+        "runtime": {
+          "mainHeapMb": 25.7,
+          "mainExternalMb": 4,
+          "mainArrayBuffersMb": 0,
+          "activeResources": {
+            "PipeWrap": 6,
+            "ProcessWrap": 2,
+            "Timeout": 1
+          },
+          "rendererHeapMb": 16.3,
+          "domNodes": 859,
+          "canvases": 0,
+          "images": 1,
+          "videos": 0,
+          "longTasks": 0
+        },
+        "events": [
+          {
+            "at": "2026-09-14T15:35:16.839Z",
+            "source": "main",
+            "level": "info",
+            "event": "diagnostics.enabled",
+            "detail": "{}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "environment",
+            "detail": "{\"version\":\"0.9.9\",\"platform\":\"win32\",\"arch\":\"x64\",\"osRelease\":\"10.0.26200\",\"osVersion\":\"Windows 11 Pro\",\"electron\":\"44.0.0\",\"packaged\":false,\"softwareRendering\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "capture.settings",
+            "detail": "{\"enabled\":false,\"source\":\"automatic-game\",\"sourceSelected\":false,\"displayIndex\":0,\"encoder\":\"auto\",\"codec\":\"auto\",\"resolution\":\"1440p\",\"fps\":60,\"quality\":4,\"replaySeconds\":60,\"includeSystemAudio\":true,\"includeMic\":true,\"includeChatAudio\":false,\"includeCursor\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:17.163Z",
+            "source": "main",
+            "level": "info",
+            "event": "graphics.info",
+            "detail": "{\"details\":\"{\\\"gpuDevice\\\":[{\\\"active\\\":true,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVendor\\\":\\\"AMD\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":5056,\\\"deviceString\\\":\\\"AMD Radeon(TM) Graphics\\\",\\\"driverVersion\\\":\\\"32.0.21045.9003\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":5140,\\\"deviceId\\\":140,\\\"deviceString\\\":\\\"Microsoft Basic Render Driver\\\",\\\"driverVersion\\\":\\\"10.0.26100.5074\\\"}],\\\"auxAttributes\\\":{\\\"glRenderer\\\":\\\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\\\",\\\"glVersion\\\":\\\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\\\",\\\"glVendor\\\":\\\"Google Inc. (AMD)\\\",\\\"displayType\\\":\\\"ANGLE_D3D11\\\",\\\"optimus\\\":false,\\\"amdSwitchable\\\":false,\\\"sandboxed\\\":true}}\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.192Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.started",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.203Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.completed",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\",\"elapsedMs\":10.652599999999893}"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-14T15:35:41.654Z",
+      "sequence": 6,
+      "uptimeSeconds": 25.3,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 858,
+        "electronWorkingSetMb": 790.7,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 858,
+        "cpuPercent": 0.4,
+        "processCount": 4
+      },
+      "externalProcesses": [],
+      "electronProcesses": [
+        {
+          "pid": 34972,
+          "type": "GPU",
+          "privateMb": 619.2,
+          "workingSetMb": 415.7,
+          "peakWorkingSetMb": 450.5,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39292,
+          "type": "Browser",
+          "privateMb": 126.3,
+          "workingSetMb": 161.9,
+          "peakWorkingSetMb": 173.4,
+          "cpuPercent": 0.3
+        },
+        {
+          "pid": 35864,
+          "type": "Tab",
+          "privateMb": 100.2,
+          "workingSetMb": 160.1,
+          "peakWorkingSetMb": 160.2,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39528,
+          "type": "Utility",
+          "privateMb": 12.3,
+          "workingSetMb": 53,
+          "peakWorkingSetMb": 53,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 161.9,
+        "heapUsedMb": 27.5,
+        "heapTotalMb": 56,
+        "externalMb": 4.1,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 6,
+          "ProcessWrap": 2
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 48.1,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 859,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 2579.2
+      },
+      "debug": {
+        "startedAt": "2026-09-14T15:35:19.195Z",
+        "sampledAt": "2026-09-14T15:35:41.654Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 34.34,
+        "eventLoopDelayMaxMs": 35.19,
+        "operations": [
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 138,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 70.84,
+            "maxMs": 0.89
+          },
+          {
+            "name": "state.clone",
+            "calls": 140,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 69.55,
+            "maxMs": 0.86
+          },
+          {
+            "name": "state.backup-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 4.36,
+            "maxMs": 4.36
+          },
+          {
+            "name": "state.disk-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 3.03,
+            "maxMs": 3.03
+          },
+          {
+            "name": "state.validate",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 2.58,
+            "maxMs": 2.58
+          },
+          {
+            "name": "state.emit",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.53,
+            "maxMs": 0.53
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.39,
+            "maxMs": 0.39
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.19,
+            "maxMs": 0.19
+          }
+        ],
+        "processes": [
+          {
+            "pid": 34972,
+            "type": "GPU",
+            "privateMb": 619.2,
+            "workingSetMb": 415.7,
+            "peakWorkingSetMb": 450.5,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 39292,
+            "type": "Browser",
+            "privateMb": 126.3,
+            "workingSetMb": 161.9,
+            "peakWorkingSetMb": 173.4,
+            "cpuPercent": 0.3,
+            "role": "Browser"
+          },
+          {
+            "pid": 35864,
+            "type": "Tab",
+            "privateMb": 100.2,
+            "workingSetMb": 160.1,
+            "peakWorkingSetMb": 160.2,
+            "cpuPercent": 0,
+            "role": "Tab"
+          },
+          {
+            "pid": 39528,
+            "type": "Utility",
+            "privateMb": 12.3,
+            "workingSetMb": 53,
+            "peakWorkingSetMb": 53,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      },
+      "nativeResources": {
+        "startedAt": "2026-09-14T15:35:19.196Z",
+        "sampledAt": "2026-09-14T15:35:41.654Z",
+        "status": "available",
+        "error": null,
+        "sampleCount": 6,
+        "observedStarts": 5,
+        "observedExits": 0,
+        "droppedProcesses": 0,
+        "collectionMs": 30.0308,
+        "requested": 5,
+        "inaccessible": 0,
+        "restarts": 0,
+        "monitorPid": 37728,
+        "logicalProcessors": 32,
+        "host": {
+          "power": "ac",
+          "idleSeconds": 0,
+          "idleState": "active",
+          "thermal": "unavailable",
+          "cpuSpeedLimit": null,
+          "totalMemoryMb": 31859.8,
+          "freeMemoryMb": 2579.2
+        },
+        "history": [
+          {
+            "at": "2026-09-14T15:35:41.654Z",
+            "cpuPercent": 0.31168960702174353,
+            "privateMb": 868.42578125,
+            "residentMb": 824.45703125,
+            "readBps": 15454.219030520646,
+            "writeBps": 5567.125473768203,
+            "processes": 5
+          }
+        ],
+        "processes": [
+          {
+            "pid": 39292,
+            "startedAt": "2026-09-14T15:35:16.3440741Z",
+            "name": "electron",
+            "cpuSeconds": 3.796875,
+            "privateMb": 126.2890625,
+            "residentMb": 161.89453125,
+            "peakResidentMb": 173.40234375,
+            "readBytes": 9009269,
+            "writeBytes": 3434598,
+            "handles": 967,
+            "role": "Browser",
+            "group": "desktop",
+            "cpuPercent": 0.2629881059245961,
+            "peakCpuPercent": 0.517578125,
+            "observedCpuSeconds": 2.796875,
+            "readBps": 13384.001595850788,
+            "writeBps": 3827.448633552763,
+            "observedReadBytes": 414907,
+            "observedWriteBytes": 160395,
+            "samples": 6,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:41.654Z"
+          },
+          {
+            "pid": 34972,
+            "startedAt": "2026-09-14T15:35:16.5394516Z",
+            "name": "electron",
+            "cpuSeconds": 3.25,
+            "privateMb": 619.19140625,
+            "residentMb": 415.71875,
+            "peakResidentMb": 450.484375,
+            "readBytes": 521376,
+            "writeBytes": 499480,
+            "handles": 10653,
+            "role": "GPU",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 1.140657018442623,
+            "observedCpuSeconds": 0.890625,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 151272,
+            "observedWriteBytes": 6208,
+            "samples": 6,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:41.654Z"
+          },
+          {
+            "pid": 39528,
+            "startedAt": "2026-09-14T15:35:16.5441637Z",
+            "name": "electron",
+            "cpuSeconds": 0.046875,
+            "privateMb": 12.29296875,
+            "residentMb": 52.98046875,
+            "peakResidentMb": 53.015625,
+            "readBytes": 66871,
+            "writeBytes": 122531,
+            "handles": 339,
+            "role": "Utility",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 0,
+            "observedCpuSeconds": 0,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 59,
+            "samples": 6,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:41.654Z"
+          },
+          {
+            "pid": 35864,
+            "startedAt": "2026-09-14T15:35:16.5560927Z",
+            "name": "electron",
+            "cpuSeconds": 0.78125,
+            "privateMb": 100.20703125,
+            "residentMb": 160.10546875,
+            "peakResidentMb": 160.18359375,
+            "readBytes": 1084205,
+            "writeBytes": 633897,
+            "handles": 436,
+            "role": "Tab",
+            "group": "desktop",
+            "cpuPercent": 0.009740300219429484,
+            "peakCpuPercent": 0.048828125,
+            "observedCpuSeconds": 0.21875,
+            "readBps": 2065.0309196090166,
+            "writeBps": 1496.9080390983443,
+            "observedReadBytes": 47568,
+            "observedWriteBytes": 61328,
+            "samples": 6,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:41.654Z"
+          },
+          {
+            "pid": 37728,
+            "startedAt": "2026-09-14T15:35:19.1979933Z",
+            "name": "Capture.Host",
+            "cpuSeconds": 0.390625,
+            "privateMb": 10.4453125,
+            "residentMb": 33.7578125,
+            "peakResidentMb": 33.7578125,
+            "readBytes": 12948,
+            "writeBytes": 6084,
+            "handles": 244,
+            "role": "Resource collector",
+            "group": "monitor",
+            "cpuPercent": 0.038961200877717934,
+            "peakCpuPercent": 0.08004610655737705,
+            "observedCpuSeconds": 0.296875,
+            "readBps": 5.186515060841812,
+            "writeBps": 242.76880111709556,
+            "observedReadBytes": 130,
+            "observedWriteBytes": 6084,
+            "samples": 6,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:41.654Z"
+          }
+        ],
+        "runtime": {
+          "mainHeapMb": 27.5,
+          "mainExternalMb": 4.1,
+          "mainArrayBuffersMb": 0,
+          "activeResources": {
+            "PipeWrap": 6,
+            "ProcessWrap": 2
+          },
+          "rendererHeapMb": 16.3,
+          "domNodes": 859,
+          "canvases": 0,
+          "images": 1,
+          "videos": 0,
+          "longTasks": 0
+        },
+        "events": [
+          {
+            "at": "2026-09-14T15:35:16.839Z",
+            "source": "main",
+            "level": "info",
+            "event": "diagnostics.enabled",
+            "detail": "{}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "environment",
+            "detail": "{\"version\":\"0.9.9\",\"platform\":\"win32\",\"arch\":\"x64\",\"osRelease\":\"10.0.26200\",\"osVersion\":\"Windows 11 Pro\",\"electron\":\"44.0.0\",\"packaged\":false,\"softwareRendering\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "capture.settings",
+            "detail": "{\"enabled\":false,\"source\":\"automatic-game\",\"sourceSelected\":false,\"displayIndex\":0,\"encoder\":\"auto\",\"codec\":\"auto\",\"resolution\":\"1440p\",\"fps\":60,\"quality\":4,\"replaySeconds\":60,\"includeSystemAudio\":true,\"includeMic\":true,\"includeChatAudio\":false,\"includeCursor\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:17.163Z",
+            "source": "main",
+            "level": "info",
+            "event": "graphics.info",
+            "detail": "{\"details\":\"{\\\"gpuDevice\\\":[{\\\"active\\\":true,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVendor\\\":\\\"AMD\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":5056,\\\"deviceString\\\":\\\"AMD Radeon(TM) Graphics\\\",\\\"driverVersion\\\":\\\"32.0.21045.9003\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":5140,\\\"deviceId\\\":140,\\\"deviceString\\\":\\\"Microsoft Basic Render Driver\\\",\\\"driverVersion\\\":\\\"10.0.26100.5074\\\"}],\\\"auxAttributes\\\":{\\\"glRenderer\\\":\\\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\\\",\\\"glVersion\\\":\\\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\\\",\\\"glVendor\\\":\\\"Google Inc. (AMD)\\\",\\\"displayType\\\":\\\"ANGLE_D3D11\\\",\\\"optimus\\\":false,\\\"amdSwitchable\\\":false,\\\"sandboxed\\\":true}}\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.192Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.started",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.203Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.completed",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\",\"elapsedMs\":10.652599999999893}"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "resource-sample",
+      "sampledAt": "2026-09-14T15:35:51.654Z",
+      "sequence": 7,
+      "uptimeSeconds": 35.3,
+      "rendererActive": true,
+      "guardState": "collecting",
+      "flags": [
+        "over-budget"
+      ],
+      "budget": {
+        "memoryMb": 340,
+        "cpuPercent": 0.7
+      },
+      "totals": {
+        "electronPrivateMb": 807.6,
+        "electronWorkingSetMb": 744.1,
+        "engineReportedMemoryMb": 0,
+        "enginePrivateMb": 0,
+        "engineWorkingSetMb": 0,
+        "attributedMemoryMb": 807.6,
+        "cpuPercent": 0.5,
+        "processCount": 4
+      },
+      "externalProcesses": [],
+      "electronProcesses": [
+        {
+          "pid": 34972,
+          "type": "GPU",
+          "privateMb": 613.6,
+          "workingSetMb": 415.7,
+          "peakWorkingSetMb": 450.5,
+          "cpuPercent": 0
+        },
+        {
+          "pid": 39292,
+          "type": "Browser",
+          "privateMb": 98,
+          "workingSetMb": 134.1,
+          "peakWorkingSetMb": 173.4,
+          "cpuPercent": 0.4
+        },
+        {
+          "pid": 35864,
+          "type": "Tab",
+          "privateMb": 84,
+          "workingSetMb": 141.6,
+          "peakWorkingSetMb": 175.3,
+          "cpuPercent": 0.1
+        },
+        {
+          "pid": 39528,
+          "type": "Utility",
+          "privateMb": 12,
+          "workingSetMb": 52.8,
+          "peakWorkingSetMb": 53,
+          "cpuPercent": 0
+        }
+      ],
+      "engines": [
+        {
+          "kind": "audio",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        },
+        {
+          "kind": "capture",
+          "pid": null,
+          "state": "stopped",
+          "reportedMemoryMb": 0,
+          "cpuPercent": 0,
+          "processes": []
+        }
+      ],
+      "mainRuntime": {
+        "rssMb": 134.1,
+        "heapUsedMb": 24.1,
+        "heapTotalMb": 28.2,
+        "externalMb": 4,
+        "arrayBuffersMb": 0,
+        "activeResources": {
+          "PipeWrap": 6,
+          "ProcessWrap": 2,
+          "Timeout": 1
+        }
+      },
+      "rendererRuntime": {
+        "route": "settings",
+        "longTasks": {
+          "supported": true,
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "jsHeapUsedMb": 16.3,
+        "jsHeapTotalMb": 48.1,
+        "jsHeapLimitMb": 3585.8,
+        "domNodes": 859,
+        "canvasCount": 0,
+        "imageCount": 1,
+        "videoCount": 0,
+        "playingVideoCount": 0,
+        "resourceEntryCount": 0
+      },
+      "system": {
+        "totalMemoryMb": 31859.8,
+        "freeMemoryMb": 2867.7
+      },
+      "debug": {
+        "startedAt": "2026-09-14T15:35:19.195Z",
+        "sampledAt": "2026-09-14T15:35:51.655Z",
+        "eventLoopUtilizationPercent": null,
+        "eventLoopDelayP99Ms": 34.37,
+        "eventLoopDelayMaxMs": 35.39,
+        "operations": [
+          {
+            "name": "ipc:snapshot:get",
+            "calls": 202,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 104.61,
+            "maxMs": 0.97
+          },
+          {
+            "name": "state.clone",
+            "calls": 204,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 102.44,
+            "maxMs": 0.95
+          },
+          {
+            "name": "state.backup-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 4.36,
+            "maxMs": 4.36
+          },
+          {
+            "name": "state.disk-write",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 3.03,
+            "maxMs": 3.03
+          },
+          {
+            "name": "state.validate",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 2.58,
+            "maxMs": 2.58
+          },
+          {
+            "name": "state.emit",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.53,
+            "maxMs": 0.53
+          },
+          {
+            "name": "state.clone-update",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.39,
+            "maxMs": 0.39
+          },
+          {
+            "name": "ipc:snapshot:send",
+            "calls": 1,
+            "failures": 0,
+            "inFlight": 0,
+            "totalMs": 0.19,
+            "maxMs": 0.19
+          }
+        ],
+        "processes": [
+          {
+            "pid": 34972,
+            "type": "GPU",
+            "privateMb": 613.6,
+            "workingSetMb": 415.7,
+            "peakWorkingSetMb": 450.5,
+            "cpuPercent": 0,
+            "role": "GPU"
+          },
+          {
+            "pid": 39292,
+            "type": "Browser",
+            "privateMb": 98,
+            "workingSetMb": 134.1,
+            "peakWorkingSetMb": 173.4,
+            "cpuPercent": 0.4,
+            "role": "Browser"
+          },
+          {
+            "pid": 35864,
+            "type": "Tab",
+            "privateMb": 84,
+            "workingSetMb": 141.6,
+            "peakWorkingSetMb": 175.3,
+            "cpuPercent": 0.1,
+            "role": "Tab"
+          },
+          {
+            "pid": 39528,
+            "type": "Utility",
+            "privateMb": 12,
+            "workingSetMb": 52.8,
+            "peakWorkingSetMb": 53,
+            "cpuPercent": 0,
+            "role": "Utility"
+          }
+        ]
+      },
+      "nativeResources": {
+        "startedAt": "2026-09-14T15:35:19.196Z",
+        "sampledAt": "2026-09-14T15:35:51.654Z",
+        "status": "available",
+        "error": null,
+        "sampleCount": 8,
+        "observedStarts": 5,
+        "observedExits": 0,
+        "droppedProcesses": 0,
+        "collectionMs": 39.7075,
+        "requested": 5,
+        "inaccessible": 0,
+        "restarts": 0,
+        "monitorPid": 37728,
+        "logicalProcessors": 32,
+        "host": {
+          "power": "ac",
+          "idleSeconds": 0,
+          "idleState": "active",
+          "thermal": "unavailable",
+          "cpuSpeedLimit": null,
+          "totalMemoryMb": 31859.8,
+          "freeMemoryMb": 2874.4
+        },
+        "history": [
+          {
+            "at": "2026-09-14T15:35:51.654Z",
+            "cpuPercent": 0.6541660417916415,
+            "privateMb": 818.37890625,
+            "residentMb": 778.78515625,
+            "readBps": 15995.200959808039,
+            "writeBps": 3962.607478504299,
+            "processes": 5
+          }
+        ],
+        "processes": [
+          {
+            "pid": 39292,
+            "startedAt": "2026-09-14T15:35:16.3440741Z",
+            "name": "electron",
+            "cpuSeconds": 5.125,
+            "privateMb": 98.015625,
+            "residentMb": 134.06640625,
+            "peakResidentMb": 173.40234375,
+            "readBytes": 9155980,
+            "writeBytes": 3464166,
+            "handles": 967,
+            "role": "Browser",
+            "group": "desktop",
+            "cpuPercent": 0.48818361327734444,
+            "peakCpuPercent": 0.517578125,
+            "observedCpuSeconds": 4.125,
+            "readBps": 13942.41151769646,
+            "writeBps": 2052.7894421115775,
+            "observedReadBytes": 561618,
+            "observedWriteBytes": 189963,
+            "samples": 8,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:51.654Z"
+          },
+          {
+            "pid": 34972,
+            "startedAt": "2026-09-14T15:35:16.5394516Z",
+            "name": "electron",
+            "cpuSeconds": 3.25,
+            "privateMb": 613.55859375,
+            "residentMb": 415.6953125,
+            "peakResidentMb": 450.484375,
+            "readBytes": 521376,
+            "writeBytes": 499480,
+            "handles": 10652,
+            "role": "GPU",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 1.140657018442623,
+            "observedCpuSeconds": 0.890625,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 151272,
+            "observedWriteBytes": 6208,
+            "samples": 8,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:51.654Z"
+          },
+          {
+            "pid": 39528,
+            "startedAt": "2026-09-14T15:35:16.5441637Z",
+            "name": "electron",
+            "cpuSeconds": 0.046875,
+            "privateMb": 11.98046875,
+            "residentMb": 52.75390625,
+            "peakResidentMb": 53.015625,
+            "readBytes": 66871,
+            "writeBytes": 122531,
+            "handles": 337,
+            "role": "Utility",
+            "group": "desktop",
+            "cpuPercent": 0,
+            "peakCpuPercent": 0,
+            "observedCpuSeconds": 0,
+            "readBps": 0,
+            "writeBps": 0,
+            "observedReadBytes": 0,
+            "observedWriteBytes": 59,
+            "samples": 8,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:51.654Z"
+          },
+          {
+            "pid": 35864,
+            "startedAt": "2026-09-14T15:35:16.5560927Z",
+            "name": "electron",
+            "cpuSeconds": 1,
+            "privateMb": 84.00390625,
+            "residentMb": 141.62109375,
+            "peakResidentMb": 175.32421875,
+            "readBytes": 1104797,
+            "writeBytes": 649722,
+            "handles": 444,
+            "role": "Tab",
+            "group": "desktop",
+            "cpuPercent": 0.1074003949210158,
+            "peakCpuPercent": 0.1074003949210158,
+            "observedCpuSeconds": 0.4375,
+            "readBps": 2047.590481903619,
+            "writeBps": 1663.8672265546888,
+            "observedReadBytes": 68160,
+            "observedWriteBytes": 77153,
+            "samples": 8,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:51.654Z"
+          },
+          {
+            "pid": 37728,
+            "startedAt": "2026-09-14T15:35:19.1979933Z",
+            "name": "Capture.Host",
+            "cpuSeconds": 0.515625,
+            "privateMb": 10.8203125,
+            "residentMb": 34.6484375,
+            "peakResidentMb": 34.6484375,
+            "readBytes": 13000,
+            "writeBytes": 8540,
+            "handles": 247,
+            "role": "Resource collector",
+            "group": "monitor",
+            "cpuPercent": 0.05858203359328134,
+            "peakCpuPercent": 0.08004610655737705,
+            "observedCpuSeconds": 0.421875,
+            "readBps": 5.198960207958408,
+            "writeBps": 245.95080983803237,
+            "observedReadBytes": 182,
+            "observedWriteBytes": 8540,
+            "samples": 8,
+            "active": true,
+            "sampledAt": "2026-09-14T15:35:51.654Z"
+          }
+        ],
+        "runtime": {
+          "mainHeapMb": 24.1,
+          "mainExternalMb": 4,
+          "mainArrayBuffersMb": 0,
+          "activeResources": {
+            "PipeWrap": 6,
+            "ProcessWrap": 2,
+            "Timeout": 1
+          },
+          "rendererHeapMb": 16.3,
+          "domNodes": 859,
+          "canvases": 0,
+          "images": 1,
+          "videos": 0,
+          "longTasks": 0
+        },
+        "events": [
+          {
+            "at": "2026-09-14T15:35:16.839Z",
+            "source": "main",
+            "level": "info",
+            "event": "diagnostics.enabled",
+            "detail": "{}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "environment",
+            "detail": "{\"version\":\"0.9.9\",\"platform\":\"win32\",\"arch\":\"x64\",\"osRelease\":\"10.0.26200\",\"osVersion\":\"Windows 11 Pro\",\"electron\":\"44.0.0\",\"packaged\":false,\"softwareRendering\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:16.841Z",
+            "source": "main",
+            "level": "info",
+            "event": "capture.settings",
+            "detail": "{\"enabled\":false,\"source\":\"automatic-game\",\"sourceSelected\":false,\"displayIndex\":0,\"encoder\":\"auto\",\"codec\":\"auto\",\"resolution\":\"1440p\",\"fps\":60,\"quality\":4,\"replaySeconds\":60,\"includeSystemAudio\":true,\"includeMic\":true,\"includeChatAudio\":false,\"includeCursor\":false}"
+          },
+          {
+            "at": "2026-09-14T15:35:17.163Z",
+            "source": "main",
+            "level": "info",
+            "event": "graphics.info",
+            "detail": "{\"details\":\"{\\\"gpuDevice\\\":[{\\\"active\\\":true,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVendor\\\":\\\"AMD\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":5056,\\\"deviceString\\\":\\\"AMD Radeon(TM) Graphics\\\",\\\"driverVersion\\\":\\\"32.0.21045.9003\\\"},{\\\"active\\\":false,\\\"vendorId\\\":4098,\\\"deviceId\\\":30032,\\\"deviceString\\\":\\\"AMD Radeon RX 9070 XT\\\",\\\"driverVersion\\\":\\\"32.0.31041.3013\\\"},{\\\"active\\\":false,\\\"vendorId\\\":5140,\\\"deviceId\\\":140,\\\"deviceString\\\":\\\"Microsoft Basic Render Driver\\\",\\\"driverVersion\\\":\\\"10.0.26100.5074\\\"}],\\\"auxAttributes\\\":{\\\"glRenderer\\\":\\\"ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.31041.3013)\\\",\\\"glVersion\\\":\\\"OpenGL ES 3.0 (ANGLE 2.1.28466 git hash: e68ad989e7b5)\\\",\\\"glVendor\\\":\\\"Google Inc. (AMD)\\\",\\\"displayType\\\":\\\"ANGLE_D3D11\\\",\\\"optimus\\\":false,\\\"amdSwitchable\\\":false,\\\"sandboxed\\\":true}}\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.192Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.started",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\"}"
+          },
+          {
+            "at": "2026-09-14T15:35:19.203Z",
+            "source": "main",
+            "level": "debug",
+            "event": "operation.completed",
+            "detail": "{\"operation\":\"ipc:settings:update\",\"request\":\"66a760e9-360c-450e-9d6f-5faae93e5adc\",\"elapsedMs\":10.652599999999893}"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -116,13 +116,14 @@ internal sealed class AudioGraph
     }
 
     /// <summary>
-    /// Processes one normalized 48 kHz mono model frame in this deliberate order:
+    /// Processes normalized 48 kHz mono audio in this deliberate order:
     /// AI suppression, noise gate, software gain, parametric EQ, compressor, limiter.
     /// The caller owns the buffer; this method allocates nothing and acquires no locks.
     /// </summary>
     public MicrophoneFrameResult ProcessMicrophone(Span<float> samples, MicrophoneDspConfiguration configuration)
     {
-        if (samples.Length != dryFrame.Length) return default;
+        if (samples.IsEmpty || samples.Length > dryFrame.Length
+            || (RequiresSuppressionFrame(configuration) && samples.Length != dryFrame.Length)) return default;
         samples.CopyTo(dryFrame);
         ConfigureAtFrameBoundary(configuration);
 
@@ -144,13 +145,13 @@ internal sealed class AudioGraph
             {
                 // A failed backend may leave its output untouched or partially
                 // written. Never fade through a previous frame or invalid data.
-                dryFrame.CopyTo(samples);
+                dryFrame.AsSpan(0, samples.Length).CopyTo(samples);
                 suppressionMix = 0f;
             }
         }
         else
         {
-            dryFrame.CopyTo(samples);
+            dryFrame.AsSpan(0, samples.Length).CopyTo(samples);
         }
 
         if (configuration.NoiseGate.Enabled) ApplyNoiseGate(samples, configuration.NoiseGate);
@@ -172,6 +173,12 @@ internal sealed class AudioGraph
         }
         return MicrophoneFrameResult.Create(attempted, succeeded, localSnr, peak, (float)Math.Sqrt(sumSquares / samples.Length));
     }
+
+    // Keep full model frames through suppression's fade-out. Once bypassed,
+    // ordinary sample-by-sample DSP can consume a capture packet immediately.
+    public bool RequiresSuppressionFrame(MicrophoneDspConfiguration configuration) => suppressionMix > 0f
+        || (configuration.NoiseSuppression.Enabled && configuration.NoiseSuppression.Amount > 0f
+            && noiseSuppressor.IsAvailable && !suppressionBackendBypassed);
 
     public void Reset()
     {

@@ -64,7 +64,8 @@ internal sealed class MicrophonePipeline : IDisposable
         graph = new AudioGraph(suppressor);
         captureFrames = new BoundedFrameAdapter(suppressor.FrameLength * CaptureBacklogFrames);
         processedSamples = new BoundedFrameAdapter(suppressor.FrameLength * OutputBacklogFrames);
-        virtualMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels);
+        virtualMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels,
+            AudioConstants.SampleRate * AudioConstants.Channels * AudioConstants.LiveQueueMilliseconds / 1_000);
         streamMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels);
         clipMicrophoneSamples = new SpscFloatRing(suppressor.FrameLength * OutputBacklogFrames * AudioConstants.Channels);
         frame = new float[suppressor.FrameLength];
@@ -83,7 +84,9 @@ internal sealed class MicrophonePipeline : IDisposable
                 .WithDevice(inputDevice)
                 .WithSharedMode()
                 .WithEventSync()
-                .WithBufferLength(20)
+                .WithBufferLength(AudioConstants.LatencyMilliseconds)
+                .WithLowLatency()
+                .WithMmcssThreadPriority("Pro Audio")
                 .Build();
             converter = new CaptureSampleConverter(capture.WaveFormat);
             InputFormat = converter.Description;
@@ -134,6 +137,12 @@ internal sealed class MicrophonePipeline : IDisposable
     public ISampleProvider ClipMicrophoneSource => clipMicrophoneSamples;
     public FrameTimingSnapshot FrameTimings => frameTimings.Snapshot();
     public FrameTimingSnapshot CallbackTimings => callbackTimings.Snapshot();
+    public bool CaptureLowLatencyActive => capture.LowLatencyActive;
+    public int CaptureLatencyMilliseconds => capture.LatencyMilliseconds;
+    public bool MonitoringLowLatencyActive => monitorOutput?.LowLatencyActive ?? false;
+    public int? MonitoringLatencyMilliseconds => monitorOutput?.LatencyMilliseconds;
+    public bool DspMultimediaSchedulingActive { get; private set; }
+    public long MonitorDiscardedSamples => monitorProvider?.DiscardedSamples ?? 0;
 
     public void Start()
     {
@@ -160,11 +169,11 @@ internal sealed class MicrophonePipeline : IDisposable
 
     public void MarkRecovery() => Interlocked.Increment(ref recoveries);
 
-    public void ResetRoutingBuffers(bool includeVirtualMicrophone = true)
+    public void ResetRoutingBuffers(bool includeVirtualMicrophone = true, bool includeClipMicrophone = true)
     {
         if (includeVirtualMicrophone) virtualMicrophoneSamples.DiscardBufferedSamples();
         streamMicrophoneSamples.DiscardBufferedSamples();
-        clipMicrophoneSamples.DiscardBufferedSamples();
+        if (includeClipMicrophone) clipMicrophoneSamples.DiscardBufferedSamples();
     }
 
     public async Task RunMicrophoneTestAsync(CancellationToken cancellationToken)
@@ -194,7 +203,9 @@ internal sealed class MicrophonePipeline : IDisposable
                 .WithDevice(outputDevice)
                 .WithSharedMode()
                 .WithEventSync()
-                .WithLatency(20)
+                .WithLatency(AudioConstants.LatencyMilliseconds)
+                .WithLowLatency()
+                .WithMmcssThreadPriority("Pro Audio")
                 .Build();
             output.Init(provider);
             output.Play();
@@ -258,21 +269,26 @@ internal sealed class MicrophonePipeline : IDisposable
 
     private void ProcessFrames()
     {
-        var deadlineMs = suppressor.FrameLength * 1_000d / AudioConstants.ProcessingSampleRate;
+        using var scheduling = new AudioThreadScheduling();
+        DspMultimediaSchedulingActive = scheduling.Active;
         while (!stopping)
         {
-            if (!captureFrames.TryReadFrame(frame))
+            var current = Volatile.Read(ref configuration);
+            var count = graph.RequiresSuppressionFrame(current) ? frame.Length : Math.Min(frame.Length, captureFrames.Count);
+            var samples = frame.AsSpan(0, count);
+            if (count == 0 || !captureFrames.TryReadFrame(samples))
             {
-                samplesAvailable.WaitOne(20);
+                samplesAvailable.WaitOne();
                 continue;
             }
 
+            var deadlineMs = count * 1_000d / AudioConstants.ProcessingSampleRate;
             var startedAt = Stopwatch.GetTimestamp();
             MicrophoneFrameResult result;
-            frame.CopyTo(dryFrame, 0);
+            samples.CopyTo(dryFrame);
             try
             {
-                result = graph.ProcessMicrophone(frame, Volatile.Read(ref configuration));
+                result = graph.ProcessMicrophone(samples, current);
             }
             catch
             {
@@ -280,17 +296,17 @@ internal sealed class MicrophonePipeline : IDisposable
                 suppressionBypassed = true;
                 Interlocked.Increment(ref bypassedFrames);
                 Volatile.Write(ref lastError, "Noise removal failed and was bypassed. Microphone audio is still available.");
-                dryFrame.CopyTo(frame, 0);
+                dryFrame.AsSpan(0, count).CopyTo(samples);
                 var peak = 0f;
                 var sumSquares = 0d;
-                for (var index = 0; index < frame.Length; index++)
+                for (var index = 0; index < count; index++)
                 {
                     var sample = float.IsFinite(frame[index]) ? Math.Clamp(frame[index], -1f, 1f) : 0f;
                     frame[index] = sample;
                     peak = Math.Max(peak, MathF.Abs(sample));
                     sumSquares += sample * sample;
                 }
-                result = new MicrophoneFrameResult(true, false, float.NaN, peak, (float)Math.Sqrt(sumSquares / frame.Length));
+                result = new MicrophoneFrameResult(true, false, float.NaN, peak, (float)Math.Sqrt(sumSquares / count));
             }
             var elapsedMs = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
             frameTimings.Record(elapsedMs);
@@ -304,7 +320,7 @@ internal sealed class MicrophonePipeline : IDisposable
             {
                 consecutiveFailures = 0;
             }
-            consecutiveDeadlineMisses = elapsedMs >= deadlineMs ? consecutiveDeadlineMisses + 1 : 0;
+            consecutiveDeadlineMisses = result.SuppressionAttempted && elapsedMs >= deadlineMs ? consecutiveDeadlineMisses + 1 : 0;
             if (consecutiveFailures >= RepeatedFailureLimit || consecutiveDeadlineMisses >= RepeatedFailureLimit)
             {
                 graph.BypassNoiseSuppression();
@@ -317,14 +333,14 @@ internal sealed class MicrophonePipeline : IDisposable
             Volatile.Write(ref meterLevel, result.Rms);
             Volatile.Write(ref meterPeak, result.Peak);
             Volatile.Write(ref localSnr, result.LocalSnrDb);
-            CaptureTestFrame(frame);
-            virtualMicrophoneSamples.WriteMono(frame);
-            streamMicrophoneSamples.WriteMono(frame);
-            clipMicrophoneSamples.WriteMono(frame);
+            CaptureTestFrame(samples);
+            virtualMicrophoneSamples.WriteMono(samples);
+            streamMicrophoneSamples.WriteMono(samples);
+            clipMicrophoneSamples.WriteMono(samples);
             if (monitorOutput is not null)
             {
-                var written = processedSamples.Write(frame);
-                if (written < frame.Length) Interlocked.Add(ref outputOverruns, frame.Length - written);
+                var written = processedSamples.Write(samples);
+                if (written < count) Interlocked.Add(ref outputOverruns, count - written);
             }
         }
     }
@@ -372,7 +388,9 @@ internal sealed class MicrophonePipeline : IDisposable
                 .WithDevice(outputDevice)
                 .WithSharedMode()
                 .WithEventSync()
-                .WithLatency(20)
+                .WithLatency(AudioConstants.LatencyMilliseconds)
+                .WithLowLatency()
+                .WithMmcssThreadPriority("Pro Audio")
                 .Build();
             output.Init(provider);
             StopMonitoring();

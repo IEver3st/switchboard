@@ -19,6 +19,7 @@ internal interface IAudioPipeInput : IAsyncDisposable
     int BytesPerSecond { get; }
     string? Error { get; }
     Task ConnectAndStartAsync(CancellationToken cancellationToken);
+    Task StartAnalysisOnlyAsync() => Task.CompletedTask;
 }
 
 internal sealed class AudioPipeCapture : IAudioPipeInput
@@ -346,20 +347,4 @@ internal sealed class AudioPipeCapture : IAudioPipeInput
     {
         public void Return() => ArrayPool<byte>.Shared.Return(Buffer);
     }
-}
-
-internal sealed class AudioHostPipeInput(string pipeName, string label) : IAudioPipeInput
-{
-    public string Label { get; } = label;
-    public string PipePath { get; } = $@"\\.\pipe\{pipeName}";
-    public int SampleRate => 48_000;
-    public int Channels => 2;
-    public string FfmpegSampleFormat => "f32le";
-    public long DroppedPackets => 0;
-    public long CapturedBytes => 0;
-    public long WrittenBytes => 0;
-    public int BytesPerSecond => SampleRate * Channels * sizeof(float);
-    public string? Error => null;
-    public Task ConnectAndStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

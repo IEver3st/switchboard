@@ -1,5 +1,27 @@
 # Performance budgets
 
+Live audio requests the endpoint's minimum supported shared-mode period, with a
+10 ms fallback. Personal output, virtual microphone, and monitor queues retain at
+most 20 ms or one larger render request when recovering from backlog; recording
+and stream queues do not discard samples for this policy. Ring capacity alone is
+not latency, and a producer overflow can still lose newer incoming samples. DSP
+accepts partial capture packets when suppression is bypassed; active models keep
+their required frame size. WASAPI and microphone DSP use MMCSS. The DSP worker
+waits on capture/error/shutdown signals, with no idle polling timeout; its MMCSS
+registration is reverted on thread exit. Callback adapters remain allocation-free.
+The [latency checks and hardware observations](docs/audio-latency.md) distinguish
+negotiated periods, synthetic queue recovery, and unmeasured acoustic delay.
+
+Replay audio integration adds no Electron PCM traffic or routing poll. Each active
+Audio.Host recording feed drains its source at the existing 20 ms cadence, even
+without a consumer, so reconnects do not replay a stale ring. System, chat, and
+microphone pumps use preallocated frames; the microphone feed exists only with
+its processing pipeline. Capture.Host opens relays only for enabled inputs (or
+microphone reaction analysis). Reads and writes have bounded deadlines, and
+disable/shutdown cancels and disposes pipes and pumps. Pipe recovery reuses the
+existing host/replay lifecycle ticks. Synthetic pipe and mix checks do not qualify
+live latency, device reconnect behavior, or long-running resource budgets.
+
 Vite dev launches now collect an automatic local feedback feed, readable with
 `bun run diagnose:dev`. It shares the existing five-second resource tick; status
 writes coalesce, recent events/history are bounded, and it does not activate the

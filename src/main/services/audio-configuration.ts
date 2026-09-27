@@ -1,4 +1,4 @@
-import { audioStateSchema, type AudioHostSnapshot, type AudioState } from '../../shared/contracts';
+import { audioStateSchema, spatialAnyEnabled, type AudioHostSnapshot, type AudioState } from '../../shared/contracts';
 import { microphoneDspConfigurationApplied, microphoneInputApplied, microphoneMonitoringApplied } from '../../shared/microphone-runtime';
 
 const preferenceKeys = [
@@ -74,7 +74,7 @@ export function assertAudioConfigurationApplied(before: AudioState, next: AudioS
   if (!host.running) throw new Error('The audio engine stopped before accepting the change.');
   if (JSON.stringify(before.spatial) !== JSON.stringify(next.spatial)
     && (JSON.stringify(host.spatial?.settings) !== JSON.stringify(next.spatial)
-      || (next.spatial.enabled && (!host.spatial?.active || host.capabilities.spatialAudio !== 'available')))) {
+      || (spatialAnyEnabled(next.spatial) && (!host.spatial?.active || host.capabilities.spatialAudio !== 'available')))) {
     throw new Error(host.spatial?.error ?? host.error ?? 'The headphone spatial settings were not accepted by the audio host.');
   }
   const applied = { ...next, host };

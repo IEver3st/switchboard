@@ -1,0 +1,3 @@
+export async function request(action,data={}){const r=await fetch('http://127.0.0.1:47839',{method:'POST',body:JSON.stringify({action,...data})});const v=await r.json();if(!r.ok)throw Error(JSON.stringify(v));return v.value;}
+export const js=code=>request('js',{code});export const wait=ms=>new Promise(r=>setTimeout(r,ms));
+export async function click(text){return js(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(text)}||b.getAttribute('aria-label')===${JSON.stringify(text)});if(!b)throw Error('Button missing: '+${JSON.stringify(text)});b.click();})()`);}

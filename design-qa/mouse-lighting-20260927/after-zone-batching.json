@@ -1,0 +1,121 @@
+{
+  "staticColorMs": 247,
+  "brightnessMs": 248,
+  "fullProfileThenOffMs": 1877,
+  "cachedProfileThenOffMs": 404,
+  "confirmed": {
+    "writable": true,
+    "enabled": false,
+    "activeEffectId": "static",
+    "availableEffects": [
+      {
+        "id": "static",
+        "label": "Static",
+        "controls": [
+          "color",
+          "zones",
+          "brightness"
+        ]
+      },
+      {
+        "id": "cycle",
+        "label": "Color cycle",
+        "controls": [
+          "brightness",
+          "speed"
+        ]
+      },
+      {
+        "id": "breathing",
+        "label": "Breathing",
+        "controls": [
+          "color",
+          "brightness",
+          "speed"
+        ]
+      }
+    ],
+    "color": "#89cff0",
+    "colorWritable": true,
+    "brightness": 100,
+    "brightnessWritable": true,
+    "speed": 50,
+    "speedWritable": false,
+    "direction": "right",
+    "availableDirections": [
+      "cycle",
+      "left",
+      "right",
+      "up",
+      "down",
+      "in",
+      "out",
+      "center-in",
+      "center-out"
+    ],
+    "directionWritable": false,
+    "zones": [
+      {
+        "id": "zone-1",
+        "label": "Zone 1",
+        "color": "#89cff0",
+        "colorWritable": true
+      },
+      {
+        "id": "zone-2",
+        "label": "Zone 2",
+        "color": "#89cff0",
+        "colorWritable": true
+      },
+      {
+        "id": "zone-3",
+        "label": "Zone 3",
+        "color": "#89cff0",
+        "colorWritable": true
+      },
+      {
+        "id": "zone-4",
+        "label": "Zone 4",
+        "color": "#89cff0",
+        "colorWritable": true
+      },
+      {
+        "id": "zone-5",
+        "label": "Zone 5",
+        "color": "#89cff0",
+        "colorWritable": true
+      },
+      {
+        "id": "zone-6",
+        "label": "Zone 6",
+        "color": "#89cff0",
+        "colorWritable": true
+      },
+      {
+        "id": "zone-7",
+        "label": "Zone 7",
+        "color": "#89cff0",
+        "colorWritable": true
+      },
+      {
+        "id": "zone-8",
+        "label": "Zone 8",
+        "color": "#89cff0",
+        "colorWritable": true
+      }
+    ],
+    "profiles": [],
+    "muteLinked": false,
+    "muteLinkedWritable": false,
+    "state": "acknowledged",
+    "selectionSaved": true,
+    "stateReason": "The mouse reports RGB power off. Switchboard keeps control while it is running.",
+    "physicalEffectVerified": false,
+    "profileMode": "software",
+    "source": "software",
+    "statusLightingSupported": true,
+    "batteryLightingEnabled": false,
+    "batteryStatus": "monitoring"
+  },
+  "restoredPower": 3
+}

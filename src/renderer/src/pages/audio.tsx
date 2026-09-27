@@ -5,7 +5,6 @@ import { ChannelProcessingPage } from '@/components/audio/ChannelProcessingPage'
 import { clearAudioMeters, publishAudioMeterFrame } from '@/components/audio/meter-bus';
 import { MicrophonePage } from '@/components/audio/MicrophonePage';
 import { MixerPage } from '@/components/audio/MixerPage';
-import { SpatialAudioPage } from '@/components/audio/SpatialAudioPage';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { requestSettingsCategory } from '@/components/settings/settings-catalog';
 import { switchboardApi } from '@/lib/demo-api';
@@ -26,7 +25,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const streamUnavailable = snapshot.audio.capabilities.streamOutput === 'unavailable';
   const effectiveMixId = selectedMixId === 'stream' && streamUnavailable ? 'personal' : selectedMixId;
   const availableTabs = useMemo(() => audioWorkspaceTabs.filter((candidate) => {
-    if (candidate === 'mixer' || candidate === 'spatial') return true;
+    if (candidate === 'mixer') return true;
     const busId = candidate === 'microphone' ? 'mic' : candidate;
     return snapshot.audio.buses.find((bus) => bus.id === busId)?.enabled ?? false;
   }), [snapshot.audio.buses]);
@@ -113,7 +112,6 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
         {tab === 'chat' ? <ChannelProcessingPage snapshot={snapshot} busId="chat" /> : null}
         {tab === 'media' ? <ChannelProcessingPage snapshot={snapshot} busId="media" /> : null}
         {tab === 'microphone' ? <MicrophonePage audio={snapshot.audio} engineRunning={engineRunning} /> : null}
-        {tab === 'spatial' ? <SpatialAudioPage audio={snapshot.audio} /> : null}
       </div>
     </section>
   );

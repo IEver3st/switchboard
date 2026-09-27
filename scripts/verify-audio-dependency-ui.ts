@@ -20,7 +20,7 @@ let store = new StateStore(join(directory, 'state.json'));
 await store.load();
 store.update(draft=>{draft.settings.onboardingCompleted=false;draft.settings.developerMode=false;draft.settings.visibleWorkspaces=['devices','capture'];draft.audio.enabled=false;draft.capture.config.enabled=false;});
 const window = new BrowserWindow({ show: false, frame: false, useContentSize: true, x: -30000, y: -30000, width: 1080, height: 720,
-  webPreferences: { preload: resolve(root, 'out/preload/index.cjs'), sandbox: true, contextIsolation: true, backgroundThrottling: false },
+  webPreferences: { preload: resolve(root, '.switchboard/build/audio-dependencies/preload/index.cjs'), sandbox: true, contextIsolation: true, backgroundThrottling: false },
 });
 let rejectStart = false;
 let requests = 0;
@@ -93,7 +93,7 @@ async function capture(name:string){
  }
 }
 try {
- await window.loadFile(resolve(root,'out/renderer/index.html'));
+ await window.loadFile(resolve(root,'.switchboard/build/audio-dependencies/renderer/index.html'));
  window.webContents.debugger.attach('1.3');await window.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
  await delay(1800);
  await click('Get started');

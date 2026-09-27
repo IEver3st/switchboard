@@ -5,7 +5,10 @@ internal static class AudioConstants
     public const int SampleRate = 48_000;
     public const int Channels = 2;
     public const int BitsPerSample = 32;
-    public const int LatencyMilliseconds = 20;
+    // Fallback request. IAudioClient3 uses the endpoint's minimum supported period.
+    public const int LatencyMilliseconds = 10;
+    // Live consumers catch up after stalls; recording/stream queues retain continuity.
+    public const int LiveQueueMilliseconds = 20;
     public const string InterfaceName = "Switchboard Virtual Audio Device";
     public const int ProcessingSampleRate = 48_000;
     // Keep aligned with MAX_EQ_BANDS in the shared contract; storage is preallocated.
@@ -297,7 +300,9 @@ internal sealed record AudioHostCapabilities(
     string RoutingBackend = "none",
     string VirtualMicrophone = "unavailable",
     string StreamOutput = "unavailable",
-    string ClipMix = "unavailable");
+    string ClipMix = "unavailable",
+    string ClipTracks = "unavailable",
+    string ProcessedMicrophoneCapture = "unavailable");
 
 internal sealed record NoiseSuppressionDiagnostics(
     string Backend,

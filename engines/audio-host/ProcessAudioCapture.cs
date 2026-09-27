@@ -9,7 +9,8 @@ internal sealed class ProcessAudioCapture : IDisposable
     private int stopped;
     private int enabled;
     private Exception? failure;
-    public readonly SpscFloatRing Personal = new(AudioConstants.SampleRate * AudioConstants.Channels / 10);
+    public readonly SpscFloatRing Personal = new(AudioConstants.SampleRate * AudioConstants.Channels / 10,
+        AudioConstants.SampleRate * AudioConstants.Channels * AudioConstants.LiveQueueMilliseconds / 1_000);
     public readonly SpscFloatRing Clip = new(AudioConstants.SampleRate * AudioConstants.Channels / 10);
     public Exception? Failure => Volatile.Read(ref failure);
     public bool Enabled => Volatile.Read(ref enabled) != 0;
@@ -18,7 +19,8 @@ internal sealed class ProcessAudioCapture : IDisposable
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 20348))
             throw new PlatformNotSupportedException("Application capture requires Windows build 20348 or later.");
-        var activation = new WasapiRecorderBuilder().WithSharedMode().WithEventSync().WithBufferLength(20)
+        var activation = new WasapiRecorderBuilder().WithSharedMode().WithEventSync().WithBufferLength(AudioConstants.LatencyMilliseconds)
+            .WithMmcssThreadPriority("Pro Audio")
             .WithFormat(WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.SampleRate, AudioConstants.Channels))
             .WithProcessLoopback((uint)processId, ProcessLoopbackMode.IncludeTargetProcessTree).BuildAsync();
         try { capture = activation.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult(); }

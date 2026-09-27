@@ -61,7 +61,7 @@ describe('capture microphone routing', () => {
       ],
       host: { microphone: { activeInputDeviceId: 'confirmed-hyperx-endpoint' } },
       capture: { microphoneDeviceId: 'disconnected-usb-mic', systemAudioDeviceId: null, chatAudioDeviceId: null },
-    })).toBeNull();
+    })).toBe('disconnected-usb-mic');
   });
 
   test('resolves Sonar game and chat outputs as separate capture inputs', () => {

@@ -1,0 +1,3 @@
+50532becdb36acf268bde0f1d4bbbbc0d2687dbe8285503756d7e6dc2a5635a4  Switchboard-0.9.12-x64.exe
+b62469b4cb6fe0163b7d30ff5731eefb9aa08b98907972a821d751a604e09f83  Switchboard-0.9.12-x64.exe.blockmap
+3d05ba5a552cc6ee23e5b3ce1530bf96bd50176d33ebb253690039b6cebf0de5  latest.yml

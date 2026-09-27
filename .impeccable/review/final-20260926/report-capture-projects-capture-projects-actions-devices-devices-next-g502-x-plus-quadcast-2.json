@@ -1,0 +1,674 @@
+[
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 720,
+      "documentWidth": 1080,
+      "documentHeight": 720,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 682,
+      "viewportScrollHeight": 682,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1080,
+      "height": 720
+    },
+    "filename": "1080x720-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "devices-next",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 720,
+      "documentWidth": 1080,
+      "documentHeight": 720,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 682,
+      "viewportScrollHeight": 682,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1080,
+      "height": 720
+    },
+    "filename": "1080x720-devices-next.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 720,
+      "documentWidth": 1080,
+      "documentHeight": 720,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 682,
+      "viewportScrollHeight": 682,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1080,
+      "height": 720
+    },
+    "filename": "1080x720-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 720,
+      "documentWidth": 1080,
+      "documentHeight": 720,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 682,
+      "viewportScrollHeight": 682,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1080,
+      "height": 720
+    },
+    "filename": "1080x720-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "capture-projects",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 720,
+      "documentWidth": 1080,
+      "documentHeight": 720,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 682,
+      "viewportScrollHeight": 3854,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1080,
+      "height": 720
+    },
+    "filename": "1080x720-capture-projects.png"
+  },
+  {
+    "viewport": {
+      "name": "1080x720",
+      "width": 1080,
+      "height": 720
+    },
+    "screen": "capture-projects-actions",
+    "metrics": {
+      "innerWidth": 1080,
+      "innerHeight": 720,
+      "documentWidth": 1080,
+      "documentHeight": 720,
+      "viewportWidth": 1008,
+      "viewportScrollWidth": 1008,
+      "viewportHeight": 682,
+      "viewportScrollHeight": 3854,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1080,
+      "height": 720
+    },
+    "filename": "1080x720-capture-projects-actions.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1348,
+      "viewportScrollWidth": 1348,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1420,
+      "height": 900
+    },
+    "filename": "1420x900-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "devices-next",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1348,
+      "viewportScrollWidth": 1348,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1420,
+      "height": 900
+    },
+    "filename": "1420x900-devices-next.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1348,
+      "viewportScrollWidth": 1348,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1420,
+      "height": 900
+    },
+    "filename": "1420x900-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1348,
+      "viewportScrollWidth": 1348,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 862,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1420,
+      "height": 900
+    },
+    "filename": "1420x900-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "capture-projects",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1348,
+      "viewportScrollWidth": 1348,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 2460,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1420,
+      "height": 900
+    },
+    "filename": "1420x900-capture-projects.png"
+  },
+  {
+    "viewport": {
+      "name": "1420x900",
+      "width": 1420,
+      "height": 900
+    },
+    "screen": "capture-projects-actions",
+    "metrics": {
+      "innerWidth": 1420,
+      "innerHeight": 900,
+      "documentWidth": 1420,
+      "documentHeight": 900,
+      "viewportWidth": 1348,
+      "viewportScrollWidth": 1348,
+      "viewportHeight": 862,
+      "viewportScrollHeight": 2460,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1420,
+      "height": 900
+    },
+    "filename": "1420x900-capture-projects-actions.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1848,
+      "viewportScrollWidth": 1848,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "filename": "1920x1080-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "devices-next",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1848,
+      "viewportScrollWidth": 1848,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "filename": "1920x1080-devices-next.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1848,
+      "viewportScrollWidth": 1848,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "filename": "1920x1080-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1848,
+      "viewportScrollWidth": 1848,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 1042,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "filename": "1920x1080-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "capture-projects",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1848,
+      "viewportScrollWidth": 1848,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 2951,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "filename": "1920x1080-capture-projects.png"
+  },
+  {
+    "viewport": {
+      "name": "1920x1080",
+      "width": 1920,
+      "height": 1080
+    },
+    "screen": "capture-projects-actions",
+    "metrics": {
+      "innerWidth": 1920,
+      "innerHeight": 1080,
+      "documentWidth": 1920,
+      "documentHeight": 1080,
+      "viewportWidth": 1848,
+      "viewportScrollWidth": 1848,
+      "viewportHeight": 1042,
+      "viewportScrollHeight": 2951,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "filename": "1920x1080-capture-projects-actions.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "devices",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2488,
+      "viewportScrollWidth": 2488,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2560,
+      "height": 1440
+    },
+    "filename": "2560x1440-devices.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "devices-next",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2488,
+      "viewportScrollWidth": 2488,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2560,
+      "height": 1440
+    },
+    "filename": "2560x1440-devices-next.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "g502-x-plus",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2488,
+      "viewportScrollWidth": 2488,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2560,
+      "height": 1440
+    },
+    "filename": "2560x1440-g502-x-plus.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "quadcast-2",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2488,
+      "viewportScrollWidth": 2488,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 1402,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#devices"
+    },
+    "imageSize": {
+      "width": 2560,
+      "height": 1440
+    },
+    "filename": "2560x1440-quadcast-2.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "capture-projects",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2488,
+      "viewportScrollWidth": 2488,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 3599,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 2560,
+      "height": 1440
+    },
+    "filename": "2560x1440-capture-projects.png"
+  },
+  {
+    "viewport": {
+      "name": "2560x1440",
+      "width": 2560,
+      "height": 1440
+    },
+    "screen": "capture-projects-actions",
+    "metrics": {
+      "innerWidth": 2560,
+      "innerHeight": 1440,
+      "documentWidth": 2560,
+      "documentHeight": 1440,
+      "viewportWidth": 2488,
+      "viewportScrollWidth": 2488,
+      "viewportHeight": 1402,
+      "viewportScrollHeight": 3599,
+      "documentScrollTop": 0,
+      "settingsScrollTop": null,
+      "settingsSidebarScrollTop": null,
+      "settingsTop": null,
+      "page": "#capture"
+    },
+    "imageSize": {
+      "width": 2560,
+      "height": 1440
+    },
+    "filename": "2560x1440-capture-projects-actions.png"
+  }
+]

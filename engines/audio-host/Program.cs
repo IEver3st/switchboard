@@ -17,7 +17,11 @@ if (args.Contains("--probe-head-tracking", StringComparer.OrdinalIgnoreCase))
 }
 if (args.Contains("--enable-headset-sensor", StringComparer.OrdinalIgnoreCase))
 {
-    try { Console.WriteLine(SonyBluetoothTracking.EnableConnectedHeadset()); }
+    try
+    {
+        if (SonyBluetoothTracking.NeedsDriverRepair()) { SonyBluetoothTracking.RepairSensorDriver(); Console.WriteLine("Sensor driver repaired."); }
+        else Console.WriteLine(SonyBluetoothTracking.EnableConnectedHeadset());
+    }
     catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }
     return;
 }

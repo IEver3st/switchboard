@@ -24,12 +24,16 @@ function bands(prefix: string, values: Array<[number, number, number, EqBand['ty
 }
 
 const FLAT_BANDS = bands('flat', [
-  [80, 0, 0.7, 'low-shelf'],
-  [180, 0, 1, 'bell'],
-  [700, 0, 1, 'bell'],
-  [2_500, 0, 1, 'bell'],
-  [6_000, 0, 1, 'bell'],
-  [10_000, 0, 0.7, 'high-shelf'],
+  [32, 0, 0.7, 'low-shelf'],
+  [64, 0, 1, 'bell'],
+  [125, 0, 1, 'bell'],
+  [250, 0, 1, 'bell'],
+  [500, 0, 1, 'bell'],
+  [1_000, 0, 1, 'bell'],
+  [2_000, 0, 1, 'bell'],
+  [4_000, 0, 1, 'bell'],
+  [8_000, 0, 1, 'bell'],
+  [16_000, 0, 0.7, 'high-shelf'],
 ]);
 
 export function createDefaultChannelProcessing(busId: ChannelAudioBusId): ChannelProcessing {
@@ -50,6 +54,10 @@ export function createDefaultChannelProcessing(busId: ChannelAudioBusId): Channe
 }
 
 export function createNaturalMicrophoneProcessors(): MicProcessor[] {
+  // Broad, modest tone moves plus a narrower sibilance dip. These are starting
+  // points, not microphone calibration or dynamic de-essing. Shelf cuts reduce
+  // rumble but do not act as high-pass filters; the native chain supports shelves
+  // and bells. Use as many useful bands as the sound needs, within MAX_EQ_BANDS.
   return [
     { id: 'gain', label: 'Input gain', enabled: true, cost: 'none', parameters: { gainDb: 0 } },
     {
@@ -57,14 +65,14 @@ export function createNaturalMicrophoneProcessors(): MicProcessor[] {
       label: 'Noise gate',
       enabled: true,
       cost: 'low',
-      parameters: { thresholdDb: -48, attackMs: 10, releaseMs: 180 },
+      parameters: { thresholdDb: -54, attackMs: 4, releaseMs: 220 },
     },
     {
       id: 'noise-suppression',
       label: 'Noise suppression',
       enabled: true,
       cost: 'medium',
-      parameters: { amount: 45 },
+      parameters: { amount: 30 },
     },
     {
       id: 'equalizer',
@@ -73,12 +81,14 @@ export function createNaturalMicrophoneProcessors(): MicProcessor[] {
       cost: 'low',
       parameters: {
         bands: bands('mic-natural', [
-          [80, -1, 0.7, 'low-shelf'],
-          [180, -1.5, 1, 'bell'],
-          [500, 0, 1.1, 'bell'],
-          [2_800, 2, 1.2, 'bell'],
-          [5_500, 1, 1, 'bell'],
-          [10_000, 1, 0.7, 'high-shelf'],
+          [65, -4, 0.7, 'low-shelf'],
+          [150, 0.5, 0.9, 'bell'],
+          [280, -1.5, 1.1, 'bell'],
+          [650, -0.5, 1.2, 'bell'],
+          [1_800, 0.5, 0.9, 'bell'],
+          [3_200, 1.5, 1, 'bell'],
+          [6_800, -1.5, 2, 'bell'],
+          [12_000, 0.5, 0.7, 'high-shelf'],
         ]),
       },
     },
@@ -87,7 +97,7 @@ export function createNaturalMicrophoneProcessors(): MicProcessor[] {
       label: 'Compressor',
       enabled: true,
       cost: 'low',
-      parameters: { thresholdDb: -18, ratio: 3, attackMs: 12, releaseMs: 180, makeupDb: 2 },
+      parameters: { thresholdDb: -18, ratio: 2, attackMs: 18, releaseMs: 200, makeupDb: 1.5 },
     },
     {
       id: 'limiter',
@@ -139,166 +149,199 @@ export const defaultAudioPathPresets: AudioPathPreset[] = [
   outputPreset('game', 'game-flat', 'Flat', () => undefined),
   outputPreset('game', 'game-competitive-fps', 'Competitive FPS', (processing) => {
     processing.equalizer.bands = bands('game-fps', [
-      [80, -3, 0.7, 'low-shelf'], [180, -2, 1, 'bell'], [700, -1, 1.1, 'bell'],
-      [2_500, 3.5, 1.1, 'bell'], [5_500, 2.5, 1.2, 'bell'], [10_000, 1, 0.7, 'high-shelf'],
+      [45, -5, 0.7, 'low-shelf'], [90, -3, 1, 'bell'], [180, -2, 1, 'bell'],
+      [350, -1.5, 1.1, 'bell'], [750, -0.5, 1.2, 'bell'], [1_500, 1, 1, 'bell'],
+      [2_500, 2.5, 1.1, 'bell'], [4_000, 1.5, 1.2, 'bell'],
+      [6_500, -1.5, 1.8, 'bell'], [12_000, 0.5, 0.7, 'high-shelf'],
     ]);
-    processing.normalization = { enabled: true, targetLufs: -17, maxGainDb: 6 };
-    processing.compressor = { enabled: true, thresholdDb: -20, ratio: 2.5, attackMs: 12, releaseMs: 140, makeupDb: 1 };
+    processing.normalization = { enabled: true, targetLufs: -20, maxGainDb: 3 };
+    processing.compressor = { enabled: true, thresholdDb: -20, ratio: 1.8, attackMs: 18, releaseMs: 200, makeupDb: 0 };
   }),
   outputPreset('game', 'game-immersive', 'Immersive', (processing) => {
     processing.equalizer.bands = bands('game-immersive', [
-      [70, 3, 0.7, 'low-shelf'], [180, 1.5, 1, 'bell'], [700, -0.5, 1, 'bell'],
-      [2_500, 1, 1, 'bell'], [6_000, 1.5, 1, 'bell'], [11_000, 2, 0.7, 'high-shelf'],
+      [45, 2.5, 0.7, 'low-shelf'], [100, 1.5, 0.9, 'bell'], [220, -0.5, 1, 'bell'],
+      [400, -1, 1.1, 'bell'], [800, -0.5, 1.1, 'bell'], [1_600, 0.5, 1, 'bell'],
+      [2_800, 1, 1.1, 'bell'], [4_500, -0.5, 1.3, 'bell'],
+      [7_500, -1, 1.8, 'bell'], [14_000, 1.5, 0.7, 'high-shelf'],
     ]);
   }),
   outputPreset('game', 'game-night', 'Night play', (processing) => {
     processing.equalizer.bands = bands('game-night', [
-      [90, -4, 0.7, 'low-shelf'], [2_200, 1.5, 1, 'bell'], [8_000, -1.5, 0.7, 'high-shelf'],
+      [90, -5, 0.7, 'low-shelf'], [180, -2, 1, 'bell'], [350, -1, 1.1, 'bell'],
+      [800, 0.5, 1, 'bell'], [1_800, 1, 1, 'bell'], [2_800, 1.5, 1.1, 'bell'],
+      [4_500, -0.5, 1.3, 'bell'], [6_500, -1.5, 1.8, 'bell'], [11_000, -2, 0.7, 'high-shelf'],
     ]);
-    processing.compressor = { enabled: true, thresholdDb: -24, ratio: 4, attackMs: 8, releaseMs: 220, makeupDb: 0 };
-    processing.limiter.thresholdDb = -3;
+    processing.compressor = { enabled: true, thresholdDb: -26, ratio: 4, attackMs: 5, releaseMs: 260, makeupDb: 0 };
+    processing.limiter = { enabled: true, thresholdDb: -4, releaseMs: 150 };
   }),
   outputPreset('chat', 'chat-natural', 'Natural', () => undefined),
   outputPreset('chat', 'chat-clear-voice', 'Clear Voice', (processing) => {
     processing.equalizer.bands = bands('chat-clear', [
-      [100, -4, 0.7, 'low-shelf'], [220, -2, 1, 'bell'], [700, -1, 1, 'bell'],
-      [2_200, 3, 1.1, 'bell'], [4_500, 2, 1.2, 'bell'], [9_000, 1, 0.7, 'high-shelf'],
+      [85, -6, 0.7, 'low-shelf'], [180, -2, 1, 'bell'], [350, -1.5, 1.1, 'bell'],
+      [700, -0.5, 1.2, 'bell'], [1_500, 1, 1, 'bell'], [2_500, 2, 1.1, 'bell'],
+      [4_200, 0.5, 1.2, 'bell'], [7_000, -2, 2, 'bell'], [12_000, -1, 0.7, 'high-shelf'],
     ]);
-    processing.normalization = { enabled: true, targetLufs: -19, maxGainDb: 7 };
-    processing.compressor = { enabled: true, thresholdDb: -22, ratio: 3, attackMs: 10, releaseMs: 160, makeupDb: 1 };
+    processing.normalization = { enabled: true, targetLufs: -20, maxGainDb: 4 };
+    processing.compressor = { enabled: true, thresholdDb: -22, ratio: 2.5, attackMs: 12, releaseMs: 220, makeupDb: 0 };
   }),
   outputPreset('chat', 'chat-reduced-bass', 'Reduced Bass', (processing) => {
-    processing.equalizer.bands[0] = { ...processing.equalizer.bands[0]!, gainDb: -5 };
-    processing.equalizer.bands[1] = { ...processing.equalizer.bands[1]!, gainDb: -2 };
+    processing.equalizer.bands = bands('chat-reduced', [
+      [110, -6, 0.7, 'low-shelf'], [220, -2.5, 1, 'bell'], [400, -1, 1.1, 'bell'],
+      [900, -0.5, 1.2, 'bell'], [1_800, 0.25, 1, 'bell'], [3_000, 0.5, 1.1, 'bell'],
+      [7_000, -0.75, 2, 'bell'], [12_000, -0.5, 0.7, 'high-shelf'],
+    ]);
   }),
   outputPreset('media', 'media-flat', 'Flat', () => undefined),
   outputPreset('media', 'media-music', 'Music', (processing) => {
     processing.equalizer.bands = bands('media-music', [
-      [70, 2, 0.7, 'low-shelf'], [180, 0.5, 1, 'bell'], [700, -1, 1, 'bell'],
-      [2_500, 1, 1, 'bell'], [6_000, 1.5, 1, 'bell'], [11_000, 2, 0.7, 'high-shelf'],
+      [40, 1.5, 0.7, 'low-shelf'], [90, 1, 0.9, 'bell'], [200, -0.5, 1, 'bell'],
+      [400, -0.75, 1.1, 'bell'], [900, -0.25, 1.1, 'bell'], [1_800, 0.5, 1, 'bell'],
+      [3_000, 0.75, 1.1, 'bell'], [4_800, -0.5, 1.3, 'bell'],
+      [7_500, -0.75, 1.8, 'bell'], [14_000, 1.25, 0.7, 'high-shelf'],
     ]);
   }),
   outputPreset('media', 'media-movies', 'Movies', (processing) => {
     processing.equalizer.bands = bands('media-movies', [
-      [65, 2.5, 0.7, 'low-shelf'], [180, 1, 1, 'bell'], [700, -1.5, 1, 'bell'],
-      [2_200, 2.5, 1.1, 'bell'], [5_500, 1, 1, 'bell'], [10_000, 1.5, 0.7, 'high-shelf'],
+      [45, 2, 0.7, 'low-shelf'], [100, 1, 1, 'bell'], [220, -1, 1, 'bell'],
+      [450, -1.5, 1.1, 'bell'], [900, -0.5, 1.1, 'bell'], [1_800, 1, 1, 'bell'],
+      [2_800, 1.5, 1.1, 'bell'], [4_500, 0.5, 1.2, 'bell'],
+      [7_000, -1.5, 1.8, 'bell'], [13_000, 1, 0.7, 'high-shelf'],
     ]);
-    processing.normalization = { enabled: true, targetLufs: -18, maxGainDb: 5 };
+    processing.normalization = { enabled: true, targetLufs: -21, maxGainDb: 3 };
   }),
   outputPreset('media', 'media-warm', 'Warm', (processing) => {
     processing.equalizer.bands = bands('media-warm', [
-      [100, 2, 0.7, 'low-shelf'], [3_500, -1.5, 1, 'bell'], [9_000, -2, 0.7, 'high-shelf'],
+      [60, 1, 0.7, 'low-shelf'], [140, 1.5, 0.9, 'bell'], [300, -0.75, 1.1, 'bell'],
+      [700, -0.25, 1.1, 'bell'], [1_600, 0.25, 1, 'bell'], [3_500, -1.25, 1.2, 'bell'],
+      [6_500, -1.5, 1.8, 'bell'], [11_000, -1.5, 0.7, 'high-shelf'],
     ]);
   }),
   outputPreset('media', 'media-dialogue', 'Dialogue', (processing) => {
     processing.equalizer.bands = bands('media-dialogue', [
-      [100, -3, 0.7, 'low-shelf'], [300, -1.5, 1, 'bell'], [2_500, 2.5, 1, 'bell'],
+      [85, -4, 0.7, 'low-shelf'], [180, -1, 1, 'bell'], [350, -1.5, 1.1, 'bell'],
+      [700, -0.5, 1.2, 'bell'], [1_500, 1, 1, 'bell'], [2_500, 2, 1.1, 'bell'],
+      [4_000, 0.5, 1.2, 'bell'], [7_000, -1.5, 2, 'bell'], [12_000, -0.5, 0.7, 'high-shelf'],
     ]);
-    processing.compressor = { enabled: true, thresholdDb: -22, ratio: 2.5, attackMs: 12, releaseMs: 180, makeupDb: 0 };
+    processing.compressor = { enabled: true, thresholdDb: -22, ratio: 2.2, attackMs: 15, releaseMs: 240, makeupDb: 0 };
   }),
   microphonePreset('mic-natural-voice', 'Natural Voice', () => undefined),
   microphonePreset('mic-clear-speech', 'Clear Speech', (processors) => {
-    mic(processors, 'noise-suppression').parameters.amount = 60;
-    mic(processors, 'noise-gate').parameters.thresholdDb = -44;
+    mic(processors, 'noise-suppression').parameters.amount = 50;
+    mic(processors, 'noise-gate').parameters.thresholdDb = -50;
     mic(processors, 'equalizer').parameters.bands = bands('mic-clear', [
-      [90, -3, 0.7, 'low-shelf'], [220, -2, 1, 'bell'], [650, -1, 1, 'bell'],
-      [2_800, 3, 1.1, 'bell'], [5_500, 2, 1.2, 'bell'], [10_000, 1, 0.7, 'high-shelf'],
+      [75, -6, 0.7, 'low-shelf'], [160, -1, 0.9, 'bell'], [300, -2, 1.2, 'bell'],
+      [700, -1, 1.3, 'bell'], [1_600, 1, 1, 'bell'], [2_800, 2.5, 1.1, 'bell'],
+      [4_500, 1, 1.2, 'bell'], [7_000, -2, 2.2, 'bell'], [12_000, 0.5, 0.7, 'high-shelf'],
     ]);
-    mic(processors, 'compressor').parameters = { thresholdDb: -20, ratio: 3.5, attackMs: 10, releaseMs: 150, makeupDb: 2.5 };
+    mic(processors, 'compressor').parameters = { thresholdDb: -20, ratio: 2.8, attackMs: 12, releaseMs: 180, makeupDb: 2 };
   }),
   // Tone presets shape the EQ; none of them shift pitch.
   microphonePreset('mic-deep-voice', 'Deep Voice', (processors) => {
-    mic(processors, 'noise-suppression').parameters.amount = 55;
-    mic(processors, 'noise-gate').parameters.thresholdDb = -46;
+    mic(processors, 'noise-suppression').parameters.amount = 35;
     mic(processors, 'equalizer').parameters.bands = bands('mic-deep', [
-      [110, 4, 0.7, 'low-shelf'], [200, 2, 1, 'bell'], [420, -2.5, 1.2, 'bell'],
-      [3_000, 1.5, 1.1, 'bell'], [7_000, -1.5, 2, 'bell'], [11_000, -1, 0.7, 'high-shelf'],
+      [50, -5, 0.7, 'low-shelf'], [120, 3, 0.9, 'bell'], [200, 1, 1, 'bell'],
+      [350, -2, 1.2, 'bell'], [650, -1, 1.2, 'bell'], [1_500, 0.5, 1, 'bell'],
+      [2_800, 1.5, 1.1, 'bell'], [4_500, -0.5, 1.3, 'bell'],
+      [7_000, -2, 2, 'bell'], [11_000, -1, 0.7, 'high-shelf'],
     ]);
-    mic(processors, 'compressor').parameters = { thresholdDb: -20, ratio: 3, attackMs: 15, releaseMs: 200, makeupDb: 2.5 };
+    mic(processors, 'compressor').parameters = { thresholdDb: -20, ratio: 2.5, attackMs: 20, releaseMs: 220, makeupDb: 2 };
   }),
   microphonePreset('mic-warm-smooth', 'Warm & Smooth', (processors) => {
-    mic(processors, 'noise-suppression').parameters.amount = 50;
+    mic(processors, 'noise-suppression').parameters.amount = 35;
     mic(processors, 'equalizer').parameters.bands = bands('mic-warm', [
-      [140, 1.5, 0.7, 'low-shelf'], [300, -1, 1, 'bell'], [3_500, -2, 1.5, 'bell'],
-      [6_500, -3, 2.5, 'bell'], [10_000, -2, 0.7, 'high-shelf'],
+      [55, -4, 0.7, 'low-shelf'], [150, 1.5, 0.9, 'bell'], [320, -1.5, 1.2, 'bell'],
+      [800, -0.5, 1.2, 'bell'], [1_800, 0.5, 1, 'bell'], [3_500, -1.5, 1.5, 'bell'],
+      [5_200, -1, 1.8, 'bell'], [7_000, -2.5, 2.2, 'bell'], [11_000, -1.5, 0.7, 'high-shelf'],
     ]);
     mic(processors, 'compressor').parameters = { thresholdDb: -18, ratio: 2.5, attackMs: 15, releaseMs: 200, makeupDb: 2 };
   }),
   microphonePreset('mic-podcast', 'Podcast', (processors) => {
-    mic(processors, 'noise-suppression').parameters.amount = 60;
-    mic(processors, 'noise-gate').parameters.thresholdDb = -46;
+    mic(processors, 'noise-suppression').parameters.amount = 35;
+    mic(processors, 'noise-gate').parameters = { thresholdDb: -56, attackMs: 3, releaseMs: 280 };
     mic(processors, 'equalizer').parameters.bands = bands('mic-podcast', [
-      [90, 1, 0.7, 'low-shelf'], [230, -2, 1.2, 'bell'], [2_500, 2, 1, 'bell'],
-      [5_500, 1, 1, 'bell'], [7_500, -2, 3, 'bell'], [11_000, 1.5, 0.7, 'high-shelf'],
+      [60, -5, 0.7, 'low-shelf'], [140, 1, 0.9, 'bell'], [280, -2, 1.2, 'bell'],
+      [550, -1, 1.2, 'bell'], [1_200, 0.5, 1, 'bell'], [2_500, 2, 1, 'bell'],
+      [4_500, 0.5, 1.2, 'bell'], [7_000, -2.5, 2.5, 'bell'], [12_000, 1, 0.7, 'high-shelf'],
     ]);
     mic(processors, 'compressor').parameters = { thresholdDb: -20, ratio: 2.5, attackMs: 20, releaseMs: 250, makeupDb: 2 };
   }),
   microphonePreset('mic-broadcast', 'Broadcast', (processors) => {
-    mic(processors, 'gain').parameters.gainDb = 1.5;
-    mic(processors, 'noise-suppression').parameters.amount = 55;
+    mic(processors, 'noise-suppression').parameters.amount = 45;
+    mic(processors, 'noise-gate').parameters.thresholdDb = -50;
     mic(processors, 'equalizer').parameters.bands = bands('mic-broadcast', [
-      [100, 3, 0.7, 'low-shelf'], [250, -1, 1, 'bell'], [500, -2.5, 1.1, 'bell'],
-      [3_000, 3, 1.1, 'bell'], [6_000, 1, 1, 'bell'], [10_000, 2, 0.7, 'high-shelf'],
+      [55, -6, 0.7, 'low-shelf'], [120, 2.5, 0.9, 'bell'], [220, 0.5, 1, 'bell'],
+      [380, -2, 1.2, 'bell'], [750, -1, 1.3, 'bell'], [1_700, 1, 1, 'bell'],
+      [3_000, 2.5, 1.1, 'bell'], [4_800, 0.5, 1.2, 'bell'],
+      [7_200, -2.5, 2.2, 'bell'], [12_000, 1, 0.7, 'high-shelf'],
     ]);
-    mic(processors, 'compressor').parameters = { thresholdDb: -24, ratio: 4, attackMs: 5, releaseMs: 120, makeupDb: 4 };
+    mic(processors, 'compressor').parameters = { thresholdDb: -22, ratio: 3.5, attackMs: 10, releaseMs: 180, makeupDb: 3 };
   }),
   microphonePreset('mic-crisp', 'Crisp', (processors) => {
-    mic(processors, 'noise-suppression').parameters.amount = 55;
+    mic(processors, 'noise-suppression').parameters.amount = 40;
     mic(processors, 'equalizer').parameters.bands = bands('mic-crisp', [
-      [100, -3, 0.7, 'low-shelf'], [300, -1.5, 1, 'bell'], [3_500, 3, 1.1, 'bell'],
-      [8_000, 1.5, 1, 'bell'], [12_000, 3, 0.7, 'high-shelf'],
+      [70, -5, 0.7, 'low-shelf'], [180, -1, 1, 'bell'], [350, -1.5, 1.2, 'bell'],
+      [900, -0.5, 1.2, 'bell'], [2_000, 1, 1, 'bell'], [3_500, 2.5, 1.1, 'bell'],
+      [5_000, 0.5, 1.2, 'bell'], [7_500, -2, 2.5, 'bell'], [12_000, 2, 0.7, 'high-shelf'],
     ]);
     mic(processors, 'compressor').parameters = { thresholdDb: -20, ratio: 3, attackMs: 10, releaseMs: 160, makeupDb: 2 };
   }),
   microphonePreset('mic-streamer', 'Streamer', (processors) => {
-    mic(processors, 'noise-suppression').parameters.amount = 65;
-    mic(processors, 'noise-gate').parameters = { thresholdDb: -42, attackMs: 5, releaseMs: 160 };
+    mic(processors, 'noise-suppression').parameters.amount = 60;
+    mic(processors, 'noise-gate').parameters = { thresholdDb: -48, attackMs: 3, releaseMs: 200 };
     mic(processors, 'equalizer').parameters.bands = bands('mic-streamer', [
-      [90, -2, 0.7, 'low-shelf'], [250, -1.5, 1, 'bell'], [2_500, 3, 1, 'bell'],
-      [5_000, 1.5, 1, 'bell'], [10_000, 1, 0.7, 'high-shelf'],
+      [75, -6, 0.7, 'low-shelf'], [160, 0.5, 1, 'bell'], [300, -2, 1.2, 'bell'],
+      [650, -1, 1.2, 'bell'], [1_500, 0.5, 1, 'bell'], [2_500, 2.5, 1, 'bell'],
+      [4_500, 1, 1.2, 'bell'], [6_500, -1.5, 2, 'bell'],
+      [8_500, -1, 2, 'bell'], [12_000, 0.5, 0.7, 'high-shelf'],
     ]);
-    mic(processors, 'compressor').parameters = { thresholdDb: -26, ratio: 5, attackMs: 3, releaseMs: 100, makeupDb: 6 };
+    mic(processors, 'compressor').parameters = { thresholdDb: -22, ratio: 3.5, attackMs: 10, releaseMs: 180, makeupDb: 3 };
     mic(processors, 'limiter').parameters.thresholdDb = -1;
   }),
   microphonePreset('mic-noisy-room', 'Noisy Room', (processors) => {
-    mic(processors, 'noise-suppression').parameters.amount = 85;
-    mic(processors, 'noise-gate').parameters = { thresholdDb: -38, attackMs: 5, releaseMs: 150 };
+    mic(processors, 'noise-suppression').parameters.amount = 80;
+    mic(processors, 'noise-gate').parameters = { thresholdDb: -46, attackMs: 3, releaseMs: 220 };
     mic(processors, 'equalizer').parameters.bands = bands('mic-noisy', [
-      [120, -4, 0.7, 'low-shelf'], [250, -1, 1, 'bell'], [3_000, 3, 1.1, 'bell'],
-      [6_500, -1, 1.5, 'bell'], [10_000, -2, 0.7, 'high-shelf'],
+      [100, -8, 0.7, 'low-shelf'], [200, -2, 1, 'bell'], [400, -1.5, 1.2, 'bell'],
+      [800, -0.5, 1.2, 'bell'], [1_800, 1, 1, 'bell'], [3_000, 2, 1.1, 'bell'],
+      [4_800, 0.5, 1.2, 'bell'], [7_000, -2, 2, 'bell'], [11_000, -2, 0.7, 'high-shelf'],
     ]);
-    mic(processors, 'compressor').parameters = { thresholdDb: -22, ratio: 3, attackMs: 10, releaseMs: 150, makeupDb: 2 };
+    mic(processors, 'compressor').parameters = { thresholdDb: -20, ratio: 2.5, attackMs: 12, releaseMs: 200, makeupDb: 1.5 };
   }),
   microphonePreset('mic-studio', 'Studio', (processors) => {
     mic(processors, 'noise-suppression').parameters.amount = 20;
-    mic(processors, 'noise-gate').parameters.thresholdDb = -56;
-    mic(processors, 'compressor').parameters = { thresholdDb: -16, ratio: 2.2, attackMs: 18, releaseMs: 220, makeupDb: 1 };
+    mic(processors, 'noise-gate').enabled = false;
+    mic(processors, 'equalizer').parameters.bands = bands('mic-studio', [
+      [50, -3, 0.7, 'low-shelf'], [150, 0.5, 0.8, 'bell'], [300, -0.75, 1, 'bell'],
+      [700, -0.25, 1, 'bell'], [1_800, 0.25, 1, 'bell'], [3_200, 0.75, 1, 'bell'],
+      [7_000, -1, 2, 'bell'], [12_000, 0.5, 0.7, 'high-shelf'],
+    ]);
+    mic(processors, 'compressor').parameters = { thresholdDb: -16, ratio: 1.8, attackMs: 25, releaseMs: 250, makeupDb: 1 };
   }),
 ];
 
 export const audioPresetDescriptions: Record<string, string> = {
   'game-flat': 'Uncolored EQ with peak limiting.',
-  'game-competitive-fps': 'Less bass, more upper-mid detail and a narrower loudness range.',
-  'game-immersive': 'Fuller bass and brighter highs. Stereo tone shaping.',
-  'game-night': 'Less bass and softer peaks for lower-volume play.',
+  'game-competitive-fps': 'Less bass masking, focused upper-mid detail and modest leveling. No positional enhancement.',
+  'game-immersive': 'Fuller sub-bass, clearer mids and softened sharp highs. Original dynamics preserved.',
+  'game-night': 'Reduced bass and treble with firmer compression and a lower peak ceiling.',
   'chat-natural': 'Uncolored voices with peak limiting.',
-  'chat-clear-voice': 'Speech presence with leveling for quieter voices.',
-  'chat-reduced-bass': 'Reduces low-end rumble without compressing voices.',
+  'chat-clear-voice': 'Less low-mid buildup, speech presence and softer sharp highs, with restrained voice leveling.',
+  'chat-reduced-bass': 'Reduces boomy voices and rumble with light treble smoothing. No compression or leveling.',
   'media-flat': 'Uncolored EQ with peak limiting.',
-  'media-music': 'A gentle bass and treble lift; dynamics preserved.',
-  'media-movies': 'Fuller bass, dialogue presence and volume leveling.',
-  'media-warm': 'Fuller lows with softer upper mids and treble.',
-  'media-dialogue': 'Less rumble and more speech presence with gentle compression.',
-  'mic-natural-voice': 'Light cleanup and presence for everyday speech.',
-  'mic-clear-speech': 'Stronger cleanup and speech presence.',
-  'mic-deep-voice': 'More chest and low-end body with the mud cleared out. Tone only; pitch is unchanged.',
-  'mic-warm-smooth': 'Softens harsh highs and sibilance. Good for bright USB condenser mics.',
-  'mic-podcast': 'Warm and clear with gentle de-essing and relaxed leveling.',
-  'mic-broadcast': 'Radio-style: full low end, forward presence and firm compression.',
-  'mic-crisp': 'Less boom, more clarity and air. Good for thin or distant mics.',
-  'mic-streamer': 'Loud, consistent voice that cuts through game audio.',
-  'mic-noisy-room': 'Heavy noise removal, a tighter gate and fan rumble cut.',
-  'mic-studio': 'Lighter cleanup and compression to preserve dynamics.',
+  'media-music': 'Gentle bass and air, cleaner low mids and softer sharp highs. Original dynamics preserved.',
+  'media-movies': 'Low-end weight and dialogue presence with modest volume leveling.',
+  'media-warm': 'Fuller body with softer upper mids and treble. No compression or leveling.',
+  'media-dialogue': 'Less bass masking and clearer speech with gentle compression and softened sharp highs.',
+  'mic-natural-voice': 'Gentle rumble reduction, light presence and relaxed leveling for everyday speech.',
+  'mic-clear-speech': 'Less low-mid buildup and more speech presence, with a softer sibilance range.',
+  'mic-deep-voice': 'More chest and body without boosting sub-bass rumble. Tone only; pitch is unchanged.',
+  'mic-warm-smooth': 'Adds body and softens upper-mid bite and sharp highs on bright microphones.',
+  'mic-podcast': 'Warm body, clear words and relaxed leveling. A fixed treble dip softens sibilance.',
+  'mic-broadcast': 'Full body, forward presence and firm leveling with controlled low-end rumble.',
+  'mic-crisp': 'Presence and air for a muffled voice, with a dip around sharp S sounds.',
+  'mic-streamer': 'Forward speech and steady levels with background cleanup and restrained makeup gain.',
+  'mic-noisy-room': 'Stronger noise removal and low-end reduction. Adjust the gate to your speaking level.',
+  'mic-studio': 'Subtle tone shaping and light leveling. Gate off to preserve quiet words and decay.',
 };
 
 export function snapshotAudioPathPreset(
@@ -331,31 +374,11 @@ export function snapshotAudioPathPreset(
 
 export function applyAudioPathPreset(audio: AudioState, preset: AudioPathPreset): void {
   if (preset.kind === 'microphone') {
-    const currentMonitoringDeviceId = audio.monitoringDeviceId;
+    // A voice preset is the processing chain. Monitoring (on/off, output, volume) is a listening
+    // preference: it stays exactly as the user set it when presets change. The preset's stored
+    // monitoring block is kept for file compatibility and ignored here.
     audio.micProcessors = clone(preset.processors);
-    audio.monitoring = preset.monitoring.level;
-    const monitoringDevice = audio.devices.find((device) => (
-      device.id === preset.monitoring.deviceId
-      && device.direction === 'output'
-      && device.available
-      && !device.isSwitchboard
-    )) ?? audio.devices.find((device) => (
-      device.id === currentMonitoringDeviceId
-      && device.direction === 'output'
-      && device.available
-      && !device.isSwitchboard
-    )) ?? audio.devices.find((device) => (
-      device.direction === 'output'
-      && device.available
-      && device.isDefault
-      && !device.isSwitchboard
-    ));
-    audio.monitoringDeviceId = monitoringDevice?.id ?? '';
-    audio.monitoringEnabled = preset.monitoring.enabled && Boolean(monitoringDevice);
-    audio.activePresetIds.microphone = audio.monitoringEnabled === preset.monitoring.enabled
-      && audio.monitoringDeviceId === preset.monitoring.deviceId
-      ? preset.id
-      : null;
+    audio.activePresetIds.microphone = preset.id;
     return;
   }
 
@@ -370,8 +393,18 @@ export function findMatchingAudioPresetId(audio: AudioState, kind: AudioPathId):
   const current = snapshotAudioPathPreset(audio, kind, 'current', 'Current');
   // Band IDs identify editor nodes, not the sound. Imported/recreated nodes may
   // have different IDs while preserving all processor values and their order.
-  const soundKey = (preset: AudioPathPreset) => JSON.stringify(preset, (key, value) =>
-    key === 'bands' && Array.isArray(value) ? value.map(({ id: _id, ...band }) => band) : value);
+  // Monitoring is not part of a preset's sound, so it never affects matching.
+  // Schema parsing and JSON imports can reorder object fields. Sort object keys
+  // while preserving processor/band array order so persistence cannot turn an
+  // unchanged sound into Custom. Processor IDs remain part of the comparison.
+  const soundKey = (preset: AudioPathPreset) => JSON.stringify(preset, (key, value) => {
+    if (key === 'monitoring') return undefined;
+    if (key === 'bands' && Array.isArray(value)) return value.map(({ id: _id, ...band }) => band);
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)));
+    }
+    return value;
+  });
   for (const preset of audio.pathPresets) {
     if (preset.kind !== kind) continue;
     const candidate = { ...preset, id: 'current', name: 'Current', builtIn: false };

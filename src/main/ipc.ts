@@ -1,4 +1,4 @@
-import { audioSetupActionSchema } from '../shared/contracts';
+import { audioSetupActionSchema, openTrackActionSchema } from '../shared/contracts';
 import { debugDiagnostics } from './services/debug-diagnostics';
 import { snapshotStreamChannel } from '../shared/snapshot-stream';
 import { WindowSnapshotDelivery } from './services/window-snapshot-delivery';
@@ -137,6 +137,7 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   handle(ipcChannels.runDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.runDiagnostics());
   handle(ipcChannels.cancelDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.cancelDiagnostics());
   handle(ipcChannels.audioDependencySetup, getMainWindow, input => audioSetupActionSchema.parse(input), action => controller.audioDependencySetup(action));
+  handle(ipcChannels.openTrackSetup, getMainWindow, input => openTrackActionSchema.parse(input), action => controller.openTrackSetup(action));
   const audioMeterDelivery = new AudioMeterDeliveryGate(() => controller.setAudioMeteringRequested(false));
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow, ipcChannels.getSnapshot);

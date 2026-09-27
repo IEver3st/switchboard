@@ -1,0 +1,190 @@
+{
+  "hardwareAcceleration": true,
+  "sampleDurationMs": 5000,
+  "initial": {
+    "heapMb": 20,
+    "domNodes": 953,
+    "images": 23,
+    "decodedImages": 23,
+    "cards": 22,
+    "privateMb": 863,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 131
+      },
+      {
+        "type": "GPU",
+        "privateMb": 628
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 92
+      }
+    ]
+  },
+  "snapshotTaskMs": 80,
+  "afterUpdates": {
+    "heapMb": 20,
+    "domNodes": 953,
+    "images": 23,
+    "decodedImages": 23,
+    "cards": 22,
+    "privateMb": 854,
+    "processes": [
+      {
+        "type": "Browser",
+        "privateMb": 133
+      },
+      {
+        "type": "GPU",
+        "privateMb": 610
+      },
+      {
+        "type": "Utility",
+        "privateMb": 12
+      },
+      {
+        "type": "Tab",
+        "privateMb": 99
+      }
+    ]
+  },
+  "settingsSamples": [
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 869,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 131
+        },
+        {
+          "type": "GPU",
+          "privateMb": 624
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 102
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 869,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 131
+        },
+        {
+          "type": "GPU",
+          "privateMb": 624
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 102
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 869,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 131
+        },
+        {
+          "type": "GPU",
+          "privateMb": 624
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 102
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 869,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 131
+        },
+        {
+          "type": "GPU",
+          "privateMb": 624
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 102
+        }
+      ]
+    },
+    {
+      "heapMb": 20,
+      "domNodes": 248,
+      "images": 1,
+      "decodedImages": 1,
+      "cards": 0,
+      "privateMb": 869,
+      "processes": [
+        {
+          "type": "Browser",
+          "privateMb": 131
+        },
+        {
+          "type": "GPU",
+          "privateMb": 624
+        },
+        {
+          "type": "Utility",
+          "privateMb": 12
+        },
+        {
+          "type": "Tab",
+          "privateMb": 102
+        }
+      ]
+    }
+  ],
+  "profile": "C:\\Users\\User\\AppData\\Local\\Temp\\switchboard-library-performance-BSlWwD"
+}

@@ -14,11 +14,12 @@ export function MicrophoneTest({ support, pending = false, compact = false, onRe
         type="button"
         variant="secondary"
         size="sm"
+        className={compact ? 'microphone-test__button' : undefined}
         disabled={!recordable || pending}
         aria-describedby="microphone-test-status"
         onClick={onRecord}
       >
-        <Circle className="size-3.5 fill-current" /> Test microphone
+        <Circle className={compact ? 'size-2.5 fill-current' : 'size-3.5 fill-current'} /> {compact ? 'Test' : 'Test microphone'}
       </Button>
       <p id="microphone-test-status" className={compact ? 'sr-only' : undefined}>
         {pending ? 'Recording and playing your processed microphone sample…' : recordable ? 'Record a short sample and hear your current processing.' : unavailableMessage}

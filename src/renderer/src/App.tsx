@@ -237,5 +237,12 @@ export function App() {
 }
 
 function PageLoading({ label }: { label: string }) {
-  return <div className="grid h-full place-items-center text-xs text-muted-foreground" role="status">Loading {label}…</div>;
+  return (
+    <div className="page-loading" role="status" aria-live="polite" aria-busy="true">
+      <div className="page-loading__content">
+        <span className="startup-spinner" aria-hidden="true" />
+        <span>Loading {label}</span>
+      </div>
+    </div>
+  );
 }

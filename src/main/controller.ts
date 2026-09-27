@@ -1,6 +1,8 @@
+import { resolveReplayAudioRouting } from '../shared/capture-audio-routing';
 import { AudioDependencySetup } from './services/audio-dependency-setup';
 import { normalizeVisibleWorkspaces } from '../shared/workspace-profile';
 import { WindowsAudioDependencies } from './services/windows-audio-dependencies';
+import { OpenTrackSetup } from './services/opentrack-setup';
 import type { AudioSetupAction } from '../shared/contracts';
 import { applyApplicationRoutingPreference } from '../shared/audio-routing';
 import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput } from '../shared/contracts';
@@ -62,6 +64,7 @@ import {
   type AudioMeterFrame,
   type AudioHostSnapshot,
   type SetSpatialAudioInput,
+  type OpenTrackAction,
   type ApplyAudioPresetInput,
   type AutoCaptureSettingsPatch,
   type AutoCaptureTestEventInput,
@@ -124,7 +127,7 @@ import { applyClipTrackLevel, hasEffectiveClipMixChanged, resolveClipTrackLevel 
 import type { FeedbackEnvironment } from '../shared/feedback-report';
 import { isAudioTransport, reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
-import { ClipLibraryService, mergeReconciledClips, selectShareVideoEncoder } from './services/clip-library';
+import { ClipLibraryService, mergeReconciledClips, registerSavedClip, selectShareVideoEncoder } from './services/clip-library';
 import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
 import { AudioConfiguration, applyAudioPreferenceChanges, assertAudioConfigurationApplied } from './services/audio-configuration';
 import { AppUpdateService, type AppUpdatePreferences } from './services/app-update-service';
@@ -225,8 +228,8 @@ export class AppController {
     if (config.microphoneDeviceId && !host.microphoneDeviceId && !host.processedMicrophoneDeviceId
       || config.systemAudioDeviceId && !host.systemAudioDeviceId)
       throw new Error('A selected audio device is unavailable. Reconnect it before calibration.');
-    if (!config.includeMic || !config.includeSystemAudio || config.systemAudioMode !== 'system' || host.clipMixPipeName)
-      throw new Error('Calibration needs the microphone and an output-device Game track. Select All audio from output device and an explicit output when using the Switchboard clip mix.');
+    if (!config.includeMic || !config.includeSystemAudio || config.systemAudioMode !== 'system' || host.clipMixPipeName || host.systemAudioPipeName || host.microphonePipeName)
+      throw new Error('Calibration needs explicit microphone and output devices when using Switchboard recording feeds. Select those devices in Capture audio inputs.');
     return { microphoneDeviceId: (host.processedMicrophoneDeviceId ?? host.microphoneDeviceId) as string | null,
       outputDeviceId: host.systemAudioDeviceId as string | null };
   }
@@ -275,6 +278,7 @@ export class AppController {
   private clipReconciliationQueued = false;
   private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
   private readonly audioDependencies: AudioDependencySetup;
+  private readonly openTrack: OpenTrackSetup;
   private readonly gameDiscovery: GameDiscoveryService;
   private readonly appUpdates: AppUpdateService;
   private readonly performance: PerformanceMonitor;
@@ -408,6 +412,8 @@ export class AppController {
       join(process.env.LOCALAPPDATA ?? join(app.getPath('appData'), '..', 'Local'), 'Switchboard', 'Audio Setup'),
       () => this.audioEndpointDiscovery.setupCommand(),
     ), state => { if (!this.disposed) this.store.updateBranches(['audio'], draft => { draft.audio.dependencies = state; }, { persist: false }); });
+    this.openTrack = new OpenTrackSetup(process.env.LOCALAPPDATA ?? join(app.getPath('appData'), '..', 'Local'),
+      state => { if (!this.disposed) this.store.updateBranches(['audio'], draft => { draft.audio.openTrack = state; }, { persist: false }); });
     this.gameDiscovery = new GameDiscoveryService({
       extractExecutableIcon: async (executablePath) => {
         const icon = await app.getFileIcon(executablePath, { size: 'normal' });
@@ -1109,6 +1115,12 @@ export class AppController {
     return this.store.get();
   }
 
+  public openTrackSetup(action: OpenTrackAction): SystemSnapshot {
+    if (action === 'cancel') this.openTrack.cancel();
+    else this.openTrack.start(action === 'install');
+    return this.store.get();
+  }
+
   public async setAudioEnabled(enabled: boolean): Promise<SystemSnapshot> {
     if (enabled) await this.initialize();
     return this.audioConfiguration.run(() => this.setAudioEnabledCore(enabled));
@@ -1336,7 +1348,9 @@ export class AppController {
 
   public setSpatialAudio(input: SetSpatialAudioInput): Promise<SystemSnapshot> {
     return this.updateAudioConfiguration(draft => {
-      draft.audio.spatial = { ...draft.audio.spatial, ...input };
+      const { channel, stage, ...tracking } = input;
+      draft.audio.spatial = { ...draft.audio.spatial, ...tracking };
+      if (channel && stage) draft.audio.spatial.channels[channel] = { ...draft.audio.spatial.channels[channel], ...stage };
     });
   }
 
@@ -1352,7 +1366,7 @@ export class AppController {
   public connectHeadsetTracking(): Promise<SystemSnapshot> {
     return this.audioConfiguration.run(async () => {
       if (!this.store.read('audio').enabled) throw new Error('Start the audio engine before connecting the headset sensor.');
-      const host = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'connectHeadsetTracking', {}, 15_000));
+      const host = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'connectHeadsetTracking', {}, 90_000));
       this.applyAudioHostSnapshot(host);
       return this.store.get();
     });
@@ -1679,7 +1693,7 @@ export class AppController {
     overrides: Pick<Clip, 'name' | 'game' | 'autoCapture'> | Partial<Pick<Clip, 'name' | 'game' | 'autoCapture'>> = {},
   ): SystemSnapshot {
     const game = overrides.game ?? result.game ?? undefined;
-    const clip: Clip = {
+    let clip: Clip = {
       id: randomUUID(),
       path: result.path,
       name: overrides.name ?? createDefaultClipTitle(game, result.createdAt),
@@ -1699,7 +1713,7 @@ export class AppController {
     };
     const updated = this.store.update((draft) => {
       draft.capture.runtime.lastSavedAt = new Date(result.createdAt).toISOString();
-      draft.clips.unshift(clip);
+      clip = registerSavedClip(draft.clips, clip);
       draft.capture.storage.clipsBytes = draft.clips.reduce((sum, candidate) => sum + candidate.fileSize, 0);
     });
     this.clipLibrary.enqueueThumbnail(clip, (enrichment) => {
@@ -2585,9 +2599,9 @@ export class AppController {
   }
 
   public async dispose(): Promise<void> {
-    await this.audioSyncCalibration.dispose();
     this.disposed = true;
     this.audioDependencies.dispose();
+    this.openTrack.dispose();
     await this.audioSyncCalibration.dispose();
     this.communityModules.dispose();
     await this.moduleOperation;
@@ -2927,14 +2941,7 @@ export class AppController {
   private toHostSettings(config: CaptureConfig, paths = this.capturePaths): Record<string, unknown> {
     const audio = this.store.read('audio');
     const reaction = this.store.read('capture').autoCapture.settings.reactionClipping;
-    const switchboardAudioReady = audio.enabled
-      && audio.host?.running === true
-      && (audio.capabilities.clipMix === 'available' || audio.capabilities.virtualChannels === 'available')
-      && (audio.capabilities.routingBackend !== 'vb-cable'
-        || audio.applications.some(application => application.routingState === 'applied'));
-    const processedMicrophone = audio.host?.driver.endpoints.find((endpoint) => (
-      endpoint.flow === 'capture' && endpoint.name === 'Switchboard Audio - Microphone'
-    ));
+    const replayAudio = resolveReplayAudioRouting(audio, config, reaction.enabled);
     const processedMicrophoneRequested = config.includeMic || reaction.enabled;
     const routingState = { ...audio, capture: config };
     const microphoneDeviceId = processedMicrophoneRequested
@@ -2946,9 +2953,6 @@ export class AppController {
     const chatAudioDeviceId = config.includeChatAudio
       ? resolveCaptureChatAudioDeviceId(routingState)
       : null;
-    const requestedSwitchboardAudioReady = switchboardAudioReady
-      && (!processedMicrophoneRequested || processedMicrophone !== undefined);
-    const usesExplicitSystemDevice = config.includeSystemAudio && systemAudioDeviceId !== null;
     const { defaultTrackLevels: _defaultTrackLevels, ...hostConfig } = config;
     void _defaultTrackLevels;
     return {
@@ -2957,26 +2961,25 @@ export class AppController {
       cacheDirectory: paths.cacheDirectory,
       clipsDirectory: paths.clipsDirectory,
       thumbnailDirectory: paths.thumbnailDirectory,
-      clipMixPipeName: config.systemAudioMode !== 'game' && switchboardAudioReady && config.includeSystemAudio && !usesExplicitSystemDevice ? 'switchboard-audio-clip-v1' : null,
-      processedMicrophoneDeviceId: switchboardAudioReady && processedMicrophoneRequested
-        ? processedMicrophone?.id ?? null
-        : null,
+      ...replayAudio,
+      clipMixPipeName: null,
+      processedMicrophoneDeviceId: null,
       microphoneDeviceId,
       systemAudioDeviceId,
       chatAudioDeviceId,
       reactionClippingEnabled: reaction.enabled,
       reactionSensitivity: reaction.sensitivity,
       reactionCooldownSeconds: reaction.cooldownSeconds,
-      audioFallbackReason: config.systemAudioMode === 'game' || requestedSwitchboardAudioReady || (!config.includeSystemAudio && !config.includeChatAudio && !processedMicrophoneRequested)
-        ? null
-        : 'Switchboard audio routing is unavailable for one or more replay inputs; Windows default devices are being used where needed.',
+
     };
   }
 
   private getCaptureAudioIntegrationSignature(config: CaptureConfig): string {
     const settings = this.toHostSettings(config);
     return JSON.stringify([
-      settings.clipMixPipeName ?? null,
+      settings.systemAudioPipeName ?? null,
+      settings.chatAudioPipeName ?? null,
+      settings.microphonePipeName ?? null,
       settings.processedMicrophoneDeviceId ?? null,
       settings.microphoneDeviceId ?? null,
       settings.systemAudioDeviceId ?? null,
@@ -3003,6 +3006,7 @@ export class AppController {
 
     const previousSignature = this.captureAudioIntegrationSignature;
     this.captureAudioIntegrationSignature = signature;
+    let applied = false;
     this.captureAudioIntegrationUpdate = this.engines.request(
       'capture',
       'configure',
@@ -3010,6 +3014,7 @@ export class AppController {
       45_000,
     ).then((raw) => {
       this.applyCaptureSnapshot(captureHostSnapshotSchema.parse(raw));
+      applied = true;
     }).catch((integrationError) => {
       this.captureAudioIntegrationSignature = previousSignature;
       if (this.disposed) return;
@@ -3018,7 +3023,7 @@ export class AppController {
       }, { persist: false });
     }).finally(() => {
       this.captureAudioIntegrationUpdate = null;
-      if (this.getCaptureAudioIntegrationSignature(this.store.read('capture').config) !== this.captureAudioIntegrationSignature) {
+      if (applied && this.getCaptureAudioIntegrationSignature(this.store.read('capture').config) !== this.captureAudioIntegrationSignature) {
         this.scheduleCaptureAudioIntegrationSync();
       }
     });

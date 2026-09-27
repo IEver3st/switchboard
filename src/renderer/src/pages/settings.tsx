@@ -1,3 +1,4 @@
+import { resolveReplayAudioRouting } from '../../../shared/capture-audio-routing';
 import { AudioDependencySetupPanel } from '@/components/settings/audio-dependency-setup';
 import { ApplicationRoutingSettings } from '@/components/settings/application-routing-settings';
 import { pickableAudioDevices } from '@/components/audio/AudioDevicePicker';
@@ -623,7 +624,7 @@ function captureViewForSetting(id: string): CaptureView {
   if (id.startsWith('capture.audioSync')) return 'audio';
   if (id.startsWith('reactionClipping.')) return 'reactions';
   if (id.startsWith('autocapture.')) return 'automatic';
-  if (['capture.microphone', 'capture.systemAudio', 'capture.systemAudioMode', 'capture.chatAudio', 'capture.audioDevices'].includes(id)) return 'audio';
+  if (['capture.microphone', 'capture.systemAudio', 'capture.systemAudioMode', 'capture.chatAudio'].includes(id) || id.startsWith('capture.audioDevices')) return 'audio';
   return 'recording';
 }
 
@@ -820,74 +821,71 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
     && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
   const gameAndChatSame = config.systemAudioMode !== 'game' && config.includeSystemAudio && config.includeChatAudio
     && Boolean(config.systemAudioDeviceId) && config.systemAudioDeviceId === config.chatAudioDeviceId;
+  const routing = resolveReplayAudioRouting(snapshot.audio, config);
+  const hostUnsupported = !systemAvailable && !micAvailable;
+  const status = (text: string | null | false | undefined, tone: 'warning' | 'neutral' = 'warning') => text
+    ? <span className="settings-capture-devices__status" data-tone={tone} role="status">{text}</span>
+    : null;
 
+  // Each track is an ordinary setting row, matching the rest of the page.
   return (
-    <SettingRow
-      settingId="capture.audioDevices"
-      title="Replay audio devices"
-      description="Choose which Game, Chat, and Microphone devices feed Instant Replay. Each stays on its own track."
-      className="settings-capture-devices-block"
-      controlClassName="settings-capture-devices-control"
-    >
-      <div className="settings-capture-devices">
-        <div className="settings-capture-devices__field">
-          <span id="capture-device-game-label">Game device</span>
-          <CaptureAudioDeviceSelect
-            label="Game audio device"
-            triggerId="capture-device-game-label"
-            value={config.systemAudioDeviceId}
-            devices={outputDevices}
-            automaticLabel={gameAutomaticLabel(snapshot)}
-            disabled={!systemAvailable || !config.includeSystemAudio || config.systemAudioMode === 'game'}
-            onChange={(systemAudioDeviceId) => void setCaptureConfig({ systemAudioDeviceId })}
-          />
-        </div>
-        <div className="settings-capture-devices__field">
-          <span id="capture-device-chat-label">Chat device</span>
-          <CaptureAudioDeviceSelect
-            label="Chat audio device"
-            triggerId="capture-device-chat-label"
-            value={config.chatAudioDeviceId}
-            devices={outputDevices}
-            automaticLabel={chatAutomaticLabel()}
-            disabled={!systemAvailable || !config.includeChatAudio}
-            onChange={(chatAudioDeviceId) => void setCaptureConfig({ chatAudioDeviceId })}
-          />
-        </div>
-        <div className="settings-capture-devices__field">
-          <span id="capture-device-mic-label">Microphone device</span>
-          <CaptureAudioDeviceSelect
-            label="Microphone device"
-            triggerId="capture-device-mic-label"
-            value={config.microphoneDeviceId}
-            devices={inputDevices}
-            automaticLabel={micAutomaticLabel(snapshot)}
-            disabled={!micAvailable || !config.includeMic}
-            onChange={(microphoneDeviceId) => void setCaptureConfig({ microphoneDeviceId })}
-          />
-        </div>
-        {config.systemAudioMode === 'game' ? <p className="settings-capture-devices__note">Only the selected game's or window's process and its child processes feed the Game track. Microphone and Chat remain separate inputs.{config.includeChatAudio ? ' Chat can still include other desktop sounds depending on the chosen output.' : ''}</p> : null}
-        {!systemAvailable && !micAvailable ? (
-          <p className="settings-capture-devices__note" role="status">
-            The capture host has not reported audio support yet. Device choices unlock once support is available.
-          </p>
-        ) : (
-          <p className="settings-capture-devices__note">
-            Sonar users can assign Sonar Game, Sonar Chat, and the microphone to separate inputs.
-          </p>
-        )}
-        {explicitMicUnavailable && config.includeMic ? (
-          <p className="settings-capture-devices__note settings-capture-devices__note--warning" role="status">
-            The selected microphone is not currently available. Reconnect it or choose another input.
-          </p>
-        ) : null}
-        {gameAndChatSame ? (
-          <p className="settings-capture-devices__note settings-capture-devices__note--warning" role="status">
-            Game and chat are using the same output, so their tracks will contain the same sound. Choose different devices to keep them separate.
-          </p>
-        ) : null}
-      </div>
-    </SettingRow>
+    <>
+      <SettingRow
+        settingId="capture.audioDevices"
+        title="Game track"
+        description={<>
+          {config.systemAudioMode === 'game'
+            ? 'Only the selected game or window and its child processes.'
+            : 'Game and media audio share this track. Automatic follows Switchboard when it is recording.'}
+          {hostUnsupported
+            ? status('Device choices unlock once the capture host reports audio support.', 'neutral')
+            : status(routing.audioFallbackReason)}
+        </>}
+      >
+        <CaptureAudioDeviceSelect
+          label="Game audio device"
+          value={config.systemAudioDeviceId}
+          devices={outputDevices}
+          automaticLabel={gameAutomaticLabel(snapshot)}
+          disabled={!systemAvailable || !config.includeSystemAudio || config.systemAudioMode === 'game'}
+          onChange={(systemAudioDeviceId) => void setCaptureConfig({ systemAudioDeviceId })}
+        />
+      </SettingRow>
+      <SettingRow
+        settingId="capture.audioDevices.chat"
+        title="Chat track"
+        description={<>
+          Discord and other voice chat, kept apart from game audio.
+          {status(gameAndChatSame && 'Same output as the game track, so both tracks will contain the same sound.')}
+        </>}
+      >
+        <CaptureAudioDeviceSelect
+          label="Chat audio device"
+          value={config.chatAudioDeviceId}
+          devices={outputDevices}
+          automaticLabel={chatAutomaticLabel(snapshot)}
+          disabled={!systemAvailable || !config.includeChatAudio}
+          onChange={(chatAudioDeviceId) => void setCaptureConfig({ chatAudioDeviceId })}
+        />
+      </SettingRow>
+      <SettingRow
+        settingId="capture.audioDevices.microphone"
+        title="Microphone track"
+        description={<>
+          Your processed voice on its own track.
+          {status(explicitMicUnavailable && config.includeMic && 'This microphone is not connected. Reconnect it or choose another input.')}
+        </>}
+      >
+        <CaptureAudioDeviceSelect
+          label="Microphone device"
+          value={config.microphoneDeviceId}
+          devices={inputDevices}
+          automaticLabel={micAutomaticLabel(snapshot)}
+          disabled={!micAvailable || !config.includeMic}
+          onChange={(microphoneDeviceId) => void setCaptureConfig({ microphoneDeviceId })}
+        />
+      </SettingRow>
+    </>
   );
 }
 
