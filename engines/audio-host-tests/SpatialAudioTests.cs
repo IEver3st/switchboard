@@ -59,6 +59,9 @@ internal static class SpatialAudioTests
         Check(HidHeadTrackingConnection.SupportsAcl("#AndroidHeadTracker#1.0#") && HidHeadTrackingConnection.SupportsAcl("#AndroidHeadTracker#2.1#3#"), "Compatible head tracker protocol rejected.");
         Check(!HidHeadTrackingConnection.SupportsAcl("#AndroidHeadTracker#2.1#2#") && !HidHeadTrackingConnection.SupportsAcl("#AndroidHeadTracker#3.0#1#"), "Unsupported transport or protocol accepted.");
         Check(Vector3.Transform(Vector3.UnitZ, HidHeadTrackingConnection.AndroidRotation(new Vector3(0, 0, MathF.PI / 2))).X > .99, "Android reference-to-head rotation basis is incorrect.");
+        var calibration = new SpatialSession.Configuration(room, null, null, Quaternion.CreateFromAxisAngle(Vector3.UnitY, 1), 10);
+        Check(Math.Abs(SpatialSession.RelativeRotation(calibration, new(calibration.Center, Stopwatch.GetTimestamp(), 10)).W) > .999, "Calibration must apply within its sensor reference.");
+        Check(Math.Abs(SpatialSession.RelativeRotation(calibration, new(Quaternion.Identity, Stopwatch.GetTimestamp(), 11)).W) > .999, "A sensor reset or reconnect must invalidate old calibration.");
 
         using var session = new SpatialSession();
         var source = new ToneSource();

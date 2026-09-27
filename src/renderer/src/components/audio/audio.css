@@ -1019,3 +1019,20 @@
 @media (max-width: 640px) {
   .spatial-hero__body { grid-template-columns: minmax(0, 1fr); }
 }
+/* Keep routine tracking controls visible in the supported compact windows. */
+@media (max-height: 950px) and (min-width: 761px) {
+  .spatial-page { gap: 12px; }
+  .spatial-hero, .spatial-tracking { padding: 12px 18px; gap: 12px; }
+  .spatial-hero__body { grid-template-columns: minmax(220px, 1fr) minmax(380px, 1fr); gap: 24px; }
+  .spatial-map__board { width: clamp(260px, calc(100vh - 480px), 420px); }
+  .spatial-map { gap: 6px; }
+  .spatial-controls { gap: 8px; }
+  .spatial-field { flex-direction: row; align-items: center; }
+  .spatial-field__label { min-width: 62px; }
+  .spatial-speaker-card { gap: 8px; padding: 10px 12px; }
+  .spatial-speaker-card__fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .spatial-tracking__body { gap: 10px; }
+}
+@media (max-height: 950px) and (min-width: 761px) and (max-width: 1180px) {
+  .spatial-field { grid-column: 1 / -1; }
+}

@@ -111,7 +111,7 @@ export function SpatialAudioPage({ audio }: { audio: AudioState }) {
   const [port, setPort] = useState(String(audio.spatial.trackerPort));
   const board = useRef<HTMLDivElement>(null);
   const dragging = useRef<{ id: SpeakerId; x: number; y: number; moved: boolean; speakers: SpatialSpeaker[] } | null>(null);
-  useEffect(() => { if (!dragging.current) setDraft(audio.spatial.speakers); }, [audio.spatial.speakers]);
+  useEffect(() => { if (!dragging.current && pending === 0) setDraft(audio.spatial.speakers); }, [audio.spatial.speakers, pending]);
   useEffect(() => setPort(String(audio.spatial.trackerPort)), [audio.spatial.trackerPort]);
 
   const settings = audio.spatial;

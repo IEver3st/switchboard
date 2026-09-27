@@ -119,7 +119,7 @@ try {
  await evaluate(`sessionStorage.setItem('switchboard.settings.category','audio');location.hash='settings'`);
  await wait(`Boolean(document.querySelector('[aria-label="Audio driver setup"]'))`);await capture('settings-restart');
  window.reload();await new Promise(r=>window.webContents.once('did-finish-load',r));await wait(`document.body.innerText.includes('Restart Windows to finish')`);
- inventory={...inventory,bootTimeMs:1200000};await click('Check again');await wait(`document.body.innerText.includes('Audio drivers are installed and configured')`);await capture('settings-ready');
+ inventory={...inventory,bootTimeMs:1200000};await click('Check again');await wait(`document.body.innerText.includes('Audio drivers are ready')`);await capture('settings-ready');
  await evaluate(`document.querySelector('[data-setting-id="audio.engine"] [role="switch"]').focus()`);
  window.webContents.sendInputEvent({type:'keyDown',keyCode:'Space'});window.webContents.sendInputEvent({type:'keyUp',keyCode:'Space'});
  await wait(`window.switchboard.getSnapshot().then(s=>s.audio.enabled)`);

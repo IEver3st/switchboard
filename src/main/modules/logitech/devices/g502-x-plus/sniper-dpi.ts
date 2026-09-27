@@ -23,6 +23,7 @@ import type { DeviceControlResult } from '../../../device-module';
 
 const deviceNameFeatureId = 0x0005;
 const unifiedBatteryFeatureId = 0x1004;
+const wirelessDeviceStatusFeatureId = 0x1d4b;
 const adjustableDpiFeatureId = 0x2201;
 const adjustableReportRateFeatureId = 0x8060;
 const rgbEffectsFeatureId = 0x8071;
@@ -172,6 +173,13 @@ export class G502NativeSession implements G502DirectSession {
   private onboardRefreshFailures = 0;
   private onboardRetryAt = 0;
   private buttonReportsNeedRestore = false;
+  private statusRevision = 1;
+  private readStatusRevision = 0;
+  private profileNeedsRefresh = false;
+  private dpiNeedsRefresh = false;
+  private battery: BatteryCapability | undefined;
+  private reportRate: ReportRateCapability | undefined;
+  private linkAvailable = true;
   private unsubscribe: (() => void) | null;
   private closed = false;
 
@@ -181,6 +189,7 @@ export class G502NativeSession implements G502DirectSession {
     private readonly dpiFeatureIndex: number,
     private readonly buttonSpyFeatureIndex: number,
     private readonly batteryFeatureIndex: number | null,
+    private readonly wirelessStatusFeatureIndex: number | null,
     private readonly reportRateFeatureIndex: number | null,
     private readonly onboardProfilesFeatureIndex: number | null,
     private readonly rgbLighting: LogitechRgbEffectsController | null,
@@ -192,6 +201,7 @@ export class G502NativeSession implements G502DirectSession {
   ) {
     this.supportedDpi = supportedDpi;
     this.onboard = onboard;
+    this.profileNeedsRefresh = !onboard;
     this.onboardRefreshedAt = onboard ? Date.now() : 0;
     this.onboardProfileReadAt = this.onboardRefreshedAt;
     const shiftDpi = onboard?.profile.shiftDpi ?? selectShiftDpi(supportedDpi, currentDpi, preferredShiftDpi);
@@ -230,6 +240,7 @@ export class G502NativeSession implements G502DirectSession {
       const dpiFeatureIndex = await transport.getFeatureIndex(deviceIndex, adjustableDpiFeatureId);
       const buttonSpyFeatureIndex = await transport.getFeatureIndex(deviceIndex, mouseButtonSpyFeatureId);
       const batteryFeatureIndex = await transport.getFeatureIndex(deviceIndex, unifiedBatteryFeatureId);
+      const wirelessStatusFeatureIndex = await transport.getFeatureIndex(deviceIndex, wirelessDeviceStatusFeatureId);
       const reportRateFeatureIndex = await transport.getFeatureIndex(deviceIndex, adjustableReportRateFeatureId);
       const rgbEffectsFeatureIndex = await transport.getFeatureIndex(deviceIndex, rgbEffectsFeatureId);
       const perKeyLightingFeatureIndex = await transport.getFeatureIndex(deviceIndex, perKeyLightingV2FeatureId);
@@ -271,6 +282,7 @@ export class G502NativeSession implements G502DirectSession {
         dpiFeatureIndex,
         buttonSpyFeatureIndex,
         batteryFeatureIndex,
+        wirelessStatusFeatureIndex,
         reportRateFeatureIndex,
         onboardProfilesFeatureIndex,
         rgbLighting,
@@ -296,7 +308,7 @@ export class G502NativeSession implements G502DirectSession {
   }
 
   public get isClosed(): boolean {
-    return this.closed;
+    return this.closed || this.transport.isUnavailable === true;
   }
 
   public getCapabilities(policy = defaultMouseBatteryLightingPolicy): Promise<DeviceCapabilities> {
@@ -305,27 +317,40 @@ export class G502NativeSession implements G502DirectSession {
 
   private async readCapabilities(policy: MouseBatteryLightingPolicy): Promise<DeviceCapabilities> {
     if (this.closed) throw new Error('The G502 X Plus native session is closed.');
-    await this.refreshOnboardState();
-    // Starting MouseButtonSpy triggers a purple firmware indicator on G502 X
-    // Plus. Repeating it every discovery makes an Off mouse flash. Arm once,
-    // then only after a failed device read indicates connection recovery.
-    if (this.buttonReportsNeedRestore) {
+    // Healthy discovery projects confirmed state without waking the firmware.
+    // G502 background queries can trigger physical purple indicator flashes.
+    // Refresh only on startup, device/profile notifications, or failed reads.
+    const revision = this.statusRevision;
+    const refresh = this.linkAvailable && revision !== this.readStatusRevision;
+    if (this.linkAvailable && this.profileNeedsRefresh) await this.refreshOnboardState();
+    if (this.linkAvailable && this.buttonReportsNeedRestore) {
       await this.enableButtonReports();
       await this.restoreLightingSelection();
     }
-    const capabilities: DeviceCapabilities = { dpi: await this.getDpiCapability() };
-    try {
-      const reportRate = await this.getReportRateCapability();
-      if (reportRate) capabilities.reportRate = reportRate;
-    } catch (error) {
-      console.warn('Direct G502 X Plus polling rate is temporarily unavailable.', error);
+    if (refresh || (this.linkAvailable && this.dpiNeedsRefresh)) {
+      await this.runtime.refreshBaseDpi();
+      this.dpiNeedsRefresh = false;
     }
-    try {
-      const battery = await this.getBatteryCapability();
-      if (battery) capabilities.battery = battery;
-    } catch (error) {
-      console.warn('Direct G502 X Plus battery state is temporarily unavailable.', error);
+    if (refresh) {
+      let complete = true;
+      try { this.reportRate = await this.getReportRateCapability(); }
+      catch (error) {
+        complete = false;
+        console.warn('Direct G502 X Plus polling rate is temporarily unavailable.', error);
+      }
+      try { this.battery = await this.getBatteryCapability(); }
+      catch (error) {
+        complete = false;
+        this.battery = undefined;
+        console.warn('Direct G502 X Plus battery state is temporarily unavailable.', error);
+      }
+      if (complete) this.readStatusRevision = revision;
     }
+    const capabilities: DeviceCapabilities = {
+      dpi: this.getDpiCapability(),
+      reportRate: this.reportRate ? { ...this.reportRate, supportedRates: [...this.reportRate.supportedRates] } : undefined,
+      battery: this.battery ? { ...this.battery } : undefined,
+    };
     if (this.onboard) {
       const onboardWritable = this.onboard.mode === 'onboard';
       capabilities.buttonAssignments = this.onboard.profile.buildButtonAssignments(this.onboard.mode, onboardWritable);
@@ -338,13 +363,15 @@ export class G502NativeSession implements G502DirectSession {
       capabilities.onboardMemory = { writable: true, enabled: false };
     }
     if (!capabilities.lighting && this.rgbLighting) {
-      await this.rgbLighting.refreshState();
+      if (this.linkAvailable && (refresh || this.rgbLighting.buildCapability(true).state === 'unknown')) {
+        await this.rgbLighting.refreshState();
+      }
       capabilities.lighting = this.rgbLighting.buildCapability(true);
     }
     if (this.batteryLighting && capabilities.lighting) {
       capabilities.lighting.statusLightingSupported = true;
       capabilities.lighting.batteryLightingEnabled = capabilities.lighting.enabled;
-      await this.batteryLighting.update(policy, capabilities.battery);
+      await this.batteryLighting.update(policy, this.linkAvailable ? capabilities.battery : undefined, this.linkAvailable);
       capabilities.lighting.batteryStatus = this.batteryLighting.status;
       capabilities.lighting.batteryStatusReason = this.batteryLighting.reason;
       if (this.batteryLighting.status === 'cutoff') {
@@ -360,11 +387,24 @@ export class G502NativeSession implements G502DirectSession {
       capabilities.battery,
       capabilities.lighting?.enabled,
     );
+    if (!this.linkAvailable) {
+      for (const capability of Object.values(capabilities)) {
+        if (capability && typeof capability === 'object' && 'writable' in capability) capability.writable = false;
+      }
+      if (capabilities.lighting) {
+        Object.assign(capabilities.lighting, {
+          colorWritable: false, brightnessWritable: false, speedWritable: false, directionWritable: false,
+          unavailableReason: 'The mouse is disconnected. Reconnect it to change lighting.',
+        });
+        capabilities.lighting.zones?.forEach(zone => { zone.colorWritable = false; });
+      }
+    }
     return capabilities;
   }
 
   public setControl(change: DeviceControlChange): Promise<DeviceControlResult | void> {
     return this.serialize(async () => {
+      if (!this.linkAvailable) throw new Error('The mouse is disconnected. Reconnect it to change settings.');
       if (change.type.startsWith('lighting-') || change.type === 'onboard-memory') {
         if (change.type.startsWith('lighting-') && this.batteryLighting?.status === 'cutoff') {
           throw new Error('Lighting is off to save battery. Charge the mouse or change the battery lighting cutoff.');
@@ -469,8 +509,8 @@ export class G502NativeSession implements G502DirectSession {
     throw new Error('That control is not supported by the G502 X Plus native HID++ backend.');
   }
 
-  private async getDpiCapability(): Promise<DpiCapability> {
-    const currentDpi = await this.runtime.refreshBaseDpi();
+  private getDpiCapability(): DpiCapability {
+    const currentDpi = this.runtime.currentBaseDpi;
     const min = this.supportedDpi[0]!;
     const max = this.supportedDpi.at(-1)!;
     return {
@@ -545,8 +585,55 @@ export class G502NativeSession implements G502DirectSession {
   }
 
   private handleNotification(report: Buffer): void {
+    if (this.closed || report[1] !== this.deviceIndex) return;
+    // Receiver link/power events use HID++ 1.0 short reports, whose address is
+    // not a software ID. Feature events below must have SW ID zero; replies
+    // belonging to another client must never create a refresh feedback loop.
+    if (report[0] === 0x10 && report.length >= 7) {
+      if (report[2] === 0x41 && report[3]! > 0) {
+        this.linkAvailable = (report[4]! & 0x40) === 0;
+        if (this.linkAvailable) this.invalidateDeviceState(true);
+        else {
+          this.battery = undefined;
+          this.rgbLighting?.invalidate('The mouse is disconnected. Lighting will be restored when it reconnects.');
+        }
+        return;
+      }
+      if (report[2] === 0x4b && report[3] === 1) {
+        this.invalidateDeviceState(true);
+        return;
+      }
+    }
+    if (report.length < 6 || (report[3]! & 0x0f) !== 0) return;
+    if (report[2] === this.batteryFeatureIndex && report[3] === 0) {
+      try { this.battery = parseUnifiedBatteryInfoPayload(report.subarray(4), Date.now()); }
+      catch { /* Malformed notifications cannot replace a confirmed reading. */ }
+      return;
+    }
+    if (report[2] === this.wirelessStatusFeatureIndex && report[3] === 0 && report[5] === 1) {
+      this.invalidateDeviceState(true);
+      return;
+    }
+    if (report[2] === this.onboardProfilesFeatureIndex) {
+      if (report[3] === 0 && report.readUInt16BE(4) !== 0) this.invalidateDeviceState(false);
+      if (report[3] === 0x10) this.dpiNeedsRefresh = true;
+      return;
+    }
     const bitmap = parseMouseButtonSpyNotification(report, this.deviceIndex, this.buttonSpyFeatureIndex);
     if (bitmap !== null) this.runtime.handleButtonBitmap(bitmap);
+  }
+
+  private invalidateDeviceState(reconnected: boolean): void {
+    this.linkAvailable = true;
+    this.statusRevision += 1;
+    this.profileNeedsRefresh = true;
+    this.onboardRefreshedAt = 0;
+    this.onboardProfileReadAt = 0;
+    if (reconnected) {
+      this.buttonReportsNeedRestore = true;
+      this.onboardRetryAt = 0;
+    }
+    this.rgbLighting?.invalidate();
   }
 
   private async enableButtonReports(): Promise<void> {
@@ -586,6 +673,7 @@ export class G502NativeSession implements G502DirectSession {
     if (parseAdjustableReportRatePayload(readback.subarray(4)) !== value) {
       throw new Error('The mouse stored the polling rate but did not activate it.');
     }
+    if (this.reportRate) this.reportRate.value = value;
   }
 
   private async setOnboardMode(enabled: boolean): Promise<void> {
@@ -598,6 +686,11 @@ export class G502NativeSession implements G502DirectSession {
     const actual = response[4] === 1;
     if (actual !== enabled) throw new Error('The mouse did not acknowledge the requested onboard-memory mode.');
     if (this.onboard) this.onboard.mode = actual ? 'onboard' : 'software';
+    if (this.reportRate) {
+      this.reportRate.writable = actual;
+      this.reportRate.profileMode = actual ? 'onboard' : 'software';
+      this.reportRate.unavailableReason = actual ? undefined : 'Enable onboard memory to store polling-rate changes on this mouse.';
+    }
     this.onboardRefreshedAt = Date.now();
     await this.restoreLightingSelection();
   }
@@ -614,9 +707,8 @@ export class G502NativeSession implements G502DirectSession {
   private async refreshOnboardState(now = Date.now()): Promise<void> {
     if (this.onboardProfilesFeatureIndex === null || now < this.onboardRetryAt || now - this.onboardRefreshedAt < 1_000) return;
     try {
-      // Routine discovery needs mode/selection, not 32 flash chunks queued in
-      // front of a lighting click. Recheck full contents once a minute for
-      // external same-profile edits, and always before our own profile writes.
+      // Full reads occur on profile/reconnect notifications, failed startup
+      // recovery and before mutations, never on a healthy discovery tick.
       const onboard = await readOnboardState(
         this.transport,
         this.deviceIndex,
@@ -635,6 +727,7 @@ export class G502NativeSession implements G502DirectSession {
       this.onboardRefreshedAt = now;
       this.onboardRefreshFailures = 0;
       this.onboardRetryAt = 0;
+      this.profileNeedsRefresh = false;
       this.stages = onboard.profile.stages;
       this.runtime.setButtonMask(onboard.profile.shiftButtonMask);
       if (this.runtime.currentShiftDpi !== onboard.profile.shiftDpi) {
@@ -645,7 +738,6 @@ export class G502NativeSession implements G502DirectSession {
       // piggybacks on the existing five-second discovery cycle and stops when
       // the direct session closes; it adds no timer or background handle.
       this.onboardRefreshFailures += 1;
-      if (error instanceof HidppRequestTimeoutError) this.buttonReportsNeedRestore = true;
       this.onboardRetryAt = Date.now() + Math.min(30_000, 5_000 * 2 ** Math.min(this.onboardRefreshFailures - 1, 3));
       if (this.onboardRefreshFailures === 1) {
         console.warn('Direct G502 X Plus onboard profile refresh is temporarily unavailable; retaining the last verified profile and retrying with backoff.', error);

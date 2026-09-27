@@ -45,7 +45,7 @@ internal sealed record SpatialSpeaker(string Id, float Azimuth, float Elevation 
     }
 }
 internal sealed record SpatialRuntime(SpatialSettings Settings, bool Active, string TrackingState, string? Error, string? TrackerName = null);
-internal sealed record HeadPose(Quaternion Rotation, long Timestamp);
+internal sealed record HeadPose(Quaternion Rotation, long Timestamp, long ReferenceId = 0);
 internal interface IHeadPoseSource : IDisposable
 {
     HeadPose? Latest { get; }
@@ -123,7 +123,7 @@ internal sealed class HeadTracker : IHeadPoseSource
 
 internal sealed class SpatialSession : IDisposable
 {
-    internal sealed record Configuration(SpatialSettings Settings, KemarFilters? Filters, IHeadPoseSource? Tracker, Quaternion Center);
+    internal sealed record Configuration(SpatialSettings Settings, KemarFilters? Filters, IHeadPoseSource? Tracker, Quaternion Center, long CenterReference = 0);
     private Configuration configuration = new(new(), null, null, Quaternion.Identity);
     internal Configuration Current => Volatile.Read(ref configuration);
     public void Configure(SpatialSettings settings)
@@ -136,7 +136,7 @@ internal sealed class SpatialSession : IDisposable
                 && (settings.TrackingSource == "headset" || settings.TrackerPort == old.Settings.TrackerPort && old.Tracker.Error is null)
                 ? old.Tracker : settings.TrackingSource == "headset" ? (IHeadPoseSource)new HeadsetHeadTracker() : new HeadTracker(settings.TrackerPort)
             : null;
-        Volatile.Write(ref configuration, new(settings, filters, tracker, ReferenceEquals(tracker, old.Tracker) ? old.Center : Quaternion.Identity));
+        Volatile.Write(ref configuration, new(settings, filters, tracker, ReferenceEquals(tracker, old.Tracker) ? old.Center : Quaternion.Identity, ReferenceEquals(tracker, old.Tracker) ? old.CenterReference : 0));
         if (!ReferenceEquals(tracker, old.Tracker)) old.Tracker?.Dispose();
     }
     public void Recenter()
@@ -144,7 +144,13 @@ internal sealed class SpatialSession : IDisposable
         var state = Current;
         var pose = state.Tracker?.Latest;
         if (!HeadTracker.Fresh(pose)) throw new InvalidOperationException("Connect a head tracker before centering the stage.");
-        Volatile.Write(ref configuration, state with { Center = pose!.Rotation });
+        Volatile.Write(ref configuration, state with { Center = pose!.Rotation, CenterReference = pose.ReferenceId });
+    }
+    internal static Quaternion RelativeRotation(Configuration state, HeadPose? pose)
+    {
+        if (!HeadTracker.Fresh(pose)) return Quaternion.Identity;
+        var center = pose!.ReferenceId == state.CenterReference ? state.Center : Quaternion.Identity;
+        return Quaternion.Normalize(Quaternion.Inverse(center) * pose.Rotation);
     }
     public SpatialRuntime Snapshot()
     {

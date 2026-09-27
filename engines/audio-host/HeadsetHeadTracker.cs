@@ -164,6 +164,7 @@ internal sealed class HidHeadTrackingConnection : IDisposable
         var report = new byte[caps.InputLength];
         var packed = new byte[(rotation.ReportCount * rotation.BitSize + 7) / 8];
         Quaternion? origin = null;
+        long referenceId = 0;
         uint? counter = null;
         try
         {
@@ -179,8 +180,9 @@ internal sealed class HidHeadTrackingConnection : IDisposable
                 var pose = AndroidRotation(vector);
                 if (resetCounter.UsagePage != 0 && Hid.HidP_GetUsageValue(0, 0x20, resetCounter.LinkCollection, 0x546, out var nextCounter, descriptor, report, report.Length) == Hid.Success)
                 { if (counter != nextCounter) origin = null; counter = nextCounter; }
-                origin ??= pose; // Start centered; reset discontinuities never become a sudden head turn.
-                Volatile.Write(ref latest, new HeadPose(Quaternion.Normalize(Quaternion.Inverse(origin.Value) * pose), Stopwatch.GetTimestamp()));
+                // Reconnects/resets invalidate a calibration against the previous sensor origin.
+                if (origin is null) { origin = pose; referenceId = Stopwatch.GetTimestamp(); }
+                Volatile.Write(ref latest, new HeadPose(Quaternion.Normalize(Quaternion.Inverse(origin.Value) * pose), Stopwatch.GetTimestamp(), referenceId));
             }
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException)

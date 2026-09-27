@@ -29,21 +29,23 @@ test('startup forces saved Off before profile reads and again after button monit
   } finally { await session?.close(); open.mockRestore(); }
 });
 
-test('ordinary discovery checks profile selection without rereading flash ahead of lighting', async () => {
+test('ordinary discovery sends no HID traffic even after the old full-profile polling interval', async () => {
   const mouse = mouseFixture();
   const open = spyOn(HidppLongTransport, 'open').mockResolvedValue(mouse.transport as unknown as HidppLongTransport);
   let session: G502NativeSession | undefined;
   let clock: ReturnType<typeof spyOn> | undefined;
   try {
     session = await G502NativeSession.open({ path: 'fixture', productId: 0xc547 } as Device, undefined);
+    await session.setControl({ type: 'lighting-enabled', enabled: false });
+    await session.getCapabilities();
     const now = Date.now();
     clock = spyOn(Date, 'now').mockReturnValue(now + 5_000);
     mouse.operations.length = 0;
     await session.getCapabilities();
-    expect(mouse.operations.filter(operation => operation.startsWith('4/'))).toEqual(['4/2', '4/4']);
+    expect(mouse.operations).toEqual([]);
     clock.mockReturnValue(now + 65_000);
     await session.getCapabilities();
-    expect(mouse.operations).toContain('4/5');
+    expect(mouse.operations).toEqual([]);
   } finally { clock?.mockRestore(); await session?.close(); open.mockRestore(); }
 });
 

@@ -482,7 +482,7 @@ or physical-capture soak claim.
 
 ## Device sessions
 
-Mouse battery lighting reuses the existing five-second discovery readings; it
+Mouse battery lighting reuses the session's battery reads and change notifications; it
 adds no battery polling loop. By default, battery at or below 20% triggers a
 seven-second burst of three red flashes at 25% brightness at most once every five minutes. Each flash lasts two seconds with half-second dark gaps. At or
 below 10%, lighting remains off and warnings stop. Both thresholds and the flash
@@ -491,14 +491,14 @@ charging, cutoff, disabled policy, disconnect, module disable, and shutdown
 cancel it. Automatic writes affect live RGB RAM only, never onboard flash.
 
 G502 button reporting is enabled after its notification listener is attached and
-reasserted on the existing five-second discovery cycle to recover receiver state
-lost across sleep or reconnect. Failed session opens retry after five seconds.
+rearmed on recovery notifications or a failed device read. Healthy five-second
+discovery ticks issue no G502 HID queries. Failed session opens retry after five seconds.
 Neither recovery path creates a timer or writes onboard flash; module disable
 and shutdown stop recovery with the existing discovery/session lifecycle.
 
 Onboard refresh reuses the session's fixed profile format and sector geometry.
-Mode and profile selection remain live reads; full profile reads still require
-CRC validation. A timed-out
+Mode and profile selection refresh on device/profile notifications; full profile
+reads still require CRC validation. A timed-out
 read transaction gets one serialized retry; repeated failures retain the last
 verified profile and back off through 5, 10, 20 and 30 seconds on the existing
 discovery cycle. Recovery resets backoff. No new timer or automatic write retry is
@@ -506,12 +506,11 @@ introduced, and repeated failures in one outage produce one warning.
 
 An enabled local device-discovery add-on creates at most one hidden sandboxed Chromium host. The host is lazy, performs work only during the registry's existing five-second discovery cycle, has no Module Host timer of its own, and is destroyed on disable, unlink, runtime failure, or shutdown. A disabled project retains no renderer process or subscription. Each active local host counts as an additional process in the canonical performance snapshot; real private working-set and long-running growth still require native measurement before release acceptance.
 
-The G502 X Plus native-control path holds one non-exclusive HID++ long-report handle only while the Logitech module and matching device are active. Sniper-button edges are notification-driven. Lighting shares the existing five-second discovery cycle for two power/ownership reads while a user selection or temporary override is active; it adds no timer and stops on session disposal. Live RGB effects are sent on explicit changes and restoration after startup, a profile-mode transition, or lost power/ownership. Unknown selections retry restoration on discovery; healthy effects are not rewritten. Battery policy uses the temporary overrides described above. RGB ownership is retained in either onboard mode and released on session close. Lighting controls never write profile flash. Stored DPI, report-rate and button changes retain CRC validation and immediate readback. Release, module disable, disconnect, and shutdown close the handle and restore pre-hold DPI when reachable.
+The G502 X Plus native-control path holds one non-exclusive HID++ handle only while the Logitech module and matching device are active. Sniper-button edges, battery changes, profile changes and receiver recovery are notification-driven. Healthy discovery projects cached confirmed values without device queries, avoiding firmware indicator flashes and queued work ahead of controls. Startup and invalidated state refresh on the existing cycle, with no extra timer. Explicit lighting commands and recovery verify RGB power; Unknown selections retry restoration. RGB ownership is retained in either onboard mode and released on session close. Lighting controls never write profile flash. Stored DPI, report-rate and button changes retain CRC validation and immediate readback. Module disable, receiver removal, and shutdown close the handle and restore pre-hold DPI when reachable. Idle transport errors mark the session unavailable for the existing recovery path.
 
-Routine G502 discovery reads onboard mode and active sector without rereading
-32 flash chunks ahead of a lighting command. Full CRC-validated contents refresh
-on selection changes, after a timed-out read, and once per minute on the existing
-discovery cycle to detect external edits to the same profile. Profile mutations
+Routine G502 discovery does not read profile flash, mode, DPI, battery, report rate
+or RGB ownership. Full CRC-validated contents refresh on profile/reconnect events
+and failed-read recovery. Profile mutations
 always read fresh contents before writing. Lighting packs up to four zones into
 each HID++ report and commits only after all batches succeed. A partial failure
 invalidates acknowledgement and restores the last confirmed selection on discovery.

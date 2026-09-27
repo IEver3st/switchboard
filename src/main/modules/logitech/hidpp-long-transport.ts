@@ -42,6 +42,9 @@ export class HidppLongTransport {
   private tail: Promise<void> = Promise.resolve();
   private readonly notificationListeners = new Set<NotificationListener>();
   private closed = false;
+  private failed = false;
+
+  public get isUnavailable(): boolean { return this.closed || this.failed; }
 
   private constructor(
     private readonly handle: HIDAsync,
@@ -132,9 +135,10 @@ export class HidppLongTransport {
   }
 
   private readonly onData = (data: Buffer): void => {
-    if (data[0] !== longReportId) return;
+    if (data[0] !== longReportId && data[0] !== 0x10) return;
+    if (data.length < (data[0] === longReportId ? longReportLength : 7)) return;
     const pending = this.pending;
-    if (pending && data[1] === pending.deviceIndex) {
+    if (data[0] === longReportId && pending && data[1] === pending.deviceIndex) {
       if (data[2] === pending.featureIndex && data[3] === pending.address) {
         clearTimeout(pending.timer);
         this.pending = null;
@@ -153,6 +157,7 @@ export class HidppLongTransport {
   };
 
   private readonly onError = (error: Error): void => {
+    this.failed = true;
     this.rejectPending(error);
   };
 

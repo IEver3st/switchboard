@@ -51,6 +51,19 @@ test('flashes three times over seven seconds and waits the full interval', async
   await f.policy.dispose();
 });
 
+test('push battery state retains its original timestamp until a change or disconnect', async () => {
+  const f = fixture();
+  const battery = f.battery(5);
+  const timestamp = battery.updatedAt;
+  f.advance(60_000);
+  await f.policy.update(defaults, battery, true);
+  expect(f.policy.status).toBe('cutoff');
+  expect(battery.updatedAt).toBe(timestamp);
+  await f.policy.update(defaults, undefined, false);
+  expect(f.policy.status).toBe('unavailable');
+  expect(f.writes).toEqual(['off', null]);
+});
+
 test('cutoff wins over warnings, cancels an in-flight flash, and writes off only once', async () => {
   const f = fixture();
   await f.policy.update(defaults, f.battery(15));

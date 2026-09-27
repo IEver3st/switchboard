@@ -57,7 +57,7 @@ internal sealed class SpatialSampleProvider : ISampleProvider
                 if (state.Filters is { } dataset)
                 {
                     var pose = state.Tracker?.Latest;
-                    var rotation = HeadTracker.Fresh(pose) ? Quaternion.Normalize(Quaternion.Inverse(state.Center) * pose!.Rotation) : Quaternion.Identity;
+                    var rotation = SpatialSession.RelativeRotation(state, pose);
                     orientation = Quaternion.Slerp(orientation, rotation, .125f);
                     var inverse = Quaternion.Inverse(orientation);
                     for (var s = 0; s < 7; s++)

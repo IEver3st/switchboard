@@ -523,8 +523,10 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
 
               {steps[active]?.id === 'audio-setup' ? (
                 <div className="ob-step">
-                  <StepHeading headingRef={headingRef} eyebrow="Audio setup" title="Add audio mixing and voice processing" description="Install only what is missing. You can also finish this later in Settings → Audio." motion={enter(0)} />
-                  <AudioDependencySetupPanel state={snapshot.audio.dependencies} />
+                  <StepHeading headingRef={headingRef} eyebrow="Audio setup" title="Add audio mixing and voice processing" description="Switchboard installs only what is missing. You can also finish this later in Settings → Audio." motion={enter(0)} />
+                  <m.div {...enter(1)}>
+                    <AudioDependencySetupPanel state={snapshot.audio.dependencies} readyHint="Audio turns on when you finish setup." />
+                  </m.div>
                 </div>
               ) : null}
 

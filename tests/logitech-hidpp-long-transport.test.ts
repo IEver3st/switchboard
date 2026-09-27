@@ -34,6 +34,23 @@ class EchoReplyHandle extends EventEmitter {
 }
 
 describe('HID++ long transport', () => {
+  test('forwards short receiver notifications and exposes idle handle failure for session recovery', async () => {
+    const handle = new EchoReplyHandle();
+    const TransportConstructor = HidppLongTransport as unknown as new (handle: EchoReplyHandle) => HidppLongTransport;
+    const transport = new TransportConstructor(handle);
+    const notifications: Buffer[] = [];
+    transport.subscribe(report => notifications.push(report));
+    const link = Buffer.from([0x10, 1, 0x41, 1, 0, 0, 0]);
+    handle.emit('data', link);
+    handle.emit('data', link.subarray(0, 5));
+    expect(notifications).toEqual([link]);
+    handle.emit('error', new Error('Receiver unplugged'));
+    expect(transport.isUnavailable).toBe(true);
+    await transport.close();
+    handle.emit('data', link);
+    expect(notifications).toHaveLength(1);
+    expect(handle.listenerCount('data')).toBe(0);
+  });
   test('drains a duplicate reply before starting the next same-address request', async () => {
     const handle = new DuplicateReplyHandle();
     const TransportConstructor = HidppLongTransport as unknown as new (handle: DuplicateReplyHandle) => HidppLongTransport;

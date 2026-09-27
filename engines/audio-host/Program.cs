@@ -21,6 +21,34 @@ if (args.Contains("--enable-headset-sensor", StringComparer.OrdinalIgnoreCase))
     catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }
     return;
 }
+if (args.Contains("--verify-head-tracking", StringComparer.OrdinalIgnoreCase))
+{
+    // Explicit, bounded hardware diagnostic: no audio playback or persisted changes.
+    for (var cycle = 0; cycle < 3; cycle++)
+    {
+        using var tracker = new HeadsetHeadTracker();
+        if (tracker.Error is { } failure)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new { cycle, error = failure }, jsonOptions));
+            Environment.ExitCode = 1; return;
+        }
+        long last = 0; var samples = 0; float maximumRotationDegrees = 0;
+        var deadline = Stopwatch.StartNew();
+        while (deadline.ElapsedMilliseconds < 4000)
+        {
+            if (tracker.Latest is { } pose && pose.Timestamp != last)
+            {
+                last = pose.Timestamp; samples++;
+                maximumRotationDegrees = Math.Max(maximumRotationDegrees, 2 * MathF.Acos(Math.Clamp(MathF.Abs(pose.Rotation.W), 0, 1)) * 180 / MathF.PI);
+            }
+            await Task.Delay(10);
+        }
+        var fresh = HeadTracker.Fresh(tracker.Latest);
+        Console.WriteLine(JsonSerializer.Serialize(new { cycle, tracker.Name, observedSamples = samples, fresh, maximumRotationDegrees, tracker.Error }, jsonOptions));
+        if (!fresh || tracker.Error is not null) { Environment.ExitCode = 1; return; }
+    }
+    return;
+}
 
 if (args.Contains("--audio-dependency-setup", StringComparer.OrdinalIgnoreCase))
 {

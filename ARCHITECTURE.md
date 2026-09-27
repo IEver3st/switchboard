@@ -248,13 +248,16 @@ and restore the user's selected live lighting, including Off.
 Startup restores a saved software selection before the full onboard-profile
 scan and reapplies it after button monitoring starts, independently of its last
 live-readback status. Device startup precedes audio endpoint discovery.
-MouseButtonSpy is armed once per session and after a failed device read, rather
-than on every healthy discovery; rearming is followed by lighting restoration.
+MouseButtonSpy is armed once per session and on receiver recovery, rather than
+on every healthy discovery; rearming is followed by lighting restoration.
 The persisted `selectionSaved` flag preserves that intent through Unknown,
 disconnect, and restart; legacy acknowledged selections and ownership-loss
-snapshots are migrated when the controller opens. The existing discovery cycle
-checks power and ownership and reapplies the selection after either changes.
-Failed checks or restoration remain Unknown and retry on the next cycle.
+snapshots are migrated when the controller opens. Healthy discovery projects
+confirmed values without HID queries: repeated background queries were associated
+with physical purple flashes even while Off. Unified Battery notifications update
+battery state; onboard profile and wireless/receiver notifications invalidate
+cached state for refresh on the existing discovery cycle. Startup, explicit writes
+and recovery check RGB power. Failed restoration remains Unknown and retries.
 Recovery preserves active battery/status overrides and restores the selection
 when those clear; a healthy effect is not continually restarted.
 The effect itself remains acknowledged, not visually verified. Session shutdown
@@ -269,8 +272,10 @@ partially changed effect.
 
 Mouse battery-lighting preferences live in main-owned `settings.mouseBatteryLighting`,
 keyed by device identity and validated at the settings IPC boundary. The G502
-session advertises this capability only when fresh battery reads and a probed
-static RGB effect are supported. Battery policy reuses discovery readings and
+session advertises this capability only when battery reads/notifications and a
+probed static RGB effect are supported. Battery timestamps retain the actual last
+observation; an active change subscription stays valid until disconnect rather
+than fabricating a fresh timestamp each tick. Battery policy reuses that state and
 serializes temporary RGB overrides with manual controls. A seven-second burst of three red flashes
 restores the prior software effect and individual zone colors, or releases to
 firmware when Switchboard did not own lighting. The cutoff takes priority over

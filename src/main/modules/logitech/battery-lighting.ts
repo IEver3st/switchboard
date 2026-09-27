@@ -23,9 +23,11 @@ export class MouseBatteryLighting {
 
   public constructor(private readonly io: BatteryLightingIo) {}
 
-  public async update(policy: MouseBatteryLightingPolicy, battery: BatteryCapability | undefined): Promise<void> {
+  public async update(policy: MouseBatteryLightingPolicy, battery: BatteryCapability | undefined, eventDriven = false): Promise<void> {
     if (this.closed) return;
-    const fresh = battery && this.io.now() - battery.updatedAt <= 15_000 && battery.updatedAt <= this.io.now();
+    // An active push subscription reports changes rather than repeating an
+    // unchanged percentage. Its owner must invalidate readings on disconnect.
+    const fresh = battery && (eventDriven || this.io.now() - battery.updatedAt <= 15_000) && battery.updatedAt <= this.io.now();
     const status: Status = !policy.flashEnabled && !policy.cutoffEnabled ? 'disabled'
       : !fresh ? 'unavailable'
       : battery.charging || battery.fullyCharged ? 'charging'

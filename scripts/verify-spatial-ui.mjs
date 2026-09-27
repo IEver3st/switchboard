@@ -16,6 +16,10 @@ app.commandLine.appendSwitch('force-prefers-reduced-motion');
 process.env.SWITCHBOARD_NATIVE_REVIEW = '1';
 process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
+process.env.SWITCHBOARD_REVIEW_EXIT_CODE = '1';
+app.on('before-quit', () => {
+  if (process.env.SWITCHBOARD_REVIEW_EXIT_CODE !== '0') console.error('Spatial review quit before its completion record.');
+});
 let available = true, rejectNext = false, trackingState = 'waiting', canonical, recenterCalls = 0, connectCalls = 0;
 const evidence = { scope: 'Hidden native Electron; real offline persistence; fixture availability/tracker; no physical audio changes', profile, layouts: [], checks: [] };
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -71,7 +75,7 @@ async function until(check, message) {
 async function click(selector) {
   assert(await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.matches(':disabled'))return false;e.click();return true})()`), `Unavailable: ${selector}`);
 }
-async function settled() { await until(() => evaluate(`document.querySelector('.spatial-hero')?.getAttribute('aria-busy')!=='true'`), 'Spatial controls stayed pending'); await delay(60); }
+async function settled() { await delay(60); await until(() => evaluate(`document.querySelector('.spatial-hero')?.getAttribute('aria-busy')!=='true'`), 'Spatial controls stayed pending'); await delay(60); }
 async function capture(name) {
   await delay(120); await window.webContents.capturePage(); await delay(100);
   await writeFile(join(output, `${name}.png`), (await window.webContents.capturePage()).toPNG());
@@ -106,6 +110,7 @@ async function run() {
     await delay(180);
     const layout = await evaluate(`({width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth||[...document.querySelectorAll('[data-radix-scroll-area-viewport]')].some(e=>e.scrollWidth>e.clientWidth+1),trackingBottom:document.querySelector('.spatial-tracking__row').getBoundingClientRect().bottom,reducedMotion:matchMedia('(prefers-reduced-motion:reduce)').matches})`);
     assert(!layout.overflow && layout.trackingBottom < height, 'Critical spatial controls overflow');
+    assert(await evaluate(`![...document.querySelectorAll('.spatial-field [role="group"]')].some(e=>e.scrollWidth>e.clientWidth+1)`), 'Spatial layout or room choices are clipped');
     assert(layout.width === width && layout.height === height, `Wrong native size: ${JSON.stringify(layout)} requested ${width}x${height}`);
     evidence.layouts.push(layout); await capture(`${width}x${height}`);
   }
@@ -128,12 +133,29 @@ async function run() {
   await settled();
   assert((await api('getSnapshot')).audio.spatial.speakers.find(s=>s.id==='rear-left').azimuth === -145, 'Speaker keyboard position did not persist');
   for (const [label, value, field] of [['Height', '35', 'elevation'], ['Level', '-4', 'gainDb'], ['Distance scale', '1.8', 'distance']]) {
-    await evaluate(`(()=>{const e=document.querySelector('.spatial-speaker-card input[aria-label="${label}"]');e.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'${value}');e.dispatchEvent(new Event('input',{bubbles:true}))})()`);
-    await delay(40); await evaluate(`document.querySelector('.spatial-speaker-card input[aria-label="${label}"]').dispatchEvent(new FocusEvent('focusout', {bubbles:true}))`); await settled();
-    assert((await api('getSnapshot')).audio.spatial.speakers.find(s=>s.id==='rear-left')[field] === Number(value), `${label} did not persist`);
+    await evaluate(`(()=>{const e=document.querySelector('.spatial-speaker-card input[aria-label="${label}"]');e.focus();e.select()})()`);
+    await window.webContents.insertText(value);
+    // Hidden unfocused windows do not emit a native focusout; dispatch the same
+    // event without showing or focusing the protected desktop.
+    await evaluate(`document.querySelector('.spatial-speaker-card input[aria-label="${label}"]').dispatchEvent(new FocusEvent('focusout',{bubbles:true}))`);
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+    await settled();
+    await until(async () => (await api('getSnapshot')).audio.spatial.speakers.find(s=>s.id==='rear-left')[field] === Number(value), `${label} did not persist`);
   }
   await click('.spatial-speaker-card [role="switch"]'); await settled();
   assert(!(await api('getSnapshot')).audio.spatial.speakers.find(s=>s.id==='rear-left').enabled, 'Speaker mute did not persist');
+  const beforeDrag = (await api('getSnapshot')).audio.spatial.speakers.find(s=>s.id==='side-right');
+  const dragPoint = await evaluate(`(()=>{const r=document.querySelector('.spatial-speaker[aria-label^="Side right,"]').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+  window.webContents.sendInputEvent({type:'mouseMove', ...dragPoint}); await delay(40);
+  window.webContents.sendInputEvent({type:'mouseDown', ...dragPoint, button:'left', clickCount:1});
+  await delay(40);
+  window.webContents.sendInputEvent({type:'mouseMove', x:dragPoint.x+30, y:dragPoint.y+35, button:'left', modifiers:['leftButtonDown']});
+  await delay(40);
+  window.webContents.sendInputEvent({type:'mouseUp', x:dragPoint.x+30, y:dragPoint.y+35, button:'left', clickCount:1});
+  await settled();
+  const afterDrag = (await api('getSnapshot')).audio.spatial.speakers.find(s=>s.id==='side-right');
+  assert(afterDrag.azimuth !== beforeDrag.azimuth && afterDrag.distance !== beforeDrag.distance, `Pointer drag did not persist speaker direction and distance: ${JSON.stringify({beforeDrag,afterDrag})}`);
   await textButton('Stereo');
   assert(await evaluate(`document.querySelectorAll('.spatial-speaker').length===2 && !document.querySelector('input[aria-label="Angle"]')`), 'Stereo map does not match renderer');
   await textButton('7 speakers'); await textButton('Cinema');
@@ -164,9 +186,10 @@ async function run() {
   assert(await evaluate(`document.querySelector('[aria-label="Enable head tracking"]').disabled`), 'Bypassed stage left tracker editable'); await capture('bypass');
   available = false; await reload();
   assert(await evaluate(`document.querySelector('[aria-label="Enable spatial audio"]').disabled`), 'Unavailable control still enabled'); await capture('unavailable');
-  evidence.checks.push('Seven speakers, keyboard position, height/distance/level/mute, room presets, stereo layout, built-in sensor default/setup IPC, OpenTrack, reload, tracking/stale/error, recenter, pending/rejected writes, bypass/unavailable, reduced motion');
+  evidence.checks.push('Seven speakers, pointer drag and keyboard position, height/distance/level/mute, room presets, stereo layout, built-in sensor default/setup IPC, OpenTrack, reload, tracking/stale/error, recenter, pending/rejected writes, bypass/unavailable, reduced motion');
   evidence.canonicalEngineEnabled = canonical.audio.enabled;
   await writeFile(join(output, 'evidence.json'), JSON.stringify(evidence, null, 2));
+  process.env.SWITCHBOARD_REVIEW_EXIT_CODE = '0';
   console.log(JSON.stringify({ passed: true, output, evidence })); app.quit();
 }
 void app.whenReady().then(run).catch(async error => {

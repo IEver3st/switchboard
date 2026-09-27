@@ -46,6 +46,11 @@ requires a healthy device and actual sensor packets to establish tracking.
 
 `Audio.Host --probe-head-tracking` reports discovered compatible sensors and
 known driver errors. `--enable-headset-sensor` performs only input-service setup.
+`--verify-head-tracking` performs three bounded sensor open/read/close cycles
+without playing audio, reporting fresh observed poses and rotation range.
+The latest local hardware readback still reports Code 10 with the original sensor
+driver; no live XM6 pose stream has been verified. The user's reported repair
+success has not yet been confirmed by device readback.
 
 ## Native signal path
 
