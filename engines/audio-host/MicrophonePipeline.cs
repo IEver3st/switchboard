@@ -132,6 +132,10 @@ internal sealed class MicrophonePipeline : IDisposable
     public float LocalSnr => Volatile.Read(ref localSnr);
     public bool SuppressionBypassed => suppressionBypassed;
     public bool CanRunMicrophoneTest => !string.IsNullOrWhiteSpace(Volatile.Read(ref testOutputDeviceId));
+
+    internal static string SelectTestOutputDeviceId(AudioHostSettings settings) => settings.MonitoringEnabled
+        ? settings.MonitoringDeviceId
+        : settings.Buses.FirstOrDefault(bus => bus.Id.Equals("game", StringComparison.OrdinalIgnoreCase))?.DeviceId ?? string.Empty;
     public ISampleProvider VirtualMicrophoneSource => virtualMicrophoneSamples;
     public ISampleProvider StreamMicrophoneSource => streamMicrophoneSamples;
     public ISampleProvider ClipMicrophoneSource => clipMicrophoneSamples;
@@ -191,7 +195,7 @@ internal sealed class MicrophonePipeline : IDisposable
             }
 
             var outputId = Volatile.Read(ref testOutputDeviceId);
-            if (string.IsNullOrWhiteSpace(outputId)) throw new InvalidOperationException("Select a monitoring output before testing the microphone.");
+            if (string.IsNullOrWhiteSpace(outputId)) throw new InvalidOperationException("Select an output before testing the microphone.");
             using var playbackEnumerator = new MMDeviceEnumerator();
             using var outputDevice = playbackEnumerator.GetDevice(outputId);
             if (outputDevice.State != DeviceState.Active) throw new InvalidOperationException("The selected microphone test output is unavailable.");
@@ -360,7 +364,7 @@ internal sealed class MicrophonePipeline : IDisposable
 
     private void ConfigureMonitoring(AudioHostSettings settings)
     {
-        Volatile.Write(ref testOutputDeviceId, settings.MonitoringDeviceId);
+        Volatile.Write(ref testOutputDeviceId, SelectTestOutputDeviceId(settings));
         Volatile.Write(ref testOutputVolume, Math.Clamp(settings.Monitoring, 0f, 1f));
         if (!settings.MonitoringEnabled || string.IsNullOrWhiteSpace(settings.MonitoringDeviceId))
         {

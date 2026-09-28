@@ -1,5 +1,11 @@
 # Performance budgets
 
+RNNoise residual-noise cleanup uses a scalar speech envelope before its existing
+strength blend. It adds no lookahead, audio buffers, polling or processes. Speech
+hold/release runs only with model frames, and regression tests cover zero managed
+allocations. See [microphone cleanup](docs/microphone-room-cleanup.md) for the
+fixture measurements and the remaining live-call validation boundary.
+
 Live audio requests the endpoint's minimum supported shared-mode period, with a
 10 ms fallback. Personal output, virtual microphone, and monitor queues retain at
 most 20 ms or one larger render request when recovering from backlog; recording

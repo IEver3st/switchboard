@@ -47,12 +47,82 @@ internal static class MicrophoneQualityTests
     public static void Run()
     {
         var failures = new List<Exception>();
-        foreach (var test in new Action[] { RnnoiseStrengthAlignment, GatePreservesSpeech, FailedFrameDoesNotReplay })
+        foreach (var test in new Action[] { RnnoiseStrengthAlignment, SpeechActivityPreservesWords, GatePreservesSpeech, FailedFrameDoesNotReplay, TestPlaybackUsesCurrentOutput })
         {
             try { test(); Console.WriteLine($"PASS {test.Method.Name}"); }
             catch (Exception error) { failures.Add(error); Console.WriteLine($"FAIL {test.Method.Name}: {error.Message}"); }
         }
         if (failures.Count > 0) throw new AggregateException(failures);
+    }
+
+    private static void SpeechActivityPreservesWords()
+    {
+        var activity = new SpeechActivityEnvelope();
+        var frame = new float[480];
+        Array.Fill(frame, 0.5f);
+        activity.Process(frame, 0.01f);
+        Require(frame.All(x => x == 0f), "Noise alone opened the speech envelope.");
+        for (var i = 0; i < 4; i++)
+        {
+            Array.Fill(frame, 0.5f);
+            activity.Process(frame, 0.9f);
+        }
+        Require(frame.All(x => x > 0.4999f), "Sustained speech lost level.");
+        // Probability fluctuations and a short unvoiced consonant must not chop
+        // a word. Loud non-speech is not allowed to keep the gate open indefinitely.
+        Array.Fill(frame, 0.5f);
+        activity.Process(frame, 0.3f);
+        Require(frame.All(x => x > 0.4999f), "Probability hysteresis chopped speech.");
+        for (var i = 0; i < 5; i++)
+        {
+            Array.Fill(frame, 0.5f);
+            activity.Process(frame, 0.01f);
+            Require(frame.All(x => x > 0.4999f), "A short speech gap was cut.");
+        }
+        for (var i = 0; i < 40; i++)
+        {
+            Array.Fill(frame, 0.5f);
+            activity.Process(frame, 0.01f);
+        }
+        Require(frame.Max() < 0.00001f, "Residual non-speech remained open after the hold and release.");
+        Array.Fill(frame, 0.5f);
+        activity.Process(frame, 0.9f);
+        Require(frame[^1] > 0.496f, "Speech failed to reopen within one model frame.");
+        activity.Reset();
+        Array.Fill(frame, 0.5f);
+        activity.Process(frame, 0.01f);
+        Require(frame.All(x => x == 0f), "Reset retained a previous speech envelope.");
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 100; i++) activity.Process(frame, 0.9f);
+        Require(GC.GetAllocatedBytesForCurrentThread() == allocated, "Speech cleanup allocated on the DSP thread.");
+    }
+
+    private static void TestPlaybackUsesCurrentOutput()
+    {
+        // A disabled monitor can retain an old display/speaker endpoint while the
+        // main output has moved to headphones. The test must use today's output.
+        var settings = new AudioHostSettings
+        {
+            MonitoringEnabled = false,
+            MonitoringDeviceId = "old-display-speakers",
+            Buses = [new AudioBusConfiguration { Id = "game", DeviceId = "current-headphones" }],
+        };
+        Require(MicrophonePipeline.SelectTestOutputDeviceId(settings) == "current-headphones",
+            "The microphone test must follow the current output when monitoring is off.");
+        Require(settings.MonitoringDeviceId == "old-display-speakers",
+            "Choosing a test output must preserve the separately saved monitor preference.");
+        var explicitMonitor = new AudioHostSettings
+        {
+            MonitoringEnabled = true,
+            MonitoringDeviceId = "dedicated-monitor",
+            Buses = settings.Buses,
+        };
+        Require(MicrophonePipeline.SelectTestOutputDeviceId(explicitMonitor) == "dedicated-monitor",
+            "An enabled monitor must remain the explicit microphone test destination.");
+        Require(MicrophonePipeline.SelectTestOutputDeviceId(new AudioHostSettings
+        {
+            MonitoringDeviceId = "old-display-speakers",
+        }) == string.Empty, "A missing main output must not silently send the test to an old speaker.");
     }
 
     private static void RnnoiseStrengthAlignment()

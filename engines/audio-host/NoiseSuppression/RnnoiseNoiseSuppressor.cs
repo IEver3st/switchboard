@@ -9,6 +9,7 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
     private SafeNativeStateHandle? state;
     private float dryFloor;
     private float[] delayedDryFrame = [];
+    private readonly SpeechActivityEnvelope speechActivity = new();
 
     public bool IsAvailable => state is { IsInvalid: false, IsClosed: false };
     public string BackendName => "RNNoise";
@@ -67,6 +68,7 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
                 if (!NativeMethods.ProcessFrame(handle, inputPointer, outputPointer, &voiceProbability)) return false;
             }
             VoiceProbability = voiceProbability;
+            speechActivity.Process(output[..FrameLength], voiceProbability);
             for (var index = 0; index < FrameLength; index++)
             {
                 // RNNoise overlap-add returns the preceding 10 ms frame. Mixing
@@ -93,6 +95,8 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
         {
             if (!NativeMethods.Reset(handle)) return false;
             Array.Clear(delayedDryFrame);
+            speechActivity.Reset();
+            VoiceProbability = 0f;
             return true;
         }
         catch (Exception error) when (error is SEHException or ObjectDisposedException)
@@ -107,6 +111,8 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
         state?.Dispose();
         state = null;
         delayedDryFrame = [];
+        speechActivity.Reset();
+        VoiceProbability = 0f;
     }
 
     private static partial class NativeMethods
