@@ -3,6 +3,7 @@ using Switchboard.AudioHost;
 using Switchboard.AudioHost.NoiseSuppression;
 using Switchboard.AudioHost.Realtime;
 
+if (args.Length >= 2 && args[0] == "--microphone-presets") { MicrophonePresetTests.Run(args[1], args.ElementAtOrDefault(2)); return; }
 if (args.Contains("--live-audio-latency")) { AudioLatencyProbe.Run(); return; }
 if (args.Contains("--audio-latency")) { AudioLatencyTests.Run(); return; }
 if (args.Contains("--replay-audio")) { await ReplayAudioTests.RunAsync(); return; }

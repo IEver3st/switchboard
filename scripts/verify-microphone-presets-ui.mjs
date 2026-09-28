@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const output = join(root, 'design-qa', 'microphone-presets-20260927');
+const output = join(root, '.switchboard', 'reviews', `microphone-presets-${Date.now()}`);
 const profile = await mkdtemp(join(tmpdir(), 'switchboard-eq-ui-'));
 app.setName('switchboard-microphone-presets-review');
 app.setAppPath(root);
