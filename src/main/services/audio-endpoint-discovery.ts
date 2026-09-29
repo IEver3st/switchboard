@@ -32,6 +32,8 @@ export function parseAudioEndpoints(value: unknown): AudioDevice[] {
     isDefault: endpoint.isDefault,
     available: true,
     formFactor: endpoint.formFactor,
+    volume: endpoint.volume,
+    muted: endpoint.muted,
     isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name)
       || /VB-Audio Hi-Fi Cable/i.test(endpoint.interfaceName ?? endpoint.name),
     isSwitchboard: endpoint.isSwitchboard,

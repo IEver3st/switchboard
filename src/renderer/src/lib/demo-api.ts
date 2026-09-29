@@ -498,6 +498,13 @@ const demoApi: SwitchboardApi = {
   async recenterSpatialAudio() {
     throw new Error('Head tracking requires the Switchboard desktop audio host.');
   },
+  async restartAudio() {
+    setEngine('audio', true);
+    return emit();
+  },
+  async openWindowsSound() {
+    throw new Error('Windows sound settings are available in the Switchboard desktop application.');
+  },
   async connectHeadsetTracking() {
     throw new Error('Headset motion-sensor access requires the Switchboard desktop application.');
   },

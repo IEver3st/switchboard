@@ -157,7 +157,7 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
         // and app restarts. No extra timer/process remains when audio is disabled.
         var discovered = sessions.Select(session => session.Process).Distinct().ToArray();
         foreach (var stale in failures.Keys.Where(process => !discovered.Contains(process)).ToArray()) failures.Remove(stale);
-        foreach (var process in discovered.OrderByDescending(process => preferences.ContainsKey(process.ExecutablePath)))
+        foreach (var process in ApplicationRoutingPolicy.DiscoveryOrder(discovered, preferences, AudioProcessIdentity.IsInTree))
         {
             var busId = Desired(process);
             if (busId is null || routes.ContainsKey(process.Id) || externallyChanged.Contains(process.ExecutablePath)
@@ -201,14 +201,21 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
         sessions = readSessions();
         var process = sessions.FirstOrDefault(session => session.Process.Id == request.ProcessId)?.Process
             ?? throw new InvalidOperationException("That application no longer has an audio session.");
+        // A process-loopback capture owns the whole tree. A chip for a child
+        // therefore moves its existing owner instead of creating a second reader.
+        process = ApplicationRoutingPolicy.CaptureRoot(process, routes.Values.Select(route => route.Process), AudioProcessIdentity.IsInTree);
+        if (AudioProcessIdentity.IsInTree(Environment.ProcessId, process.Id))
+            throw new InvalidOperationException("Switchboard and its parent processes cannot be routed into their own mixer.");
         var previous = preferences.GetValueOrDefault(process.ExecutablePath);
         if (preferences.Count >= 64 && previous is null) throw new InvalidOperationException("At most 64 application preferences are supported.");
         // One preference per executable matches Windows' endpoint policy scope.
         // Recreate readers on a bus move; never let two output threads read one ring.
-        var existing = routes.Values.Where(route => route.Process.ExecutablePath.Equals(process.ExecutablePath, StringComparison.OrdinalIgnoreCase)).ToArray();
-        foreach (var route in existing) Remove(route);
+        var existing = routes.Values.Where(route => route.Process.ExecutablePath.Equals(process.ExecutablePath, StringComparison.OrdinalIgnoreCase)
+            || AudioProcessIdentity.IsInTree(route.Process.Id, process.Id)).ToArray();
         try
         {
+            // A newly selected parent replaces any captures of its children.
+            foreach (var route in existing) Remove(route);
             Add(process, request.Destination);
             preferences[process.ExecutablePath] = request.Destination;
             externallyChanged.Remove(process.ExecutablePath);
@@ -220,6 +227,10 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
             if (routes.TryGetValue(process.Id, out var failed)) Remove(failed);
             if (previous is null) preferences.Remove(process.ExecutablePath);
             else preferences[process.ExecutablePath] = previous;
+            // Reopen the previous owners if acquisition failed after teardown.
+            // Keep the original failure even if an app exited during recovery.
+            foreach (var route in existing)
+                try { if (!routes.ContainsKey(route.Process.Id)) Add(route.Process, route.BusId); } catch { }
             throw;
         }
     }
@@ -265,17 +276,18 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
         && !AudioProcessIdentity.IsInTree(Environment.ProcessId, session.Process.Id)).GroupBy(session => session.Process).Select(group =>
     {
         var session = group.First();
-        preferences.TryGetValue(session.Process.ExecutablePath, out var preferred);
-        routes.TryGetValue(session.Process.Id, out var route);
-        var desired = Desired(session.Process);
+        var owner = ApplicationRoutingPolicy.CaptureRoot(session.Process, routes.Values.Select(route => route.Process), AudioProcessIdentity.IsInTree);
+        preferences.TryGetValue(owner.ExecutablePath, out var preferred);
+        routes.TryGetValue(owner.Id, out var route);
+        var desired = route?.BusId ?? Desired(session.Process);
         var destination = route?.BusId ?? desired ?? "game";
-        var reason = failures.GetValueOrDefault(session.Process);
+        var reason = failures.GetValueOrDefault(owner);
         if (route is null && desired is not null && group.Any(item => item.Active) && reason is null)
             reason = routes.Count >= 32 ? "The mixer is at its 32-app limit. Close an audio app to free a slot."
                 : routes.Values.Any(other => AudioProcessIdentity.IsInTree(session.Process.Id, other.Process.Id)
                     || AudioProcessIdentity.IsInTree(other.Process.Id, session.Process.Id))
                     ? "This app shares a captured process tree. Use the parent app's category." : null;
-        if (externallyChanged.Contains(session.Process.ExecutablePath)) reason = "Output changed in Windows. Choose a category again to resume mixing.";
+        if (externallyChanged.Contains(owner.ExecutablePath)) reason = "Output changed in Windows. Choose a category again to resume mixing.";
         return new AudioApplicationState($"process:{session.Process.Id}:{session.Process.StartedAt}", session.Name,
             Path.GetFileNameWithoutExtension(session.Process.ExecutablePath), session.Process.Id, destination, route?.Capture.Enabled == true ? route.BusId : null,
             desired, reason is not null ? "unavailable" : route?.Capture.Enabled == true ? "applied" : route is not null ? "pending-restart" : "unmanaged",

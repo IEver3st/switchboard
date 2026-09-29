@@ -97,6 +97,8 @@ interface SystemStore {
   audioDependencySetup(action: import('../../../shared/contracts').AudioSetupAction): Promise<void>;
   openTrackSetup(action: import('../../../shared/contracts').OpenTrackAction): Promise<void>;
   setAudioEnabled(enabled: boolean): Promise<void>;
+  restartAudio(): Promise<void>;
+  openWindowsSound(): Promise<void>;
   setAudioMasterGain(input: SetAudioMasterGainInput): Promise<void>;
   setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<void>;
   setAudioBusGain(input: SetAudioBusGainInput): Promise<void>;
@@ -270,6 +272,8 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     audioDependencySetup: (action) => run(() => switchboardApi.audioDependencySetup(action)),
     openTrackSetup: (action) => run(() => switchboardApi.openTrackSetup(action)),
     setAudioEnabled: (enabled) => runAudio(() => switchboardApi.setAudioEnabled(enabled)),
+    restartAudio: () => runAudio(() => switchboardApi.restartAudio()),
+    openWindowsSound: () => runAudio(() => switchboardApi.openWindowsSound()),
     setAudioMasterGain: (input) => runAudio(() => switchboardApi.setAudioMasterGain(input)),
     setAudioMasterEnabled: (input) => runAudio(() => switchboardApi.setAudioMasterEnabled(input)),
     setAudioBusGain: (input) => runAudio(() => switchboardApi.setAudioBusGain(input)),

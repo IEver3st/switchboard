@@ -7,6 +7,14 @@ contract. Runtime progress is projected through `audio.dependencies` and omitted
 from preferences. A per-user setup directory retains a reboot receipt and an
 installer lock shared between installed and development profiles.
 
+The Audio warning beneath the channel tabs derives recovery actions from the
+canonical engine, routing, endpoint and mix state. Endpoint discovery retains
+Windows volume and mute readback. Restart is a serialized main-owned operation
+that releases the previous host and route leases before starting the saved mix;
+it does not change Windows defaults. The Windows sound action opens only the
+fixed system volume-mixer URI through typed IPC. Neither action exposes generic
+process or shell access to the renderer.
+
 The Windows backend downloads only two pinned official vendor archives, verifies
 SHA-256 and Authenticode publisher identity, then elevates the unmodified vendor
 installer with a visible window. The user completes UAC and any vendor Install

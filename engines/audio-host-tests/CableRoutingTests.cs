@@ -33,6 +33,24 @@ internal static class CableRoutingTests
         Check(ApplicationRoutingPolicy.Destination(@"C:\Apps\chrome.exe", false, overrides) == "game", "Disabling automation discarded manual routing.");
         Check(ApplicationRoutingPolicy.Destination(@"C:\Apps\Spotify.exe", false, overrides) is null, "Disabled automation still assigned apps.");
         Check(ApplicationRoutingPolicy.Destination(@"C:\Apps\SteelSeriesSonar.exe", true, overrides) is null, "Audio mixer output must not feed back.");
+        var parent = new AudioProcessIdentity(10, 1, @"C:\Apps\Launcher.exe");
+        var child = new AudioProcessIdentity(11, 1, @"C:\Apps\Player.exe");
+        var sibling = new AudioProcessIdentity(12, 1, @"C:\Apps\Chat.exe");
+        var unrelated = new AudioProcessIdentity(20, 1, @"C:\Apps\Other.exe");
+        static bool InTree(int candidate, int root) => candidate == root || root == 10 && candidate is 11 or 12;
+        Check(ApplicationRoutingPolicy.CaptureRoot(child, [parent, unrelated], InTree) == parent,
+            "A category change for a captured child must move its parent capture.");
+        Check(ApplicationRoutingPolicy.CaptureRoot(parent, [child], InTree) == parent,
+            "Selecting a parent must promote capture instead of retaining only its child.");
+        Check(ApplicationRoutingPolicy.CaptureRoot(sibling, [child], InTree) == sibling,
+            "Sibling captures must remain independent until their parent is selected.");
+        Check(ApplicationRoutingPolicy.CaptureRoot(unrelated, [parent], InTree) == unrelated,
+            "Unrelated applications must keep their own capture.");
+        var treeOverrides = new Dictionary<string, string> { [child.ExecutablePath] = "media" };
+        var ordered = ApplicationRoutingPolicy.DiscoveryOrder([child, unrelated, sibling, parent], treeOverrides, InTree);
+        Check(Array.IndexOf(ordered, parent) < Array.IndexOf(ordered, child)
+            && Array.IndexOf(ordered, parent) < Array.IndexOf(ordered, sibling),
+            "Discovery must capture parents before children, including saved child overrides.");
         var microphoneSend = cable with { Id = "mic-send", Name = "Hi-Fi Cable Input", InterfaceName = MicrophoneCableCatalog.InterfaceName };
         var microphoneReceive = microphoneSend with { Id = "mic-receive", Name = "Hi-Fi Cable Output", Flow = "capture" };
         Check(MicrophoneCableCatalog.Find([cable, microphoneSend, microphoneReceive], "capture") == microphoneReceive, "Mic transport selected the app cable.");
@@ -138,14 +156,113 @@ internal static class CableRoutingTests
 
     public static void RunTone(string[] args)
     {
-        var frequency = double.Parse(args[Array.IndexOf(args, "--cable-tone") + 1], System.Globalization.CultureInfo.InvariantCulture);
+        Process? child = null;
+        try
+        {
+            if (Array.IndexOf(args, "--child-tone") is var childIndex && childIndex >= 0)
+            {
+                child = Process.Start(new ProcessStartInfo(args[childIndex + 1])
+                {
+                    ArgumentList = { "--cable-tone", "880" }, RedirectStandardInput = true,
+                    RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
+                })!;
+                Check(child.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult() == "tone-ready", "Child tone did not start.");
+                Console.WriteLine(child.Id);
+            }
+            var frequency = double.Parse(args[Array.IndexOf(args, "--cable-tone") + 1], System.Globalization.CultureInfo.InvariantCulture);
+            using var endpoints = new EndpointService();
+            var sink = CableEndpointCatalog.FindInput(endpoints.List()) ?? throw new InvalidOperationException("VB-CABLE is not installed.");
+            using var device = endpoints.Open(sink.Id);
+            using var output = new AudioOutput(device, new Tone(frequency));
+            output.Start();
+            Console.WriteLine("tone-ready");
+            Console.ReadLine();
+        }
+        finally
+        {
+            if (child is not null)
+            {
+                try
+                {
+                    child.StandardInput.WriteLine();
+                    if (!child.WaitForExit(5000)) { child.Kill(); child.WaitForExit(); }
+                }
+                finally { child.Dispose(); }
+            }
+        }
+    }
+
+    public static async Task RunLiveTreeAsync()
+    {
         using var endpoints = new EndpointService();
-        var sink = CableEndpointCatalog.FindInput(endpoints.List()) ?? throw new InvalidOperationException("VB-CABLE is not installed.");
-        using var device = endpoints.Open(sink.Id);
-        using var output = new AudioOutput(device, new Tone(frequency));
-        output.Start();
-        Console.WriteLine("tone-ready");
-        Console.ReadLine();
+        var physical = endpoints.List().First(endpoint => endpoint.Flow == "render" && !CableEndpointCatalog.IsVirtual(endpoint));
+        var directory = Path.Combine(Path.GetTempPath(), "switchboard-cable-tree-" + Guid.NewGuid().ToString("N"));
+        var parentPath = Path.Combine(AppContext.BaseDirectory, "Switchboard.Tree.Parent-" + Guid.NewGuid().ToString("N") + ".exe");
+        var childPath = Path.Combine(AppContext.BaseDirectory, "Switchboard.Tree.Child-" + Guid.NewGuid().ToString("N") + ".exe");
+        var previousJournal = Environment.GetEnvironmentVariable("SWITCHBOARD_AUDIO_ROUTE_JOURNAL");
+        Process? parent = null;
+        try
+        {
+            Environment.SetEnvironmentVariable("SWITCHBOARD_AUDIO_ROUTE_JOURNAL", Path.Combine(directory, "leases.json"));
+            File.Copy(Path.Combine(AppContext.BaseDirectory, "Audio.Host.Tests.exe"), parentPath);
+            File.Copy(Path.Combine(AppContext.BaseDirectory, "Audio.Host.Tests.exe"), childPath);
+            parent = Process.Start(new ProcessStartInfo(parentPath)
+            {
+                ArgumentList = { "--cable-tone", "440", "--child-tone", childPath }, RedirectStandardInput = true,
+                RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
+            })!;
+            var childId = int.Parse((await parent.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)))!);
+            Check(await parent.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)) == "tone-ready", "Parent tone did not start.");
+            var parentId = parent.Id;
+            var clipPipe = "switchboard-tree-" + Guid.NewGuid().ToString("N");
+            using var policy = new ApplicationAudioPolicy();
+            var originalParent = policy.ReadPreferences(parentId);
+            var originalChild = policy.ReadPreferences(childId);
+            using (var engine = CableRoutingEngine.Create(endpoints, Settings(physical.Id),
+                () => endpoints.ListProcessSessions().Where(session => session.Process.Id == parentId || session.Process.Id == childId).ToArray(), clipPipe))
+            {
+                engine.Start();
+                engine.RouteApplication(new(childId, "game"));
+                engine.RouteApplication(new(parentId, "media"));
+                engine.RouteApplication(new(childId, "chat"));
+                engine.Refresh();
+                Check(engine.ListApplications().All(app => app is { CurrentDestination: "chat", RoutingError: null }),
+                    "Moving a child must move the captured tree without a parent/child conflict.");
+                Check(engine.ApplicationRoutes.Single(route => route.ExecutablePath == parentPath).Destination == "chat", "The capture owner's category was not saved.");
+                // The physical personal mix is muted. Only synthetic tones reach
+                // this isolated recording pipe; no microphone or user app is captured.
+                using var pipe = new NamedPipeClientStream(".", clipPipe + "-chat", PipeDirection.In, PipeOptions.Asynchronous);
+                await pipe.ConnectAsync(5000);
+                var rms = await ReadRms(pipe);
+                Check(rms > 0.005, "The process group went silent after reassignment.");
+                engine.Configure(Settings(physical.Id, clipGain: 0, routes: engine.ApplicationRoutes));
+                Check(await ReadRms(pipe) < rms * 0.05, "The reassigned group ignored the mix gain.");
+                var saved = engine.ApplicationRoutes;
+                engine.Configure(Settings(physical.Id, routes: saved));
+                engine.Refresh();
+                Check(await ReadRms(pipe) > rms * 0.5, "Restoring the mix gain left the group silent.");
+                engine.Dispose();
+                engine.Dispose();
+            }
+            Check(policy.ReadPreferences(parentId) == originalParent && policy.ReadPreferences(childId) == originalChild,
+                "Process-group shutdown did not restore both applications' Windows preferences.");
+            Console.WriteLine("Live process-group routing passed: child capture, parent promotion, child reassignment, PCM, mute/unmute, repeated disposal and Windows preference restoration.");
+        }
+        finally
+        {
+            if (parent is not null)
+            {
+                try
+                {
+                    if (!parent.HasExited) { await parent.StandardInput.WriteLineAsync(); await parent.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10)); }
+                }
+                finally { if (!parent.HasExited) { parent.Kill(entireProcessTree: true); await parent.WaitForExitAsync(); } parent.Dispose(); }
+            }
+            Environment.SetEnvironmentVariable("SWITCHBOARD_AUDIO_ROUTE_JOURNAL", previousJournal);
+            if (File.Exists(parentPath)) File.Delete(parentPath);
+            if (File.Exists(childPath)) File.Delete(childPath);
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
     }
 
     public static async Task RunLiveAsync()
@@ -198,6 +315,34 @@ internal static class CableRoutingTests
             Check(audible > 0.005, $"Process loopback did not reach the independent clip mix (RMS {audible}).");
             Check(unassignedTone < assignedTone * 0.08, $"An unassigned app leaked from the shared cable: 440 Hz {assignedTone}, 880 Hz {unassignedTone}.");
             var assigned = engine.ApplicationRoutes;
+            // Verify the Personal route too: clip PCM alone cannot prove that
+            // the physical WASAPI output renders Game, Chat or Media.
+            using (var playbackDevice = endpoints.Open(physical.Id))
+            {
+                var playbackRing = new SpscFloatRing(48000 * 2);
+                using var readback = new CaptureFanOut(playbackDevice, loopback: true, playbackRing);
+                readback.Start();
+                foreach (var bus in new[] { "game", "chat", "media" })
+                {
+                    engine.RouteApplication(new(helper.Id, bus));
+                    engine.Configure(Settings(physical.Id, routes: engine.ApplicationRoutes, personalGain: 0.01f));
+                    engine.Refresh();
+                    playbackRing.DiscardBufferedSamples();
+                    await Task.Delay(250);
+                    var pcm = new float[48000 / 4 * 2];
+                    playbackRing.Read(pcm);
+                    double real = 0, imaginary = 0;
+                    for (var frame = 0; frame < pcm.Length / 2; frame++)
+                    {
+                        real += pcm[frame * 2] * Math.Cos(2 * Math.PI * 440 * frame / 48000);
+                        imaginary += pcm[frame * 2] * Math.Sin(2 * Math.PI * 440 * frame / 48000);
+                    }
+                    var amplitude = 2 * Math.Sqrt(real * real + imaginary * imaginary) / (pcm.Length / 2);
+                    Check(amplitude > 0.0001, $"The {bus} Personal route did not reach Windows playback (440 Hz amplitude {amplitude}).");
+                }
+            }
+            engine.RouteApplication(new(helper.Id, "game"));
+            assigned = engine.ApplicationRoutes;
             engine.Configure(Settings(physical.Id, clipGain: 0, routes: assigned));
             var muted = await ReadRms(pipe);
             Check(muted < audible * 0.05, $"Clip gain did not mute application PCM (RMS {muted}).");
@@ -229,7 +374,7 @@ internal static class CableRoutingTests
             await VerifyKilledHostRecovery(helper.Id, physical.Id, original);
             Check(defaultsBefore.SequenceEqual(endpoints.List().Where(endpoint => endpoint.IsDefault).Select(endpoint => endpoint.Id).Order()), "Audio defaults changed during the check.");
             Console.WriteLine(JsonSerializer.Serialize(new { liveCable = "passed", automaticDiscovery = true, categoryOverrideAndReset = true, clipRms = audible, mutedRms = muted, isolatedUnassignedApp = true,
-                defaultDevicesUnchanged = true, restoredApplicationRoles = true, killedHostRecovery = true, repeatedStarts = 3 }));
+                personalPlaybackReadback = new[] { "game", "chat", "media" }, defaultDevicesUnchanged = true, restoredApplicationRoles = true, killedHostRecovery = true, repeatedStarts = 3 }));
         }
         finally
         {
@@ -323,17 +468,21 @@ internal static class CableRoutingTests
             using var policy = new ApplicationAudioPolicy();
             Check(policy.ReadPreferences(sourcePid) == original, "A killed host left the application routed to the cable after recovery.");
             await Request(recovered, "shutdown");
+            // Keep draining telemetry after acknowledgement. Otherwise the
+            // host's final snapshot can fill redirected stdout during shutdown.
+            var remainingOutput = recovered.StandardOutput.ReadToEndAsync();
             await recovered.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            await remainingOutput;
         }
         finally { if (!recovered.HasExited) { recovered.Kill(); await recovered.WaitForExitAsync(); } }
     }
 
-    private static AudioHostSettings Settings(string output, float clipGain = 1, IReadOnlyList<AudioApplicationPreference>? routes = null, bool automatic = false) => new()
+    private static AudioHostSettings Settings(string output, float clipGain = 1, IReadOnlyList<AudioApplicationPreference>? routes = null, bool automatic = false, float personalGain = 0) => new()
     {
         Buses = new[] { "game", "chat", "media", "aux" }.Select(id => new AudioBusConfiguration { Id = id, DeviceId = output }).ToArray(),
         Mixes = new[] { "personal", "stream", "clip" }.Select(id => new AudioMixConfiguration
         {
-            Id = id, Label = id, Master = new() { Gain = id == "personal" ? 0 : id == "clip" ? clipGain : 1 },
+            Id = id, Label = id, Master = new() { Gain = id == "personal" ? personalGain : id == "clip" ? clipGain : 1 },
             Buses = new[] { "game", "chat", "media", "aux", "mic" }.Select(bus => new AudioMixBusConfiguration { Id = bus }).ToArray(),
         }).ToArray(),
         ChannelProcessing = new[] { "game", "chat", "media" }.Select(id => new ChannelProcessingSettings { BusId = id }).ToArray(),

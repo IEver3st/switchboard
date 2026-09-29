@@ -1126,6 +1126,26 @@ export class AppController {
     return this.audioConfiguration.run(() => this.setAudioEnabledCore(enabled));
   }
 
+  public async restartAudio(): Promise<SystemSnapshot> {
+    await this.initialize();
+    return this.audioConfiguration.run(async () => {
+      if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
+      this.audioRestartTimer = null;
+      this.audioRestartAttempts = 0;
+      // Release route leases before replacing the host. The saved mix and
+      // endpoint selections remain canonical throughout the restart.
+      await this.engines.stop('audio');
+      if (!this.store.read('audio').enabled) return this.setAudioEnabledCore(true);
+      await this.startAudioEngine();
+      return this.store.get();
+    });
+  }
+
+  public async openWindowsSound(): Promise<SystemSnapshot> {
+    await shell.openExternal('ms-settings:apps-volume');
+    return this.store.get();
+  }
+
   private async setAudioEnabledCore(enabled: boolean): Promise<SystemSnapshot> {
     const current = this.store.read('audio').enabled;
     if (current === enabled) return this.store.get();

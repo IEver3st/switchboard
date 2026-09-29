@@ -529,6 +529,8 @@ export const audioDeviceSchema = z.object({
   isDefault: z.boolean(),
   available: z.boolean(),
   formFactor: audioEndpointFormFactorSchema.nullable().optional(),
+  volume: z.number().min(0).max(1).optional(),
+  muted: z.boolean().optional(),
   isVirtual: z.boolean().default(false),
   isSwitchboard: z.boolean().default(false),
 });
@@ -2058,6 +2060,8 @@ export const ipcChannels = {
   setAudioRouting: 'audio:set-routing',
   setAudioDeviceExcluded: 'audio:set-device-excluded',
   setAudioEnabled: 'audio:set-enabled',
+  restartAudio: 'audio:restart',
+  openWindowsSound: 'audio:open-windows-sound',
   audioDependencySetup: 'audio:dependency-setup',
   openTrackSetup: 'audio:opentrack-setup',
   setAudioMasterGain: 'audio:set-master-gain',
@@ -2156,6 +2160,8 @@ export interface SwitchboardApi {
   setAudioRouting(input: SetAudioRoutingInput): Promise<SystemSnapshot>;
   setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<SystemSnapshot>;
   setAudioEnabled(enabled: boolean): Promise<SystemSnapshot>;
+  restartAudio(): Promise<SystemSnapshot>;
+  openWindowsSound(): Promise<SystemSnapshot>;
   setAudioMasterGain(input: SetAudioMasterGainInput): Promise<SystemSnapshot>;
   setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<SystemSnapshot>;
   setAudioBusGain(input: SetAudioBusGainInput): Promise<SystemSnapshot>;

@@ -35,6 +35,7 @@ if (args.Contains("--spatial")) { SpatialAudioTests.Run(); return; }
 if (args.Contains("--cable-tone")) { CableRoutingTests.RunTone(args); return; }
 if (args.Contains("--live-route-restoration")) { CableRoutingTests.RunPolicyRestoration(); return; }
 if (args.Contains("--live-cable")) { await CableRoutingTests.RunLiveAsync(); return; }
+if (args.Contains("--live-cable-tree")) { await CableRoutingTests.RunLiveTreeAsync(); return; }
 if (args.Contains("--live-microphone-cable")) { await MicrophoneCableTests.RunLiveAsync(); return; }
 CableRoutingTests.RunDeterministic();
 AudioLatencyTests.Run();

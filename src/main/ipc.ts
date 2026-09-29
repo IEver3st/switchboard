@@ -244,6 +244,8 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     (input) => setAudioMasterGainInputSchema.parse(input),
     (input) => controller.setAudioMasterGain(input),
   );
+  handle(ipcChannels.restartAudio, getMainWindow, input => z.undefined().parse(input), () => controller.restartAudio());
+  handle(ipcChannels.openWindowsSound, getMainWindow, input => z.undefined().parse(input), () => controller.openWindowsSound());
   handle(
     ipcChannels.setAudioMasterEnabled,
     getMainWindow,

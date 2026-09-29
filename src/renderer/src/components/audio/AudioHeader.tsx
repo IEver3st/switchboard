@@ -136,7 +136,7 @@ export function audioStatusLine({
   if (setupPhase === 'restart-required') return 'Restart Windows to finish audio driver setup. Your mix is saved.';
   if (!engineRunning) return 'Turn on the audio engine in Settings to hear and adjust live audio. Your mix is saved.';
   if (tab === 'mixer' && routingBackend === 'none') return 'App mixing needs the VB-CABLE driver. Install it in Settings → Audio.';
-  if (tab === 'mixer' && routingSupport === 'unavailable') return 'Routing is unavailable on this setup. Mix settings are still saved.';
+  if (tab === 'mixer' && (routingSupport === 'unavailable' || processingSupport === 'unavailable')) return 'Audio routing is unavailable. Your mix settings are saved.';
   if (tab === 'mixer' && realtimeMetering !== 'available') return 'Live levels are unavailable. Faders still change the mix.';
   if (tab !== 'mixer' && processingSupport !== 'available') return 'Processing is unavailable for this channel. Changes are saved.';
   return tab === 'mixer' ? "Set each channel's level in the selected mix." : 'Shape this channel with EQ and processing.';

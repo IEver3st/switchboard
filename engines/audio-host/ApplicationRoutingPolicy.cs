@@ -3,6 +3,19 @@ namespace Switchboard.AudioHost;
 // Runs on the control thread when sessions appear, never in an audio callback.
 internal static class ApplicationRoutingPolicy
 {
+    internal static AudioProcessIdentity CaptureRoot(AudioProcessIdentity process, IEnumerable<AudioProcessIdentity> captured,
+        Func<int, int, bool> isInTree) => captured.FirstOrDefault(root => isInTree(process.Id, root.Id)) ?? process;
+
+    internal static AudioProcessIdentity[] DiscoveryOrder(IEnumerable<AudioProcessIdentity> processes, IReadOnlyDictionary<string, string> overrides,
+        Func<int, int, bool> isInTree)
+    {
+        var discovered = processes.Distinct().ToArray();
+        // A parent capture includes its descendants. Discover parents first so
+        // endpoint enumeration order cannot leave the rest of an app uncaptured.
+        return discovered.OrderBy(process => discovered.Count(other => other.Id != process.Id && isInTree(process.Id, other.Id)))
+            .ThenByDescending(process => overrides.ContainsKey(process.ExecutablePath)).ToArray();
+    }
+
     internal static string? AutomaticDestination(string executablePath)
     {
         var name = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AudioMixId, SystemSnapshot } from '../../../shared/contracts';
+import { audioRoutingNotice, type AudioRecoveryAction } from '../../../shared/audio-health';
+import { AudioRoutingNotice } from '@/components/audio/AudioRoutingNotice';
 import { AudioHeader, audioStatusLine, audioWorkspaceTabs, type AudioWorkspaceTab } from '@/components/audio/AudioHeader';
 import { ChannelProcessingPage } from '@/components/audio/ChannelProcessingPage';
 import { clearAudioMeters, publishAudioMeterFrame } from '@/components/audio/meter-bus';
@@ -20,6 +22,12 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
   const [tab, setTab] = useState<AudioWorkspaceTab>(tabFromHash);
   const [selectedMixId, setSelectedMixId] = useState<AudioMixId>('personal');
   const setPage = useSystemStore((state) => state.setPage);
+  const pending = useSystemStore(state => state.pendingAudioOperations > 0);
+  const restartAudio = useSystemStore(state => state.restartAudio);
+  const setAudioEnabled = useSystemStore(state => state.setAudioEnabled);
+  const openWindowsSound = useSystemStore(state => state.openWindowsSound);
+  const setAudioMasterEnabled = useSystemStore(state => state.setAudioMasterEnabled);
+  const setAudioMasterGain = useSystemStore(state => state.setAudioMasterGain);
   const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
   const engineRunning = engine?.state === 'running';
   const streamUnavailable = snapshot.audio.capabilities.streamOutput === 'unavailable';
@@ -59,6 +67,17 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
     if (window.location.hash !== `#audio/${next}`) window.location.hash = `audio/${next}`;
   }, []);
 
+  const openAudioSettings = () => { requestSettingsCategory('audio'); setPage('settings'); };
+  const recover = (action: AudioRecoveryAction) => {
+    if (action === 'enable') void setAudioEnabled(true);
+    else if (action === 'restart') void restartAudio();
+    else if (action === 'windows') void openWindowsSound();
+    else if (action === 'unmute') void setAudioMasterEnabled({ mixId: 'personal', enabled: true });
+    else if (action === 'volume') void setAudioMasterGain({ mixId: 'personal', gain: 1 });
+    else if (action === 'mixer') { setSelectedMixId('personal'); navigate('mixer'); }
+    else openAudioSettings();
+  };
+
   const statusLine = audioStatusLine({
     tab,
     engineRunning,
@@ -77,10 +96,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
         tabs={availableTabs}
         statusLine={statusLine}
         engineRunning={engineRunning}
-        onOpenSettings={() => {
-          requestSettingsCategory('audio');
-          setPage('settings');
-        }}
+        onOpenSettings={openAudioSettings}
         end={tab === 'mixer' ? (
           <div className="mixer-mix-picker" role="group" aria-label="Mixer destination">
             <span className="mixer-mix-picker__label">Mix for</span>
@@ -100,6 +116,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
           </div>
         ) : null}
       />
+      <AudioRoutingNotice notice={audioRoutingNotice(snapshot)} pending={pending} onAction={recover} />
       <div
         id={`audio-panel-${tab}`}
         role="tabpanel"
