@@ -1,6 +1,6 @@
 # Noise suppression supply chain
 
-Switchboard packages a CPU RNNoise implementation as the legally clear production backend. It prefers DeepFilterNet3 only when a developer or user has separately built `libDF` and explicitly acquired the exact pinned model. No dependency is downloaded when Switchboard starts.
+Switchboard packages the CPU RNNoise implementation as its live backend. Optional DeepFilterNet3 remains available for explicit offline comparisons after separately building `libDF` and acquiring the exact pinned model. Model files on disk do not change the live backend. No dependency is downloaded when Switchboard starts.
 
 | Component | Upstream revision | Artifact integrity | License and distribution |
 | --- | --- | --- | --- |

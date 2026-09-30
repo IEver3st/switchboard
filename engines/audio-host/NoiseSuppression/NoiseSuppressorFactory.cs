@@ -5,25 +5,17 @@ internal static class NoiseSuppressorFactory
     public static INoiseSuppressor Create(string nativeDirectory, string modelDirectory, out string? fallbackReason)
     {
         var initialization = new NoiseSuppressorInitialization(nativeDirectory, modelDirectory);
-        var deepFilter = new DeepFilterNetNoiseSuppressor();
-        if (deepFilter.Initialize(initialization))
-        {
-            fallbackReason = null;
-            return deepFilter;
-        }
-
-        var deepFilterReason = deepFilter.LastError;
-        deepFilter.Dispose();
+        // Optional models remain available to explicit offline comparisons. A
+        // model file on disk must not silently change live timbre or latency.
         var rnnoise = new RnnoiseNoiseSuppressor();
         if (rnnoise.Initialize(initialization))
         {
-            fallbackReason = deepFilterReason;
+            fallbackReason = null;
             return rnnoise;
         }
 
-        fallbackReason = $"{deepFilterReason} {rnnoise.LastError}".Trim();
+        fallbackReason = rnnoise.LastError;
         rnnoise.Dispose();
         return new BypassNoiseSuppressor(fallbackReason);
     }
 }
-

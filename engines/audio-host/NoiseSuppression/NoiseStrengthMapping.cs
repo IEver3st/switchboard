@@ -3,7 +3,7 @@ namespace Switchboard.AudioHost.NoiseSuppression;
 internal static class NoiseStrengthMapping
 {
     private static readonly float[] AmountAnchors = [0f, 25f, 55f, 80f, 100f];
-    private static readonly float[] AttenuationAnchorsDb = [0f, 9f, 21f, 36f, 100f];
+    private static readonly float[] AttenuationAnchorsDb = [0f, 6f, 14f, 24f, 36f];
 
     public static float ToAttenuationDb(float amount)
     {
@@ -26,7 +26,11 @@ internal static class NoiseStrengthMapping
     public static float ToDryFloor(float amount)
     {
         var attenuation = ToAttenuationDb(amount);
-        return attenuation >= 100f ? 0f : MathF.Pow(10f, -attenuation / 20f);
+        return MathF.Pow(10f, -attenuation / 20f);
     }
+
+    // During speech even maximum strength retains consonants that the model
+    // calls non-speech. This is separate from the room-noise attenuation limit.
+    public static float ToSpeechDryFloor(float amount) => Math.Clamp(0.6f - amount * 0.004f, 0.2f, 0.6f);
 }
 

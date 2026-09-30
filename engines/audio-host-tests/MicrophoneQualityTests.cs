@@ -47,7 +47,7 @@ internal static class MicrophoneQualityTests
     public static void Run()
     {
         var failures = new List<Exception>();
-        foreach (var test in new Action[] { RnnoiseStrengthAlignment, SpeechActivityPreservesWords, GatePreservesSpeech, FailedFrameDoesNotReplay, TestPlaybackUsesCurrentOutput })
+        foreach (var test in new Action[] { AlignedSuppressionTransitions, NativeSuppressionLifecycle, SpeechProtectionPreservesWords, GatePreservesSpeech, FailedFrameDoesNotReplay, TestPlaybackUsesCurrentOutput })
         {
             try { test(); Console.WriteLine($"PASS {test.Method.Name}"); }
             catch (Exception error) { failures.Add(error); Console.WriteLine($"FAIL {test.Method.Name}: {error.Message}"); }
@@ -55,56 +55,40 @@ internal static class MicrophoneQualityTests
         if (failures.Count > 0) throw new AggregateException(failures);
     }
 
-    private static void SpeechActivityPreservesWords()
+    private static void SpeechProtectionPreservesWords()
     {
-        var activity = new SpeechActivityEnvelope();
+        using var model = new DelayedPassThrough { Gain = 0 };
+        var graph = new AudioGraph(model);
+        var configuration = Configuration() with { NoiseSuppression = new(true, 100) };
         var frame = new float[480];
-        // Moderate strengths leave cleanup to the model and dry floor.
-        activity.Configure(NoiseStrengthMapping.ToAttenuationDb(45));
-        Array.Fill(frame, 0.5f);
-        activity.Process(frame, 0.01f);
-        Require(frame.All(x => x == 0.5f), "A moderate strength attenuated non-speech beyond the model.");
-
-        activity.Configure(NoiseStrengthMapping.ToAttenuationDb(85));
-        activity.Reset();
-        var floor = 0.5f * activity.FloorGain;
-        Require(activity.FloorGain is > 0.1f and < 0.2f, $"Strong cleanup range was {20 * MathF.Log10(activity.FloorGain):F1} dB.");
-        Array.Fill(frame, 0.5f);
-        activity.Process(frame, 0.01f);
-        Require(frame.All(x => Math.Abs(x - floor) < 0.0001f), "Noise alone opened the speech envelope.");
-        for (var i = 0; i < 4; i++)
+        // A model can mistake an entire quiet syllable for noise. Even at maximum
+        // strength, original speech must remain above the chopped-word threshold.
+        for (var i = 0; i < 6; i++)
         {
-            Array.Fill(frame, 0.5f);
-            activity.Process(frame, 0.9f);
+            Array.Fill(frame, 0.05f);
+            graph.ProcessMicrophone(frame, configuration);
         }
-        Require(frame.All(x => x > 0.4999f), "Sustained speech lost level.");
-        // Probability dips under soft syllables, consonants and word tails must
-        // not chop a word. Loud non-speech must still settle to the floor.
-        Array.Fill(frame, 0.5f);
-        activity.Process(frame, 0.15f);
-        Require(frame.All(x => x > 0.4999f), "Probability hysteresis chopped speech.");
-        for (var i = 0; i < 18; i++)
+        Require(frame.All(x => x >= 0.00999f), "Maximum cleanup erased model-misclassified speech.");
+        model.Probability = 0;
+        for (var i = 0; i < 20; i++)
         {
-            Array.Fill(frame, 0.5f);
-            activity.Process(frame, 0.01f);
-            Require(frame.All(x => x > 0.4999f), "A 180 ms speech gap was cut.");
+            Array.Fill(frame, 0.05f);
+            graph.ProcessMicrophone(frame, configuration);
+            Require(frame.All(x => x >= 0.00999f), "A consonant/word tail lost the original speech contribution.");
         }
-        for (var i = 0; i < 60; i++)
+        for (var i = 0; i < 40; i++)
         {
-            Array.Fill(frame, 0.5f);
-            activity.Process(frame, 0.01f);
+            Array.Fill(frame, 0.05f);
+            graph.ProcessMicrophone(frame, configuration);
         }
-        Require(frame.Max() < floor * 1.01f && frame.Min() >= floor * 0.999f,
-            "Non-speech did not settle to the bounded floor, or was muted below it.");
-        Array.Fill(frame, 0.5f);
-        activity.Process(frame, 0.4f);
-        Require(frame[^1] > 0.496f, "A soft speech onset failed to reopen within one model frame.");
-        activity.Reset();
-        Array.Fill(frame, 0.5f);
-        activity.Process(frame, 0.01f);
-        Require(frame.All(x => Math.Abs(x - floor) < 0.0001f), "Reset retained a previous speech envelope.");
+        Require(frame.All(x => x is > 0 and < 0.001f), "Strong room cleanup was lost or hard-muted audio.");
+        // If the neural output is intact, low VAD must not impose another gate.
+        model.Gain = 1;
+        Array.Fill(frame, 0.05f);
+        graph.ProcessMicrophone(frame, configuration);
+        Require(frame.All(x => Math.Abs(x - 0.05f) < 0.00001f), "An extra VAD gate changed intact model output.");
         var allocated = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 100; i++) activity.Process(frame, 0.9f);
+        for (var i = 0; i < 100; i++) graph.ProcessMicrophone(frame, configuration);
         Require(GC.GetAllocatedBytesForCurrentThread() == allocated, "Speech cleanup allocated on the DSP thread.");
     }
 
@@ -136,40 +120,93 @@ internal static class MicrophoneQualityTests
         }) == string.Empty, "A missing main output must not silently send the test to an old speaker.");
     }
 
-    private static void RnnoiseStrengthAlignment()
+    private static void AlignedSuppressionTransitions()
     {
-        using var full = new RnnoiseNoiseSuppressor();
-        using var light = new RnnoiseNoiseSuppressor();
-        var initialization = new NoiseSuppressorInitialization(AppContext.BaseDirectory, Path.GetTempPath());
-        Require(full.Initialize(initialization) && light.Initialize(initialization), "Native RNNoise must be available.");
-        full.Configure(100);
-        var input = new float[480];
+        using var model = new DelayedPassThrough();
+        var graph = new AudioGraph(model);
+        var frame = new float[480];
         var previous = new float[480];
-        var wet = new float[480];
-        var mixed = new float[480];
-        var random = new Random(1729);
-        // Two identical native models isolate the raw contribution from the neural
-        // output. RNNoise's overlap-add returns the preceding 480-sample frame.
-        foreach (var amount in new[] { 25f, 45f, 55f, 80f, 100f, 25f })
+        var input = new float[480];
+        var random = new Random(3821);
+        for (var block = 0; block < 100; block++)
         {
-            light.Configure(amount);
-            var floor = NoiseStrengthMapping.ToDryFloor(amount);
-            for (var frame = 0; frame < 8; frame++)
-            {
-                for (var i = 0; i < input.Length; i++) input[i] = (float)(random.NextDouble() - 0.5) * 0.2f;
-                Require(full.Process(input, wet, out _) && light.Process(input, mixed, out _), "Native frame failed.");
-                var error = 0f;
-                for (var i = 0; i < input.Length; i++)
-                    error = Math.Max(error, Math.Abs(mixed[i] - (wet[i] * (1 - floor) + previous[i] * floor)));
-                Require(error < 0.00001f, $"Strength {amount} mixed different moments in time (maximum error {error:F6}).");
-                input.CopyTo(previous, 0);
-            }
+            for (var i = 0; i < frame.Length; i++) frame[i] = (float)(random.NextDouble() - 0.5) * 0.4f;
+            frame.CopyTo(input, 0);
+            model.Fail = block == 40;
+            model.Throw = block == 41;
+            model.Corrupt = block == 42;
+            var configuration = Configuration() with { NoiseSuppression = new(block % 12 is >= 3 and < 9, block % 2 == 0 ? 25 : 100) };
+            var result = graph.ProcessMicrophone(frame, configuration);
+            if (model.Fail || model.Throw || model.Corrupt)
+                Require(result.SuppressionAttempted && !result.SuppressionSucceeded, "Invalid native output was accepted as healthy processing.");
+            for (var i = 0; i < frame.Length; i++)
+                Require(Math.Abs(frame[i] - previous[i]) < 0.00001f,
+                    $"Suppression toggle/strength edit mixed different moments in time at block {block}.");
+            input.CopyTo(previous, 0);
         }
-        Require(full.Reset() && light.Reset(), "Native reset failed.");
-        light.Configure(25);
-        Array.Clear(input);
-        Require(light.Process(input, mixed, out _), "Reset frame failed.");
-        Require(mixed.All(x => Math.Abs(x) < 0.00001f), "Reset replayed the previous raw frame.");
+        graph.Reset();
+        Array.Fill(frame, 0.1f);
+        graph.ProcessMicrophone(frame, Configuration());
+        Require(frame.All(x => x == 0), "Reset replayed microphone samples from the previous session.");
+    }
+
+    private sealed class DelayedPassThrough : INoiseSuppressor
+    {
+        private readonly float[] history = new float[480];
+        public bool IsAvailable => true;
+        public string BackendName => "test";
+        public string ModelIdentifier => "test";
+        public string? ModelHash => null;
+        public string? NativeLibraryHash => null;
+        public int SampleRate => 48_000;
+        public int FrameLength => 480;
+        public int OutputDelaySamples => 480;
+        public float Probability { get; set; } = 1;
+        public float Gain { get; set; } = 1;
+        public bool Fail { get; set; }
+        public bool Throw { get; set; }
+        public bool Corrupt { get; set; }
+        public float SpeechProbability => Probability;
+        public double AlgorithmicLatencyMs => 20;
+        public string? LastError => null;
+        public bool Initialize(NoiseSuppressorInitialization initialization) => true;
+        public bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
+        {
+            localSnrDb = float.NaN;
+            if (Throw) throw new InvalidOperationException("Injected model exception.");
+            if (Fail) return false;
+            for (var i = 0; i < history.Length; i++) output[i] = history[i] * Gain;
+            if (Corrupt) output[0] = float.NaN;
+            input.CopyTo(history);
+            return true;
+        }
+        public bool Reset() { Array.Clear(history); return true; }
+        public void Dispose() { }
+    }
+
+    private static void NativeSuppressionLifecycle()
+    {
+        using var model = NoiseSuppressorFactory.Create(AppContext.BaseDirectory, Path.GetTempPath(), out var fallbackReason);
+        Require(model.IsAvailable && model.BackendName == "RNNoise" && fallbackReason is null, "Packaged RNNoise must be the live default.");
+        var graph = new AudioGraph(model);
+        var configuration = Configuration() with { NoiseSuppression = new(true, 85) };
+        var frame = new float[480];
+        for (var i = 0; i < frame.Length; i++) frame[i] = MathF.Sin(i * 0.045f) * 0.1f;
+        for (var i = 0; i < 100; i++) graph.ProcessMicrophone(frame, configuration);
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 100; i++) graph.ProcessMicrophone(frame, configuration);
+        Require(GC.GetAllocatedBytesForCurrentThread() == allocated, "Native suppression allocated in the processing path.");
+        Require(model.Reset(), "Native reset failed.");
+        graph.Reset();
+        Array.Clear(frame);
+        for (var i = 0; i < 6; i++)
+        {
+            Require(graph.ProcessMicrophone(frame, configuration).SuppressionSucceeded, "Reset native frame failed.");
+            Require(frame.All(x => Math.Abs(x) < 0.00001f), "Reset replayed voice from the previous session.");
+        }
+        model.Dispose();
+        model.Dispose();
+        Require(!model.IsAvailable, "Disposal retained a native noise state.");
     }
 
     private static void GatePreservesSpeech()
@@ -247,10 +284,8 @@ internal static class MicrophoneQualityTests
         public int SampleRate => 48_000;
         public int FrameLength => 480;
         public double AlgorithmicLatencyMs => 0;
-        public double AttenuationLimitDb => 0;
         public string? LastError => null;
         public bool Initialize(NoiseSuppressorInitialization initialization) => true;
-        public void Configure(float amount) { }
         public bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
         {
             localSnrDb = float.NaN;

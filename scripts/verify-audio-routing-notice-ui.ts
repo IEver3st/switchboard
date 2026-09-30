@@ -6,11 +6,11 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDefaultSnapshot } from '../src/shared/defaults';
-import { ipcChannels, systemSnapshotSchema } from '../src/shared/contracts';
+import { audioHostSnapshotSchema, ipcChannels, systemSnapshotSchema } from '../src/shared/contracts';
 import { snapshotStreamChannel } from '../src/shared/snapshot-stream';
 
 const root = process.cwd();
-const output = join(root, '.switchboard', 'audio-routing-notice-review');
+const output = join(root, '.switchboard', 'audio-routing-notice-review', String(Date.now()));
 const userData = mkdtempSync(join(tmpdir(), 'switchboard-audio-notice-'));
 process.on('uncaughtException', error => { console.error(error); app.exit(1); });
 process.on('unhandledRejection', error => { console.error(error); app.exit(1); });
@@ -31,6 +31,17 @@ state.audio.capabilities.applicationRouting = 'available';
 state.audio.capabilities.channelDsp = 'available';
 state.audio.capabilities.routingBackend = 'vb-cable';
 state.audio.capabilities.streamOutput = 'unavailable';
+state.audio.host = audioHostSnapshotSchema.parse({
+  running: true,
+  capabilities: state.audio.capabilities,
+  driver: { state: 'ready', interfaceName: 'VB-Audio Virtual Cable', missingEndpoints: [],
+    endpoints: [{ id: 'fixture-cable', name: 'Switchboard Mixer', flow: 'render' }], message: 'Fixture: driver installed.' },
+  applications: [], buses: [], mixes: state.audio.mixes,
+  noiseSuppression: { backend: 'none', available: false, state: 'bypassed', modelInitializationMs: 0,
+    inputSampleRate: 0, processingSampleRate: 48000, frameLength: 0, algorithmicLatencyMs: 0,
+    attenuationLimitDb: 0, p50Ms: 0, p95Ms: 0, p99Ms: 0, maximumMs: 0,
+    captureCallbackP99Ms: 0, captureOverruns: 0, monitorUnderruns: 0, droppedOrBypassedFrames: 0, recoveryCount: 0 },
+});
 state.engines.find(engine => engine.kind === 'audio')!.state = 'running';
 state.capture.config.enabled = false;
 const healthy = structuredClone(state);
@@ -85,7 +96,15 @@ try {
   const layouts = [];
   for (const [width, height] of [[1080, 720], [1420, 900], [1920, 1080]]) {
     window.setContentSize(width, height);
-    await scenario(snapshot => { snapshot.audio.capabilities.channelDsp = 'unavailable'; });
+    await scenario(snapshot => {
+      snapshot.audio.capabilities.routingBackend = 'none';
+      snapshot.audio.capabilities.applicationRouting = 'unavailable';
+      snapshot.audio.capabilities.channelDsp = 'unavailable';
+      snapshot.audio.host!.capabilities = { ...snapshot.audio.capabilities };
+      snapshot.audio.host!.error = 'Virtual audio routing is unavailable: Application preferences require an absolute executable path.';
+    });
+    await until('document.querySelector(".audio-header__identity p")?.textContent === "Audio routing is unavailable. Your mix settings are saved."',
+      'An installed driver with failed routing was reported as missing');
     await window.webContents.capturePage();
     const actual = await evaluate('({width:innerWidth,height:innerHeight,dpr:devicePixelRatio})');
     if (actual.width !== width || actual.height !== height) {
@@ -137,6 +156,23 @@ try {
   assert(calls.includes('windows'), 'Windows sound action did not reach main');
   await scenario(snapshot => { snapshot.audio.enabled = false; }); await clickAction();
   await until('!document.querySelector(".audio-routing-notice")', 'Enable did not clear off warning');
+  for (const driverState of ['not-installed', 'incomplete', undefined] as const) {
+    await scenario(snapshot => {
+      snapshot.audio.capabilities.routingBackend = 'none';
+      snapshot.audio.capabilities.applicationRouting = 'unavailable';
+      snapshot.audio.capabilities.channelDsp = 'unavailable';
+      if (driverState) snapshot.audio.host!.driver.state = driverState;
+      else snapshot.audio.host = null;
+    });
+    const expected = driverState === 'not-installed'
+      ? 'App mixing needs an audio driver. Finish setup in Settings → Audio.'
+      : 'Audio routing is unavailable. Your mix settings are saved.';
+    await until(`document.querySelector('.audio-header__identity p')?.textContent === ${JSON.stringify(expected)}`,
+      `Header misreported driver state: ${driverState ?? 'unknown'}`);
+    const label = driverState === 'not-installed' ? 'Audio setup' : 'Restart audio';
+    await until(`document.querySelector('.audio-routing-notice__action')?.textContent === ${JSON.stringify(label)}`,
+      `Wrong recovery action for driver state: ${driverState ?? 'unknown'}`);
+  }
   await scenario(snapshot => { snapshot.audio.buses[0]!.deviceId = 'missing'; }); await clickAction();
   await until('!!document.querySelector(".settings-page") || location.hash.startsWith("#settings")', 'Output recovery did not open Settings');
   assert(!window.isVisible() && !window.isFocused(), 'Native review window became visible');

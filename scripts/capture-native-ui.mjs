@@ -729,6 +729,7 @@ async function verifyAudioNoiseWorkflow() {
   if (!before.audio.enabled) {
     await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(true)`);
   }
+  await window.webContents.executeJavaScript(`window.switchboard.setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 55 } })`);
   await waitForCondition(
     `window.switchboard.getSnapshot().then((snapshot) => {
       const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
@@ -744,7 +745,7 @@ async function verifyAudioNoiseWorkflow() {
   const light = await window.webContents.executeJavaScript(`window.switchboard.setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 25 } })`);
   const lightProcessor = light.audio.micProcessors.find((processor) => processor.id === 'noise-suppression');
   assertReview(lightProcessor?.enabled && lightProcessor.parameters.amount === 25, 'Canonical microphone strength did not mutate to Light.');
-  assertReview(Math.abs((light.audio.host?.noiseSuppression.attenuationLimitDb ?? -1) - 9) < 0.01, 'Audio.Host did not apply the 9 dB Light target.');
+  assertReview(Math.abs((light.audio.host?.noiseSuppression.attenuationLimitDb ?? -1) - 6) < 0.01, 'Audio.Host did not apply the 6 dB Light target.');
   await delay(300);
   const persisted = JSON.parse(await readFile(reviewStatePath, 'utf8'));
   const persistedProcessor = persisted.audio?.micProcessors?.find((processor) => processor.id === 'noise-suppression');
@@ -765,7 +766,7 @@ async function verifyAudioNoiseWorkflow() {
   );
   await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(true)`);
   await waitForCondition(
-    `window.switchboard.getSnapshot().then((snapshot) => snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'running' && snapshot.audio.host?.noiseSuppression.attenuationLimitDb === 9)`,
+    `window.switchboard.getSnapshot().then((snapshot) => snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'running' && snapshot.audio.host?.noiseSuppression.attenuationLimitDb === 6)`,
     'orderly Audio.Host restart',
   );
   const orderlyRestart = await getNativeAudioSnapshot();

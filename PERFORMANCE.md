@@ -1,9 +1,10 @@
 # Performance budgets
 
-RNNoise residual-noise cleanup uses a scalar speech envelope before its existing
-strength blend. It adds no lookahead, audio buffers, polling or processes. Speech
-hold/release runs only with model frames, and regression tests cover zero managed
-allocations. See [microphone cleanup](docs/microphone-room-cleanup.md) for the
+Noise suppression uses one native model and a preallocated stage for delayed dry
+audio, warmup, strength fades and speech preservation. Bypass retains the model's
+fixed output delay but performs no native inference and accepts partial packets.
+Frame energy checks and mixing add no allocation, lock, timer, process or I/O.
+See [suppression rework](docs/noise-suppression-rework.md) for the
 fixture measurements and the remaining live-call validation boundary.
 
 Live audio requests the endpoint's minimum supported shared-mode period, with a

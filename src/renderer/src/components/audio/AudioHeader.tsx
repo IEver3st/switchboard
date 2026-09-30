@@ -1,6 +1,6 @@
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { Cable, Gamepad2, MessageCircle, Mic2, Music2, SlidersHorizontal, type LucideIcon } from 'lucide-react';
-import type { AudioCapabilities, AudioDependencyState, AudioSupportLevel } from '../../../../shared/contracts';
+import type { AudioDependencyState, AudioSupportLevel, VirtualDriverState } from '../../../../shared/contracts';
 import { cn } from '@/lib/cn';
 
 export const audioWorkspaceTabs = ['mixer', 'game', 'chat', 'media', 'microphone'] as const;
@@ -122,7 +122,7 @@ export function audioStatusLine({
   realtimeMetering,
   routingSupport,
   processingSupport,
-  routingBackend,
+  driverState,
   setupPhase,
 }: {
   tab: AudioWorkspaceTab;
@@ -130,12 +130,12 @@ export function audioStatusLine({
   realtimeMetering: AudioSupportLevel;
   routingSupport: AudioSupportLevel;
   processingSupport: AudioSupportLevel;
-  routingBackend?: AudioCapabilities['routingBackend'];
+  driverState?: VirtualDriverState['state'];
   setupPhase?: AudioDependencyState['phase'];
 }) {
   if (setupPhase === 'restart-required') return 'Restart Windows to finish audio driver setup. Your mix is saved.';
   if (!engineRunning) return 'Turn on the audio engine in Settings to hear and adjust live audio. Your mix is saved.';
-  if (tab === 'mixer' && routingBackend === 'none') return 'App mixing needs the VB-CABLE driver. Install it in Settings → Audio.';
+  if (tab === 'mixer' && driverState === 'not-installed') return 'App mixing needs an audio driver. Finish setup in Settings → Audio.';
   if (tab === 'mixer' && (routingSupport === 'unavailable' || processingSupport === 'unavailable')) return 'Audio routing is unavailable. Your mix settings are saved.';
   if (tab === 'mixer' && realtimeMetering !== 'available') return 'Live levels are unavailable. Faders still change the mix.';
   if (tab !== 'mixer' && processingSupport !== 'available') return 'Processing is unavailable for this channel. Changes are saved.';

@@ -316,11 +316,20 @@ standard VB-CABLE endpoint with per-process loopback for personal and clip mixes
 This fallback does not provide separate virtual microphone or stream outputs.
 See `docs/FREE-AUDIO-BACKEND.md` for capability, recovery, and lifecycle boundaries.
 
-RNNoise's strength blend delays the raw contribution by one 480-sample frame to
-match the native overlap-add output. Blending the current input with that output
-would duplicate the voice 10 ms apart. The delay buffer is preallocated and cleared
-with native model reset. Failed suppression frames bypass directly to current raw
-audio; the graph never crossfades through stale or partially written model output.
+`NoiseSuppressionStage` owns strength, speech protection and bypass independently
+of the native model. RNNoise provides fully processed frames and speech probability;
+the stage aligns the original microphone with its measured 480-sample output delay.
+That 10 ms timeline remains fixed during bypass and strength edits, including failed
+model frames. The delayed dry contribution is never mixed with current input.
+Enabling warms the model's overlap/lookahead before a 20 ms fade. Disabled suppression
+retains no model processing, and missing models use direct bypass without added delay.
+
+Strength bounds room-noise attenuation at 6/14/24/36 dB for 25/55/80/100 percent.
+Speech probability and a 300 ms hold protect the original voice contribution only
+when the model removes substantial frame energy; they never apply a second gate.
+The separate Noise gate remains an explicit processor. Live operation always uses
+the packaged RNNoise backend; optional DeepFilterNet is reserved for explicit offline
+comparisons. See [the suppression design and evidence](docs/noise-suppression-rework.md).
 
 Shared physical capture and playback request the minimum supported IAudioClient3
 period, with a 10 ms ordinary shared-mode fallback. Loopback capture retains the
@@ -331,12 +340,6 @@ Only personal playback, monitoring, and virtual microphone consumers discard old
 queued samples beyond 20 ms (or one larger output callback) after a stall. Stream
 and recording queues retain their continuity policy. These are queue limits, not
 an end-to-end latency guarantee. See [Audio latency](docs/audio-latency.md).
-
-RNNoise's strength blend delays the raw contribution by one 480-sample frame to
-match the native overlap-add output. Blending the current input with that output
-would duplicate the voice 10 ms apart. The delay buffer is preallocated and cleared
-with native model reset. Failed suppression frames bypass directly to current raw
-audio; the graph never crossfades through stale or partially written model output.
 
 ## Capture
 

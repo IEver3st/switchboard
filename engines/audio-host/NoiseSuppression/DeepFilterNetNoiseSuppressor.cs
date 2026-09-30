@@ -21,10 +21,10 @@ internal sealed partial class DeepFilterNetNoiseSuppressor : INoiseSuppressor
     public string? NativeLibraryHash { get; private set; }
     public int SampleRate => AudioConstants.ProcessingSampleRate;
     public int FrameLength { get; private set; }
+    public int OutputDelaySamples => FrameLength * 3;
     // Frame buffering plus the measured 3-hop output delay: one STFT hop and the
     // pinned model's two-hop lookahead (40 ms at 48 kHz, versus 20 ms for RNNoise).
     public double AlgorithmicLatencyMs => FrameLength <= 0 ? 0 : FrameLength * 4_000d / SampleRate;
-    public double AttenuationLimitDb { get; private set; }
     public string? LastError { get; private set; }
 
     public bool Initialize(NoiseSuppressorInitialization initialization)
@@ -45,13 +45,12 @@ internal sealed partial class DeepFilterNetNoiseSuppressor : INoiseSuppressor
                 throw new InvalidDataException("The DeepFilterNet3 model hash does not match the pinned artifact.");
             var libraryPath = Path.Combine(initialization.NativeDirectory, $"{LibraryName}.dll");
             if (File.Exists(libraryPath)) NativeLibraryHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(libraryPath)));
-            var pointer = native.Create(modelPath, 21f);
+            var pointer = native.Create(modelPath, 100f);
             if (pointer == IntPtr.Zero) throw new InvalidOperationException("libDF did not create a model state.");
             state = new SafeNativeStateHandle(pointer, native.Free);
             FrameLength = checked((int)native.GetFrameLength(state));
             if (FrameLength <= 0 || FrameLength > 4_096) throw new InvalidOperationException("libDF reported an invalid frame size.");
             native.SetPostFilterBeta(state, 0f);
-            Configure(55f);
             LastError = null;
             return true;
         }
@@ -61,13 +60,6 @@ internal sealed partial class DeepFilterNetNoiseSuppressor : INoiseSuppressor
             Dispose();
             return false;
         }
-    }
-
-    public void Configure(float amount)
-    {
-        AttenuationLimitDb = NoiseStrengthMapping.ToAttenuationDb(amount);
-        var handle = state;
-        if (handle is not null && !handle.IsInvalid) native.SetAttenuationLimit(handle, (float)AttenuationLimitDb);
     }
 
     public unsafe bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)

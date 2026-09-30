@@ -12,6 +12,7 @@ if (args.Length == 0) await ReplayAudioTests.RunAsync();
 if (args.Contains("--microphone-quality")) { MicrophoneQualityTests.Run(); return; }
 if (args.Contains("--microphone-timbre")) { MicrophoneTimbreProbe.Run(); return; }
 if (args.Length >= 3 && args[0] == "--microphone-continuity") { MicrophoneContinuityProbe.Run(args[1], args[2]); return; }
+if (args.Length >= 3 && args[0] == "--noise-suppression-reference") { MicrophoneContinuityProbe.RunRegression(args[1], args[2]); return; }
 if (args.Contains("--live-microphone-quality")) { MicrophoneQualityTests.RunLive(); return; }
 if (args.Contains("--live-microphone-continuity")) { MicrophoneContinuityLiveProbe.Run(20); return; }
 if (args.Contains("--spatial-response")) { SpatialResponse.Print(); return; }
@@ -352,10 +353,10 @@ static void AssertSequence(IReadOnlyList<float> actual, IReadOnlyList<float> exp
 static void TestStrengthMapping()
 {
     AssertClose(0f, NoiseStrengthMapping.ToAttenuationDb(0), 0.001f, "Zero strength must bypass suppression.");
-    AssertClose(9f, NoiseStrengthMapping.ToAttenuationDb(25), 0.001f, "Light must map to 9 dB.");
-    AssertClose(21f, NoiseStrengthMapping.ToAttenuationDb(55), 0.001f, "Balanced must map to 21 dB.");
-    AssertClose(36f, NoiseStrengthMapping.ToAttenuationDb(80), 0.001f, "Strong must remain bounded at 36 dB.");
-    AssertClose(100f, NoiseStrengthMapping.ToAttenuationDb(100), 0.001f, "Maximum must use the backend maximum.");
+    AssertClose(6f, NoiseStrengthMapping.ToAttenuationDb(25), 0.001f, "Light must map to 6 dB.");
+    AssertClose(14f, NoiseStrengthMapping.ToAttenuationDb(55), 0.001f, "Balanced must map to 14 dB.");
+    AssertClose(24f, NoiseStrengthMapping.ToAttenuationDb(80), 0.001f, "Strong must map to 24 dB.");
+    AssertClose(36f, NoiseStrengthMapping.ToAttenuationDb(100), 0.001f, "Maximum cleanup must remain bounded at 36 dB.");
     var previous = -1f;
     for (var amount = 0; amount <= 100; amount++)
     {
@@ -432,8 +433,6 @@ static void TestNativeRnnoiseWrapper()
         var suppressor = new RnnoiseNoiseSuppressor();
         Assert(suppressor.Initialize(initialization), suppressor.LastError ?? "RNNoise failed to initialize.");
         Assert(suppressor.FrameLength == 480, "RNNoise must report its upstream 48 kHz frame size.");
-        suppressor.Configure(25);
-        AssertClose(9f, (float)suppressor.AttenuationLimitDb, 0.001f, "RNNoise light attenuation must use the canonical mapping.");
         var input = new float[suppressor.FrameLength];
         var output = new float[suppressor.FrameLength];
         for (var index = 0; index < input.Length; index++) input[index] = MathF.Sin(index * 0.04f) * 0.1f;
@@ -760,10 +759,8 @@ sealed class DeterministicSuppressor : INoiseSuppressor
     public int SampleRate => 48_000;
     public int FrameLength => 480;
     public double AlgorithmicLatencyMs => 10;
-    public double AttenuationLimitDb { get; private set; }
     public string? LastError => null;
     public bool Initialize(NoiseSuppressorInitialization initialization) => true;
-    public void Configure(float amount) => AttenuationLimitDb = NoiseStrengthMapping.ToAttenuationDb(amount);
     public bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
     {
         output[..FrameLength].Fill(0.5f);
@@ -784,10 +781,8 @@ sealed class FailingSuppressor : INoiseSuppressor
     public int SampleRate => 48_000;
     public int FrameLength => 480;
     public double AlgorithmicLatencyMs => 10;
-    public double AttenuationLimitDb => 21;
     public string? LastError => "Injected backend failure.";
     public bool Initialize(NoiseSuppressorInitialization initialization) => true;
-    public void Configure(float amount) { }
     public bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
     {
         localSnrDb = float.NaN;
@@ -799,7 +794,6 @@ sealed class FailingSuppressor : INoiseSuppressor
 
 sealed class ControlAwareSuppressor : INoiseSuppressor
 {
-    private float amount;
     public bool IsAvailable => true;
     public string BackendName => "control-aware-test";
     public string ModelIdentifier => "control-aware-test";
@@ -808,14 +802,11 @@ sealed class ControlAwareSuppressor : INoiseSuppressor
     public int SampleRate => AudioConstants.ProcessingSampleRate;
     public int FrameLength => 480;
     public double AlgorithmicLatencyMs => 10;
-    public double AttenuationLimitDb => NoiseStrengthMapping.ToAttenuationDb(amount);
     public string? LastError => null;
     public bool Initialize(NoiseSuppressorInitialization initialization) => true;
-    public void Configure(float value) => amount = value;
     public bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
     {
-        var gain = MathF.Pow(10f, -(float)AttenuationLimitDb / 20f);
-        for (var index = 0; index < FrameLength; index++) output[index] = input[index] * gain;
+        for (var index = 0; index < FrameLength; index++) output[index] = input[index] * 0.1f;
         localSnrDb = 12f;
         return true;
     }

@@ -16,9 +16,8 @@ internal readonly record struct MicrophoneFrameResult(
 
 internal sealed class AudioGraph
 {
-    private readonly INoiseSuppressor noiseSuppressor;
-    private readonly float[] dryFrame;
-    private readonly float[] suppressedFrame;
+    private readonly NoiseSuppressionStage suppression;
+    private readonly int frameLength;
     private readonly ParametricEqualizer equalizer = new();
     private readonly Dictionary<string, MutableBus> buses = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -29,9 +28,6 @@ internal sealed class AudioGraph
     };
 
     private long configuredVersion = -1;
-    private float configuredSuppressionAmount = -1f;
-    private float suppressionMix;
-    private bool suppressionBackendBypassed;
     private float gateEnvelope = 1f;
     private float gateDetector;
     private int gateHoldSamples;
@@ -44,9 +40,8 @@ internal sealed class AudioGraph
 
     public AudioGraph(INoiseSuppressor noiseSuppressor)
     {
-        this.noiseSuppressor = noiseSuppressor;
-        dryFrame = new float[noiseSuppressor.FrameLength];
-        suppressedFrame = new float[noiseSuppressor.FrameLength];
+        suppression = new NoiseSuppressionStage(noiseSuppressor);
+        frameLength = noiseSuppressor.FrameLength;
     }
 
     public float ChatMix => chatMix;
@@ -122,37 +117,10 @@ internal sealed class AudioGraph
     /// </summary>
     public MicrophoneFrameResult ProcessMicrophone(Span<float> samples, MicrophoneDspConfiguration configuration)
     {
-        if (samples.IsEmpty || samples.Length > dryFrame.Length
-            || (RequiresSuppressionFrame(configuration) && samples.Length != dryFrame.Length)) return default;
-        samples.CopyTo(dryFrame);
+        if (samples.IsEmpty || samples.Length > frameLength
+            || (RequiresSuppressionFrame(configuration) && samples.Length != frameLength)) return default;
         ConfigureAtFrameBoundary(configuration);
-
-        var suppressionRequested = configuration.NoiseSuppression.Enabled
-                                   && configuration.NoiseSuppression.Amount > 0f
-                                   && noiseSuppressor.IsAvailable
-                                   && !suppressionBackendBypassed;
-        var attempted = suppressionRequested || suppressionMix > 0f;
-        var succeeded = false;
-        var localSnr = float.NaN;
-        if (attempted)
-        {
-            succeeded = noiseSuppressor.Process(dryFrame, suppressedFrame, out localSnr);
-            if (succeeded)
-            {
-                ApplySuppressionCrossfade(samples, suppressionRequested ? 1f : 0f);
-            }
-            else
-            {
-                // A failed backend may leave its output untouched or partially
-                // written. Never fade through a previous frame or invalid data.
-                dryFrame.AsSpan(0, samples.Length).CopyTo(samples);
-                suppressionMix = 0f;
-            }
-        }
-        else
-        {
-            dryFrame.AsSpan(0, samples.Length).CopyTo(samples);
-        }
+        var (attempted, succeeded, localSnr) = suppression.Process(samples, configuration.NoiseSuppression);
 
         if (configuration.NoiseGate.Enabled) ApplyNoiseGate(samples, configuration.NoiseGate);
         if (configuration.Gain.Enabled) ApplyGain(samples, DbToLinear(configuration.Gain.GainDb));
@@ -176,13 +144,11 @@ internal sealed class AudioGraph
 
     // Keep full model frames through suppression's fade-out. Once bypassed,
     // ordinary sample-by-sample DSP can consume a capture packet immediately.
-    public bool RequiresSuppressionFrame(MicrophoneDspConfiguration configuration) => suppressionMix > 0f
-        || (configuration.NoiseSuppression.Enabled && configuration.NoiseSuppression.Amount > 0f
-            && noiseSuppressor.IsAvailable && !suppressionBackendBypassed);
+    public bool RequiresSuppressionFrame(MicrophoneDspConfiguration configuration) => suppression.RequiresModelFrame(configuration.NoiseSuppression);
 
     public void Reset()
     {
-        suppressionMix = 0f;
+        suppression.Reset();
         gateEnvelope = 1f;
         gateDetector = 0f;
         gateHoldSamples = 0;
@@ -194,33 +160,13 @@ internal sealed class AudioGraph
         // its control thread. A realtime graph reset must never recreate a model.
     }
 
-    public void BypassNoiseSuppression() => suppressionBackendBypassed = true;
+    public void BypassNoiseSuppression() => suppression.Bypass();
 
     private void ConfigureAtFrameBoundary(MicrophoneDspConfiguration configuration)
     {
-        if (MathF.Abs(configuredSuppressionAmount - configuration.NoiseSuppression.Amount) > 0.001f)
-        {
-            noiseSuppressor.Configure(configuration.NoiseSuppression.Amount);
-            configuredSuppressionAmount = configuration.NoiseSuppression.Amount;
-        }
         if (configuredVersion == configuration.Version) return;
         equalizer.Configure(configuration.Equalizer.Bands);
         configuredVersion = configuration.Version;
-    }
-
-    private void ApplySuppressionCrossfade(Span<float> samples, float targetMix)
-    {
-        var frameDurationMs = samples.Length * 1_000f / AudioConstants.ProcessingSampleRate;
-        var maximumStep = Math.Clamp(frameDurationMs / 20f, 0f, 1f);
-        var nextMix = MoveTowards(suppressionMix, targetMix, maximumStep);
-        var mixStep = (nextMix - suppressionMix) / samples.Length;
-        var mix = suppressionMix;
-        for (var index = 0; index < samples.Length; index++)
-        {
-            mix += mixStep;
-            samples[index] = dryFrame[index] + (suppressedFrame[index] - dryFrame[index]) * mix;
-        }
-        suppressionMix = nextMix;
     }
 
     // The gate decides from a level envelope, not raw samples: a raw sample test
@@ -315,10 +261,6 @@ internal sealed class AudioGraph
     private static float DbToLinear(float db) => MathF.Pow(10f, db / 20f);
     private static float LinearToDb(float value) => 20f * MathF.Log10(Math.Max(value, 0.000001f));
     private static float TimeCoefficient(float milliseconds) => MathF.Exp(-1f / (Math.Max(milliseconds, 0.01f) * 0.001f * AudioConstants.ProcessingSampleRate));
-    private static float MoveTowards(float current, float target, float maximumDelta) => current < target
-        ? Math.Min(current + maximumDelta, target)
-        : Math.Max(current - maximumDelta, target);
-
     private sealed class MutableBus(string id, float gain)
     {
         public string Id { get; } = id;

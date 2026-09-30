@@ -131,6 +131,9 @@ internal sealed class MicrophonePipeline : IDisposable
     public long RecoveryCount => Interlocked.Read(ref recoveries);
     public float LocalSnr => Volatile.Read(ref localSnr);
     public bool SuppressionBypassed => suppressionBypassed;
+    public double SuppressionLatencyMs => (suppressor.OutputDelaySamples
+        + (graph.RequiresSuppressionFrame(Volatile.Read(ref configuration)) ? suppressor.FrameLength : 0))
+        * 1_000d / AudioConstants.ProcessingSampleRate;
     public bool CanRunMicrophoneTest => !string.IsNullOrWhiteSpace(Volatile.Read(ref testOutputDeviceId));
 
     internal static string SelectTestOutputDeviceId(AudioHostSettings settings) => settings.MonitoringEnabled

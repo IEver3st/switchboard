@@ -10,10 +10,8 @@ internal sealed class BypassNoiseSuppressor(string? reason = null) : INoiseSuppr
     public int SampleRate => AudioConstants.ProcessingSampleRate;
     public int FrameLength => 480;
     public double AlgorithmicLatencyMs => 0;
-    public double AttenuationLimitDb { get; private set; }
     public string? LastError { get; private set; } = reason;
     public bool Initialize(NoiseSuppressorInitialization initialization) => false;
-    public void Configure(float amount) => AttenuationLimitDb = NoiseStrengthMapping.ToAttenuationDb(amount);
     public bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
     {
         localSnrDb = float.NaN;
@@ -23,4 +21,3 @@ internal sealed class BypassNoiseSuppressor(string? reason = null) : INoiseSuppr
     public bool Reset() => true;
     public void Dispose() { }
 }
-

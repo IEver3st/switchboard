@@ -17,7 +17,7 @@ await readFile(packagedHost);
 const userData = await mkdtemp(join(tmpdir(), 'switchboard-packaged-audio-'));
 await copyFile(stateSource, join(userData, 'switchboard-state.json'));
 const port = await reservePort();
-const environment = { ...process.env, SWITCHBOARD_NATIVE_REVIEW: '1', SWITCHBOARD_NATIVE_FIXTURES: '1' };
+const environment = { ...process.env, SWITCHBOARD_NATIVE_REVIEW: '1', SWITCHBOARD_NATIVE_FIXTURES: '1', SWITCHBOARD_NATIVE_REVIEW_HIDDEN: '1' };
 delete environment.ELECTRON_RUN_AS_NODE;
 const child = spawn(executable, [`--remote-debugging-port=${port}`, `--user-data-dir=${userData}`], {
   cwd: dirname(executable),
@@ -43,7 +43,7 @@ try {
     ready = await waitForSnapshot(socket, (snapshot) => (
       snapshot.audio.enabled
       && snapshot.audio.host?.running
-      && snapshot.audio.host.noiseSuppression.state === 'ready'
+      && snapshot.audio.capabilities.noiseSuppression === 'available'
       && snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'running'
     ));
   } catch (error) {
@@ -54,7 +54,9 @@ try {
   if (!packagedAudioPid) throw new Error('The packaged Audio.Host did not report a process ID.');
 
   const balanced = await evaluate(socket, `window.switchboard.setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 55 } })`);
-  if (balanced.audio.host?.noiseSuppression.attenuationLimitDb !== 21) {
+  if (balanced.audio.host?.noiseSuppression.state !== 'ready'
+      || balanced.audio.host.noiseSuppression.backend !== 'RNNoise'
+      || balanced.audio.host.noiseSuppression.attenuationLimitDb !== 14) {
     throw new Error('The packaged native host did not apply the Balanced attenuation target.');
   }
   await evaluate(socket, `window.switchboard.setAudioEnabled(false)`);

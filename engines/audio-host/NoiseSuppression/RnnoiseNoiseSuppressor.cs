@@ -7,9 +7,6 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
 {
     private const string LibraryName = "switchboard_noise";
     private SafeNativeStateHandle? state;
-    private float dryFloor;
-    private float[] delayedDryFrame = [];
-    private readonly SpeechActivityEnvelope speechActivity = new();
 
     public bool IsAvailable => state is { IsInvalid: false, IsClosed: false };
     public string BackendName => "RNNoise";
@@ -18,8 +15,9 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
     public string? NativeLibraryHash { get; private set; }
     public int SampleRate => AudioConstants.ProcessingSampleRate;
     public int FrameLength { get; private set; } = 480;
+    public int OutputDelaySamples => FrameLength;
+    public float SpeechProbability => VoiceProbability;
     public double AlgorithmicLatencyMs => FrameLength * 2_000d / SampleRate;
-    public double AttenuationLimitDb { get; private set; }
     public string? LastError { get; private set; }
     internal float VoiceProbability { get; private set; }
 
@@ -35,7 +33,6 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
             state = new SafeNativeStateHandle(pointer, NativeMethods.Destroy);
             FrameLength = checked((int)NativeMethods.GetFrameSize());
             if (FrameLength <= 0 || FrameLength > 4_096) throw new InvalidOperationException("RNNoise reported an invalid frame size.");
-            delayedDryFrame = new float[FrameLength];
             NativeLibraryHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(libraryPath)));
             LastError = null;
             return true;
@@ -46,13 +43,6 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
             Dispose();
             return false;
         }
-    }
-
-    public void Configure(float amount)
-    {
-        AttenuationLimitDb = NoiseStrengthMapping.ToAttenuationDb(amount);
-        dryFloor = NoiseStrengthMapping.ToDryFloor(amount);
-        speechActivity.Configure((float)AttenuationLimitDb);
     }
 
     public unsafe bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)
@@ -69,16 +59,10 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
                 if (!NativeMethods.ProcessFrame(handle, inputPointer, outputPointer, &voiceProbability)) return false;
             }
             VoiceProbability = voiceProbability;
-            speechActivity.Process(output[..FrameLength], voiceProbability);
             for (var index = 0; index < FrameLength; index++)
             {
-                // RNNoise overlap-add returns the preceding 10 ms frame. Mixing
-                // current input here creates a second, early copy of the voice.
-                var sample = output[index] * (1f - dryFloor) + delayedDryFrame[index] * dryFloor;
-                if (!float.IsFinite(sample)) return false;
-                output[index] = sample;
+                if (!float.IsFinite(output[index])) return false;
             }
-            input.CopyTo(delayedDryFrame);
             return true;
         }
         catch (Exception error) when (error is SEHException or ObjectDisposedException)
@@ -95,8 +79,6 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
         try
         {
             if (!NativeMethods.Reset(handle)) return false;
-            Array.Clear(delayedDryFrame);
-            speechActivity.Reset();
             VoiceProbability = 0f;
             return true;
         }
@@ -111,8 +93,6 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
     {
         state?.Dispose();
         state = null;
-        delayedDryFrame = [];
-        speechActivity.Reset();
         VoiceProbability = 0f;
     }
 

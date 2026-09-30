@@ -17,9 +17,11 @@ do not change saved presets, endpoint choices, system volume, or replay timing.
   audio delay: it already woke on data notifications.
 - Bypassed noise removal lets the sample-based DSP process a partial capture
   packet immediately. Enabled suppression, including fade-out, still consumes
-  complete model frames. RNNoise uses 480 samples at 48 kHz; its existing overlap
-  and dry/wet alignment remain intact. The backend reports 20 ms algorithmic
-  latency, separate from Windows/device buffering.
+  complete model frames. RNNoise uses 480 samples at 48 kHz. Its 10 ms output
+  delay also applies to the dry path during bypass, so toggles never combine
+  different moments in time. Missing models use a direct, undelayed bypass.
+  Diagnostics report 20 ms while assembling model frames and 10 ms in bypass,
+  separate from Windows/device buffering.
 - Personal playback, virtual microphone, and monitoring consumers skip stale
   queued samples beyond 20 ms, or one render callback if larger. This is recovery
   after backlog, not an imposed 20 ms prebuffer. Discards are counted and can make

@@ -11,13 +11,13 @@ internal interface INoiseSuppressor : IDisposable
     string? NativeLibraryHash { get; }
     int SampleRate { get; }
     int FrameLength { get; }
+    // Delay in the model output itself, excluding the caller's frame buffering.
+    int OutputDelaySamples => 0;
+    float SpeechProbability => float.NaN;
     double AlgorithmicLatencyMs { get; }
-    double AttenuationLimitDb { get; }
     string? LastError { get; }
 
     bool Initialize(NoiseSuppressorInitialization initialization);
-    void Configure(float amount);
     bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb);
     bool Reset();
 }
-

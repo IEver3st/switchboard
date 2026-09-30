@@ -63,6 +63,40 @@ internal static class MicrophoneContinuityProbe
         return output;
     }
 
+    public static void RunRegression(string cleanPath, string noisePath)
+    {
+        var clean = ReadMono(cleanPath);
+        var noise = ReadMono(noisePath);
+        var peak = clean.Max(MathF.Abs);
+        if (peak == 0 || noise.All(sample => sample == 0)) throw new InvalidDataException("Speech/noise references must contain audio.");
+        for (var i = 0; i < clean.Length; i++) clean[i] *= 0.3f / peak;
+        var initialization = new NoiseSuppressorInitialization(AppContext.BaseDirectory, Path.GetTempPath());
+        foreach (var scale in new[] { 1f, 0.1f, 0.03f })
+        {
+            var reference = clean.Select(sample => sample * scale).ToArray();
+            var input = Mix(reference, noise, 12);
+            using var model = new RnnoiseNoiseSuppressor();
+            if (!model.Initialize(initialization)) throw new InvalidOperationException(model.LastError);
+            var output = Process(model, input, 85);
+            var chopped = Report($"RNNoise strong / input {scale:F2}", reference, output);
+            if (chopped > 0.5) throw new InvalidOperationException($"Strong suppression chopped {chopped:F1}% of reference speech.");
+        }
+        var noisePeak = noise.Max(MathF.Abs);
+        var noiseInput = noise.Select(sample => sample * 0.05f / noisePeak).ToArray();
+        foreach (var amount in new[] { 80f, 100f })
+        {
+            using var model = new RnnoiseNoiseSuppressor();
+            if (!model.Initialize(initialization)) throw new InvalidOperationException(model.LastError);
+            var output = Process(model, noiseInput, amount);
+            // Exclude startup; compare the same samples on the model's timeline.
+            var count = Math.Min(noiseInput.Length, output.Length - model.OutputDelaySamples) - Rate;
+            var reductionDb = 10 * Math.Log10(Energy(output, Rate + model.OutputDelaySamples, count) / Energy(noiseInput, Rate, count));
+            Console.WriteLine($"Noise-only strength {amount}: {reductionDb:F1} dB level change.");
+            if (reductionDb > -12) throw new InvalidOperationException("Strong cleanup lost meaningful background-noise reduction.");
+        }
+        Console.WriteLine("Reference speech and noise regressions passed; listening on the user's microphone remains separate.");
+    }
+
     // Returns the chopped-speech percentage for regression checks.
     internal static double Report(string label, float[] clean, float[] output)
     {

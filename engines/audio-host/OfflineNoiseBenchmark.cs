@@ -28,7 +28,6 @@ internal static class OfflineNoiseBenchmark
             "deepfilternet");
         using var suppressor = NoiseSuppressorFactory.Create(AppContext.BaseDirectory, modelDirectory, out var selectionNote);
         if (!suppressor.IsAvailable) throw new InvalidOperationException(suppressor.LastError ?? "No noise-suppression backend is available.");
-        suppressor.Configure(amount);
         var graph = new AudioGraph(suppressor);
         var configuration = new MicrophoneDspConfiguration(
             1,
@@ -68,7 +67,7 @@ internal static class OfflineNoiseBenchmark
             modelHash = suppressor.ModelHash,
             nativeLibraryHash = suppressor.NativeLibraryHash,
             frameLength = suppressor.FrameLength,
-            attenuationLimitDb = suppressor.AttenuationLimitDb,
+            attenuationLimitDb = NoiseStrengthMapping.ToAttenuationDb(amount),
             elapsedMs = elapsed.TotalMilliseconds,
             audioDurationMs = audioDuration.TotalMilliseconds,
             realTimeFactor = audioDuration.TotalMilliseconds <= 0 ? 0 : elapsed.TotalMilliseconds / audioDuration.TotalMilliseconds,

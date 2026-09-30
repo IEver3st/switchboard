@@ -21,6 +21,7 @@ process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
 let available = true;
 let rejectNext = false;
+let rejectNextProcessor = false;
 let lastCanonical;
 const evidence = { profile, scope: 'Hidden native UI; simulated availability; real offline IPC and persistence; no audio playback', layouts: [], checks: [] };
 function fixture(value) {
@@ -39,6 +40,10 @@ ipcMain.handle = (channel, handler) => handle(channel, async (...args) => {
   if (channel === 'audio:apply-preset') {
     await delay(180);
     if (rejectNext) { rejectNext = false; throw new Error('Injected EQ rejection for UI verification'); }
+  }
+  if (channel === 'audio:set-mic-processor') {
+    await delay(180);
+    if (rejectNextProcessor) { rejectNextProcessor = false; throw new Error('Injected noise removal rejection for UI verification'); }
   }
   return fixture(await handler(...args));
 });
@@ -113,6 +118,41 @@ async function run() {
   await route('microphone');
   await ready();
   assert(!window.isVisible() && !window.isFocused(), 'Review must remain hidden');
+  const suppression = async () => (await snapshot()).audio.micProcessors.find(p => p.id === 'noise-suppression');
+  const noiseSwitch = '#microphone-removal-section [role="switch"]';
+  const noiseSlider = '#microphone-removal-section [role="slider"]';
+  const key = async value => evaluate(`document.querySelector(${JSON.stringify(noiseSlider)}).dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(value)},bubbles:true}))`);
+  await api('setMicProcessor', { processorId: 'noise-suppression', enabled: true, parameters: { amount: 0 } });
+  await until(() => evaluate(`document.querySelector(${JSON.stringify(noiseSwitch)})?.getAttribute('aria-checked')==='false'`), 'Zero strength was shown as on');
+  await click(noiseSwitch);
+  await until(() => evaluate(`document.querySelector(${JSON.stringify(noiseSwitch)})?.disabled`), 'Noise enable did not show pending');
+  await until(async () => (await suppression()).parameters.amount === 55, 'Enabling zero strength did not restore a working amount');
+  await until(() => evaluate(`!!document.querySelector(${JSON.stringify(noiseSlider)}) && !document.querySelector(${JSON.stringify(noiseSwitch)}).disabled`), 'Noise strength did not become editable');
+  await key('End');
+  await until(async () => (await suppression()).parameters.amount === 100, 'Maximum strength keyboard edit did not reach canonical state');
+  await until(() => evaluate(`!document.querySelector(${JSON.stringify(noiseSwitch)}).disabled`), 'Strength edit remained pending');
+  await evaluate('location.reload()');
+  await until(() => evaluate(`!!document.querySelector(${JSON.stringify(noiseSlider)})`), 'Noise control did not return after reload');
+  assert((await suppression()).parameters.amount === 100, 'Reload lost confirmed noise strength');
+  rejectNextProcessor = true;
+  await key('Home');
+  await until(() => evaluate(`!!document.querySelector('[aria-label="Dismiss error"]')`), 'Rejected strength did not report an error');
+  assert((await suppression()).parameters.amount === 100, 'Rejected noise edit replaced the confirmed strength');
+  await click('[aria-label="Dismiss error"]');
+  await until(() => evaluate(`!document.querySelector(${JSON.stringify(noiseSwitch)}).disabled`), 'Rejected noise edit retained pending state');
+  await key('Home');
+  await until(async () => !(await suppression()).enabled && (await suppression()).parameters.amount === 0, 'Zero strength did not disable suppression');
+  await until(() => evaluate(`!document.querySelector(${JSON.stringify(noiseSwitch)}).disabled`), 'Zero strength remained pending');
+  await click(noiseSwitch);
+  await until(async () => (await suppression()).enabled && (await suppression()).parameters.amount === 55, 'Noise removal did not recover after zero strength');
+  for (const [width, height] of [[1080, 720], [1420, 900], [1920, 1080]]) {
+    await resize(width, height);
+    await evaluate(`document.querySelector('#microphone-removal-section').scrollIntoView({block:'center'})`);
+    const noiseLayout = await evaluate(`({width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth,reducedMotion:matchMedia('(prefers-reduced-motion:reduce)').matches})`);
+    assert(!noiseLayout.overflow && noiseLayout.reducedMotion, `Noise control layout failed: ${JSON.stringify(noiseLayout)}`);
+    await capture(`${width}x${height}-noise-removal`);
+  }
+  evidence.checks.push('Noise zero/off, enable, keyboard strength, pending/rejection, confirmed reload, three sizes');
   const presets = (await snapshot()).audio.pathPresets.filter(p => p.kind === 'microphone');
   for (const preset of presets) {
     await openSelect('[aria-label="microphone preset"]');

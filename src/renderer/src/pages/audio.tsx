@@ -84,7 +84,7 @@ export function AudioPage({ snapshot }: { snapshot: SystemSnapshot }) {
     realtimeMetering: snapshot.audio.capabilities.realtimeMetering,
     routingSupport: snapshot.audio.capabilities.applicationRouting,
     processingSupport: tab === 'microphone' ? snapshot.audio.capabilities.microphoneDsp : snapshot.audio.capabilities.channelDsp,
-    routingBackend: snapshot.audio.capabilities.routingBackend,
+    driverState: snapshot.audio.host?.driver.state,
     setupPhase: snapshot.audio.dependencies.phase,
   });
 

@@ -12,6 +12,7 @@ import { ParametricEq } from './ParametricEq';
 import { PresetPicker } from './presets/PresetPicker';
 import { ParameterControl } from './processors/ParameterControl';
 import { MicrophoneTest } from './testing/MicrophoneTest';
+import { noiseRemovalAmounts } from './semantic-mapping';
 import { useSystemStore } from '@/stores/use-system-store';
 
 function getProcessor<T extends MicProcessorId>(processors: MicProcessor[], id: T): Extract<MicProcessor, { id: T }> | null {
@@ -218,12 +219,14 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
         <MicStage
           id="microphone-removal-section"
           title="Noise removal"
-          description={suppressionUnavailable ? suppressionError ?? 'Unavailable with the current audio setup.' : 'Reduces fans, keys, and background sound.'}
-          checked={suppression.enabled && !suppressionUnavailable}
+          description={suppressionUnavailable ? suppressionError ?? 'Unavailable with the current audio setup.' : 'Reduces room noise. Higher strength can change your voice.'}
+          checked={suppression.enabled && suppression.parameters.amount > 0 && !suppressionUnavailable}
           unavailable={suppressionUnavailable}
-          onCheckedChange={toggle('noise-suppression')}
+          pending={Boolean(pendingOperations['processor:noise-suppression'])}
+          onCheckedChange={(enabled) => void commitProcessor({ processorId: 'noise-suppression', enabled,
+            parameters: { amount: enabled && suppression.parameters.amount === 0 ? noiseRemovalAmounts.balanced : suppression.parameters.amount } })}
         >
-          <ParameterControl label="Strength" value={suppression.parameters.amount} min={0} max={100} step={1} unit="%" onCommit={(amount) => void commitProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount } })} />
+          <ParameterControl label="Strength" value={suppression.parameters.amount} min={0} max={100} step={1} unit="%" disabled={Boolean(pendingOperations['processor:noise-suppression'])} onCommit={(amount) => void commitProcessor({ processorId: 'noise-suppression', enabled: amount > 0, parameters: { amount } })} />
         </MicStage>
         <MicStage
           id="microphone-gate-section"
@@ -303,6 +306,7 @@ function MicStage({
   description,
   checked,
   unavailable,
+  pending = false,
   advanced,
   onCheckedChange,
   children,
@@ -312,6 +316,7 @@ function MicStage({
   description: string;
   checked: boolean;
   unavailable: boolean;
+  pending?: boolean;
   advanced?: ReactNode;
   onCheckedChange: (checked: boolean) => void;
   children: ReactNode;
@@ -320,14 +325,14 @@ function MicStage({
   const headingId = `${id}-heading`;
   const open = checked && !unavailable;
   return (
-    <article id={id} className={cn('mic-stage', open && 'is-on')} aria-labelledby={headingId}>
+    <article id={id} className={cn('mic-stage', open && 'is-on')} aria-labelledby={headingId} aria-busy={pending || undefined}>
       <header className="mic-stage__head">
         <div className="mic-stage__copy">
           <h4 id={headingId}>{title}</h4>
           <p>{description}</p>
         </div>
         {unavailable ? <span className="mic-stage__state">Unavailable</span> : null}
-        <Switch checked={checked} disabled={unavailable} aria-label={`${checked ? 'Turn off' : 'Turn on'} ${title}`} onCheckedChange={onCheckedChange} />
+        <Switch checked={checked} disabled={unavailable || pending} aria-label={`${checked ? 'Turn off' : 'Turn on'} ${title}`} onCheckedChange={onCheckedChange} />
       </header>
       {open ? (
         <div className="mic-stage__body">
