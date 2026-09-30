@@ -28,9 +28,18 @@ Sources:
 RNNoise returned speech probability, but Switchboard did not use it to attenuate
 residual non-speech. The ordinary amplitude gate could remain open on room tails
 and louder background sounds. The RNNoise wrapper now applies a speech envelope
-to the wet output before the existing latency-aligned strength blend. It opens at
-0.5 probability, stays open down to 0.25, holds for 60 ms, and uses 2 ms attack and
-35 ms release time constants. The strength setting retains its existing dry
+to the wet output before the existing latency-aligned strength blend.
+
+0.9.29 revision: the first version muted non-speech completely, opening at 0.5
+probability with a 60 ms hold. RNNoise's probability dips under soft onsets,
+unvoiced consonants and word tails, so that mute chopped real speech ("mic cutting
+out"). The envelope now attenuates by a bounded range that grows with strength:
+none up to the 21 dB setting (strength 55), then 1 dB per dB of extra strength,
+capped at 18 dB. It opens at 0.35, stays open down to 0.12, holds for 200 ms, and
+uses 2 ms attack and 80 ms release. With `clean_freesound_33711.wav` plus
+`noise_freesound_2530.wav` at strength 85, chopped speech frames (at least 15 dB
+under the clean reference) fell from 2.6% to 0.2% at 25 dB SNR and from 3.1% to
+1.3% at 12 dB SNR (`--microphone-continuity`). The strength setting retains its existing dry
 floor. No lookahead, process, timer, model download or additional audio delay is
 introduced. Reset and disposal clear the envelope. Backend failure still uses
 the existing direct raw-audio bypass.

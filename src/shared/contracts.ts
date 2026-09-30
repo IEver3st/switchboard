@@ -667,7 +667,8 @@ export const audioApplicationSchema = z.object({
 export type AudioApplication = z.infer<typeof audioApplicationSchema>;
 
 export const audioApplicationPreferenceSchema = z.object({
-  executablePath: z.string().min(1).max(1024).regex(/^[a-z]:\\.*\.exe$/i),
+  // Drive-qualified process image. Some audio processes (FiveM_ChromeBrowser) have no .exe extension.
+  executablePath: z.string().min(1).max(1024).regex(/^[a-z]:\\[^\\].*$/i),
   destination: z.enum(['game', 'chat', 'media']),
 });
 export const audioApplicationPreferencesSchema = z.array(audioApplicationPreferenceSchema).max(64)

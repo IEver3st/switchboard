@@ -5,9 +5,13 @@ namespace Switchboard.AudioHost.Realtime;
 
 internal sealed class ProcessedWaveProvider(BoundedFrameAdapter source) : IWaveProvider
 {
+    private const int PrimeSamples = AudioConstants.ProcessingSampleRate * AudioConstants.LivePrimeMilliseconds / 1_000;
+    private const int MaximumSamples = AudioConstants.ProcessingSampleRate * AudioConstants.LiveQueueMilliseconds / 1_000;
     private float volume = 1f;
     private long underruns;
     private long discardedSamples;
+    // Consumer-owned jitter-buffer state; see AudioConstants.LivePrimeMilliseconds.
+    private bool primed;
 
     public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.ProcessingSampleRate, 1);
     public long Underruns => Interlocked.Read(ref underruns);
@@ -20,20 +24,29 @@ internal sealed class ProcessedWaveProvider(BoundedFrameAdapter source) : IWaveP
         var count = buffer.Length;
         var alignedCount = count - count % sizeof(float);
         var destination = MemoryMarshal.Cast<byte, float>(buffer[..alignedCount]);
+        var read = 0;
         if (!destination.IsEmpty)
         {
-            var retained = Math.Max(destination.Length, AudioConstants.ProcessingSampleRate * AudioConstants.LiveQueueMilliseconds / 1_000);
-            var skipped = source.DiscardOldestExcept(retained);
-            if (skipped > 0) Interlocked.Add(ref discardedSamples, skipped);
+            var prime = Math.Max(PrimeSamples, destination.Length);
+            if (!primed && source.Count >= prime) primed = true;
+            if (primed)
+            {
+                if (source.Count > Math.Max(MaximumSamples, prime + destination.Length))
+                {
+                    var skipped = source.DiscardOldestExcept(prime);
+                    if (skipped > 0) Interlocked.Add(ref discardedSamples, skipped);
+                }
+                read = source.Read(destination);
+                if (read < destination.Length)
+                {
+                    primed = false;
+                    Interlocked.Increment(ref underruns);
+                }
+            }
         }
-        var read = source.Read(destination);
         var gain = Volatile.Read(ref volume);
         for (var index = 0; index < read; index++) destination[index] *= gain;
-        if (read < destination.Length)
-        {
-            destination[read..].Clear();
-            Interlocked.Increment(ref underruns);
-        }
+        if (read < destination.Length) destination[read..].Clear();
         if (alignedCount < count) buffer[alignedCount..].Clear();
         return count;
     }

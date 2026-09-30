@@ -157,6 +157,16 @@ internal sealed class CableRoutingEngine : IAudioRoutingEngine
         // and app restarts. No extra timer/process remains when audio is disabled.
         var discovered = sessions.Select(session => session.Process).Distinct().ToArray();
         foreach (var stale in failures.Keys.Where(process => !discovered.Contains(process)).ToArray()) failures.Remove(stale);
+        // Windows keeps a routed executable's redirect to the cable after it exits.
+        // Release it as soon as the app runs again, even if it is no longer mixed;
+        // otherwise its audio plays into a cable nothing is forwarding.
+        foreach (var process in discovered)
+        {
+            if (!journal.HasLease(process.ExecutablePath)
+                || routes.Values.Any(route => route.Process.ExecutablePath.Equals(process.ExecutablePath, StringComparison.OrdinalIgnoreCase))) continue;
+            try { journal.Recover([process]); }
+            catch (Exception error) { failures[process] = error.Message; }
+        }
         foreach (var process in ApplicationRoutingPolicy.DiscoveryOrder(discovered, preferences, AudioProcessIdentity.IsInTree))
         {
             var busId = Desired(process);

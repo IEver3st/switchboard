@@ -20,12 +20,36 @@ internal sealed class AudioRouteLeaseJournal : IDisposable
         ownership = new FileStream(path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         try
         {
-            if (File.Exists(path) && new FileInfo(path).Length > 1024 * 1024) throw new InvalidOperationException("Audio route recovery journal is too large.");
-            leases = File.Exists(path) ? JsonSerializer.Deserialize<List<AudioRouteLease>>(File.ReadAllText(path)) ?? [] : [];
-            if (leases.Count > 256) throw new InvalidOperationException("Audio route recovery journal has too many leases.");
-            foreach (var lease in leases) lease.Validate();
+            leases = Load(path);
+            if (File.Exists(path)) Save();
         }
         catch { ownership.Dispose(); throw; }
+    }
+
+    private const int MaximumLeases = 256;
+
+    public bool HasLease(string executablePath) =>
+        leases.Any(lease => lease.Process.ExecutablePath.Equals(executablePath, StringComparison.OrdinalIgnoreCase));
+
+    // One unreadable lease must not disable application mixing: the route it
+    // cannot describe is unrecoverable anyway, while every valid lease still has
+    // to be restored when its executable next runs.
+    private static List<AudioRouteLease> Load(string path)
+    {
+        if (!File.Exists(path)) return [];
+        List<AudioRouteLease?>? stored = null;
+        try
+        {
+            if (new FileInfo(path).Length <= 1024 * 1024)
+                stored = JsonSerializer.Deserialize<List<AudioRouteLease?>>(File.ReadAllText(path));
+        }
+        catch (JsonException) { }
+        if (stored is null)
+        {
+            File.Move(path, $"{path}.invalid-{DateTime.UtcNow:yyyyMMddHHmmss}", overwrite: true);
+            return [];
+        }
+        return stored.OfType<AudioRouteLease>().Where(lease => lease.IsValid && lease.ExecutableExists).Take(MaximumLeases).ToList();
     }
 
     public void Acquire(AudioProcessIdentity process, string sinkId)
@@ -94,11 +118,12 @@ internal sealed class AudioRouteLeaseJournal : IDisposable
 
 internal sealed record AudioRouteLease(AudioProcessIdentity Process, string SinkId, ApplicationEndpointPreferences Previous)
 {
-    public void Validate()
-    {
-        if (Process is null || Process.Id <= 0 || Process.StartedAt <= 0 || string.IsNullOrWhiteSpace(SinkId) || SinkId.Length > 2048
-            || Previous is null || new[] { Previous.Console, Previous.Multimedia, Previous.Communications }.Any(value => value is null || value.Length > 4096))
-            throw new InvalidOperationException("Audio route recovery journal is invalid.");
-        new AudioApplicationPreference(Process.ExecutablePath, "game").Validate();
-    }
+    public bool IsValid => Process is not null && Process.Id > 0 && Process.StartedAt > 0
+        && AudioApplicationPreference.IsExecutablePath(Process.ExecutablePath)
+        && !string.IsNullOrWhiteSpace(SinkId) && SinkId.Length <= 2048 && Previous is not null
+        && new[] { Previous.Console, Previous.Multimedia, Previous.Communications }.All(value => value is not null && value.Length <= 4096);
+
+    // Windows persists the redirect per executable. A deleted executable (such
+    // as a removed test build) can never run again, so nothing is left to restore.
+    public bool ExecutableExists => File.Exists(Process.ExecutablePath);
 }

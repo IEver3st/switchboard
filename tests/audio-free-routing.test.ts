@@ -50,6 +50,8 @@ describe('free application mixing backend', () => {
     expect(setAudioRoutingInputSchema.safeParse({}).success).toBeFalse();
     expect(setAudioRoutingInputSchema.safeParse({ override: { executablePath: 'relative.exe', destination: 'media' } }).success).toBeFalse();
     expect(setAudioRoutingInputSchema.safeParse({ automatic: true, override: { executablePath: 'C:\\Apps\\Chrome.exe', destination: null } }).success).toBeTrue();
+    // Real audio process images need not end in .exe.
+    expect(setAudioRoutingInputSchema.safeParse({ override: { executablePath: 'C:\\FiveM\\subprocess\\FiveM_ChromeBrowser', destination: 'media' } }).success).toBeTrue();
   });
 
   test('rejects unbounded, duplicate, relative, and invalid application preferences', () => {

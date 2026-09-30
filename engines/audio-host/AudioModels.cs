@@ -8,7 +8,12 @@ internal static class AudioConstants
     // Fallback request. IAudioClient3 uses the endpoint's minimum supported period.
     public const int LatencyMilliseconds = 10;
     // Live consumers catch up after stalls; recording/stream queues retain continuity.
-    public const int LiveQueueMilliseconds = 20;
+    // Producers deliver 10 ms packets while low-latency outputs drain in 3-10 ms
+    // periods on another clock. Playback starts (and restarts after an underrun)
+    // only with a prime cushion, and trims back to it past the ceiling. A 20 ms
+    // ceiling with no cushion underran on ordinary scheduling jitter.
+    public const int LivePrimeMilliseconds = 20;
+    public const int LiveQueueMilliseconds = 60;
     public const string InterfaceName = "Switchboard Virtual Audio Device";
     public const int ProcessingSampleRate = 48_000;
     // Keep aligned with MAX_EQ_BANDS in the shared contract; storage is preallocated.
@@ -75,11 +80,15 @@ internal sealed record AudioApplicationPreference(string ExecutablePath, string 
 {
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(ExecutablePath) || ExecutablePath.Length > 1024 || !Path.IsPathFullyQualified(ExecutablePath)
-            || !ExecutablePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        if (!IsExecutablePath(ExecutablePath))
             throw new InvalidOperationException("Application preferences require an absolute executable path.");
         _ = new AudioApplicationRouteRequest(1, Destination).Validate();
     }
+
+    // Matches the shared contract: a drive-qualified process image. Real audio
+    // processes need not end in .exe (FiveM_ChromeBrowser does not).
+    public static bool IsExecutablePath(string? path) => path is { Length: > 3 and <= 1024 }
+        && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] == '\\' && Path.IsPathFullyQualified(path);
 }
 
 internal sealed record AudioApplicationRouteRequest(int ProcessId, string Destination)

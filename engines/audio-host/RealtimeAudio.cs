@@ -13,23 +13,37 @@ internal sealed class SpscFloatRing : ISampleProvider
     private long writeSequence;
     private long droppedSamples;
     private readonly int maximumBufferedSamples;
+    private readonly int primeSamples;
     private long discardedSamples;
+    private long underruns;
+    // Consumer-owned jitter-buffer state for live rings.
+    private bool primed;
 
-    public SpscFloatRing(int capacitySamples, int maximumBufferedSamples = 0)
+    public SpscFloatRing(int capacitySamples, int maximumBufferedSamples = 0, int primeSamples = -1)
     {
         if (capacitySamples <= 0) throw new ArgumentOutOfRangeException(nameof(capacitySamples));
         if (maximumBufferedSamples < 0 || maximumBufferedSamples > capacitySamples || maximumBufferedSamples % AudioConstants.Channels != 0)
             throw new ArgumentOutOfRangeException(nameof(maximumBufferedSamples));
+        if (primeSamples < 0) primeSamples = maximumBufferedSamples == 0 ? 0
+            : Math.Min(maximumBufferedSamples, AudioConstants.SampleRate * AudioConstants.Channels * AudioConstants.LivePrimeMilliseconds / 1_000);
+        if (primeSamples > maximumBufferedSamples || primeSamples % AudioConstants.Channels != 0)
+            throw new ArgumentOutOfRangeException(nameof(primeSamples));
         samples = new float[capacitySamples];
         this.maximumBufferedSamples = maximumBufferedSamples;
+        this.primeSamples = primeSamples;
         WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(AudioConstants.SampleRate, AudioConstants.Channels);
     }
 
     public WaveFormat WaveFormat { get; }
     public long DroppedSamples => Volatile.Read(ref droppedSamples);
     public long DiscardedSamples => Volatile.Read(ref discardedSamples);
+    public long Underruns => Interlocked.Read(ref underruns);
 
-    public void DiscardBufferedSamples() => Volatile.Write(ref readSequence, Volatile.Read(ref writeSequence));
+    public void DiscardBufferedSamples()
+    {
+        Volatile.Write(ref readSequence, Volatile.Read(ref writeSequence));
+        primed = false;
+    }
 
     public void WriteFloat32(ReadOnlySpan<byte> source, bool silent)
     {
@@ -83,17 +97,40 @@ internal sealed class SpscFloatRing : ISampleProvider
         var count = buffer.Length;
         var read = Volatile.Read(ref readSequence);
         var write = Volatile.Read(ref writeSequence);
-        // Only this ring's consumer moves its read cursor. Keep enough for the
-        // device's entire callback, even when it asks for more than our target.
-        if (maximumBufferedSamples > 0 && count > 0)
+        // Only this ring's consumer moves its read cursor. Live rings are jitter
+        // buffers: wait for a cushion that covers the device's entire callback,
+        // then trim back to that cushion only once drift passes the ceiling.
+        var live = maximumBufferedSamples > 0 && count > 0;
+        if (live)
         {
-            var retained = Math.Max(count + count % AudioConstants.Channels, maximumBufferedSamples);
-            var skip = Math.Max(0, write - read - retained);
-            skip -= skip % AudioConstants.Channels;
-            read += skip;
-            if (skip > 0) Interlocked.Add(ref discardedSamples, skip);
+            var aligned = count + count % AudioConstants.Channels;
+            var prime = Math.Max(primeSamples, aligned);
+            var buffered = write - read;
+            if (!primed)
+            {
+                if (buffered < prime)
+                {
+                    buffer.Clear();
+                    return count;
+                }
+                primed = true;
+            }
+            if (buffered > Math.Max(maximumBufferedSamples, prime + aligned))
+            {
+                var skip = buffered - prime;
+                skip -= skip % AudioConstants.Channels;
+                read += skip;
+                Interlocked.Add(ref discardedSamples, skip);
+            }
         }
         var available = Math.Min(count, checked((int)Math.Min(samples.Length, write - read)));
+        if (live && available < count)
+        {
+            // Re-prime instead of playing each late packet the moment it lands,
+            // which turns one late packet into a run of short dropouts.
+            primed = false;
+            Interlocked.Increment(ref underruns);
+        }
         var source = checked((int)(read % samples.Length));
         var first = Math.Min(available, samples.Length - source);
         if (first > 0) samples.AsSpan(source, first).CopyTo(buffer);

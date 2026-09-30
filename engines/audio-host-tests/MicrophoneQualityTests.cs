@@ -59,39 +59,50 @@ internal static class MicrophoneQualityTests
     {
         var activity = new SpeechActivityEnvelope();
         var frame = new float[480];
+        // Moderate strengths leave cleanup to the model and dry floor.
+        activity.Configure(NoiseStrengthMapping.ToAttenuationDb(45));
         Array.Fill(frame, 0.5f);
         activity.Process(frame, 0.01f);
-        Require(frame.All(x => x == 0f), "Noise alone opened the speech envelope.");
+        Require(frame.All(x => x == 0.5f), "A moderate strength attenuated non-speech beyond the model.");
+
+        activity.Configure(NoiseStrengthMapping.ToAttenuationDb(85));
+        activity.Reset();
+        var floor = 0.5f * activity.FloorGain;
+        Require(activity.FloorGain is > 0.1f and < 0.2f, $"Strong cleanup range was {20 * MathF.Log10(activity.FloorGain):F1} dB.");
+        Array.Fill(frame, 0.5f);
+        activity.Process(frame, 0.01f);
+        Require(frame.All(x => Math.Abs(x - floor) < 0.0001f), "Noise alone opened the speech envelope.");
         for (var i = 0; i < 4; i++)
         {
             Array.Fill(frame, 0.5f);
             activity.Process(frame, 0.9f);
         }
         Require(frame.All(x => x > 0.4999f), "Sustained speech lost level.");
-        // Probability fluctuations and a short unvoiced consonant must not chop
-        // a word. Loud non-speech is not allowed to keep the gate open indefinitely.
+        // Probability dips under soft syllables, consonants and word tails must
+        // not chop a word. Loud non-speech must still settle to the floor.
         Array.Fill(frame, 0.5f);
-        activity.Process(frame, 0.3f);
+        activity.Process(frame, 0.15f);
         Require(frame.All(x => x > 0.4999f), "Probability hysteresis chopped speech.");
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < 18; i++)
         {
             Array.Fill(frame, 0.5f);
             activity.Process(frame, 0.01f);
-            Require(frame.All(x => x > 0.4999f), "A short speech gap was cut.");
+            Require(frame.All(x => x > 0.4999f), "A 180 ms speech gap was cut.");
         }
-        for (var i = 0; i < 40; i++)
+        for (var i = 0; i < 60; i++)
         {
             Array.Fill(frame, 0.5f);
             activity.Process(frame, 0.01f);
         }
-        Require(frame.Max() < 0.00001f, "Residual non-speech remained open after the hold and release.");
+        Require(frame.Max() < floor * 1.01f && frame.Min() >= floor * 0.999f,
+            "Non-speech did not settle to the bounded floor, or was muted below it.");
         Array.Fill(frame, 0.5f);
-        activity.Process(frame, 0.9f);
-        Require(frame[^1] > 0.496f, "Speech failed to reopen within one model frame.");
+        activity.Process(frame, 0.4f);
+        Require(frame[^1] > 0.496f, "A soft speech onset failed to reopen within one model frame.");
         activity.Reset();
         Array.Fill(frame, 0.5f);
         activity.Process(frame, 0.01f);
-        Require(frame.All(x => x == 0f), "Reset retained a previous speech envelope.");
+        Require(frame.All(x => Math.Abs(x - floor) < 0.0001f), "Reset retained a previous speech envelope.");
         var allocated = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < 100; i++) activity.Process(frame, 0.9f);
         Require(GC.GetAllocatedBytesForCurrentThread() == allocated, "Speech cleanup allocated on the DSP thread.");

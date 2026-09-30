@@ -52,6 +52,7 @@ internal sealed partial class RnnoiseNoiseSuppressor : INoiseSuppressor
     {
         AttenuationLimitDb = NoiseStrengthMapping.ToAttenuationDb(amount);
         dryFloor = NoiseStrengthMapping.ToDryFloor(amount);
+        speechActivity.Configure((float)AttenuationLimitDb);
     }
 
     public unsafe bool Process(ReadOnlySpan<float> input, Span<float> output, out float localSnrDb)

@@ -11,7 +11,9 @@ if (args.Length == 0) await ReplayAudioTests.RunAsync();
 
 if (args.Contains("--microphone-quality")) { MicrophoneQualityTests.Run(); return; }
 if (args.Contains("--microphone-timbre")) { MicrophoneTimbreProbe.Run(); return; }
+if (args.Length >= 3 && args[0] == "--microphone-continuity") { MicrophoneContinuityProbe.Run(args[1], args[2]); return; }
 if (args.Contains("--live-microphone-quality")) { MicrophoneQualityTests.RunLive(); return; }
+if (args.Contains("--live-microphone-continuity")) { MicrophoneContinuityLiveProbe.Run(20); return; }
 if (args.Contains("--spatial-response")) { SpatialResponse.Print(); return; }
 if (args.Contains("--spatial-motion")) { SpatialMotion.Run(); return; }
 if (args.Contains("--live-headset-trace")) { SpatialHeadsetTrace.Run(); return; }
@@ -654,10 +656,12 @@ static void TestMicrophoneSettingsParser()
 
 static void TestMonitoringVolume()
 {
-    var source = new BoundedFrameAdapter(8);
+    var source = new BoundedFrameAdapter(AudioConstants.ProcessingSampleRate / 10);
     var provider = new ProcessedWaveProvider(source);
     var samples = new[] { 1f, -0.5f, 0.25f, -0.125f };
     Assert(source.Write(samples) == samples.Length, "The monitoring source must accept the test frame.");
+    // Fill the live jitter cushion so playback starts.
+    source.Write(new float[AudioConstants.ProcessingSampleRate * AudioConstants.LivePrimeMilliseconds / 1_000]);
     provider.SetVolume(0.25f);
     var buffer = new byte[samples.Length * sizeof(float)];
     provider.Read(buffer);

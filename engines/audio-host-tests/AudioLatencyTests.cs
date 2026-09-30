@@ -8,6 +8,7 @@ internal static class AudioLatencyTests
     public static void Run()
     {
         LiveQueuesCatchUpWithoutChangingRecording();
+        LiveQueuesAbsorbPacketJitter();
         PartialFramesPreserveDsp();
         SuppressionTransitionsKeepModelFrames();
         Console.WriteLine("Audio latency regressions passed: live queue recovery, recording continuity, partial DSP, model transitions and zero callback allocations.");
@@ -57,6 +58,49 @@ internal static class AudioLatencyTests
         for (var i = 0; i < 100; i++) { live.WriteMono(sequence.AsSpan(0, quantum)); direct.Read(bytes); monitor.Read(bytes); }
         Require(GC.GetAllocatedBytesForCurrentThread() == allocated, "Live read/copy path allocated");
         Console.WriteLine("Synthetic 500 ms playback backlog: next sample age 500 ms -> 20 ms; recording retained every sample.");
+    }
+
+    private static void LiveQueuesAbsorbPacketJitter()
+    {
+        // Ten seconds of 10 ms capture packets landing up to 5 ms late, drained
+        // by a 3 ms low-latency output on a slightly faster clock. A ring without
+        // a cushion underruns on almost every late packet.
+        const int packet = 480, period = 144, seconds = 10, rate = 48_000;
+        var ring = new SpscFloatRing(rate * 2 / 5,
+            rate * 2 * AudioConstants.LiveQueueMilliseconds / 1_000);
+        var monitorSource = new BoundedFrameAdapter(rate / 5);
+        var monitor = new ProcessedWaveProvider(monitorSource);
+        var random = new Random(5);
+        var block = Enumerable.Repeat(0.25f, packet).ToArray();
+        var output = new float[period * 2];
+        var bytes = new byte[period * sizeof(float)];
+        var nextPacket = 0.0;
+        var written = 0;
+        bool ringStarted = false, monitorStarted = false;
+        int ringGaps = 0, monitorGaps = 0;
+        for (var tick = 0; tick < rate * seconds / period; tick++)
+        {
+            var now = tick * period * 1.0003;
+            while (nextPacket <= now)
+            {
+                ring.WriteMono(block);
+                monitorSource.Write(block);
+                written++;
+                nextPacket = written * packet + random.Next(0, 240);
+            }
+            ring.Read(output);
+            monitor.Read(bytes);
+            // Every produced sample is non-zero: silence after playback starts is a dropout.
+            if (ringStarted && output.Contains(0f)) ringGaps++;
+            ringStarted |= output[^1] != 0f;
+            var monitored = MemoryMarshal.Cast<byte, float>(bytes);
+            if (monitorStarted && monitored.Contains(0f)) monitorGaps++;
+            monitorStarted |= monitored[^1] != 0f;
+        }
+        // One clock-drift correction is allowed; ordinary jitter is not.
+        Require(ringGaps <= 1, $"Live ring dropped out {ringGaps} times on ordinary packet jitter.");
+        Require(monitorGaps <= 1, $"Monitor dropped out {monitorGaps} times on ordinary packet jitter.");
+        Console.WriteLine($"Jittered 10 ms packets into a 3 ms output for {seconds} s: {ringGaps} ring and {monitorGaps} monitor dropouts.");
     }
 
     private static MicrophoneDspConfiguration Configuration() => new(1,

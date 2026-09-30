@@ -93,8 +93,24 @@ internal static class CableRoutingTests
                 recovery.RestoreAll();
                 Check(policy.Value == original with { Communications = "user-changed-chat" }, "Restore overwrote a user's newer Windows route.");
             }
-            File.WriteAllText(Path.Combine(directory, "leases.json"), "[{\"Process\":null}]");
-            ExpectFailure(() => { using var ignored = new AudioRouteLeaseJournal(policy); });
+            // One unusable lease must not disable every application route. Valid
+            // leases survive, including process images without an .exe suffix.
+            var journalPath = Path.Combine(directory, "leases.json");
+            var imagePath = Path.Combine(directory, "FiveM_ChromeBrowser");
+            File.WriteAllText(imagePath, "");
+            var extensionless = new AudioRouteLease(identity with { ExecutablePath = imagePath }, "sink", original);
+            var deleted = new AudioRouteLease(identity with { ExecutablePath = Path.Combine(directory, "Removed.exe") }, "sink", original);
+            File.WriteAllText(journalPath, $"[{{\"Process\":null}},{JsonSerializer.Serialize(extensionless)},{JsonSerializer.Serialize(deleted)}]");
+            using (var tolerant = new AudioRouteLeaseJournal(policy))
+            {
+                Check(tolerant.HasLease(imagePath), "An extensionless process image lease was discarded.");
+                Check(!tolerant.HasLease(deleted.Process.ExecutablePath), "A lease for a deleted executable was retained.");
+            }
+            Check(JsonSerializer.Deserialize<AudioRouteLease[]>(File.ReadAllText(journalPath))!.Length == 1,
+                "Pruned leases were not removed from the journal.");
+            File.WriteAllText(journalPath, "{not json");
+            using (var recovered = new AudioRouteLeaseJournal(policy)) Check(!recovered.HasLease(imagePath), "A corrupt journal fabricated leases.");
+            Check(Directory.GetFiles(directory, "leases.json.invalid-*").Length == 1, "A corrupt journal was not preserved for diagnosis.");
         }
         finally
         {
