@@ -9,7 +9,6 @@ const revision = '978576aa8400552a4ce9730838c635aa30db5e61';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const checkout = join(root, '.switchboard', 'cache', `DeepFilterNet-${revision}`);
 const output = join(root, '.switchboard', 'build', 'noise-native');
-const patch = join(root, 'native', 'deepfilternet-no-embedded-model.patch');
 
 function run(command, args, cwd = root, capture = false) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: capture ? 'pipe' : 'inherit' });
@@ -25,10 +24,13 @@ if (!existsSync(checkout)) {
 const head = run('git', ['rev-parse', 'HEAD'], checkout, true);
 if (head !== revision) throw new Error(`DeepFilterNet checkout is ${head}; expected ${revision}. Remove only ${checkout} and retry.`);
 
+// Remove the embedded-model feature from the C API with an exact text edit (a
+// whitespace-sensitive patch was corrupted before): the C API must not embed weights.
 const cargoToml = join(checkout, 'libDF', 'Cargo.toml');
 const cargoText = await readFile(cargoToml, 'utf8');
-if (cargoText.includes('capi = ["tract", "default-model", "dep:ndarray"]')) {
-  run('git', ['apply', '--whitespace=nowarn', patch], checkout);
+const embeddedFeature = 'capi = ["tract", "default-model", "dep:ndarray"]';
+if (cargoText.split(embeddedFeature).length === 2) {
+  await writeFile(cargoToml, cargoText.replace(embeddedFeature, 'capi = ["tract", "dep:ndarray"]'), 'utf8');
 } else if (!cargoText.includes('capi = ["tract", "dep:ndarray"]')) {
   throw new Error('Pinned libDF feature layout did not match the reviewed source.');
 }
