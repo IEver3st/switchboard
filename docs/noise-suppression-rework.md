@@ -16,9 +16,11 @@ user-strength blend or second gate. `NoiseSuppressionStage` owns that policy onc
 for the microphone graph before the optional gate, gain, EQ, compression and
 limiting. All microphone consumers receive the same processed samples.
 
-The live factory always selects packaged RNNoise. Optional DeepFilterNet remains
-an explicit offline comparison path; finding its files does not switch live sound
-or latency. No new dependency, model download, process or polling loop is added.
+The live factory selects packaged RNNoise unless the user explicitly chooses
+DeepFilterNet3 (`audio.noiseSuppressionModel`). Finding its files never switches live
+sound or latency. If the chosen model cannot start, RNNoise runs and the reason is
+reported beside the control. DeepFilterNet3 preserves speech without raw restoration,
+so the speech-protection floor below applies to RNNoise only.
 
 ## Strength and speech
 
@@ -80,3 +82,23 @@ Live call listening, physical disconnect/reconnect, long-running handle/memory
 behavior and release/install qualification remain separate. The installed app
 has not been replaced. Listening through the processed Hi-Fi Cable with the
 user's voice-app processing settings is still required to assess the complaint.
+
+## DeepFilterNet3 live option, October 3, 2026
+
+`--noise-model-comparison clean.wav noise.wav` runs both models through the stage.
+Clicks are synthetic broadband transients, a keyboard proxy rather than a recording.
+With the upstream clean/noise references above:
+
+| Strength 100 | RNNoise | DeepFilterNet3 |
+|---|---|---|
+| Clicks while talking | -5.5 dB | -11.4 dB |
+| Clicks in pauses | -5.4 dB | -33.8 dB |
+| Room noise alone | -16.2 dB | -36.0 dB |
+| Clean speech chopped / level | 0.0% / 0.0 dB | 1.0% / -0.4 dB |
+| Model latency | 20 ms | 40 ms |
+
+DeepFilterNet3 chops 0.0% of clean speech frames at 55 and 0.3% at 80. Three
+QuadCast 2 input-only lifecycles (`--live-microphone-quality deepfilternet3`) had DSP
+p99 of 0.64-0.87 ms per 10 ms frame with no overruns or bypassed frames. Pretrained
+weight redistribution remains unresolved upstream, so the model stays a local
+acquisition. Live call listening and room-echo removal are not established.

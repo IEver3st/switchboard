@@ -65,12 +65,18 @@ internal sealed class NoiseSuppressionStage
             return (true, true, localSnr);
         }
 
-        var probability = model.SpeechProbability;
-        if (!float.IsFinite(probability))
-            probability = float.IsFinite(localSnr) ? Math.Clamp((localSnr + 5f) / 15f, 0f, 1f) : 1f;
-        if (probability >= (speechHold > 0 ? 0.12f : 0.35f)) speechHold = SpeechHoldSamples;
         var dryFloor = NoiseStrengthMapping.ToDryFloor(configuration.Amount);
-        if (speechHold > 0)
+        // Raw speech restoration compensates for models that remove consonants. It
+        // also lets keyboard and room noise through while talking, so a model that
+        // preserves speech keeps the same suppression during speech and pauses.
+        if (!model.PreservesSpeech)
+        {
+            var probability = model.SpeechProbability;
+            if (!float.IsFinite(probability))
+                probability = float.IsFinite(localSnr) ? Math.Clamp((localSnr + 5f) / 15f, 0f, 1f) : 1f;
+            if (probability >= (speechHold > 0 ? 0.12f : 0.35f)) speechHold = SpeechHoldSamples;
+        }
+        if (speechHold > 0 && !model.PreservesSpeech)
         {
             // Retain quiet syllables and consonants the model calls non-speech.
             // VAD protects the dry contribution; it never attenuates audio.

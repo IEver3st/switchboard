@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ClipAudioWaveformTrack } from '../../../../shared/contracts';
 import type { MontageMusicTrack, MontageV2Segment } from '../../../../shared/montage-v2';
 import { automationGainAt, speedAt } from '../../../../shared/video-edits';
+import { clipPreviewExhausted } from './clip-preview-audio';
 import { switchboardApi } from '@/lib/demo-api';
 
 export type EditedAudioState = { segment: MontageV2Segment; sourceMs: number; frozen: boolean; playing: boolean; volume: number; muted: boolean; ducking?: MontageMusicTrack['ducking'] };
@@ -57,9 +58,11 @@ export function EditedAudioPreview({ state, onDuckGain, onError }: {
         if (node && context) node.gain.gain.setTargetAtTime(gain, context.currentTime, 0.004);
         else audio.volume = Math.max(0, Math.min(1, gain));
         audio.playbackRate = speedAt(next.sourceMs, next.segment.videoEdits); audio.preservesPitch = true;
-        if (audio.readyState >= 1 && Math.abs(audio.currentTime * 1000 - next.sourceMs) > (active ? 100 : 10)) audio.currentTime = next.sourceMs / 1000;
-        if (active && audio.paused) void audio.play().catch(() => callbacks.current.onError('An audio track could not play. Check the source media and try again.'));
-        else if (!active) audio.pause();
+        const exhausted = audio.readyState >= 1 && clipPreviewExhausted(audio.duration, next.sourceMs / 1000);
+        if (!exhausted && audio.readyState >= 1 && Math.abs(audio.currentTime * 1000 - next.sourceMs) > (active ? 100 : 10)) audio.currentTime = next.sourceMs / 1000;
+        if (active && !exhausted) {
+          if (audio.paused) void audio.play().catch(() => callbacks.current.onError('An audio track could not play. Check the source media and try again.'));
+        } else audio.pause();
         if (node?.analyser && node.buffer && active) {
           node.analyser.getFloatTimeDomainData(node.buffer);
           let power = 0; for (const sample of node.buffer) power += sample * sample;

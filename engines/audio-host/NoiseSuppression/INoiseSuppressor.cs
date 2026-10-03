@@ -14,6 +14,9 @@ internal interface INoiseSuppressor : IDisposable
     // Delay in the model output itself, excluding the caller's frame buffering.
     int OutputDelaySamples => 0;
     float SpeechProbability => float.NaN;
+    // True when the model keeps consonants and quiet speech on its own, so the
+    // stage must not mix raw microphone audio back in during speech.
+    bool PreservesSpeech => false;
     double AlgorithmicLatencyMs { get; }
     string? LastError { get; }
 

@@ -1,6 +1,6 @@
 # Noise suppression supply chain
 
-Switchboard packages the CPU RNNoise implementation as its live backend. Optional DeepFilterNet3 remains available for explicit offline comparisons after separately building `libDF` and acquiring the exact pinned model. Model files on disk do not change the live backend. No dependency is downloaded when Switchboard starts.
+Switchboard packages the CPU RNNoise implementation as its default live backend and `libDF` (`df.dll`, no embedded weights) for the optional DeepFilterNet3 model. DeepFilterNet3 runs live only when the user chooses it and the exact pinned model has been acquired locally. Model files on disk do not change the live backend. No dependency is downloaded when Switchboard starts.
 
 | Component | Upstream revision | Artifact integrity | License and distribution |
 | --- | --- | --- | --- |
@@ -10,6 +10,6 @@ Switchboard packages the CPU RNNoise implementation as its live backend. Optiona
 
 `bun run acquire:deepfilternet-model -- --acknowledge-model-license-unresolved` is a deliberate, user-initiated official-source acquisition path. It writes the verified artifact and a receipt under `%LOCALAPPDATA%\Switchboard\models\deepfilternet`. This acknowledgement is not a license grant; redistributors must resolve the weights license independently.
 
-The optional source build requires the release machine to provide Rust's MSVC target and `cargo-c`. Packaged applications require none of Rust, Cargo, Python, Visual Studio, or an internet connection. The build bumps only the pinned lockfile's `time` crate to 0.3.36 because 0.3.28 does not compile on Rust 1.80 or later. `Audio.Host.csproj` copies the staged `df.dll` into development and test builds.
+The source build requires Rust's MSVC target and `cargo-c`; the release workflow installs cargo-c v0.10.25 from its official Windows MSVC archive, pinned by SHA-256. Packaged applications require none of Rust, Cargo, Python, Visual Studio, or an internet connection. The build bumps only the pinned lockfile's `time` crate to 0.3.36 because 0.3.28 does not compile on Rust 1.80 or later. `Audio.Host.csproj` copies the staged `df.dll` into development and test builds.
 
 DeepFilterNet3 adds 20 ms of microphone latency over RNNoise: the measured output delay is 30 ms (one STFT hop plus the model's two-hop lookahead), versus 10 ms for RNNoise. `dotnet run --project engines/audio-host-tests -- --microphone-timbre [speech.wav]` compares both backends' delay, frame cost, tonal balance and click leakage. The synthetic default voice is not recognized as speech by DeepFilterNet3; pass a 48 kHz mono 16-bit speech recording for that backend.

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/cn';
+import { waitingForPreferredDevice } from '../../../../shared/audio-devices';
 import { AudioDevicePicker } from './AudioDevicePicker';
 import { channelColor } from './channel-identity';
 import { MixerFader } from './MixerFader';
@@ -119,6 +120,7 @@ function BusStrip({
   onOpen,
 }: BusProps) {
   const direction = bus.id === 'mic' ? 'input' : 'output';
+  const waiting = waitingForPreferredDevice(bus);
   const muted = !control.enabled;
   const color = channelColor(bus.id);
   const Icon = bus.id === 'game' ? Gamepad2 : bus.id === 'chat' ? MessageCircle : bus.id === 'media' ? Music2 : bus.id === 'mic' ? Mic2 : AppWindow;
@@ -200,6 +202,11 @@ function BusStrip({
           onChange={onDeviceChange}
         />
       </div>
+      {waiting ? (
+        <div className="audio-strip__sub audio-strip__fallback" role="status" title={`${waiting.name || 'Your chosen device'} is disconnected. Switchboard switches back when it returns.`}>
+          <span>Waiting for {waiting.name || 'your device'}</span>
+        </div>
+      ) : null}
       <div className="audio-strip__body">
         <div className="audio-strip__fader">
           <MixerFader

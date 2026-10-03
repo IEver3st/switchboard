@@ -5,7 +5,7 @@ import { WindowsAudioDependencies } from './services/windows-audio-dependencies'
 import { OpenTrackSetup } from './services/opentrack-setup';
 import type { AudioSetupAction } from '../shared/contracts';
 import { applyApplicationRoutingPreference } from '../shared/audio-routing';
-import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput } from '../shared/contracts';
+import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput, SetNoiseSuppressionModelInput } from '../shared/contracts';
 import { watchWindowsDeviceChanges } from './services/windows-device-notifications';
 import { normalizeMusicTrack } from '../shared/montage-audio';
 import { WINDOWS_STARTUP_ARGUMENT } from './startup-settings';
@@ -125,7 +125,7 @@ import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-prese
 import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
 import { applyClipTrackLevel, hasEffectiveClipMixChanged, resolveClipTrackLevel } from '../shared/clip-track-levels';
 import type { FeedbackEnvironment } from '../shared/feedback-report';
-import { isAudioTransport, reconcileAudioDevices } from '../shared/audio-devices';
+import { chooseAudioBusDevice, isAudioTransport, reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService, mergeReconciledClips, registerSavedClip, selectShareVideoEncoder } from './services/clip-library';
 import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
@@ -658,7 +658,7 @@ export class AppController {
     const before = this.store.get();
     if (JSON.stringify(sceneAudioSchema.parse(before.audio)) === JSON.stringify(value)) return;
     const next = structuredClone(before);
-    Object.assign(next.audio, value, { buses: next.audio.buses.map(bus => ({ ...bus, ...value.buses.find(item => item.id === bus.id) })) });
+    Object.assign(next.audio, value, { buses: mergeSceneBuses(next.audio, value.buses) });
     if (value.enabled) {
       if (!before.audio.enabled) await this.engines.start('audio');
       try {
@@ -679,7 +679,7 @@ export class AppController {
     } else {
       await this.setAudioEnabledCore(false);
       this.store.update(draft => {
-        Object.assign(draft.audio, value, { buses: draft.audio.buses.map(bus => ({ ...bus, ...value.buses.find(item => item.id === bus.id) })) });
+        Object.assign(draft.audio, value, { buses: mergeSceneBuses(draft.audio, value.buses) });
       });
     }
   }
@@ -1245,7 +1245,7 @@ export class AppController {
         throw new Error('Choose a physical Windows audio device instead of a Switchboard transport endpoint.');
       }
 
-      bus.deviceId = input.deviceId;
+      chooseAudioBusDevice(bus, device);
       if (bus.id === 'mic') draft.audio.microphoneDevice = device.name;
       if (bus.id === 'game') draft.audio.outputDevice = device.name;
     });
@@ -1260,6 +1260,10 @@ export class AppController {
       const others = draft.audio.excludedDeviceIds.filter(id => id !== input.deviceId);
       draft.audio.excludedDeviceIds = input.excluded ? [...others, input.deviceId] : others;
     });
+  }
+
+  public async setNoiseSuppressionModel(input: SetNoiseSuppressionModelInput): Promise<SystemSnapshot> {
+    return this.updateAudioConfiguration((draft) => { draft.audio.noiseSuppressionModel = input.model; });
   }
 
   public async setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<SystemSnapshot> {
@@ -3354,6 +3358,19 @@ function captureIndexedDisplays(): Display[] {
   ];
 }
 
+// A scene that selects an available device counts as an explicit choice, so it is remembered.
+function mergeSceneBuses(audio: SystemSnapshot['audio'], sceneBuses: NonNullable<SceneValues['audio']>['buses']): SystemSnapshot['audio']['buses'] {
+  return audio.buses.map((bus) => {
+    const scene = sceneBuses.find(item => item.id === bus.id);
+    const next = { ...bus, ...scene };
+    const device = scene && scene.deviceId !== bus.deviceId
+      ? audio.devices.find(item => item.id === scene.deviceId && item.available)
+      : undefined;
+    if (device) chooseAudioBusDevice(next, device);
+    return next;
+  });
+}
+
 function createResetAudioState(current: SystemSnapshot['audio']): SystemSnapshot['audio'] {
   const reset = structuredClone(defaultAudio);
   reset.devices = structuredClone(current.devices);
@@ -3364,8 +3381,10 @@ function createResetAudioState(current: SystemSnapshot['audio']): SystemSnapshot
 
   const availableDeviceIds = new Set(reset.devices.map((device) => device.id));
   for (const bus of reset.buses) {
-    if (availableDeviceIds.has(bus.deviceId)) continue;
     const currentBus = current.buses.find((candidate) => candidate.id === bus.id);
+    // Resetting processing keeps the user's remembered hardware choices.
+    if (currentBus) bus.preferredDevices = structuredClone(currentBus.preferredDevices);
+    if (availableDeviceIds.has(bus.deviceId)) continue;
     if (currentBus && availableDeviceIds.has(currentBus.deviceId)) bus.deviceId = currentBus.deviceId;
   }
 

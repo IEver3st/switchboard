@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StateStore } from '../src/main/services/state-store';
-import { reconcileAudioDevices } from '../src/shared/audio-devices';
+import { chooseAudioBusDevice, reconcileAudioDevices, waitingForPreferredDevice } from '../src/shared/audio-devices';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 import type { AudioDevice } from '../src/shared/contracts';
 import { parseAudioEndpoints } from '../src/main/services/audio-endpoint-discovery';
@@ -149,5 +149,83 @@ describe('audio endpoint discovery', () => {
 
     expect(audio.buses.find((bus) => bus.id === 'game')?.deviceId).toBe('display');
     expect(audio.outputDevice).toBe('Display audio');
+  });
+
+  const headphones: AudioDevice = { id: 'xm6', name: 'Headphones (WH-1000XM6)', direction: 'output', isDefault: true, available: true, formFactor: 'headphones', isVirtual: false };
+  const monitor: AudioDevice = { id: 'g60', name: 'Odyssey G60SD', direction: 'output', isDefault: false, available: true, formFactor: 'digital-display', isVirtual: false };
+  const outputBuses = (audio: ReturnType<typeof createDefaultSnapshot>['audio']) => audio.buses.filter((bus) => bus.id !== 'mic' && bus.id !== 'aux');
+
+  test('restores the chosen headphones after a fallback without losing the preference', () => {
+    const audio = createDefaultSnapshot().audio;
+    reconcileAudioDevices(audio, [headphones, monitor]);
+    for (const bus of outputBuses(audio)) chooseAudioBusDevice(bus, headphones);
+
+    // Headphones power off: Windows removes the endpoint and defaults to the display.
+    reconcileAudioDevices(audio, [{ ...monitor, isDefault: true }]);
+    for (const bus of outputBuses(audio)) {
+      expect(bus.deviceId).toBe('g60');
+      expect(bus.preferredDevices.map((entry) => entry.id)).toEqual(['xm6']);
+      expect(waitingForPreferredDevice(bus)?.name).toBe('Headphones (WH-1000XM6)');
+    }
+
+    // Headphones return while the display is still valid and still the Windows default.
+    reconcileAudioDevices(audio, [{ ...headphones, isDefault: false }, { ...monitor, isDefault: true }]);
+    for (const bus of outputBuses(audio)) {
+      expect(bus.deviceId).toBe('xm6');
+      expect(waitingForPreferredDevice(bus)).toBeUndefined();
+    }
+    expect(audio.outputDevice).toBe('Headphones (WH-1000XM6)');
+  });
+
+  test('falls back through earlier choices before automatic selection', () => {
+    const audio = createDefaultSnapshot().audio;
+    const speakers: AudioDevice = { id: 'speakers', name: 'Speakers', direction: 'output', isDefault: false, available: true, formFactor: 'speakers', isVirtual: false };
+    const game = audio.buses.find((bus) => bus.id === 'game')!;
+    chooseAudioBusDevice(game, speakers);
+    chooseAudioBusDevice(game, headphones);
+    expect(game.preferredDevices.map((entry) => entry.id)).toEqual(['xm6', 'speakers']);
+
+    reconcileAudioDevices(audio, [{ ...monitor, isDefault: true }, speakers]);
+    expect(game.deviceId).toBe('speakers');
+    expect(waitingForPreferredDevice(game)?.id).toBe('xm6');
+  });
+
+  test('never falls back to an excluded device', () => {
+    const audio = createDefaultSnapshot().audio;
+    audio.excludedDeviceIds = ['g60'];
+    for (const bus of outputBuses(audio)) chooseAudioBusDevice(bus, headphones);
+
+    reconcileAudioDevices(audio, [{ ...monitor, isDefault: true }]);
+    for (const bus of outputBuses(audio)) {
+      expect(bus.deviceId).toBe('');
+      expect(waitingForPreferredDevice(bus)?.id).toBe('xm6');
+    }
+
+    reconcileAudioDevices(audio, [headphones, monitor]);
+    for (const bus of outputBuses(audio)) expect(bus.deviceId).toBe('xm6');
+  });
+
+  test('remembers a legacy saved device unless it was an excluded fallback', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchboard-audio-preferences-'));
+    try {
+      const filePath = join(directory, 'switchboard-state.json');
+      const legacy = createDefaultSnapshot() as unknown as { audio: Record<string, unknown> & { buses: Record<string, unknown>[] } };
+      legacy.audio.excludedDeviceIds = ['g60'];
+      legacy.audio.devices = [headphones, monitor];
+      for (const bus of legacy.audio.buses) {
+        delete bus.preferredDevices;
+        bus.deviceId = bus.id === 'media' ? 'g60' : bus.id === 'mic' ? '' : 'xm6';
+      }
+      await writeFile(filePath, JSON.stringify(legacy), 'utf8');
+
+      const store = new StateStore(filePath);
+      await store.load();
+      const buses = store.get().audio.buses;
+      expect(buses.find((bus) => bus.id === 'game')?.preferredDevices).toEqual([{ id: 'xm6', name: 'Headphones (WH-1000XM6)' }]);
+      expect(buses.find((bus) => bus.id === 'media')?.preferredDevices).toEqual([]);
+      expect(buses.find((bus) => bus.id === 'mic')?.preferredDevices).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

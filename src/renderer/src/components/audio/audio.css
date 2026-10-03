@@ -333,6 +333,15 @@
 }
 .audio-strip__sub--picker button[role='combobox']:hover { background: var(--surface-hover); }
 .audio-strip__sub--picker button[role='combobox'] svg { width: 12px; height: 12px; color: var(--text-muted); }
+.audio-strip__fallback { gap: 6px; padding: 0 2px; color: var(--text-secondary); }
+.audio-strip__fallback::before {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-warning);
+  content: '';
+}
 
 .audio-strip__body {
   display: grid;
@@ -931,6 +940,9 @@
 .mic-stage__controls .audio-param { grid-template-columns: 96px minmax(0, 1fr) 72px; }
 .mic-stage__controls > .parametric-eq { grid-column: 1 / -1; }
 .mic-stage__controls .audio-param > [role='combobox'] { grid-column: span 2; }
+.mic-model > [role='group'] { grid-column: span 2; justify-self: start; }
+.mic-model__note { grid-column: 1 / -1; margin: 0; color: var(--text-description); font-size: 11px; }
+.mic-model__note[role='status'] { color: var(--text-secondary); }
 .mic-stage__advanced-toggle {
   display: inline-flex;
   height: 28px;

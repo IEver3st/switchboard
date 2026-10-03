@@ -1,5 +1,6 @@
 import { ClipAudioInspector } from './ClipAudioInspector';
 import { EditedAudioPreview } from './EditedAudioPreview';
+import { clipPreviewExhausted } from './clip-preview-audio';
 import { Bookmark, BookmarkCheck, Star, Pencil } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { speedAt, sourceToEditedMs, type VideoEdits } from '../../../../shared/video-edits';
@@ -370,10 +371,12 @@ export function MontageComposer({
         audio.pause();
       } else if (audio.dataset.assetId === currentProject.music.asset.id) {
         const desired = musicPlayback.sourceTimeMs / 1_000;
-        if (Math.abs(audio.currentTime - desired) > 0.16) audio.currentTime = desired;
+        const exhausted = audio.readyState >= 1 && clipPreviewExhausted(audio.duration, desired);
+        if (exhausted) audio.pause();
+        else if (Math.abs(audio.currentTime - desired) > 0.16) audio.currentTime = desired;
         audio.muted = previewMutedRef.current;
         audio.volume = clamp(musicPlayback.gain * masterVolumeRef.current * duckGainRef.current, 0, 1);
-        if (audio.paused) void audio.play().catch(() => undefined);
+        if (!exhausted && audio.paused) void audio.play().catch(() => undefined);
       }
     }
     playbackFrameRef.current = window.requestAnimationFrame(tickPlayback);

@@ -12,8 +12,9 @@ if (args.Length == 0) await ReplayAudioTests.RunAsync();
 if (args.Contains("--microphone-quality")) { MicrophoneQualityTests.Run(); return; }
 if (args.Contains("--microphone-timbre")) { MicrophoneTimbreProbe.Run(); return; }
 if (args.Length >= 3 && args[0] == "--microphone-continuity") { MicrophoneContinuityProbe.Run(args[1], args[2]); return; }
+if (args.Length >= 3 && args[0] == "--noise-model-comparison") { MicrophoneContinuityProbe.RunModelComparison(args[1], args[2]); return; }
 if (args.Length >= 3 && args[0] == "--noise-suppression-reference") { MicrophoneContinuityProbe.RunRegression(args[1], args[2]); return; }
-if (args.Contains("--live-microphone-quality")) { MicrophoneQualityTests.RunLive(); return; }
+if (args.Contains("--live-microphone-quality")) { MicrophoneQualityTests.RunLive(args.Contains(NoiseSuppressionModels.DeepFilterNet3) ? NoiseSuppressionModels.DeepFilterNet3 : NoiseSuppressionModels.Standard); return; }
 if (args.Contains("--live-microphone-continuity")) { MicrophoneContinuityLiveProbe.Run(20); return; }
 if (args.Contains("--spatial-response")) { SpatialResponse.Print(); return; }
 if (args.Contains("--spatial-motion")) { SpatialMotion.Run(); return; }

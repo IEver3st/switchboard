@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { clipPreviewNeedsSync, clipPreviewTrackVolume } from '../src/renderer/src/components/capture/clip-preview-audio';
+import { clipPreviewExhausted, clipPreviewNeedsSync, clipPreviewTrackVolume } from '../src/renderer/src/components/capture/clip-preview-audio';
 
 describe('clip preview audio', () => {
   test('applies the microphone track slider to preview volume', () => {
@@ -19,5 +19,13 @@ describe('clip preview audio', () => {
   test('only corrects meaningful preview drift', () => {
     expect(clipPreviewNeedsSync(5, 5.04)).toBeFalse();
     expect(clipPreviewNeedsSync(5, 5.12)).toBeTrue();
+  });
+
+  test('treats a track shorter than the video as finished instead of replaying it', () => {
+    // Saved tracks can end up to a second before the video; play() on an ended track restarts it from zero.
+    expect(clipPreviewExhausted(178.933, 179.5)).toBeTrue();
+    expect(clipPreviewExhausted(178.933, 178.92)).toBeTrue();
+    expect(clipPreviewExhausted(178.933, 178.8)).toBeFalse();
+    expect(clipPreviewExhausted(Number.NaN, 179.5)).toBeFalse();
   });
 });

@@ -39,6 +39,7 @@ import {
   setAudioApplicationRouteInputSchema,
   setAudioRoutingInputSchema,
   setAudioDeviceExcludedInputSchema,
+  setNoiseSuppressionModelInputSchema,
   setAudioBusEnabledInputSchema,
   setAudioBusGainInputSchema,
   setAudioChannelEnabledInputSchema,
@@ -231,6 +232,12 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setAudioDeviceExcludedInputSchema.parse(input),
     (input) => controller.setAudioDeviceExcluded(input),
+  );
+  handle(
+    ipcChannels.setNoiseSuppressionModel,
+    getMainWindow,
+    (input) => setNoiseSuppressionModelInputSchema.parse(input),
+    (input) => controller.setNoiseSuppressionModel(input),
   );
   handle(
     ipcChannels.setAudioEnabled,

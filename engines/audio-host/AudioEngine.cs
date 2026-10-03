@@ -26,6 +26,8 @@ internal sealed class AudioEngine : IDisposable
     private string? routingError;
     private Exception? routingFailure;
     private double modelInitializationMs;
+    private string suppressorModel = NoiseSuppressionModels.Standard;
+    private string? suppressorSelectionNote;
     private DateTimeOffset startedAt;
 
     public AudioEngine(EndpointService endpoints)
@@ -46,7 +48,7 @@ internal sealed class AudioEngine : IDisposable
             StopCore();
             settings = validated;
             recordingGraph.Configure(validated);
-            InitializeSuppressorCore();
+            InitializeSuppressorCore(nextDsp.NoiseSuppression.Model);
             configurationVersion++;
             dspConfiguration = nextDsp;
             running = true;
@@ -80,7 +82,9 @@ internal sealed class AudioEngine : IDisposable
             if (!running) return GetSnapshotCore();
 
             var nextInputId = settings.MicrophoneBus?.DeviceId;
-            var inputChanged = microphone is null || !string.Equals(microphone.InputDeviceId, nextInputId, StringComparison.OrdinalIgnoreCase);
+            // A model change rebuilds the pipeline, like an input change, so frame and delay buffers match the model.
+            var inputChanged = microphone is null || !string.Equals(microphone.InputDeviceId, nextInputId, StringComparison.OrdinalIgnoreCase)
+                || suppressorModel != dspConfiguration.NoiseSuppression.Model;
             var routesChanged = previousSettings is null || !RouteSignature(previousSettings).Equals(RouteSignature(settings), StringComparison.OrdinalIgnoreCase);
             if (inputChanged)
             {
@@ -89,7 +93,7 @@ internal sealed class AudioEngine : IDisposable
                 StopMicrophoneOutput();
                 microphone?.Dispose();
                 microphone = null;
-                InitializeSuppressorCore();
+                InitializeSuppressorCore(dspConfiguration.NoiseSuppression.Model);
                 StartMicrophoneCore();
             }
             else
@@ -246,7 +250,7 @@ internal sealed class AudioEngine : IDisposable
                 StopMicrophoneOutput();
                 microphone?.Dispose();
                 microphone = null;
-                InitializeSuppressorCore();
+                InitializeSuppressorCore(dspConfiguration?.NoiseSuppression.Model ?? NoiseSuppressionModels.Standard);
                 StartMicrophoneCore(recovery: true);
                 routingNeedsRecovery |= routing?.HasVirtualOutputs != false;
             }
@@ -356,7 +360,7 @@ internal sealed class AudioEngine : IDisposable
         microphoneOutput = null;
     }
 
-    private void InitializeSuppressorCore()
+    private void InitializeSuppressorCore(string model)
     {
         suppressor.Dispose();
         suppressor = new BypassNoiseSuppressor("The noise backend has not been initialized.");
@@ -367,7 +371,8 @@ internal sealed class AudioEngine : IDisposable
             "models",
             "deepfilternet");
         var initializedAt = Stopwatch.GetTimestamp();
-        suppressor = NoiseSuppressorFactory.Create(nativeDirectory, modelDirectory, out _);
+        suppressor = NoiseSuppressorFactory.Create(model, nativeDirectory, modelDirectory, out suppressorSelectionNote);
+        suppressorModel = model;
         modelInitializationMs = Stopwatch.GetElapsedTime(initializedAt).TotalMilliseconds;
     }
 
@@ -511,7 +516,7 @@ internal sealed class AudioEngine : IDisposable
                 pipeline?.MonitorUnderruns ?? 0,
                 pipeline?.DroppedOrBypassedFrames ?? 0,
                 pipeline?.RecoveryCount ?? 0,
-                pipeline?.LastError ?? suppressor.LastError),
+                pipeline?.LastError ?? suppressor.LastError ?? suppressorSelectionNote),
             pipeline?.InputDeviceId,
             pipeline?.InputFormat,
             pipeline?.MonitoringDeviceId,

@@ -65,8 +65,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Switchboard contains an optional integration for upstream DeepFilterNet
 `libDF` v0.5.6, pinned to commit
 `978576aa8400552a4ce9730838c635aa30db5e61`. Upstream code is dual-licensed
-MIT or Apache-2.0. Switchboard does not redistribute the pretrained
+MIT or Apache-2.0, and Switchboard packages the resulting `df.dll` built
+without embedded weights. Switchboard does not redistribute the pretrained
 DeepFilterNet3 weights because upstream has not explicitly resolved their
-redistribution license. The integration only activates when a trusted local
-model with the pinned hash has been deliberately acquired from the official
-upstream source.
+redistribution license. The live option only starts when the user chooses it
+and a trusted local model with the pinned hash has been deliberately acquired
+from the official upstream source.

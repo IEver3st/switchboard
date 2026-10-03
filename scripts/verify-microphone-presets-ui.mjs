@@ -145,6 +145,13 @@ async function run() {
   await until(() => evaluate(`!document.querySelector(${JSON.stringify(noiseSwitch)}).disabled`), 'Zero strength remained pending');
   await click(noiseSwitch);
   await until(async () => (await suppression()).enabled && (await suppression()).parameters.amount === 55, 'Noise removal did not recover after zero strength');
+  const modelItem = name => `[...document.querySelectorAll('#microphone-removal-section [role="radio"]')].find(el=>el.textContent.trim()===${JSON.stringify(name)})`;
+  assert(await evaluate(`${modelItem('Standard')}?.getAttribute('aria-checked')==='true'`), 'Standard was not the default noise model');
+  assert(await evaluate(`(()=>{const el=${modelItem('DeepFilterNet3')};if(!el||el.disabled)return false;el.focus();el.click();return true})()`), 'DeepFilterNet3 model control unavailable');
+  await until(async () => (await snapshot()).audio.noiseSuppressionModel === 'deepfilternet3', 'Model choice did not reach canonical state');
+  await evaluate('location.reload()');
+  await until(() => evaluate(`${modelItem('DeepFilterNet3')}?.getAttribute('aria-checked')==='true'`), 'Model choice was not restored after reload');
+  evidence.checks.push('Noise model: Standard default, DeepFilterNet3 choice, canonical state, confirmed reload');
   for (const [width, height] of [[1080, 720], [1420, 900], [1920, 1080]]) {
     await resize(width, height);
     await evaluate(`document.querySelector('#microphone-removal-section').scrollIntoView({block:'center'})`);
@@ -166,6 +173,7 @@ async function run() {
     await until(() => evaluate(`document.querySelectorAll('.parametric-eq__band').length===${count}`), 'Missing rendered bands');
     evidence.checks.push(`${preset.name}: ${count} bands, complete canonical chain`);
   }
+  assert((await snapshot()).audio.noiseSuppressionModel === 'deepfilternet3', 'Applying presets reset the noise model choice');
   await api('applyAudioPreset', { presetId: 'mic-broadcast' });
   await ready();
   for (const [width, height] of [[1080, 720], [1420, 900], [1920, 1080]]) {

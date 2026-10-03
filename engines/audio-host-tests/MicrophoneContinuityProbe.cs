@@ -63,6 +63,73 @@ internal static class MicrophoneContinuityProbe
         return output;
     }
 
+    // Diagnostic (--noise-model-comparison clean.wav noise.wav): live-model choice at
+    // full strength. Clicks are synthetic broadband transients (a keyboard proxy, not
+    // a recording); their residual is out(speech+clicks) - out(speech) on each model.
+    public static void RunModelComparison(string cleanPath, string noisePath)
+    {
+        var clean = ReadMono(cleanPath);
+        var noise = ReadMono(noisePath);
+        var cleanPeak = clean.Max(MathF.Abs);
+        for (var i = 0; i < clean.Length; i++) clean[i] *= 0.3f / cleanPeak;
+        var noisePeak = noise.Max(MathF.Abs);
+        var noiseOnly = noise.Select(sample => sample * 0.05f / noisePeak).ToArray();
+        var clicks = new float[clean.Length];
+        var clickStarts = new List<int>();
+        var random = new Random(7);
+        for (var at = Rate / 2; at < clicks.Length - Rate / 50; at += Rate / 8 + random.Next(Rate / 10))
+        {
+            clickStarts.Add(at);
+            for (var i = 0; i < Rate / 200; i++)
+                clicks[at + i] += (float)((random.NextDouble() * 2 - 1) * 0.25 * Math.Exp(-i / (Rate * 0.0015)));
+        }
+        var withClicks = clean.Select((sample, i) => sample + clicks[i]).ToArray();
+        var withNoise = Mix(clean, noise, 12);
+        var modelDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Switchboard", "models", "deepfilternet");
+        var loudest = Enumerable.Range(0, clean.Length / Frame).Max(f => Energy(clean, f * Frame, Frame));
+        foreach (var name in new[] { NoiseSuppressionModels.Standard, NoiseSuppressionModels.DeepFilterNet3 })
+        {
+            using (var timed = NoiseSuppressorFactory.Create(name, AppContext.BaseDirectory, modelDirectory, out var note))
+            {
+                if (note is not null || !timed.IsAvailable) throw new InvalidOperationException($"{name} unavailable: {note ?? timed.LastError}");
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                Process(timed, withNoise, 100);
+                Console.WriteLine($"{name}: {timed.AlgorithmicLatencyMs:F0} ms model latency | "
+                    + $"{timer.Elapsed.TotalMilliseconds / (withNoise.Length / (double)timed.FrameLength):F3} ms CPU per 10 ms frame");
+            }
+            foreach (var amount in new[] { 55f, 80f, 100f })
+            {
+                float[] Run(float[] input)
+                {
+                    using var model = NoiseSuppressorFactory.Create(name, AppContext.BaseDirectory, modelDirectory, out _);
+                    return Process(model, input, amount);
+                }
+                var speech = Run(clean);
+                var clicked = Run(withClicks);
+                var lag = BestLag(clean, speech, 4_000);
+                // Only the 5 ms around each click; the rest of the difference is the model reshaping speech.
+                double talkingClick = 0, talkingResidual = 0, pauseClick = 0, pauseResidual = 0;
+                foreach (var at in clickStarts)
+                {
+                    if (at + Rate / 200 + lag >= clean.Length) continue;
+                    double click = Energy(clicks, at, Rate / 200), residual = 0;
+                    for (var i = at; i < at + Rate / 200; i++) residual += Math.Pow(clicked[i + lag] - speech[i + lag], 2);
+                    if (Energy(clean, at - Frame, Frame * 2) >= loudest * 0.002) { talkingClick += click; talkingResidual += residual; }
+                    else { pauseClick += click; pauseResidual += residual; }
+                }
+                var noiseOutput = Run(noiseOnly);
+                var count = noiseOnly.Length - Rate - lag;
+                Console.WriteLine($"  strength {amount}: clicks while talking {10 * Math.Log10(talkingResidual / talkingClick):F1} dB, "
+                    + $"in pauses {10 * Math.Log10(pauseResidual / pauseClick):F1} dB | room noise alone "
+                    + $"{10 * Math.Log10(Energy(noiseOutput, Rate + lag, count) / Energy(noiseOnly, Rate, count)):F1} dB");
+                Report($"strength {amount} clean speech", clean, speech);
+                Report($"strength {amount} speech + clicks", clean, clicked);
+                Report($"strength {amount} speech + room noise 12 dB SNR", clean, Run(withNoise));
+            }
+        }
+    }
+
     public static void RunRegression(string cleanPath, string noisePath)
     {
         var clean = ReadMono(cleanPath);

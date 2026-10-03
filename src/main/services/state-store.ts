@@ -305,6 +305,7 @@ function parsePersistedState(raw: string): SystemSnapshot {
   let value: unknown = JSON.parse(raw.replace(/^\uFEFF/, ''));
   value = migrateLegacyDeviceState(value);
   value = migrateAudioMixState(value);
+  value = migrateAudioDevicePreferences(value);
   value = migrateLegacyCaptureState(value);
   value = migrateClipReviewState(value);
   value = migrateGameDetectionState(value);
@@ -458,6 +459,22 @@ function migrateAudioMixState(value: unknown): unknown {
     }
   }
   return { ...value, audio: { ...value.audio, mixes, host: null } };
+}
+
+// Before preferences were separate, the saved device was the only record of intent.
+// An excluded saved device was an automatic fallback, so it is not remembered.
+function migrateAudioDevicePreferences(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value.audio) || !Array.isArray(value.audio.buses)) return value;
+  const excluded = new Set(Array.isArray(value.audio.excludedDeviceIds) ? value.audio.excludedDeviceIds : []);
+  const devices = Array.isArray(value.audio.devices) ? value.audio.devices.filter(isRecord) : [];
+  const buses = value.audio.buses.map((bus) => {
+    if (!isRecord(bus) || Array.isArray(bus.preferredDevices)) return bus;
+    const deviceId = typeof bus.deviceId === 'string' ? bus.deviceId : '';
+    if (!deviceId || excluded.has(deviceId)) return { ...bus, preferredDevices: [] };
+    const name = devices.find((device) => device.id === deviceId)?.name;
+    return { ...bus, preferredDevices: [{ id: deviceId, name: typeof name === 'string' ? name.slice(0, 256) : '' }] };
+  });
+  return { ...value, audio: { ...value.audio, buses } };
 }
 
 function migrateGameDetectionState(value: unknown): unknown {

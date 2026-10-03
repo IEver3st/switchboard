@@ -1,4 +1,4 @@
-import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput } from '../../../shared/contracts';
+import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput, SetNoiseSuppressionModelInput } from '../../../shared/contracts';
 import { create } from 'zustand';
 import {
   pageIdSchema,
@@ -94,6 +94,7 @@ interface SystemStore {
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<void>;
   setAudioRouting(input: SetAudioRoutingInput): Promise<void>;
   setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<void>;
+  setNoiseSuppressionModel(input: SetNoiseSuppressionModelInput): Promise<void>;
   audioDependencySetup(action: import('../../../shared/contracts').AudioSetupAction): Promise<void>;
   openTrackSetup(action: import('../../../shared/contracts').OpenTrackAction): Promise<void>;
   setAudioEnabled(enabled: boolean): Promise<void>;
@@ -269,6 +270,7 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     setDeviceAppearanceOverride: (input) => run(() => switchboardApi.setDeviceAppearanceOverride(input)),
     setAudioRouting: (input) => runAudio(() => switchboardApi.setAudioRouting(input)),
     setAudioDeviceExcluded: (input) => runAudio(() => switchboardApi.setAudioDeviceExcluded(input)),
+    setNoiseSuppressionModel: (input) => runAudio(() => switchboardApi.setNoiseSuppressionModel(input)),
     audioDependencySetup: (action) => run(() => switchboardApi.audioDependencySetup(action)),
     openTrackSetup: (action) => run(() => switchboardApi.openTrackSetup(action)),
     setAudioEnabled: (enabled) => runAudio(() => switchboardApi.setAudioEnabled(enabled)),

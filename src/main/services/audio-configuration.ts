@@ -6,7 +6,7 @@ const preferenceKeys = [
   'outputDevice', 'microphoneDevice', 'mixes', 'chatMix', 'monitoring',
   'monitoringEnabled', 'monitoringDeviceId', 'buses', 'micProcessors',
   'channelProcessing', 'pathPresets', 'activePresetIds',
-  'applicationRoutes', 'automaticApplicationRouting', 'excludedDeviceIds',
+  'applicationRoutes', 'automaticApplicationRouting', 'excludedDeviceIds', 'noiseSuppressionModel',
 ] as const satisfies readonly (keyof AudioState)[];
 
 // Persisted preferences the audio host never reads.

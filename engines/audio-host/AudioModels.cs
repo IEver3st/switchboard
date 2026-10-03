@@ -174,6 +174,7 @@ internal sealed class AudioHostSettings
     public IReadOnlyList<AudioMixConfiguration> Mixes { get; init; } = [];
     public IReadOnlyList<MicrophoneProcessorSettings> MicProcessors { get; init; } = [];
     public IReadOnlyList<ChannelProcessingSettings> ChannelProcessing { get; init; } = [];
+    public string NoiseSuppressionModel { get; init; } = NoiseSuppression.NoiseSuppressionModels.Standard;
     public AudioBusConfiguration? MicrophoneBus => Buses.FirstOrDefault(bus => bus.Id.Equals("mic", StringComparison.OrdinalIgnoreCase));
 
     public AudioHostSettings Validate()

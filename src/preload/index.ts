@@ -69,6 +69,7 @@ const api: SwitchboardApi & MontageV2Api = {
   setDeviceAppearanceOverride: (input) => ipcRenderer.invoke(ipcChannels.setDeviceAppearanceOverride, input),
   setAudioRouting: (input) => ipcRenderer.invoke(ipcChannels.setAudioRouting, input),
   setAudioDeviceExcluded: (input) => ipcRenderer.invoke(ipcChannels.setAudioDeviceExcluded, input),
+  setNoiseSuppressionModel: (input) => ipcRenderer.invoke(ipcChannels.setNoiseSuppressionModel, input),
   audioDependencySetup: (action) => ipcRenderer.invoke(ipcChannels.audioDependencySetup, action),
   openTrackSetup: (action) => ipcRenderer.invoke(ipcChannels.openTrackSetup, action),
   setAudioEnabled: (enabled) => ipcRenderer.invoke(ipcChannels.setAudioEnabled, enabled),

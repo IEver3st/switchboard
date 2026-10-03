@@ -1,8 +1,9 @@
 using System.Text.Json;
+using Switchboard.AudioHost.NoiseSuppression;
 
 namespace Switchboard.AudioHost;
 
-internal sealed record NoiseSuppressionConfiguration(bool Enabled, float Amount);
+internal sealed record NoiseSuppressionConfiguration(bool Enabled, float Amount, string Model = NoiseSuppressionModels.Standard);
 internal sealed record NoiseGateConfiguration(bool Enabled, float ThresholdDb, float AttackMs, float ReleaseMs);
 internal sealed record GainConfiguration(bool Enabled, float GainDb);
 internal sealed record EqualizerBandConfiguration(bool Enabled, string Type, float Frequency, float GainDb, float Q);
@@ -30,7 +31,7 @@ internal sealed record MicrophoneDspConfiguration(
         var limiter = Find(processors, "limiter");
         return new MicrophoneDspConfiguration(
             version,
-            new NoiseSuppressionConfiguration(suppression.Enabled, Number(suppression.Parameters, "amount", 55f, 0f, 100f)),
+            new NoiseSuppressionConfiguration(suppression.Enabled, Number(suppression.Parameters, "amount", 55f, 0f, 100f), NoiseSuppressionModels.Parse(settings.NoiseSuppressionModel)),
             new NoiseGateConfiguration(gate.Enabled, Number(gate.Parameters, "thresholdDb", -48f, -80f, -10f), Number(gate.Parameters, "attackMs", 10f, 0.1f, 100f), Number(gate.Parameters, "releaseMs", 180f, 10f, 1_000f)),
             new GainConfiguration(gain.Enabled, Number(gain.Parameters, "gainDb", 0f, -20f, 30f)),
             new EqualizerConfiguration(equalizer.Enabled, ParseBands(equalizer.Parameters)),

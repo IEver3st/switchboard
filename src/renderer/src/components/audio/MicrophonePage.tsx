@@ -1,8 +1,9 @@
 import { memo, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import type { AudioDeviceDirection, AudioState, MicProcessor, MicProcessorId, SetMicProcessorInput } from '../../../../shared/contracts';
+import type { AudioDeviceDirection, AudioState, MicProcessor, MicProcessorId, NoiseSuppressionModel, SetMicProcessorInput } from '../../../../shared/contracts';
 import { microphoneMonitoringApplied } from '../../../../shared/microphone-runtime';
 import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/cn';
 import { AudioChannelHeader, AudioNotice } from './AudioModule';
 import { AudioDeviceManager } from './AudioDeviceManager';
@@ -55,6 +56,11 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
   const unavailable = support !== 'available';
   const suppressionUnavailable = audio.capabilities.noiseSuppression !== 'available';
   const suppressionError = audio.host?.noiseSuppression.lastError ?? audio.host?.capabilities.reason;
+  const setNoiseSuppressionModel = useSystemStore((state) => state.setNoiseSuppressionModel);
+  const noiseModelPending = Boolean(pendingOperations['noise-model']);
+  // The host reports the model it actually loaded; a requested model it could not start is shown, not hidden.
+  const noiseModelFallback = audio.noiseSuppressionModel === 'deepfilternet3' && audio.host?.running === true
+    && !noiseModelPending && audio.host.noiseSuppression.backend !== 'DeepFilterNet3';
   const monitoringUnavailable = audio.capabilities.monitoring !== 'available';
   const presetPending = Boolean(pendingOperations.preset);
   const monitoringPending = Boolean(pendingOperations.monitoring);
@@ -227,6 +233,21 @@ export const MicrophonePage = memo(function MicrophonePage({ audio, engineRunnin
             parameters: { amount: enabled && suppression.parameters.amount === 0 ? noiseRemovalAmounts.balanced : suppression.parameters.amount } })}
         >
           <ParameterControl label="Strength" value={suppression.parameters.amount} min={0} max={100} step={1} unit="%" disabled={Boolean(pendingOperations['processor:noise-suppression'])} onCommit={(amount) => void commitProcessor({ processorId: 'noise-suppression', enabled: amount > 0, parameters: { amount } })} />
+          <div className="audio-param mic-model">
+            <span id="microphone-noise-model-label">Model</span>
+            <ToggleGroup type="single" aria-labelledby="microphone-noise-model-label" value={audio.noiseSuppressionModel} disabled={noiseModelPending}
+              onValueChange={(model) => { if (model && model !== audio.noiseSuppressionModel) void runPending('noise-model', () => setNoiseSuppressionModel({ model: model as NoiseSuppressionModel })); }}>
+              <ToggleGroupItem value="rnnoise">Standard</ToggleGroupItem>
+              <ToggleGroupItem value="deepfilternet3">DeepFilterNet3</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          <p className="mic-model__note" role={noiseModelFallback ? 'status' : undefined}>
+            {noiseModelFallback
+              ? audio.host?.noiseSuppression.lastError ?? 'DeepFilterNet3 could not start. Using standard noise removal.'
+              : audio.noiseSuppressionModel === 'deepfilternet3'
+                ? 'Stronger on keyboard clicks and room noise. Adds about 20 ms of delay.'
+                : 'Lowest delay. Keyboard clicks can come through.'}
+          </p>
         </MicStage>
         <MicStage
           id="microphone-gate-section"

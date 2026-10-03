@@ -1,5 +1,5 @@
 import { applyApplicationRoutingPreference } from '../../../shared/audio-routing';
-import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput } from '../../../shared/contracts';
+import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput, SetNoiseSuppressionModelInput } from '../../../shared/contracts';
 import type {
   ApplyAudioPresetInput,
   AudioPresetIdInput,
@@ -376,6 +376,10 @@ const demoApi: SwitchboardApi = {
   async setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput) {
     const others = snapshot.audio.excludedDeviceIds.filter((id) => id !== input.deviceId);
     snapshot.audio.excludedDeviceIds = input.excluded ? [...others, input.deviceId] : others;
+    return emit();
+  },
+  async setNoiseSuppressionModel(input: SetNoiseSuppressionModelInput) {
+    snapshot.audio.noiseSuppressionModel = input.model;
     return emit();
   },
   async audioDependencySetup() { throw new Error('Audio driver installation requires the Windows desktop app.'); },

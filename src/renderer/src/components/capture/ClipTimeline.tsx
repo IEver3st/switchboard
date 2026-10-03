@@ -31,7 +31,7 @@ import {
   type TimelineInteraction,
   type TimelineValues,
 } from './clip-timeline-model';
-import { clipPreviewNeedsSync, clipPreviewTrackVolume } from './clip-preview-audio';
+import { clipPreviewExhausted, clipPreviewNeedsSync, clipPreviewTrackVolume } from './clip-preview-audio';
 import './clip-editor.css';
 import { TimelineContextMenu } from './TimelineContextMenu';
 
@@ -199,6 +199,7 @@ export function ClipTimeline({
     const updatePreviews = (forcePosition: boolean) => {
       const videoSeconds = video.currentTime;
       const currentMs = videoSeconds * 1_000;
+      const playing = !video.paused && !video.ended;
       for (const { preview, trackIndex, channel } of previews) {
         preview.volume = clipPreviewTrackVolume(
           resolveClipTrackLevel(previewTrackLevelsRef.current, trackIndex, channel, defaultTrackLevelsRef.current),
@@ -208,10 +209,14 @@ export function ClipTimeline({
           audioTrackTrimsRef.current?.[trackIndex],
         );
         preview.playbackRate = video.playbackRate;
-        if (preview.readyState >= HTMLMediaElement.HAVE_METADATA
-          && (forcePosition || clipPreviewNeedsSync(preview.currentTime, videoSeconds))) {
-          preview.currentTime = videoSeconds;
+        if (preview.readyState < HTMLMediaElement.HAVE_METADATA) continue;
+        if (clipPreviewExhausted(preview.duration, videoSeconds)) {
+          if (!preview.paused) preview.pause();
+          continue;
         }
+        if (forcePosition || clipPreviewNeedsSync(preview.currentTime, videoSeconds)) preview.currentTime = videoSeconds;
+        // Resumes a track that was paused at its end after the video seeks back into it.
+        if (playing && preview.paused) void preview.play().catch(() => undefined);
       }
     };
     const stopPlaybackFrames = () => {
@@ -228,7 +233,9 @@ export function ClipTimeline({
     const startPreviewPlayback = () => {
       video.muted = true;
       updatePreviews(true);
-      for (const { preview } of previews) void preview.play().catch(() => undefined);
+      for (const { preview } of previews) {
+        if (preview.paused && !clipPreviewExhausted(preview.duration, video.currentTime)) void preview.play().catch(() => undefined);
+      }
       if (playbackFrame === null) playbackFrame = window.requestAnimationFrame(syncPlaybackFrame);
     };
     const pausePreviewPlayback = () => {

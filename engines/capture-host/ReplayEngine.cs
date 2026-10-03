@@ -327,6 +327,7 @@ internal sealed class ReplayEngine : IAsyncDisposable
             snapshotDirectory = ring.Snapshot(selected);
             try
             {
+                await WaitForAudioCoverageAsync(capture, sessionDirectory, captureEndedAt, cancellationToken);
                 if (capture.IncludeSystemAudio)
                 {
                     var systemAudioSegments = ring.List(
@@ -1703,6 +1704,42 @@ internal sealed class ReplayEngine : IAsyncDisposable
     internal static int ResolveMicrophoneAdvanceMs(CaptureSettings capture, string? microphoneId, string? outputId) =>
         capture.SystemAudioMode == "system" && capture.MicrophoneSync is { } sync
         && sync.MicrophoneDeviceId == microphoneId && sync.OutputDeviceId == outputId ? sync.AdvanceMs : 0;
+
+    private static readonly TimeSpan AudioCoverageWait = TimeSpan.FromSeconds(1.5);
+
+    // Each audio track has its own encoder that closes one-second segments independently
+    // of video, so the newest video segment can finish before the audio covering it and
+    // the saved clip lost up to a second of audio at its end. Poll every 100 ms, for at
+    // most 1.5 s (longer than one audio segment), until each running track covers the
+    // video end. A stalled track only delays the save; the clip is never shortened.
+    private async Task WaitForAudioCoverageAsync(
+        CaptureSettings capture, string sessionDirectory, DateTimeOffset videoEnd, CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        while (!AudioCoversVideo(capture, sessionDirectory, videoEnd)
+               && Stopwatch.GetElapsedTime(started) < AudioCoverageWait)
+            await Task.Delay(100, cancellationToken);
+    }
+
+    private bool AudioCoversVideo(CaptureSettings capture, string sessionDirectory, DateTimeOffset videoEnd)
+    {
+        (bool Enabled, Process? Encoder, string Pattern)[] tracks =
+        [
+            (capture.IncludeSystemAudio, systemAudioFfmpeg, "system-*.mka"),
+            (capture.IncludeChatAudio, chatAudioFfmpeg, "chat-*.mka"),
+            (capture.IncludeMic, microphoneFfmpeg, "microphone-*.mka"),
+        ];
+        foreach (var track in tracks)
+        {
+            if (!track.Enabled || track.Encoder is not { HasExited: false }) continue;
+            if (!CoversEnd(ring!.List(sessionDirectory, captureRunning: true, searchPattern: track.Pattern), videoEnd))
+                return false;
+        }
+        return true;
+    }
+
+    internal static bool CoversEnd(IReadOnlyList<ReplaySegmentInfo> audio, DateTimeOffset videoEnd) =>
+        audio.Any(segment => segment.Complete && segment.EndedAt >= videoEnd);
 
     internal static IReadOnlyList<ReplaySegmentInfo> CompleteWithMicrophone(
         IReadOnlyList<ReplaySegmentInfo> video, IReadOnlyList<ReplaySegmentInfo> microphone)

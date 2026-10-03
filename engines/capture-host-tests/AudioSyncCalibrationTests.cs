@@ -37,6 +37,15 @@ internal static class AudioSyncCalibrationTests
         if (ReplayEngine.CompleteWithMicrophone(video, audio).Count != 4
             || ReplayEngine.CompleteWithMicrophone(video, []).Count != 0)
             throw new Exception("A calibrated replay must not include video ahead of its completed microphone audio.");
+        var videoEnd = video[^1].EndedAt;
+        var trailing = new[]
+        {
+            new ReplaySegmentInfo("system-1", origin.AddSeconds(4), origin.AddSeconds(5), 1, true),
+            new ReplaySegmentInfo("system-2", origin.AddSeconds(5), origin.AddSeconds(6), 1, false),
+        };
+        if (ReplayEngine.CoversEnd(trailing, videoEnd)
+            || !ReplayEngine.CoversEnd([trailing[0], trailing[1] with { Complete = true }], videoEnd))
+            throw new Exception("Saving must wait for completed audio through the end of the selected video.");
         var settings = new CaptureSettings();
         var calibrated = settings with { MicrophoneSync = new(185, "mic", "output", DateTimeOffset.UtcNow.ToString("O")) };
         if (ReplayEngine.ResolveMicrophoneAdvanceMs(calibrated, "mic", "output") != 185

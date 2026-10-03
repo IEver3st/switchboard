@@ -16,3 +16,9 @@ export function clipPreviewTrackVolume(
 export function clipPreviewNeedsSync(previewSeconds: number, videoSeconds: number): boolean {
   return !Number.isFinite(previewSeconds) || Math.abs(previewSeconds - videoSeconds) > 0.08;
 }
+
+// A finished media element restarts from zero when play() is called, so a track
+// shorter than the video must stay paused past its end instead of being re-synced.
+export function clipPreviewExhausted(durationSeconds: number, targetSeconds: number): boolean {
+  return Number.isFinite(durationSeconds) && targetSeconds >= durationSeconds - 0.02;
+}

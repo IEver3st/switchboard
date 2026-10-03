@@ -543,7 +543,14 @@ export const audioBusSchema = z.object({
   appCount: z.number().int().min(0),
   meter: z.number().min(0).max(1),
   endpoint: z.string(),
+  // Endpoint the host currently renders to or captures from. Fallbacks change only this value.
   deviceId: z.string().default(''),
+  // Devices the user chose for this channel, most recent first. Availability never rewrites it,
+  // so a disconnected choice is restored when Windows reports it again.
+  preferredDevices: z.array(z.object({
+    id: z.string().min(1).max(512),
+    name: z.string().max(256),
+  })).max(6).default([]),
 });
 export type AudioBus = z.infer<typeof audioBusSchema>;
 
@@ -981,6 +988,11 @@ export const audioPresetFileSchema = z.object({
 });
 export type AudioPresetFile = z.infer<typeof audioPresetFileSchema>;
 
+// Live microphone noise model. RNNoise is the default; DeepFilterNet3 uses a model the
+// user acquired locally and falls back to RNNoise, with a reported reason, if it cannot start.
+export const noiseSuppressionModelSchema = z.enum(['rnnoise', 'deepfilternet3']);
+export type NoiseSuppressionModel = z.infer<typeof noiseSuppressionModelSchema>;
+
 export const audioExcludedDeviceIdsSchema = z.array(z.string().min(1).max(512)).max(256)
   .refine(ids => new Set(ids).size === ids.length, 'Excluded device IDs must be unique');
 
@@ -1015,6 +1027,7 @@ export const audioStateSchema = z.object({
   automaticApplicationRouting: z.boolean().default(true),
   // Endpoints hidden from Switchboard device pickers. Renderer policy only; never sent to the host.
   excludedDeviceIds: audioExcludedDeviceIdsSchema.default([]),
+  noiseSuppressionModel: noiseSuppressionModelSchema.default('rnnoise'),
   applicationRoutes: audioApplicationPreferencesSchema.optional(),
   enabled: z.boolean(),
   outputDevice: z.string(),
@@ -1862,6 +1875,9 @@ export const setAudioDeviceExcludedInputSchema = z.object({
 }).strict();
 export type SetAudioDeviceExcludedInput = z.infer<typeof setAudioDeviceExcludedInputSchema>;
 
+export const setNoiseSuppressionModelInputSchema = z.object({ model: noiseSuppressionModelSchema }).strict();
+export type SetNoiseSuppressionModelInput = z.infer<typeof setNoiseSuppressionModelInputSchema>;
+
 export const setAudioApplicationRouteInputSchema = z.object({
   applicationId: z.string().min(1),
   destination: z.enum(['game', 'chat', 'media']),
@@ -2060,6 +2076,7 @@ export const ipcChannels = {
   setDeviceAppearanceOverride: 'devices:set-appearance-override',
   setAudioRouting: 'audio:set-routing',
   setAudioDeviceExcluded: 'audio:set-device-excluded',
+  setNoiseSuppressionModel: 'audio:set-noise-suppression-model',
   setAudioEnabled: 'audio:set-enabled',
   restartAudio: 'audio:restart',
   openWindowsSound: 'audio:open-windows-sound',
@@ -2160,6 +2177,7 @@ export interface SwitchboardApi {
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<SystemSnapshot>;
   setAudioRouting(input: SetAudioRoutingInput): Promise<SystemSnapshot>;
   setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<SystemSnapshot>;
+  setNoiseSuppressionModel(input: SetNoiseSuppressionModelInput): Promise<SystemSnapshot>;
   setAudioEnabled(enabled: boolean): Promise<SystemSnapshot>;
   restartAudio(): Promise<SystemSnapshot>;
   openWindowsSound(): Promise<SystemSnapshot>;

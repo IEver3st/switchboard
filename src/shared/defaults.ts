@@ -461,6 +461,7 @@ export const defaultAudio: AudioState = {
   spatial: spatialSettingsSchema.parse({}),
   automaticApplicationRouting: true,
   excludedDeviceIds: [],
+  noiseSuppressionModel: 'rnnoise',
   enabled: false,
   outputDevice: '',
   microphoneDevice: '',
@@ -508,11 +509,11 @@ export const defaultAudio: AudioState = {
   monitoringEnabled: false,
   monitoringDeviceId: '',
   buses: [
-    { id: 'game', label: 'Game', enabled: true, appCount: 0, meter: 0.72, endpoint: 'Switchboard Audio - Gaming', deviceId: '' },
-    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, meter: 0.38, endpoint: 'Switchboard Audio - Chat', deviceId: '' },
-    { id: 'media', label: 'Media', enabled: true, appCount: 0, meter: 0.21, endpoint: 'Switchboard Audio - Media', deviceId: '' },
-    { id: 'aux', label: 'Aux', enabled: true, appCount: 0, meter: 0, endpoint: 'Switchboard Audio - Aux', deviceId: '' },
-    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, meter: 0.56, endpoint: 'Switchboard Audio - Microphone', deviceId: '' },
+    { id: 'game', label: 'Game', enabled: true, appCount: 0, meter: 0.72, endpoint: 'Switchboard Audio - Gaming', deviceId: '', preferredDevices: [] },
+    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, meter: 0.38, endpoint: 'Switchboard Audio - Chat', deviceId: '', preferredDevices: [] },
+    { id: 'media', label: 'Media', enabled: true, appCount: 0, meter: 0.21, endpoint: 'Switchboard Audio - Media', deviceId: '', preferredDevices: [] },
+    { id: 'aux', label: 'Aux', enabled: true, appCount: 0, meter: 0, endpoint: 'Switchboard Audio - Aux', deviceId: '', preferredDevices: [] },
+    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, meter: 0.56, endpoint: 'Switchboard Audio - Microphone', deviceId: '', preferredDevices: [] },
   ],
   micProcessors: createNaturalMicrophoneProcessors(),
   channelProcessing: [
@@ -693,7 +694,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.9.30',
+  currentVersion: '0.9.31',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -739,7 +740,7 @@ export const seedClips: Clip[] = [];
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
     setup: setupStateSchema.parse({}),
-    version: '0.9.30',
+    version: '0.9.31',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),

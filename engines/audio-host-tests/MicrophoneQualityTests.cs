@@ -5,7 +5,7 @@ internal static class MicrophoneQualityTests
 {
     // Explicit opt-in: shared-mode input only, no playback, routes, saved settings,
     // or audio files. Exercise the real pipeline without competing for its cable.
-    public static void RunLive()
+    public static void RunLive(string model = NoiseSuppressionModels.Standard)
     {
         using var endpoints = new EndpointService();
         var input = endpoints.List().Single(endpoint => endpoint.Flow == "capture"
@@ -25,8 +25,9 @@ internal static class MicrophoneQualityTests
         };
         for (var cycle = 0; cycle < 3; cycle++)
         {
-            using var suppressor = new RnnoiseNoiseSuppressor();
-            Require(suppressor.Initialize(new(AppContext.BaseDirectory, Path.GetTempPath())), "Native RNNoise could not start.");
+            using var suppressor = NoiseSuppressorFactory.Create(model, AppContext.BaseDirectory, Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Switchboard", "models", "deepfilternet"), out var note);
+            Require(suppressor.IsAvailable && note is null, $"{model} could not start: {note ?? suppressor.LastError}");
             using var pipeline = new MicrophonePipeline(suppressor, settings, configuration);
             pipeline.Start();
             Thread.Sleep(1_000);
@@ -37,7 +38,7 @@ internal static class MicrophoneQualityTests
             var timings = pipeline.FrameTimings;
             Require(timings.TotalFrames >= 100 && pipeline.CaptureOverruns == 0 && pipeline.DroppedOrBypassedFrames == 0,
                 "Live microphone frames were missing, dropped or bypassed.");
-            Console.WriteLine($"QuadCast 2 cycle {cycle + 1}: {pipeline.InputFormat}; {timings.TotalFrames} frames; "
+            Console.WriteLine($"QuadCast 2 {suppressor.BackendName} cycle {cycle + 1}: {pipeline.InputFormat}; {timings.TotalFrames} frames; "
                 + $"DSP p99 {timings.P99Ms:F3} ms; capture overruns {pipeline.CaptureOverruns}; bypasses {pipeline.DroppedOrBypassedFrames}.");
             pipeline.Dispose();
             pipeline.Dispose();
@@ -47,7 +48,7 @@ internal static class MicrophoneQualityTests
     public static void Run()
     {
         var failures = new List<Exception>();
-        foreach (var test in new Action[] { AlignedSuppressionTransitions, NativeSuppressionLifecycle, SpeechProtectionPreservesWords, GatePreservesSpeech, FailedFrameDoesNotReplay, TestPlaybackUsesCurrentOutput })
+        foreach (var test in new Action[] { AlignedSuppressionTransitions, NativeSuppressionLifecycle, SpeechProtectionPreservesWords, SpeechPreservingModelKeepsCleanupWhileTalking, ExplicitModelSelectionFallsBack, GatePreservesSpeech, FailedFrameDoesNotReplay, TestPlaybackUsesCurrentOutput })
         {
             try { test(); Console.WriteLine($"PASS {test.Method.Name}"); }
             catch (Exception error) { failures.Add(error); Console.WriteLine($"FAIL {test.Method.Name}: {error.Message}"); }
@@ -90,6 +91,39 @@ internal static class MicrophoneQualityTests
         var allocated = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < 100; i++) graph.ProcessMicrophone(frame, configuration);
         Require(GC.GetAllocatedBytesForCurrentThread() == allocated, "Speech cleanup allocated on the DSP thread.");
+    }
+
+    private static void SpeechPreservingModelKeepsCleanupWhileTalking()
+    {
+        // Keyboard clicks during speech: the model removes them, so recognized speech
+        // must not reinsert the raw microphone signal that still contains them.
+        using var model = new DelayedPassThrough { Gain = 0, Probability = 1, Preserves = true };
+        var graph = new AudioGraph(model);
+        var configuration = Configuration() with { NoiseSuppression = new(true, 100) };
+        var frame = new float[480];
+        for (var i = 0; i < 12; i++)
+        {
+            Array.Fill(frame, 0.05f);
+            graph.ProcessMicrophone(frame, configuration);
+        }
+        Require(frame.All(x => x is > 0 and < 0.001f), "A speech-preserving model reinserted raw audio during speech.");
+    }
+
+    private static void ExplicitModelSelectionFallsBack()
+    {
+        Require(NoiseSuppressionModels.Parse("deepfilternet3") == NoiseSuppressionModels.DeepFilterNet3
+            && NoiseSuppressionModels.Parse("unknown") == NoiseSuppressionModels.Standard
+            && NoiseSuppressionModels.Parse(null) == NoiseSuppressionModels.Standard, "Model choices did not parse.");
+        var empty = Directory.CreateTempSubdirectory("switchboard-no-model-");
+        try
+        {
+            using var standard = NoiseSuppressorFactory.Create(NoiseSuppressionModels.Standard, AppContext.BaseDirectory, empty.FullName, out var standardNote);
+            Require(standard.BackendName == "RNNoise" && standardNote is null, "The default model changed without a choice.");
+            using var fallback = NoiseSuppressorFactory.Create(NoiseSuppressionModels.DeepFilterNet3, AppContext.BaseDirectory, empty.FullName, out var note);
+            Require(fallback.BackendName == "RNNoise" && fallback.IsAvailable && note?.Contains("standard noise removal") == true,
+                "A missing DeepFilterNet3 model must fall back to RNNoise and report why.");
+        }
+        finally { empty.Delete(recursive: true); }
     }
 
     private static void TestPlaybackUsesCurrentOutput()
@@ -167,6 +201,8 @@ internal static class MicrophoneQualityTests
         public bool Throw { get; set; }
         public bool Corrupt { get; set; }
         public float SpeechProbability => Probability;
+        public bool Preserves { get; set; }
+        public bool PreservesSpeech => Preserves;
         public double AlgorithmicLatencyMs => 20;
         public string? LastError => null;
         public bool Initialize(NoiseSuppressorInitialization initialization) => true;
