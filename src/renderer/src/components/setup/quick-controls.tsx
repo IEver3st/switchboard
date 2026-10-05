@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Circle, Keyboard, Mic, MicOff, RotateCcw, Settings2, SlidersHorizontal, Smartphone, Video, Volume2, VolumeX, X } from 'lucide-react';
+import { Check, Circle, Keyboard, RotateCcw, Settings2, Smartphone, Video, X } from 'lucide-react';
 import type { CaptureConfig, SetCaptureConfigInput, SetupPreferences, UpdateSettingsInput } from '../../../../shared/contracts';
 import { useSystemStore } from '@/stores/use-system-store';
 import { switchboardApi } from '@/lib/demo-api';
@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { manageAsyncCleanup } from '@/lib/async-cleanup';
 import { VerticalFramingControls } from './vertical-framing-controls';
-import { QuickSection, QuickToggle, QuickSelect, QuickOption, QuickRange } from './quick-controls-primitives';
+import { QuickSection, QuickToggle, QuickSelect, QuickOption } from './quick-controls-primitives';
 import { useSetupAction } from './use-setup-action';
 import './setup.css';
 import './quick-controls.css';
 
-const tabs = [['audio', 'Audio', SlidersHorizontal], ['capture', 'Capture', Video], ['frame', 'Frame', Smartphone], ['app', 'App', Settings2]] as const;
+const tabs = [['capture', 'Capture', Video], ['frame', 'Frame', Smartphone], ['app', 'App', Settings2]] as const;
 type Tab = typeof tabs[number][0];
 
 export function QuickControls() {
@@ -39,16 +39,10 @@ export function QuickControls() {
   const close = () => { void switchboardApi.closeQuickControls(); };
   if (!snapshot) return <div className="quick-controls"><header className="quick-header"><h1>Quick controls</h1><Button variant="ghost" size="icon" aria-label="Close quick controls" onClick={close}><X size={18} /></Button></header><p className="quick-loading" role={loadingError ? 'alert' : 'status'}>{loadingError ?? 'Loading your settings…'}</p></div>;
 
-  const { setup, audio, capture, settings } = snapshot;
+  const { setup, capture, settings } = snapshot;
   const { config, runtime } = capture;
   const guide = setup.preferences.verticalGuide;
   const glassSupported = new URLSearchParams(window.location.search).get('glassSupported') === '1';
-  const audioReady = audio.enabled && audio.host?.running === true;
-  const mic = audio.buses.find(bus => bus.id === 'mic');
-  const personal = audio.mixes.find(mix => mix.id === 'personal');
-  const outputs = audio.devices.filter(device => device.direction === 'output' && device.available && !device.isSwitchboard);
-  const inputs = audio.devices.filter(device => device.direction === 'input' && device.available && !device.isSwitchboard);
-  const output = audio.buses.find(bus => bus.id === 'game')?.deviceId ?? '';
   const changing = pending || setup.runtime.state === 'applying' || setup.runtime.state === 'restoring';
   const actions = setup.preferences.quickActions;
   const capturePatch = (patch: SetCaptureConfigInput) => { void run(() => switchboardApi.setCaptureConfig(patch)); };
@@ -93,26 +87,7 @@ export function QuickControls() {
     }}>{tabs.map(([id, label, Icon]) => <button type="button" role="tab" id={`quick-tab-${id}`} aria-controls={`quick-panel-${id}`} aria-selected={tab === id} tabIndex={tab === id ? 0 : -1} key={id} onClick={() => setTab(id)}><Icon size={15} aria-hidden />{label}</button>)}</nav>
 
     <main className="quick-body" ref={content} role="tabpanel" id={`quick-panel-${tab}`} aria-labelledby={`quick-tab-${tab}`} tabIndex={0}>
-      {tab === 'audio' ? <>
-        <QuickSection title="Audio engine">
-          <QuickToggle label="Enable Audio" checked={audio.enabled} disabled={changing} onChange={enabled => void run(() => switchboardApi.setAudioEnabled(enabled))} />
-          {!audioReady ? <p className="quick-note">{audio.enabled ? 'Audio is unavailable. Check the engine in Settings → Audio.' : 'Turn on Audio to adjust your mix.'}</p> : null}
-        </QuickSection>
-        <QuickSection title="Personal output" action={<Button variant="secondary" size="sm" aria-label={personal?.master.enabled ? 'Mute output' : 'Unmute output'} disabled={!audioReady || !personal || changing} onClick={() => void run(() => switchboardApi.setAudioMasterEnabled({ mixId: 'personal', enabled: !personal?.master.enabled }))}>{personal?.master.enabled ? <Volume2 size={15} /> : <VolumeX size={15} />}{personal?.master.enabled ? 'Mute' : 'Unmute'}</Button>}>
-          {actions.includes('output') ? <QuickSelect label="Output device" value={output} disabled={!audioReady || changing || !outputs.length} onChange={deviceId => void run(() => switchboardApi.runQuickAction({ type: 'output', deviceId }))}>
-            {!outputs.some(device => device.id === output) ? <QuickOption value={output}>{output ? 'Selected output unavailable' : 'Choose output'}</QuickOption> : null}
-            {outputs.map(device => <QuickOption value={device.id} key={device.id}>{device.name}</QuickOption>)}
-          </QuickSelect> : null}
-          <QuickRange label="Personal volume" value={personal?.master.gain ?? 1} min={0} max={1.5} step={0.01} format={value => `${Math.round(value * 100)}%`} disabled={!audioReady || !personal || changing} onCommit={gain => void run(() => switchboardApi.setAudioMasterGain({ mixId: 'personal', gain }))} />
-        </QuickSection>
-        {actions.includes('microphone') ? <QuickSection title="Microphone" className="quick-microphone" action={<Button variant="secondary" size="sm" aria-label={mic?.enabled ? 'Mute microphone' : 'Unmute microphone'} disabled={!audioReady || !mic || changing} onClick={() => void run(() => switchboardApi.runQuickAction({ type: 'microphone', muted: Boolean(mic?.enabled) }))}>{mic?.enabled ? <Mic size={15} /> : <MicOff size={15} />}{mic?.enabled ? 'Mute' : 'Unmute'}</Button>}>
-          <QuickSelect label="Input device" value={mic?.deviceId ?? ''} disabled={!audioReady || !mic || changing || !inputs.length} onChange={deviceId => void run(() => switchboardApi.setAudioBusDevice({ busId: 'mic', deviceId }))}>
-            {!inputs.some(device => device.id === mic?.deviceId) ? <QuickOption value={mic?.deviceId ?? ''}>{mic?.deviceId ? 'Selected input unavailable' : 'Choose microphone'}</QuickOption> : null}
-            {inputs.map(device => <QuickOption value={device.id} key={device.id}>{device.name}</QuickOption>)}
-          </QuickSelect>
-        </QuickSection> : null}
-        {actions.includes('chatmix') ? <QuickSection title="ChatMix"><QuickRange label="ChatMix" value={audio.chatMix} min={-1} max={1} step={0.05} disabled={!audioReady || changing} format={chatMixLabel} onCommit={value => void run(() => switchboardApi.runQuickAction({ type: 'chatmix', value }))} /><div className="quick-range-ends"><span>Game</span><span>Chat</span></div></QuickSection> : null}
-      </> : tab === 'capture' ? <>
+      {tab === 'capture' ? <>
         <QuickSection title="Recording">
           <QuickSelect label="Capture source" value={config.source} disabled={changing} onChange={source => capturePatch({ source: source as CaptureConfig['source'], sourceId: null })}><QuickOption value="automatic-game">Automatic game</QuickOption><QuickOption value="window">Window</QuickOption><QuickOption value="display" disabled={config.includeSystemAudio && config.systemAudioMode === 'game'}>Display</QuickOption></QuickSelect>
           <div className="quick-field-pair"><QuickSelect label="Replay duration" value={String(config.replaySeconds)} disabled={changing} onChange={value => capturePatch({ replaySeconds: Number(value) })}>
@@ -166,8 +141,4 @@ export function QuickControls() {
       <div className="quick-row"><span role="status">{changing ? 'Applying…' : 'Changes save automatically'}</span><span className="quick-close-hint"><kbd>Esc</kbd> Close</span></div>
     </footer>
   </div>;
-}
-
-function chatMixLabel(value: number): string {
-  return value === 0 ? 'Balanced' : `${Math.round(Math.abs(value) * 100)}% toward ${value < 0 ? 'Game' : 'Chat'}`;
 }

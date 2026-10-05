@@ -131,24 +131,7 @@ button { color: inherit; }
 .switch i { display: block; width: 14px; height: 14px; border-radius: 50%; background: #9ca3ad; transition: transform .15s; }
 .switch.on { border-color: #7c3b4e; background: var(--accent-muted); }
 .switch.on i { transform: translateX(16px); background: var(--accent); }
-.audio-grid { display: grid; grid-template-columns: 8fr 4fr; gap: 16px; }
 .panel { padding: 20px; }
-.bus-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 17px; border: 1px solid var(--border); border-radius: 8px; background: #14171b; padding: 16px 0; }
-.bus { min-height: 225px; display: flex; flex-direction: column; align-items: center; border-left: 1px solid var(--border); }
-.bus:first-child { border-left: 0; }
-.bus strong { color: #cdd1d6; font-size: 11px; }
-.bus small { margin-top: 5px; color: #59626d; font-size: 9px; }
-.fader-wrap { height: 145px; margin-top: 14px; display: flex; gap: 12px; align-items: flex-end; }
-.level-meter { width: 6px; height: 100%; display: flex; align-items: flex-end; overflow: hidden; border-radius: 99px; background: #272c34; }
-.level-meter i { width: 100%; border-radius: 99px; background: var(--success); }
-.fader { width: 5px; height: 100%; position: relative; border-radius: 99px; background: #2b3039; }
-.fader i { position: absolute; left: 50%; bottom: var(--value); width: 16px; height: 12px; transform: translate(-50%, 50%); border: 1px solid #ff9ab0; border-radius: 4px; background: var(--accent); }
-.bus b { margin-top: 12px; color: #dfe2e6; font-size: 12px; }
-.chatmix { height: 48px; margin-top: 14px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; background: #14171b; padding: 0 15px; }
-.chatmix strong { width: 68px; color: #626b76; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
-.chatmix small { color: #89919c; font-size: 10px; }
-.track { flex: 1; height: 3px; position: relative; border-radius: 99px; background: #2b3039; }
-.track i { position: absolute; left: 58%; top: 50%; width: 13px; height: 13px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--accent); }
 .route-list, .module-list, .settings-list { margin-top: 16px; display: grid; gap: 10px; }
 .route, .setting-row, .module-row { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; background: #15181d; padding: 12px; }
 .route .copy, .module-row .copy, .setting-row .copy { min-width: 0; flex: 1; }

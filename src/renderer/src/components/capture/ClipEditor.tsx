@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { channelColor } from '@/components/audio/channel-identity';
+import { channelColor } from '@/components/capture/channel-identity';
 import { cn } from '@/lib/cn';
 import { formatBytes, formatDuration, formatVideoQuality } from '@/lib/format';
 import { ClipTimeline } from './ClipTimeline';

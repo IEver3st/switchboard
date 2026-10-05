@@ -1,9 +1,8 @@
-import { sceneAudioSchema, sceneValuesSchema, type Device, type DeviceControlChange, type SceneValues, type SystemSnapshot } from './contracts';
+import { sceneValuesSchema, type Device, type DeviceControlChange, type SceneValues, type SystemSnapshot } from './contracts';
 
-export function snapshotSceneValues(snapshot: SystemSnapshot, scope = { includeAudio: true, includeCapture: true, includeDevices: true }): SceneValues {
+export function snapshotSceneValues(snapshot: SystemSnapshot, scope = { includeCapture: true, includeDevices: true }): SceneValues {
   const { hotkey: _hotkey, clipsDirectory: _directory, replayCacheDirectory: _cacheDirectory, ...capture } = snapshot.capture.config;
   return sceneValuesSchema.parse({
-    audio: scope.includeAudio ? sceneAudioSchema.parse(snapshot.audio) : null,
     capture: scope.includeCapture ? capture : null,
     devices: scope.includeDevices ? snapshot.devices.filter(device => device.connected).map(snapshotSceneDevice)
       .filter(device => device.dpi !== undefined || device.reportRate !== undefined || device.lighting !== undefined) : [],
@@ -50,7 +49,6 @@ export function sceneRestoreValues(before: SceneValues, applied: SceneValues, cu
   if (!preserveChanges) return structuredClone(before);
   const equal = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
   return {
-    audio: equal(applied.audio, current.audio) ? before.audio : null,
     capture: equal(applied.capture, current.capture) ? before.capture : null,
     devices: before.devices.filter(device => equal(applied.devices.find(item => item.deviceId === device.deviceId),
       current.devices.find(item => item.deviceId === device.deviceId))),

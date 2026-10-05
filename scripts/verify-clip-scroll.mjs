@@ -29,7 +29,6 @@ state.clips = Array.from({ length: count }, (_, index) => ({
   createdAt: new Date(2026, 8, 7, 12).getTime() - Math.floor(index / 30) * 86400000 - (index % 30) * 1000,
 }));
 state.capture.config.enabled = false;
-state.audio.enabled = false;
 state.modules.forEach(module => { module.enabled = false; });
 state.settings.onboardingCompleted = true;
 state.settings.uiScalePercent = 100;

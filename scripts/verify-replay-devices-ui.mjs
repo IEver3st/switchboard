@@ -32,7 +32,7 @@ async function until(check, message) {
 async function run() {
   await until(() => { window = BrowserWindow.getAllWindows()[0]; return window && !window.webContents.isLoading(); }, 'No native window');
   await until(() => evaluate('!!window.switchboard'), 'No preload');
-  const failure = await evaluate(`window.switchboard.updateSettings({ developerMode: true, onboardingCompleted: true, visibleWorkspaces: ['audio', 'capture'], uiScalePercent: 100 }).then(() => null, e => String(e))`);
+  const failure = await evaluate(`window.switchboard.updateSettings({ developerMode: true, onboardingCompleted: true, visibleWorkspaces: ['capture'], uiScalePercent: 100 }).then(() => null, e => String(e))`);
   if (failure) throw new Error(failure);
   await until(() => evaluate(`!document.querySelector('.onboarding, [class*=onboarding]')`), 'Onboarding still open');
   await evaluate(`location.hash='settings'; dispatchEvent(new HashChangeEvent('hashchange'))`);

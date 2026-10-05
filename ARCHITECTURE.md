@@ -1,42 +1,5 @@
 # Architecture
 
-Audio is an optional workspace available without Developer mode. Capture-only
-onboarding never requests driver downloads. Main's `AudioDependencySetup` owns
-the shared onboarding/Settings workflow through a narrow check/install/cancel
-contract. Runtime progress is projected through `audio.dependencies` and omitted
-from preferences. A per-user setup directory retains a reboot receipt and an
-installer lock shared between installed and development profiles.
-
-The Audio warning beneath the channel tabs derives recovery actions from the
-canonical engine, routing, endpoint and mix state. Endpoint discovery retains
-Windows volume and mute readback. Restart is a serialized main-owned operation
-that releases the previous host and route leases before starting the saved mix;
-it does not change Windows defaults. The Windows sound action opens only the
-fixed system volume-mixer URI through typed IPC. Neither action exposes generic
-process or shell access to the renderer.
-
-The Windows backend downloads only two pinned official vendor archives, verifies
-SHA-256 and Authenticode publisher identity, then elevates the unmodified vendor
-installer with a visible window. The user completes UAC and any vendor Install
-prompt. No driver is bundled, signing policy is unchanged, and no Windows restart
-is initiated. A one-shot Audio.Host setup command inspects endpoints and driver
-registration, configures the Hi-Fi pair at 48 kHz, and restores defaults only when
-the just-installed transport took them over. An unelevated installer helper owns
-that cleanup even if Electron closes. Installed-but-inactive drivers are reported
-instead of invoking an installer that could remove them.
-
-Headphone spatial audio is a personal-output stage in Audio.Host. Both routing
-backends wrap their physical mixers in the same measured-HRTF renderer; clip,
-stream, and microphone paths retain their original perspective. Main owns saved
-`audio.spatial` settings and requires host readback before committing live edits.
-Seven virtual sources expand stereo into a configurable headphone stage. Built-in
-Android Head Tracker HID sensors or optional loopback OpenTrack poses are owned by
-the routing session. No audio or pose stream enters Electron IPC. Disabling the
-stage releases sensor/socket resources and fades to direct bypass. Sony input-service
-setup is an explicit narrow host command; driver binding repair is a separate
-administrator maintenance script, never a background operation. See
-`docs/SPATIAL-AUDIO-EXPLORATION.md` for protocol, attribution, and validation scope.
-
 Quick Controls is a bounded floating window with persisted solid/native-acrylic
 material selection. Vertical framing uses a separate, static sandboxed window,
 without a preload, scripts, or trusted IPC. Main validates and serializes setup
@@ -51,7 +14,7 @@ the saved geometry but start with the guide off. The guide does not crop capture
 9:16 output remains an explicit clip-editor export choice.
 
 Setup scenes are persisted by main through `SetupScenes` and the canonical shared
-contract. Audio, capture, and device changes use the existing host and module
+contract. Capture and device changes use the existing host and module
 operations; failed subsystems report partial application. Automatic restoration
 preserves subsystems edited during a scene. Saved recovery state survives restart.
 `DesktopControlsService` registers Quick controls through Electron's global shortcut
@@ -63,7 +26,7 @@ Its bounded JSON events are validated in main. The sandboxed quick panel has a
 separate trusted-window IPC allowlist. Status cues enter vendor modules through a
 narrow temporary-lighting operation; battery warnings/cutoff take precedence, and
 clearing the cue restores the user's effect. Game-only capture uses NAudio process
-loopback for the selected source PID and children, bypasses the desktop clip mix,
+loopback for the selected source PID and children instead of output loopback,
 and fails explicitly when process activation is unavailable.
 
 ## Control plane
@@ -79,7 +42,7 @@ and drains status writes. Production, preview and normal review launches do not
 construct this service. See [the feedback commands](docs/resource-diagnostics.md#automatic-development-feedback).
 
 Installed Switchboard and Switchboard Dev keep separate settings and share a
-per-user runtime handoff protocol. Dev owns devices, audio, capture and shortcuts
+per-user runtime handoff protocol. Dev owns devices, capture and shortcuts
 for its session. Main-process named pipes authenticate peers with a key stored in
 the user's AppData directory; a separate exclusive pipe fences runtime ownership.
 The installed process removes its renderer IPC, releases its controller and all
@@ -103,8 +66,7 @@ Reopening the interface during that session leaves it open. Helper failures appe
 beside the setting; turning the option off and on retries watching.
 
 Detailed resource recording reuses the performance sampler and starts the bundled
-Capture.Host in `--resource-diagnostics` mode. This mode initializes no capture or
-audio engine. Main sends only known app/engine process IDs over stdin; the helper
+Capture.Host in `--resource-diagnostics` mode. This mode initializes no capture engine. Main sends only known app/engine process IDs over stdin; the helper
 adds itself, reads Windows CPU time, memory, handle and I/O counters, and closes
 each limited-query process handle after the request. The helper signals readiness
 before the sample deadline starts, so cold runtime startup does not consume the
@@ -116,7 +78,7 @@ Renderer reloads retain that history; settings persistence omits it. JSON export
 schema 4 includes the same history and process summaries, plus existing full
 samples, runtime data, event timeline and capture/environment context.
 
-Electron owns product lifecycle, module state, profiles, settings, diagnostics, and UI. It does not process realtime audio/video frames.
+Electron owns product lifecycle, module state, profiles, settings, diagnostics, and UI. It does not process realtime audio or video frames.
 
 ```text
 Renderer (sandboxed)
@@ -129,20 +91,16 @@ Electron main
   ├─ Module manager boundary
   ├─ Device service boundary
   └─ EngineSupervisor
-        ├─ Audio host
         └─ Capture host
 ```
 
 ## Host migration status
 
-Capture and audio have crossed the native-host boundary. The remaining audio release dependency is the signed transport driver:
+Capture has crossed the native-host boundary:
 
 ```text
 Capture utility worker  → replaced by packaged .NET Capture.Host
 metadata clip           → replaced by encoded segment ring and atomic remux
-Audio utility worker    → replaced by packaged .NET Audio.Host
-software bus state      → replaced by WASAPI loopback, physical routing, and real meters
-virtual endpoints       → blocked until the transport-only WDM package is signed and installed
 ```
 
 The shared command vocabulary is intentionally small so transport replacement does not force a renderer rewrite.
@@ -190,7 +148,7 @@ StateStore + optional engine command
 broadcast immutable snapshot
 ```
 
-Onboarding persists capture and audio choices with Capture stopped, then starts
+Onboarding persists capture choices with Capture stopped, then starts
 the configured engine once on Finish. Startup failures leave setup open for retry.
 Bundled Razer, HyperX, and Logitech modules are opt-in on a fresh profile; loading
 an existing profile preserves its explicit module enablement choices.
@@ -202,7 +160,6 @@ A module represents a protocol or major capability, not one model:
 - `device.logitech-hidpp`
 - `device.hyperx-quadcast`
 - `capability.replay`
-- `capability.audio-router`
 
 Device modules expose capabilities and settings. The core renderer owns canonical controls for common capabilities so every vendor surface remains coherent.
 
@@ -291,75 +248,22 @@ warnings. Neither automatic action writes onboard profile memory. Charging,
 recovery above the thresholds, policy disable, and session shutdown restore the
 normal lighting policy. Acknowledged commands do not prove physical LED output.
 
-## Audio
-
-Implemented Windows pipeline:
-
-```text
-Virtual Game ─┐
-Virtual Chat ─┤
-Media ────────┤
-Aux ──────────┤
-              ▼
-          Audio.Host
-   ┌──────────┼───────────┐
-   ▼          ▼           ▼
-Personal    Stream      Clip mix
-output      endpoint     capture input
-
-Physical mic → DSP graph → Virtual microphone / monitor / mixes
-```
-
-The signed driver is transport only. User-mode Audio.Host owns routing and DSP.
-When that driver is unavailable, the experimental Audio workspace can use the
-standard VB-CABLE endpoint with per-process loopback for personal and clip mixes.
-This fallback does not provide separate virtual microphone or stream outputs.
-See `docs/FREE-AUDIO-BACKEND.md` for capability, recovery, and lifecycle boundaries.
-
-`NoiseSuppressionStage` owns strength, speech protection and bypass independently
-of the native model. RNNoise provides fully processed frames and speech probability;
-the stage aligns the original microphone with its measured 480-sample output delay.
-That 10 ms timeline remains fixed during bypass and strength edits, including failed
-model frames. The delayed dry contribution is never mixed with current input.
-Enabling warms the model's overlap/lookahead before a 20 ms fade. Disabled suppression
-retains no model processing, and missing models use direct bypass without added delay.
-
-Strength bounds room-noise attenuation at 6/14/24/36 dB for 25/55/80/100 percent.
-Speech probability and a 300 ms hold protect the original voice contribution only
-when the model removes substantial frame energy; they never apply a second gate.
-The separate Noise gate remains an explicit processor. Live operation always uses
-the packaged RNNoise backend; optional DeepFilterNet is reserved for explicit offline
-comparisons. See [the suppression design and evidence](docs/noise-suppression-rework.md).
-
-Shared physical capture and playback request the minimum supported IAudioClient3
-period, with a 10 ms ordinary shared-mode fallback. Loopback capture retains the
-supported event-driven path. The microphone DSP thread registers with MMCSS once
-and blocks on capture notifications until shutdown. Without active suppression or
-its fade-out, DSP consumes available packets instead of assembling model frames.
-Only personal playback, monitoring, and virtual microphone consumers discard old
-queued samples beyond 20 ms (or one larger output callback) after a stall. Stream
-and recording queues retain their continuity policy. These are queue limits, not
-an end-to-end latency guarantee. See [Audio latency](docs/audio-latency.md).
-
 ## Capture
 
-Replay automatic inputs use versioned, current-user-only native PCM pipes when
-Audio.Host advertises `clipTracks` and `processedMicrophoneCapture`. Both audio
-backends partition the recording mix identically: Game/Media/Aux feed the system
-track, Chat feeds a separate track, and the processed microphone has its own
-AudioEngine-owned feed independent of transport-driver availability. Recording
-bus gain, mute, channel processing, and recording master apply before the pipes;
-personal ChatMix and headphone spatial processing do not. No PCM crosses Electron.
+Capture.Host records replay audio directly from Windows endpoints through NAudio
+WASAPI: default or selected output loopback for Game, game-only process loopback,
+communications or selected output loopback for Chat, and the default or selected
+microphone. Each track feeds its own FFmpeg AAC encoder. The microphone callback
+also feeds reaction detection, including analysis without microphone recording.
+No PCM crosses Electron. Explicit endpoint IDs survive disconnects and fail
+visibly instead of switching devices. Clip editing and export consume the same
+system, chat, and microphone track identities.
 
-Capture.Host relays each selected pipe to its existing FFmpeg track encoder and
-observes processed microphone frames for reaction detection, including analysis
-without microphone recording. Pipe loss is visible and triggers existing replay
-recovery. Main follows confirmed host capabilities rather than application
-activity, so quiet mixers do not switch sources. Explicit endpoint IDs survive
-disconnects and override automatic feeds. Game-only remains process loopback;
-fallback chat uses the Windows communications endpoint. Device-bound acoustic
-calibration applies only to endpoint capture, not these recording feeds. Existing
-clip editing/export consumes the same system, chat, and microphone track identities.
+Replay device pickers read `snapshot.capture.audioDevices`, filled by a one-shot
+`Capture.Host --list-audio-endpoints` helper that prints JSON and exits without
+constructing the replay engine. Main bounds its runtime and output and validates
+the endpoint list with Zod. Main refreshes it at startup, on renderer activation
+(at most once every 10 seconds), and on manual capture-source refresh.
 
 Microphone timing calibration uses an on-demand native helper and main-owned
 measurement state. Saved device-bound advances apply to microphone PCM positions

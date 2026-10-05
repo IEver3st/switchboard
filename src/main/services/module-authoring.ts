@@ -443,7 +443,7 @@ function moduleJsonSchema(): Record<string, unknown> {
       author: { type: 'string', minLength: 2, maxLength: 120 },
       version: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$' },
       minimumCoreVersion: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$' },
-      kind: { enum: ['device', 'capture', 'audio', 'integration'] },
+      kind: { enum: ['device', 'capture', 'integration'] },
       entrypoint: { type: 'string', minLength: 1, maxLength: 200 },
       capabilities: { type: 'array', minItems: 1, maxItems: 32, items: { type: 'string' } },
       permissions: {

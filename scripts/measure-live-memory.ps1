@@ -38,7 +38,6 @@ for ($sampleIndex = 0; $sampleIndex -lt $Samples; $sampleIndex += 1) {
 
   $rows = foreach ($process in $all | Where-Object { $ids.Contains([uint32]$_.ProcessId) }) {
     $role = if ($process.Name -eq 'Capture.Host.exe') { 'capture-host' }
-      elseif ($process.Name -eq 'Audio.Host.exe') { 'audio-host' }
       elseif ($process.Name -eq 'ffmpeg.exe' -and $process.CommandLine -match 'gfxcapture') { 'capture-video' }
       elseif ($process.Name -eq 'ffmpeg.exe' -and $process.CommandLine -match 'Microphone') { 'capture-microphone' }
       elseif ($process.Name -eq 'ffmpeg.exe') { 'capture-audio' }

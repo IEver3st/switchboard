@@ -5,7 +5,7 @@
 <h1 align="center">Switchboard</h1>
 
 <p align="center">
-  A low-overhead Windows control surface for peripherals, audio routing, microphone processing, and game capture.
+  A low-overhead Windows clipping app with built-in hardware control.
 </p>
 
 <p align="center">
@@ -18,9 +18,9 @@
 
 ![Switchboard device workspace](design-audit/2026-08-27-switchboard/final-native/1920x1080-devices.png)
 
-Switchboard brings device control, audio mixing, microphone processing, replay capture, and clip management into one restrained desktop utility. It is built to replace the parts of peripheral suites people actually use without keeping a pile of vendor applications, background services, and decorative dashboards alive.
+Switchboard is a clipping app first: Instant Replay with separate Game, Chat, and Microphone tracks, a clip library, a clip editor, and montages, in one restrained desktop utility. It also controls connected hardware, so the parts of peripheral suites people actually use do not need a pile of vendor applications, background services, and decorative dashboards.
 
-This repository is an active Windows alpha. The control plane is real, several named devices have hardware-backed integrations, and the native audio and capture hosts are working. Some release-critical paths still need signed drivers, powered-on hardware acceptance, and long-running validation. Switchboard labels those boundaries instead of pretending they are finished.
+This repository is an active Windows alpha. The control plane is real, several named devices have hardware-backed integrations, and the native capture host is working. Some release-critical paths still need production capture qualification, powered-on hardware acceptance, and long-running validation. Switchboard labels those boundaries instead of pretending they are finished.
 
 ## What works today
 
@@ -32,24 +32,15 @@ This repository is an active Windows alpha. The control plane is real, several n
 
 Switchboard shows a control only when the detected device reports a matching capability. Failed writes leave the last confirmed state intact.
 
-### Audio
+### Capture and clips
 
-- Native .NET 10 audio host built on NAudio.
-- Physical microphone capture with 48 kHz normalization, microphone DSP, monitoring, and real meters.
-- CPU noise suppression through a packaged RNNoise implementation.
-- Game, Chat, Media, Aux, Microphone, Personal, Stream, and Clip mix contracts.
-- ChatMix, per-channel processing, parametric EQ, presets, session discovery, and output selection.
-- Per-process endpoint assignment with immediate readback and a pending-restart state when Windows retains an existing session.
-
-The complete virtual-channel path depends on the signed WDM transport driver in `drivers/virtual-audio`. Until Windows accepts and loads every required endpoint, Switchboard keeps virtual routing unavailable.
-
-### Capture
-
-- Isolated .NET capture host with an FFmpeg-first Windows path.
+- Isolated .NET 10 capture host with an FFmpeg-first Windows path.
 - Bounded encoded segment ring, atomic replay saves, and MP4 remux without a full re-encode.
-- Automatic game detection plus manual executable entries.
-- Searchable clip library, favorites, filters, grid and list views, trim editing, and waveform inspection.
-- Ordered multi-clip montage projects with trim, reorder, playback, and FFmpeg export.
+- Separate Game, Chat, and Microphone tracks captured directly from Windows endpoints through NAudio WASAPI loopback, process loopback, and endpoint capture.
+- Optional game-only audio through process loopback, plus microphone timing calibration for the replay tracks.
+- Automatic game detection plus manual executable entries, and optional reaction clipping from microphone level.
+- Searchable clip library, favorites, filters, grid and list views, trim editing, per-track levels, and waveform inspection.
+- Ordered multi-clip montage projects with trim, reorder, music, playback, and FFmpeg export.
 
 The development host defaults to simulation. Production capture claims require the Windows FFmpeg path and real encoder output, not renderer fixtures.
 
@@ -57,7 +48,7 @@ The development host defaults to simulation. Production capture claims require t
 
 - Sandboxed Electron renderer with no Node access.
 - Narrow, typed preload operations and Zod-validated mutable IPC.
-- Electron-main-owned persistence for modules, devices, audio, capture, settings, diagnostics, and engine state.
+- Electron-main-owned persistence for modules, devices, capture, settings, diagnostics, and engine state.
 - Optional native hosts that exist only while their engines are enabled.
 - Tray lifecycle with optional renderer destruction.
 - GitHub Release update checks, default-on background downloads, explicit restart, and install-on-next-startup policy for installed Windows builds.
@@ -70,8 +61,6 @@ The development host defaults to simulation. Production capture claims require t
 | Electron control plane | Implemented and persisted |
 | G502 X Plus and QuadCast 2 | Hardware-backed integration |
 | Huntsman V2 Analog | Supported controls implemented; clean-process physical revalidation remains |
-| Audio host | Native host implemented |
-| Virtual audio endpoints | Package builds; production signature and qualification remain |
 | Capture host | Native path implemented; production Windows capture qualification remains |
 | Application updates | Live public feed; installed Windows builds check, download, and apply verified releases by default |
 | Windows installer | Buildable; currently unsigned |
@@ -89,14 +78,10 @@ Sandboxed React renderer
 Electron main process
   ├── canonical state and persistence
   ├── device registry and vendor modules
-  ├── Audio.Host            .NET 10 + NAudio + native DSP
-  └── Capture.Host          .NET 10 + FFmpeg
-          │
-          ▼
-Signed virtual audio transport driver  C++ / WDK
+  └── Capture.Host          .NET 10 + FFmpeg + NAudio
 ```
 
-Realtime audio and video buffers never cross Electron IPC. Electron owns policy and state; isolated native hosts own realtime work. The virtual driver transports frames only. It contains no DSP, profiles, networking, update logic, or product policy.
+Captured video and audio buffers never cross Electron IPC. Electron owns policy and state; the isolated capture host owns realtime capture work.
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) for subsystem boundaries and state ownership.
 
@@ -109,7 +94,7 @@ bun install
 bun run dev
 ```
 
-The development launcher builds Capture.Host and Audio.Host into
+The development launcher builds Capture.Host into
 `.switchboard/dev-hosts` before Electron starts. This keeps a running host from
 locking the project output and prevents Electron from silently reusing a stale
 native executable after C# changes. Set `SWITCHBOARD_SKIP_NATIVE_BUILD=1` only
@@ -121,7 +106,7 @@ Build the Electron application:
 bun run build
 ```
 
-Build the native hosts and create an NSIS installer:
+Build the capture host and create an NSIS installer:
 
 ```powershell
 bun run dist:win
@@ -138,12 +123,11 @@ bun run check:types
 bun run test
 bun run build
 dotnet build .\engines\capture-host\Capture.Host.csproj
-dotnet build .\engines\audio-host\Audio.Host.csproj
 ```
 
-The repository has no lint script. The checks above cover structural invariants, source transpilation, TypeScript contracts, Bun tests, native host tests, Electron bundles, and direct host builds.
+The repository has no lint script. The checks above cover structural invariants, source transpilation, TypeScript contracts, Bun tests, capture host tests, Electron bundles, and the direct host build.
 
-Hardware fixtures and native Electron captures prove deterministic application behavior. They do not prove a physical HID or Bluetooth write, visible lighting, production audio routing, encoder output, reconnect behavior, or a 24-hour soak. Each subsystem document records its remaining physical proof.
+Hardware fixtures and native Electron captures prove deterministic application behavior. They do not prove a physical HID or Bluetooth write, visible lighting, production capture, encoder output, reconnect behavior, or a 24-hour soak. Each subsystem document records its remaining physical proof.
 
 ## Browser preview
 
@@ -163,10 +147,7 @@ Open `preview/index.html`, or use the generated single-file `preview/standalone.
 | `src/main/controller.ts` | Product orchestration and persisted state transitions |
 | `src/main/services/device-registry.ts` and `src/main/modules` | Device registry and vendor protocol modules |
 | `src/renderer/src` | React desktop interface |
-| `engines/audio-host` | Realtime Windows audio host |
 | `engines/capture-host` | FFmpeg-first Windows capture host |
-| `native/noise-bridge` | Packaged CPU noise-suppression bridge |
-| `drivers/virtual-audio` | Transport-only WDM driver source and release contract |
 | `docs` | Subsystem, release, and supply-chain notes |
 | `scripts` | Build, validation, measurement, and native review tools |
 

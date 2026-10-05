@@ -11,7 +11,7 @@ import { useSetupAction } from './use-setup-action';
 import './setup.css';
 
 const actionLabels: Record<SetupPreferences['quickActions'][number], string> = {
-  scenes: 'Scenes', replay: 'Save replay', microphone: 'Microphone', output: 'Output device', chatmix: 'ChatMix',
+  scenes: 'Scenes', replay: 'Save replay',
 };
 
 export function SetupWorkspace({ snapshot }: { snapshot: SystemSnapshot }) {
@@ -24,7 +24,7 @@ export function SetupWorkspace({ snapshot }: { snapshot: SystemSnapshot }) {
   const update = (input: Partial<SetupPreferences>) => run(() => switchboardApi.setSetupPreferences({ ...preferences, ...input }));
   const targets = snapshot.devices.filter(device => device.capabilities.lighting?.statusLightingSupported);
   return <div className="setup-workspace" id="setting-setup.scenes" tabIndex={-1}>
-    <SettingsCategoryHeader title="Setup" description="Switch your devices, audio, and replay together." />
+    <SettingsCategoryHeader title="Setup" description="Switch your devices and replay together." />
     <nav className="setup-tabs" aria-label="Setup sections">
       {([['scenes', Layers, 'Scenes'], ['quick', Keyboard, 'Quick controls'], ['lighting', Lightbulb, 'Status lighting']] as const).map(([id, Icon, label]) =>
         <button key={id} type="button" aria-current={view === id ? 'page' : undefined} onClick={() => setView(id)}><Icon size={15} aria-hidden />{label}</button>)}
@@ -70,7 +70,6 @@ export function SetupWorkspace({ snapshot }: { snapshot: SystemSnapshot }) {
         <Switch aria-label={`Show ${label}`} disabled={changing} checked={preferences.quickActions.includes(key as keyof typeof actionLabels)} onCheckedChange={checked => void update({ quickActions: checked
           ? [...preferences.quickActions, key as keyof typeof actionLabels] : preferences.quickActions.filter(action => action !== key) })} />
       </SettingRow>)}
-      {!snapshot.audio.enabled ? <p className="setup-note">Microphone, output, and ChatMix controls become available when Audio is running.</p> : null}
       </SettingSection>
     </> : <>
       <SettingSection title="Status lighting">
@@ -85,7 +84,7 @@ export function SetupWorkspace({ snapshot }: { snapshot: SystemSnapshot }) {
       </SettingRow>) : <p className="setup-note">Connect a supported device to choose a status light. Native G502 X Plus lighting is supported when its static effect is available.</p>}
       </SettingSection>
       <SettingSection title="Lighting cues">
-      {([['clipSaved', 'Clip saved', 'Green for a moment after a replay is saved.'], ['microphoneMuted', 'Microphone muted', 'Amber while a connected microphone reports mute or the Audio microphone channel is muted.'], ['captureError', 'Capture error', 'Red while an enabled replay session reports an error.']] as const).map(([key, title, description]) =>
+      {([['clipSaved', 'Clip saved', 'Green for a moment after a replay is saved.'], ['microphoneMuted', 'Microphone muted', 'Amber while a connected microphone reports mute.'], ['captureError', 'Capture error', 'Red while an enabled replay session reports an error.']] as const).map(([key, title, description]) =>
         <SettingRow key={key} settingId={`setup.cue.${key}`} title={title} description={description}>
           <Switch aria-label={`${title} lighting cue`} checked={preferences.lighting[key]} disabled={changing} onCheckedChange={checked => void update({ lighting: { ...preferences.lighting, [key]: checked } })} />
         </SettingRow>)}
@@ -104,12 +103,11 @@ function SceneEditor({ scene, snapshot, disabled, onSave, onApply, onDelete }: {
   const [executable, setExecutable] = useState(scene?.executable ?? '');
   const [automatic, setAutomatic] = useState(scene?.automatic ?? false);
   const [restoreOnExit, setRestoreOnExit] = useState(scene?.restoreOnExit ?? true);
-  const [includeAudio, setIncludeAudio] = useState(Boolean(scene?.values.audio));
   const [includeCapture, setIncludeCapture] = useState(scene ? Boolean(scene.values.capture) : true);
   const [includeDevices, setIncludeDevices] = useState(scene ? scene.values.devices.length > 0 : true);
   const [recapture, setRecapture] = useState(!scene);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  return <form className="setup-scene-editor" onSubmit={event => { event.preventDefault(); void onSave({ id: scene?.id, name, executable, automatic, restoreOnExit, includeAudio, includeCapture, includeDevices, captureCurrent: recapture }); }}>
+  return <form className="setup-scene-editor" onSubmit={event => { event.preventDefault(); void onSave({ id: scene?.id, name, executable, automatic, restoreOnExit, includeCapture, includeDevices, captureCurrent: recapture }); }}>
     <div className="setup-editor-heading"><h3>{scene ? 'Edit scene' : 'Save current setup'}</h3><div className="setup-editor-footer">
       {scene ? <Button type="button" size="sm" variant="secondary" disabled={disabled} onClick={onApply}><Play size={14} />Apply scene</Button> : null}
       <Button type="submit" size="sm" disabled={disabled || !name.trim()}>{disabled ? 'Working…' : scene ? 'Save changes' : 'Save scene'}</Button>
@@ -122,7 +120,6 @@ function SceneEditor({ scene, snapshot, disabled, onSave, onApply, onDelete }: {
       <div className="setup-included-settings">
       <SettingSwitch settingId="setup.includeDevices" title="Devices" description={scene ? scene.values.devices.map(device => device.name).join(', ') || 'Not included' : ''} checked={includeDevices} disabled={disabled || !recapture} onCheckedChange={setIncludeDevices} />
       <SettingSwitch settingId="setup.includeCapture" title="Replay" description={scene ? scene.values.capture ? `${scene.values.capture.enabled ? 'Enabled' : 'Off'} · ${scene.values.capture.replaySeconds}s · ${scene.values.capture.systemAudioMode === 'game' ? 'Game-only audio' : 'Desktop audio'}` : 'Not included' : ''} checked={includeCapture} disabled={disabled || !recapture} onCheckedChange={setIncludeCapture} />
-      <SettingSwitch settingId="setup.includeAudio" title="Audio" description={scene ? scene.values.audio ? `${scene.values.audio.enabled ? 'Enabled' : 'Off'} · ${scene.values.audio.outputDevice || 'Default output'}` : 'Not included' : ''} checked={includeAudio} disabled={disabled || !recapture} onCheckedChange={setIncludeAudio} />
       </div>
     </SettingSection>
     <SettingSection title="Application switching">

@@ -24,7 +24,6 @@ for (let index = 0; index < 8; index++) {
 state.capture.config.enabled = false;
 state.capture.config.replaySeconds = 60;
 state.capture.config.clipsDirectory = join(profile, 'Clips');
-state.audio.enabled = false;
 state.modules.forEach(module => { module.enabled = false; });
 Object.assign(state.settings, { onboardingCompleted: true, uiScalePercent: 100, automaticUpdates: false, scanGamesAutomatically: false });
 await mkdir(state.capture.config.clipsDirectory);

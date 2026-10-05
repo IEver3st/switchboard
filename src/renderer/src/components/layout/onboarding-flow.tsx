@@ -1,4 +1,3 @@
-import { AudioDependencySetupPanel } from '@/components/settings/audio-dependency-setup';
 import './onboarding.css';
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -30,7 +29,6 @@ import {
   defaultPageForProfile,
   fullWorkspacesForDeveloperMode,
   normalizeVisibleWorkspaces,
-  toggleDraftWorkspace,
   workspacePreset,
 } from '../../../../shared/workspace-profile';
 import {
@@ -103,7 +101,7 @@ function sourceLabel(source: CaptureSourceType): string {
 }
 
 function workspaceName(workspace: VisibleWorkspace): string {
-  return workspace === 'devices' ? 'Devices' : workspace === 'audio' ? 'Audio' : 'Capture';
+  return workspace === 'devices' ? 'Devices' : 'Capture';
 }
 
 export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
@@ -115,7 +113,7 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
       ?? fullWorkspacesForDeveloperMode(developerMode);
     return normalized;
   });
-  const steps = workspaces.includes('audio') ? [...baseSteps.slice(0, 4), { id: 'audio-setup', label: 'Audio setup' }, baseSteps[4]!] : [...baseSteps];
+  const steps = baseSteps;
   const finishIndex = steps.length - 1;
   const [source, setSource] = useState<CaptureSourceType>(snapshot.capture.config.source);
   const [resolution, setResolution] = useState<CaptureResolution>(snapshot.capture.config.resolution);
@@ -232,11 +230,6 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
       fail(captureFailure);
       return;
     }
-    if (workspaces.includes('audio') && snapshot.audio.dependencies.phase === 'ready') {
-      await useSystemStore.getState().setAudioEnabled(true);
-      const audioFailure = useSystemStore.getState().error;
-      if (audioFailure) { fail(audioFailure); return; }
-    }
     const filtered = workspaces;
     await useSystemStore.getState().updateSettings({ visibleWorkspaces: filtered, onboardingCompleted: true });
     const failure = useSystemStore.getState().error;
@@ -265,11 +258,6 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
     const next = applyWorkspacePreset(draft(), preset, developerMode);
     setWorkspaces(next.workspaces);
     setReplay(next.replayEnabled);
-  };
-
-  const toggleAudioWorkspace = () => {
-    setError(null);
-    setWorkspaces(toggleDraftWorkspace(draft(), 'audio', developerMode).workspaces);
   };
 
   const preset = workspacePreset(workspaces, developerMode);
@@ -399,15 +387,6 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
                       onSelect={() => choosePreset('full')}
                     />
                   </m.div>
-                  {(
-                    <m.label {...enter(2)} className="ob-inline-toggle">
-                      <span>
-                        <strong>Show the Audio page</strong>
-                        <small>Optional app mixing and microphone processing. Setup installs the required audio drivers.</small>
-                      </span>
-                      <Switch checked={workspaces.includes('audio')} disabled={pending} onCheckedChange={toggleAudioWorkspace} aria-label="Show the Audio page" />
-                    </m.label>
-                  )}
                 </div>
               ) : null}
 
@@ -517,15 +496,6 @@ export function OnboardingFlow({ snapshot }: { snapshot: SystemSnapshot }) {
                       onSystemDeviceChange={(next) => { setError(null); setSystemAudioDeviceId(next); }}
                       onChatDeviceChange={(next) => { setError(null); setChatAudioDeviceId(next); }}
                     />
-                  </m.div>
-                </div>
-              ) : null}
-
-              {steps[active]?.id === 'audio-setup' ? (
-                <div className="ob-step">
-                  <StepHeading headingRef={headingRef} eyebrow="Audio setup" title="Add audio mixing and voice processing" description="Switchboard installs only what is missing. You can also finish this later in Settings → Audio." motion={enter(0)} />
-                  <m.div {...enter(1)}>
-                    <AudioDependencySetupPanel state={snapshot.audio.dependencies} readyHint="Audio turns on when you finish setup." />
                   </m.div>
                 </div>
               ) : null}
@@ -842,7 +812,7 @@ function AudioTracks({
   const outputDevices = captureOutputDevices(snapshot);
   const inputDevices = captureInputDevices(snapshot);
   const hasAnyDevice = outputDevices.length > 0 || inputDevices.length > 0;
-  const explicitMicUnavailable = Boolean(microphoneDeviceId)
+  const explicitMicUnavailable = Boolean(microphoneDeviceId) && inputDevices.length > 0
     && !inputDevices.some((device) => device.id === microphoneDeviceId);
   const gameAndChatSame = includeSystemAudio && includeChatAudio
     && snapshot.capture.config.systemAudioMode !== 'game'
@@ -906,7 +876,7 @@ function AudioTracks({
       <p className="ob-note" role={!hasAnyDevice ? 'status' : undefined}>
         {!hasAnyDevice
           ? 'No audio devices are available yet. Continue with Automatic and choose exact devices later in Settings, Capture.'
-          : 'Automatic follows Switchboard when available: game and media together, chat and processed microphone separately. Devices stay changeable in Settings, Capture.'}
+          : 'Automatic records the Windows default devices. Devices stay changeable in Settings, Capture.'}
       </p>
       {explicitMicUnavailable && includeMic ? (
         <p className="ob-note ob-note--warning" role="status">The selected microphone is not currently available. Reconnect it or choose another input.</p>

@@ -2,7 +2,6 @@ export const settingsCategoryIds = [
   'general',
   'updates',
   'setup',
-  'audio',
   'capture',
   'clips',
   'games',
@@ -52,16 +51,14 @@ export const settingsCategories: ReadonlyArray<{
   { id: 'clips', label: 'Clips', group: 'recording', resettable: true },
   { id: 'games', label: 'Games', group: 'recording', resettable: true },
   { id: 'setup', label: 'Scenes & controls', group: 'hardware', resettable: false },
-  { id: 'audio', label: 'Audio', group: 'hardware', resettable: true },
   { id: 'diagnostics', label: 'Diagnostics', group: 'support', resettable: true },
   { id: 'about', label: 'Help & about', group: 'support', resettable: false },
 ];
 
 export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
-  { id: 'audio.dependencies', category: 'audio', title: 'Audio driver setup', description: 'Install or check drivers for app mixing and the processed microphone.', keywords: ['install', 'driver', 'dependency', 'cable', 'microphone', 'restart', 'setup'] },
   { id: 'capture.audioSync', category: 'capture', title: 'Microphone timing', description: 'Calibrate headphone and microphone delay for clips.', keywords: ['sync', 'latency', 'offset', 'delay', 'bluetooth', 'sonar', 'calibrate'], addedIn: '0.9.15' },
   { id: 'general.trayOnGameLaunch', category: 'general', title: 'Move to tray when a game starts', description: 'Automatically release the interface while a recognized game runs.', keywords: ['game', 'launch', 'minimize', 'close', 'tray', 'automatic', 'memory', 'resources'], addedIn: '0.9.15' },
-  { id: 'setup.scenes', category: 'setup', title: 'Scenes, quick controls, and status lighting', description: 'Save your whole setup, switch scenes, and configure desktop shortcuts and device cues.', keywords: ['scenes', 'profiles', 'automatic', 'shortcut', 'quick', 'lighting', 'status', 'setup'] },
+  { id: 'setup.scenes', category: 'setup', title: 'Scenes, quick controls, and status lighting', description: 'Save your devices and replay setup, switch scenes, and configure desktop shortcuts and device cues.', keywords: ['scenes', 'profiles', 'automatic', 'shortcut', 'quick', 'lighting', 'status', 'setup'] },
   { id: 'capture.systemAudioMode', category: 'capture', title: 'Game-only audio', description: 'Capture sound from the selected game or window without other desktop apps.', keywords: ['game only', 'process', 'music', 'exclude', 'desktop audio'] },
   {
     id: 'general.runDiagnostics', category: 'about', title: 'Run diagnostics',
@@ -72,7 +69,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'general.workspace',
     category: 'modules',
     title: 'Pages and presets',
-    description: 'Choose which pages appear: Devices, Capture, and optional Audio.',
+    description: 'Choose which pages appear: Devices and Capture.',
     keywords: ['workspace', 'workspaces', 'pages', 'clipping', 'full setup', 'onboarding', 'hide', 'show', 'devices', 'capture', 'preset', 'features'],
   },
   {
@@ -80,7 +77,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     category: 'general',
     title: 'Developer mode',
     description: 'Show advanced diagnostics and development tools.',
-    keywords: ['developer', 'dev mode', 'audio', 'diagnostics', 'experimental', 'unfinished', 'debug'],
+    keywords: ['developer', 'dev mode', 'diagnostics', 'experimental', 'unfinished', 'debug'],
   },
   {
     id: 'general.uiScale',
@@ -152,48 +149,6 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     title: 'Install for the next startup',
     description: 'Apply a downloaded release when Switchboard closes.',
     keywords: ['app', 'application', 'install', 'update', 'startup', 'restart', 'quit'],
-  },
-  {
-    id: 'audio.engine',
-    category: 'audio',
-    title: 'Audio engine',
-    description: 'Start the isolated Audio host now and restore it on the next launch.',
-    keywords: ['audio', 'engine', 'startup', 'host', 'routing'],
-  },
-  {
-    id: 'audio.applicationRouting',
-    category: 'audio',
-    title: 'Automatic app routing',
-    description: 'Categorize apps automatically, or save your own Game, Chat and Media categories.',
-    keywords: ['automatic', 'applications', 'routing', 'categories', 'overrides', 'browser', 'music', 'discord'],
-  },
-  {
-    id: 'audio.output',
-    category: 'audio',
-    title: 'Default output',
-    description: 'Choose the output used by the Game bus.',
-    keywords: ['speaker', 'headphones', 'headset', 'endpoint', 'device', 'game'],
-  },
-  {
-    id: 'audio.microphone',
-    category: 'audio',
-    title: 'Default microphone',
-    description: 'Choose the input used by the Microphone bus.',
-    keywords: ['mic', 'input', 'endpoint', 'device', 'voice'],
-  },
-  {
-    id: 'audio.sampleRate',
-    category: 'audio',
-    title: 'Processing format',
-    description: 'The Audio host currently runs a fixed 48 kHz float32 graph.',
-    keywords: ['sample rate', '48 khz', 'format', 'quality', 'float32'],
-  },
-  {
-    id: 'audio.mixer',
-    category: 'audio',
-    title: 'Mixer and processing',
-    description: 'Open the Audio workspace for buses, ChatMix, monitoring, and processing.',
-    keywords: ['mixer', 'dsp', 'chatmix', 'monitoring', 'bus', 'equalizer'],
   },
   {
     id: 'capture.engine',
@@ -501,8 +456,8 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'diagnostics.engines',
     category: 'diagnostics',
     title: 'Engine status',
-    description: 'Inspect the latest Capture and Audio host states.',
-    keywords: ['audio host', 'capture host', 'stopped', 'running', 'pid'],
+    description: 'Inspect the latest Capture host state.',
+    keywords: ['capture host', 'stopped', 'running', 'pid'],
   },
   {
     id: 'diagnostics.deviceIdentity',
@@ -550,7 +505,7 @@ export const settingsSearchEntries: readonly SettingsSearchEntry[] = [
     id: 'about.restoreDefaults',
     category: 'about',
     title: 'Restore all defaults',
-    description: 'Reset every preference plus Audio and Capture configuration.',
+    description: 'Reset every preference plus Capture configuration.',
     keywords: ['reset', 'restore', 'defaults', 'factory', 'start over', 'clear settings'],
   },
   {
@@ -584,10 +539,6 @@ export function categoryLabel(category: SettingsCategoryId): string {
 
 export function isSettingsCategory(value: string | null): value is SettingsCategoryId {
   return settingsCategoryIds.some((candidate) => candidate === value);
-}
-
-export function isAudioSettingsVisible(settings: { developerMode?: boolean } | null | undefined): boolean {
-  return settings?.developerMode === true;
 }
 
 export function visibleSettingsCategories(settings: { developerMode?: boolean } | null | undefined): typeof settingsCategories {

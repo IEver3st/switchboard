@@ -1,18 +1,6 @@
 # Switchboard design
 
-The Windows Audio → Spatial page uses mouse and keyboard controls with the existing
-audio modules and semantic switches. A top-view diagram shows configured speaker
-positions, never simulated live head telemetry. Seven speakers support dragging,
-keyboard positioning and exact height/distance/level/mute controls. Routine enable, width, amount,
-tracking and recenter controls fit the compact window; tracker setup is disclosed
-below. Pending edits retain confirmed values, rejected writes show an error, and
-unavailable or stale tracking disables recentering. Built-in headset sensors are
-the default source; OpenTrack setup appears only when selected. Driver failures
-must explain the actual unavailable condition. HIG Accessibility, Layout and
-feedback principles inform keyboard access and state clarity, adapted to the
-Windows console and existing palette without decorative motion.
-
-Switchboard should feel like a quiet, well-made instrument that gets out of the way. It is calm, seamless, and built around the state of real devices and signal paths. The interface does not need to look exciting at rest. It needs to feel friendly and inviting, make the next action obvious, and make a failure hard to misunderstand.
+Switchboard should feel like a quiet, well-made instrument that gets out of the way. It is calm, seamless, and built around the state of real clips, recordings, and devices. The interface does not need to look exciting at rest. It needs to feel friendly and inviting, make the next action obvious, and make a failure hard to misunderstand.
 
 The standard is simple: nobody using Switchboard should ever have a moment of anger, confusion, or "who designed this?" Every decision in this document exists to prevent that moment.
 
@@ -22,24 +10,23 @@ This document owns design intent. The current tokens and component implementatio
 
 Apply this order: clarity, navigation, hierarchy, product truth, robustness, polish, distinctiveness, decoration. A beautiful control that obscures state or harms task continuity has failed.
 
-Switchboard's signature is physical hardware presented as equipment, continuous signal paths, media-first capture surfaces, and calm high-density workspaces joined by one shared state grammar. These are siblings within one utility, not identical dashboards.
+Switchboard's signature is media-first capture surfaces, physical hardware presented as equipment, and calm high-density workspaces joined by one shared state grammar. These are siblings within one utility, not identical dashboards.
 
 - Give each workspace one leading task and keep its status and recovery path in view.
 - Use type, alignment, meters, timelines, device imagery, and spatial relationships before cards or chrome.
-- Show canonical device, audio, and capture state. Never decorate with fabricated telemetry or unsupported capability.
-- Containment must express a real boundary: device, channel, media item, inspector, dialog, or selected object.
-- Add motion only when it explains signal flow, selection, panel continuity, progress, or state change.
+- Show canonical capture and device state. Never decorate with fabricated telemetry or unsupported capability.
+- Containment must express a real boundary: device, media item, track, inspector, dialog, or selected object.
+- Add motion only when it explains playback, selection, panel continuity, progress, or state change.
 - If two generic patterns cluster together, such as card grids, decorative pills, glow, repeated marketing headings, or redundant helper copy, stop and subtract.
 
 Before handoff, test compact and wide native windows, long device names, empty and large collections, missing imagery, disconnected and unavailable engines, pending and failed operations, keyboard-only use, forced contrast where practical, and reduced motion. Browser fixtures do not prove Electron, native-host, or physical-device behavior.
 
 ## The product character
 
-Switchboard is a continuous console, not a collection of cards. Hardware, audio, and capture each get a workspace shaped around the job:
+Switchboard is a continuous console, not a collection of cards. Capture and hardware each get a workspace shaped around the job:
 
-- Devices are physical objects with capability-specific controls.
-- Audio is a signal path with meters, faders, EQ, processing, and destinations.
 - Capture is a recorder and media library with clear storage and engine state.
+- Devices are physical objects with capability-specific controls.
 - Settings explain policy, recovery, updates, diagnostics, and limits without taking over the main product.
 
 The result should feel closer to a calm, modern system utility than a gaming launcher, a web admin panel, or a rack of hard-edged studio gear. Soft, seamless, and unhurried.
@@ -69,7 +56,7 @@ Never animate a control to the requested value and call the write complete. Pend
 
 ### One workspace leads
 
-Every route has one dominant working area. A device page leads with the actual device and its useful controls. An audio channel leads with the EQ and its signal path. Capture leads with source and engine state, then the clip library.
+Every route has one dominant working area. A device page leads with the actual device and its useful controls. Capture leads with source and engine state, then the clip library.
 
 Do not split routine work across nested tabs, modal chains, or repeated disclosure. Dialogs are for short, interrupting decisions, not ordinary operation.
 
@@ -93,7 +80,7 @@ Switchboard can be dense because its users adjust real systems, but density must
 
 ## Shell and navigation
 
-The persistent shell is dark, narrow, and subordinate to the workspace. It contains product identity, Devices, Audio, Capture, and Settings. It blends into the workspace rather than being fenced off from it by a hard edge. Active navigation uses a soft filled state and stronger text. It does not need a glowing background, an outline ring, or an oversized icon container.
+The persistent shell is dark, narrow, and subordinate to the workspace. It contains product identity, Devices, Capture, and Settings. It blends into the workspace rather than being fenced off from it by a hard edge. Active navigation uses a soft filled state and stronger text. It does not need a glowing background, an outline ring, or an oversized icon container.
 
 The title bar and navigation may form Electron drag regions. Every interactive descendant must opt out with `no-drag`.
 
@@ -107,7 +94,7 @@ Navigation rules:
 
 ### Capture-only shell
 
-When Capture is the only visible workspace, or all non-capture modules and the audio engine are disabled, omit the primary sidebar and open Capture. Derive this from confirmed configuration, not transient engine health or replay activity. Keep Settings full-page and return to Capture when it closes. Other enabled modules restore the standard shell unless the user explicitly selected only Capture.
+When Capture is the only visible workspace, or all non-capture modules are disabled, omit the primary sidebar and open Capture. Derive this from confirmed configuration, not transient engine health or replay activity. Keep Settings full-page and return to Capture when it closes. Other enabled modules restore the standard shell unless the user explicitly selected only Capture.
 
 The existing media library and recorder remain the focal area at all three supported sizes. Use the reclaimed sidebar width for media, retain the compact type and graphite surfaces, and place the product mark and name, and an icon-only Settings cog in the existing 38px title strip. Reserve native window-control space and keep Settings outside the drag region. Empty libraries, disabled replay, loading, and capture errors retain this same shell; no extra dashboard or introductory panel is needed.
 
@@ -127,43 +114,19 @@ The selected device becomes the primary instrument. Its render and the controls 
 
 Organize controls by the user's goal, not by packet or feature ID. Keep supported controls visible. Put unavailable ownership and recovery beside the affected control. Advanced protocol diagnostics belong in Settings.
 
-### Audio desk
+### Track identity
 
-Audio is one continuous desk. Mixer channels sit side by side on a single soft surface and align vertically, separated by spacing rather than column rules. The master stage, Game, Chat, Media, Aux, and Microphone remain visually related instead of becoming separate cards or fenced columns.
+Clip audio tracks keep stable identities in the replay settings, clip editor, and montage timeline:
 
-The Audio header gives the route title, a plain status sentence, and the engine state with a direct path to Audio settings when the engine is off. Channel tabs keep their channel-colored icons at all times; the selected tab gains a soft fill and a short channel-colored mark. Master sits on its own tonal step as the destination every channel feeds. Faders keep the custom white cap with channel-colored grip marks and a fixed tick scale with a longer unity tick. ChatMix tints each side of its rail with the Game and Chat colors.
-
-Channel pages open with the channel identity (icon, name, and the routed device), the preset, and channel actions such as the microphone test. Processing stages are modules with their title and one-line purpose on the left and an explicit On, Off, or Unavailable state beside the bypass switch. The EQ keeps a band rail and an exact-value inspector (frequency, gain, width, band on) aligned under the graph.
-
-Each channel keeps a stable identity:
-
-| Channel | Token | Color |
+| Track | Token | Color |
 | --- | --- | --- |
-| Master and primary interaction | `--accent-brand` | `#8f7dff` |
+| Primary interaction | `--accent-brand` | `#8f7dff` |
 | Game | `--channel-game` | `#3fd1bb` |
 | Chat | `--channel-chat` | `#5f9dff` |
 | Media | `--channel-media` | `#b38bff` |
 | Microphone | `--channel-microphone` | `#f5b24d` |
 
-Use channel color on meters, fader ranges, compact icons, and related readouts. Do not wash whole panels in color. Muted and unavailable channels change structure and copy as well as color.
-
-### Parametric EQ
-
-The EQ is the main instrument for Game, Chat, Media, and Microphone. Give the graph enough width to show frequency relationships and enough height to make dragging accurate. The band rail and inspector stay aligned with the graph.
-
-Each band keeps its assigned token from `--eq-band-1` through `--eq-band-8`. Selected nodes grow or gain a ring, selected band controls gain a structural state, and exact values use tabular numerals. Color alone never indicates selection.
-
-Do not turn the EQ into a decorative waveform. Every plotted value must come from the canonical audio state.
-
-The desktop EQ supports 0–64 bands. Near the response curve, a hover plus inserts
-a neutral bell at that frequency; Add band is the equivalent keyboard command.
-The selected band exposes type, exact values, bypass, and removal. Arrow keys
-adjust nodes, Delete removes them, and cancelled drags restore confirmed state.
-Keep the current graph as the focal surface; the band rail owns overflow instead
-of pushing the inspector down as more points are added. The visible count makes
-the processing limit explicit. Saves use the canonical acknowledgement path and
-restore confirmed values on failure. These mouse/keyboard equivalents and visible
-focus apply the accessibility baseline without changing Switchboard's visual identity.
+Use track color on waveforms, level ranges, compact icons, and related readouts. Do not wash whole panels in color. Muted and unavailable tracks change structure and copy as well as color.
 
 ### Capture workspace
 
@@ -208,7 +171,7 @@ The palette is soft, cool graphite with a faint blue undertone, all flat solids 
 | Description text | `--text-description` | `#8b95a7` |
 | Muted text | `--text-muted` | `#6b7587` |
 
-A soft violet is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, the primary action, and the master audio path, in small amounts. It should feel friendly and gentle, never loud. It is not ambient decoration, and it never appears as a large filled area outside a primary button.
+A soft violet is Switchboard's interaction color. Use `--accent-brand` for focus, active selection, and the primary action, in small amounts. It should feel friendly and gentle, never loud. It is not ambient decoration, and it never appears as a large filled area outside a primary button.
 
 Settings applies a scoped cooler-neutral treatment without changing the rest of the product workspaces. Inside `.settings-page`, the background steps are `#0a0c11`, `#0e1117`, `#12161e`, `#1a2029`, and `#1f2631`; primary text is `#f4f6fb`; secondary text is `#aab3c2`; and the restrained Settings interaction accent is `#8f7dff` with `#a698ff` for hover. These remain token overrides, not component-level hardcoded colors. Module category icons may borrow existing semantic channel colors in small amounts to improve scanning.
 
@@ -244,10 +207,10 @@ Corners stay restrained:
 
 - 2px for tiny state and technical controls.
 - 4px for buttons, fields, and ordinary interactive elements.
-- 7px for processing modules and larger bounded instruments.
+- 7px for larger bounded instruments.
 - 8px for the outer frame of a composite workspace or a transient overlay.
 
-Circular geometry belongs to knobs, EQ nodes, indicators, and switch thumbs. Text should not live in a pill unless the shape communicates a compact state with no better structural treatment.
+Circular geometry belongs to knobs, indicators, and switch thumbs. Text should not live in a pill unless the shape communicates a compact state with no better structural treatment.
 
 Persistent content is flat. Spacing and gentle tonal steps create structure; dividers are rare and low-contrast when they exist at all. Use shadow only for a transient overlay or a draggable control that needs a small, soft tactile lift.
 
@@ -261,8 +224,8 @@ Choose the control that matches the value:
 - Exposed segmented choices select among a few discrete options.
 - Select menus handle longer or dynamic sets.
 - Sliders and faders change meaningful continuous values.
-- Knobs work only where radial interaction improves the hardware or audio task.
-- Graphs edit real specialized data such as EQ or a timeline.
+- Knobs work only where radial interaction improves the hardware task.
+- Graphs edit real specialized data such as a timeline.
 - Buttons perform commands. They do not stand in for persistent state.
 
 Primary buttons use the brand accent sparingly. Secondary and ghost buttons carry most routine actions. Destructive actions use danger styling and confirmation proportional to the consequence.
@@ -293,9 +256,9 @@ At 1080 x 720:
 - Critical engine, device, or error state stays in the first view.
 - Routine controls do not require a disclosure click or mandatory initial scroll.
 - Toolbars wrap, condense, or split according to task priority.
-- The audio desk may scroll within its intended region, but the page shell remains stable.
+- The clip library may scroll within its intended region, but the page shell remains stable.
 
-At wider sizes, use the space to improve comparison and control precision. Do not inflate cards, headings, or empty margins. Long clip libraries and wide mixers should scale through columns and local scrolling rather than stretching every element.
+At wider sizes, use the space to improve comparison and control precision. Do not inflate cards, headings, or empty margins. Long clip libraries and timelines should scale through columns and local scrolling rather than stretching every element.
 
 ## Accessibility and Electron behavior
 
@@ -338,7 +301,7 @@ Before accepting renderer work, verify:
 - Pending, confirmed, unavailable, disabled, error, and disconnected states remain truthful.
 - Ordinary tasks stay visible without repeated disclosure.
 - Product imagery matches the detected hardware variant.
-- Shared typography, spacing, controls, channel colors, and interaction patterns remain consistent.
+- Shared typography, spacing, controls, track colors, and interaction patterns remain consistent.
 - Keyboard, focus, contrast, reduced motion, and Electron drag behavior still work.
 - The route has no page-level horizontal overflow at 1080 x 720, 1420 x 900, or 1920 x 1080.
 - Native Electron evidence covers the changed route. Browser and DOM checks remain supporting evidence only.

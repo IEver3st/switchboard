@@ -182,4 +182,4 @@ Common controls remain owned by the core UI:
 - static lighting;
 - profiles and application association.
 
-Capture, audio, integration hooks, brokered HID transactions, and exceptional custom surfaces are future API work. Their labels in the authoring surface must remain unavailable until the corresponding isolated host and canonical contract exist.
+Capture, integration hooks, brokered HID transactions, and exceptional custom surfaces are future API work. Their labels in the authoring surface must remain unavailable until the corresponding isolated host and canonical contract exist.

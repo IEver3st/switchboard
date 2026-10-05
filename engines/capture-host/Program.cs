@@ -13,6 +13,11 @@ if (args.Contains("--list-sources"))
         new JsonSerializerOptions(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }));
     return;
 }
+if (args.Contains("--list-audio-endpoints"))
+{
+    Console.WriteLine(AudioEndpointInventory.Serialize(AudioEndpointInventory.List()));
+    return;
+}
 
 var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {

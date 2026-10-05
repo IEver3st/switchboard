@@ -101,13 +101,13 @@ describe('performance monitor', () => {
     expect(measured.residentMemoryMb).toBe(85);
     expect(measured.totalCpuPercent).toBe(0.5);
     expect(measured.activeProcesses).toBe(2);
-    expect(measured.budgetMemoryMb).toBe(335);
-    expect(measured.budgetCpuPercent).toBe(1.3);
+    expect(measured.budgetMemoryMb).toBe(1_270);
+    expect(measured.budgetCpuPercent).toBe(2.3);
   });
 
   test('uses host process attribution instead of mixing working set into private memory', () => {
     const engines = structuredClone(stoppedEngines);
-    Object.assign(engines[1]!, {
+    Object.assign(engines[0]!, {
       state: 'running',
       memoryMb: 500,
       processes: [

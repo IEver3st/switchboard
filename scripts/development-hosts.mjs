@@ -5,12 +5,9 @@ import { execFile, spawn } from 'node:child_process';
 export function developmentHostPaths(projectRoot) {
   const root = join(projectRoot, '.switchboard', 'dev-hosts');
   const captureDirectory = join(root, 'capture');
-  const audioDirectory = join(root, 'audio');
   return {
     captureDirectory,
     captureExecutable: join(captureDirectory, 'Capture.Host.exe'),
-    audioDirectory,
-    audioExecutable: join(audioDirectory, 'Audio.Host.exe'),
   };
 }
 
@@ -18,15 +15,11 @@ export async function buildDevelopmentHosts(projectRoot, sourceEnvironment = pro
   const paths = developmentHostPaths(projectRoot);
   const blockers = await findBlockingDevHosts(paths);
   if (blockers.length > 0) throw new Error(formatBlockingHostsError(blockers));
-  await Promise.all([mkdir(paths.captureDirectory, { recursive: true }), mkdir(paths.audioDirectory, { recursive: true })]);
-  await Promise.all([
-    buildHost(projectRoot, 'engines/capture-host/Capture.Host.csproj', paths.captureDirectory, sourceEnvironment),
-    buildHost(projectRoot, 'engines/audio-host/Audio.Host.csproj', paths.audioDirectory, sourceEnvironment),
-  ]);
+  await mkdir(paths.captureDirectory, { recursive: true });
+  await buildHost(projectRoot, 'engines/capture-host/Capture.Host.csproj', paths.captureDirectory, sourceEnvironment);
   return {
     ...sourceEnvironment,
     SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST: paths.captureExecutable,
-    SWITCHBOARD_DEVELOPMENT_AUDIO_HOST: paths.audioExecutable,
   };
 }
 
@@ -62,7 +55,7 @@ export function findBlockingDevHosts(paths) {
   if (process.platform !== 'win32') return Promise.resolve([]);
   const root = join(paths.captureDirectory, '..');
   const escapedRoot = root.replace(/'/g, "''");
-  const command = `Get-CimInstance Win32_Process -Filter "Name='Capture.Host.exe' OR Name='Audio.Host.exe'" | Where-Object { $_.ExecutablePath -like '${escapedRoot}*' } | Select-Object @{n='pid';e={$_.ProcessId}}, @{n='path';e={$_.ExecutablePath}} | ConvertTo-Json -Compress`;
+  const command = `Get-CimInstance Win32_Process -Filter "Name='Capture.Host.exe'" | Where-Object { $_.ExecutablePath -like '${escapedRoot}*' } | Select-Object @{n='pid';e={$_.ProcessId}}, @{n='path';e={$_.ExecutablePath}} | ConvertTo-Json -Compress`;
   return new Promise((resolveFind) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
       windowsHide: true,

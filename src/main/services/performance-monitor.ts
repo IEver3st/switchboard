@@ -18,7 +18,6 @@ const anomalyRecordIntervalMs = 15_000;
 export const performanceMemoryBudgetsMb = {
   coreTray: 270,
   rendererOpen: 340,
-  audioEngine: 65,
   captureEngine: 1_000,
   captureWaiting: 100,
   captureSaving: 1_000,
@@ -419,7 +418,6 @@ export function measurePerformance(
   const rendererMemoryMb = kilobytesToMb(sum(rendererMetrics.map((metric) => metric.memory.privateBytes ?? 0)));
   const coreMemoryMb = kilobytesToMb(sum(coreMetrics.map((metric) => metric.memory.privateBytes ?? 0)));
   const residentMemoryMb = kilobytesToMb(sum(metrics.map((metric) => metric.memory.workingSetSize))) + engineWorkingSetMb;
-  const audioActive = activeEngines.some((engine) => engine.kind === 'audio');
   const captureHost = activeEngines.find((engine) => engine.kind === 'capture');
   const captureActive = captureHost !== undefined;
   // A live control host is not proof of an active encoder. Unknown/starting
@@ -438,11 +436,10 @@ export function measurePerformance(
     totalCpuPercent: round(sum(metrics.map((metric) => metric.cpu.percentCPUUsage)) + engineCpuPercent + sum(external.map(item => item.cpuPercent))),
     activeProcesses: metrics.length + activeEngineProcesses + external.length,
     budgetMemoryMb: (context.rendererActive ? performanceMemoryBudgetsMb.rendererOpen : performanceMemoryBudgetsMb.coreTray)
-      + (audioActive ? performanceMemoryBudgetsMb.audioEngine : 0)
       + (captureWaiting ? performanceMemoryBudgetsMb.captureWaiting
         : captureSaving ? performanceMemoryBudgetsMb.captureSaving
         : captureActive ? performanceMemoryBudgetsMb.captureEngine : 0),
-    budgetCpuPercent: (context.rendererActive ? 0.7 : 0.3) + (audioActive ? 1 : 0)
+    budgetCpuPercent: (context.rendererActive ? 0.7 : 0.3)
       + (captureWaiting ? 0.3 : captureActive ? 2 : 0),
     sampledAt: new Date(measuredAt).toISOString(),
   };

@@ -1,5 +1,4 @@
 import {
-  AudioWaveform,
   Cable,
   CircleDot,
   Settings,
@@ -14,9 +13,8 @@ import { cn } from '@/lib/cn';
 import { switchboardApi } from '@/lib/demo-api';
 import { useSystemStore } from '@/stores/use-system-store';
 
-const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 'audio' | 'capture' }> = [
+const navigation: Array<{ id: PageId; label: string; icon: LucideIcon; engine?: 'capture' }> = [
   { id: 'devices', label: 'Devices', icon: Cable },
-  { id: 'audio', label: 'Audio', icon: AudioWaveform, engine: 'audio' },
   { id: 'capture', label: 'Capture', icon: CircleDot, engine: 'capture' },
 ];
 

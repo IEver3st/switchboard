@@ -15,7 +15,6 @@ import {
   Unlink,
   Usb,
   Video,
-  Volume2,
   X,
 } from 'lucide-react';
 import type {
@@ -42,7 +41,6 @@ import { NewSettingDot } from './settings-new';
 const kindLabels: Record<ModuleKind, string> = {
   device: 'Device',
   capture: 'Capture',
-  audio: 'Audio',
   integration: 'Integration',
 };
 
@@ -70,7 +68,7 @@ export function ModuleManagement({
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [pendingModuleId, setPendingModuleId] = useState<string | null>(null);
   const setModuleState = useSystemStore((state) => state.setModuleState);
-  // The bundled Capture and Audio engines are switched in their own Settings categories.
+  // The bundled Capture engine is switched in its own Settings category.
   const listed = snapshot.modules.filter((module) => !isCoreEngineModule(module));
   const installed = listed.filter((module) => module.installed);
   const available = listed.filter((module) => !module.installed && module.source === 'bundled');
@@ -565,7 +563,7 @@ function ModuleListEmpty({ children }: { children: ReactNode }) {
 }
 
 function isCoreEngineModule(module: ModuleManifest): boolean {
-  return module.source === 'bundled' && (module.kind === 'capture' || module.kind === 'audio');
+  return module.source === 'bundled' && module.kind === 'capture';
 }
 
 function devicesForModule(module: ModuleManifest, devices: readonly Device[]): Device[] {
@@ -613,7 +611,6 @@ function moduleRuntimeBoundary(module: ModuleManifest): string {
   if (module.source !== 'bundled') return 'Sandboxed Chromium with declared HID metadata only';
   if (module.kind === 'device') return 'Core-managed device protocol boundary';
   if (module.kind === 'capture') return 'Isolated Capture host';
-  if (module.kind === 'audio') return 'Isolated Audio host';
   return 'Core-managed integration boundary';
 }
 
@@ -640,11 +637,9 @@ function moduleIcon(module: ModuleManifest): ComponentType<{ className?: string 
   if (module.id.includes('quadcast')) return Mic;
   if (module.id.includes('logitech')) return Mouse;
   if (module.id.includes('replay')) return Video;
-  if (module.id.includes('audio-router')) return Volume2;
   if (module.id.includes('steelseries')) return Usb;
   if (module.kind === 'integration') return Puzzle;
   if (module.kind === 'capture') return Video;
-  if (module.kind === 'audio') return Volume2;
   return Usb;
 }
 
@@ -652,7 +647,6 @@ function moduleIconTone(module: ModuleManifest): string {
   if (module.id.includes('quadcast')) return 'microphone';
   if (module.id.includes('logitech')) return 'device';
   if (module.kind === 'capture') return 'capture';
-  if (module.kind === 'audio') return 'audio';
   if (module.kind === 'integration') return 'integration';
   return 'keyboard';
 }

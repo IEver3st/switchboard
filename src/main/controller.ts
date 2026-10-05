@@ -1,16 +1,7 @@
-import { resolveReplayAudioRouting } from '../shared/capture-audio-routing';
-import { AudioDependencySetup } from './services/audio-dependency-setup';
-import { normalizeVisibleWorkspaces } from '../shared/workspace-profile';
-import { WindowsAudioDependencies } from './services/windows-audio-dependencies';
-import { OpenTrackSetup } from './services/opentrack-setup';
-import type { AudioSetupAction } from '../shared/contracts';
-import { applyApplicationRoutingPreference } from '../shared/audio-routing';
-import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput, SetNoiseSuppressionModelInput } from '../shared/contracts';
 import { watchWindowsDeviceChanges } from './services/windows-device-notifications';
 import { normalizeMusicTrack } from '../shared/montage-audio';
 import { WINDOWS_STARTUP_ARGUMENT } from './startup-settings';
 import { SetupScenes } from './services/setup-scenes';
-import { quickActionInputSchema, type QuickActionInput } from '../shared/contracts';
 import { DesktopControlsService } from './services/desktop-controls';
 import { NativeResourceCollector } from './services/native-resource-collector';
 import { CaptureSourceRefresh, listCaptureSources } from './services/capture-source-refresh';
@@ -18,7 +9,7 @@ import { AudioSyncCalibration, measureAudioSync } from './services/audio-sync-ca
 import type { ResourceMonitorSnapshot } from '../shared/resource-monitor';
 import { StatusLighting } from './services/status-lighting';
 import { snapshotSceneValues } from '../shared/setup-scenes';
-import { sceneAudioSchema, setupPreferencesSchema, type SceneValues, type SaveSceneInput, type SetupPreferences, type VerticalGuideLayout } from '../shared/contracts';
+import { setupPreferencesSchema, type SaveSceneInput, type SetupPreferences, type VerticalGuideLayout } from '../shared/contracts';
 import { getMontageV2Service } from './services/montage-v2';
 import { renderMontageV2 } from './services/montage-v2-renderer';
 import { montageProjectV2Schema } from '../shared/montage-v2';
@@ -55,17 +46,6 @@ import {
   captureHostSnapshotSchema,
   autoCaptureSettingsPatchSchema,
   autoCaptureSettingsSchema,
-  audioHostSnapshotSchema,
-  audioPresetFileSchema,
-  channelProcessingSchema,
-  micProcessorSchema,
-  type AudioPathId,
-  type AudioPresetIdInput,
-  type AudioMeterFrame,
-  type AudioHostSnapshot,
-  type SetSpatialAudioInput,
-  type OpenTrackAction,
-  type ApplyAudioPresetInput,
   type AutoCaptureSettingsPatch,
   type AutoCaptureTestEventInput,
   type CaptureConfig,
@@ -87,49 +67,30 @@ import {
   type ModuleProjectIdInput,
   type PrepareClipShareInput,
   type PreparedShareFile,
-  type CreateAudioPresetInput,
-  type RenameAudioPresetInput,
   type RenameClipInput,
   type SetClipCanvasSizeInput,
   type SetClipAudioTrackLevelInput,
   type SetClipFavoriteInput,
   type SetClipTrimInput,
   type SetCaptureConfigInput,
-  type SetAudioChannelProcessorInput,
-  type SetAudioBusDeviceInput,
-  type SetAudioApplicationRouteInput,
-  type SetAudioBusEnabledInput,
-  type SetAudioBusGainInput,
-  type SetAudioChannelEnabledInput,
-  type SetAudioMasterEnabledInput,
-  type SetAudioMasterGainInput,
   type SetDeviceSettingInput,
   type SetDeviceControlInput,
   type SetDeviceAppearanceOverrideInput,
-  type SetMicProcessorInput,
-  type SetAudioMonitoringInput,
   type SetModuleStateInput,
   type SettingsResetScope,
   type SystemSnapshot,
   type UpdateSettingsInput,
 } from '../shared/contracts';
-import { defaultAudio, defaultAutoCapture, defaultCaptureConfig, defaultDevices, defaultGameDetection, defaultSettings } from '../shared/defaults';
-import {
-  applyAudioPathPreset,
-  findMatchingAudioPresetId,
-  snapshotAudioPathPreset,
-} from '../shared/audio-presets';
+import { defaultAutoCapture, defaultCaptureConfig, defaultDevices, defaultGameDetection, defaultSettings } from '../shared/defaults';
 import { resolveDeviceVariant } from '../shared/device-variant';
 import { resolveProductAsset } from '../shared/product-assets';
 import { getEncodingPreset, sanitizeClipBaseName } from '../shared/capture-presets';
 import { clipGameLabel, createDefaultClipTitle } from '../shared/clip-library';
 import { applyClipTrackLevel, hasEffectiveClipMixChanged, resolveClipTrackLevel } from '../shared/clip-track-levels';
 import type { FeedbackEnvironment } from '../shared/feedback-report';
-import { chooseAudioBusDevice, isAudioTransport, reconcileAudioDevices } from '../shared/audio-devices';
 import { CaptureStorageService, type CapturePaths } from './services/capture-storage';
 import { ClipLibraryService, mergeReconciledClips, registerSavedClip, selectShareVideoEncoder } from './services/clip-library';
-import { AudioEndpointDiscovery } from './services/audio-endpoint-discovery';
-import { AudioConfiguration, applyAudioPreferenceChanges, assertAudioConfigurationApplied } from './services/audio-configuration';
+import { listAudioEndpoints } from './services/audio-endpoint-discovery';
 import { AppUpdateService, type AppUpdatePreferences } from './services/app-update-service';
 import { DeviceRegistry } from './services/device-registry';
 import { EngineSupervisor } from './services/engine-supervisor';
@@ -138,12 +99,7 @@ import { submitFeedbackReport } from './services/feedback-submission';
 import { StateStore } from './services/state-store';
 import { PerformanceMonitor } from './services/performance-monitor';
 import { ResourceJournal } from './services/resource-journal';
-import {
-  AudioMeterDemandGate,
-  AudioSnapshotUpdateGate,
-  CaptureSnapshotUpdateGate,
-  isMaterialEngineStatusChange,
-} from './services/runtime-update-gates';
+import { CaptureSnapshotUpdateGate, isMaterialEngineStatusChange } from './services/runtime-update-gates';
 import { getPreparedShareService } from './services/prepared-share';
 import { AutoCaptureEngine, reactionClippingProviderId, type AutoCapturePreserveRequest } from './autocapture/auto-capture-engine';
 import { AutoCaptureRegistry } from './autocapture/registry';
@@ -161,7 +117,6 @@ import { WardogsProvider } from './autocapture/providers/wardogs/wardogs-provide
 import { Battlefield6Provider } from './autocapture/providers/battlefield-6/battlefield-6-provider';
 import type { OverwolfRuntimeHost } from './autocapture/providers/battlefield-6/overwolf-gep-session';
 import { autoCaptureTitle, markersForClip } from './autocapture/capture-window-planner';
-import { resolveCaptureChatAudioDeviceId, resolveCaptureMicrophoneDeviceId, resolveCaptureSystemAudioDeviceId } from './capture-microphone-routing';
 import {
   createModuleProject as scaffoldModuleProject,
   moduleManifestFromProject,
@@ -216,22 +171,19 @@ type AppControllerOptions = {
 
 export class AppController {
   private readonly audioSyncCalibration = new AudioSyncCalibration({
-    measure: (route, signal) => measureAudioSync(app.isPackaged
-      ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
-      : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe'), route, signal),
+    measure: (route, signal) => measureAudioSync(captureHostExecutable(), route, signal),
     publish: (state) => this.store.updateBranches(['capture'], draft => { draft.capture.audioCalibration = state; }, { persist: false }),
   });
 
   private audioCalibrationRoute() {
-    const config = this.store.read('capture').config;
-    const host = this.toHostSettings(config);
-    if (config.microphoneDeviceId && !host.microphoneDeviceId && !host.processedMicrophoneDeviceId
-      || config.systemAudioDeviceId && !host.systemAudioDeviceId)
+    const { config, audioDevices } = this.store.read('capture');
+    // An empty inventory means discovery has not finished; Capture.Host reports a missing endpoint itself.
+    const missing = (id: string | null) => id !== null && audioDevices.length > 0 && !audioDevices.some(device => device.id === id);
+    if (missing(config.microphoneDeviceId) || missing(config.systemAudioDeviceId))
       throw new Error('A selected audio device is unavailable. Reconnect it before calibration.');
-    if (!config.includeMic || !config.includeSystemAudio || config.systemAudioMode !== 'system' || host.clipMixPipeName || host.systemAudioPipeName || host.microphonePipeName)
-      throw new Error('Calibration needs explicit microphone and output devices when using Switchboard recording feeds. Select those devices in Capture audio inputs.');
-    return { microphoneDeviceId: (host.processedMicrophoneDeviceId ?? host.microphoneDeviceId) as string | null,
-      outputDeviceId: host.systemAudioDeviceId as string | null };
+    if (!config.includeMic || !config.includeSystemAudio || config.systemAudioMode !== 'system')
+      throw new Error('Calibration needs the microphone and all desktop audio recorded. Turn both on in Capture audio inputs.');
+    return { microphoneDeviceId: config.microphoneDeviceId, outputDeviceId: config.systemAudioDeviceId };
   }
 
   private audioCalibrationSignature(): string {
@@ -269,16 +221,12 @@ export class AppController {
   private readonly store: StateStore;
   private readonly engines: EngineSupervisor;
   private readonly devices: DeviceRegistry;
-  private readonly audioMeterListeners = new Set<(frame: AudioMeterFrame) => void>();
   private readonly clipExportProgressListeners = new Set<(progress: ClipExportProgress) => void>();
   private readonly captureStorage: CaptureStorageService;
   private readonly clipLibrary: ClipLibraryService;
   private readonly onClipDirectoryChanged = () => { void this.reconcileClipLibrary(); };
   private clipReconciliation: Promise<void> | null = null;
   private clipReconciliationQueued = false;
-  private readonly audioEndpointDiscovery: AudioEndpointDiscovery;
-  private readonly audioDependencies: AudioDependencySetup;
-  private readonly openTrack: OpenTrackSetup;
   private readonly gameDiscovery: GameDiscoveryService;
   private readonly appUpdates: AppUpdateService;
   private readonly performance: PerformanceMonitor;
@@ -294,14 +242,6 @@ export class AppController {
   private diagnosticCaptureEndContext: ReturnType<typeof captureDiagnosticContext> | null = null;
   private diagnosticRunGraphics: ReturnType<typeof diagnosticGpuInfo> | { unavailable: string } = { unavailable: 'Diagnostics have not run.' };
   private readonly appliedEngineStatuses = new Map<EngineStatus['kind'], EngineStatus>();
-  private readonly audioSnapshotUpdateGate = new AudioSnapshotUpdateGate();
-  private readonly audioConfiguration = new AudioConfiguration({
-    read: () => this.store.read('audio'),
-    configure: async audio => audioHostSnapshotSchema.parse(await this.engines.request('audio', 'configure', audio, 30_000)),
-    commit: (before, next) => { this.store.update(draft => applyAudioPreferenceChanges(draft.audio, before, next)); },
-    publish: host => this.applyAudioHostSnapshot(host),
-  });
-  private readonly audioMeterDemandGate = new AudioMeterDemandGate();
   private readonly captureSnapshotUpdateGate = new CaptureSnapshotUpdateGate();
   private readonly autoCaptureRegistry: AutoCaptureRegistry;
   private readonly autoCaptureEngine: AutoCaptureEngine;
@@ -319,8 +259,7 @@ export class AppController {
   private captureRetryConfig: CaptureConfig | null = null;
   private captureAudioIntegrationSignature: string | null = null;
   private captureAudioIntegrationUpdate: Promise<void> | null = null;
-  private audioRestartTimer: NodeJS.Timeout | null = null;
-  private audioRestartAttempts = 0;
+  private readonly audioDeviceAbort = new AbortController();
   private audioDeviceRefresh: Promise<void> | null = null;
   private audioDevicesRefreshedAt = 0;
   private readonly captureSourceThumbnails = new Map<string, Buffer>();
@@ -351,7 +290,6 @@ export class AppController {
   public constructor(private readonly options: AppControllerOptions = {}) {
     this.store = new StateStore(join(app.getPath('userData'), 'switchboard-state.json'));
     this.scenes = new SetupScenes(this.store, {
-      audio: value => this.applySceneAudio(value),
       capture: async value => { if (JSON.stringify(value) !== JSON.stringify(snapshotSceneValues(this.store.get()).capture))
         await this.setCaptureConfig(value); },
       device: async (deviceId, change) => { await this.setDeviceControl({ deviceId, change }); },
@@ -395,7 +333,7 @@ export class AppController {
       onInstallRequested: options.onUpdateInstallRequested,
       getSystemIdleTime: () => powerMonitor.getSystemIdleTime(),
       canInstallInBackground: () => !this.disposed && !this.rendererActive && !this.diagnosticRunTask
-        && (['audio', 'capture'] as const).every((kind) => this.engines.getStatus(kind).state === 'stopped')
+        && this.engines.getStatus('capture').state === 'stopped'
         && this.activeClipExports.size === 0
         && !getMontageV2Service().hasActiveExports
         && !this.gameScan,
@@ -403,17 +341,6 @@ export class AppController {
     this.captureStorage = new CaptureStorageService(app.getPath('videos'), app.getPath('userData'));
     this.capturePaths = this.captureStorage.resolvePaths(null);
     this.clipLibrary = new ClipLibraryService(this.capturePaths.thumbnailDirectory);
-    this.audioEndpointDiscovery = new AudioEndpointDiscovery({
-      appPath: app.getAppPath(),
-      isPackaged: app.isPackaged,
-      resourcesPath: process.resourcesPath,
-    });
-    this.audioDependencies = new AudioDependencySetup(new WindowsAudioDependencies(
-      join(process.env.LOCALAPPDATA ?? join(app.getPath('appData'), '..', 'Local'), 'Switchboard', 'Audio Setup'),
-      () => this.audioEndpointDiscovery.setupCommand(),
-    ), state => { if (!this.disposed) this.store.updateBranches(['audio'], draft => { draft.audio.dependencies = state; }, { persist: false }); });
-    this.openTrack = new OpenTrackSetup(process.env.LOCALAPPDATA ?? join(app.getPath('appData'), '..', 'Local'),
-      state => { if (!this.disposed) this.store.updateBranches(['audio'], draft => { draft.audio.openTrack = state; }, { persist: false }); });
     this.gameDiscovery = new GameDiscoveryService({
       extractExecutableIcon: async (executablePath) => {
         const icon = await app.getFileIcon(executablePath, { size: 'normal' });
@@ -422,7 +349,6 @@ export class AppController {
     });
     this.engines = new EngineSupervisor(
       (status) => this.applyEngineStatus(status),
-      (frame) => this.emitAudioMeters(frame),
       (kind, event, payload) => this.applyEngineEvent(kind, event, payload),
     );
     this.devices = new DeviceRegistry(
@@ -436,8 +362,7 @@ export class AppController {
         watchDeviceChanges: process.platform === 'win32' ? watchWindowsDeviceChanges : undefined },
     );
     this.performance = new PerformanceMonitor({
-      nativeCollector: new NativeResourceCollector(app.isPackaged ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
-        : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe')),
+      nativeCollector: new NativeResourceCollector(captureHostExecutable()),
       getHostState: () => ({ power: powerMonitor.isOnBatteryPower() ? 'battery' : 'ac',
         idleSeconds: powerMonitor.getSystemIdleTime(), idleState: powerMonitor.getSystemIdleState(60),
         thermal: 'unavailable', cpuSpeedLimit: null }),
@@ -448,8 +373,7 @@ export class AppController {
         guardEnabled: this.store.getPerformanceGuardEnabled(),
         detailedDiagnostics: this.detailedDiagnosticsEnabled(),
         captureState: this.diagnosticRunHost ? undefined : this.store.read('capture').runtime.state,
-        engines: (['audio', 'capture'] as const).map((kind) =>
-          kind === 'capture' && this.diagnosticRunHost ? this.diagnosticRunHost.getStatus(kind) : this.engines.getStatus(kind)),
+        engines: [(this.diagnosticRunHost ?? this.engines).getStatus('capture')],
       }),
       publish: (performance) => { this.store.setPerformance(performance); },
       getRendererRuntime: options.getRendererRuntime,
@@ -543,11 +467,10 @@ export class AppController {
     if (this.disposed) return;
     // Native UI review uses canonical fixture devices so automated interaction
     // checks never issue writes to connected physical hardware.
-    // Restore saved hardware controls before unrelated audio endpoint discovery.
     if (process.env.SWITCHBOARD_NATIVE_FIXTURES !== '1') await this.devices.start();
     if (this.disposed) return;
-    await this.refreshAudioDevices(true);
-    if (this.disposed) return;
+    // Endpoint inventory only feeds replay audio pickers; recording never waits for it.
+    void this.refreshAudioDevices(true);
     const snapshot = this.store.get();
     this.applyLoginItemSetting(snapshot.settings.launchAtStartup);
     await this.initializeCaptureStorage();
@@ -558,17 +481,10 @@ export class AppController {
     this.clipLibrary.watchDirectory(this.capturePaths.clipsDirectory, this.onClipDirectoryChanged);
     void this.reconcileClipLibrary();
 
-    const starts: Promise<unknown>[] = [];
-    if (snapshot.audio.enabled) {
-      starts.push(this.startAudioEngine());
-    }
     const currentCapture = this.store.read('capture');
     if (currentCapture.config.enabled && !currentCapture.storage.warning) {
-      starts.push(this.queueCaptureConfiguration(() => this.startCaptureEngine(currentCapture.config)));
-    }
-    const results = await Promise.allSettled(starts);
-    for (const result of results) {
-      if (result.status === 'rejected') console.error('Failed to restore an enabled engine.', result.reason);
+      await this.queueCaptureConfiguration(() => this.startCaptureEngine(currentCapture.config))
+        .catch(error => console.error('Failed to restore Instant Replay.', error));
     }
     if (this.disposed) return;
     if (snapshot.settings.scanGamesAutomatically) {
@@ -615,29 +531,6 @@ export class AppController {
   }
   public openQuickControls(): void { this.options.onQuickControls?.(true); }
   public closeQuickControls(): void { this.options.onQuickControls?.(false); }
-  public async runQuickAction(raw: QuickActionInput): Promise<SystemSnapshot> {
-    const input = quickActionInputSchema.parse(raw);
-    const snapshot = this.store.get();
-    if (!snapshot.audio.enabled || !snapshot.audio.host?.running)
-      throw new Error('Enable Audio to use this control.');
-    const audio = sceneAudioSchema.parse(snapshot.audio);
-    if (input.type === 'chatmix') audio.chatMix = input.value;
-    if (input.type === 'microphone') {
-      const mic = audio.buses.find(bus => bus.id === 'mic');
-      if (!mic) throw new Error('The microphone channel is unavailable.');
-      mic.enabled = !input.muted;
-    }
-    if (input.type === 'output') {
-      const device = snapshot.audio.devices.find(item => item.id === input.deviceId && item.available && item.direction === 'output' && !item.isSwitchboard);
-      if (!device) throw new Error('This output is unavailable.');
-      const game = audio.buses.find(bus => bus.id === 'game');
-      if (!game) throw new Error('The output channel is unavailable.');
-      game.deviceId = device.id; audio.outputDevice = device.name;
-    }
-    await this.applySceneAudio(audio);
-    return this.store.get();
-  }
-
   private syncSetup(snapshot: SystemSnapshot): void {
     if (this.disposed) return;
     if (!snapshot.settings.trayOnGameLaunch) this.lastGameProcessId = null;
@@ -650,47 +543,8 @@ export class AppController {
     this.statusLighting.update(snapshot);
   }
 
-  private applySceneAudio(value: NonNullable<SceneValues['audio']>): Promise<void> {
-    return this.audioConfiguration.run(() => this.applySceneAudioCore(value));
-  }
-
-  private async applySceneAudioCore(value: NonNullable<SceneValues['audio']>): Promise<void> {
-    const before = this.store.get();
-    if (JSON.stringify(sceneAudioSchema.parse(before.audio)) === JSON.stringify(value)) return;
-    const next = structuredClone(before);
-    Object.assign(next.audio, value, { buses: mergeSceneBuses(next.audio, value.buses) });
-    if (value.enabled) {
-      if (!before.audio.enabled) await this.engines.start('audio');
-      try {
-        const host = audioHostSnapshotSchema.parse(await this.engines.request('audio', before.audio.enabled ? 'configure' : 'start', next.audio, 30_000));
-        assertAudioConfigurationApplied(before.audio, next.audio, host);
-        this.store.update(draft => {
-          applyAudioPreferenceChanges(draft.audio, before.audio, next.audio);
-          draft.audio.enabled = true;
-          const module = draft.modules.find(item => item.id === 'capability.audio-router');
-          if (module) { module.installed = true; module.enabled = true; }
-        });
-        this.applyAudioHostSnapshot(host);
-      } catch (error) {
-        if (!before.audio.enabled) await this.engines.stop('audio');
-        else await this.engines.request('audio', 'configure', before.audio, 30_000).catch(() => undefined);
-        throw error;
-      }
-    } else {
-      await this.setAudioEnabledCore(false);
-      this.store.update(draft => {
-        Object.assign(draft.audio, value, { buses: mergeSceneBuses(draft.audio, value.buses) });
-      });
-    }
-  }
-
   public subscribe(listener: (snapshot: SystemSnapshot) => void): () => void {
     return this.store.subscribe(listener);
-  }
-
-  public subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void {
-    this.audioMeterListeners.add(listener);
-    return () => this.audioMeterListeners.delete(listener);
   }
 
   public subscribeClipExportProgress(listener: (progress: ClipExportProgress) => void): () => void {
@@ -703,7 +557,6 @@ export class AppController {
     if (this.rendererActive === active) return;
     this.rendererActive = active;
     this.clipLibrary.setBackgroundWorkActive(active);
-    if (this.audioMeterDemandGate.setRendererActive(active)) this.syncAudioMeterDemand();
     if (active) {
       void this.refreshAudioDevices();
       // Catch changes made while the interface was in the tray and the watcher was stopped.
@@ -712,33 +565,20 @@ export class AppController {
     this.performance.refresh();
   }
 
-  public setAudioMeteringRequested(requested: boolean): void {
-    if (this.audioMeterDemandGate.setRendererRequested(requested)) this.syncAudioMeterDemand();
-  }
-
   public refreshAudioDevices(force = false): Promise<void> {
     if (this.audioDeviceRefresh) return this.audioDeviceRefresh;
-    if (!force && Date.now() - this.audioDevicesRefreshedAt < audioEndpointRefreshMinimumIntervalMs) {
+    if (this.disposed || !force && Date.now() - this.audioDevicesRefreshedAt < audioEndpointRefreshMinimumIntervalMs) {
       return Promise.resolve();
     }
 
-    const refresh = this.audioEndpointDiscovery.list()
-      .then(async (devices) => {
-        const current = this.store.read('audio');
-        const audio = structuredClone(current);
-        reconcileAudioDevices(audio, devices);
+    const refresh = listAudioEndpoints(captureHostExecutable(), this.audioDeviceAbort.signal)
+      .then((devices) => {
         this.audioDevicesRefreshedAt = Date.now();
-        if (JSON.stringify(audio) === JSON.stringify(current)) return;
-        // Publish current inventory even if a replacement route fails to open.
-        this.store.updateBranches(['audio'], draft => { draft.audio.devices = audio.devices; }, { persist: false });
-        if (!this.engines.hasLiveProcess('audio') && this.engines.getStatus('audio').state === 'stopped') {
-          await this.audioConfiguration.run(async () => this.store.updateBranches(['audio'], draft => reconcileAudioDevices(draft.audio, devices)));
-          return;
-        }
-        await this.updateAudioConfiguration(draft => reconcileAudioDevices(draft.audio, devices));
+        if (this.disposed || JSON.stringify(devices) === JSON.stringify(this.store.read('capture').audioDevices)) return;
+        this.store.updateBranches(['capture'], draft => { draft.capture.audioDevices = devices; }, { persist: false });
       })
       .catch((error) => {
-        console.warn('Windows audio endpoint discovery failed.', error);
+        if (!this.disposed) console.warn('Windows audio endpoint discovery failed.', error);
       })
       .finally(() => {
         if (this.audioDeviceRefresh === refresh) this.audioDeviceRefresh = null;
@@ -853,7 +693,6 @@ export class AppController {
     }
 
     if (module.kind === 'capture') return this.setCaptureConfig({ enabled: input.enabled });
-    if (module.kind === 'audio') return this.setAudioEnabled(input.enabled);
 
     this.store.update((draft) => {
       const target = draft.modules.find((candidate) => candidate.id === input.moduleId);
@@ -1106,379 +945,6 @@ export class AppController {
       device.identity = resolved.identity;
       device.variantResolution = resolved.resolution;
       device.asset = resolveProductAsset(resolved.identity, device.kind);
-    });
-  }
-
-  public audioDependencySetup(action: AudioSetupAction): SystemSnapshot {
-    if (action === 'cancel') this.audioDependencies.cancel();
-    else this.audioDependencies.start(action === 'install');
-    return this.store.get();
-  }
-
-  public openTrackSetup(action: OpenTrackAction): SystemSnapshot {
-    if (action === 'cancel') this.openTrack.cancel();
-    else this.openTrack.start(action === 'install');
-    return this.store.get();
-  }
-
-  public async setAudioEnabled(enabled: boolean): Promise<SystemSnapshot> {
-    if (enabled) await this.initialize();
-    return this.audioConfiguration.run(() => this.setAudioEnabledCore(enabled));
-  }
-
-  public async restartAudio(): Promise<SystemSnapshot> {
-    await this.initialize();
-    return this.audioConfiguration.run(async () => {
-      if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
-      this.audioRestartTimer = null;
-      this.audioRestartAttempts = 0;
-      // Release route leases before replacing the host. The saved mix and
-      // endpoint selections remain canonical throughout the restart.
-      await this.engines.stop('audio');
-      if (!this.store.read('audio').enabled) return this.setAudioEnabledCore(true);
-      await this.startAudioEngine();
-      return this.store.get();
-    });
-  }
-
-  public async openWindowsSound(): Promise<SystemSnapshot> {
-    await shell.openExternal('ms-settings:apps-volume');
-    return this.store.get();
-  }
-
-  private async setAudioEnabledCore(enabled: boolean): Promise<SystemSnapshot> {
-    const current = this.store.read('audio').enabled;
-    if (current === enabled) return this.store.get();
-
-    if (enabled) {
-      this.store.update((draft) => {
-        draft.audio.enabled = true;
-        draft.settings.visibleWorkspaces = normalizeVisibleWorkspaces([...draft.settings.visibleWorkspaces, 'audio'])!;
-        const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
-        if (module) {
-          module.installed = true;
-          module.enabled = true;
-        }
-      });
-      try {
-        await this.startAudioEngine();
-        return this.store.get();
-      } catch (error) {
-        this.store.update((draft) => {
-          draft.audio.enabled = false;
-          const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
-          if (module) module.enabled = false;
-        });
-        throw error;
-      }
-    }
-
-    if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
-    this.audioRestartTimer = null;
-    this.audioRestartAttempts = 0;
-    await this.engines.stop('audio');
-    return this.store.update((draft) => {
-      draft.audio.enabled = false;
-      const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
-      if (module) module.enabled = false;
-    });
-  }
-
-  public setAudioBusGain(input: SetAudioBusGainInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
-      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
-      const bus = mix.buses.find((candidate) => candidate.id === input.busId);
-      if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
-      bus.gain = input.gain;
-    });
-  }
-
-  public setAudioMasterGain(input: SetAudioMasterGainInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
-      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
-      mix.master.gain = input.gain;
-    });
-  }
-
-  public setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
-      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
-      mix.master.enabled = input.enabled;
-    });
-  }
-
-  public setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const mix = draft.audio.mixes.find((candidate) => candidate.id === input.mixId);
-      if (!mix) throw new Error(`Unknown audio mix: ${input.mixId}`);
-      const bus = mix.buses.find((candidate) => candidate.id === input.busId);
-      if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
-      bus.enabled = input.enabled;
-    });
-  }
-
-  public setAudioChannelEnabled(input: SetAudioChannelEnabledInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const bus = draft.audio.buses.find((candidate) => candidate.id === input.busId);
-      if (!bus) throw new Error(`Unknown audio channel: ${input.busId}`);
-      bus.enabled = input.enabled;
-    });
-  }
-
-  public async setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const bus = draft.audio.buses.find((candidate) => candidate.id === input.busId);
-      if (!bus) throw new Error(`Unknown audio bus: ${input.busId}`);
-
-      const device = draft.audio.devices.find((candidate) => candidate.id === input.deviceId);
-      if (!device) throw new Error(`Unknown audio device: ${input.deviceId}`);
-      if (!device.available) throw new Error(`${device.name} is not currently available.`);
-
-      const requiredDirection = bus.id === 'mic' ? 'input' : 'output';
-      if (device.direction !== requiredDirection) {
-        throw new Error(`${device.name} cannot be assigned to the ${bus.label} channel.`);
-      }
-      if (isAudioTransport(device)) {
-        throw new Error('Choose a physical Windows audio device instead of a Switchboard transport endpoint.');
-      }
-
-      chooseAudioBusDevice(bus, device);
-      if (bus.id === 'mic') draft.audio.microphoneDevice = device.name;
-      if (bus.id === 'game') draft.audio.outputDevice = device.name;
-    });
-  }
-
-  public async setAudioRouting(input: SetAudioRoutingInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration(draft => applyApplicationRoutingPreference(draft.audio, input));
-  }
-
-  public async setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const others = draft.audio.excludedDeviceIds.filter(id => id !== input.deviceId);
-      draft.audio.excludedDeviceIds = input.excluded ? [...others, input.deviceId] : others;
-    });
-  }
-
-  public async setNoiseSuppressionModel(input: SetNoiseSuppressionModelInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => { draft.audio.noiseSuppressionModel = input.model; });
-  }
-
-  public async setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<SystemSnapshot> {
-    return this.audioConfiguration.run(async () => {
-      const before = this.store.get();
-      if (before.audio.capabilities.applicationRouting !== 'available') {
-        throw new Error(before.audio.capabilities.reason ?? 'Application audio routing is unavailable.');
-      }
-      const application = before.audio.applications.find((candidate) => candidate.id === input.applicationId);
-      if (!application) throw new Error('That audio session is no longer available.');
-      const hostSnapshot = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'routeApplication', {
-        processId: application.processId,
-        destination: input.destination,
-      }, 15_000));
-      if (hostSnapshot.applicationRoutes) {
-        this.store.updateBranches(['audio'], draft => {
-          draft.audio.applicationRoutes = hostSnapshot.applicationRoutes;
-        });
-        await this.store.flush();
-      }
-      this.applyAudioHostSnapshot(hostSnapshot);
-      return this.store.get();
-    });
-  }
-
-  public async applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const preset = draft.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
-      if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
-      applyAudioPathPreset(draft.audio, preset);
-    });
-  }
-
-  public createAudioPreset(input: CreateAudioPresetInput): Promise<SystemSnapshot> {
-    const id = `user-${input.kind}-${randomUUID()}`;
-    return this.updateAudioConfiguration((draft) => {
-      const preset = snapshotAudioPathPreset(draft.audio, input.kind, id, input.name);
-      draft.audio.pathPresets.push(preset);
-      draft.audio.activePresetIds[input.kind] = id;
-    });
-  }
-
-  public renameAudioPreset(input: RenameAudioPresetInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const preset = draft.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
-      if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
-      if (preset.builtIn) throw new Error('Built-in presets cannot be renamed. Duplicate it first.');
-      preset.name = input.name;
-    });
-  }
-
-  public duplicateAudioPreset(input: AudioPresetIdInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const source = draft.audio.pathPresets.find((candidate) => candidate.id === input.presetId);
-      if (!source) throw new Error(`Unknown audio preset: ${input.presetId}`);
-      const copy = { ...structuredClone(source), id: `user-${source.kind}-${randomUUID()}`, name: `${source.name} copy`, builtIn: false };
-      draft.audio.pathPresets.push(copy);
-      applyAudioPathPreset(draft.audio, copy);
-    });
-  }
-
-  public deleteAudioPreset(input: AudioPresetIdInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const index = draft.audio.pathPresets.findIndex((candidate) => candidate.id === input.presetId);
-      if (index < 0) throw new Error(`Unknown audio preset: ${input.presetId}`);
-      const preset = draft.audio.pathPresets[index]!;
-      if (preset.builtIn) throw new Error('Built-in presets cannot be deleted.');
-      draft.audio.pathPresets.splice(index, 1);
-      if (draft.audio.activePresetIds[preset.kind] === preset.id) {
-        draft.audio.activePresetIds[preset.kind] = findMatchingAudioPresetId(draft.audio, preset.kind);
-      }
-    });
-  }
-
-  public async importAudioPreset(): Promise<SystemSnapshot> {
-    const selection = await dialog.showOpenDialog({
-      title: 'Import audio preset',
-      properties: ['openFile'],
-      filters: [{ name: 'Switchboard audio preset', extensions: ['json'] }],
-    });
-    if (selection.canceled || !selection.filePaths[0]) return this.store.get();
-    const source = await readFile(selection.filePaths[0], 'utf8');
-    if (Buffer.byteLength(source, 'utf8') > 1_000_000) throw new Error('Audio preset files must be smaller than 1 MB.');
-    const imported = audioPresetFileSchema.parse(JSON.parse(source));
-    return this.updateAudioConfiguration((draft) => {
-      const id = `user-${imported.preset.kind}-${randomUUID()}`;
-      const preset = { ...structuredClone(imported.preset), id, builtIn: false };
-      draft.audio.pathPresets.push(preset);
-      applyAudioPathPreset(draft.audio, preset);
-    });
-  }
-
-  public async exportAudioPreset(input: AudioPresetIdInput): Promise<void> {
-    const preset = this.store.read('audio').pathPresets.find((candidate) => candidate.id === input.presetId);
-    if (!preset) throw new Error(`Unknown audio preset: ${input.presetId}`);
-    const safeName = preset.name.replace(/[^a-z0-9 _-]/gi, '').trim() || 'audio-preset';
-    const selection = await dialog.showSaveDialog({
-      title: 'Export audio preset',
-      defaultPath: `${safeName}.json`,
-      filters: [{ name: 'Switchboard audio preset', extensions: ['json'] }],
-    });
-    if (selection.canceled || !selection.filePath) return;
-    const payload = audioPresetFileSchema.parse({ schemaVersion: 1, preset });
-    await writeFile(selection.filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-  }
-
-  public setSpatialAudio(input: SetSpatialAudioInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration(draft => {
-      const { channel, stage, ...tracking } = input;
-      draft.audio.spatial = { ...draft.audio.spatial, ...tracking };
-      if (channel && stage) draft.audio.spatial.channels[channel] = { ...draft.audio.spatial.channels[channel], ...stage };
-    });
-  }
-
-  public recenterSpatialAudio(): Promise<SystemSnapshot> {
-    return this.audioConfiguration.run(async () => {
-      if (!this.store.read('audio').enabled) throw new Error('Start the audio engine before centering the stage.');
-      const host = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'recenterSpatial', {}));
-      this.applyAudioHostSnapshot(host);
-      return this.store.get();
-    });
-  }
-
-  public connectHeadsetTracking(): Promise<SystemSnapshot> {
-    return this.audioConfiguration.run(async () => {
-      if (!this.store.read('audio').enabled) throw new Error('Start the audio engine before connecting the headset sensor.');
-      const host = audioHostSnapshotSchema.parse(await this.engines.request('audio', 'connectHeadsetTracking', {}, 90_000));
-      this.applyAudioHostSnapshot(host);
-      return this.store.get();
-    });
-  }
-
-  public setAudioChannelProcessor(input: SetAudioChannelProcessorInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const processing = draft.audio.channelProcessing.find((candidate) => candidate.busId === input.busId);
-      if (!processing) throw new Error(`Unknown audio processing path: ${input.busId}`);
-      if (input.processorId === 'equalizer') {
-        processing.equalizer = {
-          ...processing.equalizer,
-          enabled: input.enabled ?? processing.equalizer.enabled,
-          ...input.parameters,
-        };
-      } else if (input.processorId === 'normalization') {
-        processing.normalization = {
-          ...processing.normalization,
-          enabled: input.enabled ?? processing.normalization.enabled,
-          ...input.parameters,
-        };
-      } else if (input.processorId === 'compressor') {
-        processing.compressor = {
-          ...processing.compressor,
-          enabled: input.enabled ?? processing.compressor.enabled,
-          ...input.parameters,
-        };
-      } else {
-        processing.limiter = {
-          ...processing.limiter,
-          enabled: input.enabled ?? processing.limiter.enabled,
-          ...input.parameters,
-        };
-      }
-      const index = draft.audio.channelProcessing.indexOf(processing);
-      draft.audio.channelProcessing[index] = channelProcessingSchema.parse(processing);
-      draft.audio.activePresetIds[input.busId] = findMatchingAudioPresetId(draft.audio, input.busId);
-    });
-  }
-
-  public async setAudioMonitoring(input: SetAudioMonitoringInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      if (draft.audio.capabilities.monitoring === 'unavailable' && input.enabled !== false) {
-        throw new Error('Low-latency microphone monitoring is unavailable until Audio.Host owns the microphone stream.');
-      }
-      const nextDeviceId = input.deviceId ?? draft.audio.monitoringDeviceId;
-      const nextEnabled = input.enabled ?? draft.audio.monitoringEnabled;
-      const nextDevice = draft.audio.devices.find((candidate) => candidate.id === nextDeviceId);
-      if (nextEnabled && (!nextDevice?.available || nextDevice.direction !== 'output' || isAudioTransport(nextDevice))) {
-        throw new Error('Select an available physical output before enabling microphone monitoring.');
-      }
-      if (typeof input.enabled === 'boolean') draft.audio.monitoringEnabled = input.enabled;
-      if (typeof input.level === 'number') draft.audio.monitoring = input.level;
-      if (input.deviceId) {
-        const device = draft.audio.devices.find((candidate) => candidate.id === input.deviceId);
-        if (!device?.available || device.direction !== 'output' || isAudioTransport(device)) throw new Error('Select an available physical output device for monitoring.');
-        draft.audio.monitoringDeviceId = input.deviceId;
-      }
-      draft.audio.activePresetIds.microphone = findMatchingAudioPresetId(draft.audio, 'microphone');
-    });
-  }
-
-  public async testMicrophone(): Promise<void> {
-    const snapshot = this.store.get();
-    if (snapshot.audio.capabilities.microphoneTest !== 'available') {
-      throw new Error(snapshot.audio.host?.capabilities.reason ?? 'Microphone testing is unavailable with the current audio setup.');
-    }
-    await this.engines.request('audio', 'testMicrophone', undefined, 10_000);
-  }
-
-  public setChatMix(value: number): Promise<SystemSnapshot> {
-    const normalized = Math.max(-1, Math.min(1, value));
-    return this.updateAudioConfiguration((draft) => {
-      draft.audio.chatMix = normalized;
-    });
-  }
-
-  public async setMicProcessor(input: SetMicProcessorInput): Promise<SystemSnapshot> {
-    return this.updateAudioConfiguration((draft) => {
-      const processor = draft.audio.micProcessors.find((candidate) => candidate.id === input.processorId);
-      if (!processor) throw new Error(`Unknown microphone processor: ${input.processorId}`);
-      const index = draft.audio.micProcessors.indexOf(processor);
-      draft.audio.micProcessors[index] = micProcessorSchema.parse({
-        ...processor,
-        enabled: input.enabled ?? processor.enabled,
-        parameters: { ...processor.parameters, ...input.parameters },
-      });
-      draft.audio.activePresetIds.microphone = findMatchingAudioPresetId(draft.audio, 'microphone');
     });
   }
 
@@ -1791,14 +1257,14 @@ export class AppController {
   }
 
   public async refreshCaptureSources(): Promise<SystemSnapshot> {
+    // A manual source refresh also catches audio endpoints added since the last scan.
+    void this.refreshAudioDevices(true);
     await this.captureSourceRefresh.refresh();
     return this.store.get();
   }
 
   private async scanCaptureSources(signal: AbortSignal): Promise<void> {
-    const executable = app.isPackaged ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
-      : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
-    const sources = await listCaptureSources(executable, signal);
+    const sources = await listCaptureSources(captureHostExecutable(), signal);
     // Electron owns thumbnail work and has no cancellation API. Shutdown must
     // still release our scan and ignore any late thumbnail result.
     let cancelPreviewWait = () => {};
@@ -2006,7 +1472,7 @@ export class AppController {
       // A disabled engine gets a separate, short-lived supervisor with no product
       // status listeners; its stop cannot overwrite capture errors or preferences.
       const host = this.engines.hasLiveProcess('capture') ? this.engines : (ownedHost = new EngineSupervisor(
-        () => undefined, () => undefined, (kind, event, payload) => {
+        () => undefined, (kind, event, payload) => {
           if (kind === 'capture' && event === 'diagnosticCheck') this.applyDiagnosticCheck(payload);
         },
       ));
@@ -2125,19 +1591,15 @@ export class AppController {
 
   public async resetSettings(scope: SettingsResetScope): Promise<SystemSnapshot> {
     if (scope === 'all' || scope === 'capture' || scope === 'diagnostics' || scope === 'general') await this.cancelDiagnostics();
-    if (scope === 'all' || scope === 'audio') await this.engines.stop('audio');
     if (scope === 'all' || scope === 'capture') await this.engines.stop('capture');
 
     let snapshot = this.store.update((draft) => {
       if (scope === 'all') {
         // "New" markers record what the user has already seen, not a preference.
         draft.settings = { ...structuredClone(defaultSettings), seenNewSettings: draft.settings.seenNewSettings };
-        draft.audio = createResetAudioState(draft.audio);
         draft.capture.config = structuredClone(defaultCaptureConfig);
         draft.capture.autoCapture.settings = structuredClone(defaultAutoCapture.settings);
         draft.gameDetection = structuredClone(defaultGameDetection);
-        const audioModule = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
-        if (audioModule) audioModule.enabled = false;
         const captureModule = draft.modules.find((candidate) => candidate.id === 'capability.replay');
         if (captureModule) captureModule.enabled = false;
         return;
@@ -2162,11 +1624,6 @@ export class AppController {
       if (scope === 'devices') {
         draft.settings.deviceAppearanceOverrides = {};
         draft.settings.mouseBatteryLighting = {};
-      }
-      if (scope === 'audio') {
-        draft.audio = createResetAudioState(draft.audio);
-        const module = draft.modules.find((candidate) => candidate.id === 'capability.audio-router');
-        if (module) module.enabled = false;
       }
       if (scope === 'capture') {
         draft.capture.config = structuredClone(defaultCaptureConfig);
@@ -2624,8 +2081,7 @@ export class AppController {
 
   public async dispose(): Promise<void> {
     this.disposed = true;
-    this.audioDependencies.dispose();
-    this.openTrack.dispose();
+    this.audioDeviceAbort.abort();
     await this.audioSyncCalibration.dispose();
     this.communityModules.dispose();
     await this.moduleOperation;
@@ -2647,11 +2103,9 @@ export class AppController {
     this.clipExportProgressListeners.clear();
     this.appUpdates.dispose();
     await this.initialization?.catch(() => undefined);
-    await this.audioConfiguration.run(async () => undefined);
+    await this.audioDeviceRefresh;
     await this.captureConfigurationQueue;
     await this.autoCaptureCoordinator.dispose();
-    if (this.audioRestartTimer) clearTimeout(this.audioRestartTimer);
-    this.audioRestartTimer = null;
     this.clearCaptureRecovery();
     this.captureAudioIntegrationUpdate = null;
     if (this.registeredShortcut) globalShortcut.unregister(this.registeredShortcut);
@@ -2709,29 +2163,6 @@ export class AppController {
     } finally {
       this.gameScan = null;
     }
-  }
-
-  private async startAudioEngine(): Promise<void> {
-    await this.engines.start('audio');
-    try {
-      const snapshot = audioHostSnapshotSchema.parse(
-        await this.engines.request('audio', 'start', this.store.read('audio'), 30_000),
-      );
-      this.applyAudioHostSnapshot(snapshot);
-      this.syncAudioMeterDemand();
-    } catch (error) {
-      await this.engines.stop('audio');
-      throw error;
-    }
-  }
-
-  private async updateAudioConfiguration(change: (draft: SystemSnapshot) => void): Promise<SystemSnapshot> {
-    await this.audioConfiguration.update(audio => {
-      const draft = this.store.get();
-      draft.audio = audio;
-      change(draft);
-    });
-    return this.store.get();
   }
 
   private async startCaptureEngine(config: CaptureConfig): Promise<void> {
@@ -2830,7 +2261,7 @@ export class AppController {
     const previous = this.appliedEngineStatuses.get(status.kind);
     if (!isMaterialEngineStatusChange(previous, status)) return;
     this.appliedEngineStatuses.set(status.kind, structuredClone(status));
-    this.store.updateBranches(['engines', 'capture', 'audio'],
+    this.store.updateBranches(['engines', 'capture'],
       (draft) => {
         const index = draft.engines.findIndex((engine) => engine.kind === status.kind);
         if (index >= 0) draft.engines[index] = status;
@@ -2851,21 +2282,6 @@ export class AppController {
             saveQueueDepth: 0,
           };
           draft.capture.storage.replayCacheBytes = 0;
-        } else if (status.kind === 'audio' && status.state !== 'running') {
-          draft.audio.capabilities = {
-            virtualChannels: 'unavailable',
-            applicationRouting: 'unavailable',
-            channelDsp: 'unavailable',
-            microphoneDsp: 'unavailable',
-            noiseSuppression: 'unavailable',
-            realtimeMetering: 'unavailable',
-            microphoneTest: 'unavailable',
-            monitoring: 'unavailable',
-            spatialAudio: 'unavailable',
-          };
-          draft.audio.host = null;
-          draft.audio.applications = [];
-          for (const bus of draft.audio.buses) bus.appCount = 0;
         }
       },
       { persist: false },
@@ -2877,11 +2293,6 @@ export class AppController {
       && this.store.read('capture').config.enabled) {
       void this.autoCaptureCoordinator.reconcile(null, false, this.store.read('gameDetection').games);
       this.scheduleCaptureHostRecovery(status.message ?? 'Capture.Host stopped unexpectedly while Instant Replay stayed enabled.');
-    } else if (status.kind === 'audio' && status.state === 'error') {
-      this.scheduleAudioHostRecovery(status.message);
-    }
-    if (status.kind === 'audio' && (status.state === 'stopped' || status.state === 'error')) {
-      this.scheduleCaptureAudioIntegrationSync();
     }
   }
 
@@ -2963,54 +2374,33 @@ export class AppController {
   }
 
   private toHostSettings(config: CaptureConfig, paths = this.capturePaths): Record<string, unknown> {
-    const audio = this.store.read('audio');
     const reaction = this.store.read('capture').autoCapture.settings.reactionClipping;
-    const replayAudio = resolveReplayAudioRouting(audio, config, reaction.enabled);
-    const processedMicrophoneRequested = config.includeMic || reaction.enabled;
-    const routingState = { ...audio, capture: config };
-    const microphoneDeviceId = processedMicrophoneRequested
-      ? resolveCaptureMicrophoneDeviceId(routingState)
-      : null;
-    const systemAudioDeviceId = config.includeSystemAudio
-      ? resolveCaptureSystemAudioDeviceId(routingState)
-      : null;
-    const chatAudioDeviceId = config.includeChatAudio
-      ? resolveCaptureChatAudioDeviceId(routingState)
-      : null;
     const { defaultTrackLevels: _defaultTrackLevels, ...hostConfig } = config;
     void _defaultTrackLevels;
+    // A null endpoint records the Windows default device for that role.
     return {
       ...hostConfig,
       ...getEncodingPreset(config),
       cacheDirectory: paths.cacheDirectory,
       clipsDirectory: paths.clipsDirectory,
       thumbnailDirectory: paths.thumbnailDirectory,
-      ...replayAudio,
-      clipMixPipeName: null,
-      processedMicrophoneDeviceId: null,
-      microphoneDeviceId,
-      systemAudioDeviceId,
-      chatAudioDeviceId,
+      microphoneDeviceId: config.includeMic || reaction.enabled ? config.microphoneDeviceId : null,
+      systemAudioDeviceId: config.includeSystemAudio ? config.systemAudioDeviceId : null,
+      chatAudioDeviceId: config.includeChatAudio ? config.chatAudioDeviceId : null,
       reactionClippingEnabled: reaction.enabled,
       reactionSensitivity: reaction.sensitivity,
       reactionCooldownSeconds: reaction.cooldownSeconds,
-
     };
   }
 
   private getCaptureAudioIntegrationSignature(config: CaptureConfig): string {
     const settings = this.toHostSettings(config);
     return JSON.stringify([
-      settings.systemAudioPipeName ?? null,
-      settings.chatAudioPipeName ?? null,
-      settings.microphonePipeName ?? null,
-      settings.processedMicrophoneDeviceId ?? null,
       settings.microphoneDeviceId ?? null,
       settings.systemAudioDeviceId ?? null,
       settings.systemAudioMode,
       settings.chatAudioDeviceId ?? null,
       settings.includeChatAudio ?? false,
-      settings.audioFallbackReason ?? null,
       settings.reactionClippingEnabled,
       settings.reactionSensitivity,
       settings.reactionCooldownSeconds,
@@ -3043,7 +2433,7 @@ export class AppController {
       this.captureAudioIntegrationSignature = previousSignature;
       if (this.disposed) return;
       this.store.update((draft) => {
-        draft.capture.runtime.warning = `Replay audio could not follow the current Switchboard route: ${integrationError instanceof Error ? integrationError.message : String(integrationError)}`;
+        draft.capture.runtime.warning = `Replay could not apply the updated audio inputs: ${integrationError instanceof Error ? integrationError.message : String(integrationError)}`;
       }, { persist: false });
     }).finally(() => {
       this.captureAudioIntegrationUpdate = null;
@@ -3053,19 +2443,7 @@ export class AppController {
     });
   }
 
-  private applyEngineEvent(kind: 'audio' | 'capture', event: string, payload: unknown): void {
-    if (kind === 'audio') {
-      if (event === 'audioDevicesChanged') {
-        void this.refreshAudioDevices(true);
-        return;
-      }
-      if (event === 'audioSnapshot') {
-        const parsed = audioHostSnapshotSchema.safeParse(payload);
-        if (parsed.success) this.applyAudioHostSnapshot(parsed.data);
-        else console.warn('Audio.Host sent an invalid snapshot.', parsed.error);
-      }
-      return;
-    }
+  private applyEngineEvent(kind: 'capture', event: string, payload: unknown): void {
     if (kind !== 'capture') return;
     if (event === 'diagnosticCheck') { this.applyDiagnosticCheck(payload); return; }
     if (event === 'captureSnapshot') {
@@ -3125,50 +2503,6 @@ export class AppController {
       mergeNearbyEvents: true,
       mergeThresholdSeconds: 0,
     });
-  }
-
-  private applyAudioHostSnapshot(snapshot: AudioHostSnapshot): void {
-    if (!this.audioSnapshotUpdateGate.shouldApply(snapshot)) return;
-    if (snapshot.running && this.engines.getStatus('audio').uptimeSeconds >= 30) this.audioRestartAttempts = 0;
-    this.store.updateBranches(['audio'], (draft) => {
-      draft.audio.host = snapshot;
-      draft.audio.capabilities = { ...snapshot.capabilities };
-      draft.audio.applications = snapshot.applications;
-      const applicationCounts = new Map(snapshot.buses.map((bus) => [bus.id, bus.applicationCount]));
-      for (const bus of draft.audio.buses) bus.appCount = applicationCounts.get(bus.id) ?? 0;
-    }, { persist: false });
-    this.scheduleCaptureAudioIntegrationSync();
-  }
-
-  private syncAudioMeterDemand(): void {
-    this.engines.send('audio', 'setMetering', this.audioMeterDemandGate.enabled);
-  }
-
-  private scheduleAudioHostRecovery(reason?: string): void {
-    if (this.disposed || this.audioRestartTimer || !this.store.read('audio').enabled) return;
-    if (this.audioRestartAttempts >= 3) {
-      this.store.update((draft) => {
-        draft.audio.capabilities.reason = 'Audio.Host failed repeatedly. Automatic recovery stopped; disable and re-enable Audio to retry.';
-      }, { persist: false });
-      return;
-    }
-
-    this.audioRestartAttempts += 1;
-    const attempt = this.audioRestartAttempts;
-    const delayMs = attempt * 1_000;
-    this.store.update((draft) => {
-      draft.audio.capabilities.reason = `Audio.Host stopped unexpectedly${reason ? `: ${reason}` : ''}. Recovery attempt ${attempt} of 3.`;
-    }, { persist: false });
-    this.audioRestartTimer = setTimeout(() => {
-      this.audioRestartTimer = null;
-      if (this.disposed || !this.store.read('audio').enabled) return;
-      void this.audioConfiguration.run(() => this.startAudioEngine()).catch((restartError) => {
-        this.store.update((draft) => {
-          draft.audio.capabilities.reason = restartError instanceof Error ? restartError.message : String(restartError);
-        }, { persist: false });
-        this.scheduleAudioHostRecovery();
-      });
-    }, delayMs);
   }
 
   private applyCaptureSnapshot(snapshot: CaptureHostSnapshot): void {
@@ -3269,10 +2603,6 @@ export class AppController {
     }, { persist: false });
   }
 
-  private emitAudioMeters(frame: AudioMeterFrame): void {
-    for (const listener of this.audioMeterListeners) listener(frame);
-  }
-
   private emitClipExportProgress(progress: ClipExportProgress): void {
     for (const listener of this.clipExportProgressListeners) listener(progress);
   }
@@ -3358,42 +2688,7 @@ function captureIndexedDisplays(): Display[] {
   ];
 }
 
-// A scene that selects an available device counts as an explicit choice, so it is remembered.
-function mergeSceneBuses(audio: SystemSnapshot['audio'], sceneBuses: NonNullable<SceneValues['audio']>['buses']): SystemSnapshot['audio']['buses'] {
-  return audio.buses.map((bus) => {
-    const scene = sceneBuses.find(item => item.id === bus.id);
-    const next = { ...bus, ...scene };
-    const device = scene && scene.deviceId !== bus.deviceId
-      ? audio.devices.find(item => item.id === scene.deviceId && item.available)
-      : undefined;
-    if (device) chooseAudioBusDevice(next, device);
-    return next;
-  });
-}
-
-function createResetAudioState(current: SystemSnapshot['audio']): SystemSnapshot['audio'] {
-  const reset = structuredClone(defaultAudio);
-  reset.devices = structuredClone(current.devices);
-  reset.pathPresets = [
-    ...structuredClone(defaultAudio.pathPresets),
-    ...structuredClone(current.pathPresets.filter((preset) => !preset.builtIn)),
-  ];
-
-  const availableDeviceIds = new Set(reset.devices.map((device) => device.id));
-  for (const bus of reset.buses) {
-    const currentBus = current.buses.find((candidate) => candidate.id === bus.id);
-    // Resetting processing keeps the user's remembered hardware choices.
-    if (currentBus) bus.preferredDevices = structuredClone(currentBus.preferredDevices);
-    if (availableDeviceIds.has(bus.deviceId)) continue;
-    if (currentBus && availableDeviceIds.has(currentBus.deviceId)) bus.deviceId = currentBus.deviceId;
-  }
-
-  reconcileAudioDevices(reset, current.devices);
-  for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
-    const defaultId = defaultAudio.activePresetIds[kind];
-    reset.activePresetIds[kind] = defaultId && reset.pathPresets.some((preset) => preset.id === defaultId)
-      ? defaultId
-      : null;
-  }
-  return reset;
+function captureHostExecutable(): string {
+  return app.isPackaged ? join(process.resourcesPath, 'capture-host', 'Capture.Host.exe')
+    : process.env.SWITCHBOARD_DEVELOPMENT_CAPTURE_HOST ?? join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
 }

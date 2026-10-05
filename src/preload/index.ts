@@ -1,39 +1,15 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import { SnapshotReceiver, snapshotStreamChannel } from '../shared/snapshot-stream';
 import {
-  audioMeterFrameSchema,
   verticalGuideLayoutSchema,
   clipExportProgressSchema,
   feedbackSubmissionResultSchema,
   ipcChannels,
   preparedShareFileSchema,
-  type AudioMeterFrame,
   type SwitchboardApi,
   type SystemSnapshot,
 } from '../shared/contracts';
 import { montageV2IpcChannels, type MontageV2Api } from '../shared/montage-v2';
-
-const audioMeterListeners = new Set<(frame: AudioMeterFrame) => void>();
-const handleAudioMeter = (_event: Electron.IpcRendererEvent, raw: unknown): void => {
-  const parsed = audioMeterFrameSchema.safeParse(raw);
-  if (!parsed.success) return;
-  for (const listener of audioMeterListeners) listener(parsed.data);
-};
-
-function subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void {
-  if (audioMeterListeners.size === 0) {
-    ipcRenderer.on(ipcChannels.audioMeterUpdated, handleAudioMeter);
-    ipcRenderer.postMessage(ipcChannels.setAudioMeterSubscription, true);
-  }
-  audioMeterListeners.add(listener);
-
-  return () => {
-    audioMeterListeners.delete(listener);
-    if (audioMeterListeners.size !== 0) return;
-    ipcRenderer.postMessage(ipcChannels.setAudioMeterSubscription, false);
-    ipcRenderer.removeListener(ipcChannels.audioMeterUpdated, handleAudioMeter);
-  };
-}
 
 const api: SwitchboardApi & MontageV2Api = {
   saveScene: input => ipcRenderer.invoke(ipcChannels.saveScene, input),
@@ -45,7 +21,6 @@ const api: SwitchboardApi & MontageV2Api = {
   setShortcutRecording: recording => ipcRenderer.invoke(ipcChannels.setShortcutRecording, recording),
   closeQuickControls: () => ipcRenderer.invoke(ipcChannels.closeQuickControls),
   getVerticalGuideLayout: async () => verticalGuideLayoutSchema.parse(await ipcRenderer.invoke(ipcChannels.getVerticalGuideLayout)),
-  runQuickAction: input => ipcRenderer.invoke(ipcChannels.runQuickAction, input),
   setUiScale: (percent) => {
     if (![90, 100, 110, 125, 150].includes(percent)) throw new Error('Unsupported UI scale.');
     webFrame.setZoomFactor(percent / 100);
@@ -67,37 +42,6 @@ const api: SwitchboardApi & MontageV2Api = {
   setDeviceControl: (input) => ipcRenderer.invoke(ipcChannels.setDeviceControl, input),
   setDeviceSetting: (input) => ipcRenderer.invoke(ipcChannels.setDeviceSetting, input),
   setDeviceAppearanceOverride: (input) => ipcRenderer.invoke(ipcChannels.setDeviceAppearanceOverride, input),
-  setAudioRouting: (input) => ipcRenderer.invoke(ipcChannels.setAudioRouting, input),
-  setAudioDeviceExcluded: (input) => ipcRenderer.invoke(ipcChannels.setAudioDeviceExcluded, input),
-  setNoiseSuppressionModel: (input) => ipcRenderer.invoke(ipcChannels.setNoiseSuppressionModel, input),
-  audioDependencySetup: (action) => ipcRenderer.invoke(ipcChannels.audioDependencySetup, action),
-  openTrackSetup: (action) => ipcRenderer.invoke(ipcChannels.openTrackSetup, action),
-  setAudioEnabled: (enabled) => ipcRenderer.invoke(ipcChannels.setAudioEnabled, enabled),
-  setAudioMasterGain: (input) => ipcRenderer.invoke(ipcChannels.setAudioMasterGain, input),
-  setAudioMasterEnabled: (input) => ipcRenderer.invoke(ipcChannels.setAudioMasterEnabled, input),
-  setAudioBusGain: (input) => ipcRenderer.invoke(ipcChannels.setAudioBusGain, input),
-  setAudioBusEnabled: (input) => ipcRenderer.invoke(ipcChannels.setAudioBusEnabled, input),
-  setAudioChannelEnabled: (input) => ipcRenderer.invoke(ipcChannels.setAudioChannelEnabled, input),
-  setAudioBusDevice: (input) => ipcRenderer.invoke(ipcChannels.setAudioBusDevice, input),
-  setAudioApplicationRoute: (input) => ipcRenderer.invoke(ipcChannels.setAudioApplicationRoute, input),
-  applyAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.applyAudioPreset, input),
-  createAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.createAudioPreset, input),
-  renameAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.renameAudioPreset, input),
-  duplicateAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.duplicateAudioPreset, input),
-  deleteAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.deleteAudioPreset, input),
-  importAudioPreset: () => ipcRenderer.invoke(ipcChannels.importAudioPreset),
-  exportAudioPreset: (input) => ipcRenderer.invoke(ipcChannels.exportAudioPreset, input),
-  setAudioChannelProcessor: (input) => ipcRenderer.invoke(ipcChannels.setAudioChannelProcessor, input),
-  setSpatialAudio: (input) => ipcRenderer.invoke(ipcChannels.setSpatialAudio, input),
-  recenterSpatialAudio: () => ipcRenderer.invoke(ipcChannels.recenterSpatialAudio),
-  restartAudio: () => ipcRenderer.invoke(ipcChannels.restartAudio),
-  openWindowsSound: () => ipcRenderer.invoke(ipcChannels.openWindowsSound),
-  connectHeadsetTracking: () => ipcRenderer.invoke(ipcChannels.connectHeadsetTracking),
-  setAudioMonitoring: (input) => ipcRenderer.invoke(ipcChannels.setAudioMonitoring, input),
-  testMicrophone: () => ipcRenderer.invoke(ipcChannels.testMicrophone),
-  setChatMix: (value) => ipcRenderer.invoke(ipcChannels.setChatMix, value),
-  setMicProcessor: (input) => ipcRenderer.invoke(ipcChannels.setMicProcessor, input),
-  subscribeAudioMeters,
   setCaptureConfig: (input) => ipcRenderer.invoke(ipcChannels.setCaptureConfig, input),
   audioCalibration: (input) => ipcRenderer.invoke(ipcChannels.audioCalibration, input),
   saveReplay: () => ipcRenderer.invoke(ipcChannels.saveReplay),

@@ -1,8 +1,7 @@
-# Realtime engine prototypes
+# Realtime engine
 
-Electron launches these isolated `.NET 10` hosts directly; realtime media never crosses Electron IPC:
+Electron launches this isolated `.NET 10` host directly; realtime media never crosses Electron IPC:
 
-- `capture-host`: FFmpeg-backed rolling replay buffer and no-reencode clip save.
-- `audio-host`: Windows endpoint/session discovery and the user-mode DSP/mixer graph.
+- `capture-host`: FFmpeg-backed rolling replay buffer, no-reencode clip save, and one-shot Windows audio endpoint discovery for clip track selection.
 
-They use a narrow JSON-lines control vocabulary. Audio and video sample buffers remain inside the native hosts.
+It uses a narrow JSON-lines control vocabulary. Audio and video sample buffers remain inside the native host.

@@ -17,8 +17,6 @@ describe('settings search metadata', () => {
       expect(isSettingsCategoryVisible('diagnostics', settings)).toBe(false);
       expect(searchSettings('diagnostics', settings).some((entry) => entry.category === 'diagnostics')).toBe(false);
       expect(searchSettings('renderer memory', settings).some((entry) => entry.category === 'diagnostics')).toBe(false);
-      expect(isSettingsCategoryVisible('audio', settings)).toBe(true);
-      expect(searchSettings('audio drivers', settings).some((entry) => entry.category === 'audio')).toBe(true);
       expect(isSettingsCategoryVisible('general', settings)).toBe(true);
     }
     expect(isSettingsCategoryVisible('diagnostics', { developerMode: true })).toBe(true);
@@ -46,7 +44,6 @@ describe('settings search metadata', () => {
     const ids = new Set(settingsSearchEntries.map((entry) => entry.id));
     const expectedIds = [
       'general.softwareRendering', 'general.startup', 'general.closeToTray', 'general.destroyRenderer',
-      'audio.engine', 'audio.sampleRate', 'audio.output', 'audio.microphone', 'audio.mixer',
       'capture.engine', 'capture.storage', 'capture.duration', 'capture.shortcut', 'capture.source',
       'capture.resolution', 'capture.frameRate', 'capture.quality', 'capture.encoder',
       'capture.codec', 'capture.microphone', 'capture.systemAudio', 'capture.cursor', 'capture.workspace',
@@ -62,6 +59,11 @@ describe('settings search metadata', () => {
     ];
 
     expect(expectedIds.filter((id) => !ids.has(id))).toEqual([]);
+  });
+
+  it('has no Audio routing category or search entries', () => {
+    expect(settingsCategories.some((category) => category.id === ('audio' as never))).toBe(false);
+    expect(settingsSearchEntries.some((entry) => entry.category === ('audio' as never) || entry.id.startsWith('audio.'))).toBe(false);
   });
 
   it('does not expose the Devices workspace as a duplicate settings category', () => {

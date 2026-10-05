@@ -32,8 +32,7 @@ export class StatusLighting {
       if (this.timer) clearTimeout(this.timer);
       this.timer = null; this.pulse = false;
     }
-    const muted = snapshot.devices.some(device => device.connected && device.capabilities.muteState?.muted === true)
-      || (snapshot.audio.enabled && snapshot.audio.buses.some(bus => bus.id === 'mic' && !bus.enabled));
+    const muted = snapshot.devices.some(device => device.connected && device.capabilities.muteState?.muted === true);
     const color = !policy.enabled ? null
       : policy.captureError && snapshot.capture.config.enabled && snapshot.capture.runtime.state === 'error' ? '#ff3b30'
       : this.pulse ? '#36d978'

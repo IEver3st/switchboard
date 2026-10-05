@@ -140,24 +140,7 @@ button { color: inherit; }
 .switch i { display: block; width: 14px; height: 14px; border-radius: 50%; background: #9ca3ad; transition: transform .15s; }
 .switch.on { border-color: #7c3b4e; background: var(--accent-muted); }
 .switch.on i { transform: translateX(16px); background: var(--accent); }
-.audio-grid { display: grid; grid-template-columns: 8fr 4fr; gap: 16px; }
 .panel { padding: 20px; }
-.bus-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 17px; border: 1px solid var(--border); border-radius: 8px; background: #14171b; padding: 16px 0; }
-.bus { min-height: 225px; display: flex; flex-direction: column; align-items: center; border-left: 1px solid var(--border); }
-.bus:first-child { border-left: 0; }
-.bus strong { color: #cdd1d6; font-size: 11px; }
-.bus small { margin-top: 5px; color: #59626d; font-size: 9px; }
-.fader-wrap { height: 145px; margin-top: 14px; display: flex; gap: 12px; align-items: flex-end; }
-.level-meter { width: 6px; height: 100%; display: flex; align-items: flex-end; overflow: hidden; border-radius: 99px; background: #272c34; }
-.level-meter i { width: 100%; border-radius: 99px; background: var(--success); }
-.fader { width: 5px; height: 100%; position: relative; border-radius: 99px; background: #2b3039; }
-.fader i { position: absolute; left: 50%; bottom: var(--value); width: 16px; height: 12px; transform: translate(-50%, 50%); border: 1px solid #ff9ab0; border-radius: 4px; background: var(--accent); }
-.bus b { margin-top: 12px; color: #dfe2e6; font-size: 12px; }
-.chatmix { height: 48px; margin-top: 14px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; background: #14171b; padding: 0 15px; }
-.chatmix strong { width: 68px; color: #626b76; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
-.chatmix small { color: #89919c; font-size: 10px; }
-.track { flex: 1; height: 3px; position: relative; border-radius: 99px; background: #2b3039; }
-.track i { position: absolute; left: 58%; top: 50%; width: 13px; height: 13px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--accent); }
 .route-list, .module-list, .settings-list { margin-top: 16px; display: grid; gap: 10px; }
 .route, .setting-row, .module-row { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; background: #15181d; padding: 12px; }
 .route .copy, .module-row .copy, .setting-row .copy { min-width: 0; flex: 1; }
@@ -243,7 +226,6 @@ select { height: 32px; border: 1px solid var(--border); border-radius: 7px; back
         <nav id="navigation"></nav>
         <div class="runtime-block">
           <h4>Runtime</h4>
-          <div class="runtime-row"><span class="dot" id="audio-dot"></span><span>Audio host</span><small id="audio-memory">off</small></div>
           <div class="runtime-row"><span class="dot" id="capture-dot"></span><span>Capture host</span><small id="capture-memory">off</small></div>
         </div>
         <div class="sidebar-bottom">
@@ -272,7 +254,6 @@ select { height: 32px; border: 1px solid var(--border); border-radius: 7px; back
   <script>
 const state = {
   page: 'devices',
-  audio: false,
   capture: false,
   memory: 136,
   cpu: 0.3,
@@ -282,18 +263,15 @@ const state = {
     { name: 'HyperX QuadCast', description: 'QuadCast, QuadCast S, and QuadCast 2 controls through one capability module.', kind: 'device', size: '1.2 MB', enabled: true },
     { name: 'Logitech HID++', description: 'Self-describing Logitech mouse and keyboard support without one package per model.', kind: 'device', size: '1.8 MB', enabled: true },
     { name: 'Instant Replay', description: 'Isolated capture process with a disk-backed rolling buffer and hardware encoder selection.', kind: 'capture', size: '84 MB', enabled: false },
-    { name: 'Audio Router', description: 'Game, chat, media, and aux buses with independent personal, stream, and clip mixes.', kind: 'audio', size: '11.6 MB', enabled: false },
   ]
 };
 
 const pages = [
   ['devices', '⌁', 'Devices'],
-  ['audio', '≋', 'Audio'],
   ['capture', '●', 'Capture'],
 ];
 const copy = {
   devices: ['Devices', 'Connected hardware and its most important controls.'],
-  audio: ['Audio', 'Route, mix, and process audio without a monolithic suite.'],
   capture: ['Capture', 'A disk-backed replay buffer in its own process.'],
   settings: ['Settings', 'Lifecycle, modules, diagnostics, and performance budgets.'],
 };
@@ -309,20 +287,16 @@ function renderNav() {
 }
 
 function updateRuntime() {
-  state.memory = 136 + (state.audio ? 24 : 0) + (state.capture ? 31 : 0);
-  state.cpu = .3 + (state.audio ? .3 : 0) + (state.capture ? .8 : 0);
+  state.memory = 136 + (state.capture ? 31 : 0);
+  state.cpu = .3 + (state.capture ? .8 : 0);
   document.querySelector('#total-memory').textContent = Math.round(state.memory);
   document.querySelector('#memory-total').textContent = `${Math.round(state.memory)} MB`;
   document.querySelector('#cpu-total').textContent = `${state.cpu.toFixed(1)}% CPU`;
   document.querySelector('#memory-progress').style.width = `${Math.min(100, state.memory / 240 * 100)}%`;
-  document.querySelector('#audio-dot').classList.toggle('running', state.audio);
   document.querySelector('#capture-dot').classList.toggle('running', state.capture);
-  document.querySelector('#audio-memory').textContent = state.audio ? '24 MB' : 'off';
   document.querySelector('#capture-memory').textContent = state.capture ? '31 MB' : 'off';
   const replayModule = state.modules.find(m => m.name === 'Instant Replay');
-  const audioModule = state.modules.find(m => m.name === 'Audio Router');
   replayModule.enabled = state.capture;
-  audioModule.enabled = state.audio;
 }
 
 function render() {
@@ -332,21 +306,15 @@ function render() {
   document.querySelector('#page-description').textContent = copy[state.page][1];
   content.innerHTML = ({
     devices: renderDevices,
-    audio: renderAudio,
     capture: renderCapture,
     settings: renderSettings,
   })[state.page]();
   wirePage();
 }
 
-function renderAudio() {
-  const buses = [['Game',72,67,'0 dB'],['Chat',38,54,'-2 dB'],['Media',21,31,'-8 dB'],['Aux',8,60,'-1 dB']];
-  return `<div class="page-stack"><section class="surface header-surface"><div class="header-left"><div class="header-icon ${state.audio ? 'active' : ''}">≋</div><div><div class="eyebrow"><span class="live" style="background:${state.audio ? 'var(--success)' : '#4e5560'}"></span>${state.audio ? 'Audio host running' : 'Audio host stopped'}</div><h2>Audio Router</h2><p>One 48 kHz graph for personal, stream, and clip mixes.</p></div></div><div class="header-actions"><div class="runtime-stat"><small>Memory</small><b>${state.audio ? '24 MB' : '0 MB'}</b></div><div class="runtime-stat"><small>CPU</small><b>${state.audio ? '0.3%' : '0.0%'}</b></div><div class="runtime-stat"><small>Sample rate</small><b>48 kHz</b></div><button class="switch ${state.audio ? 'on' : ''}" data-toggle="audio"><i></i></button></div></section><div class="audio-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Personal mix</div><h3>Application buses</h3><p>Applications target virtual endpoints. The engine produces one low-latency headphone mix.</p></div><div class="bus-grid">${buses.map(b => `<div class="bus"><strong>${b[0]}</strong><small>${b[0] === 'Aux' ? '0 apps' : '1 app'}</small><div class="fader-wrap"><div class="level-meter"><i style="height:${b[1]}%"></i></div><div class="fader"><i style="--value:${b[2]}%"></i></div></div><b>${b[3]}</b><small>Switchboard ${b[0]}</small></div>`).join('')}</div><div class="chatmix"><strong>ChatMix</strong><small>Game</small><div class="track"><i></i></div><small>Chat</small><b>+15</b></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Output</div><h3>Routing</h3><p>The physical endpoint can change without moving applications.</p></div><div class="route-list"><div class="route"><span>◖</span><div class="copy"><small>Personal output</small><b>Unavailable in browser preview</b></div><span>⌄</span></div><div class="route"><span>◎</span><div class="copy"><small>Stream output</small><b>Switchboard Stream</b></div><span class="prototype-label">Virtual</span></div><div class="route"><span>⌁</span><div class="copy"><small>Clip mix</small><b>Game + Chat + Mic</b></div><span>3 buses</span></div></div></section></div><div class="audio-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Microphone</div><h3>Processing chain</h3><p>Small, allocation-free processors. Disabled nodes are skipped entirely.</p></div><div class="processor-grid">${['Input gain','Noise gate','Noise suppression','Parametric EQ','Compressor','Limiter'].map(x => `<div class="processor"><i>✓</i><div><b>${x}</b><small>${x === 'Noise suppression' ? 'medium' : 'low'} cost</small></div></div>`).join('')}</div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Mix outputs</div><h3>Independent destinations</h3><p>Personal, stream, and clip outputs reuse the same graph.</p></div><div class="route-list"><div class="route"><span class="dot running"></span><div class="copy"><b>Personal</b><small>Game 100 · Chat 76 · Media 42</small></div></div><div class="route"><span class="dot running"></span><div class="copy"><b>Stream</b><small>Game 100 · Chat 100 · Mic 100</small></div></div><div class="route"><span class="dot running"></span><div class="copy"><b>Clip</b><small>Game 100 · Chat 55 · Mic 100</small></div></div></div></section></div></div>`;
-}
-
 function renderCapture() {
   const filled = Math.ceil((state.buffered / 60) * 30);
-  return `<div class="page-stack"><section class="surface header-surface"><div class="header-left"><div class="header-icon ${state.capture ? 'active' : ''}">●</div><div><div class="eyebrow"><span class="live" style="background:${state.capture ? 'var(--success)' : '#4e5560'}"></span>${state.capture ? 'Replay buffer active' : 'Capture host stopped'}</div><h2>Instant Replay</h2><p>Compressed segments live on disk. Saving a clip does not re-encode.</p></div></div><div class="header-actions"><div class="runtime-stat"><small>Buffered</small><b>${state.buffered}s</b></div><div class="runtime-stat"><small>Disk ring</small><b>${Math.round(state.buffered*3.75)} MB</b></div><div class="runtime-stat"><small>Encoder</small><b>NVENC AV1</b></div><button class="switch ${state.capture ? 'on' : ''}" data-toggle="capture"><i></i></button><button class="button primary" id="save-replay" ${state.capture ? '' : 'disabled'}>Save replay</button></div></section><div class="capture-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Capture</div><h3>Quality and source</h3><p>The prototype models the FFmpeg-backed engine contract and isolated process lifecycle.</p></div><div class="config-grid"><div class="config-row"><div class="symbol">▣</div><div class="copy"><b>Source</b><small>Automatic game window</small></div><select><option>Automatic game</option><option>Display</option><option>Window</option></select></div><div class="config-row"><div class="symbol">▤</div><div class="copy"><b>Resolution</b><small>Output canvas</small></div><select><option>1440p</option><option>1080p</option><option>Native</option></select></div><div class="config-row"><div class="symbol">⌁</div><div class="copy"><b>Frame rate</b><small>Stable output target</small></div><select><option>60 FPS</option><option>120 FPS</option><option>30 FPS</option></select></div><div class="config-row"><div class="symbol">▰</div><div class="copy"><b>Codec</b><small>Hardware encoder preferred</small></div><select><option>AV1 · Auto</option><option>H.264 · NVENC</option></select></div></div><div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px"><div style="display:flex;align-items:end;justify-content:space-between"><div><b style="font-size:11px;color:#89919c">Replay duration</b><small style="display:block;margin-top:5px;color:#616a75">Disk usage scales with encoded bitrate.</small></div><div class="big-number">60 <small style="font-size:10px;color:#626b76">seconds</small></div></div><div class="slider-line"><i style="left:16%"></i></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Rolling buffer</div><h3>Segment ring</h3><p>Two-second segments are overwritten in place.</p></div><div class="ring"><div class="ring-head"><span>${Math.ceil(state.buffered/2)} segments</span><b>${Math.round(state.buffered/60*100)}% ready</b></div><div class="segments">${Array.from({length:30},(_,i)=>`<i class="${i<filled?'filled':''}"></i>`).join('')}</div></div><div class="summary-grid" style="grid-template-columns:repeat(2,1fr);margin-top:12px"><div class="route"><span>◷</span><div class="copy"><small>Target</small><b>60s</b></div></div><div class="route"><span>▰</span><div class="copy"><small>Estimated</small><b>${Math.round(state.buffered*3.75)} MB</b></div></div></div></section></div><div class="capture-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Tracks</div><h3>Audio and pointer</h3><p>The audio engine can provide a dedicated clip mix.</p></div><div class="settings-list"><div class="setting-row"><span>◉</span><div class="copy"><b>Microphone track</b><small>Processed mic on its own track.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span>≋</span><div class="copy"><b>Chat track</b><small>Keep voice chat separate from game audio.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span>⌁</span><div class="copy"><b>Capture cursor</b><small>Include the hardware pointer in clips.</small></div><button class="switch"><i></i></button></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Recent</div><h3>Clips</h3><p>Prototype saves write a metadata artifact.</p></div><div class="route-list"><div class="route"><span>▣</span><div class="copy"><b>War Thunder · clean pass</b><small>45 seconds · 126 MB · 42m ago</small></div><span class="prototype-label">Prototype</span></div><div class="route"><span>▣</span><div class="copy"><b>FiveM · pursuit ending</b><small>60 seconds · 178 MB · 3h ago</small></div><span class="prototype-label">Prototype</span></div></div></section></div></div>`;
+  return `<div class="page-stack"><section class="surface header-surface"><div class="header-left"><div class="header-icon ${state.capture ? 'active' : ''}">●</div><div><div class="eyebrow"><span class="live" style="background:${state.capture ? 'var(--success)' : '#4e5560'}"></span>${state.capture ? 'Replay buffer active' : 'Capture host stopped'}</div><h2>Instant Replay</h2><p>Compressed segments live on disk. Saving a clip does not re-encode.</p></div></div><div class="header-actions"><div class="runtime-stat"><small>Buffered</small><b>${state.buffered}s</b></div><div class="runtime-stat"><small>Disk ring</small><b>${Math.round(state.buffered*3.75)} MB</b></div><div class="runtime-stat"><small>Encoder</small><b>NVENC AV1</b></div><button class="switch ${state.capture ? 'on' : ''}" data-toggle="capture"><i></i></button><button class="button primary" id="save-replay" ${state.capture ? '' : 'disabled'}>Save replay</button></div></section><div class="capture-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Capture</div><h3>Quality and source</h3><p>The prototype models the FFmpeg-backed engine contract and isolated process lifecycle.</p></div><div class="config-grid"><div class="config-row"><div class="symbol">▣</div><div class="copy"><b>Source</b><small>Automatic game window</small></div><select><option>Automatic game</option><option>Display</option><option>Window</option></select></div><div class="config-row"><div class="symbol">▤</div><div class="copy"><b>Resolution</b><small>Output canvas</small></div><select><option>1440p</option><option>1080p</option><option>Native</option></select></div><div class="config-row"><div class="symbol">⌁</div><div class="copy"><b>Frame rate</b><small>Stable output target</small></div><select><option>60 FPS</option><option>120 FPS</option><option>30 FPS</option></select></div><div class="config-row"><div class="symbol">▰</div><div class="copy"><b>Codec</b><small>Hardware encoder preferred</small></div><select><option>AV1 · Auto</option><option>H.264 · NVENC</option></select></div></div><div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px"><div style="display:flex;align-items:end;justify-content:space-between"><div><b style="font-size:11px;color:#89919c">Replay duration</b><small style="display:block;margin-top:5px;color:#616a75">Disk usage scales with encoded bitrate.</small></div><div class="big-number">60 <small style="font-size:10px;color:#626b76">seconds</small></div></div><div class="slider-line"><i style="left:16%"></i></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Rolling buffer</div><h3>Segment ring</h3><p>Two-second segments are overwritten in place.</p></div><div class="ring"><div class="ring-head"><span>${Math.ceil(state.buffered/2)} segments</span><b>${Math.round(state.buffered/60*100)}% ready</b></div><div class="segments">${Array.from({length:30},(_,i)=>`<i class="${i<filled?'filled':''}"></i>`).join('')}</div></div><div class="summary-grid" style="grid-template-columns:repeat(2,1fr);margin-top:12px"><div class="route"><span>◷</span><div class="copy"><small>Target</small><b>60s</b></div></div><div class="route"><span>▰</span><div class="copy"><small>Estimated</small><b>${Math.round(state.buffered*3.75)} MB</b></div></div></div></section></div><div class="capture-grid"><section class="surface panel"><div class="section-title"><div class="eyebrow">Tracks</div><h3>Audio and pointer</h3><p>The audio engine can provide a dedicated clip mix.</p></div><div class="settings-list"><div class="setting-row"><span>◉</span><div class="copy"><b>Microphone track</b><small>Your microphone on its own track.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span>≋</span><div class="copy"><b>Chat track</b><small>Keep voice chat separate from game audio.</small></div><button class="switch on"><i></i></button></div><div class="setting-row"><span>⌁</span><div class="copy"><b>Capture cursor</b><small>Include the hardware pointer in clips.</small></div><button class="switch"><i></i></button></div></div></section><section class="surface panel"><div class="section-title"><div class="eyebrow">Recent</div><h3>Clips</h3><p>Prototype saves write a metadata artifact.</p></div><div class="route-list"><div class="route"><span>▣</span><div class="copy"><b>War Thunder · clean pass</b><small>45 seconds · 126 MB · 42m ago</small></div><span class="prototype-label">Prototype</span></div><div class="route"><span>▣</span><div class="copy"><b>FiveM · pursuit ending</b><small>60 seconds · 178 MB · 3h ago</small></div><span class="prototype-label">Prototype</span></div></div></section></div></div>`;
 }
 
 function renderModules() {
@@ -367,11 +335,11 @@ function wirePage() {
   document.querySelectorAll('[data-toggle]').forEach(button => button.onclick = () => {
     const kind = button.dataset.toggle;
     state[kind] = !state[kind];
-    showToast(`${kind === 'audio' ? 'Audio host' : 'Capture host'} ${state[kind] ? 'started' : 'stopped'}`);
+    showToast(`Capture host ${state[kind] ? 'started' : 'stopped'}`);
     render();
   });
   document.querySelectorAll('[data-device]').forEach(button => button.onclick = () => { state.selectedDevice = button.dataset.device; state.page = 'devices'; render(); });
-  document.querySelectorAll('[data-module]').forEach(button => button.onclick = () => { const module = state.modules[Number(button.dataset.module)]; module.enabled = !module.enabled; if(module.kind==='audio') state.audio=module.enabled; if(module.kind==='capture') state.capture=module.enabled; showToast(`${module.name} ${module.enabled?'enabled':'disabled'}`); render(); });
+  document.querySelectorAll('[data-module]').forEach(button => button.onclick = () => { const module = state.modules[Number(button.dataset.module)]; module.enabled = !module.enabled; if(module.kind==='capture') state.capture=module.enabled; showToast(`${module.name} ${module.enabled?'enabled':'disabled'}`); render(); });
   const save = document.querySelector('#save-replay');
   if (save) save.onclick = () => showToast('Prototype replay metadata saved');
   document.querySelectorAll('.switch:not([data-toggle])').forEach(button => button.onclick = () => { button.classList.toggle('on'); showToast('Setting updated'); });

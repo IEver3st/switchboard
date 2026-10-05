@@ -20,7 +20,6 @@ for (const clip of state.clips) {
   try { await copyFile(clip.thumbnailPath, thumbnail); clip.thumbnailPath = thumbnail; }
   catch { clip.thumbnailPath = undefined; }
 }
-state.audio.enabled = false;
 state.capture.config.enabled = false;
 state.capture.config.clipsDirectory = join(profile, 'Clips');
 state.capture.autoCapture.settings.enabled = false;

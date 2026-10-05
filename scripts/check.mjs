@@ -37,8 +37,6 @@ const requiredFiles = [
   'resources/branding/switchboard-icon.png',
   'resources/branding/switchboard-mark.png',
   'build/icon.ico',
-  'resources/engine-workers/audio-worker.cjs',
-  'engines/audio-host/Audio.Host.csproj',
   'engines/capture-host/Capture.Host.csproj',
   'preview/index.html',
   'preview/styles.css',
@@ -184,10 +182,6 @@ assert(
 
 const engineSupervisor = read('src/main/services/engine-supervisor.ts');
 assert(
-  engineSupervisor.includes('resolveAudioHost()') && engineSupervisor.includes('spawnAudioHost()'),
-  'Audio must run in the isolated native Audio.Host process.',
-);
-assert(
   engineSupervisor.includes('resolveCaptureHost()') && engineSupervisor.includes('spawn(resolved.command'),
   'Capture must run in the isolated native Capture.Host process.',
 );
@@ -201,7 +195,6 @@ assert(performanceMonitor.includes('rendererActive'), 'Performance telemetry mus
 assert(performanceMonitor.includes('rollingWindowSamples'), 'Performance guard must use sustained rolling samples.');
 
 for (const relativePath of [
-  'resources/engine-workers/audio-worker.cjs',
   'preview/app.js',
   'scripts/build-standalone-preview.mjs',
   'scripts/worker-smoke.cjs',
@@ -214,7 +207,7 @@ const previewHtml = read('preview/index.html');
 assert(previewHtml.includes('./styles.css'), 'Static preview must reference styles.css.');
 assert(previewHtml.includes('./app.js'), 'Static preview must reference app.js.');
 
-for (const relativePath of ['engines/audio-host/Audio.Host.csproj', 'engines/capture-host/Capture.Host.csproj']) {
+for (const relativePath of ['engines/capture-host/Capture.Host.csproj']) {
   const source = read(relativePath);
   assert(source.includes('<TargetFramework>net10.0-windows</TargetFramework>'), `${relativePath} must target net10.0-windows.`);
   assert(source.includes('<Nullable>enable</Nullable>'), `${relativePath} must enable nullable reference types.`);
@@ -228,12 +221,6 @@ assert(captureSource.includes('RunRemuxAsync'), 'Capture host must stream-copy r
 assert(replayRing.includes('MaximumCacheBytes') || captureSource.includes('MaximumCacheBytes'), 'Replay cache must enforce a hard byte bound.');
 assert(replayRing.includes('CreateHardLinkW'), 'Replay saves must snapshot immutable segments without copying when NTFS permits.');
 
-const audioGraph = read('engines/audio-host/AudioGraph.cs');
-assert(audioGraph.includes('ProcessMicrophone(Span<float>'), 'Audio graph must process caller-owned Span<float> buffers.');
-const realtimeStart = audioGraph.indexOf('public void ProcessMicrophone');
-const realtimeEnd = audioGraph.indexOf('private static void ApplyGain', realtimeStart);
-const realtimePath = realtimeStart >= 0 && realtimeEnd > realtimeStart ? audioGraph.slice(realtimeStart, realtimeEnd) : '';
-assert(!realtimePath.includes(' new ') && !realtimePath.includes('.Select(') && !realtimePath.includes('.Where('), 'Audio realtime callback must avoid allocations and LINQ.');
 
 function loadTypeScript() {
   for (const candidate of [

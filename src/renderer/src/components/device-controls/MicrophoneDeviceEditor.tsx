@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import type { Device, DeviceSettingValue, SystemSnapshot } from '../../../../shared/contracts';
-import { HorizontalLevelMeter } from '@/components/audio/HorizontalLevelMeter';
 import { SemanticChoice } from '@/components/shared/human-controls';
 import { DeviceRender } from '@/components/shared/device-render';
 import { Button } from '@/components/ui/button';
@@ -22,8 +21,6 @@ export function MicrophoneDeviceEditor({ device, snapshot }: { device: Device; s
   const muted = device.connected ? muteState?.muted ?? null : null;
   const lightingDisabled = pending || !device.connected || !lighting?.writable;
   const lightingSupportsSpeed = Boolean(lighting?.speedWritable && lighting.activeEffectId !== 'solid');
-  const engineRunning = snapshot.engines.find((candidate) => candidate.kind === 'audio')?.state === 'running';
-  const microphoneBusEnabled = snapshot.audio.mixes.find((mix) => mix.id === 'personal')?.buses.find((candidate) => candidate.id === 'mic')?.enabled ?? false;
 
   return (
     <section className="device-controls microphone-hardware" aria-labelledby="microphone-hardware-heading" aria-busy={pending}>
@@ -163,9 +160,9 @@ export function MicrophoneDeviceEditor({ device, snapshot }: { device: Device; s
         </section>
       ) : null}
 
-      <section className="microphone-hardware__advanced" aria-labelledby="microphone-advanced-heading">
-        <h3 id="microphone-advanced-heading">Mute &amp; metering</h3>
-        {device.capabilities.mute && lighting?.muteLinkedWritable ? (
+      {device.capabilities.mute && lighting?.muteLinkedWritable ? (
+        <section className="microphone-hardware__advanced" aria-labelledby="microphone-advanced-heading">
+          <h3 id="microphone-advanced-heading">Mute</h3>
           <MicrophoneSwitchRow
             id={`follow-mute-${device.id}`}
             label="Follow physical mute"
@@ -174,14 +171,8 @@ export function MicrophoneDeviceEditor({ device, snapshot }: { device: Device; s
             disabled={lightingDisabled || !lighting.enabled}
             onCheckedChange={(enabled) => void setDeviceControl({ deviceId: device.id, change: { type: 'microphone-mute-lighting', enabled } })}
           />
-        ) : null}
-        <HorizontalLevelMeter
-          busId="mic"
-          active={Boolean(device.connected && engineRunning && microphoneBusEnabled && snapshot.audio.capabilities.realtimeMetering === 'available')}
-          inactiveLabel={snapshot.audio.capabilities.realtimeMetering === 'simulation' ? 'Live level unavailable' : 'Audio off'}
-          label="Input level"
-        />
-      </section>
+        </section>
+      ) : null}
     </section>
   );
 }

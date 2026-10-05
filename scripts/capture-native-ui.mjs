@@ -17,7 +17,7 @@ if (currentStatePath) {
     const reviewState = JSON.parse(await readFile(reviewStatePath, 'utf8'));
     if (reviewState.settings) {
       reviewState.settings.uiScalePercent = 100;
-      reviewState.settings.visibleWorkspaces = ['devices', 'audio', 'capture'];
+      reviewState.settings.visibleWorkspaces = ['devices', 'capture'];
       reviewState.settings.onboardingCompleted = true;
       reviewState.settings.developerMode = true;
     }
@@ -99,8 +99,6 @@ if (process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN === '1') {
     created.webContents.setBackgroundThrottling(false);
   });
 }
-const verifyAudioNoise = process.argv.includes('--verify-audio-noise');
-if (verifyAudioNoise) process.env.SWITCHBOARD_NATIVE_FIXTURES = '1';
 
 const viewports = [
   { name: '1080x720', width: 1080, height: 720 },
@@ -115,11 +113,6 @@ const screens = [
   { name: 'g502-x-plus', prepare: () => openDevice('G502 X Plus') },
   { name: 'quadcast-2', prepare: () => openDevice('QuadCast 2') },
   { name: 'huntsman-v2-analog', prepare: () => openDevice('Huntsman V2 Analog') },
-  { name: 'audio-mixer', prepare: () => openAudioTab('mixer') },
-  { name: 'audio-game', prepare: () => openAudioTab('game') },
-  { name: 'audio-chat', prepare: () => openAudioTab('chat') },
-  { name: 'audio-media', prepare: () => openAudioTab('media') },
-  { name: 'audio-microphone', prepare: () => openAudioTab('microphone') },
   { name: 'capture', prepare: () => openPage('Capture', '.capture-command-header') },
   { name: 'capture-projects', prepare: () => openCaptureWithProjects() },
   { name: 'capture-projects-actions', prepare: () => exerciseProjectActions() },
@@ -136,7 +129,6 @@ const screens = [
   { name: 'settings-warthunder-provider', prepare: () => openAutoCaptureProvider('war-thunder-8111') },
   { name: 'settings-wardogs-provider', prepare: () => openAutoCaptureProvider('wardogs-events') },
   { name: 'settings-diagnostics', prepare: () => openSettingsCategory('Diagnostics') },
-  { name: 'settings-noise-diagnostics', prepare: () => openNoiseDiagnostics() },
   { name: 'settings-clips', prepare: () => openSettingsCategory('Clips') },
   { name: 'settings-search', prepare: () => openSettingsSearch('check') },
 ];
@@ -160,13 +152,6 @@ async function runReview() {
   await waitForLoad(window);
   console.log('Native review: renderer ready.');
   await waitForCondition(`!document.querySelector('.startup-screen')`, 'startup sequence');
-  if (verifyAudioNoise) {
-    const workflow = await verifyAudioNoiseWorkflow();
-    await writeFile(join(outputDirectory, 'audio-noise-workflow-report.json'), `${JSON.stringify(workflow, null, 2)}\n`);
-    console.log(JSON.stringify({ audioNoiseWorkflow: workflow }, null, 2));
-    app.quit();
-    return;
-  }
   await installReviewStyles(window);
 
   if (process.env.SWITCHBOARD_VERIFY_SHARE_PROGRESS === '1') {
@@ -363,33 +348,6 @@ async function openDevice(name) {
   await scrollMainToTop();
 }
 
-async function openAudioTab(tab) {
-  await clickButton('Audio');
-  if (tab !== 'mixer' && tab !== 'microphone') {
-    await window.webContents.executeJavaScript(`
-      window.switchboard.getSnapshot().then((snapshot) => {
-        const bus = snapshot.audio.buses.find((candidate) => candidate.id === ${JSON.stringify(tab)});
-        return bus?.enabled
-          ? snapshot
-          : window.switchboard.setAudioChannelEnabled({ busId: ${JSON.stringify(tab)}, enabled: true });
-      })
-    `);
-    await waitForCondition(
-      `window.switchboard.getSnapshot().then((snapshot) => snapshot.audio.buses.find((candidate) => candidate.id === ${JSON.stringify(tab)})?.enabled === true)`,
-      `${tab} audio channel`,
-    );
-  }
-  await window.webContents.executeJavaScript(`
-    (() => {
-      window.location.hash = ${JSON.stringify(`audio/${tab}`)};
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-      return true;
-    })()
-  `);
-  await waitForSelector(`#audio-tab-${tab}[aria-selected="true"]`);
-  await waitForSelector(`#audio-panel-${tab}`);
-  await scrollMainToTop();
-}
 
 async function openPage(label, selector) {
   await clickButton(label);
@@ -711,104 +669,6 @@ async function openSettingsSearch(query) {
         .observe(row, { attributes: true, attributeFilter: ['class'] });
     })()
   `);
-}
-
-async function openNoiseDiagnostics() {
-  await openSettingsCategory('Diagnostics');
-  await waitForSelector('[data-setting-id="diagnostics.noise-suppression"]');
-  await window.webContents.executeJavaScript(`
-    (() => {
-      document.querySelector('[data-setting-id="diagnostics.noise-suppression"]')?.scrollIntoView({ block: 'center' });
-      return true;
-    })()
-  `);
-}
-
-async function verifyAudioNoiseWorkflow() {
-  const before = await getNativeAudioSnapshot();
-  if (!before.audio.enabled) {
-    await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(true)`);
-  }
-  await window.webContents.executeJavaScript(`window.switchboard.setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 55 } })`);
-  await waitForCondition(
-    `window.switchboard.getSnapshot().then((snapshot) => {
-      const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
-      return snapshot.audio.enabled && engine?.state === 'running' && Boolean(engine.pid) && snapshot.audio.host?.noiseSuppression.state === 'ready';
-    })`,
-    'native microphone noise suppression',
-  );
-  const initial = await getNativeAudioSnapshot();
-  const initialEngine = initial.engines.find((engine) => engine.kind === 'audio');
-  assertReview(initialEngine?.state === 'running' && initialEngine.pid, `Audio.Host did not report a running native process: ${JSON.stringify(initialEngine)}`);
-  assertReview(initial.audio.host?.noiseSuppression.backend === 'RNNoise' || initial.audio.host?.noiseSuppression.backend === 'DeepFilterNet3', 'No production noise backend was active.');
-
-  const light = await window.webContents.executeJavaScript(`window.switchboard.setMicProcessor({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 25 } })`);
-  const lightProcessor = light.audio.micProcessors.find((processor) => processor.id === 'noise-suppression');
-  assertReview(lightProcessor?.enabled && lightProcessor.parameters.amount === 25, 'Canonical microphone strength did not mutate to Light.');
-  assertReview(Math.abs((light.audio.host?.noiseSuppression.attenuationLimitDb ?? -1) - 6) < 0.01, 'Audio.Host did not apply the 6 dB Light target.');
-  await delay(300);
-  const persisted = JSON.parse(await readFile(reviewStatePath, 'utf8'));
-  const persistedProcessor = persisted.audio?.micProcessors?.find((processor) => processor.id === 'noise-suppression');
-  assertReview(persistedProcessor?.enabled && persistedProcessor.parameters?.amount === 25, 'Noise strength was not persisted by Electron main.');
-
-  const reloaded = new Promise((resolveReload) => window.webContents.once('did-finish-load', resolveReload));
-  window.webContents.reload();
-  await reloaded;
-  await waitForCondition(`!document.querySelector('.startup-screen')`, 'renderer refresh');
-  const refreshed = await getNativeAudioSnapshot();
-  const refreshedProcessor = refreshed.audio.micProcessors.find((processor) => processor.id === 'noise-suppression');
-  assertReview(refreshedProcessor?.enabled && refreshedProcessor.parameters.amount === 25, 'Renderer refresh lost the canonical noise strength.');
-
-  await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(false)`);
-  await waitForCondition(
-    `window.switchboard.getSnapshot().then((snapshot) => snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'stopped' && snapshot.audio.host === null)`,
-    'orderly Audio.Host stop',
-  );
-  await window.webContents.executeJavaScript(`window.switchboard.setAudioEnabled(true)`);
-  await waitForCondition(
-    `window.switchboard.getSnapshot().then((snapshot) => snapshot.engines.find((engine) => engine.kind === 'audio')?.state === 'running' && snapshot.audio.host?.noiseSuppression.attenuationLimitDb === 6)`,
-    'orderly Audio.Host restart',
-  );
-  const orderlyRestart = await getNativeAudioSnapshot();
-  const orderlyPid = orderlyRestart.engines.find((engine) => engine.kind === 'audio')?.pid;
-  assertReview(orderlyPid && orderlyPid !== initialEngine.pid, 'Orderly restart did not create a fresh Audio.Host process.');
-
-  await window.webContents.executeJavaScript(`window.switchboard.testMicrophone()`);
-
-  const killedAt = Date.now();
-  process.kill(orderlyPid);
-  await waitForCondition(
-    `window.switchboard.getSnapshot().then((snapshot) => {
-      const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
-      return engine?.state === 'running' && engine.pid && engine.pid !== ${JSON.stringify(orderlyPid)} && snapshot.audio.host?.noiseSuppression.state === 'ready';
-    })`,
-    'automatic Audio.Host recovery',
-  );
-  const recovered = await getNativeAudioSnapshot();
-  const recoveredEngine = recovered.engines.find((engine) => engine.kind === 'audio');
-  const recoveredNoise = recovered.audio.host?.noiseSuppression;
-  assertReview(recoveredNoise?.captureOverruns === 0, 'Recovered Audio.Host reported capture overruns.');
-
-  return {
-    initialPid: initialEngine.pid,
-    backend: initial.audio.host.noiseSuppression.backend,
-    canonicalStrength: lightProcessor.parameters.amount,
-    attenuationLimitDb: light.audio.host.noiseSuppression.attenuationLimitDb,
-    persistedStrength: persistedProcessor.parameters.amount,
-    refreshedStrength: refreshedProcessor.parameters.amount,
-    orderlyRestartPid: orderlyPid,
-    microphoneTest: 'completed',
-    killedPid: orderlyPid,
-    recoveredPid: recoveredEngine?.pid ?? null,
-    recoveryMs: Date.now() - killedAt,
-    recoveredState: recoveredNoise?.state ?? null,
-    recoveredCaptureOverruns: recoveredNoise?.captureOverruns ?? null,
-    recoveredDroppedOrBypassedFrames: recoveredNoise?.droppedOrBypassedFrames ?? null,
-  };
-}
-
-function getNativeAudioSnapshot() {
-  return window.webContents.executeJavaScript(`window.switchboard.getSnapshot()`);
 }
 
 function assertReview(condition, message) {

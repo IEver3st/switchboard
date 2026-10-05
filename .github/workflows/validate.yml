@@ -33,4 +33,3 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - run: dotnet build .\engines\capture-host\Capture.Host.csproj --configuration Release
-      - run: dotnet build .\engines\audio-host\Audio.Host.csproj --configuration Release

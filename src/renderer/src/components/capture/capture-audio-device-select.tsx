@@ -1,51 +1,32 @@
-import { resolveReplayAudioRouting } from '../../../../shared/capture-audio-routing';
 import type { AudioDevice, SystemSnapshot } from '../../../../shared/contracts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
 
 export function captureOutputDevices(snapshot: SystemSnapshot): AudioDevice[] {
-  return snapshot.audio.devices.filter(
-    (device) => device.direction === 'output' && device.available && !device.isSwitchboard,
-  );
+  return snapshot.capture.audioDevices.filter((device) => device.direction === 'output');
 }
 
 export function captureInputDevices(snapshot: SystemSnapshot): AudioDevice[] {
-  return snapshot.audio.devices.filter(
-    (device) => device.direction === 'input' && device.available && !device.isSwitchboard,
-  );
+  return snapshot.capture.audioDevices.filter((device) => device.direction === 'input');
 }
 
-function automaticRoutes(snapshot: SystemSnapshot) {
-  return resolveReplayAudioRouting(snapshot.audio, { ...snapshot.capture.config,
-    includeSystemAudio: true, includeChatAudio: true, includeMic: true,
-    systemAudioDeviceId: null, chatAudioDeviceId: null, microphoneDeviceId: null });
+function defaultDeviceName(snapshot: SystemSnapshot, direction: AudioDevice['direction']): string | null {
+  return snapshot.capture.audioDevices.find((device) => device.direction === direction && device.isDefault)?.name ?? null;
 }
 
 export function gameAutomaticLabel(snapshot: SystemSnapshot): string {
   if (snapshot.capture.config.systemAudioMode === 'game') return 'Selected game process';
-  return automaticRoutes(snapshot).systemAudioPipeName
-    ? 'Automatic (Switchboard game + media)' : 'Automatic (default system audio)';
+  const name = defaultDeviceName(snapshot, 'output');
+  return name ? `Automatic (${name})` : 'Automatic (default output)';
 }
 
-export function chatAutomaticLabel(snapshot: SystemSnapshot): string {
-  return automaticRoutes(snapshot).chatAudioPipeName
-    ? 'Automatic (Switchboard chat)' : 'Automatic (communications output)';
+export function chatAutomaticLabel(_snapshot: SystemSnapshot): string {
+  return 'Automatic (communications output)';
 }
 
 export function micAutomaticLabel(snapshot: SystemSnapshot): string {
-  if (automaticRoutes(snapshot).microphonePipeName) return 'Automatic (Switchboard processed microphone)';
-  return snapshot.audio.microphoneDevice
-    ? `Automatic (${snapshot.audio.microphoneDevice})` : 'Automatic (follow Audio settings)';
-}
-
-export function captureAudioDeviceName(
-  snapshot: SystemSnapshot,
-  deviceId: string | null,
-  automaticLabel: string,
-): string {
-  if (!deviceId) return automaticLabel;
-  const device = snapshot.audio.devices.find((candidate) => candidate.id === deviceId);
-  return device ? device.name : 'Unavailable device';
+  const name = defaultDeviceName(snapshot, 'input');
+  return name ? `Automatic (${name})` : 'Automatic (default microphone)';
 }
 
 export function CaptureAudioDeviceSelect({

@@ -19,6 +19,29 @@ async function fixture() {
 }
 
 describe('state recovery', () => {
+  test('loads saves from builds that still had the audio router', async () => {
+    const { path } = await fixture();
+    const saved = JSON.parse(JSON.stringify(createDefaultSnapshot())) as Record<string, any>;
+    saved.audio = { enabled: true, buses: [{ id: 'mic', enabled: false }], devices: [{ id: 'x' }] };
+    saved.modules.push({ ...saved.modules[0], id: 'capability.audio-router', kind: 'audio', enabled: true });
+    saved.engines.unshift({ ...saved.engines[0], kind: 'audio' });
+    saved.settings.visibleWorkspaces = ['devices', 'audio', 'capture'];
+    saved.setup.preferences.quickActions = ['scenes', 'replay', 'microphone', 'output', 'chatmix'];
+    saved.capture.config.microphoneDeviceId = 'mic-endpoint';
+    await writeFile(path, JSON.stringify(saved), 'utf8');
+
+    const store = new StateStore(path);
+    await store.load();
+    const snapshot = store.get();
+    expect(snapshot).not.toHaveProperty('audio');
+    expect(snapshot.modules.some(module => module.id === 'capability.audio-router')).toBe(false);
+    expect(snapshot.engines.map(engine => engine.kind)).toEqual(['capture']);
+    expect(snapshot.settings.visibleWorkspaces).toEqual(['devices', 'capture']);
+    expect(snapshot.setup.preferences.quickActions).toEqual(['scenes', 'replay']);
+    expect(snapshot.capture.config.microphoneDeviceId).toBe('mic-endpoint');
+    expect(snapshot.capture.audioDevices).toEqual([]);
+  });
+
   test('coalesces a synchronous burst and excludes later non-persistent changes from the saved generation', async () => {
     const { path } = await fixture();
     const store = new StateStore(path);

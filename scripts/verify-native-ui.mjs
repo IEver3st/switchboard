@@ -147,159 +147,25 @@ async function exerciseWorkflows() {
   await evaluate(`window.switchboard.setDeviceSetting(${JSON.stringify({ deviceId: originalMicrophone.id, key: 'monitoring', value: originalMonitoring })})`);
   await clickSelector('[aria-label="Follow physical mute"]');
   report.capabilities.quadCastLighting = originalMicrophone.capabilities.lighting?.writable ? 'writable' : 'unavailable';
-  report.capabilities.quadCastInputMeter = (await snapshot()).audio.capabilities.realtimeMetering;
 
-  await openAudioTab('mixer');
-  await step('audio.start', async () => {
-    if (!(await snapshot()).audio.enabled) {
-      await evaluate('window.switchboard.setAudioEnabled(true)');
-      await waitSnapshot(
-        (value) => value.audio.enabled && value.engines.find((engine) => engine.kind === 'audio')?.state === 'running',
-        'Audio start',
-        15_000,
-      );
-    }
-    return { state: (await snapshot()).engines.find((engine) => engine.kind === 'audio')?.state };
-  });
-
-  await step('audio.mixer-and-chatmix', async () => {
-    await waitForSelector('[aria-label="Game in personal mix fader"]');
-    await waitForSelector('[aria-label="ChatMix game and chat balance"]');
-    const before = await snapshot();
-    const originalGameGain = before.audio.mixes.find((mix) => mix.id === 'personal').buses.find((bus) => bus.id === 'game').gain;
-    const originalChatMix = before.audio.chatMix;
-    const controls = await evaluate(`
-      ['Game in personal mix fader', 'ChatMix game and chat balance'].map((label) => {
-        const slider = document.querySelector('[aria-label="' + label + '"]');
-        return { label, min: slider?.getAttribute('aria-valuemin'), max: slider?.getAttribute('aria-valuemax'), valueText: slider?.getAttribute('aria-valuetext') };
-      })
-    `);
-    if (controls.some((control) => !control.valueText)) throw new Error(`Mixer controls were incomplete: ${JSON.stringify(controls)}`);
-    const nextGain = Math.max(0, originalGameGain - 0.05);
-    const nextChatMix = Math.min(1, originalChatMix + 0.05);
-    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ mixId: 'personal', busId: 'game', gain: nextGain })})`);
-    await waitSnapshot((value) => value.audio.mixes.find((mix) => mix.id === 'personal').buses.find((bus) => bus.id === 'game').gain === nextGain, 'Game fader');
-    await evaluate(`window.switchboard.setChatMix(${JSON.stringify(nextChatMix)})`);
-    await waitSnapshot((value) => value.audio.chatMix === nextChatMix, 'ChatMix');
-    await evaluate(`window.switchboard.setAudioBusGain(${JSON.stringify({ mixId: 'personal', busId: 'game', gain: originalGameGain })})`);
-    await evaluate(`window.switchboard.setChatMix(${JSON.stringify(originalChatMix)})`);
-    return { controls, gameGainChanged: true, chatMixChanged: true };
-  });
-
-  await step('audio.routing-notice-removed', async () => {
-    const text = await textContent('.mixer-workbench__routing-note');
-    if (text) throw new Error('The mixer still rendered the removed standalone application-routing notice.');
-    report.capabilities.applicationRouting = (await snapshot()).audio.capabilities.applicationRouting;
-    return { state: report.capabilities.applicationRouting, standaloneNotice: false };
-  });
-
-  await step('audio.game-preset-and-eq', async () => {
-    await openAudioTab('game');
-    const header = await evaluate(`({
-      presetDropdown: Boolean(document.querySelector('.preset-picker [role="combobox"]')),
-      featuredPresets: Boolean(document.querySelector('.preset-picker__featured')),
-      repeatedOutputRoute: Boolean(document.querySelector('.audio-workbench__device')),
-    })`);
-    if (!header.presetDropdown || header.featuredPresets || header.repeatedOutputRoute) {
-      throw new Error(`Game processing header did not use the compact preset-only layout: ${JSON.stringify(header)}`);
-    }
-    await selectPreset('Competitive FPS');
-    await waitSnapshot((value) => value.audio.activePresetIds.game === 'game-competitive-fps', 'Game preset');
-    const inputValue = await evaluate(`document.querySelector('#audio-panel-game input[aria-label="EQ band gain"]')?.value`);
-    if (inputValue === undefined) throw new Error('The Game EQ exact gain field was not rendered.');
-    const game = (await snapshot()).audio.channelProcessing.find((item) => item.busId === 'game');
-    const bands = structuredClone(game.equalizer.bands);
-    bands[0].gainDb = -2.5;
-    await evaluate(`window.switchboard.setAudioChannelProcessor(${JSON.stringify({ busId: 'game', processorId: 'equalizer', parameters: { bands } })})`);
-    await waitSnapshot((value) => value.audio.channelProcessing.find((item) => item.busId === 'game').equalizer.bands[0].gainDb === -2.5, 'Game EQ exact value');
-    return { preset: 'Competitive FPS', fieldValue: inputValue, gainDb: -2.5, header };
-  });
-
-  await step('audio.chat-and-media-presets', async () => {
-    await openAudioTab('chat');
-    await selectPreset('Clear Voice');
-    await waitSnapshot((value) => value.audio.activePresetIds.chat === 'chat-clear-voice', 'Chat preset');
-    await openAudioTab('media');
-    await selectPreset('Music');
-    await waitSnapshot((value) => value.audio.activePresetIds.media === 'media-music', 'Media preset');
-    return { chat: 'Clear Voice', media: 'Music' };
-  });
-
-  await step('audio.microphone-preset-and-primary-controls', async () => {
-    await openAudioTab('microphone');
-    await selectPreset('Clear Speech');
-    await waitSnapshot((value) => value.audio.activePresetIds.microphone === 'mic-clear-speech', 'Microphone preset');
-    const controls = await evaluate(`
-      ['Removal strength', 'Gate threshold', 'Compression ratio'].map((label) => {
-        const slider = document.querySelector('[role="slider"][aria-label="' + label + '"]');
-        return { label, min: slider?.getAttribute('aria-valuemin'), max: slider?.getAttribute('aria-valuemax'), valueText: slider?.getAttribute('aria-valuetext') };
-      })
-    `);
-    if (controls.some((control) => !control.min || !control.max || !control.valueText)) {
-      throw new Error(`Microphone primary controls were incomplete: ${JSON.stringify(controls)}`);
-    }
-    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'noise-suppression', enabled: true, parameters: { amount: 80 } })})`);
-    await waitSnapshot((value) => micProcessor(value, 'noise-suppression').parameters.amount === 80, 'Noise removal');
-    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'noise-gate', enabled: true, parameters: { thresholdDb: -48 } })})`);
-    await waitSnapshot((value) => micProcessor(value, 'noise-gate').parameters.thresholdDb === -48, 'Noise gate');
-    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'compressor', enabled: true, parameters: { ratio: 4 } })})`);
-    await waitSnapshot((value) => micProcessor(value, 'compressor').parameters.ratio === 4, 'Voice consistency');
-    return { controls, noiseRemoval: 80, gateThresholdDb: -48, compressorRatio: 4 };
-  });
-
-  await step('audio.microphone-precise-controls-and-eq', async () => {
-    const ratioValue = await evaluate(`document.querySelector('#microphone-consistency-section [aria-label="Compression ratio"]')?.getAttribute('aria-valuenow')`);
-    if (ratioValue === undefined) throw new Error('The advanced compressor ratio control was not rendered.');
-    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'compressor', parameters: { ratio: 4.1 } })})`);
-    await waitSnapshot((value) => micProcessor(value, 'compressor').parameters.ratio === 4.1, 'Advanced compressor ratio');
-    const voiceSection = await sectionText('Voice consistency');
-    if (!voiceSection.includes('4.1')) throw new Error('The visible voice consistency control did not synchronize to 4.1:1.');
-    const microphone = await snapshot();
-    const bands = structuredClone(micProcessor(microphone, 'equalizer').parameters.bands);
-    bands[0].gainDb = -2.5;
-    await evaluate(`window.switchboard.setMicProcessor(${JSON.stringify({ processorId: 'equalizer', parameters: { bands } })})`);
-    await waitSnapshot((value) => micProcessor(value, 'equalizer').parameters.bands[0].gainDb === -2.5, 'Microphone EQ exact value');
-    return { ratioFieldValue: ratioValue, compressorRatio: 4.1, simpleState: 'Custom', eqGainDb: -2.5 };
-  });
-
-  await step('audio.capability-gated-workflows', async () => {
-    const state = await snapshot();
-    const testDisabled = await selectorDisabled('button[aria-describedby="microphone-test-status"]');
-    const monitoringDisabled = await selectorDisabled('[aria-label="Monitoring"]');
-    const expectedTestDisabled = state.audio.capabilities.microphoneTest !== 'available';
-    const expectedMonitoringDisabled = state.audio.capabilities.monitoring === 'unavailable';
-    if (testDisabled !== expectedTestDisabled || monitoringDisabled !== expectedMonitoringDisabled) {
-      throw new Error(`Microphone actions did not match host capabilities: ${JSON.stringify({
-        microphoneTest: state.audio.capabilities.microphoneTest,
-        testDisabled,
-        monitoring: state.audio.capabilities.monitoring,
-        monitoringDisabled,
-      })}`);
-    }
-    report.capabilities.microphoneTest = state.audio.capabilities.microphoneTest;
-    report.capabilities.monitoring = state.audio.capabilities.monitoring;
-    return {
-      microphoneTest: { capability: state.audio.capabilities.microphoneTest, disabled: testDisabled },
-      monitoring: { capability: state.audio.capabilities.monitoring, disabled: monitoringDisabled },
-    };
+  // Replay length is canonical, Electron-main-owned capture state. The isolated
+  // profile keeps capture disabled, so this write never starts Capture.Host.
+  await step('capture.replay-length', async () => {
+    const original = (await snapshot()).capture.config;
+    if (original.enabled) throw new Error('Capture must stay disabled in the isolated native UI verification profile.');
+    const next = original.replaySeconds === 90 ? 120 : 90;
+    await evaluate(`window.switchboard.setCaptureConfig(${JSON.stringify({ replaySeconds: next })})`);
+    await waitSnapshot((value) => value.capture.config.replaySeconds === next, 'Replay length');
+    return { from: original.replaySeconds, to: next };
   });
 
   const finalState = await snapshot();
   const expectation = {
-    gamePreset: finalState.audio.activePresetIds.game,
-    gameEqGainDb: finalState.audio.channelProcessing.find((item) => item.busId === 'game').equalizer.bands[0].gainDb,
-    chatPreset: finalState.audio.activePresetIds.chat,
-    mediaPreset: finalState.audio.activePresetIds.media,
-    microphonePreset: finalState.audio.activePresetIds.microphone,
-    noiseRemoval: micProcessor(finalState, 'noise-suppression').parameters.amount,
-    gateThresholdDb: micProcessor(finalState, 'noise-gate').parameters.thresholdDb,
-    compressorRatio: micProcessor(finalState, 'compressor').parameters.ratio,
-    microphoneEqGainDb: micProcessor(finalState, 'equalizer').parameters.bands[0].gainDb,
+    replaySeconds: finalState.capture.config.replaySeconds,
+    captureEnabled: finalState.capture.config.enabled,
   };
   await writeFile(expectationPath, `${JSON.stringify(expectation, null, 2)}\n`);
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-
-  if (finalState.audio.enabled) await window.webContents.executeJavaScript('window.switchboard.setAudioEnabled(false)');
 }
 
 async function verifyRestartPersistence() {
@@ -307,15 +173,8 @@ async function verifyRestartPersistence() {
   await step('application-restart.persistence', async () => {
     const value = await snapshot();
     const actual = {
-      gamePreset: value.audio.activePresetIds.game,
-      gameEqGainDb: value.audio.channelProcessing.find((item) => item.busId === 'game').equalizer.bands[0].gainDb,
-      chatPreset: value.audio.activePresetIds.chat,
-      mediaPreset: value.audio.activePresetIds.media,
-      microphonePreset: value.audio.activePresetIds.microphone,
-      noiseRemoval: micProcessor(value, 'noise-suppression').parameters.amount,
-      gateThresholdDb: micProcessor(value, 'noise-gate').parameters.thresholdDb,
-      compressorRatio: micProcessor(value, 'compressor').parameters.ratio,
-      microphoneEqGainDb: micProcessor(value, 'equalizer').parameters.bands[0].gainDb,
+      replaySeconds: value.capture.config.replaySeconds,
+      captureEnabled: value.capture.config.enabled,
     };
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(`Persisted state mismatch: ${JSON.stringify({ expected, actual })}`);
@@ -362,11 +221,6 @@ async function openDevice(name) {
   await waitForSelector('.device-gallery');
   await clickSelector(`button[aria-label*="${name}"]`);
   await waitForSelector('.device-workbench');
-}
-
-async function openAudioTab(tab) {
-  await evaluate(`window.location.hash = ${JSON.stringify(`audio/${tab}`)}`);
-  await waitForSelector(`#audio-panel-${tab}`);
 }
 
 async function clickButtonText(text, scope = 'body') {
@@ -428,51 +282,6 @@ async function pressSliderKey(selector, key) {
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
   await delay(100);
-}
-
-async function selectorDisabled(selector) {
-  return evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)})?.matches(':disabled'))`);
-}
-
-async function textContent(selector) {
-  return evaluate(`document.querySelector(${JSON.stringify(selector)})?.textContent ?? ''`);
-}
-
-async function sectionText(title) {
-  return evaluate(`
-    [...document.querySelectorAll('.mic-setting')].find((candidate) => candidate.querySelector('h3')?.textContent?.includes(${JSON.stringify(title)}))?.textContent ?? ''
-  `);
-}
-
-async function selectPreset(label) {
-  await waitForEnabledSelector('.preset-picker [role="combobox"]');
-  await clickSelector('.preset-picker [role="combobox"]');
-  await waitForSelector('[role="option"]');
-  const selected = await evaluate(`
-    (() => {
-      const label = ${JSON.stringify(label)};
-      const option = [...document.querySelectorAll('[role="option"]')]
-        .find((candidate) => candidate.textContent?.trim() === label);
-      if (!option) return false;
-      option.click();
-      return true;
-    })()
-  `);
-  if (!selected) throw new Error(`Preset option was not found: ${label}`);
-  await waitForEnabledSelector('.preset-picker [role="combobox"]');
-}
-
-async function waitForEnabledSelector(selector, timeout = 10_000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    const enabled = await evaluate(`(() => {
-      const element = document.querySelector(${JSON.stringify(selector)});
-      return Boolean(element && !element.matches(':disabled'));
-    })()`);
-    if (enabled) return;
-    await delay(50);
-  }
-  throw new Error(`Timed out waiting for enabled selector: ${selector}.`);
 }
 
 async function waitForWindow() {
@@ -553,12 +362,6 @@ function device(value, name) {
 
 function binding(value, buttonId) {
   return device(value, 'G502 X Plus').capabilities.buttonAssignments.bindings.find((candidate) => candidate.buttonId === buttonId)?.currentActionId;
-}
-
-function micProcessor(value, id) {
-  const found = value.audio.micProcessors.find((candidate) => candidate.id === id);
-  if (!found) throw new Error(`Missing microphone processor: ${id}.`);
-  return found;
 }
 
 function delay(milliseconds) {

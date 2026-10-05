@@ -75,7 +75,7 @@ describe('community module trust and installation', () => {
     expect(() => verifyCommunityPackage(bytes, 'other/repo')).toThrow('different GitHub');
     const altered = JSON.parse(bytes.toString()); altered.payload = Buffer.from('{}').toString('base64');
     expect(() => verifyCommunityPackage(Buffer.from(JSON.stringify(altered)), 'example/module')).toThrow('signature');
-    for (const changed of [{ kind: 'audio' }, { entrypoint: '../escape.js' }, { capabilities: ['device-discovery', 'hardware-write'] }]) {
+    for (const changed of [{ kind: 'capture' }, { entrypoint: '../escape.js' }, { capabilities: ['device-discovery', 'hardware-write'] }]) {
       expect(() => verifyCommunityPackage(signed({ manifest: changed }), 'example/module')).toThrow('device discovery only');
     }
   });

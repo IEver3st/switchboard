@@ -5,10 +5,9 @@ features are disabled or manual by default.
 
 ## Scenes
 
-Configure your devices, Audio, and Replay, then save the selected parts as a
-named scene. A scene can remember supported mouse DPI/report rate and lighting,
-Audio routing/mixes/microphone processing, and Replay settings. Audio requires
-Developer mode. Clip storage paths and global replay shortcuts are not captured.
+Configure your devices and Replay, then save the selected parts as a named
+scene. A scene can remember supported mouse DPI/report rate and lighting, and
+Replay settings. Clip storage paths and global replay shortcuts are not captured.
 
 Apply a scene manually or associate it with an executable such as `aces.exe`.
 Automatic matching checks every two seconds while an automatic scene is enabled.
@@ -18,7 +17,7 @@ restoration preserves any subsystem you changed during the scene; manual Restore
 returns the saved original setup. Failed or disconnected targets report partial
 application. Recovery state survives an app restart.
 
-## Game-only audio
+## Game-only replay audio
 
 In Settings → Capture → Audio, set Game track captures to Selected game or window
 only. Capture must use a game or window source. Windows build 20348 or later is
@@ -32,8 +31,7 @@ Chat track can still contain other desktop audio from its selected output.
 Enable Open from anywhere and choose a shortcut. Hold the full shortcut to open
 the panel; releasing any required key closes it. The title-bar button and Open
 panel action open it without holding a key. Escape, losing focus, or Close also
-destroy the panel. Choose which of Scenes, Save replay, Microphone, Output, and
-ChatMix appear. Audio actions require a running Audio engine in Developer mode.
+destroy the panel. Choose whether Scenes and Save replay appear.
 
 The optional desktop helper reports registration conflicts and unexpected exits.
 After resolving a conflict or rebuilding a missing host, toggle the shortcut or

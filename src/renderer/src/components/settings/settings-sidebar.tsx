@@ -5,7 +5,6 @@ import {
   Blocks,
   Film,
   Gamepad2,
-  Headphones,
   LifeBuoy,
   SlidersHorizontal,
   Settings2,
@@ -32,7 +31,6 @@ export const settingsCategoryIcons: Record<SettingsCategoryId, LucideIcon> = {
   clips: Film,
   games: Gamepad2,
   setup: SlidersHorizontal,
-  audio: Headphones,
   diagnostics: Activity,
   about: LifeBuoy,
 };

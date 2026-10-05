@@ -50,7 +50,6 @@ for (let index = 0; index < 3; index += 1) {
 
 const copiedState = JSON.parse(await readFile(join(isolatedUserData, 'switchboard-state.json'), 'utf8'));
 copiedState.clips = clips;
-copiedState.audio.enabled = false;
 copiedState.capture.config.enabled = false;
 copiedState.capture.config.clipsDirectory = mediaDirectory;
 for (const module of copiedState.modules ?? []) if (module.id?.startsWith('device.')) module.enabled = false;

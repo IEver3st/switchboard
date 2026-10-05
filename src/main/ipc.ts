@@ -1,4 +1,3 @@
-import { audioSetupActionSchema, openTrackActionSchema } from '../shared/contracts';
 import { debugDiagnostics } from './services/debug-diagnostics';
 import { snapshotStreamChannel } from '../shared/snapshot-stream';
 import { WindowSnapshotDelivery } from './services/window-snapshot-delivery';
@@ -8,9 +7,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import {
   clipOperationInputSchema,
-  saveSceneInputSchema, setupPreferencesSchema, quickActionInputSchema,
-  applyAudioPresetInputSchema,
-  audioPresetIdInputSchema,
+  saveSceneInputSchema, setupPreferencesSchema,
   updateSettingsInputSchema,
   autoCaptureProviderIdSchema,
   autoCaptureSettingsPatchSchema,
@@ -19,7 +16,6 @@ import {
   audioCalibrationInputSchema,
   clipTrimInputSchema,
   createModuleProjectInputSchema,
-  createAudioPresetInputSchema,
   exportClipInputSchema,
   exportMontageInputSchema,
   feedbackSubmissionInputSchema,
@@ -31,24 +27,9 @@ import {
   moduleProjectIdInputSchema,
   prepareClipShareInputSchema,
   renameClipInputSchema,
-  renameAudioPresetInputSchema,
-  setAudioChannelProcessorInputSchema,
-  setSpatialAudioInputSchema,
-  setAudioMonitoringInputSchema,
-  setAudioBusDeviceInputSchema,
-  setAudioApplicationRouteInputSchema,
-  setAudioRoutingInputSchema,
-  setAudioDeviceExcludedInputSchema,
-  setNoiseSuppressionModelInputSchema,
-  setAudioBusEnabledInputSchema,
-  setAudioBusGainInputSchema,
-  setAudioChannelEnabledInputSchema,
-  setAudioMasterEnabledInputSchema,
-  setAudioMasterGainInputSchema,
   setDeviceAppearanceOverrideInputSchema,
   setDeviceControlInputSchema,
   setDeviceSettingInputSchema,
-  setMicProcessorInputSchema,
   setClipFavoriteInputSchema,
   setClipCanvasSizeInputSchema,
   setClipAudioTrackLevelInputSchema,
@@ -56,15 +37,13 @@ import {
   settingsResetScopeSchema,
 } from '../shared/contracts';
 import type { AppController } from './controller';
-import { AudioMeterDeliveryGate } from './services/audio-meter-delivery';
 import { getPreparedShareService } from './services/prepared-share';
 import { getStartupSnapshot } from './startup-readiness';
 
 let getQuickWindow: () => BrowserWindow | null = () => null;
 const quickChannels = new Set<string>([ipcChannels.getSnapshot, ipcChannels.applyScene, ipcChannels.restoreScene,
-  ipcChannels.getVerticalGuideLayout, ipcChannels.setShortcutRecording, ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.setSetupPreferences, ipcChannels.runQuickAction, ipcChannels.saveReplay,
-  ipcChannels.setCaptureConfig, ipcChannels.updateSettings, ipcChannels.setAudioEnabled,
-  ipcChannels.setAudioMasterGain, ipcChannels.setAudioMasterEnabled, ipcChannels.setAudioBusDevice]);
+  ipcChannels.getVerticalGuideLayout, ipcChannels.setShortcutRecording, ipcChannels.openQuickControls, ipcChannels.closeQuickControls, ipcChannels.setSetupPreferences, ipcChannels.saveReplay,
+  ipcChannels.setCaptureConfig, ipcChannels.updateSettings]);
 function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent, getMainWindow: () => BrowserWindow | null, channel = ''): void {
   const window = getMainWindow();
   const quick = quickChannels.has(channel) ? getQuickWindow() : null;
@@ -125,7 +104,6 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     window?.once('blur', releaseRecording);
     globalShortcut.setSuspended(true);
   });
-  handle(ipcChannels.runQuickAction, getMainWindow, input => quickActionInputSchema.parse(input), input => controller.runQuickAction(input));
   handle(ipcChannels.saveScene, getMainWindow, input => saveSceneInputSchema.parse(input), input => controller.saveScene(input));
   handle(ipcChannels.deleteScene, getMainWindow, input => z.string().min(1).max(100).parse(input), id => controller.deleteScene(id));
   handle(ipcChannels.applyScene, getMainWindow, input => z.string().min(1).max(100).parse(input), id => controller.applyScene(id));
@@ -137,9 +115,6 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
   handle(ipcChannels.exportResourceDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.exportResourceDiagnostics());
   handle(ipcChannels.runDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.runDiagnostics());
   handle(ipcChannels.cancelDiagnostics, getMainWindow, input => z.undefined().parse(input), () => controller.cancelDiagnostics());
-  handle(ipcChannels.audioDependencySetup, getMainWindow, input => audioSetupActionSchema.parse(input), action => controller.audioDependencySetup(action));
-  handle(ipcChannels.openTrackSetup, getMainWindow, input => openTrackActionSchema.parse(input), action => controller.openTrackSetup(action));
-  const audioMeterDelivery = new AudioMeterDeliveryGate(() => controller.setAudioMeteringRequested(false));
   ipcMain.handle(ipcChannels.getSnapshot, async (event) => {
     assertTrustedSender(event, getMainWindow, ipcChannels.getSnapshot);
     return debugDiagnostics.measureAsync('ipc:snapshot:get', async () => { return getStartupSnapshot(controller); });
@@ -220,156 +195,6 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     getMainWindow,
     (input) => setDeviceAppearanceOverrideInputSchema.parse(input),
     (input) => controller.setDeviceAppearanceOverride(input),
-  );
-  handle(
-    ipcChannels.setAudioRouting,
-    getMainWindow,
-    (input) => setAudioRoutingInputSchema.parse(input),
-    (input) => controller.setAudioRouting(input),
-  );
-  handle(
-    ipcChannels.setAudioDeviceExcluded,
-    getMainWindow,
-    (input) => setAudioDeviceExcludedInputSchema.parse(input),
-    (input) => controller.setAudioDeviceExcluded(input),
-  );
-  handle(
-    ipcChannels.setNoiseSuppressionModel,
-    getMainWindow,
-    (input) => setNoiseSuppressionModelInputSchema.parse(input),
-    (input) => controller.setNoiseSuppressionModel(input),
-  );
-  handle(
-    ipcChannels.setAudioEnabled,
-    getMainWindow,
-    (input) => z.boolean().parse(input),
-    (enabled) => controller.setAudioEnabled(enabled),
-  );
-  handle(
-    ipcChannels.setAudioMasterGain,
-    getMainWindow,
-    (input) => setAudioMasterGainInputSchema.parse(input),
-    (input) => controller.setAudioMasterGain(input),
-  );
-  handle(ipcChannels.restartAudio, getMainWindow, input => z.undefined().parse(input), () => controller.restartAudio());
-  handle(ipcChannels.openWindowsSound, getMainWindow, input => z.undefined().parse(input), () => controller.openWindowsSound());
-  handle(
-    ipcChannels.setAudioMasterEnabled,
-    getMainWindow,
-    (input) => setAudioMasterEnabledInputSchema.parse(input),
-    (input) => controller.setAudioMasterEnabled(input),
-  );
-  handle(
-    ipcChannels.setAudioBusGain,
-    getMainWindow,
-    (input) => setAudioBusGainInputSchema.parse(input),
-    (input) => controller.setAudioBusGain(input),
-  );
-  handle(
-    ipcChannels.setAudioBusEnabled,
-    getMainWindow,
-    (input) => setAudioBusEnabledInputSchema.parse(input),
-    (input) => controller.setAudioBusEnabled(input),
-  );
-  handle(
-    ipcChannels.setAudioChannelEnabled,
-    getMainWindow,
-    (input) => setAudioChannelEnabledInputSchema.parse(input),
-    (input) => controller.setAudioChannelEnabled(input),
-  );
-  handle(
-    ipcChannels.setAudioBusDevice,
-    getMainWindow,
-    (input) => setAudioBusDeviceInputSchema.parse(input),
-    (input) => controller.setAudioBusDevice(input),
-  );
-  handle(
-    ipcChannels.setAudioApplicationRoute,
-    getMainWindow,
-    (input) => setAudioApplicationRouteInputSchema.parse(input),
-    (input) => controller.setAudioApplicationRoute(input),
-  );
-  handle(
-    ipcChannels.applyAudioPreset,
-    getMainWindow,
-    (input) => applyAudioPresetInputSchema.parse(input),
-    (input) => controller.applyAudioPreset(input),
-  );
-  handle(
-    ipcChannels.createAudioPreset,
-    getMainWindow,
-    (input) => createAudioPresetInputSchema.parse(input),
-    (input) => controller.createAudioPreset(input),
-  );
-  handle(
-    ipcChannels.renameAudioPreset,
-    getMainWindow,
-    (input) => renameAudioPresetInputSchema.parse(input),
-    (input) => controller.renameAudioPreset(input),
-  );
-  handle(
-    ipcChannels.duplicateAudioPreset,
-    getMainWindow,
-    (input) => audioPresetIdInputSchema.parse(input),
-    (input) => controller.duplicateAudioPreset(input),
-  );
-  handle(
-    ipcChannels.deleteAudioPreset,
-    getMainWindow,
-    (input) => audioPresetIdInputSchema.parse(input),
-    (input) => controller.deleteAudioPreset(input),
-  );
-  ipcMain.handle(ipcChannels.importAudioPreset, (event) => {
-    assertTrustedSender(event, getMainWindow);
-    return controller.importAudioPreset();
-  });
-  handle(
-    ipcChannels.exportAudioPreset,
-    getMainWindow,
-    (input) => audioPresetIdInputSchema.parse(input),
-    (input) => controller.exportAudioPreset(input),
-  );
-  handle(
-    ipcChannels.setSpatialAudio,
-    getMainWindow,
-    input => setSpatialAudioInputSchema.parse(input),
-    input => controller.setSpatialAudio(input),
-  );
-  ipcMain.handle(ipcChannels.recenterSpatialAudio, event => {
-    assertTrustedSender(event, getMainWindow);
-    return controller.recenterSpatialAudio();
-  });
-  ipcMain.handle(ipcChannels.connectHeadsetTracking, event => {
-    assertTrustedSender(event, getMainWindow);
-    return controller.connectHeadsetTracking();
-  });
-  handle(
-    ipcChannels.setAudioChannelProcessor,
-    getMainWindow,
-    (input) => setAudioChannelProcessorInputSchema.parse(input),
-    (input) => controller.setAudioChannelProcessor(input),
-  );
-  handle(
-    ipcChannels.setAudioMonitoring,
-    getMainWindow,
-    (input) => setAudioMonitoringInputSchema.parse(input),
-    (input) => controller.setAudioMonitoring(input),
-  );
-  ipcMain.handle(ipcChannels.testMicrophone, (event) => {
-    assertTrustedSender(event, getMainWindow);
-    return controller.testMicrophone();
-  });
-  handle(
-    ipcChannels.setChatMix,
-    getMainWindow,
-    (input) => z.number().min(-1).max(1).parse(input),
-    (value) => controller.setChatMix(value),
-  );
-  handle(
-    ipcChannels.setMicProcessor,
-    getMainWindow,
-    (input) => setMicProcessorInputSchema.parse(input),
-    (input) => controller.setMicProcessor(input),
   );
   handle(
     ipcChannels.audioCalibration,
@@ -541,18 +366,6 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     assertTrustedSender(event, getMainWindow);
     getPreparedShareService().reveal(z.string().uuid().parse(raw));
   });
-  ipcMain.on(ipcChannels.setAudioMeterSubscription, (event, raw) => {
-    try {
-      assertTrustedSender(event, getMainWindow);
-      const requested = z.boolean().parse(raw);
-      const sender = event.sender;
-      const senderId = sender.id;
-      const changed = audioMeterDelivery.setRequested(senderId, requested, sender);
-      if (changed) controller.setAudioMeteringRequested(requested);
-    } catch (error) {
-      console.error('Switchboard rejected an audio meter subscription request.', error);
-    }
-  });
   handle(
     ipcChannels.exportMontage,
     getMainWindow,
@@ -600,15 +413,6 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
       snapshotPublishers.get(window.webContents)?.delivery.publish(snapshot);
     }
   });
-  const unsubscribeAudioMeters = controller.subscribeAudioMeters((frame) => {
-    const window = getMainWindow();
-    if (
-      !window
-      || window.isDestroyed()
-      || !audioMeterDelivery.shouldDeliver(window.webContents.id, window.isVisible())
-    ) return;
-    window.webContents.send(ipcChannels.audioMeterUpdated, frame);
-  });
   const unsubscribeClipExportProgress = controller.subscribeClipExportProgress((progress) => {
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
@@ -621,14 +425,10 @@ export function registerIpc(controller: AppController, getMainWindow: () => Brow
     disposed = true;
     for (const entry of snapshotPublishers.values()) entry.dispose();
     getQuickWindow = () => null;
-    audioMeterDelivery.dispose();
-    controller.setAudioMeteringRequested(false);
     unsubscribe();
-    unsubscribeAudioMeters();
     unsubscribeClipExportProgress();
     ipcMain.removeAllListeners(snapshotStreamChannel);
     ipcMain.removeAllListeners(ipcChannels.startPreparedShareDrag);
-    ipcMain.removeAllListeners(ipcChannels.setAudioMeterSubscription);
     for (const channel of Object.values(ipcChannels)) {
       if (channel !== ipcChannels.snapshotUpdated) ipcMain.removeHandler(channel);
     }

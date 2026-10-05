@@ -42,7 +42,7 @@ export type ResourceTelemetrySample = {
     cpuPercent: number;
   }>;
   engines: Array<{
-    kind: 'audio' | 'capture';
+    kind: 'capture';
     pid: number | null;
     state: string;
     reportedMemoryMb: number;

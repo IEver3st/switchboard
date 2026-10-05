@@ -6,7 +6,6 @@ import { systemSnapshotSchema, type EngineKind, type PerformanceSnapshot, type S
 import { migrateVisibleWorkspaces } from '../../shared/workspace-profile';
 import { latestClipCreatedAt } from '../../shared/clip-review';
 import { createDefaultSnapshot } from '../../shared/defaults';
-import { findMatchingAudioPresetId } from '../../shared/audio-presets';
 
 type Listener = (snapshot: SystemSnapshot) => void;
 
@@ -15,7 +14,7 @@ type UpdateOptions = {
   emit?: boolean;
 };
 
-const runtimeEngineKinds: EngineKind[] = ['audio', 'capture'];
+const runtimeEngineKinds: EngineKind[] = ['capture'];
 
 export class StateStore {
   private snapshot: SystemSnapshot = createDefaultSnapshot();
@@ -158,63 +157,6 @@ export class StateStore {
           : undefined,
       }));
     next.modules = [...bundledModules, ...localModules];
-    next.audio.devices = [];
-    next.audio.dependencies = structuredClone(defaults.audio.dependencies);
-    next.audio.openTrack = structuredClone(defaults.audio.openTrack);
-    next.audio.outputDevice = '';
-    next.audio.microphoneDevice = '';
-
-    const currentBuses = new Map(next.audio.buses.map((bus) => [bus.id, bus]));
-    const legacyAux = currentBuses.get('aux');
-    next.audio.buses = defaults.audio.buses.map((fallback) => {
-      const existing = currentBuses.get(fallback.id) ?? (fallback.id === 'mic' ? legacyAux : undefined);
-      if (!existing) return structuredClone(fallback);
-      return {
-        ...structuredClone(fallback),
-        ...existing,
-        id: fallback.id,
-        label: fallback.label,
-        endpoint: fallback.endpoint,
-        deviceId: existing.deviceId || fallback.deviceId,
-      };
-    });
-
-    const processingByBus = new Map(next.audio.channelProcessing.map((processing) => [processing.busId, processing]));
-    next.audio.channelProcessing = defaults.audio.channelProcessing.map((fallback) => (
-      structuredClone(processingByBus.get(fallback.busId) ?? fallback)
-    ));
-
-    // Built-in presets are read-only, so the shipped definitions always win.
-    // A saved copy could only be stale (retuned or removed since it was saved).
-    next.audio.pathPresets = [
-      ...structuredClone(defaults.audio.pathPresets),
-      ...next.audio.pathPresets.filter((preset) => !preset.builtIn),
-    ];
-    // Retuning a shipped preset must not silently change the saved sound, or
-    // label older settings as the new preset. Preserve them as Custom until the
-    // user chooses a current preset. User-authored presets stay intact.
-    for (const kind of ['game', 'chat', 'media', 'microphone'] as const) {
-      const activeId = next.audio.activePresetIds[kind];
-      if (!activeId) continue;
-      const active = next.audio.pathPresets.find((preset) => preset.id === activeId && preset.kind === kind);
-      if (!active || (active.builtIn && findMatchingAudioPresetId(next.audio, kind) !== activeId)) {
-        next.audio.activePresetIds[kind] = null;
-      }
-    }
-    next.audio.capabilities = structuredClone(defaults.audio.capabilities);
-    next.audio.host = null;
-    if (next.audio.capabilities.applicationRouting === 'unavailable') {
-      next.audio.applications = [];
-      for (const bus of next.audio.buses) bus.appCount = 0;
-    } else {
-      const applicationCounts = new Map<string, number>();
-      for (const application of next.audio.applications) {
-        if (!application.active) continue;
-        applicationCounts.set(application.destination, (applicationCounts.get(application.destination) ?? 0) + 1);
-      }
-      for (const bus of next.audio.buses) bus.appCount = applicationCounts.get(bus.id) ?? 0;
-    }
-
     next.prototypeMode = true;
     next.setup.runtime.desktopState = 'disabled';
     next.setup.runtime.desktopError = null;
@@ -241,6 +183,7 @@ export class StateStore {
     next.capture.autoCapture.providers = [];
     next.capture.storage.replayCacheBytes = 0;
     next.capture.sources = [];
+    next.capture.audioDevices = [];
     next.gameDetection.scanState = 'idle';
     next.gameDetection.error = undefined;
     next.performance = structuredClone(defaults.performance);
@@ -271,8 +214,7 @@ export class StateStore {
         this.pendingPersistence = null;
         try {
           const payload = debugDiagnostics.measure('state.serialize', () => JSON.stringify({ ...snapshot,
-            capture: { ...snapshot.capture, audioCalibration: undefined },
-            audio: { ...snapshot.audio, dependencies: undefined, openTrack: undefined },
+            capture: { ...snapshot.capture, audioCalibration: undefined, audioDevices: undefined },
             performance: { ...snapshot.performance, debug: undefined, resources: undefined } }, null, 2));
           await mkdir(dirname(this.filePath), { recursive: true });
           // Backup is the previous successful durable generation, not an intermediate request.
@@ -304,8 +246,7 @@ function freezeSnapshot<T>(value: T): T {
 function parsePersistedState(raw: string): SystemSnapshot {
   let value: unknown = JSON.parse(raw.replace(/^\uFEFF/, ''));
   value = migrateLegacyDeviceState(value);
-  value = migrateAudioMixState(value);
-  value = migrateAudioDevicePreferences(value);
+  value = removeRetiredAudioState(value);
   value = migrateLegacyCaptureState(value);
   value = migrateClipReviewState(value);
   value = migrateGameDetectionState(value);
@@ -435,46 +376,30 @@ function migrateLegacyCaptureState(value: unknown): unknown {
   };
 }
 
-function migrateAudioMixState(value: unknown): unknown {
-  if (!isRecord(value) || !isRecord(value.audio)) return value;
-  const defaults = createDefaultSnapshot();
-  if (Array.isArray(value.audio.mixes)) {
-    return { ...value, audio: { ...value.audio, host: null } };
-  }
-
-  const legacyBuses = Array.isArray(value.audio.buses) ? value.audio.buses : [];
-  const legacyMaster = isRecord(value.audio.master) ? value.audio.master : {};
-  const mixes = structuredClone(defaults.audio.mixes);
-  const personal = mixes.find((mix) => mix.id === 'personal');
-  if (personal) {
-    if (typeof legacyMaster.gain === 'number') personal.master.gain = legacyMaster.gain;
-    if (typeof legacyMaster.enabled === 'boolean') personal.master.enabled = legacyMaster.enabled;
-    for (const candidate of legacyBuses) {
-      if (!isRecord(candidate) || typeof candidate.id !== 'string') continue;
-      const bus = personal.buses.find((entry) => entry.id === candidate.id);
-      if (!bus) continue;
-      if (typeof candidate.gain === 'number') bus.gain = candidate.gain;
-      if (typeof candidate.enabled === 'boolean') bus.enabled = candidate.enabled;
-      else if (typeof candidate.muted === 'boolean') bus.enabled = !candidate.muted;
-    }
-  }
-  return { ...value, audio: { ...value.audio, mixes, host: null } };
-}
-
-// Before preferences were separate, the saved device was the only record of intent.
-// An excluded saved device was an automatic fallback, so it is not remembered.
-function migrateAudioDevicePreferences(value: unknown): unknown {
-  if (!isRecord(value) || !isRecord(value.audio) || !Array.isArray(value.audio.buses)) return value;
-  const excluded = new Set(Array.isArray(value.audio.excludedDeviceIds) ? value.audio.excludedDeviceIds : []);
-  const devices = Array.isArray(value.audio.devices) ? value.audio.devices.filter(isRecord) : [];
-  const buses = value.audio.buses.map((bus) => {
-    if (!isRecord(bus) || Array.isArray(bus.preferredDevices)) return bus;
-    const deviceId = typeof bus.deviceId === 'string' ? bus.deviceId : '';
-    if (!deviceId || excluded.has(deviceId)) return { ...bus, preferredDevices: [] };
-    const name = devices.find((device) => device.id === deviceId)?.name;
-    return { ...bus, preferredDevices: [{ id: deviceId, name: typeof name === 'string' ? name.slice(0, 256) : '' }] };
-  });
-  return { ...value, audio: { ...value.audio, buses } };
+// Switchboard no longer routes or processes audio. Earlier saves carry that
+// subsystem's settings, bundled module, engine and quick actions; drop them so
+// the remaining state still validates. Replay audio settings live in capture.
+function removeRetiredAudioState(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const { audio: _audio, ...rest } = value;
+  void _audio;
+  const setup = isRecord(rest.setup) ? rest.setup : null;
+  const preferences = setup && isRecord(setup.preferences) ? setup.preferences : null;
+  return {
+    ...rest,
+    modules: Array.isArray(rest.modules)
+      ? rest.modules.filter((module) => !isRecord(module) || module.kind !== 'audio')
+      : rest.modules,
+    engines: Array.isArray(rest.engines)
+      ? rest.engines.filter((engine) => !isRecord(engine) || engine.kind !== 'audio')
+      : rest.engines,
+    ...(setup && preferences ? { setup: { ...setup, preferences: {
+      ...preferences,
+      ...(Array.isArray(preferences.quickActions)
+        ? { quickActions: preferences.quickActions.filter((action) => action === 'scenes' || action === 'replay') }
+        : {}),
+    } } } : {}),
+  };
 }
 
 function migrateGameDetectionState(value: unknown): unknown {

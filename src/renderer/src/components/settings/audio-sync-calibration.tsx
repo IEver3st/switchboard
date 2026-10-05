@@ -1,4 +1,3 @@
-import { resolveReplayAudioRouting } from '../../../../shared/capture-audio-routing';
 import { useEffect, useState } from 'react';
 import { AudioWaveform } from 'lucide-react';
 import type { SystemSnapshot } from '../../../../shared/contracts';
@@ -20,11 +19,9 @@ export function AudioSyncCalibrationSettings({ snapshot }: { snapshot: SystemSna
   useEffect(() => () => { void switchboardApi.audioCalibration({ action: 'cancel' }).catch(() => {}); }, []);
   const measuring = state.status === 'measuring';
   const busy = pending || measuring || state.status === 'saving';
-  const routing = resolveReplayAudioRouting(snapshot.audio, config);
-  const supported = config.includeMic && config.includeSystemAudio && config.systemAudioMode === 'system'
-    && !routing.systemAudioPipeName && !routing.microphonePipeName;
-  const micName = snapshot.audio.devices.find(device => device.id === profile?.microphoneDeviceId)?.name;
-  const outputName = snapshot.audio.devices.find(device => device.id === profile?.outputDeviceId)?.name;
+  const supported = config.includeMic && config.includeSystemAudio && config.systemAudioMode === 'system';
+  const micName = snapshot.capture.audioDevices.find(device => device.id === profile?.microphoneDeviceId)?.name;
+  const outputName = snapshot.capture.audioDevices.find(device => device.id === profile?.outputDeviceId)?.name;
   const numericAdjustment = Number(adjustment);
   const validAdjustment = adjustment.trim() !== '' && Number.isInteger(numericAdjustment) && numericAdjustment >= 0 && numericAdjustment <= 1200;
 
@@ -41,14 +38,11 @@ export function AudioSyncCalibrationSettings({ snapshot }: { snapshot: SystemSna
   return <SettingSection title="Microphone timing">
     <SettingRow settingId="capture.audioSync" title="Sync voice with recorded audio"
       description={supported ? 'Measure headphone and microphone delay, then automatically move your voice earlier in future clips.'
-        : 'Enable microphone and Game tracks, then select explicit microphone and output devices to calibrate.'}>
+        : 'Record the microphone and all desktop game audio to calibrate.'}>
       <Button size="sm" variant="secondary" disabled={!supported || busy} onClick={() => { setError(null); setOpen(true); }}>
         <AudioWaveform className="size-3.5" aria-hidden />{profile ? 'Recalibrate' : 'Calibrate'}
       </Button>
     </SettingRow>
-    {profile && (routing.systemAudioPipeName || routing.microphonePipeName) ? (
-      <p className="audio-sync-note">Saved device timing correction is inactive for Switchboard recording feeds.</p>
-    ) : null}
     {profile ? <>
       <SettingRow settingId="capture.audioSync.adjustment" title={`${profile.advanceMs} ms earlier · saved correction`}
         description={<>{micName ?? 'Calibrated microphone'} → {outputName ?? 'Calibrated output'}. Applies only to matching devices. Recalibrate after changing Sonar routing, processing, Bluetooth mode, or headphones.</>}>

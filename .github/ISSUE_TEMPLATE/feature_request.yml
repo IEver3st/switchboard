@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a capability or workflow grounded in real hardware, audio, or capture behavior.
+description: Propose a capability or workflow grounded in real hardware or capture behavior.
 title: "[Feature] "
 labels:
   - enhancement

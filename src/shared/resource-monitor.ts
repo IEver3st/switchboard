@@ -16,7 +16,7 @@ export const resourcePointSchema = z.object({
   readBps: counter.nullable(), writeBps: counter.nullable(), processes: counter,
 });
 export const resourceProcessSchema = nativeResourceProcessSchema.extend({
-  role: z.string().max(160), group: z.enum(['desktop', 'capture', 'audio', 'monitor']),
+  role: z.string().max(160), group: z.enum(['desktop', 'capture', 'monitor']),
   cpuPercent: counter.nullable(), peakCpuPercent: counter.nullable(), observedCpuSeconds: counter,
   readBps: counter.nullable(), writeBps: counter.nullable(), observedReadBytes: counter, observedWriteBytes: counter,
   samples: counter, active: z.boolean(), sampledAt: z.string(),

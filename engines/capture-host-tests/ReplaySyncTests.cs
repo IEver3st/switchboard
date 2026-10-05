@@ -228,8 +228,8 @@ internal static class ReplaySyncTests
                 video = ring.List(root, false);
                 audio = ring.List(root, false, "system-*.mka");
             }
-            // Exercise the actual first-frame expression, in addition to the
-            // deterministic offset above. Both native and pipe-mix inputs use it.
+            // Exercise the actual video first-frame expression, in addition to
+            // the deterministic offset above.
             var clockRoot = Path.Combine(root, "clock");
             Directory.CreateDirectory(clockRoot);
             var clockOrigin = DateTimeOffset.UtcNow.AddMilliseconds(-250);
@@ -242,19 +242,7 @@ internal static class ReplaySyncTests
             var clockEnd = ring.List(clockRoot, false)[^1].EndedAt;
             if (clockEnd < clockOrigin.AddSeconds(0.4) || clockEnd > DateTimeOffset.UtcNow.AddSeconds(0.3))
                 throw new Exception("The video first-frame clock did not retain its startup delay.");
-            var mixOrigin = DateTimeOffset.UtcNow.AddMilliseconds(-250);
-            var mixArgs = ReplayEngine.BuildAudioArguments(settings, clockRoot, new AudioHostPipeInput("fixture", "Mix"),
-                "mix", 128_000, timelineOrigin: mixOrigin).ToList();
-            mixArgs[mixArgs.IndexOf("-i") + 1] = raw;
-            // File fixture is mono; the actual Audio.Host pipe remains stereo.
-            mixArgs[mixArgs.IndexOf("-ac") + 1] = "1";
-            await RunProcess(ffmpeg, mixArgs);
-            File.WriteAllText(Path.Combine(clockRoot, "timeline-origin.txt"), mixOrigin.ToString("O"));
-            var mixEnd = ring.List(clockRoot, false, "mix-*.mka")[^1].EndedAt;
-            var inputSeconds = new FileInfo(raw).Length / (48_000d * sizeof(float));
-            if (mixEnd < mixOrigin.AddSeconds(inputSeconds + 0.2) || mixEnd > DateTimeOffset.UtcNow.AddSeconds(inputSeconds + 0.2))
-                throw new Exception("The clip-mix first-frame clock did not retain its startup delay.");
-            Console.WriteLine("Production first-frame clock expressions passed for video and the Audio.Host pipe mix.");
+            Console.WriteLine("Production first-frame clock expression passed for video.");
         }
         finally { Directory.Delete(root, true); }
     }

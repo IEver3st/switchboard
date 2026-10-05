@@ -2,8 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Switchboard.CaptureHost;
 
-if (args.Contains("--replay-audio")) { await ReplayAudioPipeTests.RunAsync(); return; }
-if (args.Length == 0) await ReplayAudioPipeTests.RunAsync();
+if (args.Length == 0) AudioEndpointInventoryTests.Run();
 if (args.Contains("--chat-loopback-probe")) { await ChatAudioTests.RunLiveAsync(); return; }
 
 if (args.Contains("--calibrate-audio"))
@@ -247,22 +246,13 @@ AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { ReactionSe
     "Unknown reaction sensitivity must fail validation.");
 AssertThrows<ArgumentOutOfRangeException>(() => (validSettings with { ReactionCooldownSeconds = 2 }).Validate(),
     "Reaction cooldown must remain inside the bounded range.");
-AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ClipMixPipeName = "switchboard-audio-clip-v1" }),
-    "Switching replay system audio to the Audio.Host clip mix must rebuild the FFmpeg audio input.");
-AssertValue(true, ReplayEngine.RequiresRestart(validSettings, validSettings with { ProcessedMicrophoneDeviceId = "processed-mic" }),
-    "Switching replay microphone capture to the processed endpoint must rebuild the FFmpeg audio input.");
 var selectedMicrophoneSettings = validSettings with { MicrophoneDeviceId = "hyperx-quadcast-endpoint" };
 AssertEqual(
     "hyperx-quadcast-endpoint",
     ReplayEngine.ResolveMicrophoneEndpointId(selectedMicrophoneSettings) ?? "",
     "Replay capture must use the microphone selected in Switchboard instead of the Windows default input.");
-AssertEqual(
-    "switchboard-processed-microphone",
-    ReplayEngine.ResolveMicrophoneEndpointId(selectedMicrophoneSettings with
-    {
-        ProcessedMicrophoneDeviceId = "switchboard-processed-microphone",
-    }) ?? "",
-    "The processed microphone endpoint must take precedence when the virtual-audio path is available.");
+AssertValue(true, ReplayEngine.ResolveMicrophoneEndpointId(validSettings) is null,
+    "Replay capture without a selected microphone must use the Windows default input.");
 AssertValue(true, ReplayEngine.RequiresRestart(validSettings, selectedMicrophoneSettings),
     "Changing the selected replay microphone must rebuild the FFmpeg audio input.");
 

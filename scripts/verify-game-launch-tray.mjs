@@ -98,7 +98,6 @@ void app.whenReady().then(async () => { try {
   game(101);
   assert.equal(window.isDestroyed(), false, 'Same game closed a manually reopened window');
   assert.deepEqual((await state(window)).capture.config, before.capture.config);
-  assert.equal((await state(window)).audio.enabled, before.audio.enabled);
   await js(window, 'window.switchboard.updateSettings({destroyRendererInTray:false})');
   let hidden = false;
   window.once('hide', () => { hidden = true; });

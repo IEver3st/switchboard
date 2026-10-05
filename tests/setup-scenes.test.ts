@@ -13,12 +13,11 @@ function harness() {
   };
   let rejectCapture = false;
   const scenes = new SetupScenes(store as StateStore, {
-    audio: async value => { store.update(draft => { const buses = draft.audio.buses.map(bus => ({ ...bus, ...value.buses.find(item => item.id === bus.id) })); Object.assign(draft.audio, value, { buses }); }); },
     capture: async value => { if (rejectCapture) throw new Error('Recorder unavailable'); store.update(draft => { Object.assign(draft.capture.config, value); }); },
     device: async () => { throw new Error('Device refused the write'); },
   });
   const save = (name: string, extra = {}) => scenes.save({ name, executable: '', automatic: false, restoreOnExit: true,
-    captureCurrent: true, includeAudio: false, includeDevices: false, includeCapture: true, ...extra }).setup.scenes.at(-1)!;
+    captureCurrent: true, includeDevices: false, includeCapture: true, ...extra }).setup.scenes.at(-1)!;
   return { store, scenes, save, reject: () => { rejectCapture = true; } };
 }
 
@@ -60,13 +59,12 @@ describe('setup scenes', () => {
   test('rejects duplicate automatic app mappings and invalid scene updates', () => {
     const h = harness(); h.save('One', { automatic: true, executable: 'game.exe' });
     expect(() => h.save('Two', { automatic: true, executable: 'GAME.exe' })).toThrow('already has');
-    expect(() => h.save('Audio', { includeAudio: true })).not.toThrow();
+    expect(() => h.save('Nothing', { includeCapture: false })).toThrow('at least one');
     expect(() => h.save('Missing', { id: 'missing' })).toThrow('no longer exists');
   });
-  test('scene values exclude hotkeys, clip paths, sessions, devices, and runtime meters', () => {
+  test('scene values exclude hotkeys, clip paths, and audio routing', () => {
     const values = snapshotSceneValues(createDefaultSnapshot());
     expect(values.capture).not.toHaveProperty('hotkey'); expect(values.capture).not.toHaveProperty('clipsDirectory');
-    expect(values.audio).not.toHaveProperty('host'); expect(values.audio).not.toHaveProperty('devices');
-    expect(values.audio!.buses[0]).not.toHaveProperty('meter');
+    expect(values).not.toHaveProperty('audio');
   });
 });

@@ -62,10 +62,10 @@ void app.whenReady().then(async () => { try {
   assert((await state(window)).capture.config.systemAudioMode === 'game', 'An unrelated patch reset game-only audio.');
   await js(window, `window.switchboard.getSnapshot().then(snapshot=>window.switchboard.setSetupPreferences({...snapshot.setup.preferences,quickControlsEnabled:true}))`);
   await clickText(window, 'Quick controls');
-  await js(window, `document.querySelector('[aria-label="Show ChatMix"]').click()`);
-  await wait(async () => !(await state(window)).setup.preferences.quickActions.includes('chatmix'));
-  await js(window, `document.querySelector('[aria-label="Show ChatMix"]').click()`);
-  await wait(async () => (await state(window)).setup.preferences.quickActions.includes('chatmix'));
+  await js(window, `document.querySelector('[aria-label="Show Save replay"]').click()`);
+  await wait(async () => !(await state(window)).setup.preferences.quickActions.includes('replay'));
+  await js(window, `document.querySelector('[aria-label="Show Save replay"]').click()`);
+  await wait(async () => (await state(window)).setup.preferences.quickActions.includes('replay'));
   await js(window, `document.querySelector('[aria-label^="Quick controls shortcut:"]').click()`);
   await delay(100);
   window.webContents.sendInputEvent({type:'keyDown',keyCode:'F8',modifiers:['control','alt']});
@@ -166,7 +166,7 @@ void app.whenReady().then(async () => { try {
   await clickText(window,'Delete');await clickText(window,'Delete scene');
   await wait(async()=>(await state(window)).setup.scenes.length===2);
   await clickText(window,'Quick controls');
-  for(const action of ['Scenes','Save replay','Microphone','Output device','ChatMix']) {
+  for(const action of ['Scenes','Save replay']) {
     const before=(await state(window)).setup.preferences.quickActions;
     await toggle(window,`[aria-label="Show ${action}"]`);await delay(80);
     assert(JSON.stringify((await state(window)).setup.preferences.quickActions)!==JSON.stringify(before),'Quick action did not persist');

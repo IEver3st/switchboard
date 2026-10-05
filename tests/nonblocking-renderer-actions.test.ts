@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { SetAudioBusGainInput, SwitchboardApi, SystemSnapshot } from '../src/shared/contracts';
+import type { SetCaptureConfigInput, SwitchboardApi, SystemSnapshot } from '../src/shared/contracts';
 import { createDefaultSnapshot } from '../src/shared/defaults';
 
 test('routine renderer mutations do not publish a global UI lock while IPC is pending', async () => {
@@ -11,7 +11,7 @@ test('routine renderer mutations do not publish a global UI lock while IPC is pe
   const snapshot = createDefaultSnapshot();
   const api = {
     getSnapshot: async () => snapshot,
-    setAudioBusGain: (_input: SetAudioBusGainInput) => mutation,
+    setCaptureConfig: (_input: SetCaptureConfigInput) => mutation,
     subscribe: () => () => undefined,
   } as unknown as SwitchboardApi;
 
@@ -20,7 +20,7 @@ test('routine renderer mutations do not publish a global UI lock while IPC is pe
     Object.assign(globalThis, {
       window: {
         switchboard: api,
-        location: { hash: '#audio' },
+        location: { hash: '#capture' },
         history: { replaceState: () => undefined },
         sessionStorage: { getItem: () => null, setItem: () => undefined },
         addEventListener: () => undefined,
@@ -29,7 +29,7 @@ test('routine renderer mutations do not publish a global UI lock while IPC is pe
     });
 
     const { useSystemStore } = await import(`../src/renderer/src/stores/use-system-store.ts?nonblocking=${Date.now()}`);
-    pendingAction = useSystemStore.getState().setAudioBusGain({ mixId: 'personal', busId: 'game', gain: 0.75 });
+    pendingAction = useSystemStore.getState().setCaptureConfig({ replaySeconds: 90 });
 
     expect(useSystemStore.getState()).not.toHaveProperty('actionPending');
   } finally {

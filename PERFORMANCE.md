@@ -1,33 +1,12 @@
 # Performance budgets
 
-Noise suppression uses one native model and a preallocated stage for delayed dry
-audio, warmup, strength fades and speech preservation. Bypass retains the model's
-fixed output delay but performs no native inference and accepts partial packets.
-Frame energy checks and mixing add no allocation, lock, timer, process or I/O.
-See [suppression rework](docs/noise-suppression-rework.md) for the
-fixture measurements and the remaining live-call validation boundary.
-
-Live audio requests the endpoint's minimum supported shared-mode period, with a
-10 ms fallback. Personal output, virtual microphone, and monitor queues retain at
-most 20 ms or one larger render request when recovering from backlog; recording
-and stream queues do not discard samples for this policy. Ring capacity alone is
-not latency, and a producer overflow can still lose newer incoming samples. DSP
-accepts partial capture packets when suppression is bypassed; active models keep
-their required frame size. WASAPI and microphone DSP use MMCSS. The DSP worker
-waits on capture/error/shutdown signals, with no idle polling timeout; its MMCSS
-registration is reverted on thread exit. Callback adapters remain allocation-free.
-The [latency checks and hardware observations](docs/audio-latency.md) distinguish
-negotiated periods, synthetic queue recovery, and unmeasured acoustic delay.
-
-Replay audio integration adds no Electron PCM traffic or routing poll. Each active
-Audio.Host recording feed drains its source at the existing 20 ms cadence, even
-without a consumer, so reconnects do not replay a stale ring. System, chat, and
-microphone pumps use preallocated frames; the microphone feed exists only with
-its processing pipeline. Capture.Host opens relays only for enabled inputs (or
-microphone reaction analysis). Reads and writes have bounded deadlines, and
-disable/shutdown cancels and disposes pipes and pumps. Pipe recovery reuses the
-existing host/replay lifecycle ticks. Synthetic pipe and mix checks do not qualify
-live latency, device reconnect behavior, or long-running resource budgets.
+Replay audio adds no Electron PCM traffic or polling. Capture.Host opens WASAPI
+capture only for enabled tracks, plus a detector-only microphone input while
+reaction clipping needs one. Disable and shutdown dispose those inputs. Replay
+device discovery runs a one-shot `Capture.Host --list-audio-endpoints` process at
+startup, on renderer activation at most once every 10 seconds, and on manual
+source refresh, with a 15-second deadline and a 2 MiB output cap. It adds no timer
+or long-lived process.
 
 Vite dev launches now collect an automatic local feedback feed, readable with
 `bun run diagnose:dev`. It shares the existing five-second resource tick; status
@@ -40,33 +19,13 @@ at most 8 MiB, plus two previous ended sessions. Details and the opt-out are in
 [Resource diagnostics](docs/resource-diagnostics.md#automatic-development-feedback).
 These instrumented measurements are for diagnosis, not budget qualification.
 
-Optional audio setup runs only when its onboarding or Settings surface requests
-a check or the user starts installation. There is no startup download, background
-poller, or additional realtime audio process. Each check uses a bounded one-shot
-Audio.Host command. Downloads are limited to 32 MiB and two minutes, with integer
-percentage updates; extraction and signature checks have a 30-second deadline.
-Downloads cancel on shutdown. An already launched vendor installer may remain
-open for user interaction; its helper restores Windows defaults on completion and
-releases the installation lock. Disabling audio retains no setup polling work.
-
-Spatial headphone rendering preallocates fourteen 160-tap FIR paths, seven
-history buffers and two bounded delay rings per physical output. HRTF data loads on the control thread only
-when enabled. SIMD convolution, spherical interpolation and quaternion smoothing
-allocate nothing in callbacks. Filter crossfades use 128-frame blocks; wet/dry
-changes ramp over 960 frames. Disabled playback stops filtering after that ramp.
-The selected HID reader or optional blocking UDP receiver exists only while
-both spatial playback and tracking are enabled. HID discovery/reconnect reuses
-the existing five-second control tick; no additional polling timer is created.
-Pose expiry is checked by audio callbacks; UI connection state uses that same tick. Native
-tests measure zero callback allocations; hardware latency and soak are separate.
-
 Microphone calibration runs only on request in an isolated Capture.Host helper.
 It plays five test sounds over eleven seconds and retains two bounded arrays of
 millisecond energy values. Endpoint callbacks do no allocation, locking, logging,
 or asynchronous work. Main enforces a twenty-second process deadline and bounded
 output; cancel, tray closure, settings navigation, and shutdown release the helper.
-The saved correction is constant frame arithmetic with no extra process, polling,
-or DSP. See `docs/audio-sync-calibration.md`.
+The saved correction is constant frame arithmetic with no extra process or
+polling. See `docs/audio-sync-calibration.md`.
 
 The optional vertical framing guide owns one static transparent renderer only
 while enabled. It has no scripts, preload, animation, polling, media process, or
@@ -97,16 +56,6 @@ sandboxed and has no preload, subscriptions, device discovery or engine processe
 Development startup performs one bounded process inventory only when no cooperating
 installed peer responds, to avoid overlapping an older installed build.
 
-Parametric EQ accepts up to 64 bands per output channel or microphone path. Native
-filter storage is preallocated to the shared limit, and configuration compacts
-only enabled, non-neutral bands into the processing loop. Empty EQ performs no
-filter passes. Adding neutral editor points therefore adds no sample-processing
-passes. Coefficient changes retain the existing block-boundary configuration path;
-the editor sends complete band lists on commit, not every pointer move. The
-capacity test measures allocations and synthetic 64-band callback time; live
-multi-route CPU, audio quality, and long-running device behavior remain separate
-acceptance checks.
-
 The Electron 44 Browser, sandbox utility, and GPU process floor is part of the
 core budget. On the supported Windows configuration that floor is approximately
 246 MB private in tray mode and 304 MB with the renderer open. A 70 MB tray
@@ -125,7 +74,6 @@ visible without turning a single Chromium spike into a release failure.
 | Core in tray, renderer destroyed | < 270 MB private | < 0.3% sustained |
 | UI open, no engines | < 340 MB private | < 0.7% sustained |
 | Capture host waiting, no encoder children | +100 MB private | +0.3% sustained |
-| Audio engine active | +65 MB private | < 1.0% typical |
 | Replay engine active | +1,000 MB private / +600 MB working set | < 2.0% CPU with hardware encode |
 | 24-hour growth | < 10 MB | no monotonic handle growth |
 
@@ -174,7 +122,7 @@ inventory remains capped at five seconds by the shared detector). After detectio
 it checks only the tracked process lifetime until exit, preserving manual reopen
 through Alt-Tab. It retains one process handle, disposed on exit or shutdown.
 Disabling this policy removes game watching; the helper and its timer stop unless
-automatic scenes still need application watching. Capture and audio are unchanged.
+automatic scenes still need application watching. Capture is unchanged.
 
 Main schedules capture recovery only after an enabled recorder stops or fails.
 Retries back off through 1, 2, 4, 8, 16 and 30 seconds, then remain at 30 seconds
@@ -303,16 +251,6 @@ limit in place. File eviction uses the current duration and a 64-bit byte budget
 it also removes files
 that aged out of the manifest while the host was paused.
 
-Audio meter telemetry is demand-driven end to end. Audio.Host produces 20 Hz
-meter frames only while a visible renderer has an Audio workspace consumer.
-Closing, hiding, navigating away, destroying the renderer, or disposing IPC
-clears that demand and parks the meter loop without a polling timer. Five-second
-host snapshots still discover application and
-endpoint transitions, while unchanged timing-only diagnostics publish at most
-once every 30 seconds.
-
-Each active meter subscription owns one navigation/destroy listener pair, removed
-on unsubscribe, full navigation, renderer replacement, destruction or IPC disposal.
 Engine command pipes pause further writes until drain. Each host retains at most
 1 MiB of serialized queued/buffered commands, preserves FIFO ordering, and removes
 unsent requests when their existing deadline expires. Pipe failure rejects pending
@@ -337,8 +275,8 @@ watching still begins after service initialization; opening the panel is not a
 prerequisite for the shortcut, including when startup remains in the tray.
 
 Auto Capture runtime/provider publications update only the capture branch.
-Audio route reconciliation and endpoint discovery read only their owning
-branches; cached endpoint refreshes return without copying the full state.
+Audio endpoint discovery reads only its owning branch; cached endpoint refreshes
+return without copying the full state.
 Subscription baselines retain canonical branch identity, avoiding a second
 library-sized payload for the first ordinary update. Persistence retains at
 most one latest pending generation behind the current durable write, serializes
@@ -374,7 +312,7 @@ subscription keeps only its latest pending canonical snapshot and sends one
 revision-contiguous catch-up patch on show or restore. Explicit subscriptions
 and reloads still receive a full baseline. Window destruction and IPC disposal
 remove the delivery listeners; this adds no timer. Minimize also pauses library
-background work and audio-meter demand through the existing renderer-active
+background work through the existing renderer-active
 signal. Reopening restores a minimized window. Repeated renderer-active signals
 return without cloning the full state, and the open path no longer duplicates
 the focus handler's audio-device refresh.
@@ -393,7 +331,7 @@ The September 27 post-change production-bundle idle fixture sampled each state
 for 60 seconds after warmup: 351.1 MiB median private memory open and 283.1 MiB
 with the renderer destroyed. Both exceeded the existing 340/270 MiB gates.
 Median whole-machine CPU rounded to 0.0% at one decimal in both states. The
-earlier checkout run measured 345.9/280.3 MiB; other audio/device work changed
+earlier checkout run measured 345.9/280.3 MiB; other device work changed
 concurrently, so these whole-checkout samples are not an isolated memory A/B.
 The production-bundle startup sample reached the shell in 291.5 ms, and three
 destroy/reopen samples took 154.4, 163.2 and 157.8 ms. These are hidden fixtures
@@ -457,16 +395,16 @@ The encoder preset, bitrate, frame rate and resolution remain unchanged.
 `bun run measure:settings` builds the same production bundles and measures the
 first Settings navigation in native Electron. The route must commit visible
 layout without a loading state and stay within a 100 ms click-to-DOM-commit
-budget. `bun run measure:routes` applies the same budget to the preloaded Audio
-and Capture workspaces. Visible native QA remains the proof for first-paint
+budget. `bun run measure:routes` applies the same budget to the preloaded Capture
+workspace. Visible native QA remains the proof for first-paint
 presentation because a hidden Chromium window cannot provide honest paint timing.
 
 Persisted state hydration is the only renderer-readiness gate. Hardware discovery, audio endpoint discovery, clip reconciliation, update scheduling, and optional engine restoration continue through Electron main and publish canonical snapshot updates when ready. A stalled peripheral must not keep the startup screen visible.
 
-Audio, Capture, and capability-heavy device editors are loaded on demand. Settings
+Capture and capability-heavy device editors are loaded on demand. Settings
 is part of the renderer shell so its route has no chunk-loading state and is visible
 on the first paint after navigation. The default Devices gallery does not parse
-Audio, Capture, or individual device-editor code before the user opens those
+Capture or individual device-editor code before the user opens those
 workspaces. The new-clips review surface is loaded only when canonical clip state
 contains an unreviewed clip.
 
@@ -506,7 +444,7 @@ or physical-capture soak claim.
 2. Tray mode for 24 hours with renderer destruction enabled.
 3. Capture ring wrapping continuously for 24 hours.
 4. Save a replay every 2 minutes for 4 hours.
-5. Audio graph active for 24 hours while endpoints connect/disconnect.
+5. Replay audio tracks capturing for 24 hours while endpoints connect/disconnect.
 6. Repeatedly start/stop each engine 500 times.
 
 ## Device sessions

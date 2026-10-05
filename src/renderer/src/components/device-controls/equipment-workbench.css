@@ -100,7 +100,6 @@
 .microphone-hardware .microphone-hardware__choice-row .semantic-choice [role="group"] > button { flex: 1; min-width: 56px; white-space: normal; height: auto; min-height: 32px; }
 .microphone-hardware .microphone-hardware__lighting-sliders { grid-template-columns: minmax(0, 1fr); gap: 24px; margin-top: 24px; }
 .microphone-hardware .microphone-hardware__advanced { grid-column: 1; grid-row: 3; margin: 8px 0 0; }
-.microphone-hardware .microphone-hardware__advanced .horizontal-meter { margin-top: 20px; }
 .equipment-unavailable { margin-top: 16px; }
 .equipment-unavailable button { margin-top: 8px; }
 

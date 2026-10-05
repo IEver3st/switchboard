@@ -5,7 +5,6 @@ import {
   createOnboardingDraft,
   defaultPageForProfile,
   fullWorkspacesForDeveloperMode,
-  isAudioWorkspaceAvailable,
   isCaptureOnlyWorkspaces,
   isDeveloperModeEnabled,
   isPageVisibleForProfile,
@@ -19,7 +18,7 @@ import {
 } from '../src/shared/workspace-profile';
 
 describe('visible workspaces', () => {
-  it('defaults fresh installs to developer mode off with audio hidden and onboarding pending', () => {
+  it('defaults fresh installs to developer mode off with onboarding pending', () => {
     const settings = createDefaultSnapshot().settings;
 
     expect(settings.developerMode).toBeFalse();
@@ -27,19 +26,12 @@ describe('visible workspaces', () => {
     expect(settings.onboardingCompleted).toBeFalse();
     expect(needsOnboarding(settings)).toBeTrue();
     expect(isDeveloperModeEnabled(settings)).toBeFalse();
-    expect(isAudioWorkspaceAvailable(settings)).toBeTrue();
     expect(isCaptureOnlyWorkspaces(settings)).toBeFalse();
     expect(visiblePagesForProfile(settings)).toEqual(['devices', 'capture']);
     expect(defaultPageForProfile(settings)).toBe('devices');
   });
 
-  it('lets everyone opt into audio independently of Developer mode', () => {
-    const settings = createDefaultSnapshot().settings;
-    expect(isPageVisibleForProfile('audio', settings)).toBeFalse();
-    const selected = { ...settings, visibleWorkspaces: ['audio', 'capture'] as const };
-    expect(visiblePagesForProfile(selected)).toEqual(['audio', 'capture']);
-    expect(isPageVisibleForProfile('audio', selected)).toBeTrue();
-    expect(isPageVisibleForProfile('audio', { ...selected, developerMode: true })).toBeTrue();
+  it('offers the same workspaces with or without Developer mode', () => {
     expect(fullWorkspacesForDeveloperMode(false)).toEqual(['devices', 'capture']);
     expect(fullWorkspacesForDeveloperMode(true)).toEqual(['devices', 'capture']);
   });
@@ -57,7 +49,9 @@ describe('visible workspaces', () => {
   });
 
   it('always keeps capture visible and restores canonical order', () => {
-    expect(normalizeVisibleWorkspaces(['audio', 'devices'])).toEqual(['devices', 'audio', 'capture']);
+    expect(normalizeVisibleWorkspaces(['devices'])).toEqual(['devices', 'capture']);
+    // The retired Audio page is dropped from older saved settings.
+    expect(normalizeVisibleWorkspaces(['audio', 'devices'])).toEqual(['devices', 'capture']);
     expect(normalizeVisibleWorkspaces([])).toEqual(['capture']);
     expect(normalizeVisibleWorkspaces(['capture', 'capture', 'nope'])).toEqual(['capture']);
     expect(normalizeVisibleWorkspaces('devices')).toBeNull();
@@ -66,8 +60,6 @@ describe('visible workspaces', () => {
 
   it('detects clipping, full, and custom presets', () => {
     expect(workspacePreset(['capture'])).toBe('clipping');
-    expect(workspacePreset(['devices', 'audio', 'capture'])).toBe('custom');
-    expect(workspacePreset(['audio', 'capture'])).toBe('custom');
     expect(workspacePreset(['devices', 'capture'])).toBe('full');
     expect(workspacePreset(['devices', 'capture'], false)).toBe('full');
   });
@@ -121,28 +113,18 @@ describe('onboarding draft', () => {
       'capture',
     ]);
     expect(toggleDraftWorkspace(draft, 'capture').workspaces).toEqual(['devices', 'capture']);
-    expect(toggleDraftWorkspace(draft, 'audio').workspaces).toEqual(['devices', 'audio', 'capture']);
-    expect(toggleDraftWorkspace(draft, 'audio', false).workspaces).toEqual(['devices', 'audio', 'capture']);
-    expect(toggleDraftWorkspace({ ...draft, workspaces: ['capture'] }, 'audio', true).workspaces).toEqual([
-      'audio',
-      'capture',
-    ]);
   });
 });
 
 
 describe('capture-only shell', () => {
-  it('uses confirmed module and audio configuration, including disabled replay', () => {
+  it('uses confirmed module configuration, including disabled replay', () => {
     const snapshot = createDefaultSnapshot();
     snapshot.modules.forEach(module => { module.enabled = false; });
-    snapshot.audio.enabled = false;
     snapshot.capture.config.enabled = false;
     expect(usesCaptureOnlyShell(snapshot)).toBeTrue();
     const device = snapshot.modules.find(module => module.kind === 'device')!;
     device.enabled = true;
-    expect(usesCaptureOnlyShell(snapshot)).toBeFalse();
-    device.enabled = false;
-    snapshot.audio.enabled = true;
     expect(usesCaptureOnlyShell(snapshot)).toBeFalse();
     snapshot.settings.visibleWorkspaces = ['capture'];
     expect(usesCaptureOnlyShell(snapshot)).toBeTrue();

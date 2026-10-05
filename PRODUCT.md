@@ -8,36 +8,36 @@ web
 
 ## Users
 
-Windows PC users who own gaming hardware, route several kinds of audio, or save game clips. They understand everyday concepts such as volume, DPI, presets, and monitoring, but should not need audio-engineering or hardware-protocol knowledge for routine setup.
+Windows PC players who save, edit, and share game clips, and who own gaming hardware they want to configure without a vendor suite. They understand everyday concepts such as replay length, quality, volume, DPI, and presets, but should not need encoder or hardware-protocol knowledge for routine setup.
 
 ## Product Purpose
 
-Switchboard is a low-overhead desktop control surface for connected hardware, audio routing and processing, and game capture. Success means common adjustments are immediately understandable while exact technical controls remain available to power users.
+Switchboard is a low-overhead Windows clipping app first: Instant Replay, separate Game, Chat, and Microphone tracks, clip editing, montages, and sharing. It also controls connected hardware through first-party and community modules. Success means saving and finishing a clip is immediate and reliable while exact technical controls remain available to power users.
 
 ## Positioning
 
-Switchboard combines modular hardware control, isolated realtime hosts, audio routing, and capture in one restrained utility without requiring a monolithic peripheral suite.
+Switchboard pairs a dependable FFmpeg-first clipping workflow with modular hardware control in one restrained utility, without requiring a monolithic peripheral suite.
 
 ## Operating Context
 
-The application runs as a resizable Windows Electron utility and may remain active in the tray while optional audio or capture engines run independently. Users configure devices, balance Game and Chat audio, choose sound and voice presets, refine EQ and processing, and save replays.
+The application runs as a resizable Windows Electron utility and may remain active in the tray while the optional capture engine runs independently. Users keep Instant Replay armed, save and trim clips, balance clip tracks, build montages, and configure devices.
 
 ## Capabilities and Constraints
 
 - Electron main owns persisted state; the renderer is a projection over the canonical shared contract.
 - The renderer is sandboxed and receives only narrow typed preload operations.
-- Realtime audio and video buffers do not cross Electron IPC.
-- UI controls appear only for capabilities reported by the relevant device or audio host.
-- Physical HID writes, signed virtual audio endpoints, and production capture are not claimed until the corresponding Windows hardware or host path is validated.
+- Captured video and audio buffers do not cross Electron IPC.
+- UI controls appear only for capabilities reported by the relevant device or capture host.
+- Physical HID writes and production capture are not claimed until the corresponding Windows hardware or host path is validated.
 - Disabled engines retain no process, timer, device handle, subscription, or encoder session.
 
 ## Brand Commitments
 
-Switchboard uses a compact, quiet, continuous-console design language. It avoids generic dashboard composition, card grids, gaming decoration, gradients, glow, glass, excessive rounding, and ornamental animation. Mature first-party hardware and audio utilities set the usability bar, but Switchboard retains its own restrained identity.
+Switchboard uses a compact, quiet, continuous-console design language. It avoids generic dashboard composition, card grids, gaming decoration, gradients, glow, glass, excessive rounding, and ornamental animation. Mature clipping tools and first-party hardware utilities set the usability bar, but Switchboard retains its own restrained identity.
 
 ## Evidence on Hand
 
-Bundled product renders exist for G502 X Plus and QuadCast 2. Canonical device, audio, capture, diagnostics, and engine state is defined in `src/shared/contracts.ts`. Confirmed prototype boundaries are documented in `README.md`, `ARCHITECTURE.md`, and `PERFORMANCE.md`.
+Bundled product renders exist for G502 X Plus and QuadCast 2. Canonical device, capture, diagnostics, and engine state is defined in `src/shared/contracts.ts`. Confirmed prototype boundaries are documented in `README.md`, `ARCHITECTURE.md`, and `PERFORMANCE.md`.
 
 ## Product Principles
 

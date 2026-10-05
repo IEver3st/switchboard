@@ -1,166 +1,40 @@
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { execFile } from 'node:child_process';
 import { z } from 'zod';
-import {
-  audioEndpointFormFactorSchema,
-  type AudioDevice,
-} from '../../shared/contracts';
+import { audioEndpointFormFactorSchema, type AudioDevice } from '../../shared/contracts';
 
 const discoveredEndpointSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().trim().min(1),
+  id: z.string().min(1).max(512),
+  name: z.string().trim().min(1).max(256),
   flow: z.enum(['render', 'capture']),
   isDefault: z.boolean(),
-  // Audio.Host omits null properties. Physical drivers may not expose either.
+  // Capture.Host omits null properties. Physical drivers may not expose either.
   formFactor: audioEndpointFormFactorSchema.nullish().transform((value) => value ?? null),
-  interfaceName: z.string().nullish(),
-  volume: z.number(),
-  muted: z.boolean(),
-  isSwitchboard: z.boolean().default(false),
+  interfaceName: z.string().max(256).nullish(),
 });
 
-const discoveredEndpointsSchema = z.array(discoveredEndpointSchema);
-const virtualDevicePattern = /\bvirtual(?: audio)? (?:device|cable)\b/i;
-const maximumOutputBytes = 2 * 1024 * 1024;
+const virtualDevicePattern = /\bvirtual(?: audio)? (?:device|cable)\b|VB-Audio/i;
 
 export function parseAudioEndpoints(value: unknown): AudioDevice[] {
-  return discoveredEndpointsSchema.parse(value).map((endpoint) => ({
+  return z.array(discoveredEndpointSchema).max(512).parse(value).map((endpoint) => ({
     id: endpoint.id,
     name: endpoint.name,
     direction: endpoint.flow === 'render' ? 'output' : 'input',
     isDefault: endpoint.isDefault,
-    available: true,
     formFactor: endpoint.formFactor,
-    volume: endpoint.volume,
-    muted: endpoint.muted,
-    isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name)
-      || /VB-Audio Hi-Fi Cable/i.test(endpoint.interfaceName ?? endpoint.name),
-    isSwitchboard: endpoint.isSwitchboard,
+    isVirtual: virtualDevicePattern.test(endpoint.interfaceName ?? endpoint.name),
   }));
 }
 
-type DiscoveryOptions = {
-  appPath: string;
-  isPackaged: boolean;
-  resourcesPath: string;
-  platform?: NodeJS.Platform;
-  timeoutMs?: number;
-};
-
-export class AudioEndpointDiscovery {
-  public constructor(private readonly options: DiscoveryOptions) {}
-
-  public async list(): Promise<AudioDevice[]> {
-    if ((this.options.platform ?? process.platform) !== 'win32') return [];
-
-    const { command, arguments: commandArguments, cwd } = this.resolveCommand();
-    const environment = { ...process.env };
-    delete environment.ELECTRON_RUN_AS_NODE;
-    const stdout = await run(command, commandArguments, cwd, environment, this.options.timeoutMs ?? 15_000);
-    return parseAudioEndpoints(JSON.parse(stdout));
-  }
-
-  public setupCommand(): { command: string; arguments: string[]; cwd: string } {
-    const resolved = this.resolveCommand();
-    return { ...resolved, arguments: [...resolved.arguments.slice(0, -1), '--audio-dependency-setup'] };
-  }
-
-  private resolveCommand(): { command: string; arguments: string[]; cwd: string } {
-    if (this.options.isPackaged) {
-      const directory = join(this.options.resourcesPath, 'audio-host');
-      return {
-        command: join(directory, 'Audio.Host.exe'),
-        arguments: ['--list-endpoints'],
-        cwd: directory,
-      };
-    }
-
-    if (process.env.SWITCHBOARD_NATIVE_REVIEW === '1') {
-      const reviewExecutable = process.env.SWITCHBOARD_NATIVE_REVIEW_AUDIO_HOST;
-      if (reviewExecutable && existsSync(reviewExecutable)) {
-        return {
-          command: reviewExecutable,
-          arguments: ['--list-endpoints'],
-          cwd: dirname(reviewExecutable),
-        };
-      }
-      const directory = join(this.options.appPath, 'engines', 'audio-host', 'bin', 'Debug', 'net10.0-windows');
-      const executable = join(directory, 'Audio.Host.exe');
-      if (existsSync(executable)) {
-        return { command: executable, arguments: ['--list-endpoints'], cwd: directory };
-      }
-    }
-
-    const configuredExecutable = process.env.SWITCHBOARD_DEVELOPMENT_AUDIO_HOST;
-    if (configuredExecutable && existsSync(configuredExecutable)) {
-      return {
-        command: configuredExecutable,
-        arguments: ['--list-endpoints'],
-        cwd: dirname(configuredExecutable),
-      };
-    }
-
-    return {
-      command: 'dotnet',
-      arguments: [
-        'run',
-        '--project',
-        join(this.options.appPath, 'engines', 'audio-host', 'Audio.Host.csproj'),
-        '--no-launch-profile',
-        '--',
-        '--list-endpoints',
-      ],
-      cwd: this.options.appPath,
-    };
-  }
-}
-
-function run(
-  command: string,
-  commandArguments: string[],
-  cwd: string,
-  environment: NodeJS.ProcessEnv,
-  timeoutMs: number,
-): Promise<string> {
+/** One-shot, media-free endpoint inventory for the replay audio pickers. */
+export function listAudioEndpoints(executable: string, signal?: AbortSignal): Promise<AudioDevice[]> {
+  if (process.platform !== 'win32') return Promise.resolve([]);
   return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArguments, {
-      cwd,
-      env: environment,
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-
-    const finish = (error?: Error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      if (error) reject(error);
-      else resolve(stdout.trim());
-    };
-
-    const timeout = setTimeout(() => {
-      child.kill();
-      finish(new Error('Windows audio endpoint discovery timed out.'));
-    }, timeoutMs);
-
-    child.stdout.on('data', (chunk) => {
-      stdout += String(chunk);
-      if (stdout.length > maximumOutputBytes) {
-        child.kill();
-        finish(new Error('Windows audio endpoint discovery returned too much data.'));
-      }
-    });
-    child.stderr.on('data', (chunk) => {
-      if (stderr.length <= maximumOutputBytes) stderr += String(chunk);
-    });
-    child.once('error', (error) => finish(error));
-    child.once('close', (code) => {
-      if (code === 0) finish();
-      else finish(new Error(`Windows audio endpoint discovery exited with code ${code}: ${stderr.trim()}`));
+    execFile(executable, ['--list-audio-endpoints'], {
+      windowsHide: true, timeout: 15_000, maxBuffer: 2 * 1024 * 1024, encoding: 'utf8', signal,
+    }, (error, stdout) => {
+      if (error) { reject(error); return; }
+      try { resolve(parseAudioEndpoints(JSON.parse(stdout))); }
+      catch (parseError) { reject(parseError); }
     });
   });
 }

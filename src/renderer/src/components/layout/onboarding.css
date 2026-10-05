@@ -883,7 +883,3 @@
   width: 100%;
   height: 100%;
 }
-/* Audio driver setup: solid gutters behind the setup rows. */
-.ob .driver-setup__driver {
-  box-shadow: 0 -2px 0 var(--background);
-}

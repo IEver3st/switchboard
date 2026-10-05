@@ -6,14 +6,13 @@ import { videoEditsSchema } from './video-edits';
 
 export const pageIdSchema = z.enum([
   'devices',
-  'audio',
   'capture',
   'modules',
   'settings',
 ]);
 export type PageId = z.infer<typeof pageIdSchema>;
 
-export const engineKindSchema = z.enum(['audio', 'capture']);
+export const engineKindSchema = z.enum(['capture']);
 export type EngineKind = z.infer<typeof engineKindSchema>;
 
 export const engineStateSchema = z.enum(['stopped', 'starting', 'running', 'error']);
@@ -40,7 +39,7 @@ export const engineStatusSchema = z.object({
 });
 export type EngineStatus = z.infer<typeof engineStatusSchema>;
 
-export const moduleKindSchema = z.enum(['device', 'capture', 'audio', 'integration']);
+export const moduleKindSchema = z.enum(['device', 'capture', 'integration']);
 export type ModuleKind = z.infer<typeof moduleKindSchema>;
 
 export const moduleSourceSchema = z.enum(['bundled', 'local', 'community']);
@@ -502,9 +501,6 @@ export const deviceSchema = z.object({
 });
 export type Device = z.infer<typeof deviceSchema>;
 
-export const audioBusIdSchema = z.enum(['game', 'chat', 'media', 'mic', 'aux']);
-export type AudioBusId = z.infer<typeof audioBusIdSchema>;
-
 export const audioDeviceDirectionSchema = z.enum(['output', 'input']);
 export type AudioDeviceDirection = z.infer<typeof audioDeviceDirectionSchema>;
 
@@ -522,548 +518,16 @@ export const audioEndpointFormFactorSchema = z.enum([
 ]);
 export type AudioEndpointFormFactor = z.infer<typeof audioEndpointFormFactorSchema>;
 
+/** An active Windows audio endpoint that Replay can record from. */
 export const audioDeviceSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   direction: audioDeviceDirectionSchema,
   isDefault: z.boolean(),
-  available: z.boolean(),
   formFactor: audioEndpointFormFactorSchema.nullable().optional(),
-  volume: z.number().min(0).max(1).optional(),
-  muted: z.boolean().optional(),
   isVirtual: z.boolean().default(false),
-  isSwitchboard: z.boolean().default(false),
 });
 export type AudioDevice = z.infer<typeof audioDeviceSchema>;
-
-export const audioBusSchema = z.object({
-  id: audioBusIdSchema,
-  label: z.string(),
-  enabled: z.boolean().default(true),
-  appCount: z.number().int().min(0),
-  meter: z.number().min(0).max(1),
-  endpoint: z.string(),
-  // Endpoint the host currently renders to or captures from. Fallbacks change only this value.
-  deviceId: z.string().default(''),
-  // Devices the user chose for this channel, most recent first. Availability never rewrites it,
-  // so a disconnected choice is restored when Windows reports it again.
-  preferredDevices: z.array(z.object({
-    id: z.string().min(1).max(512),
-    name: z.string().max(256),
-  })).max(6).default([]),
-});
-export type AudioBus = z.infer<typeof audioBusSchema>;
-
-export const audioMasterSchema = z.object({
-  gain: z.number().min(0).max(1.5),
-  enabled: z.boolean(),
-});
-export type AudioMaster = z.infer<typeof audioMasterSchema>;
-
-export const audioMixIdSchema = z.enum(['personal', 'stream', 'clip']);
-export type AudioMixId = z.infer<typeof audioMixIdSchema>;
-
-export const audioMixBusSchema = z.object({
-  id: audioBusIdSchema,
-  gain: z.number().min(0).max(1.5),
-  enabled: z.boolean(),
-});
-export type AudioMixBus = z.infer<typeof audioMixBusSchema>;
-
-export const audioMixSchema = z.object({
-  id: audioMixIdSchema,
-  label: z.string().min(1),
-  master: audioMasterSchema,
-  buses: z.array(audioMixBusSchema),
-});
-export type AudioMix = z.infer<typeof audioMixSchema>;
-
-export const audioMeterValueSchema = z.object({
-  busId: audioBusIdSchema,
-  level: z.number().min(0).max(1),
-  peak: z.number().min(0).max(1),
-  clipping: z.boolean(),
-});
-export type AudioMeterValue = z.infer<typeof audioMeterValueSchema>;
-
-export const audioMeterFrameSchema = z.object({
-  sequence: z.number().int().nonnegative(),
-  timestamp: z.string(),
-  values: z.array(audioMeterValueSchema),
-});
-export type AudioMeterFrame = z.infer<typeof audioMeterFrameSchema>;
-
-export const audioPathIdSchema = z.enum(['game', 'chat', 'media', 'microphone']);
-export type AudioPathId = z.infer<typeof audioPathIdSchema>;
-
-export const audioSupportLevelSchema = z.enum(['available', 'simulation', 'unavailable']);
-export type AudioSupportLevel = z.infer<typeof audioSupportLevelSchema>;
-
-export const audioCapabilitiesSchema = z.object({
-  routingBackend: z.enum(['none', 'switchboard-driver', 'vb-cable']).optional(),
-  virtualMicrophone: audioSupportLevelSchema.optional(),
-  streamOutput: audioSupportLevelSchema.optional(),
-  clipMix: audioSupportLevelSchema.optional(),
-  clipTracks: audioSupportLevelSchema.optional(),
-  processedMicrophoneCapture: audioSupportLevelSchema.optional(),
-  virtualChannels: audioSupportLevelSchema,
-  applicationRouting: audioSupportLevelSchema,
-  channelDsp: audioSupportLevelSchema,
-  microphoneDsp: audioSupportLevelSchema,
-  noiseSuppression: audioSupportLevelSchema.default('unavailable'),
-  realtimeMetering: audioSupportLevelSchema,
-  microphoneTest: audioSupportLevelSchema,
-  monitoring: audioSupportLevelSchema,
-  spatialAudio: audioSupportLevelSchema,
-  reason: z.string().nullable().optional(),
-});
-export type AudioCapabilities = z.infer<typeof audioCapabilitiesSchema>;
-
-export const noiseSuppressionDiagnosticsSchema = z.object({
-  backend: z.string(),
-  available: z.boolean(),
-  modelIdentifier: z.string().nullable().default(null),
-  modelHash: z.string().nullable().default(null),
-  nativeLibraryHash: z.string().nullable().default(null),
-  state: z.enum(['not-loaded', 'ready', 'bypassed']),
-  modelInitializationMs: z.number().nonnegative(),
-  inputSampleRate: z.number().int().nonnegative(),
-  processingSampleRate: z.literal(48000),
-  frameLength: z.number().int().nonnegative(),
-  algorithmicLatencyMs: z.number().nonnegative(),
-  attenuationLimitDb: z.number().nonnegative(),
-  localSnrDb: z.number().nullable().default(null),
-  p50Ms: z.number().nonnegative(),
-  p95Ms: z.number().nonnegative(),
-  p99Ms: z.number().nonnegative(),
-  maximumMs: z.number().nonnegative(),
-  captureCallbackP99Ms: z.number().nonnegative(),
-  captureOverruns: z.number().int().nonnegative(),
-  monitorOverruns: z.number().int().nonnegative().default(0),
-  monitorUnderruns: z.number().int().nonnegative(),
-  droppedOrBypassedFrames: z.number().int().nonnegative(),
-  recoveryCount: z.number().int().nonnegative(),
-  lastError: z.string().nullable().default(null),
-});
-export type NoiseSuppressionDiagnostics = z.infer<typeof noiseSuppressionDiagnosticsSchema>;
-
-export const virtualDriverStateSchema = z.object({
-  state: z.enum(['ready', 'not-installed', 'incomplete']),
-  interfaceName: z.string(),
-  missingEndpoints: z.array(z.string()),
-  endpoints: z.array(z.object({ id: z.string(), name: z.string(), flow: z.enum(['render', 'capture']) })),
-  message: z.string(),
-});
-export type VirtualDriverState = z.infer<typeof virtualDriverStateSchema>;
-
-export const audioApplicationSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  executableName: z.string().min(1),
-  executablePath: z.string().min(1).max(1024).optional(),
-  automatic: z.boolean().optional(),
-  routingError: z.string().optional(),
-  processId: z.number().int().positive(),
-  iconDataUrl: z.string().startsWith('data:image/').optional(),
-  destination: z.enum(['game', 'chat', 'media']),
-  currentDestination: z.enum(['game', 'chat', 'media']).nullable().default(null),
-  preferredDestination: z.enum(['game', 'chat', 'media']).nullable().default(null),
-  routingState: z.enum(['unmanaged', 'applied', 'pending-restart', 'unavailable']),
-  active: z.boolean(),
-});
-export type AudioApplication = z.infer<typeof audioApplicationSchema>;
-
-export const audioApplicationPreferenceSchema = z.object({
-  // Drive-qualified process image. Some audio processes (FiveM_ChromeBrowser) have no .exe extension.
-  executablePath: z.string().min(1).max(1024).regex(/^[a-z]:\\[^\\].*$/i),
-  destination: z.enum(['game', 'chat', 'media']),
-});
-export const audioApplicationPreferencesSchema = z.array(audioApplicationPreferenceSchema).max(64)
-  .refine(routes => new Set(routes.map(route => route.executablePath.toLowerCase())).size === routes.length,
-    'Application executable paths must be unique');
-
-export const setAudioRoutingInputSchema = z.object({
-  automatic: z.boolean().optional(),
-  override: z.object({
-    executablePath: audioApplicationPreferenceSchema.shape.executablePath,
-    destination: audioApplicationPreferenceSchema.shape.destination.nullable(),
-  }).optional(),
-}).strict().refine(value => value.automatic !== undefined || value.override !== undefined, 'Choose a routing preference');
-export type SetAudioRoutingInput = z.infer<typeof setAudioRoutingInputSchema>;
-
-export const micProcessorIdSchema = z.enum([
-  'gain',
-  'noise-gate',
-  'noise-suppression',
-  'equalizer',
-  'compressor',
-  'limiter',
-]);
-export type MicProcessorId = z.infer<typeof micProcessorIdSchema>;
-
-export const configuredMicProcessorSchema = z.object({
-  id: micProcessorIdSchema,
-  enabled: z.boolean(),
-  parameters: z.record(z.string(), z.unknown()),
-});
-export type ConfiguredMicProcessor = z.infer<typeof configuredMicProcessorSchema>;
-
-export const microphoneMonitoringRuntimeSchema = z.object({
-  requested: z.boolean(),
-  active: z.boolean(),
-  level: z.number().min(0).max(1),
-  requestedDeviceId: z.string().nullable().default(null),
-  activeDeviceId: z.string().nullable().default(null),
-});
-export type MicrophoneMonitoringRuntime = z.infer<typeof microphoneMonitoringRuntimeSchema>;
-
-export const microphoneVirtualOutputSchema = z.object({
-  running: z.boolean(),
-  endpointId: z.string().nullable().default(null),
-  endpointName: z.string().nullable().default(null),
-  error: z.string().nullable().default(null),
-});
-
-export const microphoneRuntimeSchema = z.object({
-  virtualOutput: microphoneVirtualOutputSchema.optional(),
-  configurationVersion: z.number().int().nonnegative(),
-  requestedInputDeviceId: z.string().nullable().default(null),
-  activeInputDeviceId: z.string().nullable().default(null),
-  inputFormat: z.string().nullable().default(null),
-  processors: z.array(configuredMicProcessorSchema),
-  monitoring: microphoneMonitoringRuntimeSchema,
-  error: z.string().nullable().default(null),
-});
-export type MicrophoneRuntime = z.infer<typeof microphoneRuntimeSchema>;
-
-export const spatialSpeakerIdSchema = z.enum(['front-left', 'front-right', 'center', 'side-left', 'side-right', 'rear-left', 'rear-right']);
-export const spatialSpeakerSchema = z.object({
-  id: spatialSpeakerIdSchema,
-  azimuth: z.number().min(-180).max(180),
-  elevation: z.number().min(-40).max(90).default(0),
-  distance: z.number().min(0.5).max(2).default(1),
-  gainDb: z.number().min(-24).max(6).default(0),
-  enabled: z.boolean().default(true),
-});
-export type SpatialSpeaker = z.infer<typeof spatialSpeakerSchema>;
-export const defaultSpatialSpeakers = (): SpatialSpeaker[] => spatialSpeakerIdSchema.options.map((id, index) => ({
-  id, azimuth: [-30, 30, 0, -90, 90, -150, 150][index]!, elevation: 0, distance: 1, gainDb: 0, enabled: true,
-}));
-const spatialSpeakersSchema = z.array(spatialSpeakerSchema).length(7).refine(speakers => new Set(speakers.map(s => s.id)).size === 7, 'Every speaker must appear once');
-export const spatialChannelIdSchema = z.enum(['game', 'chat', 'media']);
-export type SpatialChannelId = z.infer<typeof spatialChannelIdSchema>;
-// One virtual stage per personal-listening channel, rendered before the channels are mixed.
-export const spatialStageSchema = z.object({
-  enabled: z.boolean().default(false),
-  mode: z.enum(['stereo', 'surround']).default('surround'),
-  immersion: z.number().min(0).max(1).default(0.4),
-  distance: z.number().min(0.5).max(3).default(1.4),
-  speakers: spatialSpeakersSchema.default(defaultSpatialSpeakers),
-  widthDegrees: z.number().min(20).max(180).default(60),
-  amount: z.number().min(0).max(1).default(1),
-});
-export type SpatialStage = z.infer<typeof spatialStageSchema>;
-const legacyStageKeys = ['enabled', 'mode', 'immersion', 'distance', 'speakers', 'widthDegrees', 'amount'] as const;
-// Head tracking is shared: there is one head. Saved settings from the single global stage migrate by
-// copying that stage to every channel.
-export const spatialSettingsSchema = z.preprocess((value) => {
-  if (!value || typeof value !== 'object' || 'channels' in value) return value;
-  const legacy = value as Record<string, unknown>;
-  if (!legacyStageKeys.some((key) => key in legacy)) return value;
-  const stage = Object.fromEntries(legacyStageKeys.filter((key) => key in legacy).map((key) => [key, legacy[key]]));
-  const rest = Object.fromEntries(Object.entries(legacy).filter(([key]) => !(legacyStageKeys as readonly string[]).includes(key)));
-  return { ...rest, channels: { game: stage, chat: structuredClone(stage), media: structuredClone(stage) } };
-}, z.object({
-  channels: z.object({
-    game: spatialStageSchema.prefault({}),
-    chat: spatialStageSchema.prefault({}),
-    media: spatialStageSchema.prefault({}),
-  }).prefault({}),
-  trackingSource: z.enum(['headset', 'opentrack']).default('headset'),
-  trackingEnabled: z.boolean().default(false),
-  trackerPort: z.number().int().min(1024).max(65535).default(4242),
-  // Motion input for Switchboard's managed OpenTrack copy.
-  openTrackInput: z.enum(['webcam', 'phone']).default('webcam'),
-}));
-export type SpatialSettings = z.infer<typeof spatialSettingsSchema>;
-export const spatialAnyEnabled = (settings: SpatialSettings) => spatialChannelIdSchema.options.some((id) => settings.channels[id].enabled);
-// Do not derive this from defaulted persisted fields: omitted patch keys must stay omitted.
-const spatialStagePatchSchema = z.object({
-  enabled: z.boolean().optional(),
-  mode: z.enum(['stereo', 'surround']).optional(),
-  immersion: z.number().min(0).max(1).optional(),
-  distance: z.number().min(0.5).max(3).optional(),
-  speakers: spatialSpeakersSchema.optional(),
-  widthDegrees: z.number().min(20).max(180).optional(),
-  amount: z.number().min(0).max(1).optional(),
-}).strict();
-export const setSpatialAudioInputSchema = z.object({
-  channel: spatialChannelIdSchema.optional(),
-  stage: spatialStagePatchSchema.optional(),
-  trackingSource: z.enum(['headset', 'opentrack']).optional(),
-  trackingEnabled: z.boolean().optional(),
-  trackerPort: z.number().int().min(1024).max(65535).optional(),
-  openTrackInput: z.enum(['webcam', 'phone']).optional(),
-}).strict().refine((input) => !input.stage || Boolean(input.channel), 'A stage change needs its channel.');
-export type SetSpatialAudioInput = z.infer<typeof setSpatialAudioInputSchema>;
-export const spatialRuntimeSchema = z.object({
-  trackerName: z.string().nullable().default(null),
-  settings: spatialSettingsSchema,
-  active: z.boolean(),
-  trackingState: z.enum(['off', 'waiting', 'tracking', 'stale', 'error']),
-  error: z.string().nullable().default(null),
-  /** A step only the user can approve; the host retries everything else automatically. */
-  trackerAction: z.enum(['repair-driver']).nullable().default(null),
-});
-
-export const audioHostSnapshotSchema = z.object({
-  spatial: spatialRuntimeSchema.optional(),
-  applicationRoutes: audioApplicationPreferencesSchema.optional(),
-  automaticApplicationRouting: z.boolean().optional(),
-  capabilities: audioCapabilitiesSchema,
-  noiseSuppression: noiseSuppressionDiagnosticsSchema,
-  inputDeviceId: z.string().nullable().default(null),
-  inputFormat: z.string().nullable().default(null),
-  monitoringDeviceId: z.string().nullable().default(null),
-  running: z.boolean(),
-  error: z.string().nullable().default(null),
-  driver: virtualDriverStateSchema,
-  applications: z.array(audioApplicationSchema),
-  buses: z.array(z.object({
-    id: audioBusIdSchema,
-    applicationCount: z.number().int().nonnegative(),
-  })),
-  mixes: z.array(audioMixSchema),
-  microphone: microphoneRuntimeSchema.nullable().default(null),
-});
-export type AudioHostSnapshot = z.infer<typeof audioHostSnapshotSchema>;
-
-export const eqFilterTypeSchema = z.enum(['low-shelf', 'bell', 'high-shelf']);
-export type EqFilterType = z.infer<typeof eqFilterTypeSchema>;
-
-export const eqBandSchema = z.object({
-  id: z.string().min(1),
-  enabled: z.boolean(),
-  type: eqFilterTypeSchema,
-  frequency: z.number().min(20).max(20_000),
-  gainDb: z.number().min(-12).max(12),
-  q: z.number().min(0.2).max(10),
-});
-export type EqBand = z.infer<typeof eqBandSchema>;
-
-// Keep aligned with AudioConstants.MaximumProcessorBands in Audio.Host.
-export const MAX_EQ_BANDS = 64;
-export const eqBandsSchema = z.array(eqBandSchema).max(MAX_EQ_BANDS).refine(
-  (bands) => new Set(bands.map((band) => band.id)).size === bands.length,
-  'EQ band IDs must be unique.',
-);
-
-const processorBaseSchema = {
-  label: z.string(),
-  enabled: z.boolean(),
-  cost: z.enum(['none', 'low', 'medium']),
-};
-
-export const micProcessorSchema = z.discriminatedUnion('id', [
-  z.object({
-    ...processorBaseSchema,
-    id: z.literal('gain'),
-    parameters: z.object({ gainDb: z.number().min(-20).max(30) }).default({ gainDb: 0 }),
-  }),
-  z.object({
-    ...processorBaseSchema,
-    id: z.literal('noise-gate'),
-    parameters: z.object({
-      thresholdDb: z.number().min(-80).max(-10),
-      attackMs: z.number().min(0.1).max(100),
-      releaseMs: z.number().min(10).max(1_000),
-    }).default({ thresholdDb: -48, attackMs: 10, releaseMs: 180 }),
-  }),
-  z.object({
-    ...processorBaseSchema,
-    id: z.literal('noise-suppression'),
-    parameters: z.object({ amount: z.number().min(0).max(100) }).default({ amount: 55 }),
-  }),
-  z.object({
-    ...processorBaseSchema,
-    id: z.literal('equalizer'),
-    parameters: z.object({
-      bands: eqBandsSchema,
-    }).default({
-      bands: [
-        { id: 'low', enabled: true, type: 'low-shelf', frequency: 90, gainDb: 0, q: 0.7 },
-        { id: 'body', enabled: true, type: 'bell', frequency: 250, gainDb: -1.5, q: 1 },
-        { id: 'clarity', enabled: true, type: 'bell', frequency: 2_800, gainDb: 2, q: 1.2 },
-        { id: 'air', enabled: true, type: 'high-shelf', frequency: 9_000, gainDb: 1, q: 0.7 },
-      ],
-    }),
-  }),
-  z.object({
-    ...processorBaseSchema,
-    id: z.literal('compressor'),
-    parameters: z.object({
-      thresholdDb: z.number().min(-60).max(0),
-      ratio: z.number().min(1).max(20),
-      attackMs: z.number().min(0.1).max(200),
-      releaseMs: z.number().min(10).max(2_000),
-      makeupDb: z.number().min(0).max(18),
-    }).default({ thresholdDb: -18, ratio: 4, attackMs: 12, releaseMs: 180, makeupDb: 2 }),
-  }),
-  z.object({
-    ...processorBaseSchema,
-    id: z.literal('limiter'),
-    parameters: z.object({
-      thresholdDb: z.number().min(-18).max(0),
-      releaseMs: z.number().min(10).max(1_000),
-    }).default({ thresholdDb: -1, releaseMs: 90 }),
-  }),
-]);
-export type MicProcessor = z.infer<typeof micProcessorSchema>;
-
-export const channelAudioBusIdSchema = z.enum(['game', 'chat', 'media']);
-export type ChannelAudioBusId = z.infer<typeof channelAudioBusIdSchema>;
-
-export const channelProcessingSchema = z.object({
-  busId: channelAudioBusIdSchema,
-  equalizer: z.object({
-    enabled: z.boolean(),
-    bands: eqBandsSchema,
-  }),
-  normalization: z.object({
-    enabled: z.boolean(),
-    targetLufs: z.number().min(-30).max(-10),
-    maxGainDb: z.number().min(0).max(18),
-  }),
-  compressor: z.object({
-    enabled: z.boolean(),
-    thresholdDb: z.number().min(-60).max(0),
-    ratio: z.number().min(1).max(20),
-    attackMs: z.number().min(0.1).max(200),
-    releaseMs: z.number().min(10).max(2_000),
-    makeupDb: z.number().min(0).max(18),
-  }),
-  limiter: z.object({
-    enabled: z.boolean(),
-    thresholdDb: z.number().min(-18).max(0),
-    releaseMs: z.number().min(10).max(1_000),
-  }),
-});
-export type ChannelProcessing = z.infer<typeof channelProcessingSchema>;
-
-const audioPresetBaseSchema = {
-  id: z.string().min(1),
-  name: z.string().trim().min(1).max(64),
-  builtIn: z.boolean(),
-  schemaVersion: z.literal(1),
-};
-
-function channelPresetSchema(kind: 'game' | 'chat' | 'media') {
-  return z.object({
-    ...audioPresetBaseSchema,
-    kind: z.literal(kind),
-    processors: channelProcessingSchema.omit({ busId: true }),
-  });
-}
-
-export const audioPathPresetSchema = z.discriminatedUnion('kind', [
-  channelPresetSchema('game'),
-  channelPresetSchema('chat'),
-  channelPresetSchema('media'),
-  z.object({
-    ...audioPresetBaseSchema,
-    kind: z.literal('microphone'),
-    processors: z.array(micProcessorSchema),
-    monitoring: z.object({
-      enabled: z.boolean(),
-      level: z.number().min(0).max(1),
-      deviceId: z.string(),
-    }),
-  }),
-]);
-export type AudioPathPreset = z.infer<typeof audioPathPresetSchema>;
-
-export const audioPresetFileSchema = z.object({
-  schemaVersion: z.literal(1),
-  preset: audioPathPresetSchema,
-});
-export type AudioPresetFile = z.infer<typeof audioPresetFileSchema>;
-
-// Live microphone noise model. RNNoise is the default; DeepFilterNet3 uses a model the
-// user acquired locally and falls back to RNNoise, with a reported reason, if it cannot start.
-export const noiseSuppressionModelSchema = z.enum(['rnnoise', 'deepfilternet3']);
-export type NoiseSuppressionModel = z.infer<typeof noiseSuppressionModelSchema>;
-
-export const audioExcludedDeviceIdsSchema = z.array(z.string().min(1).max(512)).max(256)
-  .refine(ids => new Set(ids).size === ids.length, 'Excluded device IDs must be unique');
-
-export const audioSetupActionSchema = z.enum(['check', 'install', 'cancel']);
-export const audioDependencyStateSchema = z.object({
-  phase: z.enum(['idle', 'checking', 'downloading', 'installing', 'restart-required', 'ready', 'error']).default('idle'),
-  cable: z.boolean().default(false),
-  microphone: z.boolean().default(false),
-  current: z.enum(['cable', 'microphone']).nullable().default(null),
-  progress: z.number().int().min(0).max(100).nullable().default(null),
-  error: z.string().max(1000).nullable().default(null),
-});
-export type AudioDependencyState = z.infer<typeof audioDependencyStateSchema>;
-export type AudioSetupAction = z.infer<typeof audioSetupActionSchema>;
-export const openTrackActionSchema = z.enum(['check', 'install', 'cancel']);
-export type OpenTrackAction = z.infer<typeof openTrackActionSchema>;
-export const openTrackStateSchema = z.object({
-  phase: z.enum(['idle', 'checking', 'downloading', 'extracting', 'ready', 'error']).default('idle'),
-  installed: z.boolean().default(false),
-  progress: z.number().int().min(0).max(100).nullable().default(null),
-  error: z.string().max(1000).nullable().default(null),
-  // This PC's private IPv4 address, shown so a phone tracking app can send to it.
-  lanAddress: z.string().max(64).nullable().default(null),
-});
-export type OpenTrackState = z.infer<typeof openTrackStateSchema>;
-
-export const audioStateSchema = z.object({
-  dependencies: audioDependencyStateSchema.prefault({}),
-  // Runtime-only install status of Switchboard's managed OpenTrack copy; never persisted.
-  openTrack: openTrackStateSchema.prefault({}),
-  spatial: spatialSettingsSchema.prefault({}),
-  automaticApplicationRouting: z.boolean().default(true),
-  // Endpoints hidden from Switchboard device pickers. Renderer policy only; never sent to the host.
-  excludedDeviceIds: audioExcludedDeviceIdsSchema.default([]),
-  noiseSuppressionModel: noiseSuppressionModelSchema.default('rnnoise'),
-  applicationRoutes: audioApplicationPreferencesSchema.optional(),
-  enabled: z.boolean(),
-  outputDevice: z.string(),
-  microphoneDevice: z.string(),
-  sampleRate: z.literal(48000),
-  mixes: z.array(audioMixSchema),
-  chatMix: z.number().min(-1).max(1),
-  monitoring: z.number().min(0).max(1),
-  monitoringEnabled: z.boolean().default(false),
-  monitoringDeviceId: z.string().default(''),
-  buses: z.array(audioBusSchema),
-  micProcessors: z.array(micProcessorSchema),
-  channelProcessing: z.array(channelProcessingSchema).default([]),
-  devices: z.array(audioDeviceSchema).default([]),
-  applications: z.array(audioApplicationSchema).default([]),
-  capabilities: audioCapabilitiesSchema.default({
-    virtualChannels: 'unavailable',
-    applicationRouting: 'unavailable',
-    channelDsp: 'unavailable',
-    microphoneDsp: 'unavailable',
-    noiseSuppression: 'unavailable',
-    realtimeMetering: 'unavailable',
-    microphoneTest: 'unavailable',
-    monitoring: 'unavailable',
-    spatialAudio: 'unavailable',
-  }),
-  host: audioHostSnapshotSchema.nullable().default(null),
-  pathPresets: z.array(audioPathPresetSchema).default([]),
-  activePresetIds: z.object({
-    game: z.string().nullable(),
-    chat: z.string().nullable(),
-    media: z.string().nullable(),
-    microphone: z.string().nullable(),
-  }).default({ game: null, chat: null, media: null, microphone: null }),
-});
-export type AudioState = z.infer<typeof audioStateSchema>;
 
 export const captureSourceTypeSchema = z.enum(['automatic-game', 'window', 'display']);
 export type CaptureSourceType = z.infer<typeof captureSourceTypeSchema>;
@@ -1530,7 +994,7 @@ export type DeveloperDiagnosticEvent = DeveloperDiagnosticInput & {
   sessionId: string;
   sequence: number;
   sampledAt: string;
-  source: 'main' | 'capture' | 'audio' | 'renderer';
+  source: 'main' | 'capture' | 'renderer';
 };
 
 export const nativeDiagnosticsInputSchema = z.object({ enabled: z.boolean() });
@@ -1594,7 +1058,7 @@ export const gameDetectionStateSchema = z.object({
 });
 export type GameDetectionState = z.infer<typeof gameDetectionStateSchema>;
 
-export const visibleWorkspaceSchema = z.enum(['devices', 'audio', 'capture']);
+export const visibleWorkspaceSchema = z.enum(['devices', 'capture']);
 export type VisibleWorkspace = z.infer<typeof visibleWorkspaceSchema>;
 
 export const appSettingsSchema = z.object({
@@ -1677,12 +1141,7 @@ export const sceneDeviceSettingsSchema = z.object({
     zones: z.array(z.object({ id: z.string(), color: z.string().regex(/^#[0-9a-f]{6}$/i) })).max(256).default([]),
   }).optional(),
 });
-export const sceneAudioSchema = audioStateSchema.pick({
-  enabled: true, outputDevice: true, microphoneDevice: true, mixes: true, chatMix: true,
-  monitoring: true, monitoringEnabled: true, monitoringDeviceId: true, micProcessors: true, channelProcessing: true,
-}).extend({ buses: z.array(audioBusSchema.pick({ id: true, enabled: true, deviceId: true })) });
 export const sceneValuesSchema = z.object({
-  audio: sceneAudioSchema.nullable(),
   capture: captureConfigSchema.omit({ hotkey: true, clipsDirectory: true, replayCacheDirectory: true }).nullable(),
   devices: z.array(sceneDeviceSettingsSchema).max(32),
 });
@@ -1696,7 +1155,7 @@ export const setupSceneSchema = z.object({
 export type SetupScene = z.infer<typeof setupSceneSchema>;
 export const saveSceneInputSchema = setupSceneSchema.omit({ id: true, values: true }).extend({
   id: z.string().min(1).max(100).optional(), captureCurrent: z.boolean(),
-  includeAudio: z.boolean(), includeCapture: z.boolean(), includeDevices: z.boolean(),
+  includeCapture: z.boolean(), includeDevices: z.boolean(),
 });
 export type SaveSceneInput = z.infer<typeof saveSceneInputSchema>;
 export const setupPreferencesSchema = z.object({
@@ -1716,8 +1175,7 @@ export const setupPreferencesSchema = z.object({
   }).default({ enabled: false, displayId: null, frame: null, dim: 20, size: 100, horizontal: 50, vertical: 50, color: 'white' }),
   quickControlsEnabled: z.boolean().default(false),
   quickShortcut: shortcutSchema.default('Control+Alt+Space'),
-  quickActions: z.array(z.enum(['scenes', 'replay', 'microphone', 'output', 'chatmix'])).max(5)
-    .default(['scenes', 'replay', 'microphone', 'output', 'chatmix']),
+  quickActions: z.array(z.enum(['scenes', 'replay'])).max(2).default(['scenes', 'replay']),
   lighting: z.object({
     enabled: z.boolean().default(false), deviceIds: z.array(z.string().min(1).max(256)).max(32).default([]),
     clipSaved: z.boolean().default(true), microphoneMuted: z.boolean().default(true), captureError: z.boolean().default(true),
@@ -1731,12 +1189,6 @@ export const verticalGuideLayoutSchema = z.object({
   frame: setupPreferencesSchema.shape.verticalGuide.unwrap().shape.frame.unwrap().unwrap(),
 });
 export type VerticalGuideLayout = z.infer<typeof verticalGuideLayoutSchema>;
-export const quickActionInputSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('microphone'), muted: z.boolean() }),
-  z.object({ type: z.literal('output'), deviceId: z.string().min(1).max(512) }),
-  z.object({ type: z.literal('chatmix'), value: z.number().min(-1).max(1) }),
-]);
-export type QuickActionInput = z.infer<typeof quickActionInputSchema>;
 export const setupRuntimeSchema = z.object({
   activeSceneId: z.string().nullable().default(null),
   state: z.enum(['idle', 'applying', 'active', 'partial', 'restoring']).default('idle'),
@@ -1760,8 +1212,9 @@ export const systemSnapshotSchema = z.object({
   modules: z.array(moduleManifestSchema),
   devices: z.array(deviceSchema),
   engines: z.array(engineStatusSchema),
-  audio: audioStateSchema,
   capture: z.object({
+    // Runtime inventory of active Windows endpoints for replay audio pickers; never persisted.
+    audioDevices: z.array(audioDeviceSchema).default([]),
     audioCalibration: audioCalibrationStateSchema.default({ status: 'idle', measurement: null, error: null }),
     config: captureConfigSchema,
     runtime: captureRuntimeSchema,
@@ -1831,173 +1284,6 @@ export const setDeviceAppearanceOverrideInputSchema = z.object({
 });
 export type SetDeviceAppearanceOverrideInput = z.infer<typeof setDeviceAppearanceOverrideInputSchema>;
 
-export const setAudioBusGainInputSchema = z.object({
-  mixId: audioMixIdSchema,
-  busId: audioBusIdSchema,
-  gain: z.number().min(0).max(1.5),
-});
-export type SetAudioBusGainInput = z.infer<typeof setAudioBusGainInputSchema>;
-
-export const setAudioMasterGainInputSchema = z.object({
-  mixId: audioMixIdSchema,
-  gain: z.number().min(0).max(1.5),
-});
-export type SetAudioMasterGainInput = z.infer<typeof setAudioMasterGainInputSchema>;
-
-export const setAudioMasterEnabledInputSchema = z.object({
-  mixId: audioMixIdSchema,
-  enabled: z.boolean(),
-});
-export type SetAudioMasterEnabledInput = z.infer<typeof setAudioMasterEnabledInputSchema>;
-
-export const setAudioBusEnabledInputSchema = z.object({
-  mixId: audioMixIdSchema,
-  busId: audioBusIdSchema,
-  enabled: z.boolean(),
-});
-export type SetAudioBusEnabledInput = z.infer<typeof setAudioBusEnabledInputSchema>;
-
-export const setAudioChannelEnabledInputSchema = z.object({
-  busId: audioBusIdSchema,
-  enabled: z.boolean(),
-});
-export type SetAudioChannelEnabledInput = z.infer<typeof setAudioChannelEnabledInputSchema>;
-
-export const setAudioBusDeviceInputSchema = z.object({
-  busId: audioBusIdSchema,
-  deviceId: z.string().min(1),
-});
-export type SetAudioBusDeviceInput = z.infer<typeof setAudioBusDeviceInputSchema>;
-
-export const setAudioDeviceExcludedInputSchema = z.object({
-  deviceId: z.string().min(1).max(512),
-  excluded: z.boolean(),
-}).strict();
-export type SetAudioDeviceExcludedInput = z.infer<typeof setAudioDeviceExcludedInputSchema>;
-
-export const setNoiseSuppressionModelInputSchema = z.object({ model: noiseSuppressionModelSchema }).strict();
-export type SetNoiseSuppressionModelInput = z.infer<typeof setNoiseSuppressionModelInputSchema>;
-
-export const setAudioApplicationRouteInputSchema = z.object({
-  applicationId: z.string().min(1),
-  destination: z.enum(['game', 'chat', 'media']),
-});
-export type SetAudioApplicationRouteInput = z.infer<typeof setAudioApplicationRouteInputSchema>;
-
-export const applyAudioPresetInputSchema = z.object({
-  presetId: z.string().min(1),
-});
-export type ApplyAudioPresetInput = z.infer<typeof applyAudioPresetInputSchema>;
-
-export const createAudioPresetInputSchema = z.object({
-  kind: audioPathIdSchema,
-  name: z.string().trim().min(1).max(64),
-});
-export type CreateAudioPresetInput = z.infer<typeof createAudioPresetInputSchema>;
-
-export const renameAudioPresetInputSchema = z.object({
-  presetId: z.string().min(1),
-  name: z.string().trim().min(1).max(64),
-});
-export type RenameAudioPresetInput = z.infer<typeof renameAudioPresetInputSchema>;
-
-export const audioPresetIdInputSchema = z.object({ presetId: z.string().min(1) });
-export type AudioPresetIdInput = z.infer<typeof audioPresetIdInputSchema>;
-
-export const setAudioMonitoringInputSchema = z.object({
-  enabled: z.boolean().optional(),
-  level: z.number().min(0).max(1).optional(),
-  deviceId: z.string().min(1).optional(),
-});
-export type SetAudioMonitoringInput = z.infer<typeof setAudioMonitoringInputSchema>;
-
-export const setAudioChannelProcessorInputSchema = z.discriminatedUnion('processorId', [
-  z.object({
-    busId: channelAudioBusIdSchema,
-    processorId: z.literal('equalizer'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({ bands: eqBandsSchema.optional() }).optional(),
-  }),
-  z.object({
-    busId: channelAudioBusIdSchema,
-    processorId: z.literal('normalization'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({
-      targetLufs: z.number().min(-30).max(-10).optional(),
-      maxGainDb: z.number().min(0).max(18).optional(),
-    }).optional(),
-  }),
-  z.object({
-    busId: channelAudioBusIdSchema,
-    processorId: z.literal('compressor'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({
-      thresholdDb: z.number().min(-60).max(0).optional(),
-      ratio: z.number().min(1).max(20).optional(),
-      attackMs: z.number().min(0.1).max(200).optional(),
-      releaseMs: z.number().min(10).max(2_000).optional(),
-      makeupDb: z.number().min(0).max(18).optional(),
-    }).optional(),
-  }),
-  z.object({
-    busId: channelAudioBusIdSchema,
-    processorId: z.literal('limiter'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({
-      thresholdDb: z.number().min(-18).max(0).optional(),
-      releaseMs: z.number().min(10).max(1_000).optional(),
-    }).optional(),
-  }),
-]);
-export type SetAudioChannelProcessorInput = z.infer<typeof setAudioChannelProcessorInputSchema>;
-
-export const setMicProcessorInputSchema = z.discriminatedUnion('processorId', [
-  z.object({
-    processorId: z.literal('gain'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({ gainDb: z.number().min(-20).max(30).optional() }).optional(),
-  }),
-  z.object({
-    processorId: z.literal('noise-gate'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({
-      thresholdDb: z.number().min(-80).max(-10).optional(),
-      attackMs: z.number().min(0.1).max(100).optional(),
-      releaseMs: z.number().min(10).max(1_000).optional(),
-    }).optional(),
-  }),
-  z.object({
-    processorId: z.literal('noise-suppression'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({ amount: z.number().min(0).max(100).optional() }).optional(),
-  }),
-  z.object({
-    processorId: z.literal('equalizer'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({ bands: eqBandsSchema.optional() }).optional(),
-  }),
-  z.object({
-    processorId: z.literal('compressor'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({
-      thresholdDb: z.number().min(-60).max(0).optional(),
-      ratio: z.number().min(1).max(20).optional(),
-      attackMs: z.number().min(0.1).max(200).optional(),
-      releaseMs: z.number().min(10).max(2_000).optional(),
-      makeupDb: z.number().min(0).max(18).optional(),
-    }).optional(),
-  }),
-  z.object({
-    processorId: z.literal('limiter'),
-    enabled: z.boolean().optional(),
-    parameters: z.object({
-      thresholdDb: z.number().min(-18).max(0).optional(),
-      releaseMs: z.number().min(10).max(1_000).optional(),
-    }).optional(),
-  }),
-]);
-export type SetMicProcessorInput = z.infer<typeof setMicProcessorInputSchema>;
-
 // Persisted-state defaults belong to hydration, never to a partial IPC update.
 export const updateSettingsInputSchema = appSettingsSchema.partial().extend({
   trayOnGameLaunch: appSettingsSchema.shape.trayOnGameLaunch.removeDefault().optional(),
@@ -2017,7 +1303,6 @@ export const settingsResetScopeSchema = z.enum([
   'all',
   'general',
   'devices',
-  'audio',
   'capture',
   'games',
   'modules',
@@ -2059,7 +1344,6 @@ export const ipcChannels = {
   setShortcutRecording: 'shortcuts:set-recording',
   openQuickControls: 'setup:open-quick-controls', closeQuickControls: 'setup:close-quick-controls',
   getVerticalGuideLayout: 'setup:get-vertical-guide-layout',
-  runQuickAction: 'setup:quick-action',
   getSnapshot: 'system:get-snapshot',
   refreshDevices: 'devices:refresh',
   setModuleState: 'modules:set-state',
@@ -2074,38 +1358,6 @@ export const ipcChannels = {
   setDeviceControl: 'devices:set-control',
   setDeviceSetting: 'devices:set-setting',
   setDeviceAppearanceOverride: 'devices:set-appearance-override',
-  setAudioRouting: 'audio:set-routing',
-  setAudioDeviceExcluded: 'audio:set-device-excluded',
-  setNoiseSuppressionModel: 'audio:set-noise-suppression-model',
-  setAudioEnabled: 'audio:set-enabled',
-  restartAudio: 'audio:restart',
-  openWindowsSound: 'audio:open-windows-sound',
-  audioDependencySetup: 'audio:dependency-setup',
-  openTrackSetup: 'audio:opentrack-setup',
-  setAudioMasterGain: 'audio:set-master-gain',
-  setAudioMasterEnabled: 'audio:set-master-enabled',
-  setAudioBusGain: 'audio:set-bus-gain',
-  setAudioBusEnabled: 'audio:set-bus-enabled',
-  setAudioChannelEnabled: 'audio:set-channel-enabled',
-  setAudioBusDevice: 'audio:set-bus-device',
-  setAudioApplicationRoute: 'audio:set-application-route',
-  applyAudioPreset: 'audio:apply-preset',
-  createAudioPreset: 'audio:create-preset',
-  renameAudioPreset: 'audio:rename-preset',
-  duplicateAudioPreset: 'audio:duplicate-preset',
-  deleteAudioPreset: 'audio:delete-preset',
-  importAudioPreset: 'audio:import-preset',
-  exportAudioPreset: 'audio:export-preset',
-  setAudioChannelProcessor: 'audio:set-channel-processor',
-  setSpatialAudio: 'audio:set-spatial',
-  recenterSpatialAudio: 'audio:recenter-spatial',
-  connectHeadsetTracking: 'audio:connect-headset-tracking',
-  setAudioMonitoring: 'audio:set-monitoring',
-  testMicrophone: 'audio:test-microphone',
-  setChatMix: 'audio:set-chat-mix',
-  setMicProcessor: 'audio:set-mic-processor',
-  setAudioMeterSubscription: 'audio:set-meter-subscription',
-  audioMeterUpdated: 'audio:meter-updated',
   setCaptureConfig: 'capture:set-config',
   audioCalibration: 'capture:audio-calibration',
   saveReplay: 'capture:save-replay',
@@ -2148,8 +1400,6 @@ export const ipcChannels = {
 } as const;
 
 export interface SwitchboardApi {
-  audioDependencySetup(action: AudioSetupAction): Promise<SystemSnapshot>;
-  openTrackSetup(action: OpenTrackAction): Promise<SystemSnapshot>;
   saveScene(input: SaveSceneInput): Promise<SystemSnapshot>;
   deleteScene(id: string): Promise<SystemSnapshot>;
   applyScene(id: string): Promise<SystemSnapshot>;
@@ -2159,7 +1409,6 @@ export interface SwitchboardApi {
   closeQuickControls(): Promise<void>;
   getVerticalGuideLayout(): Promise<VerticalGuideLayout>;
   setShortcutRecording(recording: boolean): Promise<void>;
-  runQuickAction(input: QuickActionInput): Promise<SystemSnapshot>;
   setUiScale(percent: AppSettings['uiScalePercent']): void;
   getSnapshot(): Promise<SystemSnapshot>;
   refreshDevices(): Promise<SystemSnapshot>;
@@ -2175,35 +1424,6 @@ export interface SwitchboardApi {
   setDeviceControl(input: SetDeviceControlInput): Promise<SystemSnapshot>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<SystemSnapshot>;
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<SystemSnapshot>;
-  setAudioRouting(input: SetAudioRoutingInput): Promise<SystemSnapshot>;
-  setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<SystemSnapshot>;
-  setNoiseSuppressionModel(input: SetNoiseSuppressionModelInput): Promise<SystemSnapshot>;
-  setAudioEnabled(enabled: boolean): Promise<SystemSnapshot>;
-  restartAudio(): Promise<SystemSnapshot>;
-  openWindowsSound(): Promise<SystemSnapshot>;
-  setAudioMasterGain(input: SetAudioMasterGainInput): Promise<SystemSnapshot>;
-  setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<SystemSnapshot>;
-  setAudioBusGain(input: SetAudioBusGainInput): Promise<SystemSnapshot>;
-  setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<SystemSnapshot>;
-  setAudioChannelEnabled(input: SetAudioChannelEnabledInput): Promise<SystemSnapshot>;
-  setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<SystemSnapshot>;
-  setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<SystemSnapshot>;
-  applyAudioPreset(input: ApplyAudioPresetInput): Promise<SystemSnapshot>;
-  createAudioPreset(input: CreateAudioPresetInput): Promise<SystemSnapshot>;
-  renameAudioPreset(input: RenameAudioPresetInput): Promise<SystemSnapshot>;
-  duplicateAudioPreset(input: AudioPresetIdInput): Promise<SystemSnapshot>;
-  deleteAudioPreset(input: AudioPresetIdInput): Promise<SystemSnapshot>;
-  importAudioPreset(): Promise<SystemSnapshot>;
-  exportAudioPreset(input: AudioPresetIdInput): Promise<void>;
-  setAudioChannelProcessor(input: SetAudioChannelProcessorInput): Promise<SystemSnapshot>;
-  setSpatialAudio(input: SetSpatialAudioInput): Promise<SystemSnapshot>;
-  recenterSpatialAudio(): Promise<SystemSnapshot>;
-  connectHeadsetTracking(): Promise<SystemSnapshot>;
-  setAudioMonitoring(input: SetAudioMonitoringInput): Promise<SystemSnapshot>;
-  testMicrophone(): Promise<void>;
-  setChatMix(value: number): Promise<SystemSnapshot>;
-  setMicProcessor(input: SetMicProcessorInput): Promise<SystemSnapshot>;
-  subscribeAudioMeters(listener: (frame: AudioMeterFrame) => void): () => void;
   setCaptureConfig(input: SetCaptureConfigInput): Promise<SystemSnapshot>;
   audioCalibration(input: z.infer<typeof audioCalibrationInputSchema>): Promise<SystemSnapshot>;
   saveReplay(): Promise<SystemSnapshot>;

@@ -11,7 +11,7 @@ describe('development native hosts', () => {
     const root = join('C:', 'switchboard');
     const paths = developmentHostPaths(root);
     expect(paths.captureExecutable).toBe(join(root, '.switchboard', 'dev-hosts', 'capture', 'Capture.Host.exe'));
-    expect(paths.audioExecutable).toBe(join(root, '.switchboard', 'dev-hosts', 'audio', 'Audio.Host.exe'));
+    expect(paths).not.toHaveProperty('audioExecutable');
   });
 
   test('parses blocking dev-host processes from PowerShell output', () => {

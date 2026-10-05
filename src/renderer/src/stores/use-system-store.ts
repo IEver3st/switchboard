@@ -1,13 +1,9 @@
-import type { SetAudioDeviceExcludedInput, SetAudioRoutingInput, SetNoiseSuppressionModelInput } from '../../../shared/contracts';
 import { create } from 'zustand';
 import {
   pageIdSchema,
-  type ApplyAudioPresetInput,
   type AutoCaptureSettingsPatch,
   type AutoCaptureTestEventInput,
-  type AudioPresetIdInput,
   type CreateModuleProjectInput,
-  type CreateAudioPresetInput,
   type ExportClipInput,
   type ExportMontageInput,
   type MarkClipsReviewedInput,
@@ -20,20 +16,9 @@ import {
   type SetClipAudioTrackLevelInput,
   type SetClipFavoriteInput,
   type SetClipTrimInput,
-  type RenameAudioPresetInput,
-  type SetAudioChannelProcessorInput,
-  type SetAudioBusDeviceInput,
-  type SetAudioApplicationRouteInput,
-  type SetAudioBusEnabledInput,
-  type SetAudioBusGainInput,
-  type SetAudioChannelEnabledInput,
-  type SetAudioMasterEnabledInput,
-  type SetAudioMasterGainInput,
   type SetDeviceAppearanceOverrideInput,
   type SetDeviceControlInput,
   type SetDeviceSettingInput,
-  type SetMicProcessorInput,
-  type SetAudioMonitoringInput,
   type SetCaptureConfigInput,
   type SetModuleStateInput,
   type SettingsResetScope,
@@ -60,9 +45,6 @@ function pageFromHash(): PageId {
 }
 
 function canonicalPageHash(page: PageId): string {
-  if (page === 'audio' && /^#audio\/(mixer|game|chat|media|microphone|spatial)$/.test(window.location.hash)) {
-    return window.location.hash;
-  }
   if (page === 'settings' && window.location.hash === '#settings/modules/developer-tools') {
     return window.location.hash;
   }
@@ -76,7 +58,6 @@ interface SystemStore {
   loading: boolean;
   error: string | null;
   pendingDeviceIds: string[];
-  pendingAudioOperations: number;
   initialize(): Promise<() => void>;
   setPage(page: PageId): void;
   selectDevice(id: string): void;
@@ -92,36 +73,6 @@ interface SystemStore {
   setDeviceControl(input: SetDeviceControlInput): Promise<void>;
   setDeviceSetting(input: SetDeviceSettingInput): Promise<void>;
   setDeviceAppearanceOverride(input: SetDeviceAppearanceOverrideInput): Promise<void>;
-  setAudioRouting(input: SetAudioRoutingInput): Promise<void>;
-  setAudioDeviceExcluded(input: SetAudioDeviceExcludedInput): Promise<void>;
-  setNoiseSuppressionModel(input: SetNoiseSuppressionModelInput): Promise<void>;
-  audioDependencySetup(action: import('../../../shared/contracts').AudioSetupAction): Promise<void>;
-  openTrackSetup(action: import('../../../shared/contracts').OpenTrackAction): Promise<void>;
-  setAudioEnabled(enabled: boolean): Promise<void>;
-  restartAudio(): Promise<void>;
-  openWindowsSound(): Promise<void>;
-  setAudioMasterGain(input: SetAudioMasterGainInput): Promise<void>;
-  setAudioMasterEnabled(input: SetAudioMasterEnabledInput): Promise<void>;
-  setAudioBusGain(input: SetAudioBusGainInput): Promise<void>;
-  setAudioBusEnabled(input: SetAudioBusEnabledInput): Promise<void>;
-  setAudioChannelEnabled(input: SetAudioChannelEnabledInput): Promise<void>;
-  setAudioBusDevice(input: SetAudioBusDeviceInput): Promise<void>;
-  setAudioApplicationRoute(input: SetAudioApplicationRouteInput): Promise<void>;
-  applyAudioPreset(input: ApplyAudioPresetInput): Promise<void>;
-  createAudioPreset(input: CreateAudioPresetInput): Promise<void>;
-  renameAudioPreset(input: RenameAudioPresetInput): Promise<void>;
-  duplicateAudioPreset(input: AudioPresetIdInput): Promise<void>;
-  deleteAudioPreset(input: AudioPresetIdInput): Promise<void>;
-  importAudioPreset(): Promise<void>;
-  exportAudioPreset(input: AudioPresetIdInput): Promise<void>;
-  setAudioChannelProcessor(input: SetAudioChannelProcessorInput): Promise<void>;
-  setSpatialAudio(input: import('../../../shared/contracts').SetSpatialAudioInput): Promise<void>;
-  recenterSpatialAudio(): Promise<void>;
-  connectHeadsetTracking(): Promise<void>;
-  setAudioMonitoring(input: SetAudioMonitoringInput): Promise<void>;
-  testMicrophone(): Promise<void>;
-  setChatMix(value: number): Promise<void>;
-  setMicProcessor(input: SetMicProcessorInput): Promise<void>;
   setCaptureConfig(input: SetCaptureConfigInput): Promise<void>;
   saveReplay(): Promise<void>;
   chooseClipDirectory(): Promise<void>;
@@ -170,11 +121,6 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
       set({ error: error instanceof Error ? error.message : String(error) });
     }
   };
-  const runAudio = async (action: AsyncAction): Promise<void> => {
-    set(state => ({ pendingAudioOperations: state.pendingAudioOperations + 1 }));
-    try { await run(action); }
-    finally { set(state => ({ pendingAudioOperations: state.pendingAudioOperations - 1 })); }
-  };
 
   return {
     snapshot: null,
@@ -183,7 +129,6 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     loading: true,
     error: null,
     pendingDeviceIds: [],
-    pendingAudioOperations: 0,
     async initialize() {
       let receivedSubscriptionSnapshot = false;
       const unsubscribe = switchboardApi.subscribe((snapshot) => {
@@ -268,44 +213,6 @@ export const useSystemStore = create<SystemStore>((setState, get) => {
     },
     setDeviceSetting: (input) => run(() => switchboardApi.setDeviceSetting(input)),
     setDeviceAppearanceOverride: (input) => run(() => switchboardApi.setDeviceAppearanceOverride(input)),
-    setAudioRouting: (input) => runAudio(() => switchboardApi.setAudioRouting(input)),
-    setAudioDeviceExcluded: (input) => runAudio(() => switchboardApi.setAudioDeviceExcluded(input)),
-    setNoiseSuppressionModel: (input) => runAudio(() => switchboardApi.setNoiseSuppressionModel(input)),
-    audioDependencySetup: (action) => run(() => switchboardApi.audioDependencySetup(action)),
-    openTrackSetup: (action) => run(() => switchboardApi.openTrackSetup(action)),
-    setAudioEnabled: (enabled) => runAudio(() => switchboardApi.setAudioEnabled(enabled)),
-    restartAudio: () => runAudio(() => switchboardApi.restartAudio()),
-    openWindowsSound: () => runAudio(() => switchboardApi.openWindowsSound()),
-    setAudioMasterGain: (input) => runAudio(() => switchboardApi.setAudioMasterGain(input)),
-    setAudioMasterEnabled: (input) => runAudio(() => switchboardApi.setAudioMasterEnabled(input)),
-    setAudioBusGain: (input) => runAudio(() => switchboardApi.setAudioBusGain(input)),
-    setAudioBusEnabled: (input) => runAudio(() => switchboardApi.setAudioBusEnabled(input)),
-    setAudioChannelEnabled: (input) => runAudio(() => switchboardApi.setAudioChannelEnabled(input)),
-    setAudioBusDevice: (input) => runAudio(() => switchboardApi.setAudioBusDevice(input)),
-    setAudioApplicationRoute: (input) => runAudio(() => switchboardApi.setAudioApplicationRoute(input)),
-    applyAudioPreset: (input) => runAudio(() => switchboardApi.applyAudioPreset(input)),
-    createAudioPreset: (input) => runAudio(() => switchboardApi.createAudioPreset(input)),
-    renameAudioPreset: (input) => runAudio(() => switchboardApi.renameAudioPreset(input)),
-    duplicateAudioPreset: (input) => runAudio(() => switchboardApi.duplicateAudioPreset(input)),
-    deleteAudioPreset: (input) => runAudio(() => switchboardApi.deleteAudioPreset(input)),
-    importAudioPreset: () => runAudio(() => switchboardApi.importAudioPreset()),
-    exportAudioPreset: async (input) => {
-      set({ error: null });
-      try { await switchboardApi.exportAudioPreset(input); }
-      catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
-    },
-    setAudioChannelProcessor: (input) => runAudio(() => switchboardApi.setAudioChannelProcessor(input)),
-    setSpatialAudio: input => runAudio(() => switchboardApi.setSpatialAudio(input)),
-    recenterSpatialAudio: () => runAudio(() => switchboardApi.recenterSpatialAudio()),
-    connectHeadsetTracking: () => runAudio(() => switchboardApi.connectHeadsetTracking()),
-    setAudioMonitoring: (input) => runAudio(() => switchboardApi.setAudioMonitoring(input)),
-    testMicrophone: async () => {
-      set({ error: null });
-      try { await switchboardApi.testMicrophone(); }
-      catch (error) { set({ error: error instanceof Error ? error.message : String(error) }); }
-    },
-    setChatMix: (value) => runAudio(() => switchboardApi.setChatMix(value)),
-    setMicProcessor: (input) => runAudio(() => switchboardApi.setMicProcessor(input)),
     setCaptureConfig: (input) => run(() => switchboardApi.setCaptureConfig(input)),
     saveReplay: () => run(() => switchboardApi.saveReplay()),
     chooseReplayCacheDirectory: () => run(() => switchboardApi.chooseReplayCacheDirectory()),

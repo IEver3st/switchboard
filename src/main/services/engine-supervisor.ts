@@ -10,17 +10,14 @@ import { createInterface } from 'node:readline';
 import { app } from 'electron';
 import { z } from 'zod';
 import {
-  audioMeterFrameSchema,
   engineKindSchema,
   engineStatusSchema,
   nativeDiagnosticsInputSchema,
-  type AudioMeterFrame,
   type EngineKind,
   type EngineStatus,
 } from '../../shared/contracts';
 
 type StatusListener = (status: EngineStatus) => void;
-type AudioMeterListener = (frame: AudioMeterFrame) => void;
 type EventListener = (kind: EngineKind, event: string, payload: unknown) => void;
 type EngineProcess = ChildProcessWithoutNullStreams;
 
@@ -43,10 +40,6 @@ const workerMessageSchema = z.discriminatedUnion('type', [
     error: z.string().optional(),
   }),
   z.object({
-    type: z.literal('meters'),
-    frame: audioMeterFrameSchema,
-  }),
-  z.object({
     type: z.literal('event'),
     event: z.string().min(1),
     payload: z.unknown().optional(),
@@ -66,7 +59,6 @@ export class EngineSupervisor {
 
   public constructor(
     private readonly onStatus: StatusListener,
-    private readonly onAudioMeters: AudioMeterListener = () => undefined,
     private readonly onEvent: EventListener = () => undefined,
   ) {
     for (const kind of engineKindSchema.options) {
@@ -116,7 +108,7 @@ export class EngineSupervisor {
 
     this.expectedStops.add(kind);
     try {
-      const exit = this.waitForExit(worker, kind === 'capture' ? 12_000 : 5_000);
+      const exit = this.waitForExit(worker, 12_000);
       try {
         this.sendEnvelope(worker, { command: 'shutdown' });
       } catch {
@@ -236,7 +228,7 @@ export class EngineSupervisor {
 
     let worker: EngineProcess;
     try {
-      worker = kind === 'capture' ? this.spawnCaptureHost() : this.spawnAudioHost();
+      worker = this.spawnCaptureHost();
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
       this.updateStatus({
@@ -277,19 +269,6 @@ export class EngineSupervisor {
     developerDiagnostics.record('capture', 'info', 'host.spawn', { packaged: app.isPackaged });
     return spawn(resolved.command, resolved.arguments, {
       cwd: app.isPackaged ? join(process.resourcesPath, 'capture-host') : app.getAppPath(),
-      env: environment,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-  }
-
-  private spawnAudioHost(): ChildProcessWithoutNullStreams {
-    const resolved = this.resolveAudioHost();
-    const environment = { ...process.env };
-    delete environment.ELECTRON_RUN_AS_NODE;
-    developerDiagnostics.record('audio', 'info', 'host.spawn', { packaged: app.isPackaged });
-    return spawn(resolved.command, resolved.arguments, {
-      cwd: app.isPackaged ? join(process.resourcesPath, 'audio-host') : app.getAppPath(),
       env: environment,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -365,11 +344,6 @@ export class EngineSupervisor {
         return;
       }
       this.updateStatus(message.status);
-      return;
-    }
-
-    if (message.type === 'meters') {
-      if (kind === 'audio') this.onAudioMeters(message.frame);
       return;
     }
 
@@ -477,28 +451,6 @@ export class EngineSupervisor {
     const executable = join(app.getAppPath(), 'engines', 'capture-host', 'bin', 'Debug', 'net10.0-windows', 'Capture.Host.exe');
     if (existsSync(executable)) return { command: executable, arguments: [] };
     const project = join(app.getAppPath(), 'engines', 'capture-host', 'Capture.Host.csproj');
-    return { command: 'dotnet', arguments: ['run', '--project', project, '--no-launch-profile'] };
-  }
-
-  private resolveAudioHost(): { command: string; arguments: string[] } {
-    if (app.isPackaged) {
-      const executable = join(process.resourcesPath, 'audio-host', 'Audio.Host.exe');
-      if (!existsSync(executable)) throw new Error('The Audio.Host executable is missing from this installation.');
-      return { command: executable, arguments: [] };
-    }
-    if (process.env.SWITCHBOARD_NATIVE_REVIEW === '1') {
-      const reviewExecutable = process.env.SWITCHBOARD_NATIVE_REVIEW_AUDIO_HOST;
-      if (reviewExecutable && existsSync(reviewExecutable)) {
-        return { command: reviewExecutable, arguments: [] };
-      }
-    }
-    const configuredExecutable = process.env.SWITCHBOARD_DEVELOPMENT_AUDIO_HOST;
-    if (configuredExecutable && existsSync(configuredExecutable)) {
-      return { command: configuredExecutable, arguments: [] };
-    }
-    const executable = join(app.getAppPath(), 'engines', 'audio-host', 'bin', 'Debug', 'net10.0-windows', 'Audio.Host.exe');
-    if (existsSync(executable)) return { command: executable, arguments: [] };
-    const project = join(app.getAppPath(), 'engines', 'audio-host', 'Audio.Host.csproj');
     return { command: 'dotnet', arguments: ['run', '--project', project, '--no-launch-profile'] };
   }
 

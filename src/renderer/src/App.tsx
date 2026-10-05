@@ -15,16 +15,10 @@ import { SettingsPage } from '@/pages/settings';
 import { requestSettingsCategory } from '@/components/settings/settings-catalog';
 import { useSystemStore } from '@/stores/use-system-store';
 
-let audioPagePromise: ReturnType<typeof importAudioPage> | null = null;
 let capturePagePromise: ReturnType<typeof importCapturePage> | null = null;
 let devicesPagePromise: ReturnType<typeof importDevicesPage> | null = null;
-let resolvedAudioPage: Awaited<ReturnType<typeof importAudioPage>> | null = null;
 let resolvedCapturePage: Awaited<ReturnType<typeof importCapturePage>> | null = null;
 let resolvedDevicesPage: Awaited<ReturnType<typeof importDevicesPage>> | null = null;
-
-function importAudioPage() {
-  return import('@/pages/audio').then((module) => ({ default: module.AudioPage }));
-}
 
 function importCapturePage() {
   return import('@/pages/capture').then((module) => ({ default: module.CapturePage }));
@@ -34,10 +28,6 @@ function importDevicesPage() {
   return import('@/pages/devices').then((module) => ({ default: module.DevicesPage }));
 }
 
-const loadAudioPage = () => audioPagePromise ??= importAudioPage().then((module) => {
-  resolvedAudioPage = module;
-  return module;
-});
 const loadCapturePage = () => capturePagePromise ??= importCapturePage().then((module) => {
   resolvedCapturePage = module;
   return module;
@@ -46,20 +36,17 @@ const loadDevicesPage = () => devicesPagePromise ??= importDevicesPage().then((m
   resolvedDevicesPage = module;
   return module;
 });
-const AudioPage = lazy(loadAudioPage);
 const CapturePage = lazy(loadCapturePage);
 const DevicesPage = lazy(loadDevicesPage);
 const NewClipsReview = lazy(() => import('@/components/capture/NewClipsReview').then((module) => ({ default: module.NewClipsReview })));
 
 const workspaceLoaders: Partial<Record<PageId, () => Promise<unknown>>> = {
-  audio: loadAudioPage,
   capture: loadCapturePage,
   devices: loadDevicesPage,
 };
 
 const pageTitles: Record<PageId, string> = {
   devices: 'Devices',
-  audio: 'Audio',
   capture: 'Capture',
   modules: 'Settings',
   settings: 'Settings',
@@ -83,7 +70,6 @@ export function App() {
   const preloadWorkspace = useCallback((target: PageId) => {
     void workspaceLoaders[target]?.().then(() => setPreloadRevision((revision) => revision + 1));
   }, [snapshot?.settings.developerMode]);
-  const AudioWorkspace = resolvedAudioPage?.default ?? AudioPage;
   // Keep the component identity stable when idle preloading completes. Swapping
   // a mounted lazy page for its resolved type discards an open editor's state.
   const CaptureWorkspace = CapturePage;
@@ -114,12 +100,7 @@ export function App() {
     if (snapshot.settings.developerMode === true) {
       let cancelled = false;
       const preload = () => {
-        void loadAudioPage()
-          .then(() => {
-            if (!cancelled) setPreloadRevision((revision) => revision + 1);
-            return loadCapturePage();
-          })
-          .then(() => { if (!cancelled) setPreloadRevision((revision) => revision + 1); });
+        void loadCapturePage().then(() => { if (!cancelled) setPreloadRevision((revision) => revision + 1); });
       };
       const idleCallback = window.requestIdleCallback(preload, { timeout: 1_000 });
       return () => {
@@ -188,7 +169,6 @@ export function App() {
                     <Suspense fallback={<PageLoading label={pageTitles[page].toLocaleLowerCase()} />}>
                       <ScrollArea className="h-full">
                         {page === 'devices' ? <DevicesWorkspace snapshot={snapshot} /> : null}
-                        {page === 'audio' ? <AudioWorkspace snapshot={snapshot} /> : null}
                         {page === 'capture' ? (
                           <CaptureWorkspace
                             snapshot={snapshot}

@@ -9,7 +9,7 @@ const profile = await mkdtemp(join(tmpdir(), 'switchboard-diagnostics-polish-'))
 const output = join(root, '.switchboard', 'diagnostics-polish', String(Date.now()));
 await mkdir(output, { recursive: true });
 const state = JSON.parse(await readFile(join(process.env.APPDATA, 'Switchboard Dev', 'switchboard-state.json'), 'utf8'));
-state.clips = []; state.audio.enabled = false; state.modules.forEach(module => { module.enabled = false; });
+state.clips = []; state.modules.forEach(module => { module.enabled = false; });
 Object.assign(state.capture.config, { enabled: false, clipsDirectory: join(profile, 'Clips'), replayCacheDirectory: null });
 Object.assign(state.settings, { onboardingCompleted: true, developerMode: true, detailedDiagnostics: false, automaticUpdates: false, scanGamesAutomatically: false, uiScalePercent: 100 });
 await writeFile(join(profile, 'switchboard-state.json'), JSON.stringify(state));

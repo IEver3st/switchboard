@@ -1,7 +1,3 @@
-import { resolveReplayAudioRouting } from '../../../shared/capture-audio-routing';
-import { AudioDependencySetupPanel } from '@/components/settings/audio-dependency-setup';
-import { ApplicationRoutingSettings } from '@/components/settings/application-routing-settings';
-import { pickableAudioDevices } from '@/components/audio/AudioDevicePicker';
 import '@/components/settings/capture-settings.css';
 import '@/components/settings/settings-shell.css';
 import { AudioSyncCalibrationSettings } from '@/components/settings/audio-sync-calibration';
@@ -11,7 +7,7 @@ import { DiagnosticsWorkspace } from '@/components/settings/diagnostics-workspac
 import { ResourceDiagnostics } from '@/components/settings/resource-diagnostics';
 import { DiagnosticRunner } from '@/components/settings/diagnostic-runner';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { AlertTriangle, AudioWaveform, Cable, CircleDot, Download, LoaderCircle, RefreshCw, RotateCcw, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Cable, CircleDot, Download, LoaderCircle, RefreshCw, RotateCcw, type LucideIcon } from 'lucide-react';
 import type {
   AppUpdateState,
   CaptureConfig,
@@ -70,7 +66,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/cn';
-import { formatBytes, formatRelativeTime, percent } from '@/lib/format';
+import { formatBytes, formatRelativeTime } from '@/lib/format';
 import { useSystemStore } from '@/stores/use-system-store';
 
 type SettingsSubview = 'category' | 'module-developer-tools';
@@ -269,7 +265,6 @@ function SettingsCategory({
   if (category === 'general') return <GeneralSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'updates') return <UpdatesSettings snapshot={snapshot} />;
   if (category === 'setup') return <SetupWorkspace snapshot={snapshot} />;
-  if (category === 'audio') return <AudioSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'capture') return <CaptureSettings snapshot={snapshot} onReset={onReset} targetSetting={targetSetting} />;
   if (category === 'clips') return <ClipsSettings snapshot={snapshot} onReset={onReset} />;
   if (category === 'games') return <GameDetectionSettings snapshot={snapshot} onReset={onReset} />;
@@ -284,8 +279,8 @@ function SettingsCategory({
 
 /**
  * Pages and the modules behind them live on one surface so a feature is never
- * switched in two unrelated places. Capture and Audio engines keep their single
- * switch in their own categories; this page only decides what appears.
+ * switched in two unrelated places. The Capture engine keeps its single switch
+ * in its own category; this page only decides what appears.
  */
 function FeaturesSettings({
   snapshot,
@@ -398,19 +393,6 @@ function FeaturesSettings({
         </div>
       </section>
 
-      {(
-        <section className="settings-feature" aria-labelledby="settings-feature-audio">
-          <FeatureHeading id="settings-feature-audio" icon={AudioWaveform} title="Audio" description="Optional app mixing and microphone processing. Install the drivers in Audio settings.">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenCategory('audio')}>Audio settings</Button>
-            <Switch
-              checked={workspaces.includes('audio')}
-              onCheckedChange={(visible) => setWorkspaceVisible('audio', visible)}
-              aria-label="Show the Audio page"
-              data-workspace-toggle="audio"
-            />
-          </FeatureHeading>
-        </section>
-      )}
     </div>
   );
 }
@@ -482,7 +464,7 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
               ? 'Starting game detection…'
               : snapshot.gameDetection.capability === 'simulation'
                 ? 'Preview only. Game detection runs in the Windows app.'
-                : 'Detect recognized game windows and move Switchboard to the tray. Capture and audio keep running. Reopen from the tray at any time.'}
+                : 'Detect recognized game windows and move Switchboard to the tray. Capture keeps running. Reopen from the tray at any time.'}
           checked={snapshot.settings.trayOnGameLaunch}
           onCheckedChange={(checked) => void updateSettings({ trayOnGameLaunch: checked })}
         />
@@ -537,75 +519,6 @@ function GeneralSettings({ snapshot, onReset }: CategoryProps) {
               }
             });
           }}
-        />
-      </SettingSection>
-    </>
-  );
-}
-
-function AudioSettings({ snapshot, onReset }: CategoryProps) {
-  const setPage = useSystemStore((state) => state.setPage);
-  const setAudioEnabled = useSystemStore((state) => state.setAudioEnabled);
-  const setAudioBusDevice = useSystemStore((state) => state.setAudioBusDevice);
-  const gameBus = snapshot.audio.buses.find((bus) => bus.id === 'game');
-  const micBus = snapshot.audio.buses.find((bus) => bus.id === 'mic');
-  const outputOptions = pickableAudioDevices(snapshot.audio.devices, 'output', snapshot.audio.excludedDeviceIds, gameBus?.deviceId)
-    .map((device) => ({ value: device.id, label: `${device.name}${device.isDefault ? ' · Windows default' : ''}` }));
-  const inputOptions = pickableAudioDevices(snapshot.audio.devices, 'input', snapshot.audio.excludedDeviceIds, micBus?.deviceId)
-    .map((device) => ({ value: device.id, label: `${device.name}${device.isDefault ? ' · Windows default' : ''}` }));
-  const engine = snapshot.engines.find((candidate) => candidate.kind === 'audio');
-
-  return (
-    <>
-      <SettingsCategoryHeader title="Audio" description="Manage audio routing and default devices." onReset={onReset} />
-      <SettingSection title="Audio drivers"><AudioDependencySetupPanel state={snapshot.audio.dependencies} /></SettingSection>
-      <SettingSection title="Engine">
-        <SettingSwitch
-          settingId="audio.engine"
-          title="Audio engine"
-          description={snapshot.audio.enabled
-            ? 'Audio starts automatically at launch. Turning it off releases audio devices and background work.'
-            : 'Start the isolated Audio host now and restore it on the next launch.'}
-          checked={snapshot.audio.enabled}
-          onCheckedChange={(checked) => void setAudioEnabled(checked)}
-        />
-        <SettingValue
-          settingId="audio.sampleRate"
-          title="Processing format"
-          description="The current Audio graph has one fixed allocation-free processing format."
-          value={`${snapshot.audio.sampleRate / 1000} kHz · float32`}
-        />
-      </SettingSection>
-      <ApplicationRoutingSettings audio={snapshot.audio} />
-      <SettingSection title="Default devices">
-        {gameBus ? (
-          <SettingSelect
-            settingId="audio.output"
-            title="Default output"
-            description="Choose the Windows output assigned to the Game bus. The change applies immediately when the host is running."
-            value={gameBus.deviceId}
-            options={outputOptions}
-            disabled={outputOptions.length === 0}
-            onValueChange={(deviceId) => void setAudioBusDevice({ busId: 'game', deviceId })}
-          />
-        ) : null}
-        {micBus ? (
-          <SettingSelect
-            settingId="audio.microphone"
-            title="Default microphone"
-            description="Choose the Windows input assigned to the Microphone bus. Hardware gain remains on the device page."
-            value={micBus.deviceId}
-            options={inputOptions}
-            disabled={inputOptions.length === 0}
-            onValueChange={(deviceId) => void setAudioBusDevice({ busId: 'mic', deviceId })}
-          />
-        ) : null}
-        <SettingAction
-          settingId="audio.mixer"
-          title="Mixer and processing"
-          description={`Monitoring ${percent(snapshot.audio.monitoring)} · ${engineStateLabel(engine?.state)}. Bus levels, ChatMix, and microphone DSP stay in the Audio workspace.`}
-          label="Open Audio"
-          onClick={() => setPage('audio')}
         />
       </SettingSection>
     </>
@@ -817,11 +730,11 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
   const inputDevices = captureInputDevices(snapshot);
   const systemAvailable = capabilities.systemAudio;
   const micAvailable = capabilities.microphoneAudio;
-  const explicitMicUnavailable = Boolean(config.microphoneDeviceId)
+  // An empty inventory means discovery has not finished, not that the device is gone.
+  const explicitMicUnavailable = Boolean(config.microphoneDeviceId) && inputDevices.length > 0
     && !inputDevices.some((device) => device.id === config.microphoneDeviceId);
   const gameAndChatSame = config.systemAudioMode !== 'game' && config.includeSystemAudio && config.includeChatAudio
     && Boolean(config.systemAudioDeviceId) && config.systemAudioDeviceId === config.chatAudioDeviceId;
-  const routing = resolveReplayAudioRouting(snapshot.audio, config);
   const hostUnsupported = !systemAvailable && !micAvailable;
   const status = (text: string | null | false | undefined, tone: 'warning' | 'neutral' = 'warning') => text
     ? <span className="settings-capture-devices__status" data-tone={tone} role="status">{text}</span>
@@ -836,10 +749,8 @@ function CaptureAudioDeviceSettings({ snapshot }: { snapshot: SystemSnapshot }) 
         description={<>
           {config.systemAudioMode === 'game'
             ? 'Only the selected game or window and its child processes.'
-            : 'Game and media audio share this track. Automatic follows Switchboard when it is recording.'}
-          {hostUnsupported
-            ? status('Device choices unlock once the capture host reports audio support.', 'neutral')
-            : status(routing.audioFallbackReason)}
+            : 'Everything playing on the selected output, including game and media audio.'}
+          {hostUnsupported ? status('Device choices unlock once the capture host reports audio support.', 'neutral') : null}
         </>}
       >
         <CaptureAudioDeviceSelect
@@ -1070,14 +981,11 @@ function ClipSelectField({
 function DiagnosticsSettings({ snapshot, targetSetting }: CategoryProps & { targetSetting?: string | null }) {
   const updateSettings = useSystemStore((state) => state.updateSettings);
   const [pendingSetting, setPendingSetting] = useState<'retention' | 'guard' | null>(null);
-  const developerMode = snapshot.settings.developerMode === true;
-  const audioEngine = snapshot.engines.find((engine) => engine.kind === 'audio');
   const captureEngine = snapshot.engines.find((engine) => engine.kind === 'capture');
   const capturePreset = getEncodingPreset(snapshot.capture.config);
   const captureRuntime = snapshot.capture.runtime;
   const autoCapture = snapshot.capture.autoCapture;
   const autoCaptureProvider = autoCapture.providers.find((provider) => provider.id === autoCapture.runtime.activeProviderId);
-  const noise = snapshot.audio.host?.noiseSuppression;
   const processSample = snapshot.performance.sampledAt
     ? `Sampled ${formatRelativeTime(new Date(snapshot.performance.sampledAt).getTime())}`
     : 'Waiting for first sample';
@@ -1101,7 +1009,6 @@ function DiagnosticsSettings({ snapshot, targetSetting }: CategoryProps & { targ
           {snapshot.performance.sampledAt ? <span>{snapshot.performance.activeProcesses} processes</span> : null}
           <small>{processSample}</small>
         </article>
-        <EngineSummary title="Audio" engine={audioEngine} />
         <EngineSummary title="Capture" engine={captureEngine} />
       </section>
 
@@ -1165,28 +1072,6 @@ function DiagnosticsSettings({ snapshot, targetSetting }: CategoryProps & { targ
           value={`${formatBytes(captureRuntime.replayCacheBytes)} cache${captureRuntime.observedBitrateBps > 0 ? ` · ${formatBytes(captureRuntime.observedBitrateBps / 8)}/s observed` : ''}`}
           tone={captureRuntime.droppedFrames > 0 ? 'warning' : 'default'}
         />
-        {developerMode ? (
-          <>
-            <DiagnosticsReadout
-              settingId="diagnostics.noise-suppression"
-              title="Microphone noise removal"
-              description={noise
-                ? `${noise.backend} · ${noise.modelIdentifier ?? 'no model'} · ${noise.frameLength} samples at ${noise.processingSampleRate.toLocaleString()} Hz · ${noise.attenuationLimitDb.toFixed(1)} dB limit`
-                : 'Start the audio engine to load the backend.'}
-              value={noise ? `${noise.state} · p99 ${noise.p99Ms.toFixed(2)} ms` : 'Not loaded'}
-              tone={noise?.lastError ? 'danger' : 'default'}
-            />
-            <DiagnosticsReadout
-              settingId="diagnostics.microphone-realtime"
-              title="Microphone realtime health"
-              description={noise
-                ? `${noise.captureOverruns.toLocaleString()} capture overruns · ${noise.monitorOverruns.toLocaleString()}/${noise.monitorUnderruns.toLocaleString()} monitor over/underruns · ${noise.droppedOrBypassedFrames.toLocaleString()} dropped or bypassed frames · callback p99 ${noise.captureCallbackP99Ms.toFixed(2)} ms`
-                : undefined}
-              value={noise?.lastError ?? (noise ? `${noise.algorithmicLatencyMs.toFixed(1)} ms algorithmic` : 'No data')}
-              tone={noise?.lastError ? 'danger' : 'default'}
-            />
-          </>
-        ) : null}
       </DiagnosticsSection>
 
       <DiagnosticsSection title="Automation">
@@ -1240,7 +1125,7 @@ function DiagnosticsSettings({ snapshot, targetSetting }: CategoryProps & { targ
 
 function EngineSummary({ title, engine }: { title: string; engine: SystemSnapshot['engines'][number] | undefined }) {
   return (
-    <article id={title === 'Audio' ? 'setting-diagnostics.engines' : undefined} data-setting-id={title === 'Audio' ? 'diagnostics.engines' : undefined} tabIndex={title === 'Audio' ? -1 : undefined} className="diagnostics-overview__engine">
+    <article id="setting-diagnostics.engines" data-setting-id="diagnostics.engines" tabIndex={-1} className="diagnostics-overview__engine">
       <span className="diagnostics-eyebrow">{title} host</span>
       <strong><i className={cn('settings-status-dot', statusDotClass(engine?.state))} aria-hidden />{engine ? engineStateLabel(engine.state) : 'Unavailable'}</strong>
       {engine?.pid ? <span>PID {engine.pid}</span> : null}
@@ -1438,7 +1323,7 @@ function UpdatesSettings({ snapshot }: { snapshot: SystemSnapshot }) {
         <SettingSwitch
           settingId="about.installAppUpdatesWhenIdle"
           title="Install while away"
-          description="After 10 minutes away, silently install and return to the tray. Waits until the interface is closed and audio, capture, and exports are inactive. Requires automatic checks."
+          description="After 10 minutes away, silently install and return to the tray. Waits until the interface is closed and capture and exports are inactive. Requires automatic checks."
           checked={snapshot.settings.installAppUpdatesWhenIdle}
           onCheckedChange={(installAppUpdatesWhenIdle) => void updateSettings({ installAppUpdatesWhenIdle })}
         />
@@ -1470,7 +1355,7 @@ function AboutSettings({ snapshot, onOpenCategory, onRestoreDefaults }: {
         <img src="./switchboard-mark.png" alt="" draggable={false} />
         <div>
           <h3>Switchboard {snapshot.version}</h3>
-          <p>A compact Windows utility for hardware and game capture, with optional audio mixing and microphone processing.</p>
+          <p>A compact Windows utility for game clipping and hardware control.</p>
         </div>
       </div>
       {developerMode ? (
@@ -1495,7 +1380,7 @@ function AboutSettings({ snapshot, onOpenCategory, onRestoreDefaults }: {
         <SettingRow
           settingId="about.restoreDefaults"
           title="Restore all defaults"
-          description="Reset every preference plus Audio and Capture configuration. Installed modules, device profiles, and saved clips stay."
+          description="Reset every preference plus Capture configuration. Installed modules, device profiles, and saved clips stay."
         >
           <Button type="button" variant="danger" size="sm" className="settings-restore-all" onClick={onRestoreDefaults}>
             <RotateCcw aria-hidden />
@@ -1551,7 +1436,7 @@ function ResetConfirmation({
   const confirmRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const label = scope === 'all'
-    ? 'all Settings preferences plus Audio and Capture configuration'
+    ? 'all Settings preferences plus Capture configuration'
     : resetScopeLabels[scope];
 
   useEffect(() => {
@@ -1590,7 +1475,6 @@ function ResetConfirmation({
 const resetScopeLabels: Record<Exclude<SettingsResetScope, 'all'>, string> = {
   general: 'General settings, update preferences, and Developer mode',
   devices: 'Devices settings',
-  audio: 'Audio settings',
   capture: 'Capture and Clips settings',
   games: 'Games settings',
   modules: 'Features settings',

@@ -15,7 +15,7 @@ const number = (value: number | null | undefined, suffix = '') => value == null 
 const bytes = (value: number | null | undefined) => value == null ? 'Unavailable' : value >= 1048576 ? `${number(value / 1048576)} MB` : value >= 1024 ? `${number(value / 1024)} KB` : `${number(value)} B`;
 const memory = (value: number | null | undefined) => value == null ? 'Unavailable' : value >= 1024 ? `${number(value / 1024)} GB` : `${number(value)} MB`;
 const clock = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const groupNames = { desktop: 'Desktop', capture: 'Capture', audio: 'Audio', monitor: 'Collector' };
+const groupNames = { desktop: 'Desktop', capture: 'Capture', monitor: 'Collector' };
 const roleNames: Record<string, string> = { Browser: 'Main process', Tab: 'Renderer', GPU: 'GPU process', Utility: 'Utility' };
 
 function Reading({ value, format, rate = false }: { value: number | null | undefined; format(value: number): string; rate?: boolean }) {
@@ -147,9 +147,9 @@ export function ResourceDiagnostics({ snapshot, showExport = true }: { snapshot:
     {!points.length && <p className="resource-history-empty">{recording ? 'Waiting for the first resource sample…' : 'No resource samples yet. Run diagnostics to begin.'}</p>}
     </div>
     {resources && <>
-      <div className="resource-groups" aria-label="Resource attribution">{(['desktop', 'capture', 'audio', 'monitor'] as const).map(group => {
+      <div className="resource-groups" aria-label="Resource attribution">{(['desktop', 'capture', 'monitor'] as const).map(group => {
         const rows = active.filter(process => process.group === group);
-        const inactive = (group === 'audio' || group === 'capture') && !snapshot.engines.some(engine => engine.kind === group && (engine.state === 'running' || engine.state === 'starting'));
+        const inactive = group === 'capture' && !snapshot.engines.some(engine => engine.kind === group && (engine.state === 'running' || engine.state === 'starting'));
         return <div key={group} className={`resource-group resource-group--${group}`}><h4>{groupNames[group]}<span>{rows.length} {rows.length === 1 ? 'process' : 'processes'}</span></h4>
           <strong>{rows.length ? <>{memory(total(rows.map(process => process.residentMb)))} <small>resident</small></> : inactive ? 'Inactive' : 'No sample'}</strong><span>{rows.length && rows.every(row => row.cpuPercent !== null) ? `${number(total(rows.map(row => row.cpuPercent!)), '%')} CPU` : inactive ? 'Engine stopped' : 'CPU unavailable'}</span>
         </div>;

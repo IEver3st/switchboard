@@ -18,8 +18,7 @@ a saved microphone advance to future replay recordings.
 This aligns recorded voice with the audio heard through the playback path. It
 does not reduce live Bluetooth latency or preserve the original physical timing
 of speech against video; that tradeoff matters for reactions to visual events.
-Game-only capture and the internal Switchboard pipe mix do not use calibration.
-Choose an explicit output-device Game track when the pipe mix would be active.
+Game-only capture does not use calibration.
 
 ## Ownership and timing
 

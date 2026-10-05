@@ -18,7 +18,7 @@ process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
 BrowserWindow.prototype.show = BrowserWindow.prototype.showInactive = function () { throw Error('Review cannot show a window.'); };
 BrowserWindow.prototype.focus = function () {};
 let fixture = null, expected = null, fault = null, snapshotGate = null, main, quick;
-const evidence = { userData, layouts: [], checks: [], errors: [], scope: 'Hidden native Electron. Persisted app/capture settings use real IPC/controller/store; active audio, replay and startup integration use labeled response fixtures. No physical audio, recorded media or global keyboard injection.' };
+const evidence = { userData, layouts: [], checks: [], errors: [], scope: 'Hidden native Electron. Persisted app/capture settings use real IPC/controller/store; active replay, scene and startup integration use labeled response fixtures. No physical audio, recorded media or global keyboard injection.' };
 let completed = false;
 process.on('exit', () => { if (!completed) writeFileSync(join(output,'verification.json'),JSON.stringify({...evidence,passed:false,failure:'Native review exited before completion.'},null,2)); });
 app.on('before-quit', () => { if (!completed) console.error('Review quit early; windows:',BrowserWindow.getAllWindows().map(w=>({title:w.getTitle(),visible:w.isVisible()}))); });
@@ -66,7 +66,7 @@ void app.whenReady().then(async () => { try {
   for (const [width,height] of [[1080,720],[1420,900],[1920,1080]]) {
     main.setMinimumSize(1,1); main.setContentSize(width,height,false);
     await size(460,Math.min(860,height-24));
-    for (const tab of ['capture','frame','audio','app']) { await selectTab(tab); await capture(`${width}x${height}-${tab}`); }
+    for (const tab of ['capture','frame','app']) { await selectTab(tab); await capture(`${width}x${height}-${tab}`); }
   }
   await size(460,720); await selectTab('capture');
   await openSelect('Replay duration');
@@ -107,20 +107,6 @@ void app.whenReady().then(async () => { try {
   }
   assert(await js(quick, `document.querySelector('[aria-label="Release interface in tray"]').disabled`), 'Tray release must follow close-to-tray.');
   evidence.checks.push('Capture and app controls persist through real canonical IPC. Dependent disabled states verified.');
-  assert(!(await state()).audio.enabled, 'Canonical audio configuration checks require a stopped engine.');
-  await js(quick, `window.switchboard.setAudioMasterGain({mixId:'personal',gain:0.8})`);
-  await js(quick, `window.switchboard.setAudioMasterEnabled({mixId:'personal',enabled:false})`);
-  await js(quick, `window.switchboard.setAudioEnabled(false)`);
-  const audioSettings = (await state()).audio;
-  assert(audioSettings.mixes.find(mix=>mix.id==='personal').master.gain===0.8 && !audioSettings.mixes.find(mix=>mix.id==='personal').master.enabled, 'Audio settings did not reach the canonical store.');
-  const inputDevice = audioSettings.devices.find(device=>device.direction==='input'&&device.available&&!device.isSwitchboard);
-  if (inputDevice) {
-    await js(quick, `window.switchboard.setAudioBusDevice({busId:'mic',deviceId:${JSON.stringify(inputDevice.id)}})`);
-    assert((await state()).audio.buses.find(bus=>bus.id==='mic').deviceId===inputDevice.id, 'Microphone selection did not reach the canonical store.');
-  }
-  const audioRejection = await js(quick, `window.switchboard.setAudioEnabled(true).then(()=>'',error=>error.message)`);
-  assert(audioRejection.includes('Developer mode')&&!audioRejection.includes('untrusted'),'Audio enable must reach its controller and enforce Developer mode.');
-  evidence.checks.push('Audio level, mute and microphone selection reach canonical state while the engine is stopped. Developer-mode gate retained.');
   // Real framing windows stay hidden throughout; no recording or desktop input is injected.
   await js(quick, 'window.switchboard.updateSettings({closeToTray:true})');
   const guideWindow = () => BrowserWindow.getAllWindows().find(w => w.getTitle() === 'Switchboard vertical guide');
@@ -200,55 +186,28 @@ void app.whenReady().then(async () => { try {
   await capture('460x720-rejected');
   evidence.checks.push('Allowlist, schema rejection, pending and rollback verified.');
 
-  // Fixture-only active hardware responses exercise every audio control without changing devices.
+  // Fixture-only active responses exercise replay, scene and app controls without changing devices.
   fixture = structuredClone(persisted);
-  fixture.settings.developerMode = true; fixture.audio.enabled = true;
-  fixture.audio.host = {
-    running:true, capabilities:fixture.audio.capabilities, applications:[], buses:[], mixes:[],
-    driver:{state:'not-installed',interfaceName:'Review fixture',missingEndpoints:[],endpoints:[],message:'Review fixture'},
-    noiseSuppression:{backend:'Review fixture',available:false,state:'not-loaded',modelInitializationMs:0,inputSampleRate:0,processingSampleRate:48000,frameLength:0,algorithmicLatencyMs:0,attenuationLimitDb:0,p50Ms:0,p95Ms:0,p99Ms:0,maximumMs:0,captureCallbackP99Ms:0,captureOverruns:0,monitorUnderruns:0,droppedOrBypassedFrames:0,recoveryCount:0},
-  };
-  fixture.audio.devices = [
-    {id:'review-output',name:'Review headphones',direction:'output',available:true,isSwitchboard:false},
-    {id:'review-output-2',name:'Review speakers with a deliberately long endpoint name',direction:'output',available:true,isSwitchboard:false},
-    {id:'review-input',name:'Review microphone',direction:'input',available:true,isSwitchboard:false},
-    {id:'review-input-2',name:'Review alternate microphone',direction:'input',available:true,isSwitchboard:false},
-  ];
-  fixture.audio.devices = fixture.audio.devices.map(device=>({...device,isDefault:false}));
-  fixture.audio.buses.find(bus=>bus.id==='game').deviceId='review-output';
-  fixture.audio.buses.find(bus=>bus.id==='mic').deviceId='review-input';
-  fixture.audio.mixes.find(mix=>mix.id==='personal').master.enabled=true;
+  fixture.settings.developerMode = true;
   fixture.capture.config.enabled=true; fixture.capture.runtime.state='buffering'; fixture.capture.runtime.bufferedSeconds=76;
   fixture.capture.runtime.activeSource={id:'review-game',type:'window',name:'Review game window',available:true};
-  await publish(); await selectTab('audio');
-  await expectAction('audio:set-master-enabled',{mixId:'personal',enabled:false}, s=>s.audio.mixes.find(m=>m.id==='personal').master.enabled=false, () => click('[aria-label="Mute output"]'));
-  await expectAction('audio:set-master-gain',{mixId:'personal',gain:.65}, s=>s.audio.mixes.find(m=>m.id==='personal').master.gain=.65, () => range('Personal volume',.65));
-  await capture('460x720-audio-active-fixture');
-  await expectAction('setup:quick-action',{type:'output',deviceId:'review-output-2'}, s=>s.audio.buses.find(b=>b.id==='game').deviceId='review-output-2', () => select('Output device','review-output-2'));
-  await openSelect('Output device'); await capture('460x720-device-menu-long-label');
-  quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'}); quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
-  await expectAction('audio:set-bus-device',{busId:'mic',deviceId:'review-input-2'}, s=>s.audio.buses.find(b=>b.id==='mic').deviceId='review-input-2', () => select('Input device','review-input-2'));
-  const micMuted = Boolean(fixture.audio.buses.find(b=>b.id==='mic').enabled);
-  await expectAction('setup:quick-action',{type:'microphone',muted:micMuted}, s=>s.audio.buses.find(b=>b.id==='mic').enabled=!micMuted, () => click(`[aria-label="${micMuted ? 'Mute' : 'Unmute'} microphone"]`));
-  await expectAction('setup:quick-action',{type:'chatmix',value:-.5}, s=>s.audio.chatMix=-.5, () => range('ChatMix',-.5));
-  await expectAction('audio:set-enabled',false,s=>s.audio.enabled=false,()=>click('[aria-label="Enable Audio"]'));
-  await expectAction('audio:set-enabled',true,s=>s.audio.enabled=true,()=>click('[aria-label="Enable Audio"]'));
+  await publish(); await selectTab('capture');
+  await capture('460x720-replay-active-fixture');
   await expectAction('capture:save-replay',undefined,null,()=>click('.quick-save'));
   await expectAction('capture:set-config',{enabled:false},s=>{s.capture.config.enabled=false;s.capture.runtime.state='stopped';},()=>click('button[aria-label="Instant Replay"]'));
   await expectAction('capture:set-config',{enabled:true},s=>{s.capture.config.enabled=true;s.capture.runtime.state='buffering';},()=>click('button[aria-label="Instant Replay"]'));
   await selectTab('app'); await expectAction('settings:update',{launchAtStartup:!fixture.settings.launchAtStartup},s=>s.settings.launchAtStartup=!s.settings.launchAtStartup,()=>click('[aria-label="Launch at startup"]'));
-  const sceneValues={audio:null,capture:null,devices:[]};
+  const sceneValues={capture:null,devices:[]};
   fixture.setup.scenes=[{id:'review-scene',name:'A long scene name for gaming, streaming and voice chat',executable:'',automatic:false,restoreOnExit:true,values:sceneValues}];
   await publish();
-  await expectAction('setup:apply-scene','review-scene',s=>{s.setup.runtime.activeSceneId='review-scene';s.setup.runtime.state='partial';s.setup.runtime.issues=['Review fixture: an audio device is disconnected.'];s.setup.restore={before:sceneValues,applied:sceneValues,automatic:false,executable:'',restoreOnExit:true};},()=>click('.quick-scene-row'));
+  await expectAction('setup:apply-scene','review-scene',s=>{s.setup.runtime.activeSceneId='review-scene';s.setup.runtime.state='partial';s.setup.runtime.issues=['Review fixture: a device is disconnected.'];s.setup.restore={before:sceneValues,applied:sceneValues,automatic:false,executable:'',restoreOnExit:true};},()=>click('.quick-scene-row'));
   await capture('460x720-partial-scene-fixture');
   await expectAction('setup:restore-scene',undefined,s=>{s.setup.restore=null;s.setup.runtime.state='idle';},()=>clickText('Restore previous setup'));
-  fixture.audio.devices=[]; fixture.audio.host.running=false; await publish(); await selectTab('audio'); await capture('460x720-disconnected-fixture');
 
   // Keyboard traversal, focus, reflow and reduced motion in the same hidden session.
   quick.webContents.debugger.attach('1.3');
   await quick.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
-  await js(quick, `document.querySelector('#quick-tab-audio').focus()`);
+  await js(quick, `document.querySelector('#quick-tab-app').focus()`);
   quick.webContents.sendInputEvent({type:'keyDown',keyCode:'Right'}); quick.webContents.sendInputEvent({type:'keyUp',keyCode:'Right'});
   await until(()=>js(quick, `document.activeElement?.id==='quick-tab-capture' && document.querySelector('#quick-tab-capture').getAttribute('aria-selected')==='true'`));
   const ax = await quick.webContents.debugger.sendCommand('Accessibility.getFullAXTree');

@@ -7,14 +7,13 @@ const root = resolve(import.meta.dirname, '..');
 const output = join(root, 'design-qa', 'mouse-lighting-20260927');
 const isolated = await mkdtemp(join(tmpdir(), 'switchboard-lighting-navigation-'));
 const saved = JSON.parse(await readFile(join(process.env.APPDATA, 'Switchboard Dev', 'switchboard-state.json'), 'utf8'));
-saved.audio.enabled = false;
 saved.capture.config.enabled = false;
 saved.setup.preferences.lighting.enabled = false;
 saved.settings.launchAtStartup = false;
 saved.settings.developerMode = false;
 saved.settings.trayOnGameLaunch = false;
 saved.settings.onboardingCompleted = true;
-saved.settings.visibleWorkspaces = ['devices', 'audio', 'capture'];
+saved.settings.visibleWorkspaces = ['devices', 'capture'];
 saved.setup.preferences.quickControlsEnabled = false;
 saved.setup.scenes = [];
 for (const module of saved.modules) module.enabled = module.kind === 'device' && module.installed;
@@ -55,7 +54,7 @@ async function click(label) {
 }
 try {
   await wait('Boolean(window.switchboard)');
-  await evaluate(`window.switchboard.updateSettings({visibleWorkspaces:['devices','audio','capture'],onboardingCompleted:true})`);
+  await evaluate(`window.switchboard.updateSettings({visibleWorkspaces:['devices','capture'],onboardingCompleted:true})`);
   const snapshot = await evaluate('window.switchboard.getSnapshot()');
   const mouse = snapshot.devices.find(device => device.kind === 'mouse');
   const results = [];
@@ -70,14 +69,14 @@ try {
     await evaluate(`document.querySelector('[aria-label="Mouse lighting"]').click()`);
     await wait(`document.querySelector('[aria-label="Mouse lighting"]')?.getAttribute('aria-checked')==='false'`);
     const start = commands.length;
-    for (const route of ['Audio', 'Capture', 'Devices']) {
+    for (const route of ['Capture', 'Devices']) {
       await click(route);
       await delay(200);
       const current = await evaluate('window.switchboard.getSnapshot()');
       if (current.devices.find(device => device.id === mouse.id).capabilities.lighting.enabled) throw new Error(`${route} relit mouse`);
     }
     if (commands.length !== start) throw new Error(`Navigation sent device writes: ${JSON.stringify(commands.slice(start))}`);
-    results.push({ width, height, routes:['Audio','Capture','Devices'], unsolicitedDeviceWrites:0, lightingEnabled:false });
+    results.push({ width, height, routes:['Capture','Devices'], unsolicitedDeviceWrites:0, lightingEnabled:false });
   }
   await mkdir(output, {recursive:true});
   await writeFile(join(output,'navigation.json'), JSON.stringify(results,null,2));

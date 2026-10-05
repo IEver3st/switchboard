@@ -15,7 +15,7 @@ import { FastForward, Film, Pause, Play, Rewind, Save, Scissors, SkipBack, SkipF
 import type { ClipAudioChannel, ClipAudioTrackTrim, ClipAudioWaveformTrack, ClipEventMarker, DefaultClipTrackLevels } from '../../../../shared/contracts';
 import { defaultClipTrackLevelForChannel, resolveClipTrackLevel } from '../../../../shared/clip-track-levels';
 import { singularEventLabel } from '../../../../shared/auto-capture';
-import { channelColor } from '@/components/audio/channel-identity';
+import { channelColor } from '@/components/capture/channel-identity';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';

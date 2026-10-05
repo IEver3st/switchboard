@@ -8,7 +8,7 @@ import type {
   VisibleWorkspace,
 } from './contracts';
 
-export const workspaceOrder: ReadonlyArray<VisibleWorkspace> = ['devices', 'audio', 'capture'];
+export const workspaceOrder: ReadonlyArray<VisibleWorkspace> = ['devices', 'capture'];
 
 export const defaultVisibleWorkspaces: ReadonlyArray<VisibleWorkspace> = ['devices', 'capture'];
 
@@ -16,7 +16,7 @@ export function normalizeVisibleWorkspaces(value: unknown): VisibleWorkspace[] |
   if (!Array.isArray(value)) return null;
   const selected = new Set<VisibleWorkspace>();
   for (const candidate of value) {
-    if (candidate === 'devices' || candidate === 'audio' || candidate === 'capture') selected.add(candidate);
+    if (candidate === 'devices' || candidate === 'capture') selected.add(candidate);
   }
   selected.add('capture');
   return workspaceOrder.filter((workspace) => selected.has(workspace));
@@ -31,10 +31,6 @@ export function isDeveloperModeEnabled(settings: Pick<AppSettings, 'developerMod
   return settings.developerMode === true;
 }
 
-export function isAudioWorkspaceAvailable(_settings: Pick<AppSettings, 'developerMode'>): boolean {
-  return true;
-}
-
 export function fullWorkspacesForDeveloperMode(_developerMode: boolean): VisibleWorkspace[] {
   return [...defaultVisibleWorkspaces];
 }
@@ -45,11 +41,10 @@ export function isCaptureOnlyWorkspaces(settings: Pick<AppSettings, 'visibleWork
 }
 
 /** Shell presentation follows confirmed configuration, never transient engine state. */
-export function usesCaptureOnlyShell(snapshot: Pick<SystemSnapshot, 'settings' | 'modules' | 'audio'>): boolean {
+export function usesCaptureOnlyShell(snapshot: Pick<SystemSnapshot, 'settings' | 'modules'>): boolean {
   const visible = visiblePagesForProfile(snapshot.settings);
   if (visible.length === 1 && visible[0] === 'capture') return true;
-  return !snapshot.audio.enabled
-    && !snapshot.modules.some((module) => module.enabled && module.kind !== 'capture');
+  return !snapshot.modules.some((module) => module.enabled && module.kind !== 'capture');
 }
 
 export function needsOnboarding(settings: Pick<AppSettings, 'onboardingCompleted'>): boolean {

@@ -22,11 +22,11 @@ let rejectStart = false;
 let requests = 0;
 let starts = 0;
 const physicalDevices = parseAudioEndpoints([
-  { id: 'usb-speakers', name: 'USB Speakers', flow: 'render', isDefault: true, volume: 1, muted: false },
-  { id: 'usb-headset', name: 'USB Headset', flow: 'render', isDefault: false, volume: 1, muted: false },
-  { id: 'usb-mic', name: 'USB Microphone', flow: 'capture', isDefault: true, volume: 1, muted: false },
+  { id: 'usb-speakers', name: 'USB Speakers', flow: 'render', isDefault: true, formFactor: 'speakers' },
+  { id: 'usb-headset', name: 'USB Headset', flow: 'render', isDefault: false, formFactor: 'headset' },
+  { id: 'usb-mic', name: 'USB Microphone', flow: 'capture', isDefault: true, formFactor: 'microphone' },
 ]);
-store.update((draft) => { draft.audio.devices = physicalDevices; draft.settings.uiScalePercent = 100; });
+store.update((draft) => { draft.capture.audioDevices = physicalDevices; draft.settings.uiScalePercent = 100; });
 const publish = () => window.webContents.send(ipcChannels.snapshotUpdated, store.get());
 ipcMain.handle('montage-v2:list-drafts', () => []);
 ipcMain.handle(ipcChannels.getSnapshot, () => store.get());
@@ -138,7 +138,7 @@ try {
   store = new StateStore(join(directory, 'state.json'));
   await store.load();
   if (store.get().capture.config.microphoneDeviceId !== 'usb-mic' || store.get().capture.config.replaySeconds !== 180) throw new Error('Setup choices did not survive restart');
-  store.update((draft) => { draft.audio.devices = physicalDevices; }, { persist: false });
+  store.update((draft) => { draft.capture.audioDevices = physicalDevices; }, { persist: false });
   await window.loadFile(resolve(root, 'out/renderer/index.html'), { hash: 'capture' });
   await new Promise<void>((resolve) => { window.webContents.once('did-finish-load', () => resolve()); window.webContents.reload(); });
   await wait(`document.querySelector('#replay-status')?.textContent.includes('Capture off')`);
@@ -163,14 +163,14 @@ try {
   await wait(`document.querySelector('[aria-label="Game audio device"]')?.textContent.includes('USB Headset')`);
   await choose('[aria-label="Chat audio device"]', 'USB Speakers · Default');
   await wait(`document.querySelector('[aria-label="Chat audio device"]')?.textContent.includes('USB Speakers')`);
-  store.update((draft) => { draft.audio.devices = physicalDevices.filter((device) => device.direction === 'output'); }, { persist: false });
+  store.update((draft) => { draft.capture.audioDevices = physicalDevices.filter((device) => device.direction === 'output'); }, { persist: false });
   publish();
   await wait(`document.querySelector('[aria-label="Microphone device"]')?.textContent.includes('Unavailable device')`);
   await capture('settings-unavailable-microphone');
-  await choose('[aria-label="Microphone device"]', 'Automatic (follow Audio settings)');
+  await choose('[aria-label="Microphone device"]', 'Automatic (default microphone)');
   await wait(`document.querySelector('[aria-label="Microphone device"]')?.textContent.includes('Automatic')`);
   if (store.get().capture.config.microphoneDeviceId !== null) throw new Error('Unavailable microphone could not be reset to Automatic');
-  store.update((draft) => { draft.audio.devices = physicalDevices; }, { persist: false });
+  store.update((draft) => { draft.capture.audioDevices = physicalDevices; }, { persist: false });
   publish();
   await choose('[aria-label="Microphone device"]', 'USB Microphone · Default');
   await wait(`document.querySelector('[aria-label="Microphone device"]')?.textContent.includes('USB Microphone')`);

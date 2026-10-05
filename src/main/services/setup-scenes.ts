@@ -4,7 +4,6 @@ import { sceneDeviceCommands, sceneRestoreValues, snapshotSceneValues } from '..
 import type { StateStore } from './state-store';
 
 type SceneIo = {
-  audio(value: NonNullable<SceneValues['audio']>): Promise<void>;
   capture(value: NonNullable<SceneValues['capture']>): Promise<void>;
   device(id: string, change: ReturnType<typeof sceneDeviceCommands>[number]): Promise<void>;
 };
@@ -29,7 +28,7 @@ export class SetupScenes {
     if (input.automatic && snapshot.setup.scenes.some(scene => scene.id !== input.id && scene.automatic
       && scene.executable.toLowerCase() === input.executable.toLowerCase())) throw new Error('That application already has an automatic scene.');
     const values = input.captureCurrent || !previous ? snapshotSceneValues(snapshot, input) : previous.values;
-    if (!values.audio && !values.capture && !values.devices.length) throw new Error('Include at least one available part of your setup.');
+    if (!values.capture && !values.devices.length) throw new Error('Include at least one available part of your setup.');
     return this.store.update(draft => {
       const scene = { id: previous?.id ?? randomUUID(), name: input.name, executable: input.executable,
         automatic: input.automatic, restoreOnExit: input.restoreOnExit, values };
@@ -113,7 +112,6 @@ export class SetupScenes {
       if (this.disposed) { issues.push('Switchboard is shutting down.'); return; }
       try { await action(); } catch (error) { issues.push(`${label}: ${error instanceof Error ? error.message : String(error)}`.slice(0, 2048)); }
     };
-    if (values.audio) await attempt('Audio', () => this.io.audio(values.audio!));
     for (const target of values.devices) {
       await attempt(target.name, async () => {
         const device = this.store.get().devices.find(item => item.id === target.deviceId);

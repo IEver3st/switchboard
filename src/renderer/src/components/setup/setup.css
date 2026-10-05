@@ -62,4 +62,3 @@ ul.setup-error { padding-left: 18px; list-style: disc; }
 .quick-control-row .setup-select { min-width: 0; max-width: 230px; }
 .quick-control-row small { color: var(--muted-foreground); }
 .quick-controls button:disabled { opacity: .45; }
-.quick-chatmix { width: 100%; accent-color: var(--primary); }

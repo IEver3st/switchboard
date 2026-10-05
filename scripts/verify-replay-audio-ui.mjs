@@ -22,34 +22,25 @@ process.env.SWITCHBOARD_NATIVE_REVIEW_HIDDEN = '1';
 delete process.env.ELECTRON_RENDERER_URL;
 BrowserWindow.prototype.show = BrowserWindow.prototype.showInactive = function () { throw Error('Review must stay hidden'); };
 BrowserWindow.prototype.focus = function () {};
-let available = true, audioEnabled = true, rejectNext = false;
+let available = true, rejectNext = false;
 let canonical, window;
-const evidence = { scope: 'Hidden Electron with simulated capabilities; real offline IPC and persistence; no live audio', checks: [], screenshots: [] };
-const diagnostics = {
-  backend: 'fixture', available: false, state: 'not-loaded', modelInitializationMs: 0,
-  inputSampleRate: 48000, processingSampleRate: 48000, frameLength: 480, algorithmicLatencyMs: 0,
-  attenuationLimitDb: 0, p50Ms: 0, p95Ms: 0, p99Ms: 0, maximumMs: 0, captureCallbackP99Ms: 0,
-  captureOverruns: 0, monitorUnderruns: 0, droppedOrBypassedFrames: 0, recoveryCount: 0,
-};
+const evidence = { scope: 'Hidden Electron with simulated capabilities and Windows endpoint inventory; real offline IPC and persistence; no live audio', checks: [], screenshots: [] };
+// Fixture endpoint inventory in the Capture.Host shape published at snapshot.capture.audioDevices.
+const audioDevices = [
+  { id: 'fixture-headphones', name: 'Fixture headphones', direction: 'output', isDefault: true, formFactor: 'headphones', isVirtual: false },
+  { id: 'fixture-headset', name: 'Fixture chat headset', direction: 'output', isDefault: false, formFactor: 'headset', isVirtual: false },
+  { id: 'fixture-microphone', name: 'Fixture microphone', direction: 'input', isDefault: true, formFactor: 'microphone', isVirtual: false },
+];
 function fixture(value) {
   if (!value || typeof value !== 'object') return value;
   if (value.type === 'full') return { ...value, snapshot: fixture(value.snapshot) };
   if (value.type === 'patch') return { ...value, changes: fixture(value.changes) };
-  if (value.audio || value.capture) {
+  if (value.capture) {
     if (value.settings) canonical = structuredClone(value);
     const next = structuredClone(value);
-    if (next.audio) {
-      if (next.audio.enabled) throw Error('Real audio must stay off');
-      next.audio.enabled = audioEnabled;
-      Object.assign(next.audio.capabilities, { clipTracks: available ? 'available' : 'unavailable', processedMicrophoneCapture: available ? 'available' : 'unavailable' });
-      next.audio.host = { running: available, capabilities: next.audio.capabilities, noiseSuppression: diagnostics,
-        driver: { state: 'not-installed', interfaceName: 'Fixture', missingEndpoints: [], endpoints: [], message: 'Fixture only' },
-        applications: [], buses: [], mixes: next.audio.mixes };
-    }
-    if (next.capture) {
-      if (next.capture.config.enabled) throw Error('Real replay must stay off');
-      Object.assign(next.capture.capabilities, { systemAudio: true, microphoneAudio: true });
-    }
+    if (next.capture.config?.enabled) throw Error('Real replay must stay off');
+    if (next.capture.capabilities) Object.assign(next.capture.capabilities, { systemAudio: available, microphoneAudio: available });
+    next.capture.audioDevices = structuredClone(audioDevices);
     return next;
   }
   return value;
@@ -100,7 +91,7 @@ const watchdog = setTimeout(() => { console.error('Review timeout', output); app
 await import('../out/main/index.js');
 void app.whenReady().then(async () => { try {
   await wait(async () => { window = BrowserWindow.getAllWindows()[0]; return window && !window.webContents.isLoading() && await js('!!window.switchboard'); }, 'native window');
-  await api('updateSettings', { onboardingCompleted: true, developerMode: true, visibleWorkspaces: ['capture', 'audio'], automaticUpdates: false, scanGamesAutomatically: false, uiScalePercent: 100 });
+  await api('updateSettings', { onboardingCompleted: true, developerMode: true, visibleWorkspaces: ['capture'], automaticUpdates: false, scanGamesAutomatically: false, uiScalePercent: 100 });
   await api('setCaptureConfig', { enabled: false, includeSystemAudio: true, includeChatAudio: true, includeMic: true, systemAudioMode: 'system' });
   for (const [width, height] of [[1080, 720], [1420, 900], [1920, 1080]]) {
     window.setMinimumSize(1, 1);
@@ -111,8 +102,9 @@ void app.whenReady().then(async () => { try {
     window.setSize(outerWidth + width - contentWidth, outerHeight + height - contentHeight);
     await wait(() => js(`innerWidth === ${width} && innerHeight === ${height}`), 'viewport');
     await openInputs();
-    assert(await js('document.querySelector("[aria-label=\\\"Chat audio device\\\"]").textContent.includes("Switchboard chat")'), `Chat route label ${width}`);
-    assert(await js('document.querySelector("[aria-label=\\\"Microphone device\\\"]").textContent.includes("processed microphone")'), `Processed mic label ${width}`);
+    assert(await js('document.querySelector("[aria-label=\\\"Game audio device\\\"]").textContent.includes("Fixture headphones")'), `Game default output label ${width}`);
+    assert(await js('document.querySelector("[aria-label=\\\"Chat audio device\\\"]").textContent.includes("communications")'), `Chat communications label ${width}`);
+    assert(await js('document.querySelector("[aria-label=\\\"Microphone device\\\"]").textContent.includes("Fixture microphone")'), `Default microphone label ${width}`);
     assert(await js('document.documentElement.scrollWidth <= innerWidth'), `No page overflow ${width}`);
     await capture(`${width}x${height}-integrated`);
   }
@@ -132,9 +124,8 @@ void app.whenReady().then(async () => { try {
   await api('setCaptureConfig', { chatAudioDeviceId: null });
   available = false; await refresh(); await capture('unavailable');
   assert(await js('document.querySelector("[aria-label=\\\"Chat audio device\\\"]").textContent.includes("communications")'), 'Unavailable chat uses communications label');
-  audioEnabled = false; await refresh(); await capture('audio-off');
-  assert(await js('!document.body.innerText.includes("Switchboard system, chat, processed microphone capture is unavailable")'), 'Disabled audio does not show failure warning');
-  available = true; audioEnabled = true; await refresh();
+  assert(await js('document.querySelector("[role=switch][aria-label=\\\"Game audio\\\"]").disabled'), 'Unavailable capture audio disables its toggle');
+  available = true; await refresh();
   await api('setCaptureConfig', { systemAudioMode: 'game' });
   assert(await js('document.querySelector("[aria-label=\\\"Game audio device\\\"]").disabled'), 'Game-only capture disables endpoint picker');
   await api('setCaptureConfig', { systemAudioMode: 'system', chatAudioDeviceId: 'persisted-chat' });

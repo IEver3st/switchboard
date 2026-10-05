@@ -74,7 +74,6 @@ if (reviewThumbnailLoading) {
 state.capture.config.enabled = false;
 state.settings.onboardingCompleted = true;
 if (process.env.SWITCHBOARD_CAPTURE_SCALE_ZOOM) state.settings.uiScalePercent = Number(process.env.SWITCHBOARD_CAPTURE_SCALE_ZOOM);
-state.audio.enabled = false;
 state.capture.config.clipsDirectory = join(isolatedUserData, 'Clips');
 state.capture.runtime = {
   ...state.capture.runtime,

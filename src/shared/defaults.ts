@@ -1,10 +1,9 @@
 import { huntsmanKeyboardFeatures } from './huntsman-features';
-import { idleDiagnosticRun, setupStateSchema, spatialSettingsSchema } from './contracts';
+import { idleDiagnosticRun, setupStateSchema } from './contracts';
 import type {
   AppUpdateState,
   AppSettings,
   AutoCaptureState,
-  AudioState,
   CaptureConfig,
   CaptureCapabilities,
   CaptureRuntime,
@@ -43,11 +42,6 @@ function previewBinding(
     },
   };
 }
-import {
-  createDefaultChannelProcessing,
-  createNaturalMicrophoneProcessors,
-  defaultAudioPathPresets,
-} from './audio-presets';
 
 const now = () => new Date().toISOString();
 
@@ -109,21 +103,6 @@ export const defaultModules: ModuleManifest[] = [
     official: true,
     restartRequired: false,
     capabilities: ['display-capture', 'window-capture', 'replay-buffer', 'clips'],
-    vendors: [],
-    source: 'bundled',
-  },
-  {
-    id: 'capability.audio-router',
-    name: 'Audio Router',
-    description: 'Game, chat, media, and aux buses with independent personal, stream, and clip mixes.',
-    version: '0.1.0',
-    kind: 'audio',
-    sizeMb: 11.6,
-    installed: true,
-    enabled: false,
-    official: true,
-    restartRequired: false,
-    capabilities: ['audio-buses', 'chatmix', 'microphone-dsp', 'stream-mix'],
     vendors: [],
     source: 'bundled',
   },
@@ -455,95 +434,6 @@ export const defaultDevices: Device[] = [
   },
 ];
 
-export const defaultAudio: AudioState = {
-  dependencies: { phase: 'idle', cable: false, microphone: false, current: null, progress: null, error: null },
-  openTrack: { phase: 'idle', installed: false, progress: null, error: null, lanAddress: null },
-  spatial: spatialSettingsSchema.parse({}),
-  automaticApplicationRouting: true,
-  excludedDeviceIds: [],
-  noiseSuppressionModel: 'rnnoise',
-  enabled: false,
-  outputDevice: '',
-  microphoneDevice: '',
-  sampleRate: 48000,
-  mixes: [
-    {
-      id: 'personal',
-      label: 'Personal',
-      master: { gain: 1, enabled: true },
-      buses: [
-        { id: 'game', gain: 1, enabled: true },
-        { id: 'chat', gain: 0.76, enabled: true },
-        { id: 'media', gain: 0.42, enabled: true },
-        { id: 'aux', gain: 1, enabled: true },
-        { id: 'mic', gain: 0.92, enabled: true },
-      ],
-    },
-    {
-      id: 'stream',
-      label: 'Stream',
-      master: { gain: 1, enabled: true },
-      buses: [
-        { id: 'game', gain: 1, enabled: true },
-        { id: 'chat', gain: 1, enabled: true },
-        { id: 'media', gain: 0.8, enabled: true },
-        { id: 'aux', gain: 0, enabled: false },
-        { id: 'mic', gain: 1, enabled: true },
-      ],
-    },
-    {
-      id: 'clip',
-      label: 'Clip',
-      master: { gain: 1, enabled: true },
-      buses: [
-        { id: 'game', gain: 1, enabled: true },
-        { id: 'chat', gain: 0.55, enabled: true },
-        { id: 'media', gain: 0.75, enabled: true },
-        { id: 'aux', gain: 0, enabled: false },
-        { id: 'mic', gain: 1, enabled: true },
-      ],
-    },
-  ],
-  chatMix: 0.15,
-  monitoring: 0.18,
-  monitoringEnabled: false,
-  monitoringDeviceId: '',
-  buses: [
-    { id: 'game', label: 'Game', enabled: true, appCount: 0, meter: 0.72, endpoint: 'Switchboard Audio - Gaming', deviceId: '', preferredDevices: [] },
-    { id: 'chat', label: 'Chat', enabled: true, appCount: 0, meter: 0.38, endpoint: 'Switchboard Audio - Chat', deviceId: '', preferredDevices: [] },
-    { id: 'media', label: 'Media', enabled: true, appCount: 0, meter: 0.21, endpoint: 'Switchboard Audio - Media', deviceId: '', preferredDevices: [] },
-    { id: 'aux', label: 'Aux', enabled: true, appCount: 0, meter: 0, endpoint: 'Switchboard Audio - Aux', deviceId: '', preferredDevices: [] },
-    { id: 'mic', label: 'Microphone', enabled: true, appCount: 0, meter: 0.56, endpoint: 'Switchboard Audio - Microphone', deviceId: '', preferredDevices: [] },
-  ],
-  micProcessors: createNaturalMicrophoneProcessors(),
-  channelProcessing: [
-    createDefaultChannelProcessing('game'),
-    createDefaultChannelProcessing('chat'),
-    createDefaultChannelProcessing('media'),
-  ],
-  devices: [],
-  applications: [],
-  capabilities: {
-    virtualChannels: 'unavailable',
-    applicationRouting: 'unavailable',
-    channelDsp: 'unavailable',
-    microphoneDsp: 'unavailable',
-    noiseSuppression: 'unavailable',
-    realtimeMetering: 'unavailable',
-    microphoneTest: 'unavailable',
-    monitoring: 'unavailable',
-    spatialAudio: 'unavailable',
-  },
-  host: null,
-  pathPresets: structuredClone(defaultAudioPathPresets),
-  activePresetIds: {
-    game: 'game-flat',
-    chat: 'chat-natural',
-    media: 'media-flat',
-    microphone: 'mic-natural-voice',
-  },
-};
-
 export const defaultCaptureConfig: CaptureConfig = {
   microphoneSync: null,
   systemAudioMode: 'system',
@@ -694,7 +584,7 @@ export const defaultSettings: AppSettings = {
 export const defaultAppUpdate: AppUpdateState = {
   capability: 'unavailable',
   status: 'unavailable',
-  currentVersion: '0.9.32',
+  currentVersion: '0.9.33',
   availableVersion: null,
   downloadProgress: null,
   checkedAt: null,
@@ -703,14 +593,6 @@ export const defaultAppUpdate: AppUpdateState = {
 };
 
 export const stoppedEngines: EngineStatus[] = [
-  {
-    kind: 'audio',
-    state: 'stopped',
-    cpuPercent: 0,
-    memoryMb: 0,
-    uptimeSeconds: 0,
-    updatedAt: now(),
-  },
   {
     kind: 'capture',
     state: 'stopped',
@@ -740,15 +622,15 @@ export const seedClips: Clip[] = [];
 export function createDefaultSnapshot(): SystemSnapshot {
   return {
     setup: setupStateSchema.parse({}),
-    version: '0.9.32',
+    version: '0.9.33',
     diagnostics: structuredClone(idleDiagnosticRun),
     prototypeMode: true,
     appUpdate: structuredClone(defaultAppUpdate),
     modules: structuredClone(defaultModules),
     devices: structuredClone(defaultDevices),
     engines: structuredClone(stoppedEngines),
-    audio: structuredClone(defaultAudio),
     capture: {
+      audioDevices: [],
       audioCalibration: { status: 'idle', measurement: null, error: null },
       config: structuredClone(defaultCaptureConfig),
       runtime: structuredClone(defaultCaptureRuntime),

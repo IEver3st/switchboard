@@ -30,7 +30,6 @@ copiedState.clips[0].autoCapture = {
     { id: 'native-review-clip', type: 'custom', timestampMs: reviewDurationMs, label: 'Clip saved' },
   ],
 };
-copiedState.audio.enabled = false;
 copiedState.capture.config.enabled = false;
 copiedState.capture.config.clipsDirectory = join(isolatedUserData, 'review-clips');
 copiedState.settings.uiScalePercent = 100;

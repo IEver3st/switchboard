@@ -13,7 +13,7 @@ body:
     id: summary
     attributes:
       label: What broke?
-      description: Name the affected device, audio path, capture action, or setting.
+      description: Name the affected device, capture or clip action, or setting.
       placeholder: Replay shortcut stops working after Capture.Host restarts
     validations:
       required: true

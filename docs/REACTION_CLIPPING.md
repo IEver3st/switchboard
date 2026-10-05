@@ -47,7 +47,6 @@ The detector needs ordinary speech to establish a useful baseline. If the first 
 | --- | --- | --- |
 | Adaptive time-domain features | One linear pass over existing microphone frames, no model or extra process. Detects acoustic energy changes but cannot understand meaning. | Shipped baseline. |
 | WebRTC VAD | Mature low-cost speech/noise gate using short frames and GMM likelihoods. It detects speech, not excitement, and would add native source/build surface. | Useful future gate if false positives show the current voice-shape checks are insufficient. |
-| RNNoise VAD probability | The project already ships RNNoise for optional microphone denoising. Reusing its VAD output could improve a path where Audio.Host is already active, but running a second neural pass in Capture.Host would waste CPU. | Reuse only through a future shared feature contract; do not duplicate inference. |
 | eGeMAPS-style arousal classifier | Pitch, loudness dynamics, spectral flux, and speaker normalization are stronger emotion/arousal features. They require FFT/pitch work, a trained and calibrated model, datasets, and model-version support. | Later accuracy tier, after opt-in evaluation data and measured need. |
 | Speech-to-text or cloud emotion API | High CPU/network/privacy/support cost and poor fit for a continuous replay utility. | Rejected. |
 
@@ -57,7 +56,6 @@ Primary references:
 
 - Microsoft, [CaptureSharedEventDriven](https://learn.microsoft.com/en-us/windows/win32/coreaudio/capturesharedeventdriven)
 - WebRTC, [VAD core implementation](https://webrtc.googlesource.com/src/+/refs/heads/master/common_audio/vad/vad_core.c)
-- Xiph.Org, [RNNoise](https://github.com/xiph/rnnoise)
 - Eyben et al., [The Geneva Minimalistic Acoustic Parameter Set](https://mediatum.ub.tum.de/doc/1523509/document.pdf)
 
 ## Validation boundary

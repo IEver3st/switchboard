@@ -2,13 +2,13 @@
 
 ## Product
 
-Switchboard is a low-overhead Windows desktop utility for hardware control, audio routing, microphone processing, and game capture. Treat it as an operational control surface, not a website, a generic dashboard, or a replacement vendor suite that claims capabilities it cannot prove.
+Switchboard is a low-overhead Windows clipping app first: Instant Replay, separate Game, Chat, and Microphone clip tracks, clip editing, and montages. It also controls connected hardware through device and community modules. Treat it as an operational control surface, not a website, a generic dashboard, or a replacement vendor suite that claims capabilities it cannot prove.
 
 ## Start here
 
 - Inspect `git status` before editing. Existing changes are user-owned. Do not reset, clean, overwrite, stage, or include unrelated work.
 - Use Bun for JavaScript dependencies and scripts.
-- Read `ARCHITECTURE.md` before changing process boundaries, state ownership, native hosts, drivers, or update behavior.
+- Read `ARCHITECTURE.md` before changing process boundaries, state ownership, native hosts, or update behavior.
 - Read `DESIGN.md` before renderer work and `PERFORMANCE.md` before changing startup, polling, resource budgets, or long-lived work.
 - Treat `src/shared/contracts.ts` as the canonical renderer, preload, main, and host contract. Electron main owns persisted product state; Zustand only projects snapshots into the renderer.
 - Read the relevant contract, controller, service, and shared primitive before changing a product route. Extend an existing pattern when it already expresses the concept.
@@ -18,10 +18,9 @@ Switchboard is a low-overhead Windows desktop utility for hardware control, audi
 - Keep the renderer sandboxed with no Node access. Preload exposes narrow typed operations, never generic IPC, arbitrary filesystem access, sockets, or process execution.
 - Validate untrusted IPC, module, package, persisted, and external input with Zod at its boundary.
 - Keep vendor and device-family protocols outside the core renderer and orchestration layer.
-- Keep realtime audio and video buffers out of Electron IPC. Electron owns policy and state; isolated hosts own realtime work.
-- Windows realtime hosts use C# and .NET 10. Use NAudio unless measurement proves it cannot cover the required API. Keep realtime callbacks free of allocation, logging, locks, async work, and UI calls.
+- Keep captured video and audio buffers out of Electron IPC. Electron owns policy and state; Capture.Host owns realtime capture work.
+- Capture.Host uses C# and .NET 10. Use NAudio for Windows audio capture unless measurement proves it cannot cover the required API. Keep realtime capture callbacks free of allocation, logging, locks, async work, and UI calls.
 - Keep capture FFmpeg-first. Replace part of that path only after a measured limitation.
-- Use C++ and WDK only for virtual audio transport. DSP, profiles, routing policy, networking, and updates stay in user mode.
 - Disabled engines retain no process, timer, subscription, encoder session, or device handle. Disposal must be deterministic, idempotent, and safe during repeated shutdown or crash recovery.
 - Prefer event-driven device state. Any polling must document its interval, reason, and stop condition.
 
@@ -30,8 +29,8 @@ Switchboard is a low-overhead Windows desktop utility for hardware control, audi
 - A visible control requires a supported capability and a real transition through the canonical contract. Local React state is not feature completion.
 - Preserve the last confirmed value across rejected, timed-out, or disconnected hardware writes. Distinguish request, acknowledgement, readback, and physical-device proof.
 - Hide unsupported capabilities unless their presence explains an unavailable state. Put low-level identifiers, paths, protocol data, and internal IDs in diagnostics rather than the primary interface.
-- Label simulation, unavailable paths, unsigned drivers, unverified hardware behavior, and external validation gaps beside the affected feature.
-- Do not claim virtual audio routing, production capture, hardware writes, updates, packaging, or release readiness from fixture or build evidence alone.
+- Label simulation, unavailable paths, unverified hardware behavior, and external validation gaps beside the affected feature.
+- Do not claim production capture, hardware writes, updates, packaging, or release readiness from fixture or build evidence alone.
 
 ## Renderer work
 
@@ -49,7 +48,7 @@ Switchboard is a low-overhead Windows desktop utility for hardware control, audi
 
 ## Validation
 
-Select checks by the changed boundary. Root `bun run test` includes JavaScript, capture-host, and native audio builds/tests; prefer the relevant suite locally and run the aggregate at integration when required. Do not rebuild unrelated native engines or repeat clean checks solely because another file changed. Native UI checks must obey the global monitor restrictions.
+Select checks by the changed boundary. Root `bun run test` includes JavaScript and Capture.Host tests; prefer the relevant suite locally and run the aggregate at integration when required. Do not rebuild unrelated native engines or repeat clean checks solely because another file changed. Native UI checks must obey the global monitor restrictions.
 
 Run all checks that apply to the change. Explain any environment or hardware boundary that prevents one.
 
@@ -60,7 +59,6 @@ bun run check:source
 bun run check:types
 bun run build
 dotnet build .\engines\capture-host\Capture.Host.csproj
-dotnet build .\engines\audio-host\Audio.Host.csproj
 git diff --check
 ```
 

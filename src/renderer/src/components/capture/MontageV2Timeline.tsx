@@ -15,7 +15,7 @@ import {
 import type { Clip, ClipAudioWaveform } from '../../../../shared/contracts';
 import type { MontageAudioWaveform, MontageProjectV2, MontageV2Segment } from '../../../../shared/montage-v2';
 import { switchboardApi } from '@/lib/demo-api';
-import { channelColor } from '@/components/audio/channel-identity';
+import { channelColor } from '@/components/capture/channel-identity';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -257,7 +257,7 @@ export function MontageV2Timeline({
         <div className="montage-v2-lane-labels" style={project.sourceClipId ? { gridTemplateRows: `25px var(--video-lane-height) repeat(${laneCount}, 48px)` } : undefined}>
           <div className="montage-v2-ruler-label">{sourceSegment ? 'Source' : 'Timeline'}</div>
           <div><strong>Video</strong><span>{project.segments.length} segments</span></div>
-          {project.sourceClipId ? audioTracks.length ? audioTracks.map(track => <div key={track.trackIndex} className="clip-channel-label" style={{ '--track-color': channelColor(track.channel ?? 'aux'), '--control-accent': channelColor(track.channel ?? 'aux') } as CSSProperties}>
+          {project.sourceClipId ? audioTracks.length ? audioTracks.map(track => <div key={track.trackIndex} className="clip-channel-label" style={{ '--track-color': channelColor(track.channel), '--control-accent': channelColor(track.channel) } as CSSProperties}>
             <strong>{track.label} <output>{selected?.audioTrackLevels?.[track.trackIndex] ?? 100}%</output></strong>
             <Slider variant="fader" min={0} max={100} step={1} disabled={!selected} value={[selected?.audioTrackLevels?.[track.trackIndex] ?? 100]} aria-label={`${track.label} channel level`} onValueChange={([level]) => {
               if (!selected || level === undefined) return;
@@ -428,7 +428,7 @@ export function MontageV2Timeline({
               {sourceSegment ? <div className="montage-v2-trimmed-source" style={{ width: (sourceSegment.sourceDurationMs - sourceSegment.trimEndMs) * pixelsPerMs }} aria-hidden="true" /> : null}
             </div>
 
-            {project.sourceClipId ? audioTracks.length ? audioTracks.map(track => <div key={track.trackIndex} className="clip-channel-lane" style={{ '--track-color': channelColor(track.channel ?? 'aux'), '--control-accent': channelColor(track.channel ?? 'aux') } as CSSProperties}>
+            {project.sourceClipId ? audioTracks.length ? audioTracks.map(track => <div key={track.trackIndex} className="clip-channel-lane" style={{ '--track-color': channelColor(track.channel), '--control-accent': channelColor(track.channel) } as CSSProperties}>
               {project.segments.map(segment => {
                 const start = sourceSegment ? segment.trimStartMs : montageStartForSegment(project.segments, segment.id);
                 const duration = sourceSegment ? segment.trimEndMs - segment.trimStartMs : segmentDurationMs(segment);

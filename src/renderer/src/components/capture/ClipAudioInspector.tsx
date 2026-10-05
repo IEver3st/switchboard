@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ChevronRight, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { Clip, ClipAudioWaveform } from '../../../../shared/contracts';
 import type { MontageV2Segment } from '../../../../shared/montage-v2';
-import { channelColor } from '@/components/audio/channel-identity';
+import { channelColor } from '@/components/capture/channel-identity';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { switchboardApi } from '@/lib/demo-api';
@@ -61,7 +61,7 @@ export function ClipAudioInspector({ clip, segment, currentMs, selectedTrackInde
           {tracks.map(item => {
             const level = segment.audioTrackLevels?.[item.trackIndex] ?? 100;
             const selected = trackIndex === item.trackIndex;
-            return <div key={item.trackIndex} className="inspector-channel" data-selected={selected} data-muted={level === 0} style={{ '--track-color': channelColor(item.channel ?? 'aux'), '--control-accent': channelColor(item.channel ?? 'aux') } as CSSProperties}>
+            return <div key={item.trackIndex} className="inspector-channel" data-selected={selected} data-muted={level === 0} style={{ '--track-color': channelColor(item.channel), '--control-accent': channelColor(item.channel) } as CSSProperties}>
               <div className="inspector-channel__heading">
                 <button type="button" className="inspector-channel__select" aria-pressed={selected} aria-label={`Edit ${item.label} channel`} onClick={() => onSelectTrack(item.trackIndex)}><i aria-hidden="true" /><strong>{item.label}</strong><ChevronRight className="inspector-channel__arrow" aria-hidden="true" /></button>
                 <output>{level}%</output>
@@ -85,7 +85,7 @@ export function ClipAudioInspector({ clip, segment, currentMs, selectedTrackInde
       </> : <p className="inspector-empty" role="status">{waveformError ? 'Source audio could not be read.' : confirmedWaveform ? 'This clip has no audio tracks.' : 'Reading source audio…'}</p>}
       {waveformError ? <div className="inspector-audio-status" role="status"><span>Waveform unavailable</span><Button type="button" size="sm" variant="ghost" onClick={() => setRetry(value => value + 1)}>Retry</Button></div> : null}
     </section>
-    {track ? <section className="inspector-control-section inspector-channel-detail" style={{ '--track-color': channelColor(track.channel ?? 'aux') } as CSSProperties} aria-labelledby="clip-channel-trim-heading">
+    {track ? <section className="inspector-control-section inspector-channel-detail" style={{ '--track-color': channelColor(track.channel) } as CSSProperties} aria-labelledby="clip-channel-trim-heading">
       <div className="inspector-section-title"><h3 id="clip-channel-trim-heading">{track.label} trim</h3>
         <Button type="button" variant="ghost" size="sm" disabled={!segment.audioTrackTrims?.[trackIndex]} aria-label={`Reset ${track.label} audio trim`} onClick={() => changeTrim(null)}><RotateCcw />Reset</Button>
       </div>
