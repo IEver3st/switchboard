@@ -33,3 +33,20 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - run: dotnet build .\engines\capture-host\Capture.Host.csproj --configuration Release
+
+  native-app:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: switchboard-rs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: switchboard-rs
+      # Hardware-dependent suites (capture, media, app) are compiled, not run;
+      # hosted runners have no GPU or audio devices.
+      - run: cargo test --release --workspace --no-run
+      - run: cargo test --release -p switchboard-project -p switchboard-export -p switchboard-autocapture

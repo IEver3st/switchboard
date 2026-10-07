@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = ["crates/capture", "crates/project", "crates/media", "crates/export", "crates/autocapture", "crates/app"]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+license = "UNLICENSED"
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Patched copy: delayed repaints wait instead of redrawing at once (see
+# vendor/egui_software_backend/src/winit.rs, "Switchboard patch").
+[patch.crates-io]
+egui_software_backend = { path = "vendor/egui_software_backend" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+debug = "line-tables-only"

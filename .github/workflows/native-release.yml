@@ -1,0 +1,110 @@
+name: Release Native
+
+# Publishes the Rust app (switchboard-rs) on every push to main that changes
+# it, as the next patch version. To start a new major or minor line, set
+# `version` in switchboard-rs/Cargo.toml ([workspace.package]) and push.
+#
+# The release is what the app's updater looks for (crates/app/src/update.rs):
+# tag `native-v<version>`, assets `switchboard-native-<version>.exe` and
+# `switchboard-native-<version>.exe.sha256`, published (not a draft or
+# prerelease). It is never marked as the repository's latest release, so the
+# Electron app's updater keeps reading its own releases.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'switchboard-rs/**'
+      - '.github/workflows/native-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+    working-directory: switchboard-rs
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every push publishes: the version is the one in Cargo.toml if it hasn't
+      # been released, otherwise the next patch after the newest native
+      # release. It is stamped into Cargo.toml here (not committed) so the
+      # binary reports the version it is published as.
+      - name: Choose version
+        id: version
+        run: |
+          $toml = Get-Content -Raw -LiteralPath Cargo.toml
+          $pattern = '(?ms)(^\[workspace\.package\].*?^version\s*=\s*")(\d+\.\d+\.\d+)(")'
+          $m = [regex]::Match($toml, $pattern)
+          if (-not $m.Success) { throw 'No [workspace.package] version in switchboard-rs/Cargo.toml.' }
+          $base = [version]$m.Groups[2].Value
+          $tags = gh release list --repo $env:GITHUB_REPOSITORY --limit 1000 --json tagName --jq '.[].tagName'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list releases.' }
+          $released = @($tags | Where-Object { $_ -match '^native-v(\d+\.\d+\.\d+)$' } | ForEach-Object { [version]($_ -replace '^native-v', '') })
+          $newest = $released | Sort-Object -Descending | Select-Object -First 1
+          if (-not $newest -or $base -gt $newest) {
+            $version = $base
+          } else {
+            $version = [version]::new($newest.Major, $newest.Minor, $newest.Build + 1)
+          }
+          $version = $version.ToString(3)
+          $stamped = [regex]::Replace($toml, $pattern, { param($x) $x.Groups[1].Value + $version + $x.Groups[3].Value }, 1)
+          Set-Content -LiteralPath Cargo.toml -Value $stamped -NoNewline
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=native-v$version" >> $env:GITHUB_OUTPUT
+          "Publishing $version (Cargo.toml says $base; newest native release: $newest)."
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: switchboard-rs
+
+      # Capture, media and app tests need a GPU, Media Foundation or audio
+      # devices, which hosted runners don't have; they are compiled here and
+      # run on a real machine. These crates are pure logic.
+      - name: Test
+        run: |
+          cargo test --release --workspace --no-run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --release -p switchboard-project -p switchboard-export -p switchboard-autocapture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build
+        run: cargo build --release -p switchboard
+
+      - name: Publish
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $tag = '${{ steps.version.outputs.tag }}'
+          $out = Join-Path $env:RUNNER_TEMP 'native-release'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $name = "switchboard-native-$version.exe"
+          $exe = Join-Path $out $name
+          Copy-Item -LiteralPath 'target\release\switchboard-rs.exe' -Destination $exe
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash.ToLowerInvariant()
+          # "<hash>  <file>" like sha256sum; the updater reads the first token.
+          Set-Content -LiteralPath "$exe.sha256" -Value "$hash  $name" -NoNewline -Encoding ascii
+          $subject = git log -1 --format=%s
+          $notes = "Switchboard $version (native).`n`n$subject"
+          gh release create $tag "$exe" "$exe.sha256" `
+            --repo $env:GITHUB_REPOSITORY `
+            --target $env:GITHUB_SHA `
+            --title "Switchboard $version" `
+            --notes $notes `
+            --latest=false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "Published $tag with $name ($hash)."

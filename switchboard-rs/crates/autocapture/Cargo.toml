@@ -1,0 +1,26 @@
+[package]
+name = "switchboard-autocapture"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+# Development-only provider that emits synthetic events on request. Never
+# registered in a release build unless this feature is enabled.
+test-provider = []
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62"
+features = [
+  "Win32_Foundation",
+  "Win32_Security_Cryptography",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_UI_WindowsAndMessaging",
+]

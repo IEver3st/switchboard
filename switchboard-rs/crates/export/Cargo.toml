@@ -1,0 +1,15 @@
+[package]
+name = "switchboard-export"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+switchboard-project = { path = "../project" }
+
+[dependencies.windows]
+version = "0.62"
+features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Storage_FileSystem"]
