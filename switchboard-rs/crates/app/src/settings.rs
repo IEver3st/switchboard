@@ -139,7 +139,7 @@ pub fn data_dir() -> PathBuf {
     base.join("Switchboard Native")
 }
 
-fn settings_path() -> PathBuf {
+pub(crate) fn settings_path() -> PathBuf {
     data_dir().join("settings.json")
 }
 

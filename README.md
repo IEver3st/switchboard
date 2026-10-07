@@ -104,6 +104,10 @@ The executable is not code-signed yet, so Windows SmartScreen may warn the first
 
 Switchboard checks GitHub for a new version shortly after it starts and then every hour. A new version downloads in the background, is checked against its published SHA-256 checksum, and installs the next time Switchboard starts, or right away from **Settings > Updates > Restart to update**. It never restarts in the middle of a session. You can turn automatic updates off in Settings.
 
+### Coming from Switchboard 0.9
+
+The 0.9 app updates itself to this version through its normal update check. The new version installs to `%LOCALAPPDATA%\Programs\Switchboard Native`, keeps your clips folder, shortcut, replay length, start with Windows and Auto Capture settings, carries over favorites and renamed clips, then removes the old app. It appears in **Settings > Apps** as Switchboard and can be uninstalled from there; your clips and settings stay.
+
 ## Build from source
 
 Install [Rust](https://rustup.rs/) (stable), then:

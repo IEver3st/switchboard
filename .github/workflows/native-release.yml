@@ -7,8 +7,12 @@ name: Release Native
 # The release is what the app's updater looks for (crates/app/src/update.rs):
 # tag `native-v<version>`, assets `switchboard-native-<version>.exe` and
 # `switchboard-native-<version>.exe.sha256`, published (not a draft or
-# prerelease). It is never marked as the repository's latest release, so the
-# Electron app's updater keeps reading its own releases.
+# prerelease).
+#
+# It is also the repository's latest release and carries `latest.yml`, so the
+# 0.9 Electron app's updater (electron-updater, GitHub provider) downloads the
+# same executable and runs it as `--updated /S`. That moves the user to this
+# app: see crates/app/src/migrate.rs.
 
 on:
   push:
@@ -98,13 +102,28 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash.ToLowerInvariant()
           # "<hash>  <file>" like sha256sum; the updater reads the first token.
           Set-Content -LiteralPath "$exe.sha256" -Value "$hash  $name" -NoNewline -Encoding ascii
+          # electron-updater channel file: the same executable, by SHA-512.
+          $sha512 = [Convert]::ToBase64String([System.Security.Cryptography.SHA512]::HashData([System.IO.File]::ReadAllBytes($exe)))
+          $size = (Get-Item -LiteralPath $exe).Length
+          $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+          $yml = Join-Path $out 'latest.yml'
+          @(
+            "version: $version",
+            "files:",
+            "  - url: $name",
+            "    sha512: $sha512",
+            "    size: $size",
+            "path: $name",
+            "sha512: $sha512",
+            "releaseDate: '$date'"
+          ) -join "`n" | Set-Content -LiteralPath $yml -NoNewline -Encoding ascii
           $subject = git log -1 --format=%s
           $notes = "Switchboard $version (native).`n`n$subject"
-          gh release create $tag "$exe" "$exe.sha256" `
+          gh release create $tag "$exe" "$exe.sha256" "$yml" `
             --repo $env:GITHUB_REPOSITORY `
             --target $env:GITHUB_SHA `
             --title "Switchboard $version" `
             --notes $notes `
-            --latest=false
+            --latest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "Published $tag with $name ($hash)."

@@ -12,6 +12,7 @@ mod auto;
 mod library_index;
 mod media_client;
 mod media_host;
+mod migrate;
 mod pipe;
 mod protocol;
 mod service;
@@ -28,6 +29,19 @@ use windows::core::w;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // The Electron app's updater runs new versions as `<exe> --updated /S`.
+    if args.iter().any(|a| a == "--updated") {
+        return migrate::install_from_electron_update();
+    }
+    if args.first().map(String::as_str) == Some("--uninstall") {
+        return migrate::uninstall();
+    }
+    if args.first().map(String::as_str) == Some("--migrate-from-electron") {
+        migrate::migrate_from_electron();
+        if migrate::sandboxed() {
+            return Ok(());
+        }
+    }
     if args.iter().any(|a| a == "--ui") {
         return ui::run();
     }
