@@ -1,6 +1,6 @@
 # Switchboard (Rust)
 
-A from-scratch Rust rewrite of Switchboard focused only on clipping: Instant Replay with separate Game, Chat and Microphone tracks, a clip library, and settings. Device modules, the module SDK and the Electron stack are gone. It lives beside the Electron app until it reaches parity.
+Technical notes for Switchboard 1.0, the Rust rewrite focused only on clipping: Instant Replay with separate Game, Chat and Microphone tracks, the clip library, the editor and montages, export for sharing, Auto Capture and automatic updates. The product overview is in the [repository README](../README.md).
 
 ## Layout
 
@@ -104,8 +104,8 @@ UI renderer choice, bare 1080x720 window on this AMD system: eframe/OpenGL 240 M
 
 ## Known gaps
 
-- Display capture only; no per-window or automatic game capture yet.
-- Chat is split out only if Discord is running when Instant Replay starts.
-- No clip editor, trimming, track levels or montages yet.
+- Display capture only; no per-window capture yet.
+- Chat is split out only if Discord is running when Instant Replay starts, unless Chat follows a chosen output device.
 - No screen-reader support in the window (the software backend does not wire up AccessKit).
-- No installer or updater. Runs beside the Electron build; both can claim the same shortcut.
+- The executable is not code-signed.
+- The measurements above predate the media helper, GPU thumbnails and the capture changes of 2026-10-06; see the repository README for current figures.

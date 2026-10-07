@@ -151,6 +151,9 @@ enum Slot {
 /// stall one frame.
 const UPLOADS_PER_FRAME: usize = 6;
 const MISSING_RETRY: Duration = Duration::from_secs(10);
+/// Set by headless review renders, which may show a different clips folder:
+/// pruning there would delete the real library's cached thumbnails.
+pub static NO_PRUNE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 pub enum Thumb<'a> {
     Ready(&'a egui::TextureHandle),
@@ -326,7 +329,7 @@ impl Library {
         self.selected.retain(|p| live.contains(p));
         self.meta = meta;
         self.clips = clips;
-        if !self.scanned {
+        if !self.scanned && !NO_PRUNE.load(std::sync::atomic::Ordering::Relaxed) {
             self.prune_thumbnail_cache();
         }
         self.scanned = true;

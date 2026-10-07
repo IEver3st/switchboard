@@ -50,11 +50,18 @@ fn sample_auto() -> crate::auto::AutoStatus {
 pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scroll: f32) -> Result<()> {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(scale);
-    let pinned = (scenario == "empty").then(|| {
-        let d = std::env::temp_dir().join("switchboard-review-empty");
-        let _ = std::fs::create_dir_all(&d);
-        d
+    super::library::NO_PRUNE.store(true, std::sync::atomic::Ordering::Relaxed);
+    // SB_REVIEW_DIR shows another clips folder (e.g. for README screenshots).
+    let pinned = std::env::var_os("SB_REVIEW_DIR").map(std::path::PathBuf::from).or_else(|| {
+        (scenario == "empty").then(|| {
+            let d = std::env::temp_dir().join("switchboard-review-empty");
+            let _ = std::fs::create_dir_all(&d);
+            d
+        })
     });
+    // SB_REVIEW_CLEAN: the live state as if the service were this build with
+    // no pending update, so version notices stay out of screenshots.
+    let clean = std::env::var_os("SB_REVIEW_CLEAN").is_some();
     let mut app = App::new(ctx.clone(), pinned);
     app.windowed = false;
     // Drafts made by review scenarios stay out of the real projects store.
@@ -90,6 +97,14 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
     for i in 0..frames {
         if scenario == "share-run" && i > 12 && app.share.as_ref().is_some_and(|s| s.settled()) {
             break;
+        }
+        if clean && app.review_state.is_none()
+            && let Some(st) = app.link.state()
+        {
+            let mut st = (*st).clone();
+            st.build = crate::protocol::BUILD.to_string();
+            st.update = Default::default();
+            app.review_state = Some(std::sync::Arc::new(st));
         }
         if i == 8 {
             match scenario {

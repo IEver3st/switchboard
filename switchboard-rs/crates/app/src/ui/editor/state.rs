@@ -43,6 +43,7 @@ impl EditState {
     pub fn change(&mut self, key: &'static str, f: impl FnOnce(&mut Project)) {
         let before = self.project.clone();
         f(&mut self.project);
+        sync_default_name(&mut self.project);
         self.project.refresh();
         if self.project == before {
             return;
@@ -459,5 +460,22 @@ mod tests {
     #[test]
     fn frames_snap() {
         assert!((snap_to_frame(1_010.0, 60.0) - 1_016.666).abs() < 0.01);
+    }
+}
+
+/// A montage still carrying its default name ("Montage · 3 clips") follows
+/// the clip count as clips are added or removed; a name the user typed stays.
+fn sync_default_name(p: &mut Project) {
+    if p.is_clip_edit() {
+        return;
+    }
+    let count = p
+        .name
+        .strip_prefix("Montage \u{b7} ")
+        .and_then(|rest| rest.strip_suffix(" clips").or_else(|| rest.strip_suffix(" clip")))
+        .and_then(|n| n.parse::<usize>().ok());
+    if count.is_some_and(|n| n != p.segments.len()) {
+        let n = p.segments.len();
+        p.name = format!("Montage \u{b7} {n} {}", if n == 1 { "clip" } else { "clips" });
     }
 }

@@ -5,158 +5,143 @@
 <h1 align="center">Switchboard</h1>
 
 <p align="center">
-  A low-overhead Windows clipping app with built-in hardware control.
+  A low-overhead clipping app for Windows.
 </p>
 
 <p align="center">
-  <a href="ARCHITECTURE.md">Architecture</a> ·
-  <a href="DESIGN.md">Design</a> ·
-  <a href="PERFORMANCE.md">Performance</a> ·
-  <a href="TODO.md">Current work</a> ·
+  <a href="https://github.com/IEver3st/switchboard/releases?q=native-v&expanded=true">Download</a> ·
+  <a href="switchboard-rs/README.md">Technical notes</a> ·
   <a href="https://github.com/IEver3st/switchboard/issues">Issues</a>
 </p>
 
-![Switchboard device workspace](design-audit/2026-08-27-switchboard/final-native/1920x1080-devices.png)
+![The clip library](docs/images/native/library.jpg)
 
-Switchboard is a clipping app first: Instant Replay with separate Game, Chat, and Microphone tracks, a clip library, a clip editor, and montages, in one restrained desktop utility. It also controls connected hardware, so the parts of peripheral suites people actually use do not need a pile of vendor applications, background services, and decorative dashboards.
+Switchboard keeps the last few minutes of your game ready to save. Press the shortcut and the clip is on disk in a fraction of a second, with game audio, voice chat and your microphone on separate tracks so you can balance them afterwards. Trim it, mix it, put several clips into a montage, and export a copy small enough to drop straight into Discord.
 
-This repository is an active Windows alpha. The control plane is real, several named devices have hardware-backed integrations, and the native capture host is working. Some release-critical paths still need production capture qualification, powered-on hardware acceptance, and long-running validation. Switchboard labels those boundaries instead of pretending they are finished.
+It is one small native program written in Rust. There is no browser engine, no background helper suite and no FFmpeg process running while you play.
 
-## What works today
+## Features
 
-### Devices
+### Instant Replay
 
-- **Logitech G502 X Plus:** direct HID++ control for DPI stages, shift DPI, report rate, primary button assignments, onboard mode, battery state, supported LIGHTSYNC effects, and addressable zones. Onboard profile writes require a known layout and valid CRC.
-- **HyperX QuadCast 2:** event-driven mute state, maintained lighting, brightness, pulse timing, and hardware-backed lighting profiles.
-- **Razer Huntsman V2 Analog:** readback-backed brightness, firmware-reported quick effects, Gaming Mode, and onboard profile selection. Actuation, analog mapping, macros, Snap Tap, and per-key lighting remain outside Switchboard until their device protocols are independently verified.
+- Keeps the last 15 seconds to 10 minutes, encoded on your graphics card with its hardware H.264 encoder.
+- Game, Chat and Microphone are recorded on separate audio tracks. Game is every app except Discord, Chat is Discord, and each can instead follow a specific output device (useful with SteelSeries Sonar or similar mixers).
+- A global shortcut saves the clip, and a small notice confirms it without taking focus from your game.
+- Up to 4K at 30, 60, 120 or 144 fps, with Standard, High and Ultra quality.
 
-Switchboard shows a control only when the detected device reports a matching capability. Failed writes leave the last confirmed state intact.
+### Clip library
 
-### Capture and clips
+- Clips grouped by day with thumbnails, length, game and how long ago they were saved.
+- Search, filters (favorites, game, Auto Capture or manual, events, date), six sort orders, and grid or list view.
+- Rename, favorite, play, show in folder, or move to the Recycle Bin. Multi-select works with Ctrl and Shift.
 
-- Isolated .NET 10 capture host with an FFmpeg-first Windows path.
-- Bounded encoded segment ring, atomic replay saves, and MP4 remux without a full re-encode.
-- Separate Game, Chat, and Microphone tracks captured directly from Windows endpoints through NAudio WASAPI loopback, process loopback, and endpoint capture.
-- Optional game-only audio through process loopback, plus microphone timing calibration for the replay tracks.
-- Automatic game detection plus manual executable entries, and optional reaction clipping from microphone level.
-- Searchable clip library, favorites, filters, grid and list views, trim editing, per-track levels, and waveform inspection.
-- Ordered multi-clip montage projects with trim, reorder, music, playback, and FFmpeg export.
+### Editor
 
-The development host defaults to simulation. Production capture claims require the Windows FFmpeg path and real encoder output, not renderer fixtures.
+![Editing a clip](docs/images/native/editor.jpg)
 
-### Desktop lifecycle
+- Trim, split, duplicate and reorder on a timeline with a filmstrip and a waveform for every track.
+- Per-track levels, mutes, trims and volume automation, plus overall clip volume.
+- Framing for vertical and square canvases (9:16, 1:1, 4:5, 16:9), speed changes, freeze frames, text, blur and pixelate overlays, and picture adjustments.
+- Every change autosaves as a draft. Drafts clear three hours after their last save unless you keep them, and a discarded draft can be brought back with Undo.
 
-- Sandboxed Electron renderer with no Node access.
-- Narrow, typed preload operations and Zod-validated mutable IPC.
-- Electron-main-owned persistence for modules, devices, capture, settings, diagnostics, and engine state.
-- Optional native hosts that exist only while their engines are enabled.
-- Tray lifecycle with optional renderer destruction.
-- GitHub Release update checks, default-on background downloads, explicit restart, and install-on-next-startup policy for installed Windows builds.
-- In-app bug and feature handoff that prepares a redacted report, copies it, and opens this repository's issue flow.
+### Montages
 
-## Project status
+![A montage of three clips](docs/images/native/montage.jpg)
 
-| Area | Current state |
+- Select clips in the library and create a montage, or add more clips from the editor.
+- Each clip keeps its own trims and levels. Add a music track with ducking under voice.
+
+### Share
+
+![Exporting a clip for Discord](docs/images/native/share.jpg)
+
+- Export at 10, 25 or 50 MB, or at original quality. The 10 MB preset fits Discord's free upload limit.
+- Drag the finished file straight into Discord or a folder, or copy it and paste it anywhere.
+- Montages export at a size you choose and save where you pick.
+
+### Auto Capture
+
+- Saves a clip when a supported game reports a kill, a round win or another highlight. Counter-Strike 2 is supported through its game state integration; War Thunder is experimental.
+- Reactions: saves a clip when you shout or laugh into your microphone, with adjustable sensitivity and cooldown.
+- New Auto Capture clips are flagged in the library until you look at them.
+
+### Settings
+
+![Audio track settings](docs/images/native/settings.jpg)
+
+Everything is on one page: replay length and shortcut, display, resolution, frame rate and quality, which device each audio track records, the levels new edits start with, Auto Capture, the clips folder, updates and start with Windows.
+
+## Resource use
+
+Measured on an AMD RX 9070 XT with a Ryzen 9 9950X3D and a 4K display.
+
+| | Switchboard 1.0 | Switchboard 0.9 (Electron) |
+| --- | ---: | ---: |
+| Replay running, 1440p60, three audio tracks, window closed | about 180 MB in one process | about 1,550 MB across Electron, the capture host and FFmpeg |
+| Tray only, replay off | about 3 MB | |
+| Window open on the clip library | about 60 MB at 4K, under 20 MB at 1420 x 900 | |
+| Saving a clip | 30 to 110 ms | |
+
+The window is a separate process that exits when you close it, so a closed window costs nothing. Video decoding for the editor runs in a short-lived helper that exits when the editor closes, which gives its memory back to Windows.
+
+## Install
+
+1. Download `switchboard-native-<version>.exe` from the [latest native release](https://github.com/IEver3st/switchboard/releases?q=native-v&expanded=true).
+2. Put it in a folder of your choice and run it. Switchboard opens its window and adds a tray icon, with Instant Replay already running. Closing the window keeps it recording in the tray.
+3. Press **Ctrl+Shift+F10** to save a clip, or pick your own shortcut in Settings.
+
+Clips go to `Videos\Switchboard\Clips` by default. Settings live in `%LOCALAPPDATA%\Switchboard Native`.
+
+The executable is not code-signed yet, so Windows SmartScreen may warn the first time you run it.
+
+### Requirements
+
+- Windows 10 version 2004 or later, or Windows 11. Separate Game and Chat tracks rely on per-process audio capture, which needs 2004 or later.
+- A graphics card with a hardware H.264 encoder. Media Foundation picks NVIDIA, AMD or Intel; only AMD has been tested so far.
+- [FFmpeg](https://ffmpeg.org/download.html) for exporting and sharing, either on your `PATH` or next to the Switchboard executable. Recording, saving and editing do not need it.
+
+### Updates
+
+Switchboard checks GitHub for a new version shortly after it starts and then every hour. A new version downloads in the background, is checked against its published SHA-256 checksum, and installs the next time Switchboard starts, or right away from **Settings > Updates > Restart to update**. It never restarts in the middle of a session. You can turn automatic updates off in Settings.
+
+## Build from source
+
+Install [Rust](https://rustup.rs/) (stable), then:
+
+```powershell
+cd switchboard-rs
+cargo build --release
+cargo test --release
+.\target\release\switchboard-rs.exe
+```
+
+Every push to `main` that changes `switchboard-rs/` builds, tests and publishes the next patch release (`native-v<version>`) through [`.github/workflows/native-release.yml`](.github/workflows/native-release.yml). To start a new minor or major version, set `version` in `switchboard-rs/Cargo.toml`.
+
+[switchboard-rs/README.md](switchboard-rs/README.md) covers the capture pipeline, process layout and test tooling.
+
+## Repository
+
+| Path | What it is |
 | --- | --- |
-| Electron control plane | Implemented and persisted |
-| G502 X Plus and QuadCast 2 | Hardware-backed integration |
-| Huntsman V2 Analog | Supported controls implemented; clean-process physical revalidation remains |
-| Capture host | Native path implemented; production Windows capture qualification remains |
-| Application updates | Live public feed; installed Windows builds check, download, and apply verified releases by default |
-| Windows installer | Buildable; currently unsigned |
-| Soak testing | Release suite remains |
+| `switchboard-rs/crates/capture` | Screen and audio capture, the replay buffer and the MP4 writer |
+| `switchboard-rs/crates/app` | The tray service, the window and the updater |
+| `switchboard-rs/crates/media` | Playback, frames and waveforms for the editor |
+| `switchboard-rs/crates/project` | Clip edits and montages |
+| `switchboard-rs/crates/export` | FFmpeg export for sharing |
+| `switchboard-rs/crates/autocapture` | Game events and reaction clipping |
 
-The exact remaining work lives in [TODO.md](TODO.md). Performance budgets and soak requirements live in [PERFORMANCE.md](PERFORMANCE.md).
+The rest of the repository holds the 0.9 Electron app, which Switchboard 1.0 replaces.
 
-## Architecture
+## Known limits
 
-```text
-Sandboxed React renderer
-          │
-          │ narrow typed IPC
-          ▼
-Electron main process
-  ├── canonical state and persistence
-  ├── device registry and vendor modules
-  └── Capture.Host          .NET 10 + FFmpeg + NAudio
-```
-
-Captured video and audio buffers never cross Electron IPC. Electron owns policy and state; the isolated capture host owns realtime capture work.
-
-Read [ARCHITECTURE.md](ARCHITECTURE.md) for subsystem boundaries and state ownership.
-
-## Run Switchboard
-
-Development currently targets Windows. Install [Bun](https://bun.sh/) and the .NET 10 SDK, then run:
-
-```powershell
-bun install
-bun run dev
-```
-
-The development launcher builds Capture.Host into
-`.switchboard/dev-hosts` before Electron starts. This keeps a running host from
-locking the project output and prevents Electron from silently reusing a stale
-native executable after C# changes. Set `SWITCHBOARD_SKIP_NATIVE_BUILD=1` only
-when intentionally testing an already-built host.
-
-Build the Electron application:
-
-```powershell
-bun run build
-```
-
-Build the capture host and create an NSIS installer:
-
-```powershell
-bun run dist:win
-```
-
-The generated installer is not Authenticode-signed unless the release environment supplies signing credentials.
-
-## Validate a checkout
-
-```powershell
-bun run check
-bun run check:source
-bun run check:types
-bun run test
-bun run build
-dotnet build .\engines\capture-host\Capture.Host.csproj
-```
-
-The repository has no lint script. The checks above cover structural invariants, source transpilation, TypeScript contracts, Bun tests, capture host tests, Electron bundles, and the direct host build.
-
-Hardware fixtures and native Electron captures prove deterministic application behavior. They do not prove a physical HID or Bluetooth write, visible lighting, production capture, encoder output, reconnect behavior, or a 24-hour soak. Each subsystem document records its remaining physical proof.
-
-## Browser preview
-
-The browser preview is useful for reviewing the shell without Electron or hardware:
-
-```powershell
-bun run preview:static
-```
-
-Open `preview/index.html`, or use the generated single-file `preview/standalone.html`. The standalone file is generated and should not be edited by hand.
-
-## Repository map
-
-| Path | Purpose |
-| --- | --- |
-| `src/shared/contracts.ts` | Canonical renderer, main, preload, and host contracts |
-| `src/main/controller.ts` | Product orchestration and persisted state transitions |
-| `src/main/services/device-registry.ts` and `src/main/modules` | Device registry and vendor protocol modules |
-| `src/renderer/src` | React desktop interface |
-| `engines/capture-host` | FFmpeg-first Windows capture host |
-| `docs` | Subsystem, release, and supply-chain notes |
-| `scripts` | Build, validation, measurement, and native review tools |
+- Display capture only, no single-window capture yet.
+- Tested on AMD graphics. NVIDIA and Intel encoders, HDR displays and multi-GPU laptops are not verified yet.
+- The window has no screen-reader support yet.
 
 ## Reporting bugs
 
-Use Switchboard's **Bug or feature** action, or open a [GitHub issue](https://github.com/IEver3st/switchboard/issues/new). Review the report before submitting it because issues in this repository are public.
-
-The app can confirm that it copied a report and opened GitHub. It cannot claim that GitHub accepted the issue until you submit it in the browser. Diagnostics are limited to the app version, Electron runtime, operating system, and architecture.
+Open a [GitHub issue](https://github.com/IEver3st/switchboard/issues/new). Issues in this repository are public, so leave out anything private.
 
 ## License
 
-No project license has been selected yet. Public access to this repository does not grant permission to copy, modify, or redistribute Switchboard. Third-party components retain their own licenses and attributions in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+No license has been chosen yet. Public access to this repository does not grant permission to copy, modify or redistribute Switchboard. Third-party components keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
