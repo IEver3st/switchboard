@@ -14,6 +14,7 @@ pub(crate) mod library;
 mod link;
 mod review;
 mod settings_page;
+mod framing;
 mod share;
 mod shelf;
 mod theme;
@@ -98,6 +99,9 @@ pub(crate) struct App {
     /// Current service snapshot for this frame.
     state: Option<Arc<ServiceState>>,
     popover: bool,
+    /// The vertical guide quick panel is open, and where its button is.
+    guide_panel: bool,
+    guide_rect: egui::Rect,
     confirm_delete: Option<Vec<PathBuf>>,
     notice: Option<Notice>,
     /// Settings as last confirmed by the service, or as just requested.
@@ -168,6 +172,8 @@ impl App {
             page: Page::Clips,
             state: None,
             popover: false,
+            guide_panel: false,
+            guide_rect: egui::Rect::NOTHING,
             confirm_delete: None,
             notice: None,
             draft: None,
@@ -214,6 +220,9 @@ impl App {
         });
         if self.page == Page::Clips && self.popover {
             self.replay_popover(&ctx);
+        }
+        if self.page == Page::Clips && self.guide_panel {
+            self.guide_panel(&ctx);
         }
         self.notice_overlay(&ctx);
         self.delete_dialog(&ctx);
@@ -340,8 +349,9 @@ impl App {
             self.confirm_delete = Some(self.lib.selected_paths());
         }
         if escape {
-            if self.popover {
+            if self.popover || self.guide_panel {
                 self.popover = false;
+                self.guide_panel = false;
             } else if typing {
                 ctx.memory_mut(|m| m.request_focus(egui::Id::NULL));
             } else {

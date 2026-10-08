@@ -33,6 +33,70 @@ pub struct Settings {
     pub default_levels: [u8; 3],
     /// Check for, download and stage new versions in the background.
     pub auto_update: bool,
+    /// On-screen 9:16 framing guide for short-form content.
+    pub vertical_guide: VerticalGuide,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GuideColor {
+    White,
+    Violet,
+    Lime,
+}
+
+impl GuideColor {
+    pub fn rgb(self) -> u32 {
+        match self {
+            GuideColor::White => 0xffffff,
+            GuideColor::Violet => 0xb9aaff,
+            GuideColor::Lime => 0xcefa76,
+        }
+    }
+}
+
+/// A click-through outline on screen showing what a 9:16 crop keeps. It is a
+/// framing aid only: it never appears in clips and never crops them.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VerticalGuide {
+    pub enabled: bool,
+    /// Display to draw on; None follows the captured display.
+    pub display_index: Option<usize>,
+    /// Frame height as a percentage of the largest 9:16 frame that fits (25..=100).
+    pub size: u8,
+    /// Free space left of / above the frame, as a percentage (0..=100, 50 = centred).
+    pub horizontal: u8,
+    pub vertical: u8,
+    /// How much to darken outside the frame (0..=80 %).
+    pub dim: u8,
+    pub color: GuideColor,
+}
+
+impl Default for VerticalGuide {
+    fn default() -> Self {
+        VerticalGuide { enabled: false, display_index: None, size: 100, horizontal: 50, vertical: 50, dim: 35, color: GuideColor::White }
+    }
+}
+
+impl VerticalGuide {
+    pub fn sanitized(mut self) -> VerticalGuide {
+        self.size = self.size.clamp(25, 100);
+        self.horizontal = self.horizontal.min(100);
+        self.vertical = self.vertical.min(100);
+        self.dim = self.dim.min(80);
+        self
+    }
+
+    /// The frame on a `w` x `h` display, as (x, y, width, height) in that
+    /// display's pixels: exactly 9:16, never larger than the display.
+    pub fn frame(&self, w: i32, h: i32) -> (i32, i32, i32, i32) {
+        let largest = (h as f64 / 16.0).min(w as f64 / 9.0);
+        let unit = ((largest * self.size as f64 / 100.0).floor() as i32).max(1);
+        let (fw, fh) = (unit * 9, unit * 16);
+        let x = ((w - fw).max(0) as f64 * self.horizontal as f64 / 100.0).round() as i32;
+        let y = ((h - fh).max(0) as f64 * self.vertical as f64 / 100.0).round() as i32;
+        (x, y, fw, fh)
+    }
 }
 
 impl Default for Settings {
@@ -58,6 +122,7 @@ impl Default for Settings {
             auto_capture: Default::default(),
             default_levels: [100, 100, 100],
             auto_update: true,
+            vertical_guide: VerticalGuide::default(),
         }
     }
 }
@@ -90,6 +155,7 @@ impl Settings {
         self.resolution = self.resolution.clamp(480, 2160);
         self.auto_capture = self.auto_capture.sanitized();
         self.default_levels = self.default_levels.map(|v| v.min(100));
+        self.vertical_guide = self.vertical_guide.sanitized();
         self
     }
 
@@ -192,6 +258,24 @@ pub fn set_autostart(enabled: bool) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn guide_frame_is_nine_by_sixteen_and_stays_on_screen() {
+        let g = VerticalGuide::default();
+        // 1440p: the largest frame is the full height, centred.
+        assert_eq!(g.frame(2560, 1440), (875, 0, 810, 1440));
+        // Portrait display: limited by width.
+        let (x, y, w, h) = g.frame(1080, 1920);
+        assert_eq!((w, h), (1080, 1920));
+        assert_eq!((x, y), (0, 0));
+        // Half size, pushed to the right edge and the bottom.
+        let g = VerticalGuide { size: 50, horizontal: 100, vertical: 100, ..Default::default() };
+        let (x, y, w, h) = g.frame(3840, 2160);
+        assert_eq!(w * 16, h * 9);
+        assert_eq!((x + w, y + h), (3840, 2160));
+        let s = VerticalGuide { size: 0, horizontal: 200, vertical: 255, dim: 99, ..Default::default() }.sanitized();
+        assert_eq!((s.size, s.horizontal, s.vertical, s.dim), (25, 100, 100, 80));
+    }
 
     #[test]
     fn sanitize_clamps_untrusted_values() {

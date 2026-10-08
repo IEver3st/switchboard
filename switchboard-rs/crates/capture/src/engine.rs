@@ -113,6 +113,9 @@ struct AudioTrack {
 const KICK_WAIT: Duration = Duration::from_millis(100);
 /// How long stopping waits for workers before leaving them to finish alone.
 const JOIN_TIMEOUT: Duration = Duration::from_secs(10);
+/// A save refuses a ring whose newest video is older than this: the video
+/// path stopped, and saving would repeat old footage as if it were new.
+const STALE_VIDEO_HNS: i64 = 3 * HNS_PER_SECOND;
 
 /// The session's cache directory, deleted when the engine and every worker
 /// thread have released it. A worker that outlives a stop therefore never
@@ -210,6 +213,7 @@ pub struct Engine {
     audio: Vec<AudioTrack>,
     save_lock: Mutex<()>,
     kick_seq: AtomicU64,
+    started_hns: i64,
 }
 
 impl Engine {
@@ -334,6 +338,7 @@ impl Engine {
             audio: audio_tracks,
             save_lock: Mutex::new(()),
             kick_seq: AtomicU64::new(0),
+            started_hns: t0,
         })
     }
 
@@ -387,6 +392,13 @@ impl Engine {
                 .collect(),
             video_error: self.video_stats.error.lock().unwrap().clone(),
         }
+    }
+
+    /// How far the newest encoded video trails real time (since start while
+    /// nothing is encoded yet). A healthy pipeline stays within a frame or two.
+    pub fn video_lag(&self) -> Duration {
+        let newest = self.video_ring.newest_pts().unwrap_or(self.started_hns);
+        Duration::from_nanos(((now_hns() - newest).max(0) as u64).saturating_mul(100))
     }
 
     /// Internal counters for soak measurements.
@@ -452,6 +464,13 @@ impl Engine {
         let _guard = self.save_lock.lock().unwrap();
         self.flush_audio();
         let newest = self.video_ring.newest_pts().ok_or_else(|| anyhow!("the replay buffer is still empty"))?;
+        let lag = now_hns() - newest;
+        if lag > STALE_VIDEO_HNS {
+            bail!(
+                "Instant Replay stopped receiving video {} ago, so there is nothing new to save. It restarts automatically; try again in a few seconds",
+                lag_label(lag)
+            );
+        }
         let end = until.min(newest);
         if end <= from {
             bail!("that moment is no longer in the replay buffer");
@@ -547,6 +566,15 @@ impl Drop for Engine {
         // Workers stop and join first; the session directory goes when the
         // last reference to it (engine or a straggling worker) is released.
         self.workers.shutdown();
+    }
+}
+
+fn lag_label(hns: i64) -> String {
+    let s = hns / HNS_PER_SECOND;
+    match s {
+        0..=119 => format!("{s} seconds"),
+        120..=7199 => format!("{} minutes", s / 60),
+        _ => format!("{} hours", s / 3600),
     }
 }
 

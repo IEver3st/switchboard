@@ -60,6 +60,10 @@ pub struct Editor {
     pub selected_overlay: Option<String>,
     preview: preview::PreviewCache,
     pub drag: Option<timeline::Drag>,
+    /// While trimming: grabbed edge x minus the press x, and the playhead
+    /// position edges snap to.
+    pub grab_dx: f32,
+    pub snap_at: f64,
     /// Library thumbnails and titles for the clips in the project (set each frame).
     pub thumbs: HashMap<String, egui::TextureId>,
     pub clip_titles: HashMap<String, String>,
@@ -89,6 +93,8 @@ impl Editor {
             selected_overlay: None,
             preview: Default::default(),
             drag: None,
+            grab_dx: 0.0,
+            snap_at: 0.0,
             thumbs: HashMap::new(),
             clip_titles: HashMap::new(),
             adding: None,
@@ -358,6 +364,25 @@ impl App {
             ed.state.move_segment(ed.state.selected, if alt_left { -1 } else { 1 });
             ed.after_edit();
         }
+        let (set_in, set_out) = ctx.input_mut(|i| {
+            (i.consume_key(egui::Modifiers::NONE, egui::Key::I), i.consume_key(egui::Modifiers::NONE, egui::Key::O))
+        });
+        if set_in || set_out {
+            let (i, src) = (ed.playback.segment, ed.playback.source_ms);
+            if i < ed.state.project.segments.len() {
+                ed.state.selected = i;
+                let starts = ed.state.project.segment_starts();
+                if set_in {
+                    ed.state.set_trim_start(i, src);
+                    ed.seek(starts[i] as f64, true);
+                } else {
+                    ed.state.set_trim_end(i, src);
+                    let s = &ed.state.project.segments[i];
+                    let end = (starts[i] + s.duration_ms()) as f64;
+                    ed.seek((end - frame).max(starts[i] as f64), true);
+                }
+            }
+        }
         let (space, s, del, undo, redo, home, end, left, right, esc, shift) = ctx.input_mut(|i| {
             (
                 i.consume_key(egui::Modifiers::NONE, egui::Key::Space),
@@ -526,6 +551,9 @@ impl App {
 /// Undo/redo and segment tools, play controls and time, preview volume and zoom.
 fn transport(ui: &mut Ui, ed: &mut Editor) {
     let project = ed.state.project.clone();
+    // Below this width (1080 x 720 windows) labels shorten and the volume
+    // fader goes, so the centred play group never overlaps either side.
+    let narrow = ui.max_rect().width() < 900.0;
     if icon_button(ui, icon::UNDO, "Undo (Ctrl+Z)", false).clicked() && ed.state.can_undo() {
         ed.state.undo();
         ed.after_edit();
@@ -536,8 +564,15 @@ fn transport(ui: &mut Ui, ed: &mut Editor) {
     }
     let (sep, _) = ui.allocate_exact_size(vec2(9.0, 22.0), Sense::hover());
     ui.painter().vline(sep.center().x, sep.y_range(), Stroke::new(1.0, BORDER));
-    if project.is_clip_edit() && button(ui, Kind::Ghost, Some(icon::VOLUME), "Audio channels", true).clicked() {
-        ed.show_audio = !ed.show_audio;
+    if project.is_clip_edit() {
+        let clicked = if narrow {
+            icon_button(ui, icon::VOLUME, "Audio channels", ed.show_audio).clicked()
+        } else {
+            button(ui, Kind::Ghost, Some(icon::VOLUME), "Audio channels", true).clicked()
+        };
+        if clicked {
+            ed.show_audio = !ed.show_audio;
+        }
     }
     if icon_button(ui, icon::CLIP_EDIT, "Split at playhead (S)", false).clicked() {
         let (i, src) = (ed.playback.segment, ed.playback.source_ms);
@@ -570,11 +605,12 @@ fn transport(ui: &mut Ui, ed: &mut Editor) {
     if button(ui, Kind::Primary, Some(glyph), label, true).on_hover_text("Space").clicked() {
         ed.toggle_play();
     }
-    ui.label(
-        RichText::new(format!("{} / {}", precise(ed.playback.out_ms), precise(project.duration_ms as f64)))
-            .font(font_mono(12.5))
-            .color(TEXT_SECONDARY),
-    );
+    let time = if narrow {
+        precise(ed.playback.out_ms)
+    } else {
+        format!("{} / {}", precise(ed.playback.out_ms), precise(project.duration_ms as f64))
+    };
+    ui.label(RichText::new(time).font(font_mono(12.5)).color(TEXT_SECONDARY));
 
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         if icon_button(ui, icon::ZOOM_IN, "Zoom in", false).clicked() {
@@ -593,12 +629,12 @@ fn transport(ui: &mut Ui, ed: &mut Editor) {
             ed.fullscreen = !ed.fullscreen;
         }
         let mut v = ed.playback.volume;
-        let r = super::widgets::fader(ui, &mut v, ACCENT, 96.0, "Preview volume");
+        let changed = !narrow && super::widgets::fader(ui, &mut v, ACCENT, 96.0, "Preview volume").changed();
         let mut muted = ed.playback.muted;
         if icon_button(ui, if muted { icon::MUTE } else { icon::VOLUME }, "Preview volume", false).clicked() {
             muted = !muted;
         }
-        if r.changed() || muted != ed.playback.muted {
+        if changed || muted != ed.playback.muted {
             ed.playback.set_volume(v, muted);
         }
     });

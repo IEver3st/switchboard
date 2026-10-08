@@ -9,6 +9,7 @@
 //!   it on demand and exited when the window no longer needs it.
 
 mod auto;
+mod guide;
 mod library_index;
 mod media_client;
 mod media_host;

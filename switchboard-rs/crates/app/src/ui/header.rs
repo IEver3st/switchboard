@@ -147,6 +147,7 @@ impl App {
                 if icon_button(ui, icon::SETTINGS, "Settings (Ctrl+,)", false).clicked() {
                     self.open_settings();
                 }
+                self.guide_button(ui);
                 ui.add_space(4.0);
                 let saving = self.state.as_ref().is_some_and(|s| s.saving);
                 let can_save = rec == Recorder::Running && !saving;
@@ -227,6 +228,7 @@ impl App {
         widgets::focus_ring(ui, &response, R_CONTROL);
         if response.clicked() {
             self.popover = !self.popover;
+            self.guide_panel = false;
         }
         self.recorder_rect = rect;
     }

@@ -5,7 +5,7 @@
 //!
 //!   switchboard-rs --review-shot out.png <width> <height> <scale> <scenario> [scroll]
 //!
-//! Scenarios: clips, list, selection, popover, search, empty, settings, settings-auto, delete, share, share-run,
+//! Scenarios: clips, list, selection, popover, guide, search, empty, settings, settings-auto, delete, share, share-run,
 //! editor, editor-edit, add-clips, add-clips-run, new-clips, editor-play, editor-close, editor-kill,
 //! thumbs-idle.
 
@@ -116,6 +116,7 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
                     }
                 }
                 "popover" => app.popover = true,
+                "guide" => app.guide_panel = true,
                 "drafts" => {
                     // Two drafts in the review's temporary store.
                     for path in app.lib.visible_paths().into_iter().take(2) {

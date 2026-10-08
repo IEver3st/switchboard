@@ -19,6 +19,7 @@ pub enum Msg {
     Disconnected { conn: u64 },
     Hotkey,
     HotkeyResult(Option<String>),
+    GuideResult(Option<String>),
     SaveDone(Result<SavedClip, String>),
     /// Auto Capture has work due (event arrived, window ready).
     AutoWake,
@@ -33,6 +34,9 @@ const RETRY_AFTER: Duration = Duration::from_secs(5);
 const UI_STATUS_INTERVAL: Duration = Duration::from_secs(1);
 /// While replay runs with no UI, check engine health every 5 s.
 const HEALTH_INTERVAL: Duration = Duration::from_secs(5);
+/// Newest encoded video older than this restarts capture (the video thread's
+/// own watchdog normally fires first, after 4 s).
+const VIDEO_LAG_LIMIT: Duration = Duration::from_secs(12);
 
 struct Service {
     settings: Settings,
@@ -40,6 +44,7 @@ struct Service {
     replay: ReplayState,
     subscribers: HashMap<u64, mpsc::Sender<Event>>,
     hotkey_error: Option<String>,
+    guide_error: Option<String>,
     displays: Vec<switchboard_capture::DisplayInfo>,
     index: LibraryIndex,
     /// Game name captured when the save started, for the index entry.
@@ -61,6 +66,7 @@ pub fn run(settings: Settings, rx: mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, m
         replay: ReplayState::Off,
         subscribers: HashMap::new(),
         hotkey_error: None,
+        guide_error: None,
         displays: list_displays().unwrap_or_default(),
         index: LibraryIndex::load(),
         saving_game: None,
@@ -75,6 +81,9 @@ pub fn run(settings: Settings, rx: mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, m
     };
     s.updater.set_automatic(s.settings.auto_update);
     s.sync_auto();
+    if s.settings.vertical_guide.enabled {
+        s.sync_guide();
+    }
     if s.settings.replay_enabled {
         s.start_engine();
     }
@@ -144,6 +153,15 @@ impl Service {
                 self.hotkey_error = err;
                 self.broadcast_state();
             }
+            Msg::GuideResult(err) => {
+                if err.is_some() && self.settings.vertical_guide.enabled {
+                    // Keep the confirmed state: the guide is not on screen.
+                    self.settings.vertical_guide.enabled = false;
+                    let _ = self.settings.save();
+                }
+                self.guide_error = err;
+                self.broadcast_state();
+            }
             Msg::SaveDone(result) => {
                 self.saving = false;
                 match result {
@@ -196,6 +214,11 @@ impl Service {
                     }
                     self.sync_tray();
                     self.broadcast_state();
+                }
+                Request::SetGuide { enabled } => {
+                    let mut new = self.settings.clone();
+                    new.vertical_guide.enabled = enabled;
+                    self.apply_settings(new);
                 }
                 Request::ApplySettings { settings } => self.apply_settings(settings),
                 Request::UpdateClip { file, favorite, title } => {
@@ -283,7 +306,12 @@ impl Service {
 
     fn tick(&mut self) {
         if let Some(engine) = &self.engine {
-            if let Some(err) = engine.status().video_error {
+            // The video thread reports its own failures, stalls included; the
+            // lag check also covers a thread stuck inside a driver call.
+            let error = engine.status().video_error.or_else(|| {
+                (engine.video_lag() > VIDEO_LAG_LIMIT).then(|| "the video encoder stopped responding".to_string())
+            });
+            if let Some(err) = error {
                 self.stop_engine();
                 self.replay = ReplayState::Failed { message: err };
                 self.retry_at = Some(Instant::now() + RETRY_AFTER);
@@ -367,7 +395,12 @@ impl Service {
         let hotkey_changed = new.hotkey != self.settings.hotkey;
         let autostart_changed = new.start_with_windows != self.settings.start_with_windows;
         let replay_changed = new.replay_enabled != self.settings.replay_enabled;
+        let guide_changed =
+            new.vertical_guide != self.settings.vertical_guide || new.display_index != self.settings.display_index;
         self.settings = new;
+        if guide_changed {
+            self.sync_guide();
+        }
         let _ = self.settings.save();
         self.updater.set_automatic(self.settings.auto_update);
         self.sync_auto();
@@ -410,6 +443,7 @@ impl Service {
             audio_devices: self.audio_devices.clone(),
             auto: self.auto.as_ref().map(Auto::status),
             hotkey_error: self.hotkey_error.clone(),
+            guide_error: self.guide_error.clone(),
             saving: self.saving,
             service_memory: process_memory().0,
             build: crate::protocol::BUILD.to_string(),
@@ -534,6 +568,20 @@ impl Service {
             a.record(&req, result.map(|_| ()));
         }
         self.broadcast_state();
+    }
+
+    /// Sends the guide settings, with the display they apply to, to the tray thread.
+    fn sync_guide(&mut self) {
+        let g = &self.settings.vertical_guide;
+        if g.enabled {
+            self.guide_error = None;
+        }
+        let index = g.display_index.unwrap_or(self.settings.display_index);
+        if self.displays.get(index).is_none() {
+            self.displays = list_displays().unwrap_or_default();
+        }
+        let device = self.displays.get(index).map(|d| d.device_name.clone());
+        self.main.set_guide(g.clone(), device);
     }
 
     fn sync_tray(&self) {

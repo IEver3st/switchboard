@@ -12,6 +12,8 @@ pub enum Request {
     Subscribe,
     SaveClip,
     SetReplay { enabled: bool },
+    /// Turn the on-screen 9:16 framing guide on or off.
+    SetGuide { enabled: bool },
     ApplySettings { settings: Settings },
     /// Re-enumerate displays and audio devices (sent when Settings opens).
     RefreshDevices,
@@ -50,6 +52,9 @@ pub struct ServiceState {
     #[serde(default)]
     pub auto: Option<crate::auto::AutoStatus>,
     pub hotkey_error: Option<String>,
+    /// Why the framing guide couldn't be shown, if it couldn't.
+    #[serde(default)]
+    pub guide_error: Option<String>,
     pub saving: bool,
     /// Private bytes of the tray/engine process.
     pub service_memory: u64,

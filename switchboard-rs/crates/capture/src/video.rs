@@ -104,6 +104,10 @@ impl Pipeline {
         let at = |n: i64| s.t0 + n * HNS_PER_SECOND / s.fps as i64;
         let mut ring = s.ring.writer(false);
         let mut n = (now_hns() - s.t0) * s.fps as i64 / HNS_PER_SECOND + 1;
+        // Stall watchdog: an encoder that stops asking for input or stops
+        // returning output raises no error of its own, and the ring would
+        // keep its last packets forever (every save repeating old footage).
+        let mut stall = Stall::new(s.stats.encoded.load(Ordering::Relaxed), now_hns());
         let Pipeline { converter, encoder, timer, scratch, avcc } = self;
         let mut sink = |sample: &IMFSample| -> Result<()> {
             let time = unsafe { sample.GetSampleTime()? };
@@ -129,6 +133,7 @@ impl Pipeline {
                 let l = s.capture.latest.lock().unwrap();
                 l.texture.clone().map(|t| (t, l.width, l.height, l.generation))
             };
+            let latest_seen = latest.is_some();
             if let Some((tex, w, h, generation)) = latest {
                 if encoder.need_input == 0 {
                     // The encoder is behind. Poll its event queue in 1 ms
@@ -158,6 +163,13 @@ impl Pipeline {
                     s.stats.dropped.fetch_add(1, Ordering::Relaxed);
                 }
             }
+            if stall.check(s.stats.encoded.load(Ordering::Relaxed), now_hns(), latest_seen) {
+                let removed = unsafe { s.gpu.device.GetDeviceRemovedReason() };
+                match removed {
+                    Err(e) => bail!("the GPU reset and the video encoder stopped ({:#010x})", e.code().0),
+                    Ok(()) => bail!("the video encoder stopped producing frames"),
+                }
+            }
             n += 1;
             // If we fell behind (system stall), skip ahead on the frame grid
             // instead of encoding a burst of late frames.
@@ -168,6 +180,37 @@ impl Pipeline {
             }
         }
         Ok(())
+    }
+}
+
+/// How long the encoder may go without producing a packet while frames are
+/// available before the pipeline gives up and the service restarts it.
+const STALL_HNS: i64 = 4 * HNS_PER_SECOND;
+
+/// Tracks encoder progress for the stall watchdog.
+struct Stall {
+    count: u64,
+    progress_at: i64,
+    checked_at: i64,
+}
+
+impl Stall {
+    fn new(count: u64, now: i64) -> Stall {
+        Stall { count, progress_at: now, checked_at: now }
+    }
+
+    /// True once `count` has not moved for `STALL_HNS` while frames were
+    /// available. Time the loop itself was suspended (sleep, a long system
+    /// stall) does not count: the encoder gets a fresh window after it.
+    fn check(&mut self, count: u64, now: i64, frames_available: bool) -> bool {
+        let suspended = now - self.checked_at > HNS_PER_SECOND;
+        self.checked_at = now;
+        if count != self.count || !frames_available || suspended {
+            self.count = count;
+            self.progress_at = now;
+            return false;
+        }
+        now - self.progress_at > STALL_HNS
     }
 }
 
@@ -718,6 +761,37 @@ mod tests {
         let mut expected = (idr.len() as u32).to_be_bytes().to_vec();
         expected.extend_from_slice(&idr);
         assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn stall_fires_only_when_the_encoder_stops_with_frames_available() {
+        const MS: i64 = 10_000;
+        let mut st = Stall::new(0, 0);
+        // Packets keep coming: never a stall.
+        for i in 1..1000u64 {
+            assert!(!st.check(i, i as i64 * 33 * MS, true));
+        }
+        let t0 = 1000 * 33 * MS;
+        // Output stops: a stall after STALL_HNS of 33 ms iterations.
+        let mut t = t0;
+        let mut fired = false;
+        while t < t0 + STALL_HNS + 100 * MS {
+            t += 33 * MS;
+            if st.check(999, t, true) {
+                fired = true;
+                break;
+            }
+        }
+        assert!(fired && t - t0 > STALL_HNS - 66 * MS);
+        // No capture frames yet: no output is expected.
+        let mut st = Stall::new(0, 0);
+        for i in 1..1000i64 {
+            assert!(!st.check(0, i * 33 * MS, false));
+        }
+        // The loop was suspended for an hour: a fresh window, not a stall.
+        let mut st = Stall::new(5, 0);
+        assert!(!st.check(5, 3600 * HNS_PER_SECOND, true));
+        assert!(!st.check(5, 3600 * HNS_PER_SECOND + 33 * MS, true));
     }
 
     #[test]

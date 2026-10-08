@@ -88,6 +88,8 @@ impl Toast {
             )
             .ok()?;
             let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 255, LWA_ALPHA);
+            // Keep the notice out of recordings, including the clip saved next.
+            let _ = SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
             let rgn = CreateRoundRectRgn(0, 0, px(WIDTH) + 1, px(HEIGHT) + 1, px(16), px(16));
             SetWindowRgn(hwnd, Some(rgn), false);
             self.hwnd = Some(hwnd);

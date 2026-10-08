@@ -17,7 +17,12 @@ const LABEL_W: f32 = 168.0;
 const RULER_H: f32 = 26.0;
 const VIDEO_H: f32 = 50.0;
 const LANE_H: f32 = 44.0;
-const HANDLE_W: f32 = 7.0;
+/// Visible trim handle width, and how far either side of an edge a press
+/// still grabs it.
+const HANDLE_W: f32 = 9.0;
+const HANDLE_REACH: f32 = 14.0;
+/// A dragged edge within this many pixels of the playhead snaps to it.
+const SNAP_PX: f32 = 8.0;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Drag {
@@ -140,16 +145,17 @@ impl Editor {
         let video = Rect::from_min_size(pos2(lanes_rect.left(), ruler.bottom() + 4.0), vec2(lanes_rect.width(), VIDEO_H));
         let n = self.project().segments.len();
         p.text(pos2(rect.left() + 12.0, video.top() + 14.0), Align2::LEFT_CENTER, "Video", font_strong(12.5), TEXT);
-        p.text(
-            pos2(rect.left() + 12.0, video.top() + 32.0),
-            Align2::LEFT_CENTER,
-            format!("{n} {}", if n == 1 { "segment" } else { "segments" }),
-            font(11.0),
-            TEXT_MUTED,
-        );
+        let hint = if source_view(self) {
+            "Drag edges, or I / O".to_string()
+        } else {
+            format!("{n} {}", if n == 1 { "segment" } else { "segments" })
+        };
+        p.text(pos2(rect.left() + 12.0, video.top() + 32.0), Align2::LEFT_CENTER, hint, font(11.0), TEXT_MUTED);
         let starts = self.project().segment_starts();
         let segs = self.project().segments.clone();
-        let mut handle_hits: Vec<(Rect, Drag)> = Vec::new();
+        // Edge x positions that can be grabbed, with what grabbing them does.
+        let mut handle_hits: Vec<(f32, Drag)> = Vec::new();
+        let hover_pos = ui.input(|i| i.pointer.hover_pos());
         for (i, s) in segs.iter().enumerate() {
             let (a, b) = if source_view(self) {
                 (s.trim_start_ms as f64, s.trim_end_ms as f64)
@@ -190,15 +196,24 @@ impl Editor {
             );
             let stroke = if selected { Stroke::new(2.0, ACCENT) } else { Stroke::new(1.0, BORDER_STRONG) };
             p.rect_stroke(vis, CornerRadius::same(R_CONTROL), stroke, StrokeKind::Inside);
-            // Trim handles.
-            for (hx, drag) in [(r.left(), Drag::TrimStart(i)), (r.right(), Drag::TrimEnd(i))] {
-                let h = Rect::from_center_size(pos2(hx, video.center().y), vec2(HANDLE_W * 2.0, VIDEO_H));
-                if video.contains(h.center()) {
-                    if selected {
-                        p.rect_filled(Rect::from_center_size(h.center(), vec2(4.0, VIDEO_H - 14.0)), CornerRadius::same(2), ACCENT_HOVER);
-                    }
-                    handle_hits.push((h, drag));
+            // Trim handles: drawn just inside each edge, grabbable well
+            // either side of it.
+            for (hx, drag, inward) in [(r.left(), Drag::TrimStart(i), true), (r.right(), Drag::TrimEnd(i), false)] {
+                if hx < video.left() - 1.0 || hx > video.right() + 1.0 {
+                    continue;
                 }
+                handle_hits.push((hx, drag));
+                let hot = self.drag == Some(drag)
+                    || (self.drag.is_none()
+                        && hover_pos.is_some_and(|q| video.expand2(vec2(0.0, 2.0)).contains(q) && (q.x - hx).abs() <= HANDLE_REACH));
+                if !(selected || hot || source_view(self)) {
+                    continue;
+                }
+                let x0 = if inward { hx } else { hx - HANDLE_W };
+                let bar = Rect::from_min_size(pos2(x0, video.top()), vec2(HANDLE_W, VIDEO_H));
+                p.rect_filled(bar, CornerRadius::same(R_CONTROL), if hot { ACCENT_HOVER } else { ACCENT });
+                let c = bar.center();
+                p.vline(c.x, c.y - 7.0..=c.y + 7.0, Stroke::new(1.5, Color32::from_black_alpha(140)));
             }
         }
         if source_view(self) {
@@ -291,25 +306,61 @@ impl Editor {
         let area = Rect::from_min_max(ruler.min, pos2(lanes_rect.right(), video.bottom()));
         let resp = ui.interact(area, id, Sense::click_and_drag());
         let pointer = resp.interact_pointer_pos().or_else(|| ui.input(|i| i.pointer.hover_pos()));
-        if resp.drag_started()
-            && let Some(pos) = pointer
-        {
-            self.drag = handle_hits.iter().find(|(r, _)| r.contains(pos)).map(|(_, d)| *d).or(Some(Drag::Scrub));
-            if let Some(Drag::TrimStart(i) | Drag::TrimEnd(i)) = self.drag {
-                self.state.selected = i;
+        // The edge nearest to `pos` within reach, if `pos` is on the video lane.
+        let grab = |pos: Pos2| -> Option<(f32, Drag)> {
+            if !video.expand2(vec2(0.0, 2.0)).contains(pos) {
+                return None;
+            }
+            // Where two edges meet, the side the pointer is on wins.
+            let score = |(hx, d): &(f32, Drag)| {
+                let inside = matches!(d, Drag::TrimStart(_) if pos.x >= *hx) || matches!(d, Drag::TrimEnd(_) if pos.x <= *hx);
+                (pos.x - hx).abs() + if inside { 0.0 } else { 0.5 }
+            };
+            handle_hits
+                .iter()
+                .filter(|(hx, _)| (pos.x - hx).abs() <= HANDLE_REACH)
+                .min_by(|a, b| score(a).total_cmp(&score(b)))
+                .copied()
+        };
+        if resp.drag_started() {
+            // Hit-test where the press began: by the time egui reports a
+            // drag, the pointer has already moved past its threshold.
+            let origin = ui.input(|i| i.pointer.press_origin()).or(pointer);
+            // Trimming moves the playhead to the edge, so snap to where it
+            // was before the drag.
+            self.snap_at = self.playhead_axis();
+            match origin.and_then(grab) {
+                Some((hx, d)) => {
+                    self.drag = Some(d);
+                    self.grab_dx = hx - origin.map_or(hx, |o| o.x);
+                    if let Drag::TrimStart(i) | Drag::TrimEnd(i) = d {
+                        self.state.selected = i;
+                    }
+                }
+                None => {
+                    self.drag = Some(Drag::Scrub);
+                    self.grab_dx = 0.0;
+                }
             }
         }
-        if let Some(pos) = pointer
-            && handle_hits.iter().any(|(r, _)| r.contains(pos))
-        {
+        let on_handle = matches!(self.drag, Some(Drag::TrimStart(_) | Drag::TrimEnd(_)))
+            || (self.drag.is_none() && pointer.and_then(grab).is_some());
+        if on_handle {
             ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
         }
         let fps = self.selected_info().map(|i| i.fps).filter(|f| *f > 0.0).unwrap_or(60.0);
         let fine = ui.input(|i| i.modifiers.shift);
+        let playhead = self.snap_at;
         if (resp.dragged() || resp.clicked())
             && let Some(pos) = pointer
         {
-            let t = t_of(pos.x, start).clamp(0.0, total);
+            let trimming = matches!(self.drag, Some(Drag::TrimStart(_) | Drag::TrimEnd(_)));
+            // The edge keeps the offset from where it was grabbed.
+            let x = if trimming { pos.x + self.grab_dx } else { pos.x };
+            let mut t = t_of(x, start).clamp(0.0, total);
+            if trimming && !fine && (x - x_of(playhead, start)).abs() <= SNAP_PX {
+                t = playhead;
+            }
             match self.drag.unwrap_or(Drag::Scrub) {
                 Drag::Scrub => {
                     if source_view(self) {
@@ -330,12 +381,19 @@ impl Editor {
                     let src = if source_view(self) { t } else { s.trim_start_ms as f64 + (t - starts[i] as f64) };
                     let src = if fine { src } else { super::state::snap_to_frame(src, fps) };
                     self.state.set_trim_start(i, src);
+                    // Preview the frame the segment now starts on.
+                    let at = self.project().segment_starts()[i] as f64;
+                    self.seek(at, false);
                 }
                 Drag::TrimEnd(i) => {
                     let s = &segs[i];
                     let src = if source_view(self) { t } else { s.trim_start_ms as f64 + (t - starts[i] as f64) };
                     let src = if fine { src } else { super::state::snap_to_frame(src, fps) };
                     self.state.set_trim_end(i, src);
+                    // Preview the last frame kept.
+                    let p = self.project();
+                    let end = (p.segment_starts()[i] + p.segments[i].duration_ms()) as f64;
+                    self.seek((end - 1000.0 / fps).max(0.0), false);
                 }
             }
         }
