@@ -240,9 +240,13 @@ impl App {
             match ev {
                 Event::ClipSaved { clip } => {
                     self.lib.refresh();
+                    let text = match &clip.cursor_error {
+                        Some(e) => format!("Clip saved without its cursor track: {e}"),
+                        None => format!("Clip saved \u{b7} {}", duration_label(clip.seconds as f64)),
+                    };
                     self.notice = Some(Notice {
-                        ok: true,
-                        text: format!("Clip saved \u{b7} {}", duration_label(clip.seconds as f64)),
+                        ok: clip.cursor_error.is_none(),
+                        text,
                         path: Some(clip.path),
                         undo: None, at: Instant::now(),
                     });

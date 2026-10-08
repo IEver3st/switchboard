@@ -626,10 +626,11 @@ fn activate_name(act: &IMFActivate) -> String {
 
 // ------------------------------------------------------------------- timer
 
-struct Timer(HANDLE);
+/// High-resolution waitable timer; also paces the cursor sampler.
+pub(crate) struct Timer(HANDLE);
 
 impl Timer {
-    fn new() -> Result<Timer> {
+    pub(crate) fn new() -> Result<Timer> {
         const TIMER_ALL_ACCESS: u32 = 0x1F0003;
         let h = unsafe {
             CreateWaitableTimerExW(None, PCWSTR::null(), CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS)?
@@ -638,7 +639,7 @@ impl Timer {
     }
 
     /// Sleeps until `target_hns`; returns true if stop was requested.
-    fn wait_until(&self, target_hns: i64, stop: &Stop) -> bool {
+    pub(crate) fn wait_until(&self, target_hns: i64, stop: &Stop) -> bool {
         let delta = target_hns - now_hns();
         if delta <= 0 {
             return stop.is_set();

@@ -173,7 +173,10 @@ impl Service {
                             let _ = self.index.save();
                             self.broadcast(Event::LibraryChanged);
                         }
-                        if self.settings.show_toast {
+                        if let Some(e) = &clip.cursor_error {
+                            // The clip is fine; only its cursor track is missing.
+                            self.main.toast(false, "Clip saved without its cursor track".into(), e.clone());
+                        } else if self.settings.show_toast {
                             let name = clip.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
                             self.main.toast(true, format!("Clip saved \u{b7} {}", seconds_label(clip.seconds)), name);
                         }
@@ -540,6 +543,9 @@ impl Service {
     fn auto_saved(&mut self, req: switchboard_autocapture::SaveRequest, result: Result<SavedClip, String>) {
         match &result {
             Ok(clip) => {
+                if let Some(e) = &clip.cursor_error {
+                    eprintln!("auto capture cursor track not saved: {e}");
+                }
                 if let Some(file) = clip.path.file_name().map(|n| n.to_string_lossy().to_string()) {
                     let markers = req.markers_for(clip.started_unix_ms, (clip.seconds * 1000.0) as u64);
                     let entry = self.index.entry(&file);

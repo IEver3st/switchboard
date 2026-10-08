@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
         game_device: None,
         chat_device: None,
         mic_device: None,
-        cursor: false,
+        cursor: false, cursor_track: false,
         cache_dir: out.join("cache"),
     };
     let (p0, w0) = process_memory();

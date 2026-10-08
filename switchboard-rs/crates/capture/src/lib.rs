@@ -3,6 +3,7 @@
 
 pub mod audio;
 pub mod clock;
+pub mod cursor;
 pub mod engine;
 pub mod gpu;
 mod mf;
@@ -14,6 +15,7 @@ mod video;
 mod wgc;
 
 pub use audio::{AudioDevice, AudioDevices, TrackKind, list_audio_devices};
+pub use cursor::cursor_track_path;
 pub use engine::{
     Engine, EngineConfig, EngineInfo, EngineStatus, Quality, SavedClip, TrackStatus, find_chat_app,
     foreground_app_name, unique_clip_path,

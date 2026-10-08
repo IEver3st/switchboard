@@ -28,6 +28,7 @@ It is one small native program written in Rust. There is no browser engine, no b
 - Game, Chat and Microphone are recorded on separate audio tracks. Game is every app except Discord, Chat is Discord, and each can instead follow a specific output device (useful with SteelSeries Sonar or similar mixers).
 - A global shortcut saves the clip, and a small notice confirms it without taking focus from your game.
 - Up to 4K at 30, 60, 120 or 144 fps, with Standard, High and Ultra quality.
+- **Show cursor** draws the mouse pointer into the video. **Record cursor track** (on by default) saves a `<clip>.cursor.json` beside each clip with the pointer's path and clicks on the clip's timeline, so an editor can draw its own cursor. Only the pointer position and the left, right and middle buttons are recorded. Moving a clip to the Recycle Bin from Switchboard takes its cursor track with it.
 
 ### Clip library
 
@@ -69,7 +70,7 @@ It is one small native program written in Rust. There is no browser engine, no b
 
 ![Audio track settings](docs/images/native/settings.jpg)
 
-Everything is on one page: replay length and shortcut, display, resolution, frame rate and quality, which device each audio track records, the levels new edits start with, Auto Capture, the clips folder, updates and start with Windows.
+Everything is on one page: replay length and shortcut, display, resolution, frame rate and quality, the cursor and cursor track, which device each audio track records, the levels new edits start with, Auto Capture, the clips folder, updates and start with Windows.
 
 ## Resource use
 

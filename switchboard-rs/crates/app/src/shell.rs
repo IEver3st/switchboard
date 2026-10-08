@@ -58,10 +58,17 @@ pub fn open_folder(path: &Path) {
     open(path);
 }
 
-/// Moves a file to the Recycle Bin so a delete can be undone.
+/// Moves a clip to the Recycle Bin so a delete can be undone, together with
+/// its cursor track when it has one: one operation, restored together.
 pub fn recycle(path: &Path) -> anyhow::Result<()> {
     let mut from: Vec<u16> = path.as_os_str().encode_wide_vec();
-    from.extend_from_slice(&[0, 0]);
+    from.push(0);
+    let track = switchboard_capture::cursor_track_path(path);
+    if track != path && track.is_file() {
+        from.extend(track.as_os_str().encode_wide_vec());
+        from.push(0);
+    }
+    from.push(0);
     let mut op = SHFILEOPSTRUCTW {
         wFunc: FO_DELETE,
         pFrom: PCWSTR(from.as_ptr()),

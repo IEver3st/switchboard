@@ -19,6 +19,11 @@ pub struct DisplayInfo {
     pub height: i32,
     pub primary: bool,
     pub adapter_name: String,
+    /// Top-left in virtual-desktop pixels; negative left of or above the primary.
+    #[serde(skip)]
+    pub(crate) origin_x: i32,
+    #[serde(skip)]
+    pub(crate) origin_y: i32,
     #[serde(skip)]
     pub(crate) monitor: isize,
     #[serde(skip)]
@@ -57,6 +62,8 @@ pub fn list_displays() -> Result<Vec<DisplayInfo>> {
                     height: r.bottom - r.top,
                     primary: r.left == 0 && r.top == 0,
                     adapter_name: adapter_name.clone(),
+                    origin_x: r.left,
+                    origin_y: r.top,
                     monitor: desc.Monitor.0 as isize,
                     adapter_index: ai,
                 });

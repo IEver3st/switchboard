@@ -276,6 +276,9 @@ impl App {
             row(ui, "Show cursor", "", None, |ui| {
                 toggle(ui, &mut s.cursor, "Show cursor");
             });
+            row(ui, "Record cursor track", "Saves pointer moves and clicks beside each clip.", None, |ui| {
+                toggle(ui, &mut s.cursor_track, "Record cursor track");
+            });
         });
 
         let empty = Default::default();

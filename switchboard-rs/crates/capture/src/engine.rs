@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::{self, AudioSetup, AudioStats, Kick, Source, TrackKind};
 use crate::clock::{HNS_PER_SECOND, now_hns};
+use crate::cursor::{self, CursorRing, CursorTrack};
 use crate::gpu::{Gpu, list_displays};
 use crate::mp4;
 use crate::ring::{Packet, TrackRing};
@@ -53,6 +54,9 @@ pub struct EngineConfig {
     /// Input device for Microphone; None follows the Windows default.
     pub mic_device: Option<String>,
     pub cursor: bool,
+    /// Write `<clip>.cursor.json` (pointer path and clicks) beside each clip.
+    /// Independent of `cursor`, which draws the pointer into the video.
+    pub cursor_track: bool,
     pub cache_dir: PathBuf,
 }
 
@@ -99,6 +103,12 @@ pub struct SavedClip {
     /// Wall-clock start of the saved video (after keyframe alignment), Unix ms.
     #[serde(default)]
     pub started_unix_ms: u64,
+    /// The `.cursor.json` written beside the clip, when the track is on.
+    #[serde(default)]
+    pub cursor_track: Option<PathBuf>,
+    /// Why the cursor track was not written; the clip itself was saved.
+    #[serde(default)]
+    pub cursor_error: Option<String>,
 }
 
 struct AudioTrack {
@@ -211,6 +221,7 @@ pub struct Engine {
     video_params: Arc<Mutex<VideoParams>>,
     video_stats: Arc<VideoStats>,
     audio: Vec<AudioTrack>,
+    cursor_track: Option<Arc<CursorTrack>>,
     save_lock: Mutex<()>,
     kick_seq: AtomicU64,
     started_hns: i64,
@@ -272,6 +283,19 @@ impl Engine {
             Ok(Ok(name)) => name,
             Ok(Err(e)) => return Err(e.context("hardware encoder")),
             Err(_) => bail!("hardware encoder did not start"),
+        };
+
+        // Same window as the video ring, plus slack for encoder latency.
+        let cursor_track = if cfg.cursor_track {
+            let track = Arc::new(CursorTrack {
+                geometry: cursor::display_geometry(&display, width, height),
+                ring: Mutex::new(CursorRing::new(retain + 2 * HNS_PER_SECOND)),
+            });
+            let (t, s) = (track.clone(), stop.clone());
+            workers.spawn("sb-cursor".into(), move || cursor::run(t, s))?;
+            Some(track)
+        } else {
+            None
         };
 
         // Discord is split out of Game only when Chat follows the Discord app.
@@ -336,6 +360,7 @@ impl Engine {
             video_params,
             video_stats,
             audio: audio_tracks,
+            cursor_track,
             save_lock: Mutex::new(()),
             kick_seq: AtomicU64::new(0),
             started_hns: t0,
@@ -552,11 +577,21 @@ impl Engine {
         }
         std::fs::rename(&partial, &path)?;
         let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        // The clip's first frame (v_start) is t = 0 of its cursor track.
+        let (cursor_track, cursor_error) = match &self.cursor_track {
+            Some(track) => match track.write(&path, v_start, v_end) {
+                Ok(p) => (Some(p), None),
+                Err(e) => (None, Some(format!("{e:#}"))),
+            },
+            None => (None, None),
+        };
         Ok(SavedClip {
             path,
             seconds: (v_end - v_start) as f32 / HNS_PER_SECOND as f32,
             bytes,
             started_unix_ms: crate::clock::hns_to_unix_ms(v_start),
+            cursor_track,
+            cursor_error,
         })
     }
 }
@@ -605,7 +640,8 @@ pub fn unique_clip_path(dir: &Path, source: &str) -> PathBuf {
     let stem = format!("SB_{}_{}", sanitize(source), local_timestamp());
     let mut candidate = dir.join(format!("{stem}.mp4"));
     let mut n = 2;
-    while candidate.exists() {
+    // A leftover cursor track from a deleted clip is not overwritten either.
+    while candidate.exists() || cursor::cursor_track_path(&candidate).exists() {
         candidate = dir.join(format!("{stem}_{n}.mp4"));
         n += 1;
     }
@@ -731,6 +767,10 @@ mod tests {
         assert_ne!(first, second);
         let name = first.file_name().unwrap().to_string_lossy().to_string();
         assert!(name.starts_with("SB_Game_") && name.ends_with(".mp4"));
+        // An orphaned cursor track also claims its name.
+        std::fs::write(cursor::cursor_track_path(&second), b"{}").unwrap();
+        let third = unique_clip_path(&dir, "Game");
+        assert!(third != first && third != second);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

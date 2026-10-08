@@ -24,6 +24,8 @@ pub struct Settings {
     pub chat_device: Option<String>,
     pub mic_device: Option<String>,
     pub cursor: bool,
+    /// Write `<clip>.cursor.json` (pointer path and clicks) beside each clip.
+    pub cursor_track: bool,
     pub hotkey: String,
     pub clips_dir: Option<PathBuf>,
     pub show_toast: bool,
@@ -115,6 +117,7 @@ impl Default for Settings {
             chat_device: None,
             mic_device: None,
             cursor: false,
+            cursor_track: true,
             hotkey: "Ctrl+Shift+F10".into(),
             clips_dir: None,
             show_toast: true,
@@ -174,7 +177,8 @@ impl Settings {
             self.game_audio,
             self.chat_audio,
             self.microphone,
-            self.cursor,
+            // Paired: tuples compare only up to 12 fields.
+            (self.cursor, self.cursor_track),
             self.game_device.clone(),
             self.chat_device.clone(),
             self.mic_device.clone(),
@@ -195,6 +199,7 @@ impl Settings {
             chat_device: self.chat_device.clone(),
             mic_device: self.mic_device.clone(),
             cursor: self.cursor,
+            cursor_track: self.cursor_track,
             cache_dir: data_dir().join("ReplayCache"),
         }
     }
@@ -290,5 +295,10 @@ mod tests {
         let s: Settings = serde_json::from_str(r#"{"fps": 30}"#).unwrap();
         assert_eq!(s.fps, 30);
         assert_eq!(s.hotkey, Settings::default().hotkey);
+        // Profiles saved before the cursor track existed get it on.
+        assert!(s.cursor_track && !s.cursor);
+        let s: Settings = serde_json::from_str(r#"{"cursor_track": false}"#).unwrap();
+        assert!(!s.cursor_track);
+        assert!(!s.engine_config().cursor_track);
     }
 }

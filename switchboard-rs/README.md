@@ -46,6 +46,28 @@ Save: last N seconds from the keyframe at or before the cut
 
 Raw frames never reach system memory. No FFmpeg, .NET or Chromium process is involved. Every stream is stamped with QueryPerformanceCounter time, so audio and video share one clock. Segment files use `FILE_ATTRIBUTE_TEMPORARY` and are deleted as the ring advances and when the engine stops.
 
+## Cursor track
+
+With `cursor_track` on (Settings > Video > Record cursor track, default on), the engine runs an `sb-cursor` thread that polls `GetCursorPos` and `GetAsyncKeyState` (left, right, middle) at 120 Hz on a high-resolution waitable timer, in a per-monitor-DPI-aware thread context so positions are physical pixels. It stops with the engine's stop event. Polling was chosen over a `WH_MOUSE_LL` hook: a hook sits in the input path of every mouse event system-wide, which a 1 to 8 kHz gaming mouse turns into thousands of callbacks a second. Nothing else is read: no keys, window titles or pixels. It works whether or not `cursor` draws the pointer into the video.
+
+Polls are stored in memory for the replay window plus 2 s, only when the position, buttons or on-display state change, plus a heartbeat once a second. A save writes `<clip stem>.cursor.json` next to the MP4 (atomically, after the MP4) for exactly the saved video range, starting with the pointer's state at the first frame. If writing it fails, the clip is kept and the notice says the cursor track is missing. Moving a clip to the Recycle Bin from the library recycles its track in the same operation; titles live in the library index, so renaming never touches either file.
+
+```json
+{ "version": 1, "video": "SB_Game_2026-10-08_12-00-00.mp4",
+  "display": { "index": 0, "originX": -1920, "originY": 0, "width": 1920, "height": 1080, "dpiScale": 1.25 },
+  "output": { "width": 1920, "height": 1080 },
+  "sampleHz": 120, "buttonBits": { "left": 1, "right": 2, "middle": 4, "offDisplay": 8 },
+  "samples": [[0, 640, 360, 0], [16.7, 641, 360, 1]],
+  "events": [{ "tMs": 12.5, "type": "down", "button": "left", "x": 641, "y": 360 }] }
+```
+
+- `tMs`: milliseconds from the clip's first video frame, to 0.1 ms. Both tracks use the QPC capture clock; frame n of a clip is at its encoder grid time minus the first frame's.
+- `x`, `y`: video pixels, to 0.1 px: desktop position minus the display's virtual-desktop origin, scaled by `output / display`. While the pointer is on another display, positions fall outside the frame and `buttons` carries bit 8.
+- `display`: the captured monitor in physical virtual-desktop pixels (origins can be negative) and its Windows scale.
+- Buttons are logical: with swapped mouse buttons the primary button is still `left`.
+
+Timing error: sample times are exact QPC reads. Button events are polled, so each is stamped at the midpoint between the two polls that saw the change (at most 4.2 ms off at 120 Hz); a click shorter than one poll is still reported, as a down and up at the same time. The video frame stamped `t` shows the newest WGC frame at `t`, which Windows composed up to one output frame earlier (16.7 ms at 60 fps, about half a frame on average) plus its capture delivery delay of a few ms, so the track can lead the picture by about one frame at most. Not yet measured against a physical reference. A display mode change during a session is not followed; changing the capture settings restarts the engine and re-reads the display.
+
 ## Build and run
 
 ```powershell

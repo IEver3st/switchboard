@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
         game_device: None,
         chat_device: None,
         mic_device: None,
-        cursor: false,
+        cursor: false, cursor_track: false,
         cache_dir: std::env::temp_dir().join("switchboard-snapshot-cache"),
     };
     let engine = Engine::start(&cfg)?;
