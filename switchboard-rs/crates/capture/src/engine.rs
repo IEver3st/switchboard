@@ -430,6 +430,14 @@ impl Engine {
         self.audio.iter().find(|a| a.kind == TrackKind::Microphone)
     }
 
+    pub fn live_info(&self) -> EngineInfo {
+        let mut info = self.info.clone();
+        if let Some(encoder) = self.video_stats.encoder.lock().unwrap().clone() {
+            info.encoder = encoder;
+        }
+        info
+    }
+
     pub fn status(&self) -> EngineStatus {
         let buffered = match (self.video_ring.oldest_pts(), self.video_ring.newest_pts()) {
             (Some(a), Some(b)) => (b - a) as f32 / HNS_PER_SECOND as f32,

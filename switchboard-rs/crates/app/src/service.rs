@@ -509,7 +509,7 @@ impl Service {
         ServiceState {
             settings: self.settings.clone(),
             replay: self.replay.clone(),
-            info: self.engine.as_ref().map(|e| e.info.clone()),
+            info: self.engine.as_ref().map(|e| e.live_info()),
             status: self.engine.as_ref().map(|e| e.status()),
             displays: self.displays.clone(),
             audio_devices: self.audio_devices.clone(),

@@ -208,6 +208,7 @@ pub struct Gpu {
     pub device: ID3D11Device,
     pub context: ID3D11DeviceContext,
     pub luid: LUID,
+    pub vendor_id: u32,
     pub adapter_name: String,
 }
 
@@ -248,6 +249,6 @@ impl Gpu {
         unsafe {
             let _ = mt.SetMultithreadProtected(true);
         }
-        Ok(Gpu { device, context, luid: desc.AdapterLuid, adapter_name: utf16(&desc.Description) })
+        Ok(Gpu { device, context, luid: desc.AdapterLuid, vendor_id: desc.VendorId, adapter_name: utf16(&desc.Description) })
     }
 }

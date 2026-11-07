@@ -19,6 +19,7 @@ use windows::Win32::System::Com::CoTaskMemFree;
 use windows::Win32::System::Threading::{CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, CreateWaitableTimerExW, SetWaitableTimer};
 use windows::core::{GUID, Interface, PCWSTR, Ref, implement};
 
+use crate::amf::{AMD_VENDOR_ID, AmfEncoder};
 use crate::clock::{HNS_PER_SECOND, now_hns};
 use crate::gpu::Gpu;
 use crate::mf::{self, codec_bool, codec_u32, pack};
@@ -45,6 +46,7 @@ pub struct VideoStats {
     pub encoder_waits: AtomicU64,
     pub capture_reopens: AtomicU64,
     pub capture_blind: AtomicBool,
+    pub encoder: Mutex<Option<String>>,
     /// Set when the pipeline stops on its own (device lost, encoder error).
     pub error: Mutex<Option<String>>,
 }
@@ -70,7 +72,7 @@ pub(crate) fn run(setup: VideoSetup, ready: mpsc::Sender<Result<String>>) {
     mf::init_thread();
     let mut state = match Pipeline::new(&setup) {
         Ok(p) => {
-            let _ = ready.send(Ok(p.encoder.name.clone()));
+            let _ = ready.send(Ok(p.encoder.name().to_string()));
             p
         }
         Err(e) => {
@@ -86,19 +88,114 @@ pub(crate) fn run(setup: VideoSetup, ready: mpsc::Sender<Result<String>>) {
 
 struct Pipeline {
     converter: Converter,
-    encoder: HwEncoder,
+    encoder: Encoder,
     timer: Timer,
-    scratch: Vec<u8>,
     avcc: Vec<u8>,
+}
+
+enum Encoder {
+    MediaFoundation(HwEncoder),
+    Amf(AmfEncoder),
+}
+
+impl Encoder {
+    fn new(gpu: &Gpu, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<Encoder> {
+        if mf_known_silent(gpu)
+            && let Ok(e) = AmfEncoder::new(gpu, w, h, fps, bitrate)
+        {
+            return Ok(Encoder::Amf(e));
+        }
+        let mf_error = match HwEncoder::new(gpu, w, h, fps, bitrate) {
+            Ok(e) => return Ok(Encoder::MediaFoundation(e)),
+            Err(e) => e,
+        };
+        if gpu.vendor_id != AMD_VENDOR_ID {
+            return Err(mf_error);
+        }
+        match AmfEncoder::new(gpu, w, h, fps, bitrate) {
+            Ok(e) => {
+                eprintln!("video: Media Foundation encoder unusable ({mf_error:#}); using AMF");
+                Ok(Encoder::Amf(e))
+            }
+            Err(amf_error) => {
+                eprintln!("video: AMF fallback failed: {amf_error:#}");
+                Err(anyhow!("{mf_error:#}; AMD's own encoder could not start either"))
+            }
+        }
+    }
+
+    fn replace_silent(&mut self, s: &VideoSetup) -> Result<bool> {
+        let Encoder::MediaFoundation(mf) = self else { return Ok(false) };
+        if s.gpu.vendor_id != AMD_VENDOR_ID || !mf.silent(now_hns()) {
+            return Ok(false);
+        }
+        let silent = format!("{} accepted frames but never returned any", mf.name);
+        let amf = AmfEncoder::new(&s.gpu, s.width, s.height, s.fps, s.bitrate).map_err(|e| {
+            eprintln!("video: {silent}; AMF fallback failed: {e:#}");
+            anyhow!("the graphics driver's video encoder is not responding, and AMD's own encoder could not start")
+        })?;
+        eprintln!("video: {silent}; switching to {}", amf.name);
+        mf.shutdown();
+        remember_mf_silent(&s.gpu);
+        *self = Encoder::Amf(amf);
+        Ok(true)
+    }
+
+    fn name(&self) -> &str {
+        match self {
+            Encoder::MediaFoundation(e) => &e.name,
+            Encoder::Amf(e) => &e.name,
+        }
+    }
+
+    fn ready(&self) -> bool {
+        match self {
+            Encoder::MediaFoundation(e) => e.need_input > 0,
+            Encoder::Amf(e) => e.ready(),
+        }
+    }
+
+    fn pump(&mut self, sink: &mut impl FnMut(i64, bool, &[u8]) -> Result<()>) -> Result<()> {
+        match self {
+            Encoder::MediaFoundation(e) => e.pump(sink),
+            Encoder::Amf(e) => e.pump(sink),
+        }
+    }
+
+    fn submit(&mut self, sample: IMFSample, time: i64, duration: i64, returned: &IMFAsyncCallback) -> Result<bool> {
+        match self {
+            Encoder::MediaFoundation(e) => e.submit(sample, time, duration, returned).map(|()| true),
+            Encoder::Amf(e) => e.submit(sample, time, duration, returned),
+        }
+    }
+
+    fn shutdown(&mut self) {
+        if let Encoder::MediaFoundation(e) = self {
+            e.shutdown();
+        }
+    }
+}
+
+static MF_SILENT_ADAPTERS: Mutex<Vec<(u32, i32)>> = Mutex::new(Vec::new());
+
+fn mf_known_silent(gpu: &Gpu) -> bool {
+    MF_SILENT_ADAPTERS.lock().unwrap().contains(&(gpu.luid.LowPart, gpu.luid.HighPart))
+}
+
+fn remember_mf_silent(gpu: &Gpu) {
+    let mut known = MF_SILENT_ADAPTERS.lock().unwrap();
+    if !known.contains(&(gpu.luid.LowPart, gpu.luid.HighPart)) {
+        known.push((gpu.luid.LowPart, gpu.luid.HighPart));
+    }
 }
 
 impl Pipeline {
     fn new(s: &VideoSetup) -> Result<Pipeline> {
         let converter = Converter::new(&s.gpu, s.width, s.height, s.fps)?;
-        let encoder = HwEncoder::new(&s.gpu, s.width, s.height, s.fps, s.bitrate)?;
+        let encoder = Encoder::new(&s.gpu, s.width, s.height, s.fps, s.bitrate)?;
         *s.params.lock().unwrap() =
             VideoParams { width: s.width, height: s.height, sps: Vec::new(), pps: Vec::new() };
-        Ok(Pipeline { converter, encoder, timer: Timer::new()?, scratch: Vec::new(), avcc: Vec::new() })
+        Ok(Pipeline { converter, encoder, timer: Timer::new()?, avcc: Vec::new() })
     }
 
     fn run(&mut self, s: &VideoSetup) -> Result<()> {
@@ -113,12 +210,9 @@ impl Pipeline {
         let mut stall = Stall::new(s.stats.encoded.load(Ordering::Relaxed), now_hns());
         let mut quiet = Quiet::new(now_hns(), last_input_tick());
         let _power = DisplayPower::watch();
-        let Pipeline { converter, encoder, timer, scratch, avcc } = self;
-        let mut sink = |sample: &IMFSample| -> Result<()> {
-            let time = unsafe { sample.GetSampleTime()? };
-            let key = unsafe { sample.GetUINT32(&MFSampleExtension_CleanPoint) }.unwrap_or(0) == 1;
-            mf::sample_bytes(sample, scratch)?;
-            let idr = annexb_to_avcc(scratch, avcc, &s.params);
+        let Pipeline { converter, encoder, timer, avcc } = self;
+        let mut sink = |time: i64, key: bool, bytes: &[u8]| -> Result<()> {
+            let idr = annexb_to_avcc(bytes, avcc, &s.params);
             let key = key || idr;
             // Keyframes start segments so every segment is independently decodable.
             ring.push(s.t0 + time, period, key, key, avcc)?;
@@ -176,26 +270,23 @@ impl Pipeline {
             };
             let latest_seen = latest.is_some();
             if let Some((tex, w, h, generation)) = latest {
-                if encoder.need_input == 0 {
+                if !encoder.ready() {
                     // The encoder is behind. Poll its event queue in 1 ms
                     // steps (cancellable by stop) until it asks for input or
                     // the next frame is due. Normally a request is already
                     // queued and this never runs.
                     s.stats.encoder_waits.fetch_add(1, Ordering::Relaxed);
                     let deadline = at(n + 1);
-                    while encoder.need_input == 0 && now_hns() < deadline {
+                    while !encoder.ready() && now_hns() < deadline {
                         if s.stop.sleep(1) {
                             return Ok(());
                         }
                         encoder.pump(&mut sink)?;
                     }
                 }
-                let submitted = encoder.need_input > 0
+                let submitted = encoder.ready()
                     && match converter.convert(&tex, w, h, generation)? {
-                        Some(sample) => {
-                            encoder.submit(sample, target - s.t0, at(n + 1) - target, &converter.returned)?;
-                            true
-                        }
+                        Some(sample) => encoder.submit(sample, target - s.t0, at(n + 1) - target, &converter.returned)?,
                         None => false,
                     };
                 if submitted {
@@ -203,6 +294,10 @@ impl Pipeline {
                 } else {
                     s.stats.dropped.fetch_add(1, Ordering::Relaxed);
                 }
+            }
+            if encoder.replace_silent(s)? {
+                *s.stats.encoder.lock().unwrap() = Some(encoder.name().to_string());
+                stall = Stall::new(s.stats.encoded.load(Ordering::Relaxed), now_hns());
             }
             if stall.check(s.stats.encoded.load(Ordering::Relaxed), now_hns(), latest_seen) {
                 let removed = unsafe { s.gpu.device.GetDeviceRemovedReason() };
@@ -628,8 +723,16 @@ struct HwEncoder {
     need_input: u32,
     /// Reused output sample when the encoder does not provide its own.
     output: Option<IMFSample>,
+    scratch: Vec<u8>,
+    inputs: u32,
+    waiting_since: Option<i64>,
+    checked_at: i64,
+    produced: bool,
+    fps: u32,
     name: String,
 }
+
+const SILENT_ENCODER_HNS: i64 = HNS_PER_SECOND;
 
 impl HwEncoder {
     fn new(gpu: &Gpu, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<HwEncoder> {
@@ -693,12 +796,39 @@ impl HwEncoder {
             transform.ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH, 0)?;
             transform.ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING, 0)?;
             transform.ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0)?;
-            Ok(HwEncoder { transform, activate, events, _manager: manager, need_input: 0, output, name })
+            Ok(HwEncoder {
+                transform,
+                activate,
+                events,
+                _manager: manager,
+                need_input: 0,
+                output,
+                scratch: Vec::new(),
+                inputs: 0,
+                waiting_since: None,
+                checked_at: now_hns(),
+                produced: false,
+                fps,
+                name,
+            })
         }
     }
 
+    fn silent(&mut self, now: i64) -> bool {
+        if self.produced {
+            return false;
+        }
+        if now - self.checked_at > SILENT_ENCODER_HNS
+            && let Some(t) = &mut self.waiting_since
+        {
+            *t = now;
+        }
+        self.checked_at = now;
+        self.inputs >= 2 * self.fps || self.waiting_since.is_some_and(|t| now - t > SILENT_ENCODER_HNS)
+    }
+
     /// Handles every queued encoder event without blocking.
-    fn pump(&mut self, sink: &mut impl FnMut(&IMFSample) -> Result<()>) -> Result<()> {
+    fn pump(&mut self, sink: &mut impl FnMut(i64, bool, &[u8]) -> Result<()>) -> Result<()> {
         loop {
             let event = match unsafe { self.events.GetEvent(MF_EVENT_FLAG_NO_WAIT) } {
                 Ok(e) => e,
@@ -708,10 +838,15 @@ impl HwEncoder {
             let kind = unsafe { event.GetType()? };
             if kind == METransformNeedInput.0 as u32 {
                 self.need_input += 1;
+                self.waiting_since = None;
             } else if kind == METransformHaveOutput.0 as u32
                 && let Some(sample) = self.output()?
             {
-                sink(&sample)?;
+                let time = unsafe { sample.GetSampleTime()? };
+                let key = unsafe { sample.GetUINT32(&MFSampleExtension_CleanPoint) }.unwrap_or(0) == 1;
+                mf::sample_bytes(&sample, &mut self.scratch)?;
+                self.produced = true;
+                sink(time, key, &self.scratch)?;
             }
         }
     }
@@ -753,7 +888,11 @@ impl HwEncoder {
             sample.cast::<IMFTrackedSample>()?.SetAllocator(returned, None)?;
             self.transform.ProcessInput(0, &sample, 0).context("encoder ProcessInput")?;
         }
+        self.inputs = self.inputs.saturating_add(1);
         self.need_input -= 1;
+        if self.need_input == 0 {
+            self.waiting_since.get_or_insert_with(now_hns);
+        }
         Ok(())
     }
 

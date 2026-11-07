@@ -1,6 +1,7 @@
 //! Switchboard capture engine: zero-copy WGC -> GPU NV12 -> hardware H.264,
 //! WASAPI process-loopback audio -> AAC, disk-backed replay ring, MP4 clips.
 
+mod amf;
 pub mod audio;
 pub mod clock;
 pub mod cursor;
