@@ -12,6 +12,7 @@ pub struct Settings {
     pub replay_enabled: bool,
     pub replay_seconds: u32,
     pub display_index: usize,
+    pub display_id: Option<String>,
     pub fps: u32,
     /// Output height; the source is never upscaled.
     pub resolution: u32,
@@ -64,6 +65,7 @@ pub struct VerticalGuide {
     pub enabled: bool,
     /// Display to draw on; None follows the captured display.
     pub display_index: Option<usize>,
+    pub display_id: Option<String>,
     /// Frame height as a percentage of the largest 9:16 frame that fits (25..=100).
     pub size: u8,
     /// Free space left of / above the frame, as a percentage (0..=100, 50 = centred).
@@ -76,7 +78,7 @@ pub struct VerticalGuide {
 
 impl Default for VerticalGuide {
     fn default() -> Self {
-        VerticalGuide { enabled: false, display_index: None, size: 100, horizontal: 50, vertical: 50, dim: 35, color: GuideColor::White }
+        VerticalGuide { enabled: false, display_index: None, display_id: None, size: 100, horizontal: 50, vertical: 50, dim: 35, color: GuideColor::White }
     }
 }
 
@@ -107,6 +109,7 @@ impl Default for Settings {
             replay_enabled: true,
             replay_seconds: 60,
             display_index: 0,
+            display_id: None,
             fps: 60,
             resolution: 1440,
             quality: Quality::High,

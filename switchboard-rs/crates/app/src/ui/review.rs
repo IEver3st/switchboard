@@ -16,7 +16,7 @@ use anyhow::Result;
 use egui_software_backend::{BufferMutRef, ColorFieldOrder, EguiSoftwareRender};
 
 use super::library::View;
-use super::{App, Page};
+use super::App;
 
 /// Sample provider rows covering each state the Settings page shows.
 fn sample_auto() -> crate::auto::AutoStatus {
@@ -62,13 +62,25 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
     // SB_REVIEW_CLEAN: the live state as if the service were this build with
     // no pending update, so version notices stay out of screenshots.
     let clean = std::env::var_os("SB_REVIEW_CLEAN").is_some();
+    let displays = clean.then(|| {
+        unsafe {
+            let _ = windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext(
+                windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+            );
+        }
+        switchboard_capture::list_displays().ok()
+    }).flatten();
+    let click = std::env::var("SB_REVIEW_CLICK").ok().and_then(|v| {
+        let (x, y) = v.split_once(',')?;
+        Some(egui::pos2(x.trim().parse().ok()?, y.trim().parse().ok()?))
+    });
     let mut app = App::new(ctx.clone(), pinned);
     app.windowed = false;
     // Drafts made by review scenarios stay out of the real projects store.
     let store_dir = std::env::temp_dir().join(format!("switchboard-review-projects-{}", std::process::id()));
     app.store = switchboard_project::store::Store::open(&store_dir);
     match scenario {
-        "settings" | "settings-auto" => app.page = Page::Settings,
+        "settings" | "settings-auto" => app.open_settings(),
         "list" => app.lib.view = View::List,
         "search" => app.lib.set_query("no such clip".into()),
         _ => {}
@@ -98,12 +110,22 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
         if scenario == "share-run" && i > 12 && app.share.as_ref().is_some_and(|s| s.settled()) {
             break;
         }
-        if clean && app.review_state.is_none()
+        let auto = scenario == "settings-auto" && i >= 8;
+        if (clean || auto)
             && let Some(st) = app.link.state()
         {
             let mut st = (*st).clone();
-            st.build = crate::protocol::BUILD.to_string();
-            st.update = Default::default();
+            if clean {
+                st.build = crate::protocol::BUILD.to_string();
+                st.update = Default::default();
+                if let Some(displays) = &displays {
+                    st.displays = displays.clone();
+                }            }
+            if auto {
+                st.settings.auto_capture.enabled = true;
+                st.settings.auto_capture.reaction_clipping.enabled = true;
+                st.auto = Some(sample_auto());
+            }
             app.review_state = Some(std::sync::Arc::new(st));
         }
         if i == 8 {
@@ -118,13 +140,27 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
                 "popover" => app.popover = true,
                 "guide" => app.guide_panel = true,
                 "drafts" => {
-                    // Two drafts in the review's temporary store.
-                    for path in app.lib.visible_paths().into_iter().take(2) {
+                    for (k, path) in app.lib.visible_paths().into_iter().take(2).enumerate() {
                         if let Some(c) = app.lib.clips.iter().find(|c| c.path == path) {
-                            let p = switchboard_project::Project::for_clip(&c.file_name, &c.title, c.duration_ms().max(100), None, switchboard_project::now_ms());
+                            let mut p = switchboard_project::Project::for_clip(&c.file_name, &c.title, c.duration_ms().max(100), None, switchboard_project::now_ms());
+                            if k == 1 {
+                                p.kept = Some(true);
+                            }
                             let _ = app.store.save(p, switchboard_project::now_ms());
                         }
                     }
+                    if let Some(c) = app.lib.clips.first_mut() {
+                        c.favorite = true;
+                    }
+                }
+                "list" => {
+                    for c in app.lib.clips.iter_mut().take(2) {
+                        c.favorite = true;
+                    }
+                }
+                "montage" => {
+                    let clips: Vec<_> = app.lib.visible_paths().into_iter().take(3).collect();
+                    app.create_montage(&clips);
                 }
                 "new-clips" => {
                     // In memory only: two clips shown as unreviewed Auto Capture saves.
@@ -133,16 +169,8 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
                         c.source = crate::library_index::CaptureSource::Auto;
                     }
                 }
-                "settings-auto" => {
-                    // A fixed copy of the live state with Auto Capture on and
-                    // sample games; nothing is sent to the service.
-                    if let Some(st) = app.link.state() {
-                        let mut st = (*st).clone();
-                        st.settings.auto_capture.enabled = true;
-                        st.settings.auto_capture.reaction_clipping.enabled = true;
-                        st.auto = Some(sample_auto());
-                        app.review_state = Some(std::sync::Arc::new(st));
-                    }
+                "filter" => {
+                    ctx.data_mut(|d| d.insert_temp(egui::Id::new("review-open-filter"), true));
                 }
                 "add-clips" | "add-clips-run" => {
                     let clips: Vec<_> = app.lib.visible_paths().into_iter().take(2).collect();
@@ -171,15 +199,28 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
                         }
                     }
                 }
-                "editor" | "editor-edit" => {
+                "editor" | "editor-edit" | "editor-overlay" => {
                     // SB_REVIEW_CLIP=<file name> opens that clip instead of the newest.
                     let chosen = std::env::var("SB_REVIEW_CLIP").ok().and_then(|f| app.lib.find(&f).map(|c| c.path.clone()));
                     if let Some(p) = chosen.or_else(|| app.lib.visible_paths().first().cloned()) {
                         app.open_editor(&p);
                         if let Some(ed) = &mut app.editor {
                             ed.seek(12_000.0, true);
-                            if scenario == "editor-edit" {
+                            if scenario != "editor" {
                                 ed.tab = super::editor::Tab::Edit;
+                            }
+                            if scenario == "editor-overlay" {
+                                use switchboard_project::OverlayKind;
+                                ed.state.add_overlay(0, OverlayKind::Blur, 4_000.0);
+                                let text = ed.state.add_overlay(0, OverlayKind::Text, 12_000.0);
+                                if let Some(id) = &text {
+                                    ed.state.edit(0, "overlay", |e| {
+                                        if let Some(o) = e.overlays.iter_mut().find(|o| &o.id == id) {
+                                            o.content = Some("Clutch round".into());
+                                        }
+                                    });
+                                }
+                                ed.selected_overlay = text;
                             }
                         }
                     }
@@ -228,22 +269,35 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
             time: Some(start.elapsed().as_secs_f64()),
             ..Default::default()
         };
-        if scenario == "delete" {
-            // Real input: click the first tile, then press Delete.
-            let at = egui::pos2(super::theme::GUTTER + 60.0, 200.0);
+        if let Some(at) = click {
             if i == 8 {
                 input.events.push(egui::Event::PointerMoved(at));
             }
             if i == 9 {
                 for pressed in [true, false] {
-                    input.events.push(egui::Event::PointerButton {
-                        pos: at,
-                        button: egui::PointerButton::Primary,
-                        pressed,
-                        modifiers: egui::Modifiers::NONE,
-                    });
+                    let button = egui::PointerButton::Primary;
+                    input.events.push(egui::Event::PointerButton { pos: at, button, pressed, modifiers: egui::Modifiers::NONE });
                 }
             }
+        }
+        if scenario == "delete" || scenario == "menu" {
+            let at = egui::pos2(super::theme::GUTTER + 60.0, 200.0);
+            if i == 8 {
+                input.events.push(egui::Event::PointerMoved(at));
+            }
+            if i == 9 {
+                let (button, modifiers) = if scenario == "menu" {
+                    (egui::PointerButton::Secondary, egui::Modifiers::NONE)
+                } else {
+                    (egui::PointerButton::Primary, egui::Modifiers::COMMAND)
+                };
+                input.modifiers = modifiers;
+                for pressed in [true, false] {
+                    input.events.push(egui::Event::PointerButton { pos: at, button, pressed, modifiers });
+                }
+            }
+        }
+        if scenario == "delete" {
             if i == 11 {
                 input.events.push(egui::Event::Key {
                     key: egui::Key::Delete,
@@ -255,7 +309,8 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
             }
         }
         if i >= 10 && scroll != 0.0 {
-            input.events.push(egui::Event::PointerMoved(egui::pos2(w / 2.0, h / 2.0)));
+            let x = if scenario.starts_with("editor") { w - 150.0 } else { w / 2.0 };
+            input.events.push(egui::Event::PointerMoved(egui::pos2(x, h / 2.0)));
             input.events.push(egui::Event::MouseWheel {
                 unit: egui::MouseWheelUnit::Point,
                 delta: egui::vec2(0.0, -scroll / 4.0),

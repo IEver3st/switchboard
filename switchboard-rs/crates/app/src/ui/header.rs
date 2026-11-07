@@ -2,7 +2,7 @@
 //! state and replay length, source, and the save shortcut on the first row;
 //! search, filter, sort, view, select and montage on the second.
 
-use egui::{Align, Align2, Color32, CornerRadius, Frame, Layout, Margin, Rect, RichText, Sense, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
+use egui::{Align, Align2, Color32, CornerRadius, Frame, Layout, Margin, Rect, RichText, Sense, Stroke, Ui, pos2, vec2};
 use switchboard_capture::TrackKind;
 
 use super::App;
@@ -71,7 +71,7 @@ impl App {
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.horizontal(|ui| {
-                    let text = if n == 1 { "Auto Capture saved a new clip.".to_string() } else { format!("Auto Capture saved {n} new clips.") };
+                    let text = if n == 1 { "Auto Capture saved a clip.".to_string() } else { format!("Auto Capture saved {n} clips.") };
                     ui.label(RichText::new(text).font(font(13.0)).color(TEXT));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if button(ui, Kind::Ghost, None, "Dismiss", true).clicked() {
@@ -95,11 +95,7 @@ impl App {
             ui.set_height(36.0);
             ui.label(RichText::new("Clips").font(font_strong(21.0)).color(TEXT));
             if self.lib.scanned {
-                let n = self.lib.clips.len().to_string();
-                let g = ui.painter().layout_no_wrap(n, font(11.5), TEXT_SECONDARY);
-                let (r, _) = ui.allocate_exact_size(vec2(g.size().x + 12.0, 20.0), Sense::hover());
-                ui.painter().rect_filled(r, CornerRadius::same(R_CONTROL), INTERACTIVE);
-                ui.painter().galley(r.center() - g.size() / 2.0, g, TEXT_SECONDARY);
+                ui.label(RichText::new(self.lib.clips.len().to_string()).font(font(13.0)).color(TEXT_MUTED));
             }
             ui.add_space(14.0);
             let rec = self.recorder();
@@ -122,7 +118,8 @@ impl App {
                     let label = state
                         .displays
                         .get(s.display_index)
-                        .map(|d| format!("Display {}", d.index + 1))
+                        .or(state.displays.first())
+                        .map(|d| d.short_label())
                         .unwrap_or_else(|| "Display".into());
                     combo("display-source", format!("{}  {label}", icon::DISPLAY), 110.0).show_ui(ui, |ui| {
                         ui.set_min_width(240.0);
@@ -166,12 +163,15 @@ impl App {
     /// "● Ready" with live track levels; opens the replay panel.
     fn recorder_button(&mut self, ui: &mut Ui, rec: Recorder) {
         let state = self.state.clone();
+        let frozen = rec == Recorder::Running
+            && state.as_ref().and_then(|s| s.status.as_ref()).is_some_and(|st| st.capture_blind);
         let (dot, label) = match rec {
             Recorder::Connecting => (TEXT_MUTED, "Connecting\u{2026}"),
             Recorder::Offline => (TEXT_MUTED, "Not running"),
             Recorder::Off => (TEXT_MUTED, "Replay off"),
             Recorder::Starting => (WARNING, "Starting\u{2026}"),
             Recorder::Failed => (DANGER, "Replay stopped"),
+            Recorder::Running if frozen => (WARNING, "Video frozen"),
             Recorder::Running => (SUCCESS, "Ready"),
         };
         let tracks: Vec<(Color32, f32, bool)> = match (&state, rec) {
@@ -182,7 +182,7 @@ impl App {
                 .unwrap_or_default(),
             _ => Vec::new(),
         };
-        let label_color = if rec == Recorder::Running { SUCCESS } else { TEXT };
+        let label_color = if rec == Recorder::Running && !frozen { SUCCESS } else { TEXT };
         let galley = ui.painter().layout_no_wrap(label.to_string(), font_strong(13.0), label_color);
         let meters_w = if tracks.is_empty() { 0.0 } else { tracks.len() as f32 * 5.0 + 8.0 };
         let size = vec2(12.0 + 14.0 + galley.size().x + meters_w + 12.0, 32.0);
@@ -211,21 +211,36 @@ impl App {
                 p.rect_filled(col, CornerRadius::same(1), DANGER.gamma_multiply(0.6));
             } else {
                 let shown = level.clamp(0.0, 1.0).sqrt();
-                let lit = Rect::from_min_max(pos2(col.left(), col.bottom() - (h * shown).max(2.0)), col.max);
-                p.rect_filled(lit, CornerRadius::same(1), *color);
+                if shown > 0.01 {
+                    let lit = Rect::from_min_max(pos2(col.left(), col.bottom() - (h * shown).max(2.0)), col.max);
+                    p.rect_filled(lit, CornerRadius::same(1), *color);
+                }
             }
             x += 5.0;
         }
-        if let (Recorder::Running, Some(s)) = (rec, &state)
+        let mut tip = frozen.then(|| {
+            "Windows isn't sending new frames for this display, so saved clips repeat the last picture. Audio is still recording and Switchboard keeps reconnecting.".to_string()
+        });
+        if !frozen
+            && let (Recorder::Running, Some(s)) = (rec, &state)
             && let Some(st) = &s.status
         {
             let ratio = (st.buffered_seconds / s.settings.replay_seconds as f32).clamp(0.0, 1.0);
             if ratio < 0.99 {
                 let line = Rect::from_min_size(pos2(rect.left() + 6.0, rect.bottom() - 2.0), vec2((rect.width() - 12.0) * ratio, 2.0));
                 p.rect_filled(line, CornerRadius::same(1), ACCENT);
+                tip = Some(format!(
+                    "Filling the replay: {} of {} kept so far",
+                    duration_label(st.buffered_seconds as f64),
+                    duration_label(s.settings.replay_seconds as f64)
+                ));
             }
         }
         widgets::focus_ring(ui, &response, R_CONTROL);
+        let response = match tip {
+            Some(t) => response.on_hover_text(t),
+            None => response,
+        };
         if response.clicked() {
             self.popover = !self.popover;
             self.guide_panel = false;
@@ -241,14 +256,15 @@ impl App {
             let search_w = (ui.available_width() * 0.32).clamp(260.0, 460.0);
             self.search_field(ui, search_w);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if button(ui, Kind::Secondary, Some(icon::MONTAGE), "Create Montage", true)
+                let any = !self.lib.clips.is_empty();
+                if button(ui, Kind::Secondary, Some(icon::MONTAGE), "Create montage", self.lib.clips.len() >= 2)
                     .on_hover_text("Choose two or more clips to combine")
                     .clicked()
                 {
                     self.lib.selecting = true;
                     self.montage_intent = true;
                 }
-                if button(ui, Kind::Ghost, Some(icon::SELECT), "Select", true).clicked() {
+                if button(ui, Kind::Ghost, Some(icon::SELECT), "Select", any).clicked() {
                     self.lib.selecting = true;
                     self.montage_intent = false;
                 }
@@ -262,32 +278,49 @@ impl App {
                 }
                 ui.add_space(6.0);
                 let mut sort = self.lib.sort();
-                combo("sort", format!("{}  {}", icon::SORT, sort.label()), 112.0).show_ui(ui, |ui| {
-                    for s in Sort::ALL {
-                        ui.selectable_value(&mut sort, s, s.label());
-                    }
+                widgets::enabled_ui(ui, any, |ui| {
+                    combo("sort", format!("{}  {}", icon::SORT, sort.label()), 112.0).show_ui(ui, |ui| {
+                        for s in Sort::ALL {
+                            ui.selectable_value(&mut sort, s, s.label());
+                        }
+                    });
                 });
                 self.lib.set_sort(sort);
-                self.filter_button(ui);
+                self.filter_button(ui, any);
             });
         });
     }
 
-    fn filter_button(&mut self, ui: &mut Ui) {
+    fn filter_button(&mut self, ui: &mut Ui, any: bool) {
         let active = self.lib.filters().active_count();
         let label = if active > 0 { format!("Filter \u{b7} {active}") } else { "Filter".into() };
-        let r = button(ui, if active > 0 { Kind::Secondary } else { Kind::Ghost }, Some(icon::FILTER), &label, true);
+        let open_key = egui::Id::new("filter-popup-open");
+        let was_open = ui.data(|d| d.get_temp::<bool>(open_key)).unwrap_or(false);
+        let r = button(ui, if active > 0 || was_open { Kind::Secondary } else { Kind::Ghost }, Some(icon::FILTER), &label, any || active > 0);
         let mut f = self.lib.filters().clone();
         let games = self.lib.games();
         let kinds = self.lib.event_kinds();
+        let popup_id = egui::Popup::default_response_id(&r);
+        if ui.data_mut(|d| d.remove_temp::<bool>(egui::Id::new("review-open-filter"))).is_some() {
+            egui::Popup::open_id(ui.ctx(), popup_id);
+        }
+        let frame = Frame::popup(ui.style()).inner_margin(Margin::same(16));
         egui::Popup::from_toggle_button_response(&r)
+            .frame(frame)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
-                ui.set_min_width(240.0);
-                ui.checkbox(&mut f.favorites, "Favorites only");
+                ui.set_width(240.0);
+                let field_w = ui.available_width();
+                ui.horizontal(|ui| {
+                    ui.set_height(28.0);
+                    ui.label(RichText::new("Favorites only").font(font(13.0)).color(TEXT_SECONDARY));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        toggle(ui, &mut f.favorites, "Favorites only");
+                    });
+                });
                 ui.add_space(6.0);
                 ui.label(RichText::new("Game").font(font(11.5)).color(TEXT_MUTED));
-                combo("filter-game", f.game.clone().unwrap_or_else(|| "All games".into()), 220.0).show_ui(ui, |ui| {
+                combo("filter-game", f.game.clone().unwrap_or_else(|| "All games".into()), field_w).show_ui(ui, |ui| {
                     ui.selectable_value(&mut f.game, None, "All games");
                     for (g, n) in &games {
                         ui.selectable_value(&mut f.game, Some(g.clone()), format!("{g}  ({n})"));
@@ -295,16 +328,17 @@ impl App {
                 });
                 ui.add_space(6.0);
                 ui.label(RichText::new("Source").font(font(11.5)).color(TEXT_MUTED));
-                widgets::segmented(
+                widgets::segmented_wide(
                     ui,
                     &mut f.source,
-                    &[(SourceFilter::All, "All"), (SourceFilter::Manual, "Manual"), (SourceFilter::Auto, "Auto Captured")],
+                    &[(SourceFilter::All, "All"), (SourceFilter::Manual, "Manual"), (SourceFilter::Auto, "Auto capture")],
                     "Source",
+                    field_w,
                 );
                 if !kinds.is_empty() {
                     ui.add_space(6.0);
                     ui.label(RichText::new("Event").font(font(11.5)).color(TEXT_MUTED));
-                    combo("filter-event", f.event.clone().unwrap_or_else(|| "Any event".into()), 220.0).show_ui(ui, |ui| {
+                    combo("filter-event", f.event.clone().unwrap_or_else(|| "Any event".into()), field_w).show_ui(ui, |ui| {
                         ui.selectable_value(&mut f.event, None, "Any event");
                         for k in &kinds {
                             ui.selectable_value(&mut f.event, Some(k.clone()), k.replace('-', " "));
@@ -313,59 +347,29 @@ impl App {
                 }
                 ui.add_space(6.0);
                 ui.label(RichText::new("Date").font(font(11.5)).color(TEXT_MUTED));
-                combo("filter-date", f.date.label(), 220.0).show_ui(ui, |ui| {
+                combo("filter-date", f.date.label(), field_w).show_ui(ui, |ui| {
                     for d in DateFilter::ALL {
                         ui.selectable_value(&mut f.date, d, d.label());
                     }
                 });
                 if f.active_count() > 0 {
                     ui.add_space(8.0);
-                    if ui.button("Clear filters").clicked() {
+                    if button(ui, Kind::Ghost, Some(icon::CLOSE), "Clear filters", true).clicked() {
                         f = Filters::default();
                     }
                 }
             });
+        let now_open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+        ui.data_mut(|d| d.insert_temp(open_key, now_open));
         self.lib.set_filters(f);
     }
 
     fn search_field(&mut self, ui: &mut Ui, width: f32) {
-        let (rect, _) = ui.allocate_exact_size(vec2(width, 34.0), Sense::hover());
         let mut query = self.lib.query().to_string();
-        let id = egui::Id::new("library-search");
-        let focused = ui.memory(|m| m.has_focus(id));
-        ui.painter().rect_filled(rect, CornerRadius::same(R_CONTROL), if focused { INTERACTIVE } else { SURFACE_1 });
-        if focused {
-            ui.painter().rect_stroke(rect, CornerRadius::same(R_CONTROL), Stroke::new(1.0, ACCENT), StrokeKind::Inside);
-        }
-        ui.painter().text(pos2(rect.left() + 16.0, rect.center().y), Align2::CENTER_CENTER, icon::SEARCH, font_icon(12.0), TEXT_DESCRIPTION);
-        let clear_w = if query.is_empty() { 0.0 } else { 26.0 };
-        let row_h = ui.fonts_mut(|f| f.row_height(&font(13.0)));
-        let field = Rect::from_min_max(
-            pos2(rect.left() + 32.0, rect.center().y - row_h / 2.0),
-            pos2(rect.right() - 6.0 - clear_w, rect.center().y + row_h / 2.0),
-        );
-        let edit = egui::TextEdit::singleline(&mut query)
-            .id(id)
-            .hint_text(RichText::new("Search clips").font(font(13.0)).color(TEXT_MUTED))
-            .font(font(13.0))
-            .text_color(TEXT)
-            .frame(Frame::NONE)
-            .margin(Margin::ZERO)
-            .desired_width(field.width());
-        // A child Ui keeps the field from moving the toolbar's layout cursor.
-        let r = ui.new_child(egui::UiBuilder::new().max_rect(field)).add(edit);
+        let r = widgets::search_box(ui, egui::Id::new("library-search"), &mut query, width, "Search clips", SURFACE_1);
         if self.focus_search {
             r.request_focus();
             self.focus_search = false;
-        }
-        if clear_w > 0.0 {
-            let c = Rect::from_center_size(pos2(rect.right() - 17.0, rect.center().y), Vec2::splat(22.0));
-            let cr = ui.interact(c, id.with("clear"), Sense::click());
-            cr.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "Clear search"));
-            ui.painter().text(c.center(), Align2::CENTER_CENTER, icon::CLOSE, font_icon(10.0), if cr.hovered() { TEXT } else { TEXT_DESCRIPTION });
-            if cr.clicked() {
-                query.clear();
-            }
         }
         self.lib.set_query(query);
     }
@@ -375,8 +379,6 @@ impl App {
         let paths = self.lib.selected_paths();
         ui.horizontal(|ui| {
             ui.set_height(34.0);
-            let (r, _) = ui.allocate_exact_size(vec2(4.0, 34.0), Sense::hover());
-            ui.painter().rect_filled(Rect::from_min_size(r.min + vec2(0.0, 7.0), vec2(3.0, 20.0)), CornerRadius::same(1), ACCENT);
             let text = if self.montage_intent && n < 2 {
                 "Choose two or more clips for the montage".to_string()
             } else {
@@ -390,14 +392,11 @@ impl App {
             if n > 0 {
                 let files: Vec<String> =
                     self.lib.clips.iter().filter(|c| self.lib.is_selected(&c.path)).map(|c| c.file_name.clone()).collect();
-                if button(ui, Kind::Ghost, Some(icon::STAR_FILLED), "Favorite", true).clicked() {
+                let all_favorite = self.lib.clips.iter().filter(|c| self.lib.is_selected(&c.path)).all(|c| c.favorite);
+                let (glyph, label) = if all_favorite { (icon::STAR, "Unfavorite") } else { (icon::STAR_FILLED, "Favorite") };
+                if button(ui, Kind::Ghost, Some(glyph), label, true).clicked() {
                     for f in &files {
-                        self.link.send(Request::UpdateClip { file: f.clone(), favorite: Some(true), title: None });
-                    }
-                }
-                if button(ui, Kind::Ghost, Some(icon::STAR), "Unfavorite", true).clicked() {
-                    for f in &files {
-                        self.link.send(Request::UpdateClip { file: f.clone(), favorite: Some(false), title: None });
+                        self.link.send(Request::UpdateClip { file: f.clone(), favorite: Some(!all_favorite), title: None });
                     }
                 }
                 if button(ui, Kind::Ghost, Some(icon::DELETE), "Move to Recycle Bin\u{2026}", true).clicked() {
@@ -523,8 +522,7 @@ fn popover_meter(ui: &mut Ui, name: &str, color: Color32, level: f32, right: &st
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
     let p = ui.painter();
     p.text(pos2(rect.left(), rect.center().y), Align2::LEFT_CENTER, name, font(12.5), TEXT_SECONDARY);
-    let reserve = if right.is_empty() { 0.0 } else { 84.0 };
-    let bar = Rect::from_min_size(pos2(rect.left() + 96.0, rect.center().y - 2.5), vec2(rect.width() - 96.0 - reserve, 5.0));
+    let bar = Rect::from_min_size(pos2(rect.left() + 96.0, rect.center().y - 2.5), vec2(rect.width() - 96.0 - 84.0, 5.0));
     level_bar(ui, bar, level, color);
     if !right.is_empty() {
         let c = if right == "unavailable" { DANGER } else { TEXT_DESCRIPTION };

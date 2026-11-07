@@ -18,6 +18,7 @@ use crate::shell;
 
 const COLUMN: f32 = 720.0;
 const CONTROL_W: f32 = 340.0;
+const MENU_W: f32 = 300.0;
 
 const LENGTHS: [(u32, &str); 7] = [
     (15, "15 seconds"),
@@ -59,10 +60,15 @@ fn section(ui: &mut Ui, title: &str, note: &str, rows: impl FnOnce(&mut Ui)) {
 fn row(ui: &mut Ui, title: &str, description: &str, warning: Option<&str>, control: impl FnOnce(&mut Ui)) {
     let width = ui.available_width();
     let top = ui.cursor().min + vec2(0.0, 10.0);
-    let text_w = width - CONTROL_W - 20.0;
+    let memo = ui.id().with(("row-control", title));
+    let control_w = ui.data(|d| d.get_temp::<f32>(memo)).unwrap_or(CONTROL_W).clamp(0.0, width * 0.6);
+    let text_w = width - control_w - 24.0;
+    let plain = description.is_empty() && warning.is_none();
+    let title_h = ui.fonts_mut(|f| f.row_height(&font(13.0)));
+    let text_top = if plain { top + vec2(0.0, (32.0 - title_h) / 2.0) } else { top };
     let text = ui
         .scope_builder(
-            UiBuilder::new().max_rect(Rect::from_min_size(top, vec2(text_w, 400.0))).layout(Layout::top_down(Align::Min)),
+            UiBuilder::new().max_rect(Rect::from_min_size(text_top, vec2(text_w, 400.0))).layout(Layout::top_down(Align::Min)),
             |ui| {
                 ui.spacing_mut().item_spacing.y = 2.0;
                 ui.label(RichText::new(title).font(font(13.0)).color(TEXT));
@@ -76,10 +82,35 @@ fn row(ui: &mut Ui, title: &str, description: &str, warning: Option<&str>, contr
         )
         .response
         .rect;
-    let height = text.height().max(32.0);
-    let control_rect = Rect::from_min_size(pos2(top.x + width - CONTROL_W, top.y), vec2(CONTROL_W, height));
-    ui.scope_builder(UiBuilder::new().max_rect(control_rect).layout(Layout::right_to_left(Align::Center)), control);
+    let height = (text.bottom() - top.y).max(32.0);
+    let control_rect = Rect::from_min_size(pos2(top.x + text_w + 24.0, top.y), vec2(width - text_w - 24.0, height));
+    let used = ui.scope_builder(UiBuilder::new().max_rect(control_rect).layout(Layout::right_to_left(Align::Center)), control).response.rect;
+    let used_w = if used.width() > 0.0 { (top.x + width - used.left()).min(width * 0.6) } else { 0.0 };
+    if (used_w - control_w).abs() > 0.5 {
+        ui.data_mut(|d| d.insert_temp(memo, used_w));
+        ui.ctx().request_discard("settings row width");
+    }
     ui.advance_cursor_after_rect(Rect::from_min_size(top, vec2(width, height + 10.0)));
+}
+
+fn event_chip(ui: &mut Ui, on: bool, label: &str) -> egui::Response {
+    let g = ui.painter().layout_no_wrap(label.to_string(), font(12.5), egui::Color32::PLACEHOLDER);
+    let (rect, r) = ui.allocate_exact_size(vec2(g.size().x + 40.0, 28.0), Sense::click());
+    r.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, on, label));
+    let p = ui.painter();
+    let fill = if on {
+        HOVER
+    } else if r.hovered() {
+        INTERACTIVE
+    } else {
+        egui::Color32::TRANSPARENT
+    };
+    p.rect_filled(rect, CornerRadius::same(R_CONTROL), fill);
+    let (glyph, glyph_color, text_color) = if on { (icon::CHECK, ACCENT_HOVER, TEXT) } else { (icon::ADD, TEXT_MUTED, TEXT_DESCRIPTION) };
+    p.text(pos2(rect.left() + 16.0, rect.center().y), Align2::CENTER_CENTER, glyph, font_icon(11.0), glyph_color);
+    p.galley(pos2(rect.left() + 28.0, rect.center().y - g.size().y / 2.0), g, text_color);
+    super::widgets::focus_ring(ui, &r, R_CONTROL);
+    r
 }
 
 /// Seconds menu, e.g. "20 s before".
@@ -132,12 +163,19 @@ fn device_label(devices: &[AudioDevice], id: &Option<String>, none_label: &str) 
     }
 }
 
+/// A fixed-width menu, so stacked device and display menus share both edges.
+fn wide_combo(ui: &mut Ui, id: &str, current: String, items: impl FnOnce(&mut Ui)) {
+    ui.allocate_ui_with_layout(vec2(MENU_W, 30.0), Layout::right_to_left(Align::Center), |ui| {
+        let r = combo(id, current.clone(), MENU_W).truncate().show_ui(ui, items);
+        r.response.on_hover_text(current);
+    });
+}
+
 /// Device menu: the app-level choice first, then each device.
 fn device_combo(ui: &mut Ui, id: &str, value: &mut Option<String>, devices: &[AudioDevice], none_label: &str, enabled: bool) {
     let current = device_label(devices, value, none_label);
-    ui.add_enabled_ui(enabled, |ui| {
-        combo(id, current, 220.0).show_ui(ui, |ui| {
-            ui.set_min_width(260.0);
+    super::widgets::enabled_ui(ui, enabled, |ui| {
+        wide_combo(ui, id, current, |ui| {
             ui.selectable_value(value, None, none_label);
             ui.separator();
             if devices.is_empty() {
@@ -188,7 +226,8 @@ impl App {
         };
         let before = s.clone();
         let state = self.state.clone();
-        ScrollArea::vertical().id_salt("settings").auto_shrink([false, false]).show(ui, |ui| {
+        ui.visuals_mut().clip_rect_margin = 0.0;
+        let scrolled = ScrollArea::vertical().id_salt("settings").auto_shrink([false, false]).show(ui, |ui| {
             let (x, w) = column(ui);
             let top = ui.cursor().min + vec2(x, 0.0);
             // scope_builder reserves the content's height in the scroll area.
@@ -202,6 +241,10 @@ impl App {
                 },
             );
         });
+        if scrolled.state.offset.y > 0.5 {
+            let r = scrolled.inner_rect;
+            ui.painter().hline(r.left()..=r.right(), r.top() + 0.5, egui::Stroke::new(1.0, BORDER_STRONG));
+        }
         if s != before {
             self.apply(s);
         }
@@ -209,10 +252,11 @@ impl App {
 
     fn settings_sections(&mut self, ui: &mut Ui, s: &mut Settings, before: &Settings, state: Option<&ServiceState>) {
         let track_error = |kind: TrackKind| -> Option<String> {
-            state?.status.as_ref()?.tracks.iter().find(|t| t.kind == kind)?.error.clone()
+            state?.status.as_ref()?.tracks.iter().find(|t| t.kind == kind)?.error.as_ref()?;
+            Some("Couldn't record this track. Details are in Diagnostics.".to_string())
         };
 
-        section(ui, "Instant Replay", "", |ui| {
+        section(ui, "Recording", "", |ui| {
             row(ui, "Instant Replay", "Keeps recent gameplay ready to save, using your graphics card's video encoder.", None, |ui| {
                 toggle(ui, &mut s.replay_enabled, "Instant Replay");
             });
@@ -241,7 +285,7 @@ impl App {
                 row(ui, "Display", "The screen that's recorded.", None, |ui| {
                     let current =
                         st.displays.get(s.display_index).map(|d| d.label()).unwrap_or_else(|| "Primary display".into());
-                    combo("display", current, 240.0).show_ui(ui, |ui| {
+                    wide_combo(ui, "display", current, |ui| {
                         for d in &st.displays {
                             ui.selectable_value(&mut s.display_index, d.index, d.label());
                         }
@@ -293,7 +337,11 @@ impl App {
                     (None, false) => "Every app.",
                     (Some(_), _) => "Everything that plays on this device.",
                 };
-                let err = track_error(TrackKind::Game);
+                let missing = |id: &Option<String>, list: &[AudioDevice]| {
+                    (!list.is_empty() && id.as_ref().is_some_and(|id| !list.iter().any(|d| &d.id == id)))
+                        .then(|| "This device isn't connected right now.".to_string())
+                };
+                let err = missing(&s.game_device, &devices.outputs).or_else(|| track_error(TrackKind::Game));
                 row(ui, "Game", game_desc, err.as_deref(), |ui| {
                     toggle(ui, &mut s.game_audio, "Game audio");
                     ui.add_space(10.0);
@@ -307,7 +355,7 @@ impl App {
                     },
                     _ => "The Discord app, on its own track.".into(),
                 };
-                let err = track_error(TrackKind::Chat);
+                let err = missing(&s.chat_device, &devices.outputs).or_else(|| track_error(TrackKind::Chat));
                 row(ui, "Chat", &chat_desc, err.as_deref(), |ui| {
                     toggle(ui, &mut s.chat_audio, "Chat audio");
                     ui.add_space(10.0);
@@ -315,7 +363,7 @@ impl App {
                 });
                 let mic_desc =
                     if s.mic_device.is_none() { "Follows the Windows default microphone." } else { "Always this microphone." };
-                let err = track_error(TrackKind::Microphone);
+                let err = missing(&s.mic_device, &devices.inputs).or_else(|| track_error(TrackKind::Microphone));
                 row(ui, "Microphone", mic_desc, err.as_deref(), |ui| {
                     toggle(ui, &mut s.microphone, "Microphone");
                     ui.add_space(10.0);
@@ -376,7 +424,7 @@ impl App {
                 P::Ready { version } => (format!("Version {version} is downloaded. It installs when Switchboard restarts."), None),
                 P::UpToDate => ("You have the latest version.".to_string(), None),
                 P::Failed { message } => (String::new(), Some(format!("Couldn't update: {message}"))),
-                P::Idle if s.auto_update => ("Checks for new versions in the background.".to_string(), None),
+                P::Idle if s.auto_update => (String::new(), None),
                 P::Idle => ("Automatic updates are off.".to_string(), None),
             };
             row(ui, &format!("Version {current}"), &desc, warn.as_deref(), |ui| match &update.phase {
@@ -458,8 +506,12 @@ impl App {
             }
 
             let r = &mut a.reaction_clipping;
-            let warn = (r.enabled && !mic_on).then_some("Turn on the Microphone track to use this.");
-            row(ui, "Reactions", "Saves a clip when you shout or laugh into your microphone.", warn, |ui| {
+            let reactions_desc = if r.enabled && !mic_on {
+                "Saves a clip when you shout or laugh into your microphone. Turn on the Microphone track to use this."
+            } else {
+                "Saves a clip when you shout or laugh into your microphone."
+            };
+            row(ui, "Reactions", reactions_desc, None, |ui| {
                 toggle(ui, &mut r.enabled, "Reactions");
             });
             if r.enabled {
@@ -490,6 +542,7 @@ impl App {
         let before = on;
         row(ui, &p.name, &provider_text(p, active), None, |ui| {
             if !usable {
+                ui.label(RichText::new("Unavailable").font(font(12.5)).color(TEXT_MUTED));
                 return;
             }
             toggle(ui, &mut on, &p.name);
@@ -507,14 +560,10 @@ impl App {
             return;
         }
         ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
+            ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
             for &e in &p.events {
                 let enabled = a.game(&p.game_id).map(|g| g.event_enabled(e)).unwrap_or(e.enabled_by_default());
-                let chip = ui.add(
-                    egui::Button::selectable(enabled, RichText::new(e.settings_label()).font(font(12.0)))
-                        .frame_when_inactive(true)
-                        .stroke(if enabled { egui::Stroke::NONE } else { egui::Stroke::new(1.0, BORDER_STRONG) }),
-                );
+                let chip = event_chip(ui, enabled, e.settings_label());
                 if chip.clicked() {
                     a.games.entry(p.game_id.clone()).or_default().events.insert(e, !enabled);
                 }
@@ -530,15 +579,12 @@ impl App {
         let (rect, r) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), Sense::click());
         r.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::CollapsingHeader, true, open, "Diagnostics"));
         let p = ui.painter();
-        let chevron = if open { icon::CHEVRON_DOWN } else { "\u{E76C}" };
-        p.text(pos2(rect.left() + 6.0, rect.center().y), Align2::CENTER_CENTER, chevron, font_icon(10.0), TEXT_DESCRIPTION);
-        p.text(
-            pos2(rect.left() + 20.0, rect.center().y),
-            Align2::LEFT_CENTER,
-            "Diagnostics",
-            font_strong(14.0),
-            if r.hovered() { TEXT } else { TEXT_SECONDARY },
-        );
+        let chevron = if open { icon::CHEVRON_DOWN } else { icon::CHEVRON_RIGHT };
+        let color = if r.hovered() { TEXT } else { TEXT_SECONDARY };
+        let g = p.layout_no_wrap("Diagnostics".into(), font_strong(14.0), color);
+        let gw = g.size().x;
+        p.galley(pos2(rect.left(), rect.center().y - g.size().y / 2.0), g, color);
+        p.text(pos2(rect.left() + gw + 12.0, rect.center().y + 1.0), Align2::CENTER_CENTER, chevron, font_icon(10.0), TEXT_DESCRIPTION);
         super::widgets::focus_ring(ui, &r, R_CONTROL);
         if r.clicked() {
             ui.data_mut(|d| d.insert_temp(id, !open));
@@ -567,6 +613,7 @@ impl App {
         }
         if let Some(s) = &st.status {
             rows.push(("Frames", format!("{} encoded \u{b7} {} skipped", s.frames_encoded, s.frames_skipped)));
+            rows.push(("Capture reconnects", s.capture_reopens.to_string()));
             rows.push(("Replay cache", bytes_label(s.cache_bytes)));
             for t in &s.tracks {
                 let v = match &t.error {
@@ -627,7 +674,7 @@ impl App {
                 self.hotkey_hint = None;
             }
         } else {
-            if button(ui, Kind::Ghost, None, "Change", true).clicked() {
+            if button(ui, Kind::Secondary, None, "Change", true).clicked() {
                 self.recording_hotkey = true;
             }
             keycaps(ui, &s.hotkey, false);

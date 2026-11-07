@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::audio::{self, AudioSetup, AudioStats, Kick, Source, TrackKind};
 use crate::clock::{HNS_PER_SECOND, now_hns};
 use crate::cursor::{self, CursorRing, CursorTrack};
-use crate::gpu::{Gpu, list_displays};
+use crate::gpu::{DisplayInfo, Gpu, hardware_adapters, list_displays};
 use crate::mp4;
 use crate::ring::{Packet, TrackRing};
 use crate::signal::Stop;
@@ -63,6 +63,8 @@ pub struct EngineConfig {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EngineInfo {
     pub display: String,
+    #[serde(default)]
+    pub display_id: String,
     pub adapter: String,
     pub encoder: String,
     pub width: u32,
@@ -90,6 +92,10 @@ pub struct EngineStatus {
     /// had not asked for input in time.
     #[serde(default)]
     pub frames_dropped: u64,
+    #[serde(default)]
+    pub capture_reopens: u64,
+    #[serde(default)]
+    pub capture_blind: bool,
     pub cache_bytes: u64,
     pub tracks: Vec<TrackStatus>,
     pub video_error: Option<String>,
@@ -151,7 +157,7 @@ impl Drop for DoneGuard {
 /// joins every worker, so a start that fails halfway cleans up what it began.
 struct Workers {
     stop: Arc<Stop>,
-    capture: Option<Capture>,
+    capture: Arc<Mutex<Option<Capture>>>,
     threads: Vec<(String, JoinHandle<()>)>,
     done_tx: mpsc::Sender<()>,
     /// In a Mutex only so `Engine` is Sync; just `shutdown` touches it.
@@ -163,7 +169,15 @@ struct Workers {
 impl Workers {
     fn new(stop: Arc<Stop>, session: Arc<SessionDir>, join_timeout: Duration) -> Workers {
         let (done_tx, done) = mpsc::channel();
-        Workers { stop, capture: None, threads: Vec::new(), done_tx, done: Mutex::new(done), session, join_timeout }
+        Workers {
+            stop,
+            capture: Arc::new(Mutex::new(None)),
+            threads: Vec::new(),
+            done_tx,
+            done: Mutex::new(done),
+            session,
+            join_timeout,
+        }
     }
 
     fn spawn(&mut self, name: String, f: impl FnOnce() + Send + 'static) -> Result<()> {
@@ -182,7 +196,7 @@ impl Workers {
     fn shutdown(&mut self) {
         self.stop.set();
         // Stop new frames first.
-        self.capture.take();
+        self.capture.lock().unwrap().take();
         let deadline = Instant::now() + self.join_timeout;
         let mut exited = 0;
         let done = self.done.lock().unwrap();
@@ -236,7 +250,27 @@ impl Engine {
             .or_else(|| displays.first())
             .ok_or_else(|| anyhow!("no display attached"))?
             .clone();
-        let gpu = Gpu::for_display(&display)?;
+        let mut order = vec![display.adapter_index];
+        for adapter in hardware_adapters() {
+            if !order.contains(&adapter) {
+                order.push(adapter);
+            }
+        }
+        let mut first_error = None;
+        for adapter in order {
+            match Self::start_on(cfg, &display, Gpu::for_adapter(adapter)) {
+                Ok(engine) => return Ok(engine),
+                Err(e) => {
+                    first_error.get_or_insert(e);
+                }
+            }
+        }
+        Err(first_error.unwrap_or_else(|| anyhow!("no graphics adapter can record this display")))
+    }
+
+    fn start_on(cfg: &EngineConfig, display: &DisplayInfo, gpu: Result<Gpu>) -> Result<Engine> {
+        let gpu = gpu?;
+        let display = display.clone();
         let (width, height) = video::output_size(display.width, display.height, cfg.target_height);
         let bitrate = ((width as f64 * height as f64 * cfg.fps as f64 * cfg.quality.bits_per_pixel()) as u32)
             .clamp(4_000_000, 80_000_000);
@@ -252,7 +286,7 @@ impl Engine {
 
         let capture = Capture::start_display(&gpu, &display, cfg.fps, cfg.cursor).context("display capture")?;
         let capture_shared = capture.shared.clone();
-        workers.capture = Some(capture);
+        *workers.capture.lock().unwrap() = Some(capture);
 
         // Keep a little more than requested so a save never comes up short.
         let retain_s = cfg.replay_seconds as u64 + 3;
@@ -268,6 +302,7 @@ impl Engine {
         let setup = VideoSetup {
             gpu: gpu.clone(),
             capture: capture_shared.clone(),
+            source: workers.capture.clone(),
             ring: video_ring.clone(),
             params: video_params.clone(),
             stats: video_stats.clone(),
@@ -346,6 +381,7 @@ impl Engine {
         Ok(Engine {
             info: EngineInfo {
                 display: display.label(),
+                display_id: display.id.clone(),
                 adapter: gpu.adapter_name.clone(),
                 encoder,
                 width,
@@ -405,6 +441,8 @@ impl Engine {
             frames_encoded: self.video_stats.encoded.load(Ordering::Relaxed),
             frames_skipped: self.video_stats.skipped.load(Ordering::Relaxed),
             frames_dropped: self.video_stats.dropped.load(Ordering::Relaxed),
+            capture_reopens: self.video_stats.capture_reopens.load(Ordering::Relaxed),
+            capture_blind: self.video_stats.capture_blind.load(Ordering::Relaxed),
             cache_bytes: self.video_ring.bytes() + self.audio.iter().map(|a| a.ring.bytes()).sum::<u64>(),
             tracks: self
                 .audio
@@ -431,9 +469,10 @@ impl Engine {
     pub fn debug_counters(&self) -> String {
         let v = &self.video_stats;
         let mut s = format!(
-            "video: dropped={} encoder_waits={} ring_writes={} forced_evictions={}",
+            "video: dropped={} encoder_waits={} capture_reopens={} ring_writes={} forced_evictions={}",
             v.dropped.load(Ordering::Relaxed),
             v.encoder_waits.load(Ordering::Relaxed),
+            v.capture_reopens.load(Ordering::Relaxed),
             self.video_ring.counters.writes.load(Ordering::Relaxed),
             self.video_ring.counters.forced_evictions.load(Ordering::Relaxed),
         );

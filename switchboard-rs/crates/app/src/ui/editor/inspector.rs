@@ -13,7 +13,7 @@ use super::{Editor, Tab};
 use crate::ui::App;
 use crate::ui::library::{bytes_label, duration_label};
 use crate::ui::theme::*;
-use crate::ui::widgets::{self, Kind, button, icon, segmented, toggle};
+use crate::ui::widgets::{self, Kind, button, icon, icon_button, segmented, toggle};
 
 fn heading(ui: &mut Ui, text: &str, right: &str) {
     ui.add_space(14.0);
@@ -28,38 +28,58 @@ fn heading(ui: &mut Ui, text: &str, right: &str) {
 
 fn seconds(ui: &mut Ui, value: &mut f64, range: std::ops::RangeInclusive<f64>) -> bool {
     let mut s = *value / 1000.0;
-    let r = ui.add(egui::DragValue::new(&mut s).range((*range.start() / 1000.0)..=(*range.end() / 1000.0)).speed(0.01).fixed_decimals(3).suffix(" s"));
+    let r = ui.add(
+        egui::DragValue::new(&mut s)
+            .range((*range.start() / 1000.0)..=(*range.end() / 1000.0))
+            .speed(0.01)
+            .custom_formatter(|v, _| precise(v * 1000.0))
+            .custom_parser(parse_time),
+    );
     if r.changed() {
         *value = s * 1000.0;
     }
     r.changed()
 }
 
+fn parse_time(text: &str) -> Option<f64> {
+    let t = text.trim().trim_end_matches('s').trim();
+    match t.split_once(':') {
+        Some((m, s)) => Some(m.trim().parse::<f64>().ok()? * 60.0 + s.trim().parse::<f64>().ok()?),
+        None => t.parse().ok(),
+    }
+}
+
+fn pct(v: f32) -> String {
+    format!("{:.0}%", v * 100.0)
+}
+
+fn note(ui: &mut Ui, text: &str) {
+    ui.add(egui::Label::new(RichText::new(text).font(font(11.5)).color(TEXT_MUTED)).wrap());
+}
+
 impl App {
     pub(super) fn inspector_ui(&mut self, ui: &mut Ui, ed: &mut Editor) {
         let montage = !ed.project().is_clip_edit();
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Inspector").font(font(11.5)).color(TEXT_MUTED));
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let sel = ed.project().segments.get(ed.state.selected).map(|s| s.duration_ms()).unwrap_or(0);
-                ui.label(RichText::new(format!("{} selected", precise(sel as f64))).font(font_mono(11.0)).color(TEXT_MUTED));
-            });
-        });
-        let seg_name = ed
+        let (seg_name, file) = ed
             .project()
             .segments
             .get(ed.state.selected)
-            .map(|s| ed.clip_titles.get(&s.clip_id).cloned().unwrap_or_else(|| s.clip_id.clone()))
+            .map(|s| (ed.clip_titles.get(&s.clip_id).cloned().unwrap_or_else(|| s.clip_id.clone()), s.clip_id.clone()))
             .unwrap_or_default();
-        ui.add(egui::Label::new(RichText::new(seg_name).font(font_strong(13.5)).color(TEXT)).truncate());
-        ui.add_space(8.0);
+        if montage {
+            ui.add(egui::Label::new(RichText::new(seg_name).font(font_strong(13.5)).color(TEXT)).truncate()).on_hover_text(file);
+            ui.add_space(10.0);
+        }
         let mut tabs = vec![(Tab::Edit, "Edit"), (Tab::Audio, "Audio")];
         if montage {
             tabs.push((Tab::Music, "Music"));
         }
         segmented(ui, &mut ed.tab, &tabs, "Inspector");
-        ScrollArea::vertical().id_salt("inspector").auto_shrink([false, false]).show(ui, |ui| {
-            ui.set_width(ui.available_width());
+        ui.add_space(8.0);
+        ui.visuals_mut().clip_rect_margin = 0.0;
+        let scrolled = ScrollArea::vertical().id_salt("inspector").auto_shrink([false, false]).show(ui, |ui| {
+            ui.set_width(ui.available_width() - 12.0);
+            ui.visuals_mut().extreme_bg_color = INTERACTIVE;
             // Compact controls in the narrow inspector.
             ui.spacing_mut().interact_size.y = 22.0;
             ui.spacing_mut().slider_width = 120.0;
@@ -70,6 +90,10 @@ impl App {
             }
             ui.add_space(20.0);
         });
+        if scrolled.state.offset.y > 0.5 {
+            let r = scrolled.inner_rect;
+            ui.painter().hline(r.left()..=r.right(), r.top() + 0.5, egui::Stroke::new(1.0, BORDER_STRONG));
+        }
     }
 
     fn music_tab(&mut self, ui: &mut Ui, ed: &mut Editor) {
@@ -86,39 +110,33 @@ impl App {
             return;
         };
         ui.add(egui::Label::new(RichText::new(&music.asset.name).font(font(12.5)).color(TEXT)).truncate());
-        ui.label(RichText::new(duration_label(music.asset.duration_ms as f64 / 1000.0)).font(font_mono(11.5)).color(TEXT_MUTED));
+        ui.label(RichText::new(duration_label(music.asset.duration_ms as f64 / 1000.0)).font(font(12.0)).color(TEXT_DESCRIPTION));
         let mut m = music.clone();
         ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Volume").font(font(12.5)).color(TEXT_SECONDARY));
-            ui.add(egui::Slider::new(&mut m.volume, 0.0..=1.0).custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
-        });
-        ui.horizontal(|ui| {
-            toggle(ui, &mut m.muted, "Mute music");
-            ui.label(RichText::new("Mute").font(font(12.5)).color(TEXT_SECONDARY));
-            ui.add_space(12.0);
-            toggle(ui, &mut m.r#loop, "Loop music");
-            ui.label(RichText::new("Loop").font(font(12.5)).color(TEXT_SECONDARY));
-        });
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Fade in").font(font(12.5)).color(TEXT_SECONDARY));
+        let mut vol = m.volume as f32;
+        if widgets::fader_row(ui, "Volume", &pct(vol), &mut vol, 0.0..=1.0, ACCENT).changed() {
+            m.volume = vol as f64;
+        }
+        widgets::labeled_row(ui, "Mute", |ui| toggle(ui, &mut m.muted, "Mute music"));
+        widgets::labeled_row(ui, "Loop", |ui| toggle(ui, &mut m.r#loop, "Loop music"));
+        widgets::labeled_row(ui, "Fades", |ui| {
             let mut f = m.fade_in_ms as f64;
             if seconds(ui, &mut f, 0.0..=30_000.0) {
                 m.fade_in_ms = f as i64;
             }
-            ui.label(RichText::new("Fade out").font(font(12.5)).color(TEXT_SECONDARY));
+            ui.label(RichText::new("in").font(font(12.0)).color(TEXT_DESCRIPTION));
             let mut f = m.fade_out_ms as f64;
             if seconds(ui, &mut f, 0.0..=30_000.0) {
                 m.fade_out_ms = f as i64;
             }
+            ui.label(RichText::new("out").font(font(12.0)).color(TEXT_DESCRIPTION));
         });
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Song in").font(font(12.5)).color(TEXT_SECONDARY));
+        widgets::labeled_row(ui, "Song part", |ui| {
             let mut a = m.source_start_ms as f64;
             if seconds(ui, &mut a, 0.0..=m.asset.duration_ms as f64) {
                 m.source_start_ms = a as i64;
             }
-            ui.label(RichText::new("out").font(font(12.5)).color(TEXT_SECONDARY));
+            ui.label(RichText::new("to").font(font(12.0)).color(TEXT_DESCRIPTION));
             let mut b = m.source_end_ms as f64;
             if seconds(ui, &mut b, 0.0..=m.asset.duration_ms as f64) {
                 m.source_end_ms = b as i64;
@@ -138,15 +156,24 @@ impl App {
             if on {
                 let mut d = m.ducking.unwrap_or_default();
                 d.enabled = true;
-                ui.add(egui::Slider::new(&mut d.amount, 0.0..=1.0).text("Amount").custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
-                ui.add(egui::Slider::new(&mut d.attack_ms, 10..=1000).text("Attack").suffix(" ms"));
-                ui.add(egui::Slider::new(&mut d.release_ms, 50..=3000).text("Release").suffix(" ms"));
+                let mut amount = d.amount as f32;
+                if widgets::fader_row(ui, "Amount", &pct(amount), &mut amount, 0.0..=1.0, ACCENT).changed() {
+                    d.amount = amount as f64;
+                }
+                let mut attack = d.attack_ms as f32;
+                if widgets::fader_row(ui, "Attack", &format!("{} ms", d.attack_ms), &mut attack, 10.0..=1000.0, ACCENT).changed() {
+                    d.attack_ms = ((attack / 10.0).round() * 10.0) as i64;
+                }
+                let mut release = d.release_ms as f32;
+                if widgets::fader_row(ui, "Release", &format!("{} ms", d.release_ms), &mut release, 50.0..=3000.0, ACCENT).changed() {
+                    d.release_ms = ((release / 50.0).round() * 50.0) as i64;
+                }
                 m.ducking = Some(d);
             } else if m.ducking.is_some() {
                 m.ducking = Some(Ducking { enabled: false, ..m.ducking.unwrap() });
             }
         } else {
-            ui.label(RichText::new("Needs a clip with a microphone track.").font(font(12.0)).color(TEXT_MUTED));
+            note(ui, "Needs a clip with a microphone track.");
         }
         ui.add_space(12.0);
         ui.horizontal(|ui| {
@@ -197,7 +224,12 @@ fn audio_tab(ui: &mut Ui, ed: &mut Editor) {
     let i = ed.state.selected;
     let Some(seg) = ed.project().segments.get(i).cloned() else { return };
     let tracks = ed.infos.get(&seg.clip_id).map(|x| x.tracks.clone()).unwrap_or_default();
-    heading(ui, "Source channels", &format!("{} tracks", tracks.len()));
+    let faders = !ed.project().is_clip_edit() || !ed.show_audio;
+    heading(ui, "Source channels", &if tracks.len() == 1 { "1 track".to_string() } else { format!("{} tracks", tracks.len()) });
+    if !faders {
+        note(ui, "Set channel levels in the timeline below. Pick one here to trim it.");
+        ui.add_space(4.0);
+    }
     for (t, tr) in tracks.iter().enumerate() {
         let color = role_color(tr.role, t);
         let name = role_label(tr.role, &tr.title, t);
@@ -219,26 +251,24 @@ fn audio_tab(ui: &mut Ui, ed: &mut Editor) {
         } else if resp.clicked() {
             ed.selected_track = t;
         }
-        let mut v = pct as f32 / 100.0;
-        let w = ui.available_width();
-        if widgets::fader(ui, &mut v, color, w, &name).changed() {
-            ed.state.set_level(i, t, (v * 100.0).round() as u8, tracks.len());
+        if faders {
+            let mut v = pct as f32 / 100.0;
+            let w = ui.available_width();
+            if widgets::fader(ui, &mut v, color, w, &name).changed() {
+                ed.state.set_level(i, t, (v * 100.0).round() as u8, tracks.len());
+            }
         }
         ui.add_space(4.0);
     }
-    heading(ui, "Overall clip volume", &format!("{:.0}%", seg.volume * 100.0));
-    ui.horizontal(|ui| {
-        let mut v = seg.volume as f32;
-        let w = ui.available_width() - 90.0;
-        if widgets::fader(ui, &mut v, ACCENT, w, "Overall clip volume").changed() {
-            ed.state.set_volume(i, v as f64);
-        }
-        let mut muted = seg.muted;
-        if toggle(ui, &mut muted, "Mute all audio").changed() {
-            ed.state.set_muted(i, muted);
-        }
-        ui.label(RichText::new("Mute").font(font(12.0)).color(TEXT_SECONDARY));
-    });
+    heading(ui, "Whole clip", "");
+    let mut v = seg.volume as f32;
+    if widgets::fader_row(ui, "Volume", &pct(v), &mut v, 0.0..=1.0, ACCENT).changed() {
+        ed.state.set_volume(i, v as f64);
+    }
+    let mut muted = seg.muted;
+    if widgets::labeled_row(ui, "Mute", |ui| toggle(ui, &mut muted, "Mute the whole clip")).changed() {
+        ed.state.set_muted(i, muted);
+    }
 
     // Per-track trim for the selected track.
     if let Some(tr) = tracks.get(ed.selected_track) {
@@ -265,20 +295,20 @@ fn audio_tab(ui: &mut Ui, ed: &mut Editor) {
         let mut a = trim.start_ms as f64;
         let mut b = trim.end_ms as f64;
         let mut changed = false;
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Audio in").font(font(12.0)).color(TEXT_SECONDARY));
+        ui.add_space(4.0);
+        widgets::labeled_row(ui, "Keep", |ui| {
             changed |= seconds(ui, &mut a, 0.0..=seg.source_duration_ms as f64);
-            ui.label(RichText::new("out").font(font(12.0)).color(TEXT_SECONDARY));
+            ui.label(RichText::new("to").font(font(12.0)).color(TEXT_DESCRIPTION));
             changed |= seconds(ui, &mut b, 0.0..=seg.source_duration_ms as f64);
-            if button(ui, Kind::Ghost, None, "Reset", seg.track_trim(t).is_some()).clicked() {
-                ed.state.set_track_trim(i, t, None, tracks.len());
-            }
         });
         if changed {
             ed.state.set_track_trim(i, t, Some(TrackTrim { start_ms: a as i64, end_ms: b as i64 }), tracks.len());
         }
+        if seg.track_trim(t).is_some() && button(ui, Kind::Ghost, None, "Reset audio trim", true).clicked() {
+            ed.state.set_track_trim(i, t, None, tracks.len());
+        }
 
-        heading(ui, "Volume automation", "Optional");
+        heading(ui, "Volume automation", "");
         let auto = seg.edits().and_then(|e| e.automation(t)).cloned();
         let src = ed.playback.source_ms;
         ui.horizontal_wrapped(|ui| {
@@ -294,14 +324,12 @@ fn audio_tab(ui: &mut Ui, ed: &mut Editor) {
             }
         });
         if let Some(a) = auto {
+            let color = role_color(tr.role, t);
             for p in &a.points {
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new(precise(p.time_ms as f64)).font(font_mono(11.5)).color(TEXT_SECONDARY));
-                    let mut g = p.gain;
-                    if ui.add(egui::Slider::new(&mut g, 0.0..=1.0).custom_formatter(|v, _| format!("{:.0}%", v * 100.0))).changed() {
-                        ed.state.add_gain_point(i, t, p.time_ms as f64, g);
-                    }
-                });
+                let mut g = p.gain as f32;
+                if widgets::fader_row(ui, &precise(p.time_ms as f64), &pct(g), &mut g, 0.0..=1.0, color).changed() {
+                    ed.state.add_gain_point(i, t, p.time_ms as f64, g as f64);
+                }
             }
             for m in &a.mutes {
                 ui.label(RichText::new(format!("Muted {} to {}", precise(m.start_ms as f64), precise(m.end_ms as f64))).font(font(12.0)).color(TEXT_DESCRIPTION));
@@ -319,14 +347,14 @@ fn audio_tab(ui: &mut Ui, ed: &mut Editor) {
             ("Size", bytes_label(size)),
             ("Video", info.video_codec.clone()),
         ];
-        egui::Grid::new("source-details").num_columns(2).spacing([16.0, 4.0]).show(ui, |ui| {
-            for (k, v) in rows {
-                ui.label(RichText::new(k).font(font(12.0)).color(TEXT_DESCRIPTION));
-                ui.label(RichText::new(v).font(font_mono(11.5)).color(TEXT_SECONDARY));
-                ui.end_row();
-            }
+        for (k, v) in rows {
+            widgets::labeled_row(ui, k, |ui| {
+                ui.label(RichText::new(v).font(font(12.5)).color(TEXT));
+            });
+        }
+        widgets::labeled_row(ui, "File", |ui| {
+            ui.add(egui::Label::new(RichText::new(&seg.clip_id).font(font(12.5)).color(TEXT_DESCRIPTION)).truncate()).on_hover_text(&seg.clip_id);
         });
-        ui.add(egui::Label::new(RichText::new(&seg.clip_id).font(font_mono(11.0)).color(TEXT_MUTED)).truncate());
     }
 }
 
@@ -339,51 +367,73 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
     let mut edited = false;
 
     heading(ui, "Trim", &precise(seg.duration_ms() as f64));
+    let set = |ed: &mut Editor, is_start: bool, v: f64| {
+        if is_start {
+            ed.state.set_trim_start(i, v);
+        } else {
+            ed.state.set_trim_end(i, v);
+        }
+    };
     for (label, is_start) in [("In", true), ("Out", false)] {
-        ui.horizontal(|ui| {
-            ui.add_sized([28.0, 20.0], egui::Label::new(RichText::new(label).font(font(12.0)).color(TEXT_SECONDARY)));
-            let mut v = if is_start { seg.trim_start_ms } else { seg.trim_end_ms } as f64;
+        let mut v = if is_start { seg.trim_start_ms } else { seg.trim_end_ms } as f64;
+        let changed = widgets::labeled_row(ui, label, |ui| {
             let mut changed = seconds(ui, &mut v, 0.0..=seg.source_duration_ms as f64);
-            if ui.small_button("\u{2212}1f").on_hover_text("One frame earlier").clicked() {
+            ui.add_space(4.0);
+            if icon_button(ui, icon::CHEVRON_LEFT, "One frame earlier", false).clicked() {
                 v -= frame;
                 changed = true;
             }
-            if ui.small_button("+1f").on_hover_text("One frame later").clicked() {
+            if icon_button(ui, icon::CHEVRON_RIGHT, "One frame later", false).clicked() {
                 v += frame;
                 changed = true;
             }
-            if ui.small_button("Playhead").on_hover_text(if is_start { "Set in at playhead" } else { "Set out at playhead" }).clicked() {
-                v = src;
-                changed = true;
-            }
-            if changed {
-                if is_start {
-                    ed.state.set_trim_start(i, v);
-                } else {
-                    ed.state.set_trim_end(i, v);
-                }
-                edited = true;
-            }
+            changed
         });
+        if changed {
+            set(ed, is_start, v);
+            edited = true;
+        }
     }
-    if button(ui, Kind::Ghost, None, "Reset trim", seg.trim_start_ms != 0 || seg.trim_end_ms != seg.source_duration_ms).clicked() {
+    ui.add_space(2.0);
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+        if button(ui, Kind::Ghost, None, "In at playhead", true).on_hover_text("I").clicked() {
+            set(ed, true, src);
+            edited = true;
+        }
+        if button(ui, Kind::Ghost, None, "Out at playhead", true).on_hover_text("O").clicked() {
+            set(ed, false, src);
+            edited = true;
+        }
+    });
+    if (seg.trim_start_ms != 0 || seg.trim_end_ms != seg.source_duration_ms) && button(ui, Kind::Ghost, None, "Reset trim", true).clicked() {
         ed.state.reset_trim(i);
         edited = true;
     }
 
-    // Framing: fit/fill, background, pan and zoom keyframes.
     let edits = seg.edits().cloned().unwrap_or_default();
     heading(ui, "Framing", "");
     let mut framing = edits.framing.clone().unwrap_or_default();
     let before = framing.clone();
-    segmented(ui, &mut framing.mode, &[(FramingMode::Fill, "Fill"), (FramingMode::Fit, "Fit")], "Scale");
-    segmented(ui, &mut framing.background, &[(FramingBackground::Black, "Black"), (FramingBackground::Blur, "Blurred video")], "Background");
+    widgets::labeled_row(ui, "Scale", |ui| segmented(ui, &mut framing.mode, &[(FramingMode::Fill, "Fill"), (FramingMode::Fit, "Fit")], "Scale"));
+    widgets::labeled_row(ui, "Background", |ui| {
+        segmented(ui, &mut framing.background, &[(FramingBackground::Black, "Black"), (FramingBackground::Blur, "Blurred")], "Background")
+    });
     let current = framing_at(src, Some(&edits));
     let mut key = current;
-    ui.add(egui::Slider::new(&mut key.x, 0.0..=1.0).text("Horizontal").custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
-    ui.add(egui::Slider::new(&mut key.y, 0.0..=1.0).text("Vertical").custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
-    ui.add(egui::Slider::new(&mut key.zoom, 1.0..=8.0).text("Zoom").custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
-    combo_transition(ui, &mut key.transition);
+    let (mut x, mut y, mut z) = (key.x as f32, key.y as f32, key.zoom as f32);
+    if widgets::fader_row_from(ui, "Horizontal", &pct(x), &mut x, 0.0..=1.0, 0.5, ACCENT).changed() {
+        key.x = x as f64;
+    }
+    if widgets::fader_row_from(ui, "Vertical", &pct(y), &mut y, 0.0..=1.0, 0.5, ACCENT).changed() {
+        key.y = y as f64;
+    }
+    let mut zl = z.max(1.0).log2();
+    if widgets::fader_row(ui, "Zoom", &pct(z), &mut zl, 0.0..=3.0, ACCENT).changed() {
+        z = 2f32.powf(zl);
+        key.zoom = ((z * 100.0).round() / 100.0) as f64;
+    }
+    widgets::labeled_row(ui, "Easing", |ui| combo_transition(ui, &mut key.transition));
     if framing != before {
         ed.state.edit(i, "framing", |e| {
             let f = e.framing.get_or_insert_with(Default::default);
@@ -396,30 +446,43 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
         ed.state.add_keyframe(i, src, key);
         edited = true;
     }
-    ui.label(RichText::new(format!("{} keyframes. Moving a slider adds one at the playhead.", framing.keyframes.len())).font(font(11.5)).color(TEXT_MUTED));
+    ui.add_space(2.0);
+    match framing.keyframes.len() {
+        0 => note(ui, "Moving a slider adds a keyframe at the playhead."),
+        1 => note(ui, "1 keyframe. Moving a slider adds one at the playhead."),
+        n => note(ui, &format!("{n} keyframes. Moving a slider adds one at the playhead.")),
+    }
     if !framing.keyframes.is_empty() && button(ui, Kind::Ghost, None, "Remove framing", true).clicked() {
         ed.state.edit(i, "framing-clear", |e| e.framing = None);
         edited = true;
     }
 
     heading(ui, "Speed & freezes", "");
-    let mut speed = speed_at(src, Some(&edits));
-    let r = ui.add(egui::Slider::new(&mut speed, 0.25..=4.0).step_by(0.05).text("Speed here").suffix("\u{d7}"));
-    if r.changed() {
-        ed.state.add_speed_point(i, src, speed, SpeedTransition::Hold);
-        edited = true;
+    let speed = speed_at(src, Some(&edits)) as f32;
+    let mut sl = speed.clamp(0.25, 4.0).log2();
+    let speed_r = widgets::fader_row(ui, "Speed here", &format!("{speed:.2}\u{d7}"), &mut sl, -2.0..=2.0, ACCENT);
+    if speed_r.changed() {
+        let picked = 2f32.powf(sl);
+        let snap = |v: f32| ((v / 0.05).round() * 0.05).clamp(0.25, 4.0);
+        let mut next = snap(picked);
+        let keyed = !speed_r.dragged() && !speed_r.clicked();
+        if keyed && (next - speed).abs() < 0.001 {
+            next = snap(speed + 0.05 * (picked - speed).signum());
+        }
+        if (next - speed).abs() >= 0.001 {
+            ed.state.add_speed_point(i, src, next as f64, SpeedTransition::Hold);
+            edited = true;
+        }
     }
     if !edits.speed_points.is_empty() {
         let mut ramp = edits.speed_points.iter().rev().find(|p| p.time_ms as f64 <= src).map(|p| p.transition == SpeedTransition::Linear).unwrap_or(false);
-        ui.horizontal(|ui| {
-            if toggle(ui, &mut ramp, "Ramp to the next speed").changed()
-                && let Some(p) = edits.speed_points.iter().rev().find(|p| p.time_ms as f64 <= src)
-            {
-                ed.state.add_speed_point(i, p.time_ms as f64, p.speed, if ramp { SpeedTransition::Linear } else { SpeedTransition::Hold });
-                edited = true;
-            }
-            ui.label(RichText::new("Ramp to the next speed").font(font(12.0)).color(TEXT_SECONDARY));
-        });
+        let r = widgets::labeled_row(ui, "Ramp", |ui| toggle(ui, &mut ramp, "Ramp to the next speed")).on_hover_text("Ramp to the next speed");
+        if r.changed()
+            && let Some(p) = edits.speed_points.iter().rev().find(|p| p.time_ms as f64 <= src)
+        {
+            ed.state.add_speed_point(i, p.time_ms as f64, p.speed, if ramp { SpeedTransition::Linear } else { SpeedTransition::Hold });
+            edited = true;
+        }
     }
     ui.horizontal(|ui| {
         if button(ui, Kind::Ghost, Some(icon::ADD), "Freeze 1 s here", true).clicked() {
@@ -435,7 +498,8 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
         }
     });
 
-    heading(ui, "Text & privacy", &format!("{}", edits.overlays.len()));
+    let count = if edits.overlays.is_empty() { String::new() } else { edits.overlays.len().to_string() };
+    heading(ui, "Text & privacy", &count);
     ui.horizontal_wrapped(|ui| {
         for (kind, label) in [(OverlayKind::Text, "Text"), (OverlayKind::Blur, "Blur"), (OverlayKind::Pixelate, "Pixelate")] {
             if button(ui, Kind::Ghost, Some(icon::ADD), label, true).clicked() {
@@ -451,40 +515,56 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
             OverlayKind::Blur => "Blur".into(),
             OverlayKind::Pixelate => "Pixelate".into(),
         };
-        if ui.selectable_label(selected, format!("{label}  {}\u{2013}{}", precise(o.start_ms as f64), precise(o.end_ms as f64))).clicked() {
+        let span = format!("{}\u{2013}{}", precise(o.start_ms as f64), precise(o.end_ms as f64));
+        if widgets::select_row(ui, selected, &label, &span).clicked() {
             ed.selected_overlay = if selected { None } else { Some(o.id.clone()) };
         }
         if selected {
             let mut x = o.clone();
             if x.kind == OverlayKind::Text {
                 let mut content = x.content.clone().unwrap_or_default();
-                if ui.add(egui::TextEdit::multiline(&mut content).desired_rows(2).char_limit(500)).changed() {
+                if widgets::text_field(ui, ui.id().with(("overlay-text", &x.id)), &mut content, "Overlay text", 2, 500).changed() {
                     x.content = Some(content);
                 }
                 let mut size = x.size.unwrap_or_default();
-                segmented(ui, &mut size, &[(TextSize::Small, "Small"), (TextSize::Medium, "Medium"), (TextSize::Large, "Large")], "Text size");
+                widgets::labeled_row(ui, "Size", |ui| {
+                    segmented(ui, &mut size, &[(TextSize::Small, "Small"), (TextSize::Medium, "Medium"), (TextSize::Large, "Large")], "Text size")
+                });
                 x.size = Some(size);
             }
-            ui.add(egui::Slider::new(&mut x.x, 0.0..=(1.0 - x.width)).text("Left"));
-            ui.add(egui::Slider::new(&mut x.y, 0.0..=(1.0 - x.height)).text("Top"));
-            ui.add(egui::Slider::new(&mut x.width, 0.02..=1.0).text("Width"));
-            ui.add(egui::Slider::new(&mut x.height, 0.02..=1.0).text("Height"));
-            ui.horizontal(|ui| {
+            let mut v = x.x as f32;
+            if widgets::fader_row(ui, "Left", &pct(v), &mut v, 0.0..=(1.0 - x.width as f32), ACCENT).changed() {
+                x.x = v as f64;
+            }
+            let mut v = x.y as f32;
+            if widgets::fader_row(ui, "Top", &pct(v), &mut v, 0.0..=(1.0 - x.height as f32), ACCENT).changed() {
+                x.y = v as f64;
+            }
+            let mut v = x.width as f32;
+            if widgets::fader_row(ui, "Width", &pct(v), &mut v, 0.02..=1.0, ACCENT).changed() {
+                x.width = v as f64;
+            }
+            let mut v = x.height as f32;
+            if widgets::fader_row(ui, "Height", &pct(v), &mut v, 0.02..=1.0, ACCENT).changed() {
+                x.height = v as f64;
+            }
+            widgets::labeled_row(ui, "Shown", |ui| {
                 let mut a = x.start_ms as f64;
                 if seconds(ui, &mut a, 0.0..=seg.source_duration_ms as f64) {
                     x.start_ms = a as i64;
                 }
+                ui.label(RichText::new("to").font(font(12.0)).color(TEXT_DESCRIPTION));
                 let mut b = x.end_ms as f64;
                 if seconds(ui, &mut b, 0.0..=seg.source_duration_ms as f64) {
                     x.end_ms = b as i64;
                 }
-                if ui.button("Delete").clicked() {
-                    let id = x.id.clone();
-                    ed.state.edit(i, "overlay-remove", |e| e.overlays.retain(|o| o.id != id));
-                    ed.selected_overlay = None;
-                    edited = true;
-                }
             });
+            if button(ui, Kind::Ghost, Some(icon::DELETE), "Remove", true).clicked() {
+                let id = x.id.clone();
+                ed.state.edit(i, "overlay-remove", |e| e.overlays.retain(|o| o.id != id));
+                ed.selected_overlay = None;
+                edited = true;
+            }
             if &x != o && ed.selected_overlay.is_some() {
                 let id = x.id.clone();
                 ed.state.edit(i, "overlay", |e| {
@@ -498,22 +578,23 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
     }
 
     heading(ui, "Picture & title", "");
-    let mut b = edits.brightness.unwrap_or(0.0) * 100.0;
-    let mut c = edits.contrast.unwrap_or(1.0) * 100.0;
-    let mut s = edits.saturation.unwrap_or(1.0) * 100.0;
+    let b = edits.brightness.unwrap_or(0.0) * 100.0;
+    let c = edits.contrast.unwrap_or(1.0) * 100.0;
+    let s = edits.saturation.unwrap_or(1.0) * 100.0;
     let mut flip = edits.flip_horizontal.unwrap_or(false);
     let mut changed = false;
-    changed |= ui.add(egui::Slider::new(&mut b, -30.0..=30.0).text("Brightness").step_by(1.0)).changed();
-    changed |= ui.add(egui::Slider::new(&mut c, 50.0..=150.0).text("Contrast").suffix("%").step_by(1.0)).changed();
-    changed |= ui.add(egui::Slider::new(&mut s, 0.0..=200.0).text("Saturation").suffix("%").step_by(1.0)).changed();
-    ui.horizontal(|ui| {
-        changed |= toggle(ui, &mut flip, "Flip horizontally").changed();
-        ui.label(RichText::new("Flip horizontally").font(font(12.0)).color(TEXT_SECONDARY));
-        if button(ui, Kind::Ghost, None, "Reset", true).clicked() {
-            ed.state.reset_picture(i);
-            edited = true;
-        }
-    });
+    let (mut bf, mut cf, mut sf) = (b as f32, c as f32, s as f32);
+    let signed = if b.round() > 0.0 { format!("+{:.0}", b) } else { format!("{:.0}", b) };
+    changed |= widgets::fader_row(ui, "Brightness", &signed, &mut bf, -30.0..=30.0, ACCENT).changed();
+    changed |= widgets::fader_row_from(ui, "Contrast", &format!("{c:.0}%"), &mut cf, 50.0..=150.0, 100.0, ACCENT).changed();
+    changed |= widgets::fader_row_from(ui, "Saturation", &format!("{s:.0}%"), &mut sf, 0.0..=200.0, 100.0, ACCENT).changed();
+    let (b, c, s) = (bf.round() as f64, cf.round() as f64, sf.round() as f64);
+    changed |= widgets::labeled_row(ui, "Mirror", |ui| toggle(ui, &mut flip, "Flip horizontally")).on_hover_text("Flip horizontally").changed();
+    let touched = edits.brightness.is_some() || edits.contrast.is_some() || edits.saturation.is_some() || edits.flip_horizontal.is_some();
+    if touched && button(ui, Kind::Ghost, None, "Reset picture", true).clicked() {
+        ed.state.reset_picture(i);
+        edited = true;
+    }
     if changed {
         ed.state.edit(i, "picture", |e| {
             e.brightness = (b != 0.0).then_some(b / 100.0);
@@ -523,6 +604,7 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
         });
         edited = true;
     }
+    ui.add_space(8.0);
     let mut title = edits.text.clone().unwrap_or(Title {
         content: String::new(),
         start_ms: seg.trim_start_ms,
@@ -531,10 +613,15 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
         size: TextSize::Medium,
     });
     let before_title = title.clone();
-    ui.add(egui::TextEdit::singleline(&mut title.content).hint_text("Title (optional)").char_limit(160).desired_width(f32::INFINITY));
+    widgets::text_field(ui, ui.id().with("title-text"), &mut title.content, "Add a title", 1, 160);
     if !title.content.is_empty() {
-        segmented(ui, &mut title.position, &[(TitlePosition::Top, "Top"), (TitlePosition::Center, "Center"), (TitlePosition::Bottom, "Bottom")], "Title position");
-        segmented(ui, &mut title.size, &[(TextSize::Small, "S"), (TextSize::Medium, "M"), (TextSize::Large, "L")], "Title size");
+        ui.add_space(4.0);
+        widgets::labeled_row(ui, "Position", |ui| {
+            segmented(ui, &mut title.position, &[(TitlePosition::Top, "Top"), (TitlePosition::Center, "Center"), (TitlePosition::Bottom, "Bottom")], "Title position")
+        });
+        widgets::labeled_row(ui, "Size", |ui| {
+            segmented(ui, &mut title.size, &[(TextSize::Small, "Small"), (TextSize::Medium, "Medium"), (TextSize::Large, "Large")], "Title size")
+        });
     }
     if title != before_title {
         ed.state.edit(i, "title", |e| e.text = (!title.content.is_empty()).then_some(title));
@@ -547,7 +634,7 @@ fn edit_tab(ui: &mut Ui, ed: &mut Editor) {
 }
 
 fn combo_transition(ui: &mut Ui, t: &mut Interpolation) {
-    segmented(ui, t, &[(Interpolation::Smooth, "Smooth"), (Interpolation::Linear, "Linear"), (Interpolation::Hold, "Hold, then cut")], "Transition");
+    segmented(ui, t, &[(Interpolation::Smooth, "Smooth"), (Interpolation::Linear, "Linear"), (Interpolation::Hold, "Cut")], "Easing");
 }
 
 fn precise(ms: f64) -> String {

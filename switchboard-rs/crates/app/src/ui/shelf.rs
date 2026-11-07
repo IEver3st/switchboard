@@ -10,7 +10,7 @@ use super::library::duration_label;
 use super::theme::*;
 use super::widgets::icon;
 
-const CARD_W: f32 = 304.0;
+const CARD_W: f32 = 352.0;
 const CARD_H: f32 = 76.0;
 const TITLE_H: f32 = 34.0;
 
@@ -35,7 +35,7 @@ impl App {
         if drafts.is_empty() {
             return 0.0;
         }
-        let height = TITLE_H + CARD_H + 26.0;
+        let height = TITLE_H + CARD_H + 17.0;
         if viewport.top() > height {
             return height;
         }
@@ -44,13 +44,6 @@ impl App {
         let gw = g.size().x;
         p.galley(origin + vec2(0.0, 6.0), g, TEXT);
         p.text(origin + vec2(gw + 10.0, 16.0), Align2::LEFT_CENTER, drafts.len().to_string(), font(12.0), TEXT_MUTED);
-        p.text(
-            origin + vec2(gw + 32.0, 16.0),
-            Align2::LEFT_CENTER,
-            "Drafts clear 3 hours after their last save",
-            font(12.0),
-            TEXT_MUTED,
-        );
 
         let strip = Rect::from_min_size(origin + vec2(0.0, TITLE_H), vec2(width, CARD_H + 6.0));
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(strip));
@@ -89,7 +82,8 @@ impl App {
         let (kind_icon, kind) = if d.is_clip_edit() {
             (icon::CLIP_EDIT, "Clip edit".to_string())
         } else {
-            (icon::MONTAGE, format!("Montage \u{b7} {} clips", d.segments.len()))
+            let n = d.segments.len();
+            (icon::MONTAGE, if n == 1 { "Montage \u{b7} 1 clip".to_string() } else { format!("Montage \u{b7} {n} clips") })
         };
         let (state, state_color) = state_line(d, missing, now);
         let p = ui.painter();
@@ -121,7 +115,7 @@ impl App {
         if keep.hovered() {
             ui.painter().rect_filled(keep_rect, CornerRadius::same(R_CONTROL), INTERACTIVE);
         }
-        ui.painter().text(keep_rect.center(), Align2::CENTER_CENTER, icon::BOOKMARK, font_icon(13.0), glyph_color);
+        ui.painter().text(keep_rect.center(), Align2::CENTER_CENTER, icon::KEEP, font_icon(13.0), glyph_color);
         let keep = keep.on_hover_text(if kept { "Kept until you discard it" } else { "Keep this project" });
         if keep.clicked() {
             let mut p = d.clone();

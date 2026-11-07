@@ -279,11 +279,70 @@ impl App {
                 close = true;
             }
             ui.add_space(10.0);
-            ui.vertical(|ui| {
+            let compact = ui.available_width() < 1000.0;
+            let row = ui.available_rect_before_wrap();
+            let right = ui
+                .with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.add_space(super::chrome::BUTTONS_W - 8.0);
+                    if button(ui, Kind::Primary, Some(icon::SHARE), "Share", true).clicked() {
+                        let mut p = ed.state.project.clone();
+                        p.refresh();
+                        self.open_share_project(p);
+                    }
+                    if icon_button(ui, icon::INSPECTOR, "Inspector", ed.inspector).clicked() {
+                        ed.inspector = !ed.inspector;
+                    }
+                    let mut canvas = ed.state.project.canvas_size;
+                    let canvas_r = combo("canvas", canvas.label(), if compact { 120.0 } else { 150.0 }).show_ui(ui, |ui| {
+                        for c in Canvas::ALL {
+                            ui.selectable_value(&mut canvas, c, c.label());
+                        }
+                    });
+                    canvas_r.response.on_hover_text("Canvas");
+                    if canvas != ed.state.project.canvas_size {
+                        ed.state.set_canvas(canvas);
+                    }
+                    if !compact {
+                        ui.label(RichText::new("Canvas").font(font(12.5)).color(TEXT_DESCRIPTION));
+                    }
+                    if let Some(src) = ed.state.project.source_clip_id.clone()
+                        && let Some(clip) = self.lib.find(&src)
+                    {
+                        let fav = clip.favorite;
+                        let glyph = if fav { icon::STAR_FILLED } else { icon::STAR };
+                        if icon_button(ui, glyph, if fav { "Remove from favorites" } else { "Add to favorites" }, fav).clicked() {
+                            self.link.send(Request::UpdateClip { file: src, favorite: Some(!fav), title: None });
+                        }
+                    }
+                    let kept = ed.state.project.is_kept();
+                    let hint = "Kept projects stay until you discard them. Drafts clear 3 hours after their last save.";
+                    let r = if compact {
+                        let name = if kept { "Kept until you discard it" } else { "Keep project. Drafts clear 3 hours after their last save." };
+                        icon_button(ui, icon::KEEP, name, kept)
+                    } else {
+                        let label = if kept { "Kept" } else { "Keep project" };
+                        button(ui, if kept { Kind::Secondary } else { Kind::Ghost }, Some(icon::KEEP), label, true).on_hover_text(hint)
+                    };
+                    if r.clicked() {
+                        ed.state.change("keep", |p| p.kept = Some(!kept));
+                    }
+                    let (sep, _) = ui.allocate_exact_size(vec2(9.0, 22.0), Sense::hover());
+                    ui.painter().vline(sep.center().x, sep.y_range(), Stroke::new(1.0, BORDER));
+                    let what = if kept { "Discard project" } else { "Discard draft" };
+                    if icon_button(ui, icon::DELETE, what, false).clicked() {
+                        ed.confirm_discard = true;
+                    }
+                })
+                .response
+                .rect;
+            let title_rect = egui::Rect::from_min_max(row.min, egui::pos2((right.left() - 16.0).max(row.left() + 80.0), row.max.y));
+            ui.scope_builder(egui::UiBuilder::new().max_rect(title_rect).layout(Layout::top_down(Align::Min)), |ui| {
                 ui.spacing_mut().item_spacing.y = 0.0;
+                let w = title_rect.width();
+                ui.add_space(((title_rect.height() - 36.0) / 2.0).max(0.0));
                 match &mut ed.name_edit {
                     Some(text) => {
-                        let r = ui.add(egui::TextEdit::singleline(text).font(font_strong(15.0)).desired_width(320.0).char_limit(120));
+                        let r = ui.add(egui::TextEdit::singleline(text).font(font_strong(15.0)).desired_width(w.min(360.0)).char_limit(120));
                         r.request_focus();
                         if r.lost_focus() {
                             let t = text.clone();
@@ -292,9 +351,10 @@ impl App {
                         }
                     }
                     None => {
-                        let r = ui.add(egui::Label::new(RichText::new(&ed.state.project.name).font(font_strong(15.0)).color(TEXT)).sense(Sense::click()));
-                        if r.on_hover_text("Rename").clicked() {
-                            ed.name_edit = Some(ed.state.project.name.clone());
+                        let name = ed.state.project.name.clone();
+                        let r = ui.add(egui::Label::new(RichText::new(&name).font(font_strong(15.0)).color(TEXT)).truncate().sense(Sense::click()));
+                        if r.on_hover_text(format!("{name}\nClick to rename")).clicked() {
+                            ed.name_edit = Some(name);
                         }
                     }
                 }
@@ -303,49 +363,7 @@ impl App {
                     SaveState::Pending => ("Saving\u{2026}".to_string(), TEXT_MUTED),
                     SaveState::Failed(e) => (format!("Not saved: {e}"), DANGER),
                 };
-                ui.label(RichText::new(text).font(font(11.5)).color(color));
-            });
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                ui.add_space(super::chrome::BUTTONS_W - 8.0);
-                if icon_button(ui, icon::DELETE, "Discard draft", false).clicked() {
-                    ed.confirm_discard = true;
-                }
-                if button(ui, Kind::Primary, Some(icon::SHARE), "Share", true).clicked() {
-                    let mut p = ed.state.project.clone();
-                    p.refresh();
-                    self.open_share_project(p);
-                }
-                if icon_button(ui, icon::INSPECTOR, "Inspector", ed.inspector).clicked() {
-                    ed.inspector = !ed.inspector;
-                }
-                let mut canvas = ed.state.project.canvas_size;
-                combo("canvas", canvas.label(), 150.0).show_ui(ui, |ui| {
-                    for c in Canvas::ALL {
-                        ui.selectable_value(&mut canvas, c, c.label());
-                    }
-                });
-                if canvas != ed.state.project.canvas_size {
-                    ed.state.set_canvas(canvas);
-                }
-                ui.label(RichText::new("Canvas").font(font(12.5)).color(TEXT_DESCRIPTION));
-                // Favorite the source clip (single-clip edits).
-                if let Some(src) = ed.state.project.source_clip_id.clone()
-                    && let Some(clip) = self.lib.find(&src)
-                {
-                    let fav = clip.favorite;
-                    let glyph = if fav { icon::STAR_FILLED } else { icon::STAR };
-                    if icon_button(ui, glyph, if fav { "Remove from favorites" } else { "Add to favorites" }, fav).clicked() {
-                        self.link.send(Request::UpdateClip { file: src, favorite: Some(!fav), title: None });
-                    }
-                }
-                let kept = ed.state.project.is_kept();
-                let label = if kept { "Kept" } else { "Keep project" };
-                if button(ui, if kept { Kind::Secondary } else { Kind::Ghost }, Some(icon::BOOKMARK), label, true)
-                    .on_hover_text("Kept projects stay until you discard them. Drafts clear 3 hours after their last save.")
-                    .clicked()
-                {
-                    ed.state.change("keep", |p| p.kept = Some(!kept));
-                }
+                ui.add(egui::Label::new(RichText::new(text).font(font(11.5)).color(color)).truncate());
             });
         });
         close
@@ -447,34 +465,92 @@ impl App {
         let Some((mut query, mut chosen)) = ed.adding.take() else { return };
         let mut done = false;
         let mut insert = false;
+        let today = self.lib.today;
         let modal = egui::Modal::new(egui::Id::new("add-clips"))
-            .frame(Frame::new().fill(SURFACE_1).corner_radius(CornerRadius::same(R_OVERLAY)).inner_margin(Margin::same(20)))
+            .frame(
+                Frame::new()
+                    .fill(SURFACE_1)
+                    .corner_radius(CornerRadius::same(R_OVERLAY))
+                    .inner_margin(Margin::same(20))
+                    .shadow(ctx.global_style().visuals.popup_shadow),
+            )
             .show(ctx, |ui| {
-                ui.set_width(460.0);
-                // Inputs need contrast against the dialog surface.
-                ui.visuals_mut().extreme_bg_color = INTERACTIVE;
-                ui.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(1.0, BORDER_STRONG);
+                ui.set_width(520.0);
+                ui.spacing_mut().item_spacing.y = 0.0;
                 ui.label(RichText::new("Add clips").font(font_strong(15.0)).color(TEXT));
-                ui.add_space(8.0);
-                ui.add(egui::TextEdit::singleline(&mut query).hint_text("Search clips").desired_width(f32::INFINITY));
-                ui.add_space(6.0);
+                ui.add_space(2.0);
+                ui.label(RichText::new("They go after the selected segment.").font(font(12.5)).color(TEXT_DESCRIPTION));
+                ui.add_space(14.0);
+                let search = super::widgets::search_box(ui, egui::Id::new("add-clips-search"), &mut query, 520.0, "Search clips", INTERACTIVE);
+                if ui.memory(|m| m.focused().is_none()) {
+                    search.request_focus();
+                }
+                ui.add_space(10.0);
                 let q = query.to_lowercase();
-                egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
-                    for c in self.lib.clips.iter().filter(|c| q.is_empty() || c.title.to_lowercase().contains(&q)) {
-                        let mut on = chosen.contains(&c.file_name);
-                        let label = format!("{}  \u{b7}  {}", c.title, c.seconds().map(duration_label).unwrap_or_default());
-                        if ui.checkbox(&mut on, label).changed() {
+                let rows: Vec<(PathBuf, String, String, String)> = self
+                    .lib
+                    .clips
+                    .iter()
+                    .filter(|c| q.is_empty() || c.title.to_lowercase().contains(&q) || c.game.to_lowercase().contains(&q))
+                    .map(|c| {
+                        let dur = c.seconds().map(duration_label).unwrap_or_default();
+                        (c.path.clone(), c.file_name.clone(), c.title.clone(), format!("{dur} \u{b7} {}", super::grid::meta_line(c, today, false)))
+                    })
+                    .collect();
+                ui.spacing_mut().scroll = egui::style::ScrollStyle { bar_width: 6.0, ..egui::style::ScrollStyle::solid() };
+                egui::ScrollArea::vertical()
+                    .max_height(336.0)
+                    .auto_shrink([false, true])
+                    .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+                    .show(ui, |ui| {
+                    if rows.is_empty() {
+                        ui.add_space(24.0);
+                        ui.vertical_centered(|ui| {
+                            ui.label(RichText::new("No clips match your search.").font(font(13.0)).color(TEXT_DESCRIPTION));
+                        });
+                        ui.add_space(24.0);
+                    }
+                    for (path, file, title, meta) in &rows {
+                        let (rect, r) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
+                        let on = chosen.contains(file);
+                        let bg = if on {
+                            ACCENT.linear_multiply(0.14)
+                        } else if r.hovered() {
+                            SURFACE_2
+                        } else {
+                            SURFACE_1
+                        };
+                        ui.painter().rect_filled(rect, CornerRadius::same(R_CONTROL), bg);
+                        let thumb = egui::Rect::from_min_size(egui::pos2(rect.left() + 8.0, rect.center().y - 20.0), vec2(71.0, 40.0));
+                        self.paint_thumb(ui, path, thumb, CornerRadius::same(R_CONTROL), bg);
+                        let text_w = rect.right() - thumb.right() - 56.0;
+                        let p = ui.painter();
+                        let t = super::grid::elided(ui, title, font_strong(13.0), TEXT, text_w);
+                        let m = super::grid::elided(ui, meta, font(12.0), TEXT_DESCRIPTION, text_w);
+                        p.galley(egui::pos2(thumb.right() + 12.0, rect.center().y - 17.0), t, TEXT);
+                        p.galley(egui::pos2(thumb.right() + 12.0, rect.center().y + 2.0), m, TEXT_DESCRIPTION);
+                        super::widgets::check_circle(ui, egui::pos2(rect.right() - 22.0, rect.center().y), 9.0, on);
+                        super::widgets::focus_ring(ui, &r, R_CONTROL);
+                        let a11y = title.clone();
+                        r.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, on, &a11y));
+                        if r.clicked() {
                             if on {
-                                chosen.push(c.file_name.clone());
+                                chosen.retain(|f| f != file);
                             } else {
-                                chosen.retain(|f| f != &c.file_name);
+                                chosen.push(file.clone());
                             }
                         }
+                        ui.add_space(2.0);
                     }
                 });
-                ui.add_space(12.0);
+                ui.add_space(16.0);
                 ui.horizontal(|ui| {
-                    let label = if chosen.is_empty() { "Add".to_string() } else { format!("Add {}", chosen.len()) };
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    let label = match chosen.len() {
+                        0 => "Add clips".to_string(),
+                        1 => "Add 1 clip".to_string(),
+                        n => format!("Add {n} clips"),
+                    };
                     if button(ui, Kind::Primary, Some(icon::ADD), &label, !chosen.is_empty()).clicked() {
                         insert = true;
                         done = true;
@@ -519,7 +595,13 @@ impl App {
         }
         let kept = ed.state.project.is_kept();
         let modal = egui::Modal::new(egui::Id::new("discard-draft"))
-            .frame(Frame::new().fill(SURFACE_1).corner_radius(CornerRadius::same(R_OVERLAY)).inner_margin(Margin::same(20)))
+            .frame(
+                Frame::new()
+                    .fill(SURFACE_1)
+                    .corner_radius(CornerRadius::same(R_OVERLAY))
+                    .inner_margin(Margin::same(20))
+                    .shadow(ctx.global_style().visuals.popup_shadow),
+            )
             .show(ctx, |ui| {
                 ui.set_width(380.0);
                 let title = if kept { "Discard this kept project?" } else { "Discard this draft?" };
@@ -554,11 +636,11 @@ fn transport(ui: &mut Ui, ed: &mut Editor) {
     // Below this width (1080 x 720 windows) labels shorten and the volume
     // fader goes, so the centred play group never overlaps either side.
     let narrow = ui.max_rect().width() < 900.0;
-    if icon_button(ui, icon::UNDO, "Undo (Ctrl+Z)", false).clicked() && ed.state.can_undo() {
+    if super::widgets::icon_button_enabled(ui, icon::UNDO, "Undo (Ctrl+Z)", false, ed.state.can_undo()).clicked() {
         ed.state.undo();
         ed.after_edit();
     }
-    if icon_button(ui, icon::REDO, "Redo (Ctrl+Y)", false).clicked() && ed.state.can_redo() {
+    if super::widgets::icon_button_enabled(ui, icon::REDO, "Redo (Ctrl+Y)", false, ed.state.can_redo()).clicked() {
         ed.state.redo();
         ed.after_edit();
     }
@@ -566,15 +648,16 @@ fn transport(ui: &mut Ui, ed: &mut Editor) {
     ui.painter().vline(sep.center().x, sep.y_range(), Stroke::new(1.0, BORDER));
     if project.is_clip_edit() {
         let clicked = if narrow {
-            icon_button(ui, icon::VOLUME, "Audio channels", ed.show_audio).clicked()
+            icon_button(ui, icon::MIXER, "Audio channels", ed.show_audio).clicked()
         } else {
-            button(ui, Kind::Ghost, Some(icon::VOLUME), "Audio channels", true).clicked()
+            let kind = if ed.show_audio { Kind::Secondary } else { Kind::Ghost };
+            button(ui, kind, Some(icon::MIXER), "Audio channels", true).clicked()
         };
         if clicked {
             ed.show_audio = !ed.show_audio;
         }
     }
-    if icon_button(ui, icon::CLIP_EDIT, "Split at playhead (S)", false).clicked() {
+    if icon_button(ui, icon::SPLIT, "Split at playhead (S)", false).clicked() {
         let (i, src) = (ed.playback.segment, ed.playback.source_ms);
         if ed.state.split(i, src) {
             ed.after_edit();
@@ -588,8 +671,15 @@ fn transport(ui: &mut Ui, ed: &mut Editor) {
         ed.state.remove(ed.state.selected);
         ed.after_edit();
     }
-    if !project.is_clip_edit() && button(ui, Kind::Ghost, Some(icon::ADD), "Add clips", true).clicked() {
-        ed.adding = Some((String::new(), Vec::new()));
+    if !project.is_clip_edit() {
+        let clicked = if narrow {
+            icon_button(ui, icon::ADD, "Add clips", false).clicked()
+        } else {
+            button(ui, Kind::Ghost, Some(icon::ADD), "Add clips", true).clicked()
+        };
+        if clicked {
+            ed.adding = Some((String::new(), Vec::new()));
+        }
     }
 
     // Centre: back to start, play, time.
@@ -631,7 +721,7 @@ fn transport(ui: &mut Ui, ed: &mut Editor) {
         let mut v = ed.playback.volume;
         let changed = !narrow && super::widgets::fader(ui, &mut v, ACCENT, 96.0, "Preview volume").changed();
         let mut muted = ed.playback.muted;
-        if icon_button(ui, if muted { icon::MUTE } else { icon::VOLUME }, "Preview volume", false).clicked() {
+        if icon_button(ui, if muted { icon::MUTE } else { icon::VOLUME }, if muted { "Unmute preview" } else { "Mute preview" }, false).clicked() {
             muted = !muted;
         }
         if changed || muted != ed.playback.muted {

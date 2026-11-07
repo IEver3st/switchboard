@@ -662,24 +662,16 @@ pub fn game_of(path: &Path) -> String {
 fn pretty_game(raw: &str) -> String {
     let lower = raw.to_ascii_lowercase();
     if ["display", "desktop", "screen", "probe"].iter().any(|k| lower.starts_with(k)) {
-        "Desktop".into()
-    } else {
-        raw.replace('_', " ")
+        return "Desktop".into();
     }
+    let words: Vec<&str> = raw.split(['_', ' ']).filter(|w| !w.is_empty() && !is_build_tag(w)).collect();
+    if words.is_empty() { raw.replace('_', " ") } else { words.join(" ") }
 }
 
-/// "19 hr ago" style age, uppercase in the card meta line.
-pub fn age_label(modified: SystemTime) -> String {
-    let secs = SystemTime::now().duration_since(modified).map(|d| d.as_secs()).unwrap_or(0);
-    match secs {
-        0..=59 => "just now".into(),
-        60..=3599 => format!("{} min ago", secs / 60),
-        3600..=86_399 => format!("{} hr ago", secs / 3600),
-        86_400..=172_799 => "1 day ago".into(),
-        _ if secs < 30 * 86_400 => format!("{} days ago", secs / 86_400),
-        _ if secs < 365 * 86_400 => format!("{} mo ago", secs / (30 * 86_400)),
-        _ => format!("{} yr ago", secs / (365 * 86_400)),
-    }
+fn is_build_tag(word: &str) -> bool {
+    let w = word.to_ascii_lowercase();
+    let numbered = |prefix: &str| w.strip_prefix(prefix).is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+    w == "gtaprocess" || w == "gameprocess" || numbered("b") || numbered("cl")
 }
 
 // ---------------------------------------------------------------- time
@@ -755,18 +747,22 @@ pub fn day_heading(day: i32, today: i32) -> String {
 /// Short date for list rows: "Today, 9:30 PM", "Oct 5, 9:30 PM".
 pub fn short_when(c: &Clip, today: i32) -> String {
     let t = c.local;
+    let day = match today - c.day {
+        0 => "Today".to_string(),
+        1 => "Yesterday".to_string(),
+        _ => format!("{} {}", MONTHS[(t.month.clamp(1, 12) - 1) as usize], t.day),
+    };
+    format!("{day}, {}", clock_time(t))
+}
+
+pub fn clock_time(t: LocalTime) -> String {
     let (h, ampm) = match t.hour {
         0 => (12, "AM"),
         1..=11 => (t.hour, "AM"),
         12 => (12, "PM"),
         _ => (t.hour - 12, "PM"),
     };
-    let day = match today - c.day {
-        0 => "Today".to_string(),
-        1 => "Yesterday".to_string(),
-        _ => format!("{} {}", MONTHS[(t.month.clamp(1, 12) - 1) as usize], t.day),
-    };
-    format!("{day}, {h}:{:02} {ampm}", t.minute)
+    format!("{h}:{:02} {ampm}", t.minute)
 }
 
 pub fn bytes_label(b: u64) -> String {

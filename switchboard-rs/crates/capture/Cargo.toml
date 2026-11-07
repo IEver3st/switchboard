@@ -13,6 +13,7 @@ serde_json.workspace = true
 version = "0.62"
 features = [
   "Foundation",
+  "Win32_Devices_Display",
   "Win32_Devices_FunctionDiscovery",
   "Graphics",
   "Graphics_Capture",
@@ -34,6 +35,8 @@ features = [
   "Win32_System_Com_StructuredStorage",
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_Performance",
+  "Win32_System_Power",
+  "Win32_System_StationsAndDesktops",
   "Win32_System_SystemInformation",
   "Win32_System_Ole",
   "Win32_System_ProcessStatus",

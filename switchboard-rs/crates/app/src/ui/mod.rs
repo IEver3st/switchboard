@@ -502,7 +502,7 @@ impl App {
                 if ui.memory(|m| m.focused().is_none()) {
                     edit.request_focus();
                 }
-                ui.label(RichText::new(&file).font(font_mono(11.0)).color(TEXT_MUTED));
+                ui.add(egui::Label::new(RichText::new(&file).font(font(11.5)).color(TEXT_MUTED)).truncate());
                 ui.add_space(14.0);
                 let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                 ui.horizontal(|ui| {
@@ -609,8 +609,9 @@ impl App {
                 ui.label(RichText::new(title).font(font_strong(15.0)).color(TEXT));
                 ui.add_space(4.0);
                 for p in paths.iter().take(3) {
-                    let name = p.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-                    ui.add(egui::Label::new(RichText::new(name).font(font_mono(11.5)).color(TEXT_DESCRIPTION)).truncate());
+                    let file = p.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                    let title = self.lib.clips.iter().find(|c| &c.path == p).map(|c| c.title.clone()).unwrap_or_else(|| file.clone());
+                    ui.add(egui::Label::new(RichText::new(title).font(font(12.5)).color(TEXT_SECONDARY)).truncate()).on_hover_text(file);
                 }
                 if n > 3 {
                     ui.label(RichText::new(format!("and {} more", n - 3)).font(font(12.0)).color(TEXT_DESCRIPTION));

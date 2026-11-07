@@ -25,6 +25,7 @@ pub enum Msg {
     AutoWake,
     AutoSaved(Box<switchboard_autocapture::SaveRequest>, Result<SavedClip, String>),
     Update(crate::update::UpdatePhase),
+    DisplaysChanged,
 }
 
 /// Retry delay after the engine fails at runtime (display unplugged,
@@ -81,6 +82,7 @@ pub fn run(settings: Settings, rx: mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, m
     };
     s.updater.set_automatic(s.settings.auto_update);
     s.sync_auto();
+    s.refresh_displays();
     if s.settings.vertical_guide.enabled {
         s.sync_guide();
     }
@@ -190,6 +192,7 @@ impl Service {
                 self.broadcast_state();
             }
             Msg::AutoWake => {}
+            Msg::DisplaysChanged => self.follow_display(),
             Msg::AutoSaved(req, result) => self.auto_saved(*req, result),
             Msg::Update(phase) => {
                 if !matches!(phase, crate::update::UpdatePhase::Checking | crate::update::UpdatePhase::Downloading { .. }) {
@@ -200,7 +203,7 @@ impl Service {
             }
             Msg::Request { conn, req } => match req {
                 Request::Subscribe => {
-                    self.displays = list_displays().unwrap_or_default();
+                    self.follow_display();
                     self.send_state_to(conn)
                 }
                 Request::SaveClip => self.save_clip(),
@@ -246,7 +249,7 @@ impl Service {
                     }
                 }
                 Request::RefreshDevices => {
-                    self.displays = list_displays().unwrap_or_default();
+                    self.follow_display();
                     self.audio_devices = list_audio_devices();
                     if let Some(a) = &mut self.auto {
                         a.refresh();
@@ -332,7 +335,7 @@ impl Service {
     fn start_engine(&mut self) {
         self.stop_engine();
         self.replay = ReplayState::Starting;
-        self.displays = list_displays().unwrap_or_default();
+        self.refresh_displays();
         self.broadcast_state();
         match Engine::start(&self.settings.engine_config()) {
             Ok(engine) => {
@@ -392,8 +395,74 @@ impl Service {
         });
     }
 
+    fn refresh_displays(&mut self) {
+        self.displays = list_displays().unwrap_or_default();
+        if self.displays.is_empty() {
+            return;
+        }
+        let before = (self.settings.display_index, self.settings.display_id.clone(), self.settings.vertical_guide.clone());
+        let s = &mut self.settings;
+        let chosen = match s.display_id.as_deref() {
+            Some("") => self.displays.get(s.display_index).filter(|d| !d.id.is_empty()),
+            Some(id) => self.displays.iter().find(|d| d.id == id),
+            None => {
+                let mut legacy: Vec<&switchboard_capture::DisplayInfo> = self.displays.iter().collect();
+                legacy.sort_by_key(|d| (!d.primary, d.device_name.clone()));
+                let Some(chosen) = legacy.get(s.display_index).copied() else { return };
+                if let Some(guide) = s.vertical_guide.display_index {
+                    s.vertical_guide.display_index = legacy.get(guide).map(|d| d.index);
+                }
+                Some(chosen)
+            }
+        };
+        if let Some(chosen) = chosen {
+            s.display_index = chosen.index;
+            s.display_id = Some(chosen.id.clone());
+        }
+        let g = &mut s.vertical_guide;
+        match (g.display_index, g.display_id.as_deref()) {
+            (None, _) => g.display_id = None,
+            (Some(_), Some(id)) if !id.is_empty() => {
+                if let Some(d) = self.displays.iter().find(|d| d.id == id) {
+                    g.display_index = Some(d.index);
+                }
+            }
+            (Some(i), _) => g.display_id = self.displays.get(i).map(|d| d.id.clone()),
+        }
+        let changed = before != (s.display_index, s.display_id.clone(), s.vertical_guide.clone());
+        if changed {
+            let _ = s.save();
+        }
+        if changed || self.settings.vertical_guide.enabled {
+            self.push_guide();
+        }
+        if changed {
+            self.broadcast_state();
+        }
+    }
+
+    fn follow_display(&mut self) {
+        self.refresh_displays();
+        let Some(wanted) = self.settings.display_id.clone().filter(|id| !id.is_empty()) else { return };
+        let present = self.displays.iter().any(|d| d.id == wanted);
+        let recording = self.engine.as_ref().map(|e| e.info.display_id.clone());
+        if present && recording.is_some_and(|r| r != wanted) {
+            self.start_engine();
+        }
+    }
+
     fn apply_settings(&mut self, new: Settings) {
-        let new = new.sanitized();
+        let mut new = new.sanitized();
+        new.display_id = match self.displays.get(new.display_index) {
+            Some(d) if new.display_index != self.settings.display_index => Some(d.id.clone()),
+            _ => self.settings.display_id.clone(),
+        };
+        let old_guide = &self.settings.vertical_guide;
+        new.vertical_guide.display_id = match new.vertical_guide.display_index {
+            None => None,
+            Some(i) if Some(i) != old_guide.display_index => self.displays.get(i).map(|d| d.id.clone()),
+            Some(_) => old_guide.display_id.clone(),
+        };
         let restart = new.engine_key() != self.settings.engine_key();
         let hotkey_changed = new.hotkey != self.settings.hotkey;
         let autostart_changed = new.start_with_windows != self.settings.start_with_windows;
@@ -578,16 +647,20 @@ impl Service {
 
     /// Sends the guide settings, with the display they apply to, to the tray thread.
     fn sync_guide(&mut self) {
-        let g = &self.settings.vertical_guide;
-        if g.enabled {
+        if self.settings.vertical_guide.enabled {
             self.guide_error = None;
         }
-        let index = g.display_index.unwrap_or(self.settings.display_index);
+        let index = self.settings.vertical_guide.display_index.unwrap_or(self.settings.display_index);
         if self.displays.get(index).is_none() {
-            self.displays = list_displays().unwrap_or_default();
+            self.refresh_displays();
         }
+        self.push_guide();
+    }
+
+    fn push_guide(&self) {
+        let index = self.settings.vertical_guide.display_index.unwrap_or(self.settings.display_index);
         let device = self.displays.get(index).map(|d| d.device_name.clone());
-        self.main.set_guide(g.clone(), device);
+        self.main.set_guide(self.settings.vertical_guide.clone(), device);
     }
 
     fn sync_tray(&self) {

@@ -10,11 +10,15 @@ use global_hotkey::hotkey::HotKey;
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use windows::Win32::Foundation::{LPARAM, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, MSG, PostQuitMessage, PostThreadMessageW, TranslateMessage, WM_APP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, MSG, PostQuitMessage,
+    PostThreadMessageW, RegisterClassW, TranslateMessage, WM_APP, WM_DISPLAYCHANGE, WNDCLASSW, WS_EX_TOOLWINDOW,
+    WS_POPUP,
 };
+use windows::core::w;
 
 use crate::guide::{Guide, WM_GUIDE_LAYOUT};
 use crate::pipe;
@@ -28,6 +32,8 @@ const WM_SET_HOTKEY: u32 = WM_APP + 2;
 const WM_TOAST: u32 = WM_APP + 3;
 const WM_QUIT_APP: u32 = WM_APP + 4;
 const WM_GUIDE: u32 = WM_APP + 5;
+
+static DISPLAY_TX: std::sync::OnceLock<mpsc::Sender<Msg>> = std::sync::OnceLock::new();
 
 #[derive(Default)]
 struct Pending {
@@ -190,6 +196,8 @@ pub fn run(open_ui: bool) -> Result<()> {
 
     let mut toast = Toast::default();
     let mut guide = Guide::default();
+    let _ = DISPLAY_TX.set(tx.clone());
+    let displays = display_watch();
     let mut msg = MSG::default();
     while unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool() {
         if msg.hwnd.is_invalid() {
@@ -236,7 +244,51 @@ pub fn run(open_ui: bool) -> Result<()> {
             DispatchMessageW(&msg);
         }
     }
+    if let Some(hwnd) = displays {
+        unsafe {
+            let _ = DestroyWindow(hwnd);
+        }
+    }
     drop(guide);
     drop(tray);
     Ok(())
+}
+
+fn display_watch() -> Option<HWND> {
+    unsafe {
+        let instance = GetModuleHandleW(None).ok()?;
+        let class = WNDCLASSW {
+            lpfnWndProc: Some(display_proc),
+            hInstance: instance.into(),
+            lpszClassName: w!("SwitchboardDisplays"),
+            ..Default::default()
+        };
+        RegisterClassW(&class);
+        CreateWindowExW(
+            WS_EX_TOOLWINDOW,
+            w!("SwitchboardDisplays"),
+            w!("Switchboard"),
+            WS_POPUP,
+            0,
+            0,
+            0,
+            0,
+            None,
+            None,
+            Some(instance.into()),
+            None,
+        )
+        .ok()
+    }
+}
+
+unsafe extern "system" fn display_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    unsafe {
+        if msg == WM_DISPLAYCHANGE
+            && let Some(tx) = DISPLAY_TX.get()
+        {
+            let _ = tx.send(Msg::DisplaysChanged);
+        }
+        DefWindowProcW(hwnd, msg, wparam, lparam)
+    }
 }

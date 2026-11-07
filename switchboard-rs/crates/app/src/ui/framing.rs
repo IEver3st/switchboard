@@ -55,10 +55,7 @@ impl App {
                     let g = &mut s.vertical_guide;
                     ui.horizontal(|ui| {
                         ui.label(RichText::new("Vertical guide").font(font_strong(14.0)).color(TEXT));
-                        let pill = ui.painter().layout_no_wrap("9:16".into(), font_strong(11.0), ACCENT_HOVER);
-                        let (r, _) = ui.allocate_exact_size(vec2(pill.size().x + 12.0, 18.0), Sense::hover());
-                        ui.painter().rect_filled(r, CornerRadius::same(R_CONTROL), ACCENT.linear_multiply(0.18));
-                        ui.painter().galley(r.center() - pill.size() / 2.0, pill, ACCENT_HOVER);
+                        ui.label(RichText::new("9:16").font(font(12.5)).color(TEXT_MUTED));
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             toggle(ui, &mut g.enabled, "Vertical guide");
                         });
@@ -89,13 +86,13 @@ impl App {
                     });
                     row(ui, "Left to right", &position(g.horizontal), |ui, w| {
                         let mut v = g.horizontal as f32 / 100.0;
-                        if widgets::fader(ui, &mut v, ACCENT, w, "Horizontal position").changed() {
+                        if widgets::fader_centered(ui, &mut v, ACCENT, w, "Horizontal position").changed() {
                             g.horizontal = (v * 100.0).round() as u8;
                         }
                     });
                     row(ui, "Top to bottom", &position(g.vertical), |ui, w| {
                         let mut v = g.vertical as f32 / 100.0;
-                        if widgets::fader(ui, &mut v, ACCENT, w, "Vertical position").changed() {
+                        if widgets::fader_centered(ui, &mut v, ACCENT, w, "Vertical position").changed() {
                             g.vertical = (v * 100.0).round() as u8;
                         }
                     });
@@ -122,7 +119,7 @@ impl App {
                             name_label(ui, "Display", 24.0);
                             let label = match g.display_index {
                                 None => "Same as recording".to_string(),
-                                Some(i) => state.displays.get(i).map(|d| format!("Display {}", d.index + 1)).unwrap_or_else(|| "Display".into()),
+                                Some(i) => state.displays.get(i).map(|d| d.short_label()).unwrap_or_else(|| "Display".into()),
                             };
                             combo("guide-display", label, 150.0).show_ui(ui, |ui| {
                                 ui.set_min_width(240.0);
@@ -160,7 +157,7 @@ fn row(ui: &mut Ui, name: &str, value: &str, control: impl FnOnce(&mut Ui, f32))
         let w = (ui.available_width() - 48.0).max(60.0);
         control(ui, w);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            ui.label(RichText::new(value).font(font_mono(11.5)).color(TEXT_DESCRIPTION));
+            ui.label(RichText::new(value).font(font(12.0)).color(TEXT_DESCRIPTION));
         });
     });
 }
@@ -208,6 +205,6 @@ fn preview(ui: &mut Ui, g: &VerticalGuide, dw: i32, dh: i32) {
     let alpha = if g.enabled { 1.0 } else { 0.45 };
     p.rect_stroke(frame, CornerRadius::ZERO, Stroke::new(1.5, color.gamma_multiply(alpha)), StrokeKind::Outside);
     let x = screen.right() + 14.0;
-    p.text(pos2(x, screen.center().y - 9.0), Align2::LEFT_CENTER, format!("{fw} \u{d7} {fh}"), font_mono(12.0), TEXT);
+    p.text(pos2(x, screen.center().y - 9.0), Align2::LEFT_CENTER, format!("{fw} \u{d7} {fh}"), font_strong(12.5), TEXT);
     p.text(pos2(x, screen.center().y + 9.0), Align2::LEFT_CENTER, "screen pixels", font(11.5), TEXT_DESCRIPTION);
 }

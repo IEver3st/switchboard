@@ -1,10 +1,10 @@
 //! Windows Graphics Capture. Each arriving frame is copied GPU-side into one
 //! "latest" BGRA texture; the video thread samples it at the output rate.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use windows::Foundation::{TimeSpan, TypedEventHandler};
 use windows::Graphics::Capture::{Direct3D11CaptureFramePool, GraphicsCaptureItem, GraphicsCaptureSession};
 use windows::Graphics::DirectX::Direct3D11::IDirect3DDevice;
@@ -15,11 +15,13 @@ use windows::Win32::Graphics::Direct3D11::{
 };
 use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC};
 use windows::Win32::Graphics::Dxgi::IDXGIDevice;
+use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::System::WinRT::Direct3D11::{CreateDirect3D11DeviceFromDXGIDevice, IDirect3DDxgiInterfaceAccess};
 use windows::Win32::System::WinRT::Graphics::Capture::IGraphicsCaptureItemInterop;
 use windows::core::{IInspectable, Interface};
 
-use crate::gpu::{DisplayInfo, Gpu};
+use crate::clock::now_hns;
+use crate::gpu::{DisplayInfo, Gpu, monitor_is};
 
 #[derive(Default)]
 pub struct Latest {
@@ -34,6 +36,7 @@ pub struct Latest {
 pub struct CaptureShared {
     pub latest: Mutex<Latest>,
     pub frames: AtomicU64,
+    pub last_frame_hns: AtomicI64,
     /// Set when Windows closes the capture item (display removed, session lost).
     pub closed: std::sync::atomic::AtomicBool,
 }
@@ -55,19 +58,43 @@ pub struct Capture {
     token: i64,
     closed_token: i64,
     pub shared: Arc<CaptureShared>,
+    target: Target,
+}
+
+#[derive(Clone)]
+pub struct Target {
+    monitor: isize,
+    device_name: String,
+    fps: u32,
+    cursor: bool,
 }
 
 const BUFFERS: i32 = 2;
 
 impl Capture {
     pub fn start_display(gpu: &Gpu, display: &DisplayInfo, fps: u32, cursor: bool) -> Result<Capture> {
-        let interop = windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>()?;
-        let item: GraphicsCaptureItem =
-            unsafe { interop.CreateForMonitor(display.hmonitor()) }.context("CreateForMonitor")?;
-        Self::start(gpu, item, fps, cursor)
+        let shared = Arc::new(CaptureShared::default());
+        shared.last_frame_hns.store(now_hns(), Ordering::Relaxed);
+        let target = Target { monitor: display.hmonitor().0 as isize, device_name: display.device_name.clone(), fps, cursor };
+        Self::start(gpu, target, shared)
     }
 
-    fn start(gpu: &Gpu, item: GraphicsCaptureItem, fps: u32, cursor: bool) -> Result<Capture> {
+    pub fn target(&self) -> Target {
+        self.target.clone()
+    }
+
+    pub fn reopen(gpu: &Gpu, target: Target, shared: Arc<CaptureShared>) -> Result<Capture> {
+        if !monitor_is(target.monitor, &target.device_name) {
+            bail!("{} is no longer the same display", target.device_name);
+        }
+        Self::start(gpu, target, shared)
+    }
+
+    fn start(gpu: &Gpu, target: Target, shared: Arc<CaptureShared>) -> Result<Capture> {
+        let (fps, cursor) = (target.fps, target.cursor);
+        let interop = windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>()?;
+        let hmonitor = HMONITOR(target.monitor as *mut core::ffi::c_void);
+        let item: GraphicsCaptureItem = unsafe { interop.CreateForMonitor(hmonitor) }.context("CreateForMonitor")?;
         let dxgi: IDXGIDevice = gpu.device.cast()?;
         let d3d: IDirect3DDevice = unsafe { CreateDirect3D11DeviceFromDXGIDevice(&dxgi)? }.cast()?;
         let size = item.Size()?;
@@ -80,7 +107,6 @@ impl Capture {
         // Windows 11 24H2: no point delivering frames faster than we encode.
         let _ = session.SetMinUpdateInterval(TimeSpan { Duration: 10_000_000 / fps.max(1) as i64 });
 
-        let shared = Arc::new(CaptureShared::default());
         let cb_shared = shared.clone();
         let gpu = SendGpu(gpu.device.clone(), gpu.context.clone(), d3d.clone());
         let pool_size = Mutex::new(size);
@@ -115,6 +141,7 @@ impl Capture {
             unsafe { context.CopySubresourceRegion(dst, 0, 0, 0, 0, &src, 0, Some(&bx)) };
             drop(latest);
             cb_shared.frames.fetch_add(1, Ordering::Relaxed);
+            cb_shared.last_frame_hns.store(now_hns(), Ordering::Relaxed);
             let _ = frame.Close();
             Ok(())
         });
@@ -125,7 +152,7 @@ impl Capture {
             Ok(())
         }))?;
         session.StartCapture()?;
-        Ok(Capture { session, pool, item, token, closed_token, shared })
+        Ok(Capture { session, pool, item, token, closed_token, shared, target })
     }
 }
 

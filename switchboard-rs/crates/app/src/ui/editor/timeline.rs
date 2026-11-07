@@ -114,7 +114,10 @@ impl Editor {
             let x = x_of(t, start);
             if x >= lanes_rect.left() {
                 p.vline(x, ruler.bottom() - 7.0..=ruler.bottom(), Stroke::new(1.0, BORDER_STRONG));
-                p.text(pos2(x + 3.0, ruler.top() + 6.0), Align2::LEFT_TOP, ruler_label(t, step), font_mono(10.5), TEXT_MUTED);
+                let g = p.layout_no_wrap(ruler_label(t, step), font_mono(11.0), TEXT_DESCRIPTION);
+                if x + 3.0 + g.size().x <= lanes_rect.right() - 4.0 {
+                    p.galley(pos2(x + 3.0, ruler.top() + 3.0), g, TEXT_DESCRIPTION);
+                }
                 for q in 1..4 {
                     let xq = x_of(t + step * q as f64 / 4.0, start);
                     p.vline(xq, ruler.bottom() - 3.0..=ruler.bottom(), Stroke::new(1.0, BORDER));
@@ -122,7 +125,9 @@ impl Editor {
             }
             t += step;
         }
-        p.text(pos2(rect.left() + 12.0, ruler.center().y), Align2::LEFT_CENTER, "Source", font(11.5), TEXT_MUTED);
+        if source_view(self) {
+            p.text(pos2(rect.left() + 12.0, ruler.center().y), Align2::LEFT_CENTER, "Source", font(11.5), TEXT_MUTED);
+        }
 
         // Wheel: pan, Ctrl+wheel: zoom around the pointer.
         let hover = ui.rect_contains_pointer(lanes_rect);
@@ -180,20 +185,18 @@ impl Editor {
                     x += tw;
                 }
             }
-            let label = format!("{}", i + 1);
-            let badge = Rect::from_min_size(vis.min + vec2(6.0, 6.0), vec2(18.0, 16.0));
-            p.rect_filled(badge, CornerRadius::same(3), Color32::from_black_alpha(170));
-            p.text(badge.center(), Align2::CENTER_CENTER, label, font_strong(10.5), TEXT);
             let name = self.clip_titles.get(&s.clip_id).cloned().unwrap_or_else(|| s.clip_id.clone());
-            let g = elided(ui, &name, font_strong(11.5), TEXT, (vis.width() - 40.0).max(10.0));
-            p.galley(vis.min + vec2(30.0, 6.0), g, TEXT);
-            p.text(
-                vis.min + vec2(30.0, 24.0),
-                Align2::LEFT_TOP,
-                duration_label(s.duration_ms() as f64 / 1000.0),
-                font_mono(10.5),
-                TEXT_SECONDARY,
-            );
+            let g = elided(ui, &name, font_strong(11.5), TEXT, (vis.width() - 44.0).max(10.0));
+            let d = p.layout_no_wrap(duration_label(s.duration_ms() as f64 / 1000.0), font(11.0), TEXT_SECONDARY);
+            let plate_w = (28.0 + g.size().x.max(d.size().x) + 8.0).min(vis.width() - 8.0);
+            if plate_w > 24.0 {
+                let plate = Rect::from_min_size(vis.min + vec2(4.0, 4.0), vec2(plate_w, 36.0));
+                let pc = p.with_clip_rect(vis.shrink(1.0));
+                pc.rect_filled(plate, CornerRadius::same(R_CONTROL), Color32::from_rgba_unmultiplied(9, 11, 15, 200));
+                pc.text(plate.min + vec2(13.0, 11.0), Align2::CENTER_CENTER, format!("{}", i + 1), font_strong(11.0), TEXT_DESCRIPTION);
+                pc.galley(plate.min + vec2(26.0, 3.0), g, TEXT);
+                pc.galley(plate.min + vec2(26.0, 19.0), d, TEXT_SECONDARY);
+            }
             let stroke = if selected { Stroke::new(2.0, ACCENT) } else { Stroke::new(1.0, BORDER_STRONG) };
             p.rect_stroke(vis, CornerRadius::same(R_CONTROL), stroke, StrokeKind::Inside);
             // Trim handles: drawn just inside each edge, grabbable well
@@ -410,8 +413,10 @@ impl Editor {
         // Playhead.
         let ph = x_of(self.playhead_axis(), start);
         if ph >= lanes_rect.left() && ph <= lanes_rect.right() {
-            p.vline(ph, ruler.top()..=rect.bottom() - 8.0, Stroke::new(1.5, ACCENT));
-            p.rect_filled(Rect::from_center_size(pos2(ph, ruler.top() + 5.0), vec2(9.0, 9.0)), CornerRadius::same(2), ACCENT);
+            let b = ruler.bottom();
+            p.vline(ph, b - 6.0..=rect.bottom() - 8.0, Stroke::new(1.5, ACCENT));
+            let pin = vec![pos2(ph - 5.0, b - 9.0), pos2(ph + 5.0, b - 9.0), pos2(ph + 5.0, b - 4.0), pos2(ph, b + 1.0), pos2(ph - 5.0, b - 4.0)];
+            p.add(egui::Shape::convex_polygon(pin, ACCENT, Stroke::NONE));
         }
     }
 }

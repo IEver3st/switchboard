@@ -24,7 +24,7 @@ use crate::gpu::Gpu;
 use crate::mf::{self, codec_bool, codec_u32, pack};
 use crate::ring::TrackRing;
 use crate::signal::{Stop, Woke, wait_any};
-use crate::wgc::CaptureShared;
+use crate::wgc::{Capture, CaptureShared};
 
 #[derive(Clone, Debug, Default)]
 pub struct VideoParams {
@@ -43,6 +43,8 @@ pub struct VideoStats {
     pub dropped: AtomicU64,
     /// Frame slots where the encoder had not yet asked for input.
     pub encoder_waits: AtomicU64,
+    pub capture_reopens: AtomicU64,
+    pub capture_blind: AtomicBool,
     /// Set when the pipeline stops on its own (device lost, encoder error).
     pub error: Mutex<Option<String>>,
 }
@@ -50,6 +52,7 @@ pub struct VideoStats {
 pub(crate) struct VideoSetup {
     pub gpu: Gpu,
     pub capture: Arc<CaptureShared>,
+    pub source: Arc<Mutex<Option<Capture>>>,
     pub ring: Arc<TrackRing>,
     pub params: Arc<Mutex<VideoParams>>,
     pub stats: Arc<VideoStats>,
@@ -108,6 +111,8 @@ impl Pipeline {
         // returning output raises no error of its own, and the ring would
         // keep its last packets forever (every save repeating old footage).
         let mut stall = Stall::new(s.stats.encoded.load(Ordering::Relaxed), now_hns());
+        let mut quiet = Quiet::new(now_hns(), last_input_tick());
+        let _power = DisplayPower::watch();
         let Pipeline { converter, encoder, timer, scratch, avcc } = self;
         let mut sink = |sample: &IMFSample| -> Result<()> {
             let time = unsafe { sample.GetSampleTime()? };
@@ -127,6 +132,42 @@ impl Pipeline {
             let target = at(n);
             if timer.wait_until(target, &s.stop) {
                 break;
+            }
+            let frames = s.capture.frames.load(Ordering::Relaxed);
+            let last_frame = s.capture.last_frame_hns.load(Ordering::Relaxed);
+            if quiet.due(frames, last_frame, now_hns(), last_input_tick) {
+                let target = s.source.lock().unwrap().as_ref().map(Capture::target);
+                let Some(target) = target else { break };
+                if !on_user_desktop() {
+                    quiet.postpone(now_hns());
+                } else {
+                    let fresh = Capture::reopen(&s.gpu, target, s.capture.clone());
+                    let opened = fresh.is_ok();
+                    let failure = fresh.as_ref().err().map(|e| format!("{e:#}"));
+                    if let Ok(fresh) = fresh {
+                        let mut slot = s.source.lock().unwrap();
+                        if slot.is_none() || s.stop.is_set() {
+                            drop(slot);
+                            break;
+                        }
+                        let old = slot.replace(fresh);
+                        drop(slot);
+                        drop(old);
+                        s.capture.closed.store(false, Ordering::Relaxed);
+                        s.stats.capture_reopens.fetch_add(1, Ordering::Relaxed);
+                    } else if s.stop.is_set() {
+                        break;
+                    }
+                    if quiet.reopened(opened, frames, now_hns(), last_input_tick(), DISPLAY_ON.load(Ordering::Relaxed)) {
+                        match failure {
+                            Some(e) => bail!("the captured display is no longer available ({e})"),
+                            None => bail!("Windows stopped sending frames for the captured display"),
+                        }
+                    }
+                }
+            }
+            if s.stats.capture_blind.load(Ordering::Relaxed) != quiet.held {
+                s.stats.capture_blind.store(quiet.held, Ordering::Relaxed);
             }
             encoder.pump(&mut sink)?;
             let latest = {
@@ -180,6 +221,158 @@ impl Pipeline {
             }
         }
         Ok(())
+    }
+}
+
+const QUIET_REOPEN_HNS: i64 = 2 * HNS_PER_SECOND;
+const QUIET_REOPEN_MAX_HNS: i64 = 16 * HNS_PER_SECOND;
+const QUIET_MISSES: u32 = 3;
+const AWAY_MS: u32 = 4000;
+
+struct Quiet {
+    wait: i64,
+    checked_at: i64,
+    frames_at_reopen: u64,
+    input_at_reopen: u32,
+    away_at_reopen: bool,
+    misses: u32,
+    held: bool,
+}
+
+impl Quiet {
+    fn new(now: i64, input: u32) -> Quiet {
+        Quiet {
+            wait: QUIET_REOPEN_HNS,
+            checked_at: now,
+            frames_at_reopen: 0,
+            input_at_reopen: input,
+            away_at_reopen: false,
+            misses: 0,
+            held: false,
+        }
+    }
+
+    fn due(&mut self, frames: u64, last_frame: i64, now: i64, input: impl FnOnce() -> u32) -> bool {
+        if frames > self.frames_at_reopen + HEALTHY_FRAMES && BLIND_RESTARTED.load(Ordering::Relaxed) {
+            BLIND_RESTARTED.store(false, Ordering::Relaxed);
+        }
+        if frames > self.frames_at_reopen + 1 {
+            self.wait = QUIET_REOPEN_HNS;
+            self.held = false;
+        }
+        let quiet_for = now - last_frame.max(self.checked_at);
+        if quiet_for < QUIET_REOPEN_HNS {
+            return false;
+        }
+        if self.away_at_reopen && input() != self.input_at_reopen {
+            self.wait = QUIET_REOPEN_HNS;
+        }
+        quiet_for >= self.wait
+    }
+
+    fn postpone(&mut self, now: i64) {
+        self.checked_at = now;
+    }
+
+    fn reopened(&mut self, opened: bool, frames: u64, now: i64, input: u32, display_on: bool) -> bool {
+        let blind = frames == self.frames_at_reopen && display_on;
+        if !opened || blind {
+            self.misses += 1;
+            self.held = true;
+        } else if frames > self.frames_at_reopen {
+            self.misses = 0;
+            self.held = false;
+        }
+        let still = opened && !blind && frames <= self.frames_at_reopen + 1;
+        self.wait = if still { (self.wait * 2).min(QUIET_REOPEN_MAX_HNS) } else { QUIET_REOPEN_HNS };
+        self.checked_at = now;
+        self.frames_at_reopen = frames;
+        self.input_at_reopen = input;
+        self.away_at_reopen = unsafe { windows::Win32::System::SystemInformation::GetTickCount() }.wrapping_sub(input) >= AWAY_MS;
+        if self.misses < QUIET_MISSES {
+            return false;
+        }
+        if opened && BLIND_RESTARTED.swap(true, Ordering::Relaxed) {
+            self.misses = 0;
+            self.wait = QUIET_REOPEN_MAX_HNS;
+            self.held = true;
+            return false;
+        }
+        true
+    }
+}
+
+static BLIND_RESTARTED: AtomicBool = AtomicBool::new(false);
+const HEALTHY_FRAMES: u64 = 1800;
+static DISPLAY_ON: AtomicBool = AtomicBool::new(true);
+const CONSOLE_DISPLAY_STATE: GUID = GUID::from_u128(0x6fe69556_704a_47a0_8f24_c28d936fda47);
+const PBT_POWERSETTINGCHANGE: u32 = 0x8013;
+
+struct DisplayPower {
+    handle: *mut core::ffi::c_void,
+    _params: Box<windows::Win32::System::Power::DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS>,
+}
+
+impl DisplayPower {
+    fn watch() -> DisplayPower {
+        use windows::Win32::System::Power::{DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS, PowerSettingRegisterNotification};
+        use windows::Win32::UI::WindowsAndMessaging::DEVICE_NOTIFY_CALLBACK;
+        DISPLAY_ON.store(true, Ordering::Relaxed);
+        let params = Box::new(DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS { Callback: Some(on_power), Context: std::ptr::null_mut() });
+        let mut handle = std::ptr::null_mut();
+        let recipient = HANDLE(&*params as *const DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS as *mut core::ffi::c_void);
+        let result = unsafe { PowerSettingRegisterNotification(&CONSOLE_DISPLAY_STATE, DEVICE_NOTIFY_CALLBACK, recipient, &mut handle) };
+        if result.is_err() {
+            handle = std::ptr::null_mut();
+        }
+        DisplayPower { handle, _params: params }
+    }
+}
+
+impl Drop for DisplayPower {
+    fn drop(&mut self) {
+        if !self.handle.is_null() {
+            unsafe {
+                let _ = windows::Win32::System::Power::PowerSettingUnregisterNotification(
+                    windows::Win32::System::Power::HPOWERNOTIFY(self.handle as isize),
+                );
+            }
+        }
+    }
+}
+
+unsafe extern "system" fn on_power(_: *const core::ffi::c_void, kind: u32, setting: *const core::ffi::c_void) -> u32 {
+    use windows::Win32::System::Power::POWERBROADCAST_SETTING;
+    if kind != PBT_POWERSETTINGCHANGE || setting.is_null() {
+        return 0;
+    }
+    let setting = unsafe { &*(setting as *const POWERBROADCAST_SETTING) };
+    if setting.PowerSetting == CONSOLE_DISPLAY_STATE && setting.DataLength >= 4 {
+        let state = unsafe { std::ptr::read_unaligned(setting.Data.as_ptr() as *const u32) };
+        DISPLAY_ON.store(state != 0, Ordering::Relaxed);
+    }
+    0
+}
+
+fn last_input_tick() -> u32 {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+    let mut info = LASTINPUTINFO { cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
+    unsafe {
+        let _ = GetLastInputInfo(&mut info);
+    }
+    info.dwTime
+}
+
+fn on_user_desktop() -> bool {
+    use windows::Win32::System::StationsAndDesktops::{CloseDesktop, DESKTOP_CONTROL_FLAGS, DESKTOP_READOBJECTS, OpenInputDesktop};
+    match unsafe { OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_READOBJECTS) } {
+        Ok(desktop) => {
+            unsafe {
+                let _ = CloseDesktop(desktop);
+            }
+            true
+        }
+        Err(_) => false,
     }
 }
 

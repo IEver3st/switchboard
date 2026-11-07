@@ -515,7 +515,7 @@ fn clip_share_body(
         Phase::Done { .. } => {
             let g = p.layout_no_wrap(clock(duration), font_strong(12.0), TEXT);
             let pill = Align2::RIGHT_TOP.anchor_size(rect.right_top() + vec2(-12.0, 12.0), g.size() + vec2(18.0, 10.0));
-            p.rect_filled(pill, CornerRadius::same(255), Color32::from_black_alpha(170));
+            p.rect_filled(pill, CornerRadius::same(R_CONTROL), Color32::from_black_alpha(170));
             p.galley(pill.center() - g.size() / 2.0, g, TEXT);
             // A dashed outline marks the preview as something to drag.
             let e = rect.expand(4.0);
@@ -576,8 +576,7 @@ fn clip_share_body(
                     Some(SizeTarget::Megabytes(mb)) => format!("Fitting it into {mb} MB."),
                     _ => "Exporting at full quality.".to_string(),
                 };
-                ui.label(RichText::new(what).font(font(12.5)).color(TEXT_DESCRIPTION));
-                ui.label(RichText::new("The copy clears when Switchboard closes.").font(font(12.5)).color(TEXT_MUTED));
+                ui.label(RichText::new(format!("{what} The copy clears when Switchboard closes.")).font(font(12.5)).color(TEXT_DESCRIPTION));
             }
         }
     });
@@ -594,7 +593,7 @@ fn clip_share_body(
         let a11y = format!("{label}, {desc}");
         resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::RadioButton, true, selected, &a11y));
         let fill = if selected {
-            ACCENT
+            HOVER
         } else if resp.hovered() {
             INTERACTIVE
         } else {
@@ -602,17 +601,7 @@ fn clip_share_body(
         };
         let p = ui.painter();
         p.rect_filled(slot, CornerRadius::same(R_CONTROL + 2), fill);
-        // Dividers between unselected neighbours.
-        if k > 0 && !selected && share.target != Some(CLIP_SIZES[k - 1].0) {
-            p.vline(slot.left(), slot.y_range().shrink(10.0), Stroke::new(1.0, BORDER_STRONG));
-        }
-        let fg = if selected {
-            Color32::WHITE
-        } else if resp.hovered() {
-            TEXT
-        } else {
-            TEXT_SECONDARY
-        };
+        let fg = if selected || resp.hovered() { TEXT } else { TEXT_DESCRIPTION };
         p.text(slot.center(), Align2::CENTER_CENTER, *label, if selected { font_strong(13.0) } else { font(13.0) }, fg);
         super::widgets::focus_ring(ui, &resp, R_CONTROL + 2);
         if resp.on_hover_text(*desc).clicked() && !selected {

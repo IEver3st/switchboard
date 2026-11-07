@@ -8,15 +8,15 @@ use egui::text::{LayoutJob, TextWrapping};
 use egui::{Align2, Color32, CornerRadius, FontId, Galley, Rect, Response, RichText, Sense, Stroke, StrokeKind, Ui, Vec2, pos2, vec2};
 
 use super::App;
-use super::library::{Clip, Thumb, View, age_label, bytes_label, duration_label, short_when};
+use super::library::{Clip, Thumb, View, bytes_label, clock_time, duration_label, short_when};
 use super::theme::*;
-use super::widgets::{Kind, button, icon, keycaps};
+use super::widgets::{Kind, button, check_circle, icon, keycaps, menu_divider, menu_item};
 use crate::library_index::CaptureSource;
 use crate::protocol::{ReplayState, Request};
 use crate::shell;
 
 const GAP: f32 = 16.0;
-const MIN_CARD: f32 = 250.0;
+const MIN_CARD: f32 = 286.0;
 const MAX_COLUMNS: usize = 5;
 const HEADER_H: f32 = 42.0;
 const CARD_BODY_H: f32 = 62.0;
@@ -34,14 +34,22 @@ pub(super) fn elided(ui: &Ui, text: &str, font: FontId, color: Color32, width: f
     ui.painter().layout_job(job)
 }
 
-/// "FIVEM · MANUAL CAPTURE · 19 HR AGO"
-fn meta_line(c: &Clip) -> String {
+pub(super) fn meta_line(c: &Clip, today: i32, grouped: bool) -> String {
     let how = match (c.source, c.events.first()) {
-        (CaptureSource::Auto, Some(e)) => format!("{} \u{b7} auto capture", e.replace('-', " ")),
-        (CaptureSource::Auto, None) => "auto capture".into(),
-        (CaptureSource::Manual, _) => "manual capture".into(),
+        (CaptureSource::Auto, Some(e)) => format!("{} \u{b7} Auto capture", sentence_case(&e.replace('-', " "))),
+        (CaptureSource::Auto, None) => "Auto capture".into(),
+        (CaptureSource::Manual, _) => "Manual capture".into(),
     };
-    format!("{} \u{b7} {how} \u{b7} {}", c.game, age_label(c.modified)).to_uppercase()
+    if c.title.contains(&c.game) {
+        return how;
+    }
+    let when = if grouped { clock_time(c.local) } else { short_when(c, today) };
+    format!("{} \u{b7} {when} \u{b7} {how}", c.game)
+}
+
+fn sentence_case(s: &str) -> String {
+    let mut chars = s.chars();
+    chars.next().map(|f| f.to_uppercase().chain(chars).collect()).unwrap_or_default()
 }
 
 impl App {
@@ -54,8 +62,9 @@ impl App {
             // Projects & drafts scroll away with the clips.
             let shelf_h = self.drafts_shelf(ui, origin, content_w, viewport);
             if visible.is_empty() {
-                ui.set_min_size(vec2(full_w, shelf_h + 300.0));
-                let r = Rect::from_min_size(origin + vec2(0.0, shelf_h), vec2(content_w, 300.0));
+                let h = (viewport.height() - shelf_h - GUTTER).max(300.0);
+                ui.set_min_size(vec2(full_w, shelf_h + h));
+                let r = Rect::from_min_size(origin + vec2(0.0, shelf_h), vec2(content_w, h));
                 ui.scope_builder(egui::UiBuilder::new().max_rect(r), |ui| self.library_empty(ui));
                 return;
             }
@@ -111,21 +120,22 @@ impl App {
                         let g = p.layout_no_wrap(label.clone(), font_strong(13.0), TEXT);
                         let w = g.size().x;
                         p.galley(pos2(rect.left(), base - g.size().y), g, TEXT);
-                        p.text(pos2(rect.left() + w + 10.0, base), Align2::LEFT_BOTTOM, count.to_string(), font(12.0), TEXT_MUTED);
+                        let n = if *count == 1 { "1 clip".to_string() } else { format!("{count} clips") };
+                        p.text(pos2(rect.left() + w + 10.0, base), Align2::LEFT_BOTTOM, n, font(12.0), TEXT_MUTED);
                     }
                     Row::Cards { from, to } => {
                         for (c, k) in (*from..*to).enumerate() {
                             let card = Rect::from_min_size(rect.min + vec2(c as f32 * (card_w + GAP), 0.0), vec2(card_w, card_h));
-                            self.card(ui, visible[k], card, thumb_h);
+                            self.card(ui, visible[k], card, thumb_h, grouped);
                         }
                     }
-                    Row::ListItem(k) => self.list_row(ui, visible[*k], rect),
+                    Row::ListItem(k) => self.list_row(ui, visible[*k], rect, grouped),
                 }
             }
         });
     }
 
-    fn card(&mut self, ui: &mut Ui, idx: usize, rect: Rect, thumb_h: f32) {
+    fn card(&mut self, ui: &mut Ui, idx: usize, rect: Rect, thumb_h: f32, grouped: bool) {
         let path = self.lib.clips[idx].path.clone();
         let id = egui::Id::new(("clip", &path));
         let response = ui.interact(rect, id, Sense::click());
@@ -154,14 +164,7 @@ impl App {
         }
         // Favorite star, top left (or the selection check while selecting).
         if selecting || selected {
-            let c = Rect::from_min_size(thumb_rect.min + vec2(10.0, 10.0), Vec2::splat(22.0));
-            if selected {
-                p.circle_filled(c.center(), 11.0, ACCENT);
-                p.text(c.center(), Align2::CENTER_CENTER, icon::CHECK, font_icon(11.0), Color32::WHITE);
-            } else {
-                p.circle_filled(c.center(), 11.0, Color32::from_black_alpha(150));
-                p.circle_stroke(c.center(), 9.5, Stroke::new(1.5, Color32::from_white_alpha(210)));
-            }
+            check_circle(ui, thumb_rect.min + vec2(21.0, 21.0), 11.0, selected);
         } else if clip.favorite {
             let c = thumb_rect.min + vec2(21.0, 21.0);
             p.circle_filled(c, 12.0, Color32::from_rgba_unmultiplied(9, 11, 15, 190));
@@ -172,11 +175,11 @@ impl App {
         let body = Rect::from_min_max(pos2(rect.left() + 12.0, thumb_rect.bottom()), pos2(rect.right() - 8.0, rect.bottom()));
         let text_w = body.width() - 64.0;
         let title = elided(ui, &clip.title, font_strong(13.0), TEXT, text_w);
-        let meta = elided(ui, &meta_line(clip), font(10.5), TEXT_DESCRIPTION, text_w);
+        let meta = elided(ui, &meta_line(clip, self.lib.today, grouped), font(12.0), TEXT_DESCRIPTION, text_w);
         let a11y = format!("{}, {}", clip.title, meta.text());
         let p = ui.painter();
-        p.galley(pos2(body.left(), body.top() + 13.0), title, TEXT);
-        p.galley(pos2(body.left(), body.top() + 34.0), meta, TEXT_DESCRIPTION);
+        p.galley(pos2(body.left(), body.top() + 12.0), title, TEXT);
+        p.galley(pos2(body.left(), body.top() + 32.0), meta, TEXT_DESCRIPTION);
         if selected {
             p.rect_stroke(rect, radius, Stroke::new(2.0, ACCENT), StrokeKind::Inside);
         }
@@ -188,7 +191,7 @@ impl App {
         // Card buttons are separate targets on top of the card.
         let more = Rect::from_center_size(pos2(body.right() - 16.0, body.center().y), Vec2::splat(30.0));
         let share = Rect::from_center_size(pos2(body.right() - 50.0, body.center().y), Vec2::splat(30.0));
-        let share_r = card_icon(ui, share, id.with("share"), icon::SHARE, "Export for sharing");
+        let share_r = card_icon(ui, share, id.with("share"), icon::SHARE, "Share");
         let more_r = card_icon(ui, more, id.with("more"), icon::MORE, "More actions");
         if share_r.clicked() {
             self.open_share(&path);
@@ -199,7 +202,7 @@ impl App {
         }
     }
 
-    fn list_row(&mut self, ui: &mut Ui, idx: usize, rect: Rect) {
+    fn list_row(&mut self, ui: &mut Ui, idx: usize, rect: Rect, grouped: bool) {
         let path = self.lib.clips[idx].path.clone();
         let id = egui::Id::new(("clip", &path));
         let response = ui.interact(rect, id, Sense::click());
@@ -216,27 +219,30 @@ impl App {
         self.paint_thumb(ui, &path, thumb, CornerRadius::same(R_CONTROL), bg);
 
         let clip = &self.lib.clips[idx];
+        if self.lib.selecting || selected {
+            check_circle(ui, thumb.min + vec2(12.0, 12.0), 8.0, selected);
+        } else if clip.favorite {
+            let c = thumb.min + vec2(12.0, 12.0);
+            ui.painter().circle_filled(c, 9.0, Color32::from_rgba_unmultiplied(9, 11, 15, 190));
+            ui.painter().text(c, Align2::CENTER_CENTER, icon::STAR_FILLED, font_icon(10.0), WARNING);
+        }
         let right = rect.right() - 16.0;
-        let cols = [right - 420.0, right - 240.0, right - 70.0];
-        let text_w = cols[0] - thumb.right() - 32.0;
+        let cols = [right - 260.0, right - 70.0];
+        let text_w = cols[0] - thumb.right() - 40.0;
         let title = elided(ui, &clip.title, font_strong(13.0), TEXT, text_w);
-        let meta = elided(ui, &meta_line(clip), font(10.5), TEXT_DESCRIPTION, text_w);
+        let meta = elided(ui, &meta_line(clip, self.lib.today, grouped), font(12.0), TEXT_DESCRIPTION, text_w);
         let p = ui.painter();
         p.galley(pos2(thumb.right() + 14.0, rect.center().y - 18.0), title, TEXT);
-        p.galley(pos2(thumb.right() + 14.0, rect.center().y + 3.0), meta, TEXT_DESCRIPTION);
+        p.galley(pos2(thumb.right() + 14.0, rect.center().y + 2.0), meta, TEXT_DESCRIPTION);
         let quality = clip
             .info
             .filter(|i| i.height > 0)
             .map(|i| format!("{}p \u{b7} {:.0} fps", i.height, i.fps))
             .unwrap_or_else(|| "\u{2013}".into());
-        p.text(pos2(cols[0], rect.center().y), Align2::LEFT_CENTER, short_when(clip, self.lib.today), font(12.5), TEXT_SECONDARY);
-        p.text(pos2(cols[1], rect.center().y), Align2::LEFT_CENTER, quality, font(12.5), TEXT_DESCRIPTION);
+        p.text(pos2(cols[0], rect.center().y), Align2::LEFT_CENTER, quality, font(12.5), TEXT_DESCRIPTION);
         let dur = clip.seconds().map(duration_label).unwrap_or_else(|| "\u{2013}".into());
-        p.text(pos2(cols[2] - 10.0, rect.center().y), Align2::RIGHT_CENTER, dur, font(12.5), TEXT_SECONDARY);
+        p.text(pos2(cols[1] - 10.0, rect.center().y), Align2::RIGHT_CENTER, dur, font(12.5), TEXT_SECONDARY);
         p.text(pos2(right, rect.center().y), Align2::RIGHT_CENTER, bytes_label(clip.bytes), font(12.5), TEXT_DESCRIPTION);
-        if clip.favorite {
-            p.text(pos2(cols[0] - 22.0, rect.center().y), Align2::CENTER_CENTER, icon::STAR_FILLED, font_icon(12.0), WARNING);
-        }
         if response.has_focus() {
             p.rect_stroke(rect, CornerRadius::same(R_OVERLAY), Stroke::new(2.0, ACCENT_HOVER), StrokeKind::Inside);
         }
@@ -320,32 +326,36 @@ impl App {
         let favorite = clip.favorite;
         let file = clip.file_name.clone();
         let title = clip.title.clone();
-        ui.set_min_width(190.0);
-        if ui.button("Open editor").clicked() {
+        ui.set_width(232.0);
+        ui.spacing_mut().item_spacing.y = 0.0;
+        let star = if favorite { icon::STAR_FILLED } else { icon::STAR };
+        let fav_label = if favorite { "Remove from favorites" } else { "Add to favorites" };
+        if menu_item(ui, Some(icon::CLIP_EDIT), "Open editor", TEXT_SECONDARY).clicked() {
             self.open_editor(path);
             ui.close();
         }
-        if ui.button("Play in default player").clicked() {
+        if menu_item(ui, Some(icon::PLAY), "Play in default player", TEXT_SECONDARY).clicked() {
             App::open_clip(path);
             ui.close();
         }
-        if ui.button(if favorite { "Remove from favorites" } else { "Add to favorites" }).clicked() {
-            self.link.send(Request::UpdateClip { file: file.clone(), favorite: Some(!favorite), title: None });
-            ui.close();
-        }
-        if ui.button("Rename\u{2026}").clicked() {
-            self.rename = Some((path.clone(), title));
-            ui.close();
-        }
-        if ui.button("Export for sharing\u{2026}").clicked() {
+        if menu_item(ui, Some(icon::SHARE), "Share\u{2026}", TEXT_SECONDARY).clicked() {
             self.open_share(path);
             ui.close();
         }
-        if ui.button("Show in folder").clicked() {
+        menu_divider(ui);
+        if menu_item(ui, Some(star), fav_label, TEXT_SECONDARY).clicked() {
+            self.link.send(Request::UpdateClip { file: file.clone(), favorite: Some(!favorite), title: None });
+            ui.close();
+        }
+        if menu_item(ui, Some(icon::RENAME), "Rename\u{2026}", TEXT_SECONDARY).clicked() {
+            self.rename = Some((path.clone(), title));
+            ui.close();
+        }
+        if menu_item(ui, Some(icon::FOLDER), "Show in folder", TEXT_SECONDARY).clicked() {
             shell::reveal(path);
             ui.close();
         }
-        ui.separator();
+        menu_divider(ui);
         let selection = self.lib.selected_paths();
         let targets = if selection.contains(path) && selection.len() > 1 { selection } else { vec![path.clone()] };
         let label = if targets.len() == 1 {
@@ -353,7 +363,7 @@ impl App {
         } else {
             format!("Move {} clips to Recycle Bin\u{2026}", targets.len())
         };
-        if ui.button(RichText::new(label).color(DANGER)).clicked() {
+        if menu_item(ui, Some(icon::DELETE), &label, DANGER).clicked() {
             self.confirm_delete = Some(targets);
             ui.close();
         }
@@ -362,20 +372,27 @@ impl App {
     fn library_empty(&mut self, ui: &mut Ui) {
         let filtered = self.lib.is_filtered();
         let state = self.state.clone();
-        ui.add_space(56.0);
+        ui.add_space(((ui.available_height() - 160.0) * 0.45).max(40.0));
         ui.vertical_centered(|ui| {
             if !self.lib.scanned {
                 return;
             }
             if filtered {
-                let what = if self.lib.query().is_empty() {
-                    "No clips match these filters".to_string()
-                } else {
+                let searching = !self.lib.query().is_empty();
+                let filtering = self.lib.filters().active_count() > 0;
+                let what = if searching {
                     format!("No clips match \u{201c}{}\u{201d}", self.lib.query())
+                } else {
+                    "No clips match these filters".to_string()
                 };
                 ui.label(RichText::new(what).font(font_strong(15.0)).color(TEXT));
                 ui.add_space(10.0);
-                if button(ui, Kind::Secondary, None, "Clear search and filters", true).clicked() {
+                let label = match (searching, filtering) {
+                    (true, true) => "Clear search and filters",
+                    (true, false) => "Clear search",
+                    _ => "Clear filters",
+                };
+                if button(ui, Kind::Secondary, None, label, true).clicked() {
                     self.lib.set_query(String::new());
                     self.lib.set_filters(Default::default());
                 }
@@ -408,9 +425,8 @@ impl App {
                 None => {}
             }
             ui.add_space(14.0);
-            ui.label(RichText::new(self.lib.dir.display().to_string()).font(font_mono(11.5)).color(TEXT_MUTED));
-            ui.add_space(4.0);
-            if button(ui, Kind::Ghost, Some(icon::FOLDER), "Open folder", true).clicked() {
+            let dir = self.lib.dir.display().to_string();
+            if button(ui, Kind::Ghost, Some(icon::FOLDER), "Open clips folder", true).on_hover_text(dir).clicked() {
                 shell::open_folder(&self.lib.dir);
             }
         });
