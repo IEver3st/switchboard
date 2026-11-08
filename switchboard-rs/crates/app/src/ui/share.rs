@@ -15,6 +15,7 @@ use switchboard_export::{ExportHandle, ExportJob, Progress, SizeTarget, export_s
 use switchboard_project::{Project, montage_size_choices, uuid};
 
 use super::App;
+use crate::protocol::{FfmpegState, Request};
 use super::library::{Thumb, bytes_label};
 use super::theme::*;
 use super::widgets::{Kind, button, icon, icon_button};
@@ -28,6 +29,8 @@ enum Choice {
 
 enum Phase {
     Choose,
+    NeedsFfmpeg,
+    Installing,
     Running,
     Done { path: PathBuf, bytes: u64 },
     Failed(String),
@@ -50,6 +53,11 @@ pub(super) struct Share {
     target: Option<SizeTarget>,
     ready: Vec<(SizeTarget, PathBuf, u64)>,
     copied: bool,
+    pending: Option<(PathBuf, SizeTarget)>,
+    ffmpeg: FfmpegState,
+    retried: bool,
+    retry: bool,
+    asked: Option<FfmpegState>,
 }
 
 /// Clip share sizes, in the order shown.
@@ -77,6 +85,25 @@ impl Share {
             target: None,
             ready: Vec::new(),
             copied: false,
+            pending: None,
+            ffmpeg: FfmpegState::Checking,
+            retried: false,
+            retry: false,
+            asked: None,
+        }
+    }
+
+    fn install_fraction(&self) -> f32 {
+        match self.ffmpeg {
+            FfmpegState::Downloading { permille } => permille as f32 / 1000.0,
+            _ => 0.0,
+        }
+    }
+
+    fn ffmpeg_failure(&self) -> String {
+        match &self.ffmpeg {
+            FfmpegState::Failed { message } => format!("The download didn't finish ({message})."),
+            _ => "FFmpeg isn't on this PC yet.".into(),
         }
     }
 
@@ -95,6 +122,15 @@ impl Share {
     /// For review renders: true once the export finished or stopped.
     pub fn settled(&self) -> bool {
         matches!(self.phase, Phase::Done { .. } | Phase::Failed(_) | Phase::Cancelled)
+    }
+
+    pub fn review_ffmpeg(&mut self) {
+        if self.running() {
+            self.stop();
+        }
+        self.progress = Arc::new(Mutex::new(Vec::new()));
+        self.pending = self.target.map(|t| (clip_share_path(self, t), t));
+        self.retried = true;
     }
 
     pub fn project_name(&self) -> &str {
@@ -144,7 +180,8 @@ impl App {
         share.target = Some(target);
         share.copied = false;
         let Some((ffmpeg, ffprobe)) = switchboard_export::locate_ffmpeg() else {
-            share.phase = Phase::Failed("FFmpeg wasn't found. Install FFmpeg or place ffmpeg.exe next to Switchboard.".into());
+            share.pending = Some((output, target));
+            share.phase = Phase::Installing;
             return;
         };
         // Resolve every clip the project uses to a file in the library.
@@ -229,6 +266,27 @@ impl App {
         });
         let mut drag: Option<PathBuf> = None;
         let Some(share) = self.share.as_mut() else { return };
+        share.ffmpeg = self.state.as_ref().map(|s| s.ffmpeg.clone()).unwrap_or_default();
+        if share.pending.is_some() {
+            let ready = share.ffmpeg == FfmpegState::Ready;
+            if ready
+                && switchboard_export::locate_ffmpeg().is_some()
+                && let Some((path, target)) = share.pending.take()
+            {
+                self.start_export(path, target);
+                return;
+            }
+            let failed = ready || matches!(share.ffmpeg, FfmpegState::Failed { .. });
+            if failed && !share.retried {
+                share.retried = true;
+                share.retry = true;
+            }
+            let waiting = share.asked.as_ref() == Some(&share.ffmpeg);
+            if !waiting {
+                share.asked = None;
+            }
+            share.phase = if failed && !share.retry && !waiting { Phase::NeedsFfmpeg } else { Phase::Installing };
+        }
         for p in std::mem::take(&mut *share.progress.lock().unwrap()) {
             match p {
                 Progress::Preparing => share.stage = "Preparing",
@@ -264,6 +322,7 @@ impl App {
                 )
                 .show(ctx, |ui| clip_share_body(ui, share, thumb, &name, duration, &mut close, &mut start, &mut drag));
             // Closing stops a running export (dropping the share does).
+            self.send_ffmpeg_retry();
             if close || modal.should_close() {
                 self.share = None;
             }
@@ -293,6 +352,28 @@ impl App {
                 ui.add(egui::Label::new(RichText::new(&name).font(font(12.5)).color(TEXT_DESCRIPTION)).truncate());
                 ui.add_space(14.0);
                 match &share.phase {
+                    Phase::NeedsFfmpeg => {
+                        ui.label(RichText::new("Couldn't get FFmpeg").font(font_strong(13.5)).color(TEXT));
+                        ui.label(RichText::new(format!("{} {}", share.ffmpeg_failure(), ffmpeg_note())).font(font(12.5)).color(TEXT_SECONDARY));
+                        ui.add_space(14.0);
+                        ui.horizontal(|ui| {
+                            if button(ui, Kind::Primary, None, "Try again", true).clicked() {
+                                share.retry = true;
+                            }
+                            if button(ui, Kind::Ghost, None, "Close", true).clicked() {
+                                close = true;
+                            }
+                        });
+                    }
+                    Phase::Installing => {
+                        let f = share.install_fraction();
+                        ui.label(RichText::new(format!("Getting FFmpeg\u{2026} {:.0}%", f * 100.0)).font(font(13.0)).color(TEXT));
+                        ui.add_space(8.0);
+                        let (r, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 6.0), egui::Sense::hover());
+                        super::widgets::level_bar(ui, r, f.powi(2), ACCENT);
+                        ui.add_space(14.0);
+                        ui.label(RichText::new("The export starts as soon as it's ready. You can close this and come back.").font(font(12.5)).color(TEXT_DESCRIPTION));
+                    }
                     Phase::Choose => {
                         let options: Vec<(Choice, String, String)> = if montage {
                             let [a, b, c] = montage_size_choices(duration);
@@ -423,6 +504,7 @@ impl App {
         if (close || (modal.should_close() && !running)) && !running {
             self.share = None;
         }
+        self.send_ffmpeg_retry();
         if let Some((path, target)) = start {
             self.start_export(path, target);
         }
@@ -435,8 +517,27 @@ impl App {
     }
 }
 
+impl App {
+    fn send_ffmpeg_retry(&mut self) {
+        if let Some(share) = self.share.as_mut()
+            && std::mem::take(&mut share.retry)
+        {
+            share.phase = Phase::Installing;
+            share.asked = Some(share.ffmpeg.clone());
+            self.link.send(Request::InstallFfmpeg);
+        }
+    }
+}
+
 /// Width of the clip preview in the share dialog.
 const PREVIEW_W: f32 = 480.0;
+
+fn ffmpeg_note() -> String {
+    format!(
+        "FFmpeg is the free video tool Switchboard uses to compress clips. Switchboard fetches it once ({} MB) from gyan.dev's builds on GitHub and checks it before use.",
+        crate::ffmpeg_setup::DOWNLOAD_MB
+    )
+}
 
 fn clip_share_path(share: &Share, target: SizeTarget) -> PathBuf {
     share_path(&uuid(), &share.project.name, &export_suffix(&share.project, target))
@@ -494,6 +595,28 @@ fn clip_share_body(
         p.add(egui::epaint::RectShape::filled(rect, radius, tint).with_texture(t, uv));
     }
     match &share.phase {
+        Phase::NeedsFfmpeg => {
+            let c = rect.center();
+            p.text(c - vec2(0.0, 30.0), Align2::CENTER_CENTER, "Couldn't get FFmpeg", font_strong(18.0), TEXT);
+            let mut job = egui::text::LayoutJob::simple(format!("{} {}", share.ffmpeg_failure(), ffmpeg_note()), font(12.5), TEXT_SECONDARY, PREVIEW_W - 96.0);
+            job.halign = Align::Center;
+            p.galley(pos2(c.x, c.y - 8.0), p.layout_job(job), TEXT_SECONDARY);
+        }
+        Phase::Installing => {
+            let c = rect.center();
+            let f = share.install_fraction();
+            let mb = crate::ffmpeg_setup::DOWNLOAD_MB;
+            p.text(c - vec2(0.0, 26.0), Align2::CENTER_CENTER, "Getting FFmpeg", font_strong(18.0), TEXT);
+            let detail = if f > 0.0 { format!("{:.0} of {mb} MB", f * mb as f32) } else { "Starting the download".into() };
+            p.text(c, Align2::CENTER_CENTER, detail, font(13.0), TEXT_SECONDARY);
+            let bar = Rect::from_center_size(c + vec2(0.0, 30.0), vec2(220.0, 6.0));
+            p.rect_filled(bar, CornerRadius::same(3), Color32::from_white_alpha(28));
+            if f > 0.0 {
+                let mut fill = bar;
+                fill.set_width((bar.width() * f).max(6.0));
+                p.rect_filled(fill, CornerRadius::same(3), ACCENT);
+            }
+        }
         Phase::Choose | Phase::Running => {
             let c = rect.center();
             let (title, detail) = match share.stage {
@@ -563,6 +686,15 @@ fn clip_share_body(
                         share.copied = shell::copy_file(&path).is_ok();
                     }
                 });
+            }
+            (Phase::NeedsFfmpeg, _) => {
+                if button(ui, Kind::Primary, None, "Try again", true).clicked() {
+                    share.retry = true;
+                }
+                ui.label(RichText::new("Check your connection. Your clip starts compressing once FFmpeg is ready.").font(font(12.5)).color(TEXT_DESCRIPTION));
+            }
+            (Phase::Installing, _) => {
+                ui.label(RichText::new("Switchboard fetches FFmpeg once. Your clip starts compressing as soon as it's ready.").font(font(12.5)).color(TEXT_DESCRIPTION));
             }
             (Phase::Failed(_) | Phase::Cancelled, _) => {
                 if button(ui, Kind::Secondary, None, "Try again", true).clicked()

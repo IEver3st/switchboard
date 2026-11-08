@@ -86,6 +86,7 @@ pub enum Source {
     DefaultMicrophone,
     /// One input device.
     InputDevice(String),
+    Idle,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -263,7 +264,8 @@ impl Kick {
 
 pub(crate) struct AudioSetup {
     pub kind: TrackKind,
-    pub source: Source,
+    pub source: Arc<Mutex<Source>>,
+    pub retarget: Arc<AtomicBool>,
     pub ring: Arc<TrackRing>,
     pub stats: Arc<AudioStats>,
     pub stop: Arc<Stop>,
@@ -315,15 +317,28 @@ pub(crate) fn run(setup: AudioSetup) {
     };
     // Reopen on device loss (unplug, default device switch, audio service restart).
     while !setup.stop.is_set() {
-        match capture_session(&setup, &mut track) {
+        setup.retarget.store(false, Ordering::Relaxed);
+        let source = setup.source.lock().unwrap().clone();
+        if matches!(source, Source::Idle) {
+            *setup.error.lock().unwrap() = None;
+            if idle(&setup) {
+                return;
+            }
+            track.restart_at(now_hns());
+            continue;
+        }
+        match capture_session(&setup, &source, &mut track) {
             Ok(Session::Stopped) => break,
-            Ok(Session::DefaultChanged) => continue,
+            Ok(Session::DefaultChanged | Session::Retarget) => continue,
             Err(e) => {
                 *setup.error.lock().unwrap() = Some(format!("{}: {e:#}", setup.kind.label()));
                 setup.stats.reopened.fetch_add(1, Ordering::Relaxed);
                 // Keep the track continuous while the device is gone; retry in 1 s.
                 let handles = [setup.stop.handle(), setup.kick.event.handle()];
                 for _ in 0..10 {
+                    if setup.retarget.load(Ordering::Relaxed) {
+                        break;
+                    }
                     let woke = wait_any(&handles, 100);
                     setup.stats.wakeups.fetch_add(1, Ordering::Relaxed);
                     if woke == Woke::Handle(0) {
@@ -347,14 +362,29 @@ enum Session {
     Stopped,
     /// The default microphone changed; reopen on the new one right away.
     DefaultChanged,
+    Retarget,
 }
 
-fn capture_session(setup: &AudioSetup, track: &mut Track) -> Result<Session> {
-    let watcher = match &setup.source {
+fn idle(setup: &AudioSetup) -> bool {
+    let handles = [setup.stop.handle(), setup.kick.event.handle()];
+    while !setup.retarget.load(Ordering::Relaxed) {
+        let woke = wait_any(&handles, PACE_MS);
+        setup.stats.wakeups.fetch_add(1, Ordering::Relaxed);
+        match woke {
+            Woke::Handle(0) => return true,
+            Woke::Handle(1) => setup.kick.complete(setup.kick.requested()),
+            _ => {}
+        }
+    }
+    setup.stop.is_set()
+}
+
+fn capture_session(setup: &AudioSetup, source: &Source, track: &mut Track) -> Result<Session> {
+    let watcher = match source {
         Source::DefaultMicrophone => Some(DefaultWatcher::register()?),
         _ => None,
     };
-    let client = open_client(&setup.source, &setup.stop)?;
+    let client = open_client(source, &setup.stop)?;
     let event = Event::auto()?;
     unsafe {
         client.SetEventHandle(event.handle())?;
@@ -366,7 +396,7 @@ fn capture_session(setup: &AudioSetup, track: &mut Track) -> Result<Session> {
     // requested (sleeping 100 ms there lost ~75% of the audio), so those
     // tracks wake on every device event instead.
     let buffer_ms = unsafe { client.GetBufferSize()? } as u64 * 1000 / SAMPLE_RATE as u64;
-    let event_driven = matches!(setup.source, Source::LoopbackExcluding(_) | Source::LoopbackOnly(_));
+    let event_driven = matches!(source, Source::LoopbackExcluding(_) | Source::LoopbackOnly(_));
     let max_pace = if event_driven { 0 } else { (buffer_ms / 3) as u32 };
     *setup.error.lock().unwrap() = None;
     let handles = [setup.stop.handle(), setup.kick.event.handle(), event.handle()];
@@ -381,6 +411,9 @@ fn capture_session(setup: &AudioSetup, track: &mut Track) -> Result<Session> {
             }
             if watcher.as_ref().is_some_and(|w| w.changed.swap(false, Ordering::Relaxed)) {
                 return Ok(Session::DefaultChanged);
+            }
+            if setup.retarget.load(Ordering::Relaxed) {
+                return Ok(Session::Retarget);
             }
             if !kicked {
                 let woke = wait_any(&handles, IDLE_MS);
@@ -500,6 +533,7 @@ fn open_client(source: &Source, stop: &Stop) -> Result<IAudioClient> {
                     .context("output device loopback Initialize")?;
                 Ok(client)
             }
+            Source::Idle => Err(anyhow!("no source")),
             Source::DefaultMicrophone | Source::InputDevice(_) => {
                 let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
                 let device = match source {
@@ -707,6 +741,20 @@ impl Timeline {
         Ok(())
     }
 
+    fn restart_at(&mut self, hns: i64, sink: &mut dyn PcmSink) -> Result<()> {
+        let start = self.index_at(hns);
+        if start <= self.written + TOLERANCE {
+            return Ok(());
+        }
+        if !self.carry.is_empty() {
+            let pad = (BLOCK - self.carry.len()) / FRAME_BYTES;
+            self.put(None, pad, sink)?;
+        }
+        self.written = start;
+        sink.jump(start);
+        Ok(())
+    }
+
     fn advance_to(&mut self, start: i64, stats: &AudioStats, sink: &mut dyn PcmSink) -> Result<()> {
         let gap = start - self.written;
         if gap > self.max_fill {
@@ -800,6 +848,12 @@ impl Track {
         let r = timeline.push(at, frames, data, stats, &mut sink);
         stats.encoder_allocations.fetch_add(self.encoder.allocations - before, Ordering::Relaxed);
         r
+    }
+
+    fn restart_at(&mut self, hns: i64) {
+        let (timeline, mut sink) = self.sink();
+        let _ = timeline.restart_at(hns, &mut sink);
+        let _ = self.ring.flush();
     }
 
     fn fill_to(&mut self, hns: i64, stats: &AudioStats) -> Result<()> {

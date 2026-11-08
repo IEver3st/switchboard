@@ -99,6 +99,8 @@ jobs:
           $name = "switchboard-native-$version.exe"
           $exe = Join-Path $out $name
           Copy-Item -LiteralPath 'target\release\switchboard-rs.exe' -Destination $exe
+          $pdb = Join-Path $out "switchboard-native-$version.pdb"
+          Copy-Item -LiteralPath 'target\release\switchboard_rs.pdb' -Destination $pdb
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash.ToLowerInvariant()
           # "<hash>  <file>" like sha256sum; the updater reads the first token.
           Set-Content -LiteralPath "$exe.sha256" -Value "$hash  $name" -NoNewline -Encoding ascii
@@ -119,7 +121,7 @@ jobs:
           ) -join "`n" | Set-Content -LiteralPath $yml -NoNewline -Encoding ascii
           $subject = git log -1 --format=%s
           $notes = "Switchboard $version (native).`n`n$subject"
-          gh release create $tag "$exe" "$exe.sha256" "$yml" `
+          gh release create $tag "$exe" "$exe.sha256" "$yml" "$pdb" `
             --repo $env:GITHUB_REPOSITORY `
             --target $env:GITHUB_SHA `
             --title "Switchboard $version" `

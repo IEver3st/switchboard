@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use egui::{Align, Align2, CornerRadius, Frame, Layout, Margin, Rect, RichText, ScrollArea, Sense, Ui, UiBuilder, pos2, vec2};
 use switchboard_autocapture::{AutoCaptureSettings, Sensitivity};
-use switchboard_capture::{AudioDevice, Quality, TrackKind};
+use switchboard_capture::{AudioDevice, Quality, TrackKind, VideoCodec};
 
 use super::library::{bytes_label, duration_label};
 use super::theme::*;
@@ -282,14 +282,19 @@ impl App {
 
         section(ui, "Video", "Changing these restarts Instant Replay and clears what it has kept so far.", |ui| {
             if let Some(st) = state.filter(|st| !st.displays.is_empty()) {
-                row(ui, "Display", "The screen that's recorded.", None, |ui| {
-                    let current =
-                        st.displays.get(s.display_index).map(|d| d.label()).unwrap_or_else(|| "Primary display".into());
-                    wide_combo(ui, "display", current, |ui| {
-                        for d in &st.displays {
-                            ui.selectable_value(&mut s.display_index, d.index, d.label());
-                        }
-                    });
+                let app = st.status.as_ref().and_then(|x| x.app.clone()).filter(|_| s.capture_app.is_some() && s.capture_app == before.capture_app);
+                let desc = match &s.capture_app {
+                    None => "The screen that's recorded.".to_string(),
+                    Some(_) => "Records only this app's window and sound. Clips start once it's open.".to_string(),
+                };
+                let warn = app.and_then(|a| a.problem);
+                row(ui, "Record", &desc, warn.as_deref(), |ui| {
+                    let current = match &s.capture_app {
+                        Some(a) => super::sources::short(&a.name),
+                        None => st.displays.get(s.display_index).map(|d| d.label()).unwrap_or_else(|| "Primary display".into()),
+                    };
+                    let apps = &mut self.apps;
+                    wide_combo(ui, "display", current, |ui| super::sources::menu(ui, s, st, apps));
                 });
             }
             row(ui, "Resolution", "Never upscaled past your display.", None, |ui| {
@@ -317,6 +322,21 @@ impl App {
                     "Quality",
                 );
             });
+            let codecs = state.map(|st| st.codecs.clone()).unwrap_or_default();
+            if codecs.len() > 1 || s.codec != VideoCodec::H264 {
+                let note = state.and_then(|st| st.info.as_ref()).and_then(|i| i.codec_note.clone());
+                let desc = match s.codec {
+                    VideoCodec::H264 => "H.264 plays everywhere. HEVC and AV1 make smaller files at the same quality.",
+                    _ => "Smaller files at the same quality. Sharing converts clips to H.264 so they play everywhere.",
+                };
+                let mut options: Vec<(VideoCodec, &str)> = codecs.iter().map(|&c| (c, c.label())).collect();
+                if !codecs.contains(&s.codec) {
+                    options.push((s.codec, s.codec.label()));
+                }
+                row(ui, "Video format", desc, note.as_deref(), |ui| {
+                    segmented(ui, &mut s.codec, &options, "Video format");
+                });
+            }
             row(ui, "Show cursor", "", None, |ui| {
                 toggle(ui, &mut s.cursor, "Show cursor");
             });
@@ -332,34 +352,37 @@ impl App {
             "Audio tracks",
             "Each source is saved on its own track. Choose a device to record only what plays there.",
             |ui| {
+                let running_chat = state.and_then(|st| st.info.as_ref()).and_then(|i| i.chat_app.clone());
                 let game_desc = match (&s.game_device, s.chat_audio && s.chat_device.is_none()) {
-                    (None, true) => "Every app except Discord.",
-                    (None, false) => "Every app.",
-                    (Some(_), _) => "Everything that plays on this device.",
+                    (None, _) if s.capture_app.is_some() => "Only the recorded app's sound.".into(),
+                    (None, true) => format!("Every app except {}.", running_chat.as_deref().unwrap_or("your voice chat app")),
+                    (None, false) => "Every app.".into(),
+                    (Some(_), _) => "Everything that plays on this device.".into(),
                 };
                 let missing = |id: &Option<String>, list: &[AudioDevice]| {
                     (!list.is_empty() && id.as_ref().is_some_and(|id| !list.iter().any(|d| &d.id == id)))
                         .then(|| "This device isn't connected right now.".to_string())
                 };
                 let err = missing(&s.game_device, &devices.outputs).or_else(|| track_error(TrackKind::Game));
-                row(ui, "Game", game_desc, err.as_deref(), |ui| {
+                let game_default = s.capture_app.as_ref().map_or_else(|| "All apps".to_string(), |a| super::sources::short(&a.name));
+                row(ui, "Game", &game_desc, err.as_deref(), |ui| {
                     toggle(ui, &mut s.game_audio, "Game audio");
                     ui.add_space(10.0);
-                    device_combo(ui, "game-device", &mut s.game_device, &devices.outputs, "All apps", s.game_audio);
+                    device_combo(ui, "game-device", &mut s.game_device, &devices.outputs, &game_default, s.game_audio);
                 });
                 let chat_desc = match (&s.chat_device, state.and_then(|st| st.info.as_ref())) {
                     (Some(_), _) => "Everything that plays on this device.".to_string(),
                     (None, Some(i)) if s.chat_audio => match &i.chat_app {
                         Some(app) => format!("{app} is on its own track."),
-                        None => "Discord wasn't running when replay started. Turn replay off and on to add it.".into(),
+                        None => "Discord, Vesktop, TeamSpeak or Mumble go on their own track as soon as one is running.".into(),
                     },
-                    _ => "The Discord app, on its own track.".into(),
+                    _ => "Your voice chat app (Discord, Vesktop, TeamSpeak or Mumble), on its own track.".into(),
                 };
                 let err = missing(&s.chat_device, &devices.outputs).or_else(|| track_error(TrackKind::Chat));
                 row(ui, "Chat", &chat_desc, err.as_deref(), |ui| {
                     toggle(ui, &mut s.chat_audio, "Chat audio");
                     ui.add_space(10.0);
-                    device_combo(ui, "chat-device", &mut s.chat_device, &devices.outputs, "Discord app", s.chat_audio);
+                    device_combo(ui, "chat-device", &mut s.chat_device, &devices.outputs, "Voice chat app", s.chat_audio);
                 });
                 let mic_desc =
                     if s.mic_device.is_none() { "Follows the Windows default microphone." } else { "Always this microphone." };
@@ -457,6 +480,26 @@ impl App {
             row(ui, "Start with Windows", "Starts in the tray when you sign in.", None, |ui| {
                 toggle(ui, &mut s.start_with_windows, "Start with Windows");
             });
+            let copied_id = ui.make_persistent_id("diagnostics-copied");
+            let now = ui.input(|i| i.time);
+            let copied = ui.data(|d| d.get_temp::<f64>(copied_id)).is_some_and(|t| now - t < 4.0);
+            let report_desc = if copied {
+                "Diagnostics are on your clipboard. Paste them into the issue."
+            } else {
+                "Opens a GitHub issue and copies diagnostics to paste into it. Issues are public."
+            };
+            row(ui, "Report a problem", report_desc, None, |ui| {
+                if button(ui, Kind::Secondary, Some(icon::OPEN_EXTERNAL), "Report", true).clicked() {
+                    let text = crate::diagnostics::report(state, self.ui_memory.0);
+                    if shell::copy_text(&text).is_ok() {
+                        ui.data_mut(|d| d.insert_temp(copied_id, now));
+                    }
+                    shell::open_url(&crate::diagnostics::issue_url(state));
+                }
+            });
+            if copied {
+                ui.ctx().request_repaint_after(std::time::Duration::from_secs(4));
+            }
             row(ui, "Quit Switchboard", "Stops Instant Replay and removes the tray icon.", None, |ui| {
                 if button(ui, Kind::Secondary, None, "Quit", true).clicked() {
                     self.link.send(Request::Quit);
@@ -633,6 +676,25 @@ impl App {
                     ui.label(RichText::new(k).font(font(12.5)).color(TEXT_DESCRIPTION));
                     ui.label(RichText::new(v).font(font_mono(12.0)).color(TEXT_SECONDARY));
                     ui.end_row();
+                }
+            });
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                let copied_id = ui.make_persistent_id("diagnostics-panel-copied");
+                let now = ui.input(|i| i.time);
+                let copied = ui.data(|d| d.get_temp::<f64>(copied_id)).is_some_and(|t| now - t < 2.0);
+                let label = if copied { "Copied" } else { "Copy diagnostics" };
+                if button(ui, Kind::Secondary, Some(icon::COPY), label, true).clicked() {
+                    let text = crate::diagnostics::report(Some(&st), self.ui_memory.0);
+                    if shell::copy_text(&text).is_ok() {
+                        ui.data_mut(|d| d.insert_temp(copied_id, now));
+                        ui.ctx().request_repaint_after(std::time::Duration::from_secs(2));
+                    }
+                }
+                if button(ui, Kind::Ghost, Some(icon::FOLDER), "Open logs folder", true).clicked() {
+                    let dir = switchboard_log::logs_dir();
+                    let _ = std::fs::create_dir_all(&dir);
+                    shell::open_folder(&dir);
                 }
             });
         });

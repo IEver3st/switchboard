@@ -9,6 +9,8 @@
 //!   it on demand and exited when the window no longer needs it.
 
 mod auto;
+mod diagnostics;
+mod ffmpeg_setup;
 mod guide;
 mod library_index;
 mod media_client;
@@ -44,9 +46,11 @@ fn main() -> anyhow::Result<()> {
         }
     }
     if args.iter().any(|a| a == "--ui") {
+        start_log("ui");
         return ui::run();
     }
     if args.first().map(String::as_str) == Some("--media-host") {
+        start_log("media");
         return media_host::run();
     }
     if args.first().map(String::as_str) == Some("--review-shot") {
@@ -78,6 +82,8 @@ fn main() -> anyhow::Result<()> {
             }
         return Ok(());
     }
+    start_log("service");
+    switchboard_log::log!("Switchboard {} started ({})", env!("CARGO_PKG_VERSION"), protocol::BUILD);
     update::cleanup_previous();
     // A downloaded update installs when the app starts, before capture does.
     if !update::is_dev_build()
@@ -87,4 +93,9 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
     tray::run(!background)
+}
+
+fn start_log(role: &str) {
+    switchboard_log::init(role);
+    switchboard_log::install_crash_handlers();
 }

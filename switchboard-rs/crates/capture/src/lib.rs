@@ -2,6 +2,8 @@
 //! WASAPI process-loopback audio -> AAC, disk-backed replay ring, MP4 clips.
 
 mod amf;
+pub mod apps;
+mod bitstream;
 pub mod audio;
 pub mod clock;
 pub mod cursor;
@@ -12,15 +14,18 @@ pub mod mp4;
 mod ring;
 mod signal;
 mod snapshot;
+mod tonemap;
 mod video;
 mod wgc;
 
+pub use apps::{AppChoice, AppStatus, AppWindow, app_key, app_windows};
 pub use audio::{AudioDevice, AudioDevices, TrackKind, list_audio_devices};
 pub use cursor::cursor_track_path;
 pub use engine::{
     Engine, EngineConfig, EngineInfo, EngineStatus, Quality, SavedClip, TrackStatus, find_chat_app,
-    foreground_app_name, unique_clip_path,
+    foreground_app_name, recordable_codecs, unique_clip_path,
 };
+pub use video::VideoCodec;
 pub use gpu::{DisplayInfo, list_displays};
 
 /// Private bytes and working set of this process, in bytes.

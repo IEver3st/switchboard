@@ -166,6 +166,7 @@ impl CursorRing {
 pub struct CursorTrack {
     pub geometry: Geometry,
     pub ring: Mutex<CursorRing>,
+    pub(crate) app: Option<Arc<crate::apps::AppFollow>>,
 }
 
 impl CursorTrack {
@@ -174,7 +175,8 @@ impl CursorTrack {
     pub fn write(&self, video: &Path, from: i64, until: i64) -> Result<PathBuf> {
         let (samples, events) = self.ring.lock().unwrap().clip(from, until);
         let name = video.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        let json = sidecar_json(&name, &self.geometry, from, &samples, &events)?;
+        let app = self.app.as_ref().map(|a| a.status().name);
+        let json = sidecar_json(&name, &self.geometry, from, &samples, &events, app.as_deref())?;
         let path = cursor_track_path(video);
         let partial = path.with_extension("json.writing");
         if let Err(e) = std::fs::write(&partial, json).and_then(|_| std::fs::rename(&partial, &path)) {
@@ -213,6 +215,8 @@ struct Sidecar<'a> {
     button_bits: SidecarBits,
     samples: Vec<(Num, Num, Num, u8)>,
     events: Vec<SidecarEvent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    app: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -255,7 +259,7 @@ struct SidecarEvent {
 /// Sidecar version 1. Times are milliseconds from the clip's first frame;
 /// positions are video pixels (they fall outside the frame, and carry
 /// `OFF_DISPLAY`, while the pointer is on another display).
-pub fn sidecar_json(video: &str, g: &Geometry, from: i64, samples: &[Sample], events: &[ButtonEvent]) -> Result<Vec<u8>> {
+pub fn sidecar_json(video: &str, g: &Geometry, from: i64, samples: &[Sample], events: &[ButtonEvent], app: Option<&str>) -> Result<Vec<u8>> {
     let ms = |t: i64| tenth((t - from) as f64 / 10_000.0);
     let doc = Sidecar {
         version: 1,
@@ -295,6 +299,7 @@ pub fn sidecar_json(video: &str, g: &Geometry, from: i64, samples: &[Sample], ev
                 }
             })
             .collect(),
+        app,
     };
     Ok(serde_json::to_vec(&doc)?)
 }
@@ -311,6 +316,29 @@ fn per_monitor_aware<T>(f: impl FnOnce() -> T) -> T {
         unsafe { SetThreadDpiAwarenessContext(previous) };
     }
     out
+}
+
+pub(crate) fn output_geometry(index: usize, out_width: u32, out_height: u32) -> Geometry {
+    Geometry {
+        index,
+        origin_x: 0,
+        origin_y: 0,
+        width: out_width as i32,
+        height: out_height as i32,
+        dpi_scale: 1.0,
+        out_width,
+        out_height,
+    }
+}
+
+fn in_window(hwnd: isize, g: &Geometry, x: i32, y: i32) -> Option<(i32, i32, bool)> {
+    let r = crate::apps::window_bounds(hwnd)?;
+    let (w, h) = ((r.right - r.left) as f64, (r.bottom - r.top) as f64);
+    let scale = f64::min(g.out_width as f64 / w, g.out_height as f64 / h);
+    let dx = (g.out_width as f64 - w * scale) / 2.0;
+    let dy = (g.out_height as f64 - h * scale) / 2.0;
+    let inside = x >= r.left && y >= r.top && x < r.right && y < r.bottom;
+    Some((((x - r.left) as f64 * scale + dx).round() as i32, ((y - r.top) as f64 * scale + dy).round() as i32, inside))
 }
 
 /// Geometry of the captured display, encoded at `out_width` x `out_height`.
@@ -392,8 +420,16 @@ pub(crate) fn run(track: Arc<CursorTrack>, stop: Arc<Stop>) {
             if unsafe { GetCursorPos(&mut pt) }.is_ok() {
                 let t = now_hns();
                 let (held, tapped) = read_buttons();
-                let on = track.geometry.contains(pt.x, pt.y);
-                track.ring.lock().unwrap().record(t, pt.x, pt.y, held, tapped, on);
+                let point = match &track.app {
+                    None => Some((pt.x, pt.y, track.geometry.contains(pt.x, pt.y))),
+                    Some(app) => match app.hwnd.load(std::sync::atomic::Ordering::Relaxed) {
+                        0 => None,
+                        hwnd => in_window(hwnd, &track.geometry, pt.x, pt.y),
+                    },
+                };
+                if let Some((x, y, on)) = point {
+                    track.ring.lock().unwrap().record(t, x, y, held, tapped, on);
+                }
             }
             // After a system stall, resume on time instead of catching up.
             let now = now_hns();
@@ -537,7 +573,7 @@ mod tests {
             ButtonEvent { t: from + 90 * MS, down: false, button: RIGHT, x: -959, y: 340 },
             ButtonEvent { t: from + 95 * MS, down: true, button: MIDDLE, x: -959, y: 340 },
         ];
-        let json = sidecar_json("SB_Game_2026-10-08_12-00-00.mp4", &g, from, &samples, &events).unwrap();
+        let json = sidecar_json("SB_Game_2026-10-08_12-00-00.mp4", &g, from, &samples, &events, None).unwrap();
         let v: serde_json::Value = serde_json::from_slice(&json).unwrap();
         assert_eq!(v["version"], 1);
         assert_eq!(v["video"], "SB_Game_2026-10-08_12-00-00.mp4");
@@ -574,7 +610,7 @@ mod tests {
         let Some(display) = displays.first() else { return };
         let g = display_geometry(display, 1280, 720);
         assert!(g.width > 0 && g.height > 0 && g.dpi_scale >= 1.0, "{g:?}");
-        let track = Arc::new(CursorTrack { geometry: g, ring: Mutex::new(CursorRing::new(60 * HNS_PER_SECOND)) });
+        let track = Arc::new(CursorTrack { geometry: g, ring: Mutex::new(CursorRing::new(60 * HNS_PER_SECOND)), app: None });
         let stop = Arc::new(Stop::new().unwrap());
         let (t, s) = (track.clone(), stop.clone());
         let worker = std::thread::spawn(move || run(t, s));
@@ -596,7 +632,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("sb-cursor-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let video = dir.join("SB_Test_2026-10-08_12-00-00.mp4");
-        let track = CursorTrack { geometry: geometry(), ring: Mutex::new(CursorRing::new(60 * HNS_PER_SECOND)) };
+        let track = CursorTrack { geometry: geometry(), ring: Mutex::new(CursorRing::new(60 * HNS_PER_SECOND)), app: None };
         track.ring.lock().unwrap().record(HNS_PER_SECOND, -960, 340, 0, 0, true);
         let path = track.write(&video, HNS_PER_SECOND, 2 * HNS_PER_SECOND).unwrap();
         assert_eq!(path, dir.join("SB_Test_2026-10-08_12-00-00.cursor.json"));

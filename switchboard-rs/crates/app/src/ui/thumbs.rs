@@ -75,7 +75,7 @@ pub fn load_or_make(clip: &Path, dir: &Path) -> Option<(usize, usize, Vec<u8>)> 
     }
     let _ = std::fs::create_dir_all(dir);
     if let Err(e) = crate::media_client::thumbnail(clip, &cache) {
-        eprintln!("thumbnail for {}: {e:#}", clip.display());
+        switchboard_log::log!("thumbnail for {}: {e:#}", clip.display());
         return None;
     }
     let bytes = std::fs::read(&cache).ok()?;

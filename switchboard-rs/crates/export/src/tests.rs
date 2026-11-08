@@ -13,6 +13,7 @@ fn source(id: &str) -> ClipSource {
         fps: 30.0,
         audio_tracks: 3,
         mic_track: Some(2),
+        video_codec: None,
     }
 }
 

@@ -656,7 +656,7 @@ pub fn run() -> anyhow::Result<()> {
                                 break;
                             }
                         }
-                        Err(e) => eprintln!("media host: bad command: {e}"),
+                        Err(e) => switchboard_log::log!("media host: bad command: {e}"),
                     },
                 }
             }

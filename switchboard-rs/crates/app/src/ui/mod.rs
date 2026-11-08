@@ -17,6 +17,7 @@ mod settings_page;
 mod framing;
 mod share;
 mod shelf;
+mod sources;
 mod theme;
 pub(crate) mod thumbs;
 mod widgets;
@@ -145,6 +146,7 @@ pub(crate) struct App {
     update_dismissed: Option<String>,
     /// Review renders can pin the library to a fixed folder.
     pinned_dir: Option<PathBuf>,
+    apps: sources::Apps,
 }
 
 impl Drop for App {
@@ -200,6 +202,7 @@ impl App {
             windowed: true,
             update_dismissed: None,
             pinned_dir,
+            apps: Default::default(),
         }
     }
 

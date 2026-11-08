@@ -2324,6 +2324,7 @@ dependencies = [
  "switchboard-autocapture",
  "switchboard-capture",
  "switchboard-export",
+ "switchboard-log",
  "switchboard-media",
  "switchboard-project",
  "tray-icon",
@@ -2348,6 +2349,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
+ "switchboard-log",
  "windows",
  "windows-core",
 ]
@@ -2364,10 +2366,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "switchboard-log"
+version = "1.0.0"
+dependencies = [
+ "windows",
+]
+
+[[package]]
 name = "switchboard-media"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "switchboard-log",
  "windows",
 ]
 

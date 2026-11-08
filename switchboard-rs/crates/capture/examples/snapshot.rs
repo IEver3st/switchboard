@@ -11,9 +11,11 @@ fn main() -> anyhow::Result<()> {
     let h: u32 = args.get(2).and_then(|v| v.parse().ok()).unwrap_or(270);
     let cfg = EngineConfig {
         display_index: 0,
+        app: None,
         fps: 30,
         target_height: 1080,
         quality: Quality::Standard,
+        codec: Default::default(),
         replay_seconds: 15,
         game_audio: false,
         chat_audio: false,

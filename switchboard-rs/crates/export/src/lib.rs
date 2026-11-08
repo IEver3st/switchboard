@@ -28,7 +28,10 @@ use std::thread::JoinHandle;
 use anyhow::{Result, anyhow, bail};
 use switchboard_project::{Canvas, Project, Segment, TrackTrim, canvas_dimensions};
 
-pub use ffmpeg::{ProbedClip, audio_waveform, detect_encoders, free_bytes, locate_ffmpeg, probe_audio, probe_clip};
+pub use ffmpeg::{
+    PINNED_FFMPEG, ProbedClip, audio_waveform, detect_encoders, free_bytes, locate_ffmpeg, probe_audio, probe_clip,
+    provisioned_ffmpeg_dir, provisioned_ffmpeg_root,
+};
 use graph::Target;
 
 pub const METADATA_COMMENT: &str = "comment=Created with Switchboard";
@@ -50,6 +53,7 @@ pub struct ClipSource {
     pub audio_tracks: usize,
     /// Audio stream index of the Microphone track; keys music ducking.
     pub mic_track: Option<usize>,
+    pub video_codec: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -328,7 +332,8 @@ impl<'a> Ctx<'a> {
             && !s.muted
             && s.audio_track_levels.as_ref().is_none_or(|l| l.iter().all(|&v| v == 100))
             && s.audio_track_trims.as_ref().is_none_or(|t| t.iter().all(Option::is_none))
-            && s.edits().is_none_or(|e| e.is_empty());
+            && s.edits().is_none_or(|e| e.is_empty())
+            && self.sources[0].video_codec.as_deref().is_none_or(|c| c == "h264");
         unedited.then(|| self.sources[0].path.clone())
     }
 

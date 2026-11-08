@@ -32,9 +32,19 @@ fn find_pair_in(dir: &Path) -> Option<(PathBuf, PathBuf)> {
     None
 }
 
+pub const PINNED_FFMPEG: &str = "9.0.2";
+
+pub fn provisioned_ffmpeg_root() -> Option<PathBuf> {
+    std::env::var_os("LOCALAPPDATA").map(|l| PathBuf::from(l).join("Switchboard Native").join("FFmpeg"))
+}
+
+pub fn provisioned_ffmpeg_dir() -> Option<PathBuf> {
+    provisioned_ffmpeg_root().map(|r| r.join(PINNED_FFMPEG))
+}
+
 /// Finds FFmpeg and FFprobe. Order: `SWITCHBOARD_FFMPEG`/`SWITCHBOARD_FFPROBE`,
 /// beside the current executable (`ffmpeg.exe` or `ffmpeg\ffmpeg.exe`), PATH,
-/// then the Electron install's bundled copy.
+/// the copy Switchboard downloaded, then the Electron install's bundled copy.
 pub fn locate_ffmpeg() -> Option<(PathBuf, PathBuf)> {
     if let Some(f) = std::env::var_os("SWITCHBOARD_FFMPEG").map(PathBuf::from).filter(|p| p.is_file()) {
         let probe = std::env::var_os("SWITCHBOARD_FFPROBE")
@@ -57,6 +67,9 @@ pub fn locate_ffmpeg() -> Option<(PathBuf, PathBuf)> {
                 return Some((f, p));
             }
         }
+    }
+    if let Some(pair) = provisioned_ffmpeg_dir().and_then(|d| find_pair_in(&d)) {
+        return Some(pair);
     }
     let local = std::env::var_os("LOCALAPPDATA")?;
     find_pair_in(&PathBuf::from(local).join("Programs\\switchboard\\resources\\capture-host"))
@@ -147,7 +160,7 @@ fn parse_rate(r: &str) -> f64 {
 pub fn probe_clip(ffprobe: &Path, clip_id: &str, path: &Path) -> Result<ProbedClip> {
     let v = probe_json(
         ffprobe,
-        &["-v", "error", "-print_format", "json", "-show_entries", "format=duration:stream=codec_type,width,height,avg_frame_rate,r_frame_rate:stream_tags=title,name,handler_name"],
+        &["-v", "error", "-print_format", "json", "-show_entries", "format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate,r_frame_rate:stream_tags=title,name,handler_name"],
         path,
     )?;
     let streams = v["streams"].as_array().cloned().unwrap_or_default();
@@ -179,6 +192,7 @@ pub fn probe_clip(ffprobe: &Path, clip_id: &str, path: &Path) -> Result<ProbedCl
             fps,
             audio_tracks: titles.len().min(8),
             mic_track: titles.iter().position(|t| t.to_ascii_lowercase().contains("mic")),
+            video_codec: video["codec_name"].as_str().map(String::from),
         },
         duration_ms,
         track_titles: titles,

@@ -287,8 +287,52 @@ fn sha256_hex(data: &[u8]) -> Result<String> {
     Ok(out.iter().map(|b| format!("{b:02x}")).collect())
 }
 
+pub(crate) struct Sha256(windows::Win32::Security::Cryptography::BCRYPT_HASH_HANDLE);
+
+impl Sha256 {
+    pub fn new() -> Result<Sha256> {
+        use windows::Win32::Security::Cryptography::{BCRYPT_HASH_HANDLE, BCRYPT_SHA256_ALG_HANDLE, BCryptCreateHash};
+        let mut h = BCRYPT_HASH_HANDLE::default();
+        unsafe { BCryptCreateHash(BCRYPT_SHA256_ALG_HANDLE, &mut h, None, None, 0) }.ok().context("couldn't start hashing")?;
+        Ok(Sha256(h))
+    }
+
+    pub fn update(&mut self, data: &[u8]) -> Result<()> {
+        unsafe { windows::Win32::Security::Cryptography::BCryptHashData(self.0, data, 0) }.ok().context("couldn't hash the download")
+    }
+
+    pub fn hex(self) -> Result<String> {
+        let mut out = [0u8; 32];
+        unsafe { windows::Win32::Security::Cryptography::BCryptFinishHash(self.0, &mut out, 0) }.ok().context("couldn't hash the download")?;
+        Ok(out.iter().map(|b| format!("{b:02x}")).collect())
+    }
+}
+
+impl Drop for Sha256 {
+    fn drop(&mut self) {
+        let _ = unsafe { windows::Win32::Security::Cryptography::BCryptDestroyHash(self.0) };
+    }
+}
+
 /// HTTPS GET through WinHTTP (system proxy settings, redirects followed).
 fn http_get(url: &str, progress: Option<&dyn Fn(f32)>) -> Result<Vec<u8>> {
+    let mut body = Vec::new();
+    http_stream(url, "application/vnd.github+json", None, &mut |chunk, done, total| {
+        body.extend_from_slice(chunk);
+        if let (Some(p), true) = (progress, total > 0) {
+            p(done as f32 / total as f32);
+        }
+        Ok(())
+    })?;
+    Ok(body)
+}
+
+pub(crate) fn http_stream(
+    url: &str,
+    accept: &str,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+    sink: &mut dyn FnMut(&[u8], u64, u64) -> Result<()>,
+) -> Result<u64> {
     use windows::Win32::Networking::WinHttp::*;
     use windows::core::{HSTRING, PCWSTR, w};
 
@@ -321,7 +365,7 @@ fn http_get(url: &str, progress: Option<&dyn Fn(f32)>) -> Result<Vec<u8>> {
             WinHttpOpenRequest(connect.0, w!("GET"), &HSTRING::from(path.as_str()), PCWSTR::null(), PCWSTR::null(), std::ptr::null(), WINHTTP_FLAG_SECURE),
             "creating the request",
         )?;
-        let headers: Vec<u16> = "Accept: application/vnd.github+json\r\n".encode_utf16().collect();
+        let headers: Vec<u16> = format!("Accept: {accept}\r\n").encode_utf16().collect();
         WinHttpSendRequest(request.0, Some(&headers), None, 0, 0, 0).context("couldn't reach GitHub")?;
         WinHttpReceiveResponse(request.0, std::ptr::null_mut()).context("no reply from GitHub")?;
 
@@ -343,21 +387,25 @@ fn http_get(url: &str, progress: Option<&dyn Fn(f32)>) -> Result<Vec<u8>> {
         if status != 200 {
             bail!("GitHub answered with HTTP {status}");
         }
-        let total = query_u32(WINHTTP_QUERY_CONTENT_LENGTH).unwrap_or(0) as usize;
-        let mut body = Vec::with_capacity(total);
-        let mut buf = vec![0u8; 64 * 1024];
+        let total = query_u32(WINHTTP_QUERY_CONTENT_LENGTH).unwrap_or(0) as u64;
+        let mut done = 0u64;
+        let mut buf = vec![0u8; 256 * 1024];
         loop {
+            if cancel.is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
+                bail!("cancelled");
+            }
             let mut read = 0u32;
             WinHttpReadData(request.0, buf.as_mut_ptr() as *mut _, buf.len() as u32, &mut read).context("download interrupted")?;
             if read == 0 {
                 break;
             }
-            body.extend_from_slice(&buf[..read as usize]);
-            if let (Some(p), true) = (progress, total > 0) {
-                p(body.len() as f32 / total as f32);
-            }
+            done += read as u64;
+            sink(&buf[..read as usize], done, total)?;
         }
-        Ok(body)
+        if total > 0 && done != total {
+            bail!("the download ended early ({done} of {total} bytes)");
+        }
+        Ok(done)
     }
 }
 

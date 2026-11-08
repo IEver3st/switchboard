@@ -15,7 +15,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, MSG, PostQuitMessage,
-    PostThreadMessageW, RegisterClassW, TranslateMessage, WM_APP, WM_DISPLAYCHANGE, WNDCLASSW, WS_EX_TOOLWINDOW,
+    PostThreadMessageW, RegisterClassW, TranslateMessage, WM_APP, WM_DISPLAYCHANGE, WM_POWERBROADCAST, WNDCLASSW, WS_EX_TOOLWINDOW,
     WS_POPUP,
 };
 use windows::core::w;
@@ -192,7 +192,7 @@ pub fn run(open_ui: bool) -> Result<()> {
     let service_tx = tx.clone();
     std::thread::Builder::new()
         .name("sb-service".into())
-        .spawn(move || service::run(settings, rx, service_tx, service_main, open_ui))?;
+        .spawn(move || supervise(settings, rx, service_tx, service_main, open_ui))?;
 
     let mut toast = Toast::default();
     let mut guide = Guide::default();
@@ -254,6 +254,45 @@ pub fn run(open_ui: bool) -> Result<()> {
     Ok(())
 }
 
+const RESTART_WINDOW: std::time::Duration = std::time::Duration::from_secs(600);
+const MAX_RESTARTS: usize = 3;
+
+fn supervise(settings: Settings, rx: mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, main: MainThread, open_ui: bool) {
+    let mut carry = service::Carry::default();
+    let mut restarts: Vec<std::time::Instant> = Vec::new();
+    let mut first = Some(settings);
+    if switchboard_log::take_unseen_crash().is_some() {
+        main.toast(false, "Switchboard ran into a problem last time".into(), "Details are in Settings > Diagnostics.".into());
+    }
+    loop {
+        let settings = first.take().unwrap_or_else(Settings::load);
+        let open = open_ui && restarts.is_empty();
+        let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            service::run(settings, &rx, tx.clone(), main.clone(), open, &mut carry)
+        }));
+        if run.is_ok() {
+            return;
+        }
+        let _ = switchboard_log::take_unseen_crash();
+        restarts.retain(|t| t.elapsed() < RESTART_WINDOW);
+        restarts.push(std::time::Instant::now());
+        if restarts.len() > MAX_RESTARTS {
+            switchboard_log::log!("service stopped after {} restarts in {:?}", MAX_RESTARTS, RESTART_WINDOW);
+            main.toast(false, "Instant Replay stopped".into(), "It kept running into a problem. Restart Switchboard, and see Settings > Diagnostics.".into());
+            main.update_tray(false, "Switchboard \u{b7} Instant Replay stopped after a problem".into(), String::new());
+            for msg in rx.iter() {
+                if let Msg::Request { req: Request::Quit, .. } = msg {
+                    main.quit();
+                    return;
+                }
+            }
+            return;
+        }
+        switchboard_log::log!("restarting the service after a panic");
+        main.toast(false, "Switchboard recovered from a problem".into(), "Instant Replay restarted. Details are in Settings > Diagnostics.".into());
+    }
+}
+
 fn display_watch() -> Option<HWND> {
     unsafe {
         let instance = GetModuleHandleW(None).ok()?;
@@ -282,12 +321,32 @@ fn display_watch() -> Option<HWND> {
     }
 }
 
+const PBT_APMSUSPEND: usize = 0x4;
+const PBT_APMRESUMESUSPEND: usize = 0x7;
+const PBT_APMRESUMEAUTOMATIC: usize = 0x12;
+
 unsafe extern "system" fn display_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     unsafe {
-        if msg == WM_DISPLAYCHANGE
-            && let Some(tx) = DISPLAY_TX.get()
-        {
-            let _ = tx.send(Msg::DisplaysChanged);
+        let tx = DISPLAY_TX.get();
+        match (msg, wparam.0) {
+            (WM_DISPLAYCHANGE, _) => {
+                if let Some(tx) = tx {
+                    let _ = tx.send(Msg::DisplaysChanged);
+                }
+            }
+            (WM_POWERBROADCAST, PBT_APMSUSPEND) => {
+                if let Some(tx) = tx {
+                    let _ = tx.send(Msg::Suspend);
+                }
+                return LRESULT(1);
+            }
+            (WM_POWERBROADCAST, PBT_APMRESUMESUSPEND | PBT_APMRESUMEAUTOMATIC) => {
+                if let Some(tx) = tx {
+                    let _ = tx.send(Msg::Resume);
+                }
+                return LRESULT(1);
+            }
+            _ => {}
         }
         DefWindowProcW(hwnd, msg, wparam, lparam)
     }

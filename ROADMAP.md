@@ -1,28 +1,27 @@
-# Prototype to usable alpha
+# Roadmap
 
-## Milestone 1: replace simulations
+Switchboard 1.x is the native Rust app. This list is ordered by what blocks trust first, then reach, then polish.
 
-- Wire Electron to Capture.Host over named pipes.
-- Bundle a known FFmpeg build and add encoder capability probing.
-- Implement Windows display capture and replay saves on a real machine.
-- Add NAudio endpoint discovery for replay audio device pickers.
+## Prove what is built
 
-## Milestone 2: real devices
+- Measure A/V sync acoustically. `--example av_sync` puts audio 24 to 31 ms ahead of the picture against the output clock; decide whether to shift audio once the device latency is known.
+- Record on an HDR display and compare the tone-mapped clip with what the screen showed.
+- Test NVIDIA (NVENC) and Intel (QSV) encoders, including HEVC and AV1, and multi-GPU laptops.
+- Soak replay for hours across sleep and resume, display unplug, default device changes and chat app restarts.
+- Check single-app capture against exclusive fullscreen games, elevated apps and apps that recreate their window.
 
-- Add HID enumeration in a dedicated device host.
-- Port the existing HyperX QuadCast protocol work into `device.hyperx-quadcast`.
-- Implement Logitech HID++ discovery and basic DPI/polling controls.
-- Add USB reconnect and permission error surfaces.
+## Trust
 
-## Milestone 3: capture tracks
+- Code-sign the executable and the update package so SmartScreen and antivirus stop flagging it.
+- Screen-reader support for the window.
 
-- Record game, chat, and microphone as separate synchronized tracks.
-- Add automatic game/process detection and per-game profiles.
-- Add endpoint recovery and default-device changes for capture sources.
-- Validate HDR, VRR, exclusive fullscreen fallback, and 120 FPS capture.
+## Capture
 
-## Milestone 4: hardening
+- Record HDR clips (10-bit HEVC or AV1 with PQ) as an option beside tone-mapped SDR.
+- Follow display mode changes during a session without restarting the engine.
+- Multiple apps, or an app plus its child windows, as one source.
 
-- Signed module registry and rollback.
-- Crash recovery and diagnostics.
-- 24-hour soak suite and performance release gates.
+## Sharing
+
+- Stream-copy HEVC and AV1 when the destination accepts them, instead of always re-encoding to H.264.
+- Export without FFmpeg for the common case (trim and re-mux), keeping FFmpeg for compression.

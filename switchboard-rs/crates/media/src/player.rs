@@ -469,7 +469,7 @@ impl VideoWorker {
             };
             if let Some((w, h)) = resize {
                 if let Err(e) = self.resize(w, h, playing && seek.is_none()) {
-                    eprintln!("media: video resize failed: {e:#}");
+                    switchboard_log::log!("media: video resize failed: {e:#}");
                 }
                 continue;
             }
@@ -477,7 +477,7 @@ impl VideoWorker {
                 self.seen_seek = req.epoch;
                 if let Err(e) = self.seek_to(req) {
                     // A broken stretch of video: keep the last frame, don't spin.
-                    eprintln!("media: video seek failed: {e:#}");
+                    switchboard_log::log!("media: video seek failed: {e:#}");
                 }
                 continue;
             }
@@ -485,7 +485,7 @@ impl VideoWorker {
                 match self.advance() {
                     Ok(w) => w,
                     Err(e) => {
-                        eprintln!("media: video decode failed: {e:#}");
+                        switchboard_log::log!("media: video decode failed: {e:#}");
                         // Stop decoding this stream; position keeps running.
                         self.dec.eof = true;
                         Duration::from_millis(50)
@@ -720,7 +720,7 @@ fn open_tracks(path: &Path, movie: Option<&mp4::Movie>, count: usize) -> Vec<Opt
             match TrackReader::open(path, s.index) {
                 Ok(t) => Some(t),
                 Err(e) => {
-                    eprintln!("media: audio track {i} unavailable: {e:#}");
+                    switchboard_log::log!("media: audio track {i} unavailable: {e:#}");
                     None
                 }
             }
@@ -824,7 +824,7 @@ impl AudioWorker {
                 let Some(t) = slot else { continue };
                 if let Err(e) = t.fill(frame + BLOCK as i64) {
                     // A damaged stretch: silence this track from here on.
-                    eprintln!("media: audio track {i} decode failed: {e:#}");
+                    switchboard_log::log!("media: audio track {i} decode failed: {e:#}");
                     t.eof = true;
                 }
                 let g = sanitize(self.shared.gains.gain(i, ms));
@@ -844,9 +844,9 @@ impl AudioWorker {
     /// clock from the current position. The next play/seek retries.
     fn fail(&mut self, e: &anyhow::Error) {
         if audio::device_lost(e) {
-            eprintln!("media: audio output lost; continuing without sound");
+            switchboard_log::log!("media: audio output lost; continuing without sound");
         } else {
-            eprintln!("media: audio output unavailable: {e:#}");
+            switchboard_log::log!("media: audio output unavailable: {e:#}");
         }
         self.out = None;
         let mut st = self.shared.lock();

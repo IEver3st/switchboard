@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use switchboard_capture::{EngineConfig, Quality};
+use switchboard_capture::{AppChoice, EngineConfig, Quality, VideoCodec};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -13,10 +13,12 @@ pub struct Settings {
     pub replay_seconds: u32,
     pub display_index: usize,
     pub display_id: Option<String>,
+    pub capture_app: Option<AppChoice>,
     pub fps: u32,
     /// Output height; the source is never upscaled.
     pub resolution: u32,
     pub quality: Quality,
+    pub codec: VideoCodec,
     pub game_audio: bool,
     pub chat_audio: bool,
     pub microphone: bool,
@@ -110,9 +112,11 @@ impl Default for Settings {
             replay_seconds: 60,
             display_index: 0,
             display_id: None,
+            capture_app: None,
             fps: 60,
             resolution: 1440,
             quality: Quality::High,
+            codec: VideoCodec::H264,
             game_audio: true,
             chat_audio: true,
             microphone: true,
@@ -173,10 +177,10 @@ impl Settings {
     pub fn engine_key(&self) -> impl PartialEq + use<> {
         (
             self.replay_seconds,
-            self.display_index,
+            (self.display_index, self.capture_app.as_ref().map(|a| a.key.clone())),
             self.fps,
             self.resolution,
-            self.quality,
+            (self.quality, self.codec),
             self.game_audio,
             self.chat_audio,
             self.microphone,
@@ -191,9 +195,11 @@ impl Settings {
     pub fn engine_config(&self) -> EngineConfig {
         EngineConfig {
             display_index: self.display_index,
+            app: self.capture_app.clone(),
             fps: self.fps,
             target_height: self.resolution,
             quality: self.quality,
+            codec: self.codec,
             replay_seconds: self.replay_seconds,
             game_audio: self.game_audio,
             chat_audio: self.chat_audio,

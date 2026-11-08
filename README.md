@@ -24,8 +24,11 @@ It is one small native program written in Rust. There is no browser engine, no b
 
 ### Instant Replay
 
-- Keeps the last 15 seconds to 10 minutes, encoded on your graphics card with its hardware H.264 encoder.
-- Game, Chat and Microphone are recorded on separate audio tracks. Game is every app except Discord, Chat is Discord, and each can instead follow a specific output device (useful with SteelSeries Sonar or similar mixers).
+- Keeps the last 15 seconds to 10 minutes, encoded on your graphics card in H.264, or HEVC or AV1 when the card can record them.
+- Records a whole display or one app. With one app, only its window and its sound are recorded; Switchboard waits for it to open and keeps going after it restarts.
+- HDR displays are recorded with their colors mapped to SDR, so clips look right everywhere.
+- Game, Chat and Microphone are recorded on separate audio tracks. Game is every app except Discord, Chat is Discord (picked up even if you open it after replay starts), and each can instead follow a specific output device (useful with SteelSeries Sonar or similar mixers).
+- Replay picks up again by itself after the PC sleeps, and restarts itself if capture stops.
 - A global shortcut saves the clip, and a small notice confirms it without taking focus from your game.
 - Up to 4K at 30, 60, 120 or 144 fps, with Standard, High and Ultra quality.
 - **Show cursor** draws the mouse pointer into the video. **Record cursor track** (on by default) saves a `<clip>.cursor.json` beside each clip with the pointer's path and clicks on the clip's timeline, so an editor can draw its own cursor. Only the pointer position and the left, right and middle buttons are recorded. Moving a clip to the Recycle Bin from Switchboard takes its cursor track with it.
@@ -70,7 +73,7 @@ It is one small native program written in Rust. There is no browser engine, no b
 
 ![Audio track settings](docs/images/native/settings.jpg)
 
-Everything is on one page: replay length and shortcut, display, resolution, frame rate and quality, the cursor and cursor track, which device each audio track records, the levels new edits start with, Auto Capture, the clips folder, updates and start with Windows.
+Everything is on one page: replay length and shortcut, display or app, resolution, frame rate, quality and video format, the cursor and cursor track, which device each audio track records, the levels new edits start with, Auto Capture, the clips folder, updates, start with Windows, and diagnostics for reporting a problem.
 
 ## Resource use
 
@@ -99,7 +102,8 @@ The executable is not code-signed yet, so Windows SmartScreen may warn the first
 
 - Windows 10 version 2004 or later, or Windows 11. Separate Game and Chat tracks rely on per-process audio capture, which needs 2004 or later.
 - A graphics card with a hardware H.264 encoder. Media Foundation picks NVIDIA, AMD or Intel; only AMD has been tested so far.
-- [FFmpeg](https://ffmpeg.org/download.html) for exporting and sharing, either on your `PATH` or next to the Switchboard executable. Recording, saving and editing do not need it.
+- Nothing else to install. The executable carries its own C runtime, so no Visual C++ redistributable is needed. Sharing uses [FFmpeg](https://ffmpeg.org/download.html): when it isn't already on your `PATH` or next to the executable, Switchboard fetches a checked build once in the background on first start, and retries when you share if that download failed. Recording, saving and editing never use it.
+- Windows N editions need Microsoft's Media Feature Pack, because recording uses Media Foundation.
 
 ### Updates
 
@@ -134,18 +138,19 @@ Every push to `main` that changes `switchboard-rs/` builds, tests and publishes 
 | `switchboard-rs/crates/project` | Clip edits and montages |
 | `switchboard-rs/crates/export` | FFmpeg export for sharing |
 | `switchboard-rs/crates/autocapture` | Game events and reaction clipping |
+| `switchboard-rs/crates/log` | Logs and crash reports |
 
-The rest of the repository holds the 0.9 Electron app, which Switchboard 1.0 replaces.
+The 0.9 Electron app is kept on the `archive/electron-0.9` branch.
 
 ## Known limits
 
-- Display capture only, no single-window capture yet.
 - Tested on AMD graphics. NVIDIA and Intel encoders, HDR displays and multi-GPU laptops are not verified yet.
+- Apps running as administrator can't be recorded on their own; record the display instead.
 - The window has no screen-reader support yet.
 
 ## Reporting bugs
 
-Open a [GitHub issue](https://github.com/IEver3st/switchboard/issues/new). Issues in this repository are public, so leave out anything private.
+Use **Settings > General > Report a problem**. It copies diagnostics to your clipboard and opens a prefilled [GitHub issue](https://github.com/IEver3st/switchboard/issues/new). Issues in this repository are public, so check the diagnostics before pasting them.
 
 ## License
 

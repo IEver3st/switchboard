@@ -80,7 +80,7 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
     let store_dir = std::env::temp_dir().join(format!("switchboard-review-projects-{}", std::process::id()));
     app.store = switchboard_project::store::Store::open(&store_dir);
     match scenario {
-        "settings" | "settings-auto" => app.open_settings(),
+        "settings" | "settings-auto" | "settings-formats" | "settings-app" | "settings-blocked" => app.open_settings(),
         "list" => app.lib.view = View::List,
         "search" => app.lib.set_query("no such clip".into()),
         _ => {}
@@ -111,7 +111,8 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
             break;
         }
         let auto = scenario == "settings-auto" && i >= 8;
-        if (clean || auto)
+        let tweak = matches!(scenario, "settings-formats" | "settings-app" | "settings-blocked" | "app-waiting" | "app-blocked" | "share-ffmpeg" | "share-installing");
+        if (clean || auto || tweak)
             && let Some(st) = app.link.state()
         {
             let mut st = (*st).clone();
@@ -125,6 +126,24 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
                 st.settings.auto_capture.enabled = true;
                 st.settings.auto_capture.reaction_clipping.enabled = true;
                 st.auto = Some(sample_auto());
+            }
+            if scenario == "settings-formats" {
+                st.codecs = switchboard_capture::VideoCodec::ALL.to_vec();
+                if let Some(info) = &mut st.info {
+                    info.codec_note = Some("AV1 could not start on this graphics card, so Switchboard is recording H.264".into());
+                }
+            }
+            if scenario == "share-ffmpeg" {
+                st.ffmpeg = crate::protocol::FfmpegState::Failed { message: "the server didn't answer".into() };
+            } else if scenario == "share-installing" {
+                st.ffmpeg = crate::protocol::FfmpegState::Downloading { permille: 420 };
+            } else if tweak && scenario != "settings-formats" {
+                let name = "Counter-Strike 2".to_string();
+                st.settings.capture_app = Some(switchboard_capture::AppChoice { key: "cs2".into(), name: name.clone() });
+                let problem = scenario.ends_with("blocked").then(|| format!("{name} runs as administrator, so Windows won't let Switchboard record it"));
+                if let Some(s) = &mut st.status {
+                    s.app = Some(switchboard_capture::AppStatus { name, recording: false, problem, recent: false });
+                }
             }
             app.review_state = Some(std::sync::Arc::new(st));
         }
@@ -222,6 +241,14 @@ pub fn review_shot(out: &Path, w: f32, h: f32, scale: f32, scenario: &str, scrol
                                 }
                                 ed.selected_overlay = text;
                             }
+                        }
+                    }
+                }
+                "share-ffmpeg" | "share-installing" => {
+                    if let Some(p) = app.lib.visible_paths().first().cloned() {
+                        app.open_share(&p);
+                        if let Some(share) = &mut app.share {
+                            share.review_ffmpeg();
                         }
                     }
                 }

@@ -11,6 +11,7 @@ use windows::Win32::System::LibraryLoader::{GetProcAddress, LOAD_LIBRARY_SEARCH_
 use windows::core::{GUID, Interface, PCWSTR, s, w};
 
 use crate::gpu::Gpu;
+use crate::video::VideoCodec;
 
 const AMF_OK: i32 = 0;
 const AMF_EOF: i32 = 23;
@@ -201,9 +202,82 @@ fn factory() -> Result<*mut c_void> {
     Ok(raw)
 }
 
+const HEVC_PROFILE_MAIN: i64 = 1;
+const HEVC_HEADERS_ON_IDR: i64 = 2;
+const HEVC_QUALITY_BALANCED: i64 = 5;
+const HEVC_STUDIO_RANGE: i64 = 0;
+const AV1_USAGE_LOW_LATENCY: i64 = 1;
+const AV1_PROFILE_MAIN: i64 = 1;
+const AV1_ALIGNMENT_NO_RESTRICTIONS: i64 = 3;
+const AV1_LATENCY_REAL_TIME: i64 = 2;
+const AV1_HEADERS_ON_KEY_FRAMES: i64 = 2;
+const AV1_QUALITY_BALANCED: i64 = 70;
+const AV1_FRAME_TYPE_KEY: i64 = 1;
+const AV1_OUTPUT_FRAME_TYPE_KEY: i64 = 0;
+
+struct Names {
+    component: PCWSTR,
+    force_key: (PCWSTR, i64),
+    insert_headers: Vec<PCWSTR>,
+    output_type: PCWSTR,
+    output_key: i64,
+}
+
+fn names(codec: VideoCodec) -> Names {
+    match codec {
+        VideoCodec::H264 => Names {
+            component: w!("AMFVideoEncoderVCE_AVC"),
+            force_key: (w!("ForcePictureType"), PICTURE_TYPE_IDR),
+            insert_headers: vec![w!("InsertSPS"), w!("InsertPPS")],
+            output_type: w!("OutputDataType"),
+            output_key: OUTPUT_DATA_TYPE_IDR,
+        },
+        VideoCodec::Hevc => Names {
+            component: w!("AMFVideoEncoderHW_HEVC"),
+            force_key: (w!("HevcForcePictureType"), PICTURE_TYPE_IDR),
+            insert_headers: vec![w!("HevcInsertHeader")],
+            output_type: w!("HevcOutputDataType"),
+            output_key: OUTPUT_DATA_TYPE_IDR,
+        },
+        VideoCodec::Av1 => Names {
+            component: w!("AMFVideoEncoderHW_AV1"),
+            force_key: (w!("Av1ForceFrameType"), AV1_FRAME_TYPE_KEY),
+            insert_headers: vec![w!("Av1ForceInsertSequenceHeader")],
+            output_type: w!("Av1OutputFrameType"),
+            output_key: AV1_OUTPUT_FRAME_TYPE_KEY,
+        },
+    }
+}
+
+pub(crate) fn supports(gpu: &Gpu, codec: VideoCodec) -> bool {
+    if gpu.vendor_id != AMD_VENDOR_ID {
+        return false;
+    }
+    let Ok(factory) = factory() else { return false };
+    unsafe {
+        let f = vtbl::<FactoryVtbl>(factory);
+        let mut context = null_mut();
+        if (f.create_context)(factory, &mut context) != AMF_OK {
+            return false;
+        }
+        let c = vtbl::<ContextVtbl>(context);
+        let mut component = null_mut();
+        let ok = (c.init_dx11)(context, gpu.device.as_raw(), AMF_DX11_0) == AMF_OK
+            && (f.create_component)(factory, context, names(codec).component.as_ptr(), &mut component) == AMF_OK;
+        if !component.is_null() {
+            (vtbl::<ComponentVtbl>(component).terminate)(component);
+            release(component);
+        }
+        (c.terminate)(context);
+        release(context);
+        ok
+    }
+}
+
 pub(crate) struct AmfEncoder {
     context: *mut c_void,
     component: *mut c_void,
+    names: Names,
     held: VecDeque<(i64, IMFSample)>,
     full: bool,
     keyframe_interval: u64,
@@ -212,7 +286,7 @@ pub(crate) struct AmfEncoder {
 }
 
 impl AmfEncoder {
-    pub fn new(gpu: &Gpu, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<AmfEncoder> {
+    pub fn new(gpu: &Gpu, codec: VideoCodec, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<AmfEncoder> {
         if gpu.vendor_id != AMD_VENDOR_ID {
             bail!("{} is not an AMD graphics card", gpu.adapter_name);
         }
@@ -220,34 +294,73 @@ impl AmfEncoder {
         let mut enc = AmfEncoder {
             context: null_mut(),
             component: null_mut(),
+            names: names(codec),
             held: VecDeque::new(),
             full: false,
             keyframe_interval: fps.max(1) as u64,
             submitted: 0,
-            name: "AMD AMF H.264".into(),
+            name: format!("AMD AMF {}", codec.label()),
         };
         unsafe {
             let f = vtbl::<FactoryVtbl>(factory);
             check((f.create_context)(factory, &mut enc.context), "CreateContext")?;
             let c = vtbl::<ContextVtbl>(enc.context);
             check((c.init_dx11)(enc.context, gpu.device.as_raw(), AMF_DX11_0), "InitDX11")?;
-            let id = w!("AMFVideoEncoderVCE_AVC");
-            check((f.create_component)(factory, enc.context, id.as_ptr(), &mut enc.component), "CreateComponent")?;
+            check((f.create_component)(factory, enc.context, enc.names.component.as_ptr(), &mut enc.component), "CreateComponent")?;
         }
-        enc.set(w!("Usage"), Variant::int(USAGE_LOW_LATENCY))?;
-        enc.set(w!("Profile"), Variant::int(PROFILE_HIGH))?;
-        let _ = enc.set(w!("ProfileLevel"), Variant::int(h264_level(w, h, fps)));
-        enc.set(w!("FrameSize"), Variant::pair(VARIANT_SIZE, w, h))?;
-        enc.set(w!("FrameRate"), Variant::pair(VARIANT_RATE, fps, 1))?;
-        enc.set(w!("RateControlMethod"), Variant::int(RATE_CONTROL_PEAK_CONSTRAINED_VBR))?;
-        enc.set(w!("TargetBitrate"), Variant::int(bitrate as i64))?;
-        enc.set(w!("PeakBitrate"), Variant::int(bitrate as i64 / 2 * 3))?;
-        enc.set(w!("BPicturesPattern"), Variant::int(0))?;
-        let _ = enc.set(w!("QualityPreset"), Variant::int(QUALITY_PRESET_BALANCED));
-        let _ = enc.set(w!("OutColorProfile"), Variant::int(BT709));
-        let _ = enc.set(w!("OutColorTransferChar"), Variant::int(BT709));
-        let _ = enc.set(w!("OutColorPrimaries"), Variant::int(BT709));
-        let _ = enc.set(w!("FullRangeColor"), Variant::bool(false));
+        let (target, peak) = (bitrate as i64, bitrate as i64 / 2 * 3);
+        match codec {
+            VideoCodec::H264 => {
+                enc.set(w!("Usage"), Variant::int(USAGE_LOW_LATENCY))?;
+                enc.set(w!("Profile"), Variant::int(PROFILE_HIGH))?;
+                let _ = enc.set(w!("ProfileLevel"), Variant::int(h264_level(w, h, fps)));
+                enc.set(w!("FrameSize"), Variant::pair(VARIANT_SIZE, w, h))?;
+                enc.set(w!("FrameRate"), Variant::pair(VARIANT_RATE, fps, 1))?;
+                enc.set(w!("RateControlMethod"), Variant::int(RATE_CONTROL_PEAK_CONSTRAINED_VBR))?;
+                enc.set(w!("TargetBitrate"), Variant::int(target))?;
+                enc.set(w!("PeakBitrate"), Variant::int(peak))?;
+                enc.set(w!("BPicturesPattern"), Variant::int(0))?;
+                let _ = enc.set(w!("QualityPreset"), Variant::int(QUALITY_PRESET_BALANCED));
+                let _ = enc.set(w!("OutColorProfile"), Variant::int(BT709));
+                let _ = enc.set(w!("OutColorTransferChar"), Variant::int(BT709));
+                let _ = enc.set(w!("OutColorPrimaries"), Variant::int(BT709));
+                let _ = enc.set(w!("FullRangeColor"), Variant::bool(false));
+            }
+            VideoCodec::Hevc => {
+                enc.set(w!("HevcUsage"), Variant::int(USAGE_LOW_LATENCY))?;
+                let _ = enc.set(w!("HevcProfile"), Variant::int(HEVC_PROFILE_MAIN));
+                enc.set(w!("HevcFrameSize"), Variant::pair(VARIANT_SIZE, w, h))?;
+                enc.set(w!("HevcFrameRate"), Variant::pair(VARIANT_RATE, fps, 1))?;
+                enc.set(w!("HevcRateControlMethod"), Variant::int(RATE_CONTROL_PEAK_CONSTRAINED_VBR))?;
+                enc.set(w!("HevcTargetBitrate"), Variant::int(target))?;
+                enc.set(w!("HevcPeakBitrate"), Variant::int(peak))?;
+                let _ = enc.set(w!("HevcGOPSize"), Variant::int(fps as i64));
+                let _ = enc.set(w!("HevcHeaderInsertionMode"), Variant::int(HEVC_HEADERS_ON_IDR));
+                let _ = enc.set(w!("HevcQualityPreset"), Variant::int(HEVC_QUALITY_BALANCED));
+                let _ = enc.set(w!("HevcOutColorProfile"), Variant::int(BT709));
+                let _ = enc.set(w!("HevcOutColorTransferChar"), Variant::int(BT709));
+                let _ = enc.set(w!("HevcOutColorPrimaries"), Variant::int(BT709));
+                let _ = enc.set(w!("HevcNominalRange"), Variant::int(HEVC_STUDIO_RANGE));
+            }
+            VideoCodec::Av1 => {
+                enc.set(w!("Av1Usage"), Variant::int(AV1_USAGE_LOW_LATENCY))?;
+                let _ = enc.set(w!("Av1Profile"), Variant::int(AV1_PROFILE_MAIN));
+                let _ = enc.set(w!("Av1AlignmentMode"), Variant::int(AV1_ALIGNMENT_NO_RESTRICTIONS));
+                enc.set(w!("Av1FrameSize"), Variant::pair(VARIANT_SIZE, w, h))?;
+                enc.set(w!("Av1FrameRate"), Variant::pair(VARIANT_RATE, fps, 1))?;
+                let _ = enc.set(w!("Av1EncodingLatencyMode"), Variant::int(AV1_LATENCY_REAL_TIME));
+                enc.set(w!("Av1RateControlMethod"), Variant::int(RATE_CONTROL_PEAK_CONSTRAINED_VBR))?;
+                enc.set(w!("Av1TargetBitrate"), Variant::int(target))?;
+                enc.set(w!("Av1PeakBitrate"), Variant::int(peak))?;
+                let _ = enc.set(w!("Av1GOPSize"), Variant::int(fps as i64));
+                let _ = enc.set(w!("Av1HeaderInsertionMode"), Variant::int(AV1_HEADERS_ON_KEY_FRAMES));
+                let _ = enc.set(w!("Av1QualityPreset"), Variant::int(AV1_QUALITY_BALANCED));
+                let _ = enc.set(w!("Av1OutputColorProfile"), Variant::int(BT709));
+                let _ = enc.set(w!("Av1OutputColorTransferChar"), Variant::int(BT709));
+                let _ = enc.set(w!("Av1OutputColorPrimaries"), Variant::int(BT709));
+                let _ = enc.set(w!("Av1NominalRange"), Variant::bool(false));
+            }
+        }
         unsafe {
             let e = vtbl::<ComponentVtbl>(enc.component);
             check((e.init)(enc.component, AMF_SURFACE_NV12, w as i32, h as i32), "encoder Init")?;
@@ -282,12 +395,10 @@ impl AmfEncoder {
             (d.set_duration)(surface, duration);
             (d.set_property)(surface, w!("SwitchboardTime").as_ptr(), Variant::int(time));
             if self.submitted % self.keyframe_interval == 0 {
-                for (name, value) in [
-                    (w!("ForcePictureType"), Variant::int(PICTURE_TYPE_IDR)),
-                    (w!("InsertSPS"), Variant::bool(true)),
-                    (w!("InsertPPS"), Variant::bool(true)),
-                ] {
-                    (d.set_property)(surface, name.as_ptr(), value);
+                let (force, kind) = self.names.force_key;
+                (d.set_property)(surface, force.as_ptr(), Variant::int(kind));
+                for name in &self.names.insert_headers {
+                    (d.set_property)(surface, name.as_ptr(), Variant::bool(true));
                 }
             }
             let r = (vtbl::<ComponentVtbl>(self.component).submit_input)(self.component, surface);
@@ -336,7 +447,7 @@ impl AmfEncoder {
                 ((b.get_property)(buffer, name.as_ptr(), &mut v) == AMF_OK && v.kind == VARIANT_INT64).then_some(v.value[0] as i64)
             };
             let time = int(w!("SwitchboardTime")).unwrap_or_else(|| (b.get_pts)(buffer));
-            let key = int(w!("OutputDataType")) == Some(OUTPUT_DATA_TYPE_IDR);
+            let key = int(self.names.output_type) == Some(self.names.output_key);
             let (native, size) = ((b.get_native)(buffer) as *const u8, (b.get_size)(buffer));
             let result = if native.is_null() || size == 0 { Ok(()) } else { sink(time, key, std::slice::from_raw_parts(native, size)) };
             release(buffer);

@@ -339,6 +339,7 @@ pub fn uninstall() -> Result<()> {
         std::thread::sleep(Duration::from_secs(2));
     }
     let _ = set_autostart(false);
+    crate::ffmpeg_setup::remove();
     for folder in [Folder::Programs, Folder::Desktop] {
         if let Some(dir) = known_folder(folder) {
             let _ = std::fs::remove_file(dir.join(SHORTCUT));

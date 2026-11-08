@@ -143,50 +143,89 @@ struct Monitor {
     id: String,
 }
 
-fn monitors() -> Vec<Monitor> {
+fn active_paths() -> Vec<windows::Win32::Devices::Display::DISPLAYCONFIG_PATH_INFO> {
     use windows::Win32::Devices::Display::{
-        DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, DISPLAYCONFIG_MODE_INFO,
-        DISPLAYCONFIG_PATH_INFO, DISPLAYCONFIG_SOURCE_DEVICE_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME,
-        DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QDC_ONLY_ACTIVE_PATHS, QueryDisplayConfig,
+        DISPLAYCONFIG_MODE_INFO, DISPLAYCONFIG_PATH_INFO, GetDisplayConfigBufferSizes, QDC_ONLY_ACTIVE_PATHS,
+        QueryDisplayConfig,
     };
     use windows::Win32::Foundation::ERROR_INSUFFICIENT_BUFFER;
-    let mut out: Vec<Monitor> = Vec::new();
-    let mut paths = Vec::new();
     for _ in 0..3 {
         let (mut np, mut nm) = (0u32, 0u32);
         if unsafe { GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut np, &mut nm) }.is_err() {
-            return out;
+            return Vec::new();
         }
-        paths = vec![DISPLAYCONFIG_PATH_INFO::default(); np as usize];
+        let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); np as usize];
         let mut modes = vec![DISPLAYCONFIG_MODE_INFO::default(); nm as usize];
         let result = unsafe {
             QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &mut np, paths.as_mut_ptr(), &mut nm, modes.as_mut_ptr(), None)
         };
         if result == ERROR_INSUFFICIENT_BUFFER {
-            paths.clear();
             continue;
         }
         if result.is_err() {
-            return out;
+            return Vec::new();
         }
         paths.truncate(np as usize);
-        break;
+        return paths;
     }
-    for p in &paths {
-        let mut source = DISPLAYCONFIG_SOURCE_DEVICE_NAME::default();
-        source.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-        source.header.size = std::mem::size_of_val(&source) as u32;
-        source.header.adapterId = p.sourceInfo.adapterId;
-        source.header.id = p.sourceInfo.id;
+    Vec::new()
+}
+
+fn source_name(p: &windows::Win32::Devices::Display::DISPLAYCONFIG_PATH_INFO) -> Option<String> {
+    use windows::Win32::Devices::Display::{
+        DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, DISPLAYCONFIG_SOURCE_DEVICE_NAME, DisplayConfigGetDeviceInfo,
+    };
+    let mut source = DISPLAYCONFIG_SOURCE_DEVICE_NAME::default();
+    source.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+    source.header.size = std::mem::size_of_val(&source) as u32;
+    source.header.adapterId = p.sourceInfo.adapterId;
+    source.header.id = p.sourceInfo.id;
+    (unsafe { DisplayConfigGetDeviceInfo(&mut source.header) } == 0).then(|| utf16(&source.viewGdiDeviceName))
+}
+
+pub(crate) fn sdr_white_scale(device_name: &str) -> Option<f32> {
+    use windows::Win32::Devices::Display::{
+        DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL,
+        DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO, DISPLAYCONFIG_SDR_WHITE_LEVEL, DisplayConfigGetDeviceInfo,
+    };
+    const ENABLED: u32 = 1 << 1;
+    const WIDE_COLOR_ENFORCED: u32 = 1 << 2;
+    let p = active_paths().into_iter().find(|p| source_name(p).is_some_and(|n| n.eq_ignore_ascii_case(device_name)))?;
+    let mut color = DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO::default();
+    color.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+    color.header.size = std::mem::size_of_val(&color) as u32;
+    color.header.adapterId = p.targetInfo.adapterId;
+    color.header.id = p.targetInfo.id;
+    if unsafe { DisplayConfigGetDeviceInfo(&mut color.header) } != 0 {
+        return None;
+    }
+    let bits = unsafe { color.Anonymous.value };
+    if bits & ENABLED == 0 || bits & WIDE_COLOR_ENFORCED != 0 {
+        return None;
+    }
+    let mut white = DISPLAYCONFIG_SDR_WHITE_LEVEL::default();
+    white.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
+    white.header.size = std::mem::size_of_val(&white) as u32;
+    white.header.adapterId = p.targetInfo.adapterId;
+    white.header.id = p.targetInfo.id;
+    let level = if unsafe { DisplayConfigGetDeviceInfo(&mut white.header) } == 0 { white.SDRWhiteLevel } else { 1000 };
+    Some(1000.0 / level.max(1000) as f32)
+}
+
+fn monitors() -> Vec<Monitor> {
+    use windows::Win32::Devices::Display::{
+        DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME, DisplayConfigGetDeviceInfo,
+    };
+    let mut out: Vec<Monitor> = Vec::new();
+    for p in &active_paths() {
+        let source = source_name(p);
         let mut target = DISPLAYCONFIG_TARGET_DEVICE_NAME::default();
         target.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
         target.header.size = std::mem::size_of_val(&target) as u32;
         target.header.adapterId = p.targetInfo.adapterId;
         target.header.id = p.targetInfo.id;
-        let found = unsafe {
-            DisplayConfigGetDeviceInfo(&mut source.header) == 0 && DisplayConfigGetDeviceInfo(&mut target.header) == 0
-        };
-        let device = utf16(&source.viewGdiDeviceName);
+        let Some(device) = source else { continue };
+        let found = unsafe { DisplayConfigGetDeviceInfo(&mut target.header) == 0 };
         if found && !out.iter().any(|m| m.device.eq_ignore_ascii_case(&device)) {
             out.push(Monitor {
                 device,

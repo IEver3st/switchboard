@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/capture", "crates/project", "crates/media", "crates/export", "crates/autocapture", "crates/app"]
+members = ["crates/log", "crates/capture", "crates/project", "crates/media", "crates/export", "crates/autocapture", "crates/app"]
 
 [workspace.package]
 version = "1.0.0"

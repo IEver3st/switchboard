@@ -7,6 +7,7 @@ Technical notes for Switchboard 1.0, the Rust rewrite focused only on clipping: 
 ```
 crates/capture   engine library (no UI)
 crates/app       switchboard-rs.exe: tray service + window
+crates/log       rotating logs and crash reports
 scripts/         review, soak and IPC helpers (PowerShell)
 ```
 
@@ -29,10 +30,11 @@ Keys: Ctrl+F search, Ctrl+A select all, Delete move to Recycle Bin (confirm, Can
 ## Capture pipeline
 
 ```
-WGC display capture (GPU texture)
+WGC display or window capture (GPU texture; FP16 on HDR displays -> tone mapped to SDR)
   -> D3D11 video processor: scale + BGRA->NV12, BT.709 limited (GPU)
-  -> hardware H.264 MFT on the same adapter (NVENC/AMF/QSV via Media Foundation)
-  -> Annex-B -> AVCC packets -> disk ring (1 s segments, keyframe aligned)
+  -> hardware H.264, HEVC or AV1 MFT on the same adapter (NVENC/AMF/QSV via Media Foundation),
+     or AMF directly when the MF encoder stays silent
+  -> length-prefixed packets -> disk ring (1 s segments, keyframe aligned)
 
 WASAPI process loopback: Game = everything except the chat app's process tree
 WASAPI process loopback: Chat = only the chat app's tree (Discord, PTB, Canary)
@@ -116,18 +118,20 @@ UI renderer choice, bare 1080x720 window on this AMD system: eframe/OpenGL 240 M
 - Global shortcut fired with synthesized keys saves a clip (about 0.5 s to the saved event); the notice renders crisp at 150% scaling and never takes focus.
 - 40 replay off/on cycles: threads return to baseline; handles grow 3 per start, traced to `ActivateObject` on AMD's `AMDh264Encoder` (enumeration and our own setup are clean).
 - 13 unit tests: bitstream conversion, audio timeline, ring eviction/pinning, MP4 layout, naming, settings, shortcuts.
+- A/V sync (2026-11-08, `av_sync` example, three runs of 10 flash-and-click events, display capture at 60 fps, Game on the default output): audio leads the picture by 24 to 31 ms on average (standard deviation 4 to 9 ms). The reference click time is the output device's playback clock, so the figure includes that device's own latency; it is not an acoustic measurement.
+- Service lifecycle (2026-11-08, dev build in place of the installed service): a panic in the service writes a crash report and the supervisor restarts Instant Replay; an access violation writes a native crash report and the next start shows the notice; suspend and resume broadcasts stop and restart the engine; Chat picks up a chat app that starts after replay and lets go when it quits; one-app capture stays healthy while the app is closed, saves while it runs and right after it closes, and its Game track carries only that app's sound.
 
 ## Not yet verified
 
-- A/V sync against a physical flash-and-click reference.
+- A/V sync measured acoustically (camera and microphone), and with HEVC or AV1.
 - The window on screen with real input (review renders use the same rasterizer headlessly), and DPI changes while open.
 - NVIDIA and Intel encoders, HDR displays, exclusive fullscreen games, multi-GPU laptops.
-- Long soaks (hours), sleep/resume, display unplug (handled through the capture item's Closed event, not exercised), default microphone changes (event-driven reopen, not exercised).
+- Long soaks (hours), a real sleep and wake (resume was exercised with simulated power broadcasts), display unplug (handled through the capture item's Closed event, not exercised), default microphone changes (event-driven reopen, not exercised).
 
 ## Known gaps
 
-- Display capture only; no per-window capture yet.
-- Chat is split out only if Discord is running when Instant Replay starts, unless Chat follows a chosen output device.
+- One-app capture can't record apps running as administrator (Windows refuses the capture); the window says so.
+- HDR is tone mapped to SDR; there is no HDR output yet.
 - No screen-reader support in the window (the software backend does not wire up AccessKit).
 - The executable is not code-signed.
 - The measurements above predate the media helper, GPU thumbnails and the capture changes of 2026-10-06; see the repository README for current figures.

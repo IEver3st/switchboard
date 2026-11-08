@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 
 use anyhow::{Context, Result, anyhow, bail};
-use windows::Win32::Foundation::{CloseHandle, E_NOTIMPL, HANDLE, RECT};
+use windows::Win32::Foundation::{CloseHandle, E_ACCESSDENIED, E_NOTIMPL, HANDLE, RECT};
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709, DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709, DXGI_FORMAT_NV12,
@@ -19,7 +19,9 @@ use windows::Win32::System::Com::CoTaskMemFree;
 use windows::Win32::System::Threading::{CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, CreateWaitableTimerExW, SetWaitableTimer};
 use windows::core::{GUID, Interface, PCWSTR, Ref, implement};
 
-use crate::amf::{AMD_VENDOR_ID, AmfEncoder};
+use crate::amf::{self, AMD_VENDOR_ID, AmfEncoder};
+use crate::apps::{self, AppFollow, AppStatus};
+use crate::bitstream::{HevcHeaders, av1_temporal_unit, hevc_annexb_to_lengths};
 use crate::clock::{HNS_PER_SECOND, now_hns};
 use crate::gpu::Gpu;
 use crate::mf::{self, codec_bool, codec_u32, pack};
@@ -27,12 +29,43 @@ use crate::ring::TrackRing;
 use crate::signal::{Stop, Woke, wait_any};
 use crate::wgc::{Capture, CaptureShared};
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum VideoCodec {
+    #[default]
+    H264,
+    Hevc,
+    Av1,
+}
+
+impl VideoCodec {
+    pub const ALL: [VideoCodec; 3] = [VideoCodec::H264, VideoCodec::Hevc, VideoCodec::Av1];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            VideoCodec::H264 => "H.264",
+            VideoCodec::Hevc => "HEVC",
+            VideoCodec::Av1 => "AV1",
+        }
+    }
+
+    fn subtype(self) -> GUID {
+        match self {
+            VideoCodec::H264 => MFVideoFormat_H264,
+            VideoCodec::Hevc => MFVideoFormat_HEVC,
+            VideoCodec::Av1 => MFVideoFormat_AV1,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct VideoParams {
+    pub codec: VideoCodec,
     pub width: u32,
     pub height: u32,
+    pub vps: Vec<u8>,
     pub sps: Vec<u8>,
     pub pps: Vec<u8>,
+    pub seq: Vec<u8>,
 }
 
 #[derive(Default)]
@@ -59,6 +92,9 @@ pub(crate) struct VideoSetup {
     pub params: Arc<Mutex<VideoParams>>,
     pub stats: Arc<VideoStats>,
     pub stop: Arc<Stop>,
+    pub app: Option<Arc<AppFollow>>,
+    pub cursor: bool,
+    pub codec: VideoCodec,
     pub width: u32,
     pub height: u32,
     pub fps: u32,
@@ -81,6 +117,12 @@ pub(crate) fn run(setup: VideoSetup, ready: mpsc::Sender<Result<String>>) {
         }
     };
     if let Err(e) = state.run(&setup) {
+        if setup.codec != VideoCodec::H264
+            && setup.stats.encoded.load(Ordering::Relaxed) == 0
+            && setup.capture.frames.load(Ordering::Relaxed) > 0
+        {
+            remember_broken(&setup.gpu, setup.codec);
+        }
         *setup.stats.error.lock().unwrap() = Some(format!("{e:#}"));
     }
     state.encoder.shutdown();
@@ -99,26 +141,26 @@ enum Encoder {
 }
 
 impl Encoder {
-    fn new(gpu: &Gpu, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<Encoder> {
-        if mf_known_silent(gpu)
-            && let Ok(e) = AmfEncoder::new(gpu, w, h, fps, bitrate)
+    fn new(gpu: &Gpu, codec: VideoCodec, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<Encoder> {
+        if mf_known_silent(gpu, codec)
+            && let Ok(e) = AmfEncoder::new(gpu, codec, w, h, fps, bitrate)
         {
             return Ok(Encoder::Amf(e));
         }
-        let mf_error = match HwEncoder::new(gpu, w, h, fps, bitrate) {
+        let mf_error = match HwEncoder::new(gpu, codec, w, h, fps, bitrate) {
             Ok(e) => return Ok(Encoder::MediaFoundation(e)),
             Err(e) => e,
         };
         if gpu.vendor_id != AMD_VENDOR_ID {
             return Err(mf_error);
         }
-        match AmfEncoder::new(gpu, w, h, fps, bitrate) {
+        match AmfEncoder::new(gpu, codec, w, h, fps, bitrate) {
             Ok(e) => {
-                eprintln!("video: Media Foundation encoder unusable ({mf_error:#}); using AMF");
+                switchboard_log::log!("video: Media Foundation encoder unusable ({mf_error:#}); using AMF");
                 Ok(Encoder::Amf(e))
             }
             Err(amf_error) => {
-                eprintln!("video: AMF fallback failed: {amf_error:#}");
+                switchboard_log::log!("video: AMF fallback failed: {amf_error:#}");
                 Err(anyhow!("{mf_error:#}; AMD's own encoder could not start either"))
             }
         }
@@ -130,13 +172,13 @@ impl Encoder {
             return Ok(false);
         }
         let silent = format!("{} accepted frames but never returned any", mf.name);
-        let amf = AmfEncoder::new(&s.gpu, s.width, s.height, s.fps, s.bitrate).map_err(|e| {
-            eprintln!("video: {silent}; AMF fallback failed: {e:#}");
+        let amf = AmfEncoder::new(&s.gpu, s.codec, s.width, s.height, s.fps, s.bitrate).map_err(|e| {
+            switchboard_log::log!("video: {silent}; AMF fallback failed: {e:#}");
             anyhow!("the graphics driver's video encoder is not responding, and AMD's own encoder could not start")
         })?;
-        eprintln!("video: {silent}; switching to {}", amf.name);
+        switchboard_log::log!("video: {silent}; switching to {}", amf.name);
         mf.shutdown();
-        remember_mf_silent(&s.gpu);
+        remember_mf_silent(&s.gpu, s.codec);
         *self = Encoder::Amf(amf);
         Ok(true)
     }
@@ -176,25 +218,74 @@ impl Encoder {
     }
 }
 
-static MF_SILENT_ADAPTERS: Mutex<Vec<(u32, i32)>> = Mutex::new(Vec::new());
+type AdapterCodec = (u32, i32, VideoCodec);
 
-fn mf_known_silent(gpu: &Gpu) -> bool {
-    MF_SILENT_ADAPTERS.lock().unwrap().contains(&(gpu.luid.LowPart, gpu.luid.HighPart))
+static MF_SILENT: Mutex<Vec<AdapterCodec>> = Mutex::new(Vec::new());
+static BROKEN: Mutex<Vec<AdapterCodec>> = Mutex::new(Vec::new());
+
+fn key(gpu: &Gpu, codec: VideoCodec) -> AdapterCodec {
+    (gpu.luid.LowPart, gpu.luid.HighPart, codec)
 }
 
-fn remember_mf_silent(gpu: &Gpu) {
-    let mut known = MF_SILENT_ADAPTERS.lock().unwrap();
-    if !known.contains(&(gpu.luid.LowPart, gpu.luid.HighPart)) {
-        known.push((gpu.luid.LowPart, gpu.luid.HighPart));
+fn remember(list: &Mutex<Vec<AdapterCodec>>, k: AdapterCodec) {
+    let mut known = list.lock().unwrap();
+    if !known.contains(&k) {
+        known.push(k);
+    }
+}
+
+fn mf_known_silent(gpu: &Gpu, codec: VideoCodec) -> bool {
+    MF_SILENT.lock().unwrap().contains(&key(gpu, codec))
+}
+
+fn remember_mf_silent(gpu: &Gpu, codec: VideoCodec) {
+    remember(&MF_SILENT, key(gpu, codec));
+}
+
+fn remember_broken(gpu: &Gpu, codec: VideoCodec) {
+    switchboard_log::log!("video: {} on {} failed before its first frame; using H.264 until restart", codec.label(), gpu.adapter_name);
+    remember(&BROKEN, key(gpu, codec));
+}
+
+pub(crate) fn known_broken(gpu: &Gpu, codec: VideoCodec) -> bool {
+    codec != VideoCodec::H264 && BROKEN.lock().unwrap().contains(&key(gpu, codec))
+}
+
+pub(crate) fn can_encode(gpu: &Gpu, codec: VideoCodec) -> bool {
+    codec == VideoCodec::H264
+        || amf::supports(gpu, codec)
+        || (gpu.vendor_id != AMD_VENDOR_ID && hardware_encoders(gpu, codec).is_ok_and(|e| !e.is_empty()))
+}
+
+pub(crate) fn can_decode(codec: VideoCodec) -> bool {
+    let info = MFT_REGISTER_TYPE_INFO { guidMajorType: MFMediaType_Video, guidSubtype: codec.subtype() };
+    unsafe {
+        let mut list: *mut Option<IMFActivate> = std::ptr::null_mut();
+        let mut count = 0u32;
+        let found = MFTEnumEx(
+            MFT_CATEGORY_VIDEO_DECODER,
+            MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_LOCALMFT | MFT_ENUM_FLAG_SORTANDFILTER,
+            Some(&info),
+            None,
+            &mut list,
+            &mut count,
+        )
+        .is_ok();
+        if !list.is_null() {
+            for i in 0..count as usize {
+                drop((*list.add(i)).take());
+            }
+            CoTaskMemFree(Some(list as *const _));
+        }
+        found && count > 0
     }
 }
 
 impl Pipeline {
     fn new(s: &VideoSetup) -> Result<Pipeline> {
         let converter = Converter::new(&s.gpu, s.width, s.height, s.fps)?;
-        let encoder = Encoder::new(&s.gpu, s.width, s.height, s.fps, s.bitrate)?;
-        *s.params.lock().unwrap() =
-            VideoParams { width: s.width, height: s.height, sps: Vec::new(), pps: Vec::new() };
+        let encoder = Encoder::new(&s.gpu, s.codec, s.width, s.height, s.fps, s.bitrate)?;
+        *s.params.lock().unwrap() = VideoParams { codec: s.codec, width: s.width, height: s.height, ..VideoParams::default() };
         Ok(Pipeline { converter, encoder, timer: Timer::new()?, avcc: Vec::new() })
     }
 
@@ -209,59 +300,63 @@ impl Pipeline {
         // keep its last packets forever (every save repeating old footage).
         let mut stall = Stall::new(s.stats.encoded.load(Ordering::Relaxed), now_hns());
         let mut quiet = Quiet::new(now_hns(), last_input_tick());
+        let mut follower = Follower { next: 0, wait: APP_RETRY_HNS, failure: None };
         let _power = DisplayPower::watch();
         let Pipeline { converter, encoder, timer, avcc } = self;
         let mut sink = |time: i64, key: bool, bytes: &[u8]| -> Result<()> {
-            let idr = annexb_to_avcc(bytes, avcc, &s.params);
-            let key = key || idr;
+            let key = packetize(s.codec, bytes, avcc, &s.params) || key;
             // Keyframes start segments so every segment is independently decodable.
             ring.push(s.t0 + time, period, key, key, avcc)?;
             s.stats.encoded.fetch_add(1, Ordering::Relaxed);
             Ok(())
         };
         while !s.stop.is_set() {
-            if s.capture.closed.load(Ordering::Relaxed) {
+            if s.app.is_none() && s.capture.closed.load(Ordering::Relaxed) {
                 bail!("the captured display is no longer available");
             }
             let target = at(n);
             if timer.wait_until(target, &s.stop) {
                 break;
             }
-            let frames = s.capture.frames.load(Ordering::Relaxed);
-            let last_frame = s.capture.last_frame_hns.load(Ordering::Relaxed);
-            if quiet.due(frames, last_frame, now_hns(), last_input_tick) {
-                let target = s.source.lock().unwrap().as_ref().map(Capture::target);
-                let Some(target) = target else { break };
-                if !on_user_desktop() {
-                    quiet.postpone(now_hns());
-                } else {
-                    let fresh = Capture::reopen(&s.gpu, target, s.capture.clone());
-                    let opened = fresh.is_ok();
-                    let failure = fresh.as_ref().err().map(|e| format!("{e:#}"));
-                    if let Ok(fresh) = fresh {
-                        let mut slot = s.source.lock().unwrap();
-                        if slot.is_none() || s.stop.is_set() {
+            if let Some(app) = &s.app {
+                follower.follow(s, app);
+            } else {
+                let frames = s.capture.frames.load(Ordering::Relaxed);
+                let last_frame = s.capture.last_frame_hns.load(Ordering::Relaxed);
+                if quiet.due(frames, last_frame, now_hns(), last_input_tick) {
+                    let target = s.source.lock().unwrap().as_ref().map(Capture::target);
+                    let Some(target) = target else { break };
+                    if !on_user_desktop() {
+                        quiet.postpone(now_hns());
+                    } else {
+                        let fresh = Capture::reopen(&s.gpu, target, s.capture.clone());
+                        let opened = fresh.is_ok();
+                        let failure = fresh.as_ref().err().map(|e| format!("{e:#}"));
+                        if let Ok(fresh) = fresh {
+                            let mut slot = s.source.lock().unwrap();
+                            if slot.is_none() || s.stop.is_set() {
+                                drop(slot);
+                                break;
+                            }
+                            let old = slot.replace(fresh);
                             drop(slot);
+                            drop(old);
+                            s.capture.closed.store(false, Ordering::Relaxed);
+                            s.stats.capture_reopens.fetch_add(1, Ordering::Relaxed);
+                        } else if s.stop.is_set() {
                             break;
                         }
-                        let old = slot.replace(fresh);
-                        drop(slot);
-                        drop(old);
-                        s.capture.closed.store(false, Ordering::Relaxed);
-                        s.stats.capture_reopens.fetch_add(1, Ordering::Relaxed);
-                    } else if s.stop.is_set() {
-                        break;
-                    }
-                    if quiet.reopened(opened, frames, now_hns(), last_input_tick(), DISPLAY_ON.load(Ordering::Relaxed)) {
-                        match failure {
-                            Some(e) => bail!("the captured display is no longer available ({e})"),
-                            None => bail!("Windows stopped sending frames for the captured display"),
+                        if quiet.reopened(opened, frames, now_hns(), last_input_tick(), DISPLAY_ON.load(Ordering::Relaxed)) {
+                            match failure {
+                                Some(e) => bail!("the captured display is no longer available ({e})"),
+                                None => bail!("Windows stopped sending frames for the captured display"),
+                            }
                         }
                     }
                 }
-            }
-            if s.stats.capture_blind.load(Ordering::Relaxed) != quiet.held {
-                s.stats.capture_blind.store(quiet.held, Ordering::Relaxed);
+                if s.stats.capture_blind.load(Ordering::Relaxed) != quiet.held {
+                    s.stats.capture_blind.store(quiet.held, Ordering::Relaxed);
+                }
             }
             encoder.pump(&mut sink)?;
             let latest = {
@@ -316,6 +411,83 @@ impl Pipeline {
             }
         }
         Ok(())
+    }
+}
+
+const APP_CHECK_HNS: i64 = HNS_PER_SECOND;
+const APP_RETRY_HNS: i64 = 2 * HNS_PER_SECOND;
+const APP_RETRY_MAX_HNS: i64 = 30 * HNS_PER_SECOND;
+
+struct Follower {
+    next: i64,
+    wait: i64,
+    failure: Option<String>,
+}
+
+impl Follower {
+    fn follow(&mut self, s: &VideoSetup, app: &AppFollow) {
+        let now = now_hns();
+        let hwnd = app.hwnd.load(Ordering::Relaxed);
+        let due = now >= self.next;
+        if hwnd != 0 && (s.capture.closed.load(Ordering::Relaxed) || (due && !apps::window_alive(hwnd))) {
+            let old = s.source.lock().unwrap().take();
+            drop(old);
+            {
+                let mut latest = s.capture.latest.lock().unwrap();
+                latest.texture = None;
+                latest.generation += 1;
+            }
+            app.hwnd.store(0, Ordering::Relaxed);
+            app.pid.store(0, Ordering::Relaxed);
+            let mut status = app.status.lock().unwrap_or_else(|e| e.into_inner());
+            switchboard_log::log!("app: {} closed; waiting for it", status.name);
+            status.recording = false;
+            self.next = now;
+            return;
+        }
+        if !due || hwnd != 0 {
+            return;
+        }
+        self.next = now + APP_CHECK_HNS;
+        let Some(window) = apps::find_app(&app.key) else {
+            let mut status = app.status.lock().unwrap_or_else(|e| e.into_inner());
+            status.problem = None;
+            self.failure = None;
+            return;
+        };
+        let name = app.status.lock().unwrap_or_else(|e| e.into_inner()).name.clone();
+        match Capture::start_window(&s.gpu, window.hwnd, s.fps, s.cursor, s.capture.clone()) {
+            Ok(capture) => {
+                if s.stop.is_set() {
+                    return;
+                }
+                s.capture.closed.store(false, Ordering::Relaxed);
+                *s.source.lock().unwrap() = Some(capture);
+                app.pid.store(window.pid, Ordering::Relaxed);
+                app.since.store(now, Ordering::Relaxed);
+                app.hwnd.store(window.hwnd, Ordering::Relaxed);
+                let mut status = app.status.lock().unwrap_or_else(|e| e.into_inner());
+                *status = AppStatus { name, recording: true, problem: None, recent: false };
+                switchboard_log::log!("app: recording {}.exe", window.exe);
+                self.wait = APP_RETRY_HNS;
+                self.failure = None;
+            }
+            Err(e) => {
+                let denied = e.chain().any(|c| c.downcast_ref::<windows::core::Error>().is_some_and(|w| w.code() == E_ACCESSDENIED));
+                let problem = if denied {
+                    format!("{name} runs as administrator, so Windows won't let Switchboard record it")
+                } else {
+                    format!("Windows wouldn't let Switchboard record {name}")
+                };
+                if self.failure.as_deref() != Some(problem.as_str()) {
+                    switchboard_log::log!("app: can't record {}.exe ({e:#})", window.exe);
+                }
+                self.failure = Some(problem.clone());
+                app.status.lock().unwrap_or_else(|e| e.into_inner()).problem = Some(problem);
+                self.next = now + self.wait;
+                self.wait = (self.wait * 2).min(APP_RETRY_MAX_HNS);
+            }
+        }
     }
 }
 
@@ -735,7 +907,7 @@ struct HwEncoder {
 const SILENT_ENCODER_HNS: i64 = HNS_PER_SECOND;
 
 impl HwEncoder {
-    fn new(gpu: &Gpu, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<HwEncoder> {
+    fn new(gpu: &Gpu, codec: VideoCodec, w: u32, h: u32, fps: u32, bitrate: u32) -> Result<HwEncoder> {
         unsafe {
             let mut token = 0u32;
             let mut manager = None;
@@ -743,7 +915,7 @@ impl HwEncoder {
             let manager = manager.ok_or_else(|| anyhow!("no DXGI device manager"))?;
             manager.ResetDevice(&gpu.device, token)?;
 
-            let (transform, activate, name) = find_encoder(gpu)?;
+            let (transform, activate, name) = find_encoder(gpu, codec)?;
             let attrs = transform.GetAttributes()?;
             attrs.SetUINT32(&MF_TRANSFORM_ASYNC_UNLOCK, 1)?;
             let _ = attrs.SetUINT32(&MF_LOW_LATENCY, 1);
@@ -765,13 +937,17 @@ impl HwEncoder {
 
             let out = MFCreateMediaType()?;
             out.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Video)?;
-            out.SetGUID(&MF_MT_SUBTYPE, &MFVideoFormat_H264)?;
+            out.SetGUID(&MF_MT_SUBTYPE, &codec.subtype())?;
             out.SetUINT32(&MF_MT_AVG_BITRATE, bitrate)?;
             out.SetUINT64(&MF_MT_FRAME_SIZE, pack(w, h))?;
             out.SetUINT64(&MF_MT_FRAME_RATE, pack(fps, 1))?;
             out.SetUINT64(&MF_MT_PIXEL_ASPECT_RATIO, pack(1, 1))?;
             out.SetUINT32(&MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive.0 as u32)?;
-            out.SetUINT32(&MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_High.0 as u32)?;
+            match codec {
+                VideoCodec::H264 => out.SetUINT32(&MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_High.0 as u32)?,
+                VideoCodec::Hevc => out.SetUINT32(&MF_MT_MPEG2_PROFILE, eAVEncH265VProfile_Main_420_8.0 as u32)?,
+                VideoCodec::Av1 => {}
+            }
             out.SetUINT32(&MF_MT_YUV_MATRIX, MFVideoTransferMatrix_BT709.0 as u32)?;
             out.SetUINT32(&MF_MT_VIDEO_NOMINAL_RANGE, MFNominalRange_16_235.0 as u32)?;
             out.SetUINT32(&MF_MT_VIDEO_PRIMARIES, MFVideoPrimaries_BT709.0 as u32)?;
@@ -908,8 +1084,7 @@ impl HwEncoder {
     }
 }
 
-/// First hardware H.264 encoder on the capture adapter.
-fn find_encoder(gpu: &Gpu) -> Result<(IMFTransform, IMFActivate, String)> {
+fn hardware_encoders(gpu: &Gpu, codec: VideoCodec) -> Result<Vec<IMFActivate>> {
     unsafe {
         let mut attrs = None;
         MFCreateAttributes(&mut attrs, 1)?;
@@ -917,7 +1092,7 @@ fn find_encoder(gpu: &Gpu) -> Result<(IMFTransform, IMFActivate, String)> {
         let luid = std::slice::from_raw_parts(&gpu.luid as *const _ as *const u8, std::mem::size_of_val(&gpu.luid));
         attrs.SetBlob(&MFT_ENUM_ADAPTER_LUID, luid)?;
         let input = MFT_REGISTER_TYPE_INFO { guidMajorType: MFMediaType_Video, guidSubtype: MFVideoFormat_NV12 };
-        let output = MFT_REGISTER_TYPE_INFO { guidMajorType: MFMediaType_Video, guidSubtype: MFVideoFormat_H264 };
+        let output = MFT_REGISTER_TYPE_INFO { guidMajorType: MFMediaType_Video, guidSubtype: codec.subtype() };
         let mut list: *mut Option<IMFActivate> = std::ptr::null_mut();
         let mut count = 0u32;
         MFTEnum2(
@@ -929,21 +1104,24 @@ fn find_encoder(gpu: &Gpu) -> Result<(IMFTransform, IMFActivate, String)> {
             &mut list,
             &mut count,
         )?;
-        let activates: Vec<IMFActivate> =
-            (0..count as usize).filter_map(|i| (*list.add(i)).take()).collect();
+        let activates = (0..count as usize).filter_map(|i| (*list.add(i)).take()).collect();
         CoTaskMemFree(Some(list as *const _));
-        for act in activates {
-            let name = activate_name(&act);
-            match act.ActivateObject::<IMFTransform>() {
-                Ok(t) => return Ok((t, act, name)),
-                Err(e) => eprintln!("encoder {name} failed to activate: {e}"),
-            }
-        }
-        bail!("no hardware H.264 encoder on {}", gpu.adapter_name)
+        Ok(activates)
     }
 }
 
-fn activate_name(act: &IMFActivate) -> String {
+fn find_encoder(gpu: &Gpu, codec: VideoCodec) -> Result<(IMFTransform, IMFActivate, String)> {
+    for act in hardware_encoders(gpu, codec)? {
+        let name = activate_name(&act, codec);
+        match unsafe { act.ActivateObject::<IMFTransform>() } {
+            Ok(t) => return Ok((t, act, name)),
+            Err(e) => switchboard_log::log!("encoder {name} failed to activate: {e}"),
+        }
+    }
+    bail!("no hardware {} encoder on {}", codec.label(), gpu.adapter_name)
+}
+
+fn activate_name(act: &IMFActivate, codec: VideoCodec) -> String {
     unsafe {
         let mut ptr = windows::core::PWSTR::null();
         let mut len = 0u32;
@@ -953,7 +1131,7 @@ fn activate_name(act: &IMFActivate) -> String {
             return s;
         }
     }
-    "hardware H.264 encoder".into()
+    format!("hardware {} encoder", codec.label())
 }
 
 // ------------------------------------------------------------------- timer
@@ -999,6 +1177,23 @@ impl Drop for Timer {
 /// Converts an Annex-B access unit to 4-byte length-prefixed NAL units,
 /// moving SPS/PPS into `params` and dropping access unit delimiters.
 /// Returns true if the access unit contains an IDR slice.
+fn packetize(codec: VideoCodec, data: &[u8], out: &mut Vec<u8>, params: &Mutex<VideoParams>) -> bool {
+    match codec {
+        VideoCodec::H264 => annexb_to_avcc(data, out, params),
+        VideoCodec::Hevc => {
+            let mut p = params.lock().unwrap();
+            let mut headers = HevcHeaders { vps: std::mem::take(&mut p.vps), sps: std::mem::take(&mut p.sps), pps: std::mem::take(&mut p.pps) };
+            let irap = hevc_annexb_to_lengths(data, out, &mut headers);
+            (p.vps, p.sps, p.pps) = (headers.vps, headers.sps, headers.pps);
+            irap
+        }
+        VideoCodec::Av1 => {
+            av1_temporal_unit(data, out, &mut params.lock().unwrap().seq);
+            false
+        }
+    }
+}
+
 fn annexb_to_avcc(data: &[u8], out: &mut Vec<u8>, params: &Mutex<VideoParams>) -> bool {
     out.clear();
     let mut idr = false;

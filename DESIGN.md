@@ -4,7 +4,7 @@ Switchboard should feel like a quiet, well-made instrument that gets out of the 
 
 The standard is simple: nobody using Switchboard should ever have a moment of anger, confusion, or "who designed this?" Every decision in this document exists to prevent that moment.
 
-This document owns design intent. The current tokens and component implementations in `src/renderer/src/globals.css` and `src/renderer/src/components` own the exact code.
+This document owns design intent. The current tokens and components in `switchboard-rs/crates/app/src/ui/theme.rs` and `ui/widgets.rs` own the exact code. Sections about devices, Electron drag regions and browser fixtures describe the archived 0.9 app.
 
 ## Decision standard
 

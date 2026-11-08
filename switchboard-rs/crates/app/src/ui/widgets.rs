@@ -43,6 +43,7 @@ pub mod icon {
     pub const UNDO: &str = "\u{E7A7}";
     pub const REDO: &str = "\u{E7A6}";
     pub const COPY: &str = "\u{E8C8}";
+    pub const OPEN_EXTERNAL: &str = "\u{E8A7}";
     pub const ZOOM_IN: &str = "\u{E8A3}";
     pub const ZOOM_OUT: &str = "\u{E71F}";
     pub const MUSIC: &str = "\u{E8D6}";

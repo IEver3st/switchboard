@@ -26,6 +26,7 @@ pub enum Request {
     CheckForUpdates,
     /// Restart into the downloaded version.
     InstallUpdate,
+    InstallFfmpeg,
     OpenUi,
     Quit,
 }
@@ -39,6 +40,16 @@ pub enum ReplayState {
     Failed { message: String },
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "state")]
+pub enum FfmpegState {
+    #[default]
+    Checking,
+    Ready,
+    Downloading { permille: u32 },
+    Failed { message: String },
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServiceState {
     pub settings: Settings,
@@ -48,6 +59,8 @@ pub struct ServiceState {
     pub displays: Vec<DisplayInfo>,
     #[serde(default)]
     pub audio_devices: AudioDevices,
+    #[serde(default)]
+    pub codecs: Vec<switchboard_capture::VideoCodec>,
     /// Present while Auto Capture or reaction clipping is on.
     #[serde(default)]
     pub auto: Option<crate::auto::AutoStatus>,
@@ -60,6 +73,8 @@ pub struct ServiceState {
     pub service_memory: u64,
     #[serde(default)]
     pub update: crate::update::UpdateStatus,
+    #[serde(default)]
+    pub ffmpeg: FfmpegState,
     /// The service's build; empty from builds before this field existed.
     #[serde(default)]
     pub build: String,

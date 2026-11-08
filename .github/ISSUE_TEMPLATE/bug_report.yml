@@ -14,7 +14,7 @@ body:
     attributes:
       label: What broke?
       description: Name the affected device, capture or clip action, or setting.
-      placeholder: Replay shortcut stops working after Capture.Host restarts
+      placeholder: Replay shortcut stops working after the PC wakes from sleep
     validations:
       required: true
 
@@ -30,10 +30,10 @@ body:
     id: reproduction
     attributes:
       label: Steps to reproduce
-      description: Give the shortest reliable sequence, including relevant reconnects or host restarts.
+      description: Give the shortest reliable sequence, including relevant reconnects, sleep or restarts.
       placeholder: |
-        1. Enable Capture
-        2. Restart Capture.Host
+        1. Turn on Instant Replay
+        2. Put the PC to sleep and wake it
         3. Press the replay shortcut
     validations:
       required: true

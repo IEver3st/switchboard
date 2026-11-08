@@ -12,7 +12,20 @@ pub const MOVIE_TIMESCALE: u32 = 1000;
 
 pub enum Codec {
     H264 { width: u32, height: u32, sps: Vec<u8>, pps: Vec<u8> },
+    Hevc { width: u32, height: u32, vps: Vec<u8>, sps: Vec<u8>, pps: Vec<u8> },
+    Av1 { width: u32, height: u32, seq: Vec<u8> },
     Aac { sample_rate: u32, channels: u16, asc: Vec<u8>, bitrate: u32 },
+}
+
+impl Codec {
+    fn size(&self) -> Option<(u32, u32)> {
+        match self {
+            Codec::H264 { width, height, .. } | Codec::Hevc { width, height, .. } | Codec::Av1 { width, height, .. } => {
+                Some((*width, *height))
+            }
+            Codec::Aac { .. } => None,
+        }
+    }
 }
 
 pub struct Sample {
@@ -57,7 +70,7 @@ pub fn write(path: &Path, tracks: &[Track], mut fetch: impl FnMut(usize, usize, 
     let chunks = plan_chunks(tracks);
     let mdat_payload: u64 = chunks.iter().map(|c| c.bytes).sum();
     let large = mdat_payload + 16 > u32::MAX as u64;
-    let ftyp = ftyp();
+    let ftyp = ftyp(tracks);
     // Chunk offsets depend on the moov size; the moov size does not depend
     // on offset values (fixed-width stco/co64), so build twice.
     let probe = moov(tracks, &chunks, 0, large);
@@ -177,9 +190,18 @@ fn container(kind: &[u8; 4], children: &[Vec<u8>]) -> Vec<u8> {
 
 const MATRIX: [u32; 9] = [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000];
 
-fn ftyp() -> Vec<u8> {
+fn ftyp(tracks: &[Track]) -> Vec<u8> {
     let mut b = B::new();
-    b.bytes(b"isom").u32(0x200).bytes(b"isom").bytes(b"iso2").bytes(b"avc1").bytes(b"mp41");
+    b.bytes(b"isom").u32(0x200).bytes(b"isom").bytes(b"iso2");
+    for t in tracks {
+        match t.codec {
+            Codec::H264 { .. } => b.bytes(b"avc1"),
+            Codec::Hevc { .. } => b.bytes(b"hvc1"),
+            Codec::Av1 { .. } => b.bytes(b"av01"),
+            Codec::Aac { .. } => continue,
+        };
+    }
+    b.bytes(b"mp41");
     b.wrap(b"ftyp")
 }
 
@@ -208,16 +230,16 @@ fn moov(tracks: &[Track], chunks: &[Chunk], data_start: u64, large: bool) -> Vec
 }
 
 fn trak(t: &Track, id: u32, chunks: &[(u64, usize)], large: bool) -> Vec<u8> {
-    let video = matches!(t.codec, Codec::H264 { .. });
+    let video = t.codec.size().is_some();
     let mut tkhd = B::new();
     tkhd.full(0, 3).u32(0).u32(0).u32(id).u32(0).u32(t.presented_duration() as u32);
     tkhd.zeros(8).u16(0).u16(0).u16(if video { 0 } else { 0x0100 }).u16(0);
     for m in MATRIX {
         tkhd.u32(m);
     }
-    match &t.codec {
-        Codec::H264 { width, height, .. } => tkhd.u32(width << 16).u32(height << 16),
-        _ => tkhd.u32(0).u32(0),
+    match t.codec.size() {
+        Some((width, height)) => tkhd.u32(width << 16).u32(height << 16),
+        None => tkhd.u32(0).u32(0),
     };
 
     let mut parts = vec![tkhd.wrap(b"tkhd")];
@@ -347,14 +369,17 @@ fn sample_entry(codec: &Codec) -> Vec<u8> {
                 // 4:2:0, 8-bit, no SPS extensions.
                 avcc.u8(0xfc | 1).u8(0xf8).u8(0xf8).u8(0);
             }
-            let mut colr = B::new();
-            // nclx: BT.709 primaries/transfer/matrix, limited range.
-            colr.bytes(b"nclx").u16(1).u16(1).u16(1).u8(0);
-            let mut e = B::new();
-            e.zeros(6).u16(1).zeros(16).u16(*width as u16).u16(*height as u16);
-            e.u32(0x0048_0000).u32(0x0048_0000).u32(0).u16(1).zeros(32).u16(0x18).u16(0xffff);
-            e.bytes(&avcc.wrap(b"avcC")).bytes(&colr.wrap(b"colr"));
-            e.wrap(b"avc1")
+            visual_entry(b"avc1", *width, *height, &avcc.wrap(b"avcC"))
+        }
+        Codec::Hevc { width, height, vps, sps, pps } => {
+            let mut config = B::new();
+            config.bytes(&crate::bitstream::hvcc(vps, sps, pps));
+            visual_entry(b"hvc1", *width, *height, &config.wrap(b"hvcC"))
+        }
+        Codec::Av1 { width, height, seq } => {
+            let mut config = B::new();
+            config.bytes(&crate::bitstream::av1c(seq));
+            visual_entry(b"av01", *width, *height, &config.wrap(b"av1C"))
         }
         Codec::Aac { sample_rate, channels, asc, bitrate } => {
             let mut e = B::new();
@@ -363,6 +388,16 @@ fn sample_entry(codec: &Codec) -> Vec<u8> {
             e.wrap(b"mp4a")
         }
     }
+}
+
+fn visual_entry(kind: &[u8; 4], width: u32, height: u32, config: &[u8]) -> Vec<u8> {
+    let mut colr = B::new();
+    colr.bytes(b"nclx").u16(1).u16(1).u16(1).u8(0);
+    let mut e = B::new();
+    e.zeros(6).u16(1).zeros(16).u16(width as u16).u16(height as u16);
+    e.u32(0x0048_0000).u32(0x0048_0000).u32(0).u16(1).zeros(32).u16(0x18).u16(0xffff);
+    e.bytes(config).bytes(&colr.wrap(b"colr"));
+    e.wrap(kind)
 }
 
 fn descriptor(tag: u8, body: &[u8]) -> Vec<u8> {

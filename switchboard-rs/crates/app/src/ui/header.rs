@@ -113,20 +113,11 @@ impl App {
                         ui.selectable_value(&mut s.replay_seconds, v, label);
                     }
                 });
-                // Source display.
                 if !state.displays.is_empty() {
-                    let label = state
-                        .displays
-                        .get(s.display_index)
-                        .or(state.displays.first())
-                        .map(|d| d.short_label())
-                        .unwrap_or_else(|| "Display".into());
-                    combo("display-source", format!("{}  {label}", icon::DISPLAY), 110.0).show_ui(ui, |ui| {
-                        ui.set_min_width(240.0);
-                        for d in &state.displays {
-                            ui.selectable_value(&mut s.display_index, d.index, d.label());
-                        }
-                    });
+                    let label = super::sources::label(&s, &state);
+                    let apps = &mut self.apps;
+                    combo("display-source", format!("{}  {label}", icon::DISPLAY), 110.0)
+                        .show_ui(ui, |ui| super::sources::menu(ui, &mut s, &state, apps));
                 }
                 if s != state.settings {
                     self.apply(s);
@@ -147,9 +138,14 @@ impl App {
                 self.guide_button(ui);
                 ui.add_space(4.0);
                 let saving = self.state.as_ref().is_some_and(|s| s.saving);
-                let can_save = rec == Recorder::Running && !saving;
+                let app = self.state.as_ref().and_then(|s| s.status.as_ref()).and_then(|st| st.app.clone()).filter(|a| !a.recording && !a.recent);
+                let can_save = rec == Recorder::Running && !saving && app.is_none();
                 let label = if saving { "Saving\u{2026}" } else { "Save clip" };
                 let hint = match (rec, &self.state) {
+                    (Recorder::Running, Some(_)) if app.is_some() => {
+                        let a = app.as_ref().unwrap();
+                        a.problem.clone().unwrap_or_else(|| format!("Clips start once {} is open", super::sources::short(&a.name)))
+                    }
                     (Recorder::Running, Some(s)) => format!("Save the last {}", duration_label(s.settings.replay_seconds as f64)),
                     _ => "Turn on Instant Replay to save clips".into(),
                 };
@@ -165,6 +161,16 @@ impl App {
         let state = self.state.clone();
         let frozen = rec == Recorder::Running
             && state.as_ref().and_then(|s| s.status.as_ref()).is_some_and(|st| st.capture_blind);
+        let app = state.as_ref().and_then(|s| s.status.as_ref()).and_then(|st| st.app.clone()).filter(|_| rec == Recorder::Running);
+        let app_label = app.as_ref().filter(|a| !a.recording).map(|a| {
+            let name = super::sources::short(&a.name);
+            match (&a.problem, a.recent) {
+                (Some(_), _) => (DANGER, format!("Can't record {name}")),
+                (None, true) => (TEXT_MUTED, format!("{name} closed")),
+                (None, false) => (WARNING, format!("Waiting for {name}")),
+            }
+        });
+        let waiting = app_label.is_some();
         let (dot, label) = match rec {
             Recorder::Connecting => (TEXT_MUTED, "Connecting\u{2026}"),
             Recorder::Offline => (TEXT_MUTED, "Not running"),
@@ -174,6 +180,8 @@ impl App {
             Recorder::Running if frozen => (WARNING, "Video frozen"),
             Recorder::Running => (SUCCESS, "Ready"),
         };
+        let (dot, label) = app_label.clone().unwrap_or((dot, label.to_string()));
+        let label = label.as_str();
         let tracks: Vec<(Color32, f32, bool)> = match (&state, rec) {
             (Some(s), Recorder::Running) => s
                 .status
@@ -182,7 +190,7 @@ impl App {
                 .unwrap_or_default(),
             _ => Vec::new(),
         };
-        let label_color = if rec == Recorder::Running && !frozen { SUCCESS } else { TEXT };
+        let label_color = if rec == Recorder::Running && !frozen && !waiting { SUCCESS } else { TEXT };
         let galley = ui.painter().layout_no_wrap(label.to_string(), font_strong(13.0), label_color);
         let meters_w = if tracks.is_empty() { 0.0 } else { tracks.len() as f32 * 5.0 + 8.0 };
         let size = vec2(12.0 + 14.0 + galley.size().x + meters_w + 12.0, 32.0);

@@ -129,6 +129,10 @@ impl TrackRing {
         Pin { ring: self.clone(), seg: first }
     }
 
+    pub fn first_key_from(&self, t: i64) -> Option<i64> {
+        self.index.lock().unwrap().packets.iter().find(|p| p.key && p.pts >= t).map(|p| p.pts)
+    }
+
     pub fn newest_pts(&self) -> Option<i64> {
         self.index.lock().unwrap().packets.back().map(|p| p.pts + p.dur)
     }

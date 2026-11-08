@@ -1,8 +1,9 @@
 //! Replay engine lifecycle: start capture, encoders and rings; save clips;
 //! stop deterministically (threads joined, session cache deleted).
 
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -17,7 +18,8 @@ use crate::gpu::{DisplayInfo, Gpu, hardware_adapters, list_displays};
 use crate::mp4;
 use crate::ring::{Packet, TrackRing};
 use crate::signal::Stop;
-use crate::video::{self, VideoParams, VideoSetup, VideoStats};
+use crate::apps::{AppChoice, AppFollow, AppStatus};
+use crate::video::{self, VideoCodec, VideoParams, VideoSetup, VideoStats};
 use crate::wgc::{Capture, CaptureShared};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,9 +42,11 @@ impl Quality {
 #[derive(Clone, Debug)]
 pub struct EngineConfig {
     pub display_index: usize,
+    pub app: Option<AppChoice>,
     pub fps: u32,
     pub target_height: u32,
     pub quality: Quality,
+    pub codec: VideoCodec,
     pub replay_seconds: u32,
     pub game_audio: bool,
     pub chat_audio: bool,
@@ -67,6 +71,10 @@ pub struct EngineInfo {
     pub display_id: String,
     pub adapter: String,
     pub encoder: String,
+    #[serde(default)]
+    pub codec: VideoCodec,
+    #[serde(default)]
+    pub codec_note: Option<String>,
     pub width: u32,
     pub height: u32,
     pub fps: u32,
@@ -99,6 +107,8 @@ pub struct EngineStatus {
     pub cache_bytes: u64,
     pub tracks: Vec<TrackStatus>,
     pub video_error: Option<String>,
+    #[serde(default)]
+    pub app: Option<AppStatus>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -117,8 +127,18 @@ pub struct SavedClip {
     pub cursor_error: Option<String>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Follow {
+    EverythingButChat,
+    Chat,
+    App,
+}
+
 struct AudioTrack {
     kind: TrackKind,
+    follow: Option<Follow>,
+    source: Arc<Mutex<Source>>,
+    retarget: Arc<AtomicBool>,
     ring: Arc<TrackRing>,
     stats: Arc<AudioStats>,
     kick: Arc<Kick>,
@@ -215,7 +235,7 @@ impl Workers {
                 // Every wait in the workers ends on the stop event, so this
                 // means a driver call is stuck. Leave the thread; its session
                 // files go when it exits.
-                eprintln!("engine worker {name} did not stop within {:?}", self.join_timeout);
+                switchboard_log::log!("engine worker {name} did not stop within {:?}", self.join_timeout);
             }
         }
     }
@@ -236,6 +256,10 @@ pub struct Engine {
     video_stats: Arc<VideoStats>,
     audio: Vec<AudioTrack>,
     cursor_track: Option<Arc<CursorTrack>>,
+    chat: Mutex<Option<(u32, String)>>,
+    app: Option<Arc<AppFollow>>,
+    app_pid: AtomicU64,
+    replay_hns: i64,
     save_lock: Mutex<()>,
     kick_seq: AtomicU64,
     started_hns: i64,
@@ -258,8 +282,31 @@ impl Engine {
         }
         let mut first_error = None;
         for adapter in order {
-            match Self::start_on(cfg, &display, Gpu::for_adapter(adapter)) {
-                Ok(engine) => return Ok(engine),
+            let gpu = match Gpu::for_adapter(adapter) {
+                Ok(g) => g,
+                Err(e) => {
+                    first_error.get_or_insert(e);
+                    continue;
+                }
+            };
+            let mut codec = cfg.codec;
+            let mut note = None;
+            if video::known_broken(&gpu, codec) {
+                note = Some(format!("{} stopped working on this graphics card, so Switchboard is recording H.264", codec.label()));
+                codec = VideoCodec::H264;
+            }
+            match Self::start_on(cfg, &display, gpu.clone(), codec) {
+                Ok(engine) => return Ok(engine.noted(note)),
+                Err(e) if codec != VideoCodec::H264 => {
+                    switchboard_log::log!("engine: {} failed on {} ({e:#}); trying H.264", codec.label(), gpu.adapter_name);
+                    let note = format!("{} could not start on this graphics card, so Switchboard is recording H.264", codec.label());
+                    match Self::start_on(cfg, &display, gpu, VideoCodec::H264) {
+                        Ok(engine) => return Ok(engine.noted(Some(note))),
+                        Err(e) => {
+                            first_error.get_or_insert(e);
+                        }
+                    }
+                }
                 Err(e) => {
                     first_error.get_or_insert(e);
                 }
@@ -268,11 +315,16 @@ impl Engine {
         Err(first_error.unwrap_or_else(|| anyhow!("no graphics adapter can record this display")))
     }
 
-    fn start_on(cfg: &EngineConfig, display: &DisplayInfo, gpu: Result<Gpu>) -> Result<Engine> {
-        let gpu = gpu?;
+    fn noted(mut self, note: Option<String>) -> Engine {
+        self.info.codec_note = note;
+        self
+    }
+
+    fn start_on(cfg: &EngineConfig, display: &DisplayInfo, gpu: Gpu, codec: VideoCodec) -> Result<Engine> {
         let display = display.clone();
         let (width, height) = video::output_size(display.width, display.height, cfg.target_height);
-        let bitrate = ((width as f64 * height as f64 * cfg.fps as f64 * cfg.quality.bits_per_pixel()) as u32)
+        let efficiency = if codec == VideoCodec::H264 { 1.0 } else { 0.7 };
+        let bitrate = ((width as f64 * height as f64 * cfg.fps as f64 * cfg.quality.bits_per_pixel() * efficiency) as u32)
             .clamp(4_000_000, 80_000_000);
 
         let t0 = now_hns();
@@ -284,9 +336,17 @@ impl Engine {
         let stop = Arc::new(Stop::new()?);
         let mut workers = Workers::new(stop.clone(), session, JOIN_TIMEOUT);
 
-        let capture = Capture::start_display(&gpu, &display, cfg.fps, cfg.cursor).context("display capture")?;
-        let capture_shared = capture.shared.clone();
-        *workers.capture.lock().unwrap() = Some(capture);
+        let app = cfg.app.as_ref().map(|a| Arc::new(AppFollow::new(&a.key, &a.name)));
+        let capture_shared = if app.is_some() {
+            let shared = Arc::new(CaptureShared::default());
+            shared.last_frame_hns.store(now_hns(), Ordering::Relaxed);
+            shared
+        } else {
+            let capture = Capture::start_display(&gpu, &display, cfg.fps, cfg.cursor).context("display capture")?;
+            let shared = capture.shared.clone();
+            *workers.capture.lock().unwrap() = Some(capture);
+            shared
+        };
 
         // Keep a little more than requested so a save never comes up short.
         let retain_s = cfg.replay_seconds as u64 + 3;
@@ -307,13 +367,21 @@ impl Engine {
             params: video_params.clone(),
             stats: video_stats.clone(),
             stop: stop.clone(),
+            app: app.clone(),
+            cursor: cfg.cursor,
+            codec,
             width,
             height,
             fps: cfg.fps,
             bitrate,
             t0,
         };
-        workers.spawn("sb-video".into(), move || video::run(setup, ready_tx))?;
+        let stats = video_stats.clone();
+        workers.spawn("sb-video".into(), move || {
+            if catch_unwind(AssertUnwindSafe(|| video::run(setup, ready_tx))).is_err() {
+                *stats.error.lock().unwrap_or_else(|e| e.into_inner()) = Some("the video pipeline ran into an internal error".into());
+            }
+        })?;
         let encoder = match ready_rx.recv_timeout(Duration::from_secs(10)) {
             Ok(Ok(name)) => name,
             Ok(Err(e)) => return Err(e.context("hardware encoder")),
@@ -322,9 +390,14 @@ impl Engine {
 
         // Same window as the video ring, plus slack for encoder latency.
         let cursor_track = if cfg.cursor_track {
+            let geometry = match &app {
+                Some(_) => cursor::output_geometry(display.index, width, height),
+                None => cursor::display_geometry(&display, width, height),
+            };
             let track = Arc::new(CursorTrack {
-                geometry: cursor::display_geometry(&display, width, height),
+                geometry,
                 ring: Mutex::new(CursorRing::new(retain + 2 * HNS_PER_SECOND)),
+                app: app.clone(),
             });
             let (t, s) = (track.clone(), stop.clone());
             workers.spawn("sb-cursor".into(), move || cursor::run(t, s))?;
@@ -334,20 +407,21 @@ impl Engine {
         };
 
         // Discord is split out of Game only when Chat follows the Discord app.
-        let chat = if cfg.chat_audio && cfg.chat_device.is_none() { find_chat_app() } else { None };
+        let follows_chat = cfg.chat_audio && cfg.chat_device.is_none();
+        let chat = if follows_chat { find_chat_app() } else { None };
         let mut wanted = Vec::new();
         if cfg.game_audio {
-            let source = match &cfg.game_device {
-                Some(id) => Source::OutputDevice(id.clone()),
-                None => Source::LoopbackExcluding(chat.as_ref().map(|c| c.0).unwrap_or_else(audio::own_pid)),
-            };
-            wanted.push((TrackKind::Game, source));
+            match &cfg.game_device {
+                Some(id) => wanted.push((TrackKind::Game, Source::OutputDevice(id.clone()), None)),
+                None if app.is_some() => wanted.push((TrackKind::Game, Source::Idle, Some(Follow::App))),
+                None if follows_chat => wanted.push((TrackKind::Game, game_source(&chat), Some(Follow::EverythingButChat))),
+                None => wanted.push((TrackKind::Game, Source::LoopbackExcluding(audio::own_pid()), None)),
+            }
         }
         if cfg.chat_audio {
-            match (&cfg.chat_device, &chat) {
-                (Some(id), _) => wanted.push((TrackKind::Chat, Source::OutputDevice(id.clone()))),
-                (None, Some((pid, _))) => wanted.push((TrackKind::Chat, Source::LoopbackOnly(*pid))),
-                (None, None) => {}
+            match &cfg.chat_device {
+                Some(id) => wanted.push((TrackKind::Chat, Source::OutputDevice(id.clone()), None)),
+                None => wanted.push((TrackKind::Chat, chat_source(&chat), Some(Follow::Chat))),
             }
         }
         if cfg.microphone {
@@ -355,17 +429,20 @@ impl Engine {
                 Some(id) => Source::InputDevice(id.clone()),
                 None => Source::DefaultMicrophone,
             };
-            wanted.push((TrackKind::Microphone, source));
+            wanted.push((TrackKind::Microphone, source, None));
         }
         let mut audio_tracks = Vec::new();
-        for (kind, source) in wanted {
+        for (kind, source, follow) in wanted {
+            let source = Arc::new(Mutex::new(source));
+            let retarget = Arc::new(AtomicBool::new(false));
             let ring = TrackRing::new(&session_dir, kind.label(), retain, ceiling(audio::AAC_BYTES_PER_SECOND as u64 * 2));
             let stats = Arc::new(AudioStats::default());
             let kick = Arc::new(Kick::new()?);
             let error = Arc::new(Mutex::new(None));
             let setup = AudioSetup {
                 kind,
-                source,
+                source: source.clone(),
+                retarget: retarget.clone(),
                 ring: ring.clone(),
                 stats: stats.clone(),
                 stop: stop.clone(),
@@ -374,8 +451,13 @@ impl Engine {
                 max_fill_hns: retain,
                 error: error.clone(),
             };
-            workers.spawn(format!("sb-audio-{}", kind.label()), move || audio::run(setup))?;
-            audio_tracks.push(AudioTrack { kind, ring, stats, kick, error });
+            let failed = error.clone();
+            workers.spawn(format!("sb-audio-{}", kind.label()), move || {
+                if catch_unwind(AssertUnwindSafe(|| audio::run(setup))).is_err() {
+                    *failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(format!("{}: stopped after an internal error", kind.label()));
+                }
+            })?;
+            audio_tracks.push(AudioTrack { kind, follow, source, retarget, ring, stats, kick, error });
         }
 
         Ok(Engine {
@@ -384,11 +466,13 @@ impl Engine {
                 display_id: display.id.clone(),
                 adapter: gpu.adapter_name.clone(),
                 encoder,
+                codec,
+                codec_note: None,
                 width,
                 height,
                 fps: cfg.fps,
                 bitrate,
-                chat_app: chat.map(|c| c.1),
+                chat_app: chat.as_ref().map(|c| c.1.clone()),
             },
             workers,
             capture: capture_shared,
@@ -397,6 +481,10 @@ impl Engine {
             video_stats,
             audio: audio_tracks,
             cursor_track,
+            chat: Mutex::new(chat),
+            app,
+            app_pid: AtomicU64::new(0),
+            replay_hns: cfg.replay_seconds as i64 * HNS_PER_SECOND,
             save_lock: Mutex::new(()),
             kick_seq: AtomicU64::new(0),
             started_hns: t0,
@@ -430,8 +518,76 @@ impl Engine {
         self.audio.iter().find(|a| a.kind == TrackKind::Microphone)
     }
 
+    pub fn follows_chat_app(&self) -> bool {
+        self.audio.iter().any(|a| a.follow == Some(Follow::Chat))
+    }
+
+    pub fn follow_chat_app(&self) -> bool {
+        if !self.follows_chat_app() {
+            return false;
+        }
+        let found = find_chat_app();
+        let mut current = self.chat.lock().unwrap();
+        if found.as_ref().map(|c| c.0) == current.as_ref().map(|c| c.0) {
+            return false;
+        }
+        switchboard_log::log!("chat app: {} -> {}", label_of(&current), label_of(&found));
+        for a in &self.audio {
+            let next = match a.follow {
+                Some(Follow::EverythingButChat) => game_source(&found),
+                Some(Follow::Chat) => chat_source(&found),
+                Some(Follow::App) | None => continue,
+            };
+            *a.source.lock().unwrap() = next;
+            a.retarget.store(true, Ordering::Relaxed);
+        }
+        *current = found;
+        true
+    }
+
+    pub fn follows_app(&self) -> bool {
+        self.app.is_some()
+    }
+
+    fn app_start(&self, from: i64) -> Result<i64> {
+        let Some(app) = &self.app else { return Ok(from) };
+        let status = app.status();
+        let open = app.recording_since();
+        let Some(since) = open.or_else(|| self.closed_session(app)) else {
+            bail!("Switchboard is waiting for {} to open, so there is nothing to save yet", status.name);
+        };
+        match self.video_ring.first_key_from(since) {
+            Some(first) => Ok(from.max(first)),
+            None if open.is_some() => bail!("{} only just opened; try again in a second", status.name),
+            None => bail!("nothing from {} is left in the replay buffer", status.name),
+        }
+    }
+
+    fn closed_session(&self, app: &AppFollow) -> Option<i64> {
+        let since = app.last_session()?;
+        let newest = self.video_ring.newest_pts()?;
+        (newest >= since && now_hns() - newest <= self.replay_hns).then_some(since)
+    }
+
+    pub fn follow_app(&self) -> bool {
+        let Some(app) = &self.app else { return false };
+        let pid = app.pid.load(Ordering::Relaxed) as u64;
+        if self.app_pid.swap(pid, Ordering::Relaxed) == pid {
+            return false;
+        }
+        let source = if pid == 0 { Source::Idle } else { Source::LoopbackOnly(pid as u32) };
+        for a in self.audio.iter().filter(|a| a.follow == Some(Follow::App)) {
+            *a.source.lock().unwrap() = source.clone();
+            a.retarget.store(true, Ordering::Relaxed);
+        }
+        true
+    }
+
     pub fn live_info(&self) -> EngineInfo {
         let mut info = self.info.clone();
+        if self.follows_chat_app() {
+            info.chat_app = self.chat.lock().unwrap().as_ref().map(|c| c.1.clone());
+        }
         if let Some(encoder) = self.video_stats.encoder.lock().unwrap().clone() {
             info.encoder = encoder;
         }
@@ -462,13 +618,25 @@ impl Engine {
                 })
                 .collect(),
             video_error: self.video_stats.error.lock().unwrap().clone(),
+            app: self.app.as_ref().map(|a| {
+                let mut status = a.status();
+                status.recent = !status.recording && self.closed_session(a).is_some();
+                status
+            }),
         }
     }
 
     /// How far the newest encoded video trails real time (since start while
     /// nothing is encoded yet). A healthy pipeline stays within a frame or two.
     pub fn video_lag(&self) -> Duration {
-        let newest = self.video_ring.newest_pts().unwrap_or(self.started_hns);
+        let mut newest = self.video_ring.newest_pts().unwrap_or(self.started_hns);
+        if let Some(app) = &self.app {
+            let Some(since) = app.recording_since() else { return Duration::ZERO };
+            match self.video_ring.newest_pts() {
+                Some(n) if n >= since => newest = n,
+                _ => return Duration::ZERO,
+            }
+        }
         Duration::from_nanos(((now_hns() - newest).max(0) as u64).saturating_mul(100))
     }
 
@@ -504,6 +672,7 @@ impl Engine {
     /// Writes the last `seconds` to `dir`. Starts on the keyframe at or before
     /// the requested point, so clips run up to one second longer, never shorter.
     pub fn save(&self, seconds: u32, dir: &Path, source_name: &str) -> Result<SavedClip> {
+        self.app_start(0)?;
         let end = self.video_ring.newest_pts().ok_or_else(|| anyhow!("the replay buffer is still empty"))?;
         self.save_range(end - seconds as i64 * HNS_PER_SECOND, end, dir, source_name)
     }
@@ -533,11 +702,12 @@ impl Engine {
     }
 
     pub fn save_range(&self, from: i64, until: i64, dir: &Path, source_name: &str) -> Result<SavedClip> {
+        let from = self.app_start(from)?;
         let _guard = self.save_lock.lock().unwrap();
         self.flush_audio();
         let newest = self.video_ring.newest_pts().ok_or_else(|| anyhow!("the replay buffer is still empty"))?;
         let lag = now_hns() - newest;
-        if lag > STALE_VIDEO_HNS {
+        if lag > STALE_VIDEO_HNS && self.app.as_ref().is_none_or(|a| a.recording_since().is_some()) {
             bail!(
                 "Instant Replay stopped receiving video {} ago, so there is nothing new to save. It restarts automatically; try again in a few seconds",
                 lag_label(lag)
@@ -555,9 +725,17 @@ impl Engine {
             bail!("the replay buffer has no complete video yet");
         }
         let params = self.video_params.lock().unwrap().clone();
-        if params.sps.is_empty() || params.pps.is_empty() {
-            bail!("the encoder has not produced stream headers yet");
-        }
+        let (width, height) = (params.width, params.height);
+        let video_codec = match params.codec {
+            VideoCodec::H264 if !params.sps.is_empty() && !params.pps.is_empty() => {
+                mp4::Codec::H264 { width, height, sps: params.sps, pps: params.pps }
+            }
+            VideoCodec::Hevc if !params.vps.is_empty() && !params.sps.is_empty() && !params.pps.is_empty() => {
+                mp4::Codec::Hevc { width, height, vps: params.vps, sps: params.sps, pps: params.pps }
+            }
+            VideoCodec::Av1 if !params.seq.is_empty() => mp4::Codec::Av1 { width, height, seq: params.seq },
+            _ => bail!("the encoder has not produced stream headers yet"),
+        };
         let v_start = vpk[0].pts;
         let v_end = vpk.last().map(|p| p.pts + p.dur).unwrap();
 
@@ -575,7 +753,7 @@ impl Engine {
             .collect();
         tracks.push(mp4::Track {
             name: "Video".into(),
-            codec: mp4::Codec::H264 { width: params.width, height: params.height, sps: params.sps, pps: params.pps },
+            codec: video_codec,
             timescale: VIDEO_TS,
             samples,
             start_offset: 0,
@@ -742,8 +920,28 @@ fn processes() -> Vec<Proc> {
     out
 }
 
-const CHAT_APPS: [(&str, &str); 3] =
-    [("discord.exe", "Discord"), ("discordptb.exe", "Discord PTB"), ("discordcanary.exe", "Discord Canary")];
+fn game_source(chat: &Option<(u32, String)>) -> Source {
+    Source::LoopbackExcluding(chat.as_ref().map(|c| c.0).unwrap_or_else(audio::own_pid))
+}
+
+fn chat_source(chat: &Option<(u32, String)>) -> Source {
+    chat.as_ref().map(|c| Source::LoopbackOnly(c.0)).unwrap_or(Source::Idle)
+}
+
+fn label_of(chat: &Option<(u32, String)>) -> String {
+    chat.as_ref().map(|c| format!("{} ({})", c.1, c.0)).unwrap_or_else(|| "none".into())
+}
+
+const CHAT_APPS: [(&str, &str); 8] = [
+    ("discord.exe", "Discord"),
+    ("discordptb.exe", "Discord PTB"),
+    ("discordcanary.exe", "Discord Canary"),
+    ("vesktop.exe", "Vesktop"),
+    ("legcord.exe", "Legcord"),
+    ("teamspeak.exe", "TeamSpeak"),
+    ("ts3client_win64.exe", "TeamSpeak 3"),
+    ("mumble.exe", "Mumble"),
+];
 
 /// Root process of a running chat app, so its whole tree can be split out.
 pub fn find_chat_app() -> Option<(u32, String)> {
@@ -887,3 +1085,12 @@ mod tests {
     }
 }
 
+pub fn recordable_codecs(display_index: usize) -> Vec<VideoCodec> {
+    crate::mf::init_thread();
+    let adapter = list_displays().ok().and_then(|d| d.get(display_index).or_else(|| d.first()).map(|d| d.adapter_index));
+    let Some(gpu) = adapter.and_then(|a| Gpu::for_adapter(a).ok()) else { return vec![VideoCodec::H264] };
+    VideoCodec::ALL
+        .into_iter()
+        .filter(|&c| c == VideoCodec::H264 || (video::can_decode(c) && video::can_encode(&gpu, c)))
+        .collect()
+}

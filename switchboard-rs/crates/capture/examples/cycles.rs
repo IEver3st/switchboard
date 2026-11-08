@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     let cycles: usize = std::env::args().nth(1).and_then(|a| a.parse().ok()).unwrap_or(20);
     let tracks = std::env::var("SB_TRACKS").unwrap_or_default();
     let cfg = EngineConfig {
-        display_index: 0, fps: 60, target_height: 720, quality: Quality::Standard, replay_seconds: 10,
+        display_index: 0, app: None, fps: 60, target_height: 720, quality: Quality::Standard, codec: Default::default(), replay_seconds: 10,
         game_audio: tracks.contains('g'), chat_audio: tracks.contains('c'), microphone: tracks.contains('m'),
         game_device: None, chat_device: None, mic_device: None,
         cursor: false, cursor_track: false, cache_dir: std::env::temp_dir().join("switchboard-cycles"),

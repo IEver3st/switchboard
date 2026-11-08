@@ -17,9 +17,11 @@ fn main() -> anyhow::Result<()> {
     let out = std::env::temp_dir().join("switchboard-probe");
     let cfg = EngineConfig {
         display_index: 0,
+        app: None,
         fps,
         target_height: height,
         quality: Quality::High,
+        codec: Default::default(),
         replay_seconds: clip.max(10),
         game_audio: tracks.contains('g'),
         chat_audio: tracks.contains('c'),

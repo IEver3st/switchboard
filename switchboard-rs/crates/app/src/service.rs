@@ -25,7 +25,10 @@ pub enum Msg {
     AutoWake,
     AutoSaved(Box<switchboard_autocapture::SaveRequest>, Result<SavedClip, String>),
     Update(crate::update::UpdatePhase),
+    FfmpegChanged,
     DisplaysChanged,
+    Suspend,
+    Resume,
 }
 
 /// Retry delay after the engine fails at runtime (display unplugged,
@@ -35,15 +38,25 @@ const RETRY_AFTER: Duration = Duration::from_secs(5);
 const UI_STATUS_INTERVAL: Duration = Duration::from_secs(1);
 /// While replay runs with no UI, check engine health every 5 s.
 const HEALTH_INTERVAL: Duration = Duration::from_secs(5);
+const APP_FOLLOW_INTERVAL: Duration = Duration::from_secs(1);
 /// Newest encoded video older than this restarts capture (the video thread's
 /// own watchdog normally fires first, after 4 s).
 const VIDEO_LAG_LIMIT: Duration = Duration::from_secs(12);
+const CHAT_APP_CHECK: Duration = Duration::from_secs(5);
+const START_AFTER_RESUME: Duration = Duration::from_secs(3);
+const START_IF_RESUME_MISSED: Duration = Duration::from_secs(30);
 
-struct Service {
+#[derive(Default)]
+pub struct Carry {
+    pub subscribers: HashMap<u64, mpsc::Sender<Event>>,
+    pub ui_child: Option<std::process::Child>,
+}
+
+struct Service<'a> {
     settings: Settings,
     engine: Option<Arc<Engine>>,
     replay: ReplayState,
-    subscribers: HashMap<u64, mpsc::Sender<Event>>,
+    subscribers: &'a mut HashMap<u64, mpsc::Sender<Event>>,
     hotkey_error: Option<String>,
     guide_error: Option<String>,
     displays: Vec<switchboard_capture::DisplayInfo>,
@@ -51,36 +64,41 @@ struct Service {
     /// Game name captured when the save started, for the index entry.
     saving_game: Option<String>,
     audio_devices: AudioDevices,
+    codecs: Option<(usize, Vec<switchboard_capture::VideoCodec>)>,
     saving: bool,
     retry_at: Option<Instant>,
-    ui_child: Option<std::process::Child>,
+    chat_check_at: Instant,
+    ui_child: &'a mut Option<std::process::Child>,
     tx: mpsc::Sender<Msg>,
     main: MainThread,
     auto: Option<Auto>,
     updater: crate::update::Updater,
 }
 
-pub fn run(settings: Settings, rx: mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, main: MainThread, open_ui: bool) {
+pub fn run(settings: Settings, rx: &mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, main: MainThread, open_ui: bool, carry: &mut Carry) {
     let mut s = Service {
         settings,
         engine: None,
         replay: ReplayState::Off,
-        subscribers: HashMap::new(),
+        subscribers: &mut carry.subscribers,
         hotkey_error: None,
         guide_error: None,
         displays: list_displays().unwrap_or_default(),
         index: LibraryIndex::load(),
         saving_game: None,
         audio_devices: AudioDevices::default(),
+        codecs: None,
         saving: false,
         retry_at: None,
-        ui_child: None,
+        chat_check_at: Instant::now() + CHAT_APP_CHECK,
+        ui_child: &mut carry.ui_child,
         updater: crate::update::Updater::new(tx.clone()),
         tx,
         main,
         auto: None,
     };
     s.updater.set_automatic(s.settings.auto_update);
+    s.ensure_ffmpeg();
     s.sync_auto();
     s.refresh_displays();
     if s.settings.vertical_guide.enabled {
@@ -97,6 +115,8 @@ pub fn run(settings: Settings, rx: mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, m
     loop {
         let interval = if !s.subscribers.is_empty() {
             Some(UI_STATUS_INTERVAL)
+        } else if s.engine.as_ref().is_some_and(|e| e.follows_app()) {
+            Some(APP_FOLLOW_INTERVAL)
         } else if s.engine.is_some() || s.retry_at.is_some() || s.auto.is_some() {
             Some(HEALTH_INTERVAL)
         } else {
@@ -141,7 +161,7 @@ pub fn run(settings: Settings, rx: mpsc::Receiver<Msg>, tx: mpsc::Sender<Msg>, m
     }
 }
 
-impl Service {
+impl Service<'_> {
     fn handle(&mut self, msg: Msg) -> bool {
         match msg {
             Msg::Connected { conn, out } => {
@@ -193,7 +213,15 @@ impl Service {
             }
             Msg::AutoWake => {}
             Msg::DisplaysChanged => self.follow_display(),
+            Msg::Suspend => self.suspend(),
+            Msg::Resume => {
+                if self.settings.replay_enabled && self.engine.is_none() {
+                    switchboard_log::log!("resumed from sleep; restarting Instant Replay");
+                    self.retry_at = Some(Instant::now() + START_AFTER_RESUME);
+                }
+            }
             Msg::AutoSaved(req, result) => self.auto_saved(*req, result),
+            Msg::FfmpegChanged => self.broadcast_state(),
             Msg::Update(phase) => {
                 if !matches!(phase, crate::update::UpdatePhase::Checking | crate::update::UpdatePhase::Downloading { .. }) {
                     self.updater.status.checked_at_ms = Some(crate::update::now_unix_ms());
@@ -251,6 +279,9 @@ impl Service {
                 Request::RefreshDevices => {
                     self.follow_display();
                     self.audio_devices = list_audio_devices();
+                    if self.codecs.as_ref().is_none_or(|c| c.0 != self.settings.display_index) {
+                        self.codecs = Some((self.settings.display_index, switchboard_capture::recordable_codecs(self.settings.display_index)));
+                    }
                     if let Some(a) = &mut self.auto {
                         a.refresh();
                     }
@@ -268,8 +299,10 @@ impl Service {
                 Request::CheckForUpdates => {
                     self.updater.check_now();
                 }
+                Request::InstallFfmpeg => self.ensure_ffmpeg(),
                 Request::InstallUpdate => {
                     if let Some((_, staged)) = crate::update::staged() {
+                        crate::ffmpeg_setup::cancel();
                         self.stop_engine();
                         if let Some(mut a) = self.auto.take() {
                             drop(a.shutdown());
@@ -295,6 +328,7 @@ impl Service {
                 }
                 Request::OpenUi => self.open_ui(),
                 Request::Quit => {
+                    crate::ffmpeg_setup::cancel();
                     self.stop_engine();
                     if let Some(mut a) = self.auto.take() {
                         drop(a.shutdown());
@@ -318,10 +352,17 @@ impl Service {
                 (engine.video_lag() > VIDEO_LAG_LIMIT).then(|| "the video encoder stopped responding".to_string())
             });
             if let Some(err) = error {
+                switchboard_log::log!("replay failed: {err}");
                 self.stop_engine();
                 self.replay = ReplayState::Failed { message: err };
                 self.retry_at = Some(Instant::now() + RETRY_AFTER);
                 self.sync_tray();
+            } else {
+                engine.follow_app();
+                if Instant::now() >= self.chat_check_at {
+                    self.chat_check_at = Instant::now() + CHAT_APP_CHECK;
+                    engine.follow_chat_app();
+                }
             }
         } else if let Some(at) = self.retry_at
             && Instant::now() >= at && self.settings.replay_enabled {
@@ -347,6 +388,7 @@ impl Service {
                 }
             }
             Err(e) => {
+                switchboard_log::log!("replay couldn't start: {e:#}");
                 self.replay = ReplayState::Failed { message: format!("{e:#}") };
                 self.retry_at = Some(Instant::now() + RETRY_AFTER);
             }
@@ -368,6 +410,25 @@ impl Service {
         self.retry_at = None;
     }
 
+    fn suspend(&mut self) {
+        let Some(engine) = self.engine.take() else { return };
+        switchboard_log::log!("the PC is going to sleep; stopping Instant Replay");
+        if let Some(a) = &mut self.auto {
+            for req in a.capture_stopping() {
+                let (engine, tx, dir) = (engine.clone(), self.tx.clone(), self.settings.clips_dir());
+                std::thread::spawn(move || {
+                    let result = guarded(|| save_window(&engine, &req, &dir));
+                    let _ = tx.send(Msg::AutoSaved(Box::new(req), result));
+                });
+            }
+        }
+        drop(engine);
+        self.replay = ReplayState::Starting;
+        self.retry_at = Some(Instant::now() + START_IF_RESUME_MISSED);
+        self.sync_tray();
+        self.broadcast_state();
+    }
+
     fn save_clip(&mut self) {
         let Some(engine) = self.engine.clone() else {
             let message = "Instant Replay is off. Turn it on to save clips.".to_string();
@@ -382,14 +443,19 @@ impl Service {
         self.broadcast_state();
         let seconds = self.settings.replay_seconds;
         let dir = self.settings.clips_dir();
-        // Name the clip after whatever was in front when the hotkey fired.
-        let name = foreground_app_name();
+        let name = self.settings.capture_app.as_ref().map_or_else(foreground_app_name, |a| a.name.clone());
         self.saving_game = Some(name.clone());
         let tx = self.tx.clone();
         std::thread::spawn(move || {
-            let result = engine.save(seconds, &dir, &name).map_err(|e| format!("{e:#}"));
-            if let Ok(clip) = &result {
-                save_thumbnail(&engine, &clip.path);
+            let result = guarded(|| {
+                let result = engine.save(seconds, &dir, &name).map_err(|e| format!("{e:#}"));
+                if let Ok(clip) = &result {
+                    save_thumbnail(&engine, &clip.path);
+                }
+                result
+            });
+            if let Err(e) = &result {
+                switchboard_log::log!("save failed: {e}");
             }
             let _ = tx.send(Msg::SaveDone(result));
         });
@@ -478,7 +544,7 @@ impl Service {
         self.sync_auto();
         if autostart_changed
             && let Err(e) = set_autostart(self.settings.start_with_windows) {
-                eprintln!("autostart: {e:#}");
+                switchboard_log::log!("autostart: {e:#}");
             }
         if hotkey_changed {
             self.main.set_hotkey(self.settings.hotkey.clone());
@@ -500,8 +566,8 @@ impl Service {
             return;
         }
         match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).arg("--ui").spawn()) {
-            Ok(child) => self.ui_child = Some(child),
-            Err(e) => eprintln!("could not open the window: {e}"),
+            Ok(child) => *self.ui_child = Some(child),
+            Err(e) => switchboard_log::log!("could not open the window: {e}"),
         }
     }
 
@@ -513,6 +579,7 @@ impl Service {
             status: self.engine.as_ref().map(|e| e.status()),
             displays: self.displays.clone(),
             audio_devices: self.audio_devices.clone(),
+            codecs: self.codecs.as_ref().map(|c| c.1.clone()).unwrap_or_default(),
             auto: self.auto.as_ref().map(Auto::status),
             hotkey_error: self.hotkey_error.clone(),
             guide_error: self.guide_error.clone(),
@@ -520,7 +587,15 @@ impl Service {
             service_memory: process_memory().0,
             build: crate::protocol::BUILD.to_string(),
             update: self.updater.status.clone(),
+            ffmpeg: crate::ffmpeg_setup::state(),
         }
+    }
+
+    fn ensure_ffmpeg(&self) {
+        let tx = self.tx.clone();
+        crate::ffmpeg_setup::ensure(move || {
+            let _ = tx.send(Msg::FfmpegChanged);
+        });
     }
 
     fn send_state_to(&mut self, conn: u64) {
@@ -592,7 +667,7 @@ impl Service {
                     let tx = self.tx.clone();
                     let svc_dir = self.settings.clips_dir();
                     std::thread::spawn(move || {
-                        let result = save_window(&engine, &req, &svc_dir);
+                        let result = guarded(|| save_window(&engine, &req, &svc_dir));
                         let _ = tx.send(Msg::AutoSaved(Box::new(req), result));
                     });
                 }
@@ -613,7 +688,7 @@ impl Service {
         match &result {
             Ok(clip) => {
                 if let Some(e) = &clip.cursor_error {
-                    eprintln!("auto capture cursor track not saved: {e}");
+                    switchboard_log::log!("auto capture cursor track not saved: {e}");
                 }
                 if let Some(file) = clip.path.file_name().map(|n| n.to_string_lossy().to_string()) {
                     let markers = req.markers_for(clip.started_unix_ms, (clip.seconds * 1000.0) as u64);
@@ -637,7 +712,7 @@ impl Service {
                 }
                 self.broadcast(Event::ClipSaved { clip: clip.clone() });
             }
-            Err(e) => eprintln!("auto capture save failed: {e}"),
+            Err(e) => switchboard_log::log!("auto capture save failed: {e}"),
         }
         if let Some(a) = &mut self.auto {
             a.record(&req, result.map(|_| ()));
@@ -666,13 +741,21 @@ impl Service {
     fn sync_tray(&self) {
         let replay_on = matches!(self.replay, ReplayState::Running | ReplayState::Starting);
         let tooltip = match &self.replay {
-            ReplayState::Running => format!("Switchboard \u{b7} Instant Replay on ({})", self.settings.hotkey),
+            ReplayState::Running => match self.engine.as_ref().and_then(|e| e.status().app).filter(|a| !a.recording) {
+                Some(app) => format!("Switchboard \u{b7} waiting for {}", app.name),
+                None => format!("Switchboard \u{b7} Instant Replay on ({})", self.settings.hotkey),
+            },
             ReplayState::Starting => "Switchboard \u{b7} starting Instant Replay".into(),
             ReplayState::Off => "Switchboard \u{b7} Instant Replay off".into(),
             ReplayState::Failed { .. } => "Switchboard \u{b7} Instant Replay failed".into(),
         };
         self.main.update_tray(replay_on, tooltip, self.settings.hotkey.clone());
     }
+}
+
+fn guarded(save: impl FnOnce() -> Result<SavedClip, String>) -> Result<SavedClip, String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(save))
+        .unwrap_or_else(|_| Err("Switchboard ran into a problem while saving. Details are in Settings > Diagnostics".into()))
 }
 
 pub fn seconds_label(s: f32) -> String {
