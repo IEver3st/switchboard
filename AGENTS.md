@@ -55,7 +55,7 @@ There is no lint script. `native-release.yml` runs the same build and tests.
 
 Window work: render each changed screen at 1080x720, 1420x900 and 1920x1080 with `target\release\switchboard-rs.exe --review-shot out.png W H 1.0 <scenario>` and look at the PNGs. The service must be running. The installed service locks its own exe, so build to `target\release` and do not run a dev service beside the installed one.
 
-Capture work: run a temporary example and check the saved MP4 with `ffprobe`; decode it with `ffmpeg -f null -` and in the editor's decoder. The per-process GPU counter is unreliable; measure the encoder by encoded frames.
+Capture work: run a temporary example and check the saved MP4 with `ffprobe`; decode it with `ffmpeg -f null -` and in the editor's decoder. The per-process GPU counters are unreliable: measure the encoder by encoded frames. `\GPU Process Memory(*)\Dedicated Usage` counts allocations the process does not own, and it climbs with capture sessions up to the whole adapter's usage, so it is not a leak signal. For GPU memory, use that process's `Local Usage` and `Total Committed`, `IDXGIAdapter3::QueryVideoMemoryInfo` from inside the process, or the drop in `\GPU Adapter Memory(*)\Dedicated Usage` when the service quits.
 
 ## Logs and diagnostics
 
@@ -65,6 +65,7 @@ Capture work: run a temporary example and check the saved MP4 with `ffprobe`; de
 ## Encoders
 
 - MF hardware encoders are tried first. On AMD the MF H.264 and HEVC encoders can accept frames and never emit output; after 1 s of silence the pipeline switches to AMF on the same adapter. A codec that produced zero frames is remembered per adapter for the session and recording falls back to H.264 with a note in Settings.
+- An AMF encoder that reported an error, lost its device, or held frames for over 1 s without output is not terminated. AMD's `Terminate` on a broken encoder can sleep forever or crash in `amdxx64.dll` (seen 2026-11-08). The component, its context and the frames it held are left to the driver instead (about 100 MB VRAM and 850 handles each), and the abandonment is logged. After 2 abandoned encoders, AMF refuses to start until Switchboard restarts, so the 5 s retry can't keep leaking.
 - HEVC and AV1 use 0.7x the H.264 bitrate. Sharing re-encodes them to H.264 because the stream-copy path is H.264 only.
 - HDR displays: WGC delivers FP16 scRGB, which `tonemap.rs` maps to SDR using the display's SDR white level. Verified on a forced path only; no HDR display has been tested.
 

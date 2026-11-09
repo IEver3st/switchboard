@@ -3,13 +3,15 @@ use std::ffi::c_void;
 use std::mem::{offset_of, size_of};
 use std::ptr::null_mut;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::{Result, anyhow, bail};
-use windows::Win32::Graphics::Direct3D11::ID3D11Texture2D;
+use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11Texture2D};
 use windows::Win32::Media::MediaFoundation::{IMFAsyncCallback, IMFDXGIBuffer, IMFSample, IMFTrackedSample};
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LOAD_LIBRARY_SEARCH_SYSTEM32, LoadLibraryExW};
 use windows::core::{GUID, Interface, PCWSTR, s, w};
 
+use crate::clock::{HNS_PER_SECOND, now_hns};
 use crate::gpu::Gpu;
 use crate::video::VideoCodec;
 
@@ -274,14 +276,21 @@ pub(crate) fn supports(gpu: &Gpu, codec: VideoCodec) -> bool {
     }
 }
 
+const UNRESPONSIVE_HNS: i64 = HNS_PER_SECOND;
+const ABANDON_LIMIT: u32 = 2;
+static ABANDONED: AtomicU32 = AtomicU32::new(0);
+
 pub(crate) struct AmfEncoder {
     context: *mut c_void,
     component: *mut c_void,
+    device: ID3D11Device,
     names: Names,
     held: VecDeque<(i64, IMFSample)>,
     full: bool,
     keyframe_interval: u64,
     submitted: u64,
+    failed: Option<i32>,
+    progress_hns: i64,
     pub name: String,
 }
 
@@ -290,15 +299,21 @@ impl AmfEncoder {
         if gpu.vendor_id != AMD_VENDOR_ID {
             bail!("{} is not an AMD graphics card", gpu.adapter_name);
         }
+        if ABANDONED.load(Ordering::Relaxed) >= ABANDON_LIMIT {
+            bail!("AMD's video encoder stopped working {ABANDON_LIMIT} times; restart Switchboard to record again");
+        }
         let factory = factory()?;
         let mut enc = AmfEncoder {
             context: null_mut(),
             component: null_mut(),
+            device: gpu.device.clone(),
             names: names(codec),
             held: VecDeque::new(),
             full: false,
             keyframe_interval: fps.max(1) as u64,
             submitted: 0,
+            failed: None,
+            progress_hns: now_hns(),
             name: format!("AMD AMF {}", codec.label()),
         };
         unsafe {
@@ -405,6 +420,9 @@ impl AmfEncoder {
             release(surface);
             match r {
                 AMF_OK => {
+                    if self.held.is_empty() {
+                        self.progress_hns = now_hns();
+                    }
                     self.submitted += 1;
                     self.held.push_back((time, sample));
                     Ok(true)
@@ -413,7 +431,10 @@ impl AmfEncoder {
                     self.full = true;
                     Ok(false)
                 }
-                r => bail!("AMF SubmitInput failed ({r})"),
+                r => {
+                    self.failed = Some(r);
+                    bail!("AMF SubmitInput failed ({r})")
+                }
             }
         }
     }
@@ -425,7 +446,10 @@ impl AmfEncoder {
             if data.is_null() {
                 return match r {
                     AMF_OK | AMF_REPEAT | AMF_EOF => Ok(()),
-                    r => Err(anyhow!("AMF QueryOutput failed ({r})")),
+                    r => {
+                        self.failed = Some(r);
+                        Err(anyhow!("AMF QueryOutput failed ({r})"))
+                    }
                 };
             }
             let result = unsafe { self.deliver(data, sink) };
@@ -455,13 +479,32 @@ impl AmfEncoder {
                 self.held.pop_front();
             }
             self.full = false;
+            self.progress_hns = now_hns();
             result
         }
+    }
+
+    fn broken(&self) -> Option<String> {
+        if let Some(r) = self.failed {
+            return Some(format!("it reported error {r}"));
+        }
+        if let Err(e) = unsafe { self.device.GetDeviceRemovedReason() } {
+            return Some(format!("the graphics device was lost ({:#010x})", e.code().0));
+        }
+        let quiet = now_hns() - self.progress_hns;
+        (!self.held.is_empty() && quiet > UNRESPONSIVE_HNS)
+            .then(|| format!("it held {} frames without output for {} ms", self.held.len(), quiet / 10_000))
     }
 }
 
 impl Drop for AmfEncoder {
     fn drop(&mut self) {
+        if let Some(why) = self.broken() {
+            switchboard_log::log!("video: {} stopped working ({why}); leaving it to the driver instead of shutting it down", self.name);
+            std::mem::forget(std::mem::take(&mut self.held));
+            ABANDONED.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
         unsafe {
             if !self.component.is_null() {
                 (vtbl::<ComponentVtbl>(self.component).terminate)(self.component);

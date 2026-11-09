@@ -174,7 +174,7 @@ impl Encoder {
         let silent = format!("{} accepted frames but never returned any", mf.name);
         let amf = AmfEncoder::new(&s.gpu, s.codec, s.width, s.height, s.fps, s.bitrate).map_err(|e| {
             switchboard_log::log!("video: {silent}; AMF fallback failed: {e:#}");
-            anyhow!("the graphics driver's video encoder is not responding, and AMD's own encoder could not start")
+            anyhow!("the graphics driver's video encoder is not responding, and AMD's own encoder could not start: {e:#}")
         })?;
         switchboard_log::log!("video: {silent}; switching to {}", amf.name);
         mf.shutdown();
